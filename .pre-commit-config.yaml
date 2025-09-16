@@ -1,0 +1,75 @@
+# Pre-commit hooks for code quality
+# Install: uv run pre-commit install
+# Run: uv run pre-commit run --all-files
+
+repos:
+  # UV lock file updates
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.4.24
+    hooks:
+      - id: uv-lock
+
+  # Ruff - Fast Python linter and formatter (replaces black, isort, flake8, etc.)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # Type checking with mypy
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-PyYAML, types-tqdm, pydantic]
+        args: [--ignore-missing-imports]
+        exclude: ^(tests/|notebooks/)
+
+  # YAML/TOML validation
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-toml
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # Jupyter notebook cleanup
+  - repo: https://github.com/nbQA-dev/nbQA
+    rev: 1.8.7
+    hooks:
+      - id: nbqa-ruff
+        args: [--fix]
+      - id: nbqa-mypy
+        args: [--ignore-missing-imports]
+
+  # Clear Jupyter outputs
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.7.1
+    hooks:
+      - id: nbstripout
+        args: [--strip-empty-cells]
+
+# Local hooks for custom checks
+  - repo: local
+    hooks:
+      - id: no-requirements-txt
+        name: No requirements.txt allowed (use pyproject.toml)
+        entry: 'requirements\.txt'
+        language: pygrep
+        types: [text]
+        exclude: ^(\.git/|docs/)
+
+      - id: makefile-help
+        name: Check Makefile has help target
+        entry: '^help:'
+        language: pygrep
+        files: ^Makefile$
+        pass_filenames: false

@@ -100,6 +100,24 @@ results/
 docs/_build/
 site/
 
+# UV package manager
+uv.lock
+
+# Ruff
+.ruff_cache/
+
+# Mypy
+.mypy_cache/
+dmypy.json
+dmypy.json
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
 # Environment variables
 .env
 .env.local
