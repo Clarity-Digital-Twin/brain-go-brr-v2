@@ -147,3 +147,36 @@ This is the single architecture to build. No branches. No “maybe.”
   4. Hysteresis = models seizure threshold dynamics
 
   SHIP THIS. It's optimal given ALL constraints.
+
+  Yes. We’re in full agreement.
+
+# Final Stack (locked)
+
+**U-Net (1D CNN) → ResCNN (bottleneck) → Bi-Mamba-2 (bidirectional) → U-Net decoder → sigmoid → Hysteresis eventizer → TAES/FA-per-24h**
+
+# Non-negotiables
+
+* **SSOT preprocessing:** 19-ch 10–20 (fixed order), 256 Hz, 0.5–120 Hz BP + 60 Hz notch, per-channel z-score, keep timestamps.
+* **Shapes:** input `(B,19,15360)` (60 s); bottleneck `T_b=960` (×16 down); output per-sample probs @256 Hz.
+* **ResCNN @ bottleneck:** 3 residual 1D conv blocks (k=\[3,5,7], width=512, dropout=0.1).
+* **Bi-Mamba-2:** 6 layers, d\_model=512, d\_state=16, conv\_kernel=5, dropout=0.1; forward+backward, concat→1×1→512.
+* **Decoder:** transposed conv upsampling; skip fusion by **concat + 1×1**; head `1×1→sigmoid`.
+* **Hysteresis:** τ\_on=0.86, τ\_off=0.78, morph open→close (k=5), min\_dur=3.0 s; run **after stitching** the whole recording.
+* **Loss:** weighted BCE + Soft-Dice; boundary tolerance ±1 s around on/offset.
+* **Training target:** early-stop on **dev sensitivity @ 10 FA/24h** (not AUROC).
+* **Scoring (primary):** **TAES** sensitivity vs **FA/24h**; report @ 10, 5, 2.5, 1 FA/24h. (AUROC only secondary.)
+
+# Build order (single path)
+
+1. SSOT preproc → unit tests.
+2. Encoder/Decoder + ResCNN → shape/grad tests.
+3. Bi-Mamba-2 → forward/back concat + 1×1.
+4. Stitcher + Hysteresis Eventizer.
+5. TAES scorer parity check (small subset vs NEDC).
+6. Train with hard-negative mining; stop on dev **sens\@10 FA/24h**.
+
+# Definition of Done
+
+* Reproduces end-to-end per-timestep probs; TAES curve produced; sensitivity reported at 10/5/2.5/1 FA/24h; AUROC sanity; logs and seeds fixed.
+
+Ship it.
