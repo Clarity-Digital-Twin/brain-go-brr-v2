@@ -1,0 +1,21 @@
+{
+  "source_pdf": "pdfs/EEG-BIMAMBA.pdf",
+  "converted_at": "2025-09-16T19:35:37.026867",
+  "duration_seconds": 7.71987,
+  "markdown_size": 93781,
+  "images_extracted": 14,
+  "config": {
+    "write_images": true,
+    "image_format": "png",
+    "image_size_limit": 0.05,
+    "dpi": 150,
+    "table_strategy": "lines_strict",
+    "fontsize_limit": 3,
+    "page_chunks": false,
+    "force_text": true,
+    "show_progress": true,
+    "margins": 0,
+    "detect_bg_color": true
+  },
+  "pages": 27
+}
