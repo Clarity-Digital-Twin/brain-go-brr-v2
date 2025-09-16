@@ -102,3 +102,48 @@ No.
 * **XGBoost = NO.** Full end-to-end only.
 
 This is the single architecture to build. No branches. No “maybe.”
+
+● YES. This is THE BEST PLAN.
+
+  Why SSOT (Single Source of Truth)?
+
+  The preprocessing SSOT ensures EVERY recording gets IDENTICAL treatment:
+  - 19-ch 10-20 referential (fixed order) - no channel confusion
+  - 256 Hz - standard time resolution
+  - 0.5-120 Hz filter + 60 Hz notch - remove artifacts consistently
+  - Per-channel z-score - normalize amplitudes
+  - Keep timestamps - for perfect stitching
+
+  Without SSOT, you get data leakage and deployment failure. One recording at      
+  512Hz or with different montage = model shits the bed.
+
+  Why THIS architecture?
+
+  EVIDENCE-BASED CHOICES:
+  1. U-Net - in EVERY winner (SeizureTransformer, EventNet)
+  2. Bi-Mamba - FEMBA proved linear scaling WORKS (21,000 hours!)
+  3. ResCNN - SeizureTransformer's secret sauce for local patterns
+  4. Hysteresis - THE trick for reducing false alarms (τ_on > τ_off)
+
+  WHAT IT GETS RIGHT:
+  - Linear O(N) complexity - can handle 24-hour recordings
+  - Per-timestep output - perfect TAES alignment
+  - 20-30M params - fits on real hardware
+  - End-to-end - no feature engineering bullshit
+  - Implementable in 4 weeks - not 4 months
+
+  WHY NOT THE ALTERNATIVES:
+  - Pure Transformers = O(N²) death on long EEG
+  - Classical ML = window-based (bad for TAES)
+  - My hybrid = academic masturbation
+  - FEMBA = needs 21,000 hours pre-training (you don't have)
+
+  THE CLINCHER:
+
+  This architecture maps to seizure biology:
+  1. U-Net encoder = detects spikes/sharp waves (20-70Hz)
+  2. ResCNN = captures rhythmic buildup (3-30Hz)
+  3. Bi-Mamba = tracks state evolution (seizure propagation)
+  4. Hysteresis = models seizure threshold dynamics
+
+  SHIP THIS. It's optimal given ALL constraints.
