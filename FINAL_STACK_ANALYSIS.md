@@ -180,3 +180,84 @@ This is the single architecture to build. No branches. No “maybe.”
 * Reproduces end-to-end per-timestep probs; TAES curve produced; sensitivity reported at 10/5/2.5/1 FA/24h; AUROC sanity; logs and seeds fixed.
 
 Ship it.
+
+Short answer: **you’re right—the SeizureTransformer architecture includes BOTH a U-Net CNN *and* a ResCNN stack** (plus a Transformer). Your snippet showed it clearly:
+
+* `Encoder`/`Decoder` ⇒ the **U-Net** (down/upsample with skips)
+* `ResCNNStack` ⇒ the **ResCNN** residual conv blocks at the **bottleneck** (local refinement)
+* `TransformerEncoder` ⇒ long-range temporal context in the bottleneck
+
+So your final plan (U-Net + **ResCNN** + **Bi-Mamba-2** + hysteresis) = “SeizureTransformer but swap the Transformer block for Bi-Mamba-2.” That’s consistent and correct.
+
+If you want **one best PDF per piece** to keep on hand:
+
+* **U-Net + ResCNN layout (reference):** the SeizureTransformer paper (Wu et al., 2025). Use its encoder/decoder + ResCNN bottleneck pattern; we just replace their Transformer with Mamba.
+* **Bi-Mamba/Mamba-2 design (for our bottleneck):** the FEMBA / Bi-Mamba foundation-model paper you uploaded—use its bidirectional Mamba block design and typical dims for our 6-layer, d\_model=512 head.
+* **TAES / event scoring (for evaluation + hysteresis tuning):** Picone/Shah metrics write-up (TAES). That’s the gold standard to target FA/24h and sensitivity.
+
+Bottom line: the agent’s claim stands—**SeizureTransformer has U-Net + ResCNN**. We’re keeping both and just **swap their Transformer for Bi-Mamba-2**, then decode, apply **hysteresis**, and score with **TAES/FA-per-24h**.
+
+Totally fair question. Here’s the clean truth in one pass.
+
+## What “hysteresis” is (for us)
+
+Two thresholds on your probability stream:
+
+* **τ\_on** (higher): start an event only when `p(t) ≥ τ_on`
+* **τ\_off** (lower): stay “in event” until `p(t) < τ_off`
+
+This kills flicker (on/off chatter) and cuts FPs without chopping true events.
+
+## How it fits with standard post-processing
+
+Everyone already does the other three steps:
+
+1. **Single threshold** → binary mask,
+2. **Morphology** (open/close) to remove spikes/fill tiny gaps,
+3. **Min duration** to drop micro-events.
+   SeizureTransformer explicitly describes 1–3 (threshold, morphological open/close, min-duration). We’re adding **hysteresis** as a smarter thresholding step before morphology.  &#x20;
+
+## Do we “need a paper”?
+
+* **SeizureTransformer**: documents threshold + morphology + min-duration, not hysteresis by name. It’s a straightforward extension and standard signal-processing trick. Use their documented steps/params for parity; layer hysteresis on top for stability. &#x20;
+* **NEDC/TAES**: defines how to score events; it doesn’t force how you post-process. Our hysteresis is fully compatible with NEDC scoring.&#x20;
+
+## Minimal implementation (what we’ll code)
+
+```python
+def eventize_with_hysteresis(probs, fs=256, tau_on=0.86, tau_off=0.78,
+                             morph_k=5, min_dur_sec=3.0):
+    # 1) Hysteresis thresholding
+    in_evt = False
+    mask = np.zeros_like(probs, dtype=bool)
+    for t, p in enumerate(probs):
+        if not in_evt and p >= tau_on:
+            in_evt = True
+        if in_evt:
+            mask[t] = True
+            if p < tau_off:
+                in_evt = False
+
+    # 2) Morphological open→close to remove spikes/fill pinholes
+    mask = binary_open(mask, structure=np.ones(morph_k))
+    mask = binary_close(mask, structure=np.ones(morph_k))
+
+    # 3) Enforce minimum duration
+    min_len = int(min_dur_sec * fs)
+    mask = drop_short_runs(mask, min_len)
+
+    # 4) Extract [start, end) event spans from mask
+    return mask_to_spans(mask, fs)
+```
+
+Use the same morphology/min-duration defaults the ST paper used (kernel≈5, min-dur≈2–3 s) and tune τ\_on/τ\_off on dev to hit your FA/24h target. &#x20;
+
+## Why bother
+
+* Reduces “near-threshold chatter” that morphology alone doesn’t always fix.
+* Lets you **raise τ\_on** for precision while **keeping τ\_off lower** so events don’t stutter off—exactly what matters for **FA/24h** and TAES linking.
+
+## TL;DR
+
+* “Hysteresis” = two-threshold start/stop.
+* Literature you can cite for the rest of the chain: **ST** (threshold + morphology + min-duration) and **NEDC/TAES** for event scoring. We implement hysteresis as a pragmatic, well-known stabilization right before those documented steps. &#x20;

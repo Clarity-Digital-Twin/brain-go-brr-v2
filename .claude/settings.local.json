@@ -10,7 +10,8 @@
       "Bash(git push:*)",
       "Bash(git clone:*)",
       "Bash(tmux ls:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
