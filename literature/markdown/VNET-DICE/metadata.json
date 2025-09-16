@@ -1,0 +1,21 @@
+{
+  "source_pdf": "pdfs/VNET-DICE.pdf",
+  "converted_at": "2025-09-16T19:06:08.138270",
+  "duration_seconds": 8.208915,
+  "markdown_size": 26422,
+  "images_extracted": 25,
+  "config": {
+    "write_images": true,
+    "image_format": "png",
+    "image_size_limit": 0.05,
+    "dpi": 150,
+    "table_strategy": "lines_strict",
+    "fontsize_limit": 3,
+    "page_chunks": false,
+    "force_text": true,
+    "show_progress": true,
+    "margins": 0,
+    "detect_bg_color": true
+  },
+  "pages": 11
+}

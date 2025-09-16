@@ -11,7 +11,9 @@
       "Bash(git clone:*)",
       "Bash(tmux ls:*)",
       "Bash(python:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(git restore:*)",
+      "Bash(pandoc:*)"
     ],
     "deny": [],
     "ask": []

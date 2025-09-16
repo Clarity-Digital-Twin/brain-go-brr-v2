@@ -1,0 +1,21 @@
+{
+  "source_pdf": "pdfs/COSINE.pdf",
+  "converted_at": "2025-09-16T19:05:46.104945",
+  "duration_seconds": 4.385085,
+  "markdown_size": 48713,
+  "images_extracted": 22,
+  "config": {
+    "write_images": true,
+    "image_format": "png",
+    "image_size_limit": 0.05,
+    "dpi": 150,
+    "table_strategy": "lines_strict",
+    "fontsize_limit": 3,
+    "page_chunks": false,
+    "force_text": true,
+    "show_progress": true,
+    "margins": 0,
+    "detect_bg_color": true
+  },
+  "pages": 16
+}
