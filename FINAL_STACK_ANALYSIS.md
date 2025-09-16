@@ -274,7 +274,7 @@ All morphology kernel sizes are specified in samples unless otherwise stated.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        SEIZURE DETECTION MVP PIPELINE                        │
+│                        SEIZURE DETECTION MVP PIPELINE                       │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 RAW EDF ──▶ PREPROCESSING ──▶ WINDOWING ──▶ MODEL ──▶ STITCHING ──▶ POST-PROC ──▶ EVENTS
