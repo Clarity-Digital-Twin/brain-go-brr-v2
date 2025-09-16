@@ -9,7 +9,8 @@
       "Bash(git remote set-url:*)",
       "Bash(git push:*)",
       "Bash(git clone:*)",
-      "Bash(tmux ls:*)"
+      "Bash(tmux ls:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []
