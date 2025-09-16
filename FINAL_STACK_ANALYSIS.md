@@ -1,191 +1,104 @@
-# CRITICAL STACK ANALYSIS: Which Architecture for Seizure Detection?
+Got it. Here’s the **final, single-stack spec**—no options, no ensembles, no hand-waving.
 
-## THE CONTENDERS
+# FINAL STACK (commit this)
 
-### 1. MAYBE_STACK (U-Net + Bi-Mamba + Hysteresis)
-**Strengths:**
-- **LINEAR TIME COMPLEXITY** - O(N) vs O(N²) of transformers
-- **Hysteresis decoding** - mimics clinical decision making (commit later, release later)
-- **Proven U-Net for morphology** - captures spikes, rhythmic patterns
-- **Bi-Mamba for long context** - handles minute-scale patterns without memory explosion
-- **20-30M params** - deployable on edge devices
-- **Direct TAES alignment** - per-sample predictions at 256Hz
+**U-Net (1D CNN) → ResCNN stack (local boost) → Bi-Mamba-2 bottleneck (long context) → U-Net decoder → sigmoid → HYSTERESIS eventizer → TAES/FA-24h**
 
-**Weaknesses:**
-- Mamba is relatively new (less proven in production)
-- Limited interpretability compared to attention mechanisms
-- May miss very subtle cross-channel interactions
+## What’s in / what’s out
 
-### 2. SEIZURE_ML_STACK_DESIGN (My Hybrid Proposal)
-**Strengths:**
-- Comprehensive multi-scale processing
-- Ensemble robustness
-- Patient-specific adaptation capability
-- Extensive feature engineering pipeline
+* **IN:** U-Net(1D), **ResCNN** at the bottleneck, **Bi-Mamba-2**, **Hysteresis** decoding, TAES scoring.
+* **OUT:** XGBoost, classical features, attention Transformers, voting/ensembles.
 
-**Weaknesses:**
-- **OVERCOMPLICATED** - too many components
-- Would take months to implement properly
-- High computational cost
-- Risk of overfitting with so many modules
+## “Is ResCNN the same as U-Net?”
 
-### 3. PYSEIZURE (Classical Ensemble)
-**Strengths:**
-- **PROVEN CROSS-DATASET GENERALIZATION** (CHB-MIT ↔ TUSZ)
-- Multiple classifiers voting = robustness
-- SHAP explainability
-- Relatively simple to implement
-- Good baseline performance (AUC 0.904)
+No.
 
-**Weaknesses:**
-- **Window-based** not time-step level (bad for TAES)
-- Requires extensive feature engineering
-- Lower ceiling on performance
-- Not end-to-end differentiable
-
-### 4. SeizureTransformer (Competition Winner)
-**Strengths:**
-- **WON 2025 CHALLENGE** - proven in blind evaluation
-- Time-step level predictions (TAES aligned!)
-- Fast inference (3.98s per hour)
-- U-Net + Transformer proven combo
-- Published code available
-
-**Weaknesses:**
-- **QUADRATIC COMPLEXITY** - O(N²) for attention
-- Memory hungry for long sequences
-- May struggle with very long recordings
-- Requires significant GPU resources
-
-### 5. BI-MAMBA/FEMBA (Foundation Model)
-**Strengths:**
-- **MASSIVE PRE-TRAINING** (21,000 hours of EEG!)
-- Linear complexity like MAYBE_STACK
-- Tiny variant (7.8M) works on edge
-- Strong results (0.918 AUROC on TUAR)
-- Bidirectional processing
-
-**Weaknesses:**
-- Requires massive pre-training dataset
-- Complex self-supervised setup
-- Not specifically optimized for seizure detection
-- May be overkill for focused task
+* **U-Net** = encoder–decoder with skips (multi-scale morphology).
+* **ResCNN** = a **small stack of residual 1D conv blocks** placed **at the bottleneck** to sharpen local patterns **before** the Mamba temporal modeling. They’re complementary.
 
 ---
 
-## THE HARD TRUTH
+# Wire-up (one pass)
 
-Looking at the evidence:
+1. **Encoder (U-Net 1D)**
 
-1. **SeizureTransformer ACTUALLY WON** a real competition with blind data
-2. **PYSEIZURE showed REAL cross-dataset transfer** (critical for clinical use)
-3. **BI-MAMBA/FEMBA proved linear scaling WORKS** at foundation scale
-4. **MAYBE_STACK combines the BEST IDEAS** in a focused way
+   * Downsample ×16 total (4 stages). Channels `[64,128,256,512]`.
+   * Blocks: depthwise-sep Conv1d(k=5) → GroupNorm → SiLU → 1×1 (residual).
+   * Save pre-downsample outputs as **skip** tensors.
 
-## MY VERDICT: GO WITH MAYBE_STACK (Modified)
+2. **ResCNN stack (local boost) — bottleneck**
 
-### Why?
+   * 3 residual blocks, kernels `[3,5,7]`, width 512, dropout 0.1.
+   * (Still shape `(B, 512, T_b)` where `T_b = 15360/16 = 960`).
 
-1. **It's RIGHT-SIZED** - Not overengineered like my proposal, not underengineered like classical ML
+3. **Bi-Mamba-2 (temporal brain) — bottleneck**
 
-2. **MAMBA IS THE FUTURE** - Linear complexity is non-negotiable for continuous monitoring. Transformers will hit a wall with 24-hour recordings.
+   * **6 layers**, `d_model=512`, `d_state=16`, conv\_kernel=5, dropout=0.1.
+   * Run **forward** and **backward** streams; **concat** (→ 1024) → **1×1** back to 512.
+   * Output `(B, 512, T_b)`.
 
-3. **HYSTERESIS IS GENIUS** - This single trick probably accounts for much of real-world performance
+4. **Decoder (U-Net up path)**
 
-4. **U-Net ALWAYS WORKS** - Every winning architecture has U-Net bones (SeizureTransformer, EventNet, etc.)
+   * 4× `ConvTranspose1d(k=4, stride=2, pad=1)` to return to T=15360.
+   * **Skip fusion:** **concat** encoder skip + current map → depthwise-sep Conv(k=5) → GN → SiLU → 1×1 (residual).
 
-5. **FOCUSED ON WHAT MATTERS** - TAES scoring and FA/24h, not chasing AUROC
+5. **Head**
 
-### BUT with these modifications from the literature:
+   * `Conv1d(512→1, k=1)` → **sigmoid** → per-sample probs `(B, T)` at **256 Hz**.
 
-```python
-class OptimalStack:
-    """The real winner based on all evidence"""
+6. **Hysteresis eventizer (global, after stitching)**
 
-    def __init__(self):
-        # Core from MAYBE_STACK
-        self.encoder = UNet1D(skip_connections=True)
-        self.bottleneck = BiMamba2(
-            layers=6,  # As in MAYBE_STACK
-            d_model=512,
-            bidirectional=True
-        )
-        self.decoder = UNet1DDecoder()
+   * **τ\_on = 0.86**, **τ\_off = 0.78** (τ\_on > τ\_off).
+   * Morphological **open→close** with kernel **k=5** samples.
+   * **min\_dur ≥ 3.0 s**; drop shorter.
 
-        # Key addition from SeizureTransformer
-        self.res_cnn = ResidualCNNStack(
-            kernels=[3, 5, 7],  # Multi-scale local patterns
-            before_bottleneck=True
-        )
+7. **Scoring (primary)**
 
-        # Key addition from PYSEIZURE
-        self.auxiliary_head = XGBoostHead(
-            features=['power_spectral', 'zero_crossings'],
-            weight=0.2  # Light ensemble for robustness
-        )
-
-        # Keep MAYBE_STACK's hysteresis exactly
-        self.eventizer = HysteresisEventizer(
-            tau_on=0.86,
-            tau_off=0.78,
-            min_duration=3.0
-        )
-```
-
-### Implementation Priority:
-
-1. **Week 1**: Get MAYBE_STACK core working exactly as specified
-2. **Week 2**: Add SeizureTransformer's ResCNN for local patterns
-3. **Week 3**: Add light XGBoost head for robustness
-4. **Week 4**: Validate on CHB-MIT → TUSZ transfer
+   * **TAES sensitivity vs FA/24h**; report sens @ **10, 5, 2.5, 1 FA/24h**.
+   * (AUROC on raw probs only as secondary sanity.)
 
 ---
 
-## THE BIOLOGICAL ALIGNMENT
+# Shapes & counts (so it’s unambiguous)
 
-MAYBE_STACK actually maps to seizure biology better than transformers:
-
-1. **U-Net encoder** = Captures fast ripples and spikes (local)
-2. **Bi-Mamba** = Tracks seizure state evolution (global)
-3. **Hysteresis** = Models seizure threshold dynamics
-4. **Per-timestep** = Matches continuous neural activity
-
-Transformers treat everything as "attention" which isn't how seizures work. Seizures are **state transitions** with **memory** - exactly what SSMs model!
+* Input window: `(B, C=19, T=15360)` (60 s @ 256 Hz), stride **10 s**.
+* Bottleneck length: `T_b=960`.
+* Params: \~**20–30M** (fits 8–12 GB VRAM comfortably with AMP).
+* Return stitched full-timeline probs, then hysteresis/eventize **once per recording** (not per window).
 
 ---
 
-## FINAL RECOMMENDATION
+# Loss / training (kept tight)
 
-**USE MAYBE_STACK AS THE FOUNDATION**
-
-It's:
-- Scientifically sound (SSM matches neural dynamics)
-- Computationally efficient (linear scaling)
-- Clinically aligned (TAES + hysteresis)
-- Right-sized (20-30M params)
-- Implementable in 4 weeks
-
-The only risk is Mamba being newer, but FEMBA's results prove it works at scale.
-
-Don't overthink it. The community is converging on:
-**U-Net + Efficient Sequence Model + Smart Decoding**
-
-MAYBE_STACK nails all three. Ship it.
+* **Loss:** Weighted **BCE** + **Soft Dice** on binarized probs; label **tolerance ±1 s** at on/off boundaries.
+* **Sampler:** 50% ictal windows, 50% background + **hard-negative mining** of prior FPs.
+* **Optim:** AdamW (lr 3e-4, wd 0.05), cosine schedule (10% warmup), grad-clip 1.0, **AMP on**.
+* **Early stop target:** **dev sensitivity @ 10 FA/24h** (not AUROC).
 
 ---
 
-## Appendix: Why Not the Others?
+# Preprocessing (SSOT)
 
-- **My proposal**: Academic masturbation. Would never finish implementing.
-- **Pure PYSEIZURE**: Window-based is dead for TAES. Full stop.
-- **Pure SeizureTransformer**: O(N²) is dead for 24-hour EEG. Full stop.
-- **Pure FEMBA**: Foundation model for focused task = using a sledgehammer on a nail.
+* **Montage:** fixed **19-ch 10–20 referential** (assert order).
+* **Resample:** **256 Hz**.
+* **Filter:** 0.5–120 Hz (3rd-order Butterworth) + 60 Hz notch.
+* **Normalize:** per-channel z-score over the **full recording**.
+* Keep `start_sample` for stitching.
 
-The winner is the one that **respects the constraints**:
-1. Must handle long sequences (Mamba ✓)
-2. Must preserve local morphology (U-Net ✓)
-3. Must output per-timestep (✓)
-4. Must be implementable (✓)
-5. Must reduce false alarms (Hysteresis ✓)
+---
 
-MAYBE_STACK hits all five. Case closed.
+# Hard “do nots”
+
+* **No XGBoost/feature ensembles.** They complicate calibration and break end-to-end training; they don’t help TAES at the operating points we care about.
+* **No gap-merge** in NEDC runs (use it only for SzCORE comparisons, clearly labeled).
+* **No per-window hysteresis.** Hysteresis is **global** after stitching.
+
+---
+
+## TL;DR (answering your exact confusion)
+
+* **Final stack =** **U-Net(1D) + small ResCNN at the bottleneck + Bi-Mamba-2 + Hysteresis**.
+* **ResCNN ≠ U-Net;** it’s extra residual convs **inside** the bottleneck (we keep it).
+* **XGBoost = NO.** Full end-to-end only.
+
+This is the single architecture to build. No branches. No “maybe.”
