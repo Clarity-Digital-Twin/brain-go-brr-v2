@@ -22,8 +22,8 @@
 2. **Resampling:** Downsample/upsample to 256 Hz
 3. **Filtering:**
    - Bandpass: 0.5-120 Hz (3rd-order Butterworth)
-   - Notch: 60 Hz (remove power line noise)
-4. **Normalization:** Per-channel z-score computed over full recording
+   - Notch: 60 Hz (default) or 50 Hz where applicable (remove power line noise). Assert mains frequency ∈ {50, 60} per dataset.
+4. **Normalization:** Per-channel z-score computed over full recording. If full-record statistics are impractical in-memory, compute via a streaming method (e.g., Welford’s algorithm) for numerically stable single-pass mean/variance.
 5. **Metadata:** Preserve `start_sample` timestamps for stitching
 
 ### Window Extraction
@@ -79,6 +79,7 @@ Input (B,19,15360) → U-Net Encoder → ResCNN → Bi-Mamba-2 → U-Net Decoder
   4. Project: 1×1 Conv back to 512 channels
 - **Dropout:** 0.1
 - **Output shape:** `(B, 512, 960)`
+  - **Residual:** Add a residual connection from the pre-Mamba bottleneck features to the projected output.
 
 ### 2.4 U-Net Decoder (Multi-scale Reconstruction)
 **Purpose:** Upsample to original temporal resolution with skip connections
@@ -103,7 +104,7 @@ Input (B,19,15360) → U-Net Encoder → ResCNN → Bi-Mamba-2 → U-Net Decoder
 ## 3. POST-PROCESSING PIPELINE
 
 ### 3.1 Window Stitching
-- **Method:** Overlap-average in 50-second overlapping regions
+- **Method:** Uniform overlap-average over 50-second overlapping regions. For each time step, average predictions from all windows covering that time step. Edges are handled naturally by averaging over the available contributing windows only.
 - **Result:** Continuous probability stream for entire recording
 
 ### 3.2 Hysteresis Thresholding
@@ -122,11 +123,14 @@ Input (B,19,15360) → U-Net Encoder → ResCNN → Bi-Mamba-2 → U-Net Decoder
           if prob < 0.78:
               in_event = False
   ```
+  Note: Hysteresis alone stops immediately upon crossing τ_off; the subsequent morphological closing (Section 3.3) can fill brief sub-threshold dips. We still apply opening first, then closing.
 
 ### 3.3 Morphological Operations
-- **Opening:** Remove isolated spikes (kernel_size=5)
-- **Closing:** Fill small gaps (kernel_size=5)
+- **Opening:** Remove isolated spikes (kernel_size=5 samples ≈ 20 ms @ 256 Hz)
+- **Closing:** Fill small gaps (kernel_size=5 samples ≈ 20 ms @ 256 Hz)
 - **Order:** Open first, then close
+
+All morphology kernel sizes are specified in samples unless otherwise stated.
 
 ### 3.4 Duration Filtering
 - **Minimum duration:** 3.0 seconds
@@ -147,7 +151,7 @@ Input (B,19,15360) → U-Net Encoder → ResCNN → Bi-Mamba-2 → U-Net Decoder
 
 ### Data Sampling Strategy
 - **Balance:** 50% seizure windows, 50% background
-- **Hard negative mining:** Include top-K false positives from previous epoch
+- **Hard negative mining:** Include top-K false positives mined on the dev set from the previous epoch; maintain 50/50 per batch via reweighting or controlled sampling.
 - **Augmentation:** None (maintain signal integrity)
 
 ### Optimization
@@ -232,7 +236,7 @@ Input (B,19,15360) → U-Net Encoder → ResCNN → Bi-Mamba-2 → U-Net Decoder
 ### Post-processing Parameters
 - **τ_on:** 0.86
 - **τ_off:** 0.78
-- **Morphological kernel:** 5 samples
+- **Morphological kernel:** 5 samples (≈20 ms @ 256 Hz)
 - **Minimum duration:** 3.0 seconds
 
 ### Training Parameters
@@ -309,26 +313,26 @@ EVALUATION:                                    ▼
 
 ## 10. DEFINITION OF DONE
 
-The system is production-ready when ALL conditions are met:
+All of the following must be satisfied to ship:
 
 ### Functional Requirements
-- [x] Architecture matches specification exactly
-- [x] Preprocessing SSOT enforced with assertions
-- [x] Model produces per-timestep probabilities @ 256 Hz
-- [x] Post-processing runs globally after stitching
-- [x] TAES evaluation implemented and verified
+- Architecture matches specification exactly
+- Preprocessing SSOT enforced with assertions
+- Model produces per-timestep probabilities @ 256 Hz
+- Post-processing runs globally after stitching
+- TAES evaluation implemented and verified
 
 ### Performance Requirements
-- [x] Sensitivity @ 10 FA/24h meets target
-- [x] O(N) scaling verified on 24-hour recordings
-- [x] Inference fits in 8-12GB VRAM
-- [x] Deterministic results (±0.1% variance)
+- Sensitivity @ 10 FA/24h meets target
+- O(N) scaling verified on 24-hour recordings
+- Inference fits in 8-12GB VRAM
+- Deterministic results (±0.1% variance)
 
 ### Quality Requirements
-- [x] Unit tests pass for all components
-- [x] NEDC scorer parity achieved
-- [x] False positive audit completed
-- [x] Documentation complete and accurate
+- Unit tests pass for all components
+- NEDC scorer parity achieved
+- False positive audit completed
+- Documentation complete and accurate
 
 ---
 
