@@ -1,0 +1,44 @@
+# Example configuration with linear model
+# Simple baseline for MNIST classification
+
+data:
+  dataset: mnist
+  batch_size: 256
+  validation_split: 0.1
+  num_workers: 2
+  shuffle: true
+  pin_memory: false
+  download: true
+
+model:
+  name: linear
+  input_size: 784  # 28x28 flattened
+  num_classes: 10
+  bias: true
+
+training:
+  epochs: 20
+  learning_rate: 0.01
+  optimizer: sgd
+  momentum: 0.9
+  weight_decay: 0.0001
+  scheduler: null
+
+evaluation:
+  metrics: [accuracy]
+  save_predictions: false
+  save_confusion_matrix: true
+
+experiment:
+  name: "mnist_linear_baseline"
+  description: "Simple linear baseline for MNIST"
+  random_seed: 42
+  device: cpu  # Linear model is fast enough on CPU
+  cache_dir: cache
+  log_level: INFO
+  save_model: true
+  
+logging:
+  log_every_n_steps: 50
+  log_gradients: false
+  log_weights: false

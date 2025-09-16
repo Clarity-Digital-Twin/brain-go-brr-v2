@@ -1,0 +1,72 @@
+# Production configuration for MNIST classification
+# This config is optimized for full training and best performance
+
+data:
+  dataset: mnist
+  batch_size: 128
+  validation_split: 0.1
+  num_workers: 4
+  shuffle: true
+  pin_memory: true
+  download: true
+
+model:
+  name: cnn
+  input_channels: 1
+  num_classes: 10
+  channels: [32, 64, 128]
+  kernel_size: 3
+  dropout: 0.2
+  batch_norm: true
+
+training:
+  epochs: 50
+  learning_rate: 0.001
+  optimizer: adam
+  weight_decay: 0.0001
+  scheduler:
+    name: reduce_lr_on_plateau
+    factor: 0.5
+    patience: 5
+    min_lr: 0.00001
+  early_stopping:
+    patience: 10
+    min_delta: 0.0001
+
+evaluation:
+  metrics: [accuracy, f1_macro, f1_micro, precision, recall]
+  save_predictions: true
+  save_confusion_matrix: true
+  save_per_class_metrics: true
+
+experiment:
+  name: "mnist_production_cnn"
+  description: "Production CNN training on full MNIST dataset"
+  random_seed: 42
+  device: auto
+  cache_dir: cache
+  log_level: INFO
+  save_model: true
+  save_best_only: true
+  
+logging:
+  log_every_n_steps: 100
+  log_gradients: false
+  log_weights: false
+  
+# Additional production settings
+data_augmentation:
+  enabled: true
+  rotation_degrees: 10
+  translation: 0.1
+  scale: [0.9, 1.1]
+
+regularization:
+  label_smoothing: 0.1
+  mixup_alpha: 0.2
+
+# Resource management for cluster/HPC
+resources:
+  max_memory_gb: 16
+  distributed: false
+  mixed_precision: true

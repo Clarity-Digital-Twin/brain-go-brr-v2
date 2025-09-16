@@ -1,0 +1,49 @@
+# Local development configuration for MNIST classification
+# This config is optimized for fast iteration and testing
+
+data:
+  dataset: mnist
+  batch_size: 64
+  validation_split: 0.1
+  num_workers: 2
+  shuffle: true
+  pin_memory: false
+  download: true
+
+model:
+  name: mlp
+  input_size: 784  # 28x28 flattened
+  hidden_size: 128
+  num_layers: 2
+  num_classes: 10
+  dropout: 0.1
+  activation: relu
+
+training:
+  epochs: 5  # Few epochs for fast development
+  learning_rate: 0.001
+  optimizer: adam
+  weight_decay: 0.0001
+  scheduler: null
+  early_stopping:
+    patience: 3
+    min_delta: 0.001
+
+evaluation:
+  metrics: [accuracy, f1_macro]
+  save_predictions: false
+  save_confusion_matrix: true
+
+experiment:
+  name: "mnist_local_dev"
+  description: "Local development run with MLP"
+  random_seed: 42
+  device: auto  # auto-detect GPU/CPU
+  cache_dir: cache
+  log_level: INFO
+  save_model: false  # Don't save models during development
+  
+logging:
+  log_every_n_steps: 10
+  log_gradients: false
+  log_weights: false

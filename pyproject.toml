@@ -1,0 +1,182 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "seizure-detection-mamba"
+dynamic = ["version"]
+description = "Seizure detection using U-Net + ResCNN + Bi-Mamba-2 for O(N) EEG processing"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Clarity Digital Twin Team", email = "team@clarity.ai"},
+]
+keywords = ["machine learning", "research", "template", "reproducibility"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    # Core framework dependencies
+    "pydantic>=2.0.0",
+    "exca>=0.1.0",
+    "pyyaml>=6.0.0",
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    
+    # Data science and ML
+    "numpy>=1.21.0",
+    "pandas>=1.5.0",
+    "scikit-learn>=1.3.0",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    
+    # Visualization
+    "matplotlib>=3.5.0",
+    "seaborn>=0.11.0",
+    
+    # Utilities
+    "tqdm>=4.64.0",
+    "pathlib>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-black>=0.3.12",
+    "pytest-isort>=3.1.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+]
+notebooks = [
+    "jupyter>=1.0.0",
+    "ipykernel>=6.0.0",
+    "nbformat>=5.0.0",
+    "ipywidgets>=8.0.0",
+]
+docs = [
+    "mkdocs>=1.4.0",
+    "mkdocs-material>=9.0.0",
+    "mkdocstrings[python]>=0.20.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/research-project-template"
+Repository = "https://github.com/yourusername/research-project-template.git"
+Issues = "https://github.com/yourusername/research-project-template/issues"
+
+[project.scripts]
+run-experiment = "src.cli:main"
+
+[tool.hatch.version]
+path = "src/experiment/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/configs",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config --black --isort"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py310']
+include = '\.pyi?$'
+extend-exclude = '''
+# A regex preceded by ^/ will apply only to files and directories
+# in the root of the project.
+(
+  ^/cache/          # exclude cache directory
+  | ^/data/         # exclude data directory  
+  | ^/results/      # exclude results directory
+)
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["experiment"]
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E203", "W503"]
+exclude = [
+    ".git",
+    "__pycache__",
+    "cache",
+    "data",
+    "results",
+    ".pytest_cache",
+    ".mypy_cache",
+]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "exca.*",
+    "torch.*", 
+    "torchvision.*",
+    "matplotlib.*",
+    "seaborn.*",
+]
+ignore_missing_imports = true
