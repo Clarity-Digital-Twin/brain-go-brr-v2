@@ -95,6 +95,124 @@ No.
 
 ---
 
+# MVP PIPELINE DIAGRAM (NO BULLSHIT)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                              SEIZURE DETECTION MVP PIPELINE                         │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────┐       ┌──────────────────────────────────────────────────┐
+│  RAW EDF     │       │                PREPROCESSING                     │
+│              │       │                                                  │
+│ Multi-channel│─────▶│  • Load 19-ch 10-20 montage (fixed order)         │
+│   EEG data   │       │  • Resample to 256 Hz                            │
+│              │       │  • Bandpass 0.5-120 Hz + 60 Hz notch             │
+└──────────────┘       │  • Per-channel z-score (full recording)          │
+                       │  • Keep timestamps for stitching                 │
+                       └────────────────────┬─────────────────────────────┘
+                                            │
+                                            ▼
+                       ┌──────────────────────────────────────────────────┐
+                       │              WINDOW EXTRACTION                   │
+                       │                                                  │
+                       │  • 60-second windows (15360 samples @ 256 Hz)    │
+                       │  • 10-second stride (50-second overlap)          │
+                       │  • Shape: (B, 19, 15360)                         │
+                       └────────────────────┬─────────────────────────────┘
+                                            │
+                                            ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                              DEEP LEARNING MODEL                                    │
+│                                                                                     │
+│  ┌───────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐   │
+│  │   Encoder     │───▶│   Stack      │────▶│  Bottleneck  │───▶│   Decoder    │   │
+│  │               │     │              │     │              │     │              │   │
+│  │ • 4 stages    │     │ • 3 blocks   │     │ • 6 layers   │     │ • 4 stages   │   │
+│  │ • ×16 down    │     │ • k=[3,5,7]  │     │ • d_model=   │     │ • ×16 up     │   │
+│  │ • Skip conn.  │     │ • width=512  │     │   512        │     │ • Skip fuse  │   │
+│  │               │     │              │     │ • Bi-dir     │     │              │   │
+│  └───────────────┘     └──────────────┘     └──────────────┘     └──────┬───────┘   │
+│                                                                         │           │
+│                       Bottleneck: (B, 512, 960)                         ▼           │
+│                                                                   ┌──────────────┐  │
+│                                                                   │   Sigmoid    │  │
+│                                                                   │    Head      │  │
+│                                                                   │              │  │
+│                                                                   │ Conv1d→1→σ   │  │
+│                                                                   └──────┬───────┘  │
+└──────────────────────────────────────────────────────────────────────────┼──────────┘
+                                                                           │
+                                                                           ▼
+                       ┌──────────────────────────────────────────────────────────┐
+                       │           WINDOW PROBABILITIES                           │
+                       │                                                          │
+                       │  • Per-timestep probs @ 256 Hz                           │
+                       │  • Shape: (B, 15360) for each window                     │
+                       └────────────────────┬─────────────────────────────────────┘
+                                           │
+                                           ▼
+                       ┌──────────────────────────────────────────────────┐
+                       │              STITCHING                           │
+                       │                                                  │
+                       │  • Overlap-average 50s overlapping regions       │
+                       │  • Reconstruct full recording timeline           │
+                       │  • Output: continuous probs @ 256 Hz             │
+                       └────────────────────┬─────────────────────────────┘
+                                           │
+                                           ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                           POST-PROCESSING (GLOBAL)                                  │
+│                                                                                     │
+│  ┌──────────────────┐     ┌──────────────────┐     ┌────────────────────────────┐   │
+│  │   Hysteresis     │     │  Morphological   │     │    Duration Filter         │   │ 
+│  │   Threshold      │───▶│    Operations    │────▶│                            │   │
+│  │                  │     │                  │     │  • min_dur ≥ 3.0s          │   │
+│  │ • τ_on = 0.86    │     │ • Open (k=5)     │     │  • Drop short events       │   │
+│  │ • τ_off = 0.78   │     │ • Close (k=5)    │     │                            │   │
+│  └──────────────────┘     └──────────────────┘     └────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                           │
+                                           ▼
+                       ┌──────────────────────────────────────────────────┐
+                       │              EVENT EXTRACTION                    │
+                       │                                                  │
+                       │  • Binary mask → event spans                     │
+                       │  • Format: [(start_sec, end_sec), ...]           │
+                       └────────────────────┬─────────────────────────────┘
+                                           │
+                                           ▼
+                       ┌──────────────────────────────────────────────────┐
+                       │           EVALUATION (TAES/NEDC)                 │
+                       │                                                  │
+                       │  • Time-Aligned Event Scoring (TAES)             │
+                       │  • Report sensitivity @ FA/24h:                  │
+                       │    - 10 FA/24h (primary)                         │
+                       │    - 5, 2.5, 1 FA/24h                            │
+                       │  • AUROC (secondary sanity check)                │
+                       └──────────────────────────────────────────────────┘
+
+TRAINING LOOP
+─────────────
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│   Balanced   │────▶│   Forward   │────▶│   Loss       │───▶│  Backprop    │
+│   Sampler    │     │   Pass       │     │   Compute    │     │  & Update    │
+│              │     │              │     │              │     │              │
+│ • 50% ictal  │     │ • AMP on     │     │ • BCE+Dice   │     │ • AdamW      │
+│ • 50% bg     │     │ • Batch 16   │     │ • Boundary   │     │ • lr=3e-4    │
+│ • Hard neg   │     │              │     │   tolerance  │     │ • Clip=1.0   │
+└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
+                                                                       │
+                                                                       ▼
+                                                            ┌──────────────────┐
+                                                            │   Early Stop     │
+                                                            │                  │
+                                                            │ Dev sens@10FA/24h│
+                                                            └──────────────────┘
+```
+
+---
+
 ## TL;DR (answering your exact confusion)
 
 * **Final stack =** **U-Net(1D) + small ResCNN at the bottleneck + Bi-Mamba-2 + Hysteresis**.
