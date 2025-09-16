@@ -7,7 +7,8 @@
       "Bash(chmod:*)",
       "Bash(git check-ignore:*)",
       "Bash(git remote set-url:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git clone:*)"
     ],
     "deny": [],
     "ask": []

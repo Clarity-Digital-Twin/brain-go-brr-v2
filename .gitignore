@@ -125,3 +125,6 @@ literature/pdfs/
 *.pdf
 *.docx
 *.doc
+
+# Reference repositories (for brainstorming only)
+reference_repos/
