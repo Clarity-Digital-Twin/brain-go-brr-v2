@@ -172,7 +172,7 @@ class SchedulerConfig(BaseModel):
 class EarlyStoppingConfig(BaseModel):
     """Early stopping configuration."""
 
-    patience: int = Field(ge=1, le=50, description="Patience epochs")
+    patience: int = Field(default=5, ge=1, le=50, description="Patience epochs")
     metric: str = Field(
         default="sensitivity_at_10fa",
         description="Metric to monitor (e.g., sensitivity_at_10fa)",
@@ -195,7 +195,7 @@ class TrainingConfig(BaseModel):
         default=1.0, ge=0.0, description="Gradient clipping value (0 = disabled)"
     )
     mixed_precision: bool = Field(default=True, description="Use automatic mixed precision (AMP)")
-    early_stopping: EarlyStoppingConfig = Field(default_factory=EarlyStoppingConfig)  # type: ignore[arg-type]
+    early_stopping: EarlyStoppingConfig = Field(default_factory=EarlyStoppingConfig)
 
 
 class EvaluationConfig(BaseModel):
