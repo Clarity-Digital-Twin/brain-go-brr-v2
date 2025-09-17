@@ -225,7 +225,7 @@ class ResCNNBlock(nn.Module):
         fused = self.fusion(multi_scale)
         output = self.relu(fused + x)  # Residual connection
 
-        return output
+        return output  # type: ignore[no-any-return]
 
 
 class ResCNNStack(nn.Module):
@@ -269,5 +269,7 @@ class ResCNNStack(nn.Module):
 
         With kernel 7 and 3 blocks: 7 + 6 + 6 = 19 samples
         """
-        max_kernel = max(self.blocks[0].kernel_sizes)
+        # Access kernel_sizes attribute directly from first block
+        first_block: ResCNNBlock = self.blocks[0]  # type: ignore[assignment]
+        max_kernel: int = max(first_block.kernel_sizes)
         return max_kernel + (self.num_blocks - 1) * (max_kernel - 1)
