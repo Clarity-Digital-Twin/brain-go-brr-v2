@@ -107,10 +107,10 @@ class UNetEncoder(nn.Module):
             in_ch = channels[0] if i == 0 else channels[i - 1]
             out_ch = channels[i]
 
-            # Double convolution block (allows channel growth per stage)
+            # Double convolution block (channels can grow); kernel_size=5 to match schemas
             self.encoder_blocks.append(nn.Sequential(
-                ConvBlock(in_ch, out_ch),
-                ConvBlock(out_ch, out_ch)
+                ConvBlock(in_ch, out_ch, kernel_size=5, padding=2),
+                ConvBlock(out_ch, out_ch, kernel_size=5, padding=2)
             ))
 
             # Downsample to next resolution (keep channel count the same)
@@ -242,7 +242,7 @@ class BiMamba2Layer(nn.Module):
         self,
         d_model: int = 512,
         d_state: int = 16,
-        d_conv: int = 4,
+        d_conv: int = 5,
         expand: int = 2,
         dropout: float = 0.1
     ):
@@ -389,21 +389,29 @@ class SeizureDetectorV2(nn.Module):
         encoder_depth: int = 4,
         mamba_layers: int = 6,
         mamba_d_state: int = 16,
+        mamba_d_conv: int = 5,
         rescnn_blocks: int = 3,
+        rescnn_kernels: List[int] = None,
         dropout: float = 0.1
     ):
         super().__init__()
+
+        # Default kernel sizes if not provided
+        if rescnn_kernels is None:
+            rescnn_kernels = [3, 5, 7]
 
         # Components
         self.encoder = UNetEncoder(in_channels, base_channels, encoder_depth)
         self.rescnn = ResCNNStack(
             channels=base_channels * (2 ** (encoder_depth - 1)),  # 512
             num_blocks=rescnn_blocks,
+            kernel_sizes=rescnn_kernels,
             dropout=dropout
         )
         self.mamba = BiMamba2(
             d_model=base_channels * (2 ** (encoder_depth - 1)),  # 512
             d_state=mamba_d_state,
+            d_conv=mamba_d_conv,
             num_layers=mamba_layers,
             dropout=dropout
         )

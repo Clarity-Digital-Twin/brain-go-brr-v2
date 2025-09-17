@@ -60,7 +60,7 @@ class BiMamba2Layer(nn.Module):
         self,
         d_model: int = 512,
         d_state: int = 16,
-        d_conv: int = 4,
+        d_conv: int = 5,
         expand: int = 2,
         dropout: float = 0.1
     ):
@@ -138,7 +138,7 @@ class BiMamba2(nn.Module):
         self,
         d_model: int = 512,
         d_state: int = 16,
-        d_conv: int = 4,
+        d_conv: int = 5,
         num_layers: int = 6,
         dropout: float = 0.1
     ):
@@ -275,8 +275,8 @@ class TestBiMamba2:
 
     @pytest.mark.skipif(not MAMBA_AVAILABLE, reason="mamba-ssm not installed")
     def test_mamba_path(self, model):
-        # Verify Mamba-2 is actually used when available
-        assert hasattr(model.layers[0].forward_mamba, 'd_model')
+        # Verify Mamba-2 path is active when available
+        assert not isinstance(model.layers[0].forward_mamba, nn.Conv1d)
 
     @pytest.mark.skipif(MAMBA_AVAILABLE, reason="Testing fallback only")
     def test_fallback_path(self, model):

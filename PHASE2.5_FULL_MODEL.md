@@ -42,7 +42,7 @@ Output: Per-sample seizure probabilities
 
 import torch
 import torch.nn as nn
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 # Assumes UNetEncoder, ResCNNStack, BiMamba2, UNetDecoder are defined above in this file
 
@@ -60,14 +60,18 @@ class SeizureDetectorV2(nn.Module):
         # Mamba params
         mamba_layers: int = 6,
         mamba_d_state: int = 16,
-        mamba_d_conv: int = 4,
+        mamba_d_conv: int = 5,
         # ResCNN params
         rescnn_blocks: int = 3,
-        rescnn_kernels: list[int] = [3, 5, 7],
+        rescnn_kernels: List[int] = None,
         # Regularization
         dropout: float = 0.1,
     ):
         super().__init__()
+
+        # Default kernel sizes if not provided
+        if rescnn_kernels is None:
+            rescnn_kernels = [3, 5, 7]
 
         # Save config for reproducibility
         self.config = {
@@ -76,7 +80,9 @@ class SeizureDetectorV2(nn.Module):
             'encoder_depth': encoder_depth,
             'mamba_layers': mamba_layers,
             'mamba_d_state': mamba_d_state,
+            'mamba_d_conv': mamba_d_conv,
             'rescnn_blocks': rescnn_blocks,
+            'rescnn_kernels': rescnn_kernels,
             'dropout': dropout,
         }
 
@@ -227,6 +233,7 @@ class TestSeizureDetectorV2:
             base_channels=64,
             encoder_depth=4,
             mamba_layers=6,
+            mamba_d_state=16,
             rescnn_blocks=3
         )
 
@@ -312,6 +319,7 @@ class TestSeizureDetectorV2:
         assert config['base_channels'] == 64
         assert config['encoder_depth'] == 4
         assert config['mamba_layers'] == 6
+        assert config['mamba_d_state'] == 16
 ```
 
 ## 🚀 Validation Script

@@ -98,10 +98,11 @@ class UNetEncoder(nn.Module):
             out_ch = channels[i]
 
             # Double convolution block
+            # Use kernel_size=5 (padding=2) to match schemas/README
             self.encoder_blocks.append(
                 nn.Sequential(
-                    ConvBlock(in_ch, out_ch),
-                    ConvBlock(out_ch, out_ch),
+                    ConvBlock(in_ch, out_ch, kernel_size=5, padding=2),
+                    ConvBlock(out_ch, out_ch, kernel_size=5, padding=2),
                 )
             )
 
