@@ -1,48 +1,86 @@
-# Local development configuration for MNIST classification
-# This config is optimized for fast iteration and testing
+# Local development configuration for seizure detection
+# Fast iteration with reduced data and epochs
 
 data:
-  dataset: mnist
-  batch_size: 64
-  validation_split: 0.1
-  num_workers: 2
-  shuffle: true
-  pin_memory: false
-  download: true
+  dataset: tuh_eeg  # or chb_mit
+  data_dir: data/raw
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60  # seconds
+  stride: 10  # seconds
+  batch_size: 16
+  num_workers: 4
+  validation_split: 0.2
+  max_samples: 1000  # Limit for quick testing
+
+preprocessing:
+  montage: "10-20"
+  bandpass: [0.5, 120]  # Hz
+  notch_freq: 60  # Hz
+  normalize: true
+  use_mne: true
 
 model:
-  name: mlp
-  input_size: 784  # 28x28 flattened
-  hidden_size: 128
-  num_layers: 2
-  num_classes: 10
-  dropout: 0.1
-  activation: relu
+  name: seizure_detector
+  encoder:
+    stages: 4
+    channels: [64, 128, 256, 512]
+    kernel_size: 5
+    downsample_factor: 2
+  rescnn:
+    n_blocks: 3
+    kernel_sizes: [3, 5, 7]
+    dropout: 0.1
+  mamba:
+    n_layers: 6
+    d_model: 512
+    d_state: 16
+    conv_kernel: 5
+    dropout: 0.1
+  decoder:
+    stages: 4
+    kernel_size: 4
+
+postprocessing:
+  hysteresis:
+    tau_on: 0.86
+    tau_off: 0.78
+  morphology:
+    kernel_size: 5  # samples
+  min_duration: 3.0  # seconds
 
 training:
-  epochs: 5  # Few epochs for fast development
-  learning_rate: 0.001
-  optimizer: adam
-  weight_decay: 0.0001
-  scheduler: null
+  epochs: 5  # Quick dev runs
+  learning_rate: 3e-4
+  weight_decay: 0.05
+  optimizer: adamw
+  scheduler:
+    type: cosine
+    warmup_ratio: 0.1
+  gradient_clip: 1.0
+  mixed_precision: true
   early_stopping:
     patience: 3
-    min_delta: 0.001
+    metric: sensitivity_at_10fa
 
 evaluation:
-  metrics: [accuracy, f1_macro]
+  metrics: [taes, sensitivity, specificity, auroc]
+  fa_rates: [10, 5, 2.5, 1]  # FA/24h
   save_predictions: false
-  save_confusion_matrix: true
+  save_plots: true
 
 experiment:
-  name: "mnist_local_dev"
-  description: "Local development run with MLP"
-  random_seed: 42
+  name: "seizure_local_dev"
+  description: "Local development with reduced data"
+  seed: 42
   device: auto  # auto-detect GPU/CPU
   cache_dir: cache
   log_level: INFO
-  save_model: false  # Don't save models during development
-  
+  save_model: false
+  wandb:
+    enabled: false
+    project: seizure-detection
+
 logging:
   log_every_n_steps: 10
   log_gradients: false

@@ -137,14 +137,16 @@ MNE-hybrid approach optimized for seizure morphology:
 ```
 brain-go-brr-v2/
 ├── src/
-│   ├── data/          # EDF loading, preprocessing
-│   ├── models/        # U-Net, ResCNN, Mamba-2
-│   ├── training/      # Training loops, optimization
-│   └── evaluation/    # TAES scoring, metrics
-├── configs/           # YAML experiment configs
-├── literature/        # Converted papers, references
-├── tests/            # Pytest suites
-└── Makefile          # Automation commands
+│   └── experiment/
+│       ├── schemas.py    # Pydantic config models (planned)
+│       ├── data.py       # EDF loading, preprocessing (planned)
+│       ├── models.py     # U-Net, ResCNN, Bi-Mamba-2 (planned)
+│       ├── pipeline.py   # Orchestration entrypoint (stub)
+│       └── infra.py      # Caching, logging, utils (planned)
+├── configs/              # YAML experiment configs (EEG-focused)
+├── literature/           # Converted papers, references
+├── tests/                # Pytest suites
+└── Makefile              # Automation commands
 ```
 
 ## Why This Will Work

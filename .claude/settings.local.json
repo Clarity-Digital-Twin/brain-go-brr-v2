@@ -24,7 +24,8 @@
       "Bash(uv run ruff:*)",
       "Bash(make:*)",
       "Bash(train)",
-      "Bash(uv run:*)"
+      "Bash(uv run:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,72 +1,92 @@
-# Production configuration for MNIST classification
-# This config is optimized for full training and best performance
+# Production configuration for seizure detection (full-scale)
 
 data:
-  dataset: mnist
-  batch_size: 128
-  validation_split: 0.1
-  num_workers: 4
-  shuffle: true
-  pin_memory: true
-  download: true
+  dataset: tuh_eeg
+  data_dir: data/raw
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60
+  stride: 10
+  batch_size: 64
+  num_workers: 8
+  validation_split: 0.2
+  max_hours: null  # use full dataset
+
+preprocessing:
+  montage: "10-20"
+  bandpass: [0.5, 120]
+  notch_freq: 60
+  normalize: true
+  use_mne: true
 
 model:
-  name: cnn
-  input_channels: 1
-  num_classes: 10
-  channels: [32, 64, 128]
-  kernel_size: 3
-  dropout: 0.2
-  batch_norm: true
+  name: seizure_detector
+  encoder:
+    stages: 4
+    channels: [64, 128, 256, 512]
+    kernel_size: 5
+    downsample_factor: 2
+  rescnn:
+    n_blocks: 3
+    kernel_sizes: [3, 5, 7]
+    dropout: 0.1
+  mamba:
+    n_layers: 8
+    d_model: 512
+    d_state: 16
+    conv_kernel: 7
+    dropout: 0.1
+  decoder:
+    stages: 4
+    kernel_size: 4
+
+postprocessing:
+  hysteresis:
+    tau_on: 0.86
+    tau_off: 0.78
+  morphology:
+    kernel_size: 5
+  min_duration: 3.0
 
 training:
-  epochs: 50
-  learning_rate: 0.001
-  optimizer: adam
-  weight_decay: 0.0001
+  epochs: 60
+  learning_rate: 3e-4
+  weight_decay: 0.05
+  optimizer: adamw
   scheduler:
-    name: reduce_lr_on_plateau
-    factor: 0.5
-    patience: 5
-    min_lr: 0.00001
+    type: cosine
+    warmup_ratio: 0.03
+  gradient_clip: 1.0
+  mixed_precision: true
   early_stopping:
     patience: 10
-    min_delta: 0.0001
+    metric: sensitivity_at_5fa
 
 evaluation:
-  metrics: [accuracy, f1_macro, f1_micro, precision, recall]
+  metrics: [taes, sensitivity, specificity, auroc]
+  fa_rates: [10, 5, 2.5, 1]
   save_predictions: true
-  save_confusion_matrix: true
-  save_per_class_metrics: true
+  save_plots: true
 
 experiment:
-  name: "mnist_production_cnn"
-  description: "Production CNN training on full MNIST dataset"
-  random_seed: 42
+  name: "seizure_production"
+  description: "Full-scale training on TUH EEG"
+  seed: 42
   device: auto
   cache_dir: cache
   log_level: INFO
   save_model: true
   save_best_only: true
-  
+  wandb:
+    enabled: false
+    project: seizure-detection
+
 logging:
   log_every_n_steps: 100
   log_gradients: false
   log_weights: false
-  
-# Additional production settings
-data_augmentation:
-  enabled: true
-  rotation_degrees: 10
-  translation: 0.1
-  scale: [0.9, 1.1]
 
-regularization:
-  label_smoothing: 0.1
-  mixup_alpha: 0.2
-
-# Resource management for cluster/HPC
 resources:
-  max_memory_gb: 16
+  max_memory_gb: 64
   distributed: false
   mixed_precision: true

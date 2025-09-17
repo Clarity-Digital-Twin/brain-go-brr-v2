@@ -30,23 +30,23 @@ dev: ## Install dev dependencies and pre-commit hooks
 
 test: ## Run tests with coverage
 	@echo "${CYAN}Running tests...${NC}"
-	uv run pytest -n auto --cov=src --cov-report=term-missing --cov-report=html
+	uv run pytest -n auto --cov=src --cov-report=term-missing --cov-report=html || .venv/bin/pytest -n auto --cov=src --cov-report=term-missing --cov-report=html
 
 test-fast: ## Run tests without coverage (faster)
 	@echo "${CYAN}Running fast tests...${NC}"
-	uv run pytest -n auto -x
+	uv run pytest -n auto -x || .venv/bin/pytest -n auto -x
 
 lint: ## Run ruff linter
 	@echo "${CYAN}Linting code...${NC}"
-	uv run ruff check src/ tests/ --fix
+	uv run ruff check src/ tests/ --fix || .venv/bin/ruff check src/ tests/ --fix
 
 format: ## Format code with ruff
 	@echo "${CYAN}Formatting code...${NC}"
-	uv run ruff format src/ tests/
+	uv run ruff format src/ tests/ || .venv/bin/ruff format src/ tests/
 
 type-check: ## Run mypy type checking
 	@echo "${CYAN}Type checking...${NC}"
-	uv run mypy src/
+	uv run mypy src/ || .venv/bin/mypy src/
 
 quality: lint format type-check ## Run all code quality checks
 	@echo "${GREEN}✓ All quality checks passed${NC}"
@@ -83,7 +83,7 @@ setup: ## Initial project setup
 
 hooks: ## Run pre-commit hooks on all files
 	@echo "${CYAN}Running pre-commit hooks...${NC}"
-	uv run pre-commit run --all-files
+	uv run pre-commit run --all-files || .venv/bin/pre-commit run --all-files
 
 update: ## Update all dependencies
 	@echo "${CYAN}Updating dependencies...${NC}"

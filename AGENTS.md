@@ -9,15 +9,15 @@
 - `data/`, `results/`, `cache/`: Artifacts and datasets (git-ignored).
 
 ## Build, Test, and Development Commands
-- Setup (Python 3.10+): `pip install -r requirements.txt` then `pre-commit install`.
-- Run CLI: `python -m src.cli --config configs/local.yaml` (see `--help`).
-- Validate config: `python -m src.cli validate configs/local.yaml`.
-- Tests: `pytest -v` (markers: `-m unit`, `-m integration`; coverage: `--cov=src --cov-report=html`).
-- Format/lint/type: `black src tests`; `isort src tests`; `flake8 src tests`; `mypy src`.
+- Setup (Python 3.11+): `make setup` (uses UV), or `make dev` for dev tools + hooks.
+- Run CLI: `python -m src.cli --config configs/local.yaml` (validate/run commands to be added).
+- Validate config: `python -m src.cli validate configs/local.yaml` (planned; not implemented yet).
+- Tests: `make test` (markers: `-m unit`, `-m integration`; coverage: HTML + terminal).
+- Format/lint/type: `make lint`; `make format`; `make type-check` (Ruff + mypy).
 
 ## Coding Style & Naming Conventions
-- Python: 4-space indent, Black line length 88, isort profile Black.
-- Lint/type: flake8 (ignore `E203`, `W503`), mypy strict settings in `pyproject.toml`.
+- Python: 4-space indent; formatter via Ruff (`ruff format`), line length 100.
+- Lint/type: Ruff rules (see `pyproject.toml`), mypy strict settings in `pyproject.toml`.
 - Naming: modules `snake_case.py`; classes `CamelCase`; functions/vars `snake_case`.
 - Imports: standard → third-party → first-party (`experiment`), sorted by isort.
 
@@ -46,3 +46,4 @@
 - Keep changes minimal and focused; preserve public APIs under `src/experiment/`.
 - Follow tooling pinned in `pyproject.toml`; don’t alter formatting/type settings without discussion.
 - If adding modules or flags, update docs and tests in the same PR.
+- Prefer UV workflows and Ruff for lint/format to stay consistent.

@@ -7,12 +7,12 @@ name = "seizure-detection-mamba"
 dynamic = ["version"]
 description = "Seizure detection using U-Net + ResCNN + Bi-Mamba-2 for O(N) EEG processing"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
 authors = [
     {name = "Clarity Digital Twin Team", email = "team@clarity.ai"},
 ]
-keywords = ["machine learning", "research", "template", "reproducibility"]
+keywords = ["eeg", "seizure detection", "mamba", "u-net", "state space model", "taes", "nedc"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -26,7 +26,7 @@ classifiers = [
 ]
 dependencies = [
     # Core ML dependencies
-    "torch>=2.0.0",
+    "torch>=2.5.0",
     "numpy>=1.24.0",
     "scipy>=1.10.0",
     "scikit-learn>=1.3.0",
@@ -41,7 +41,6 @@ dependencies = [
 
     # Configuration & Validation
     "pydantic>=2.0.0",
-    "exca>=0.1.0",
     "pyyaml>=6.0.0",
     "typer>=0.9.0",
     "rich>=13.0.0",
@@ -54,7 +53,6 @@ dependencies = [
     
     # Utilities
     "tqdm>=4.64.0",
-    "pathlib>=1.0.0",
 ]
 
 [tool.uv]
@@ -73,26 +71,26 @@ dev-dependencies = [
     "pre-commit>=4.0.0",
     "pre-commit-uv>=0.4.0",  # Speed up pre-commit
 
-    # Documentation
-    "mkdocs-material>=9.5.0",
-    "mkdocstrings[python]>=0.24.0",
-
     # Notebooks
     "jupyter>=1.0.0",
+    "jupyterlab>=4.0.0",
     "ipykernel>=6.0.0",
     "nbformat>=5.0.0",
     "ipywidgets>=8.0.0",
 
     # Docs
     "mkdocs>=1.4.0",
-    "mkdocs-material>=9.0.0",
-    "mkdocstrings[python]>=0.20.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.24.0",
+
+    # Visualization/monitoring
+    "tensorboard>=2.12.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/research-project-template"
-Repository = "https://github.com/yourusername/research-project-template.git"
-Issues = "https://github.com/yourusername/research-project-template/issues"
+Homepage = "https://github.com/clarity-digital-twin/brain-go-brr-v2"
+Repository = "https://github.com/clarity-digital-twin/brain-go-brr-v2.git"
+Issues = "https://github.com/clarity-digital-twin/brain-go-brr-v2/issues"
 
 [project.scripts]
 train = "src.experiment.pipeline:main"
@@ -177,11 +175,11 @@ exclude_lines = [
     "def __repr__",
     "raise AssertionError",
     "raise NotImplementedError",
-    "if __name__ == .__main__.:",
+    "if __name__ == \"__main__\":",
 ]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

@@ -1,5 +1,5 @@
-"""Research Lab Project Template
+"""Brain-Go-Brr v2
 
-A template for reproducible machine learning research using Pydantic for configuration
-validation and ExCa for experiment orchestration and caching.
+Seizure detection research stack using Pydantic for configuration and modern tooling
+for reproducibility. Core implementation lives under `src/experiment/`.
 """
