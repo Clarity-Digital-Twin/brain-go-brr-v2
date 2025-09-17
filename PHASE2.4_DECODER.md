@@ -20,18 +20,10 @@ tests/test_decoder.py        # Decoder-specific tests
 ## 📐 Dimension Flow
 ```
 Input: (B, 512, 960) from Mamba
-    + skip[3]: (B, 512, 1920)
-    ↓ Upsample ×2 → Concat → Conv
-Stage 4: (B, 256, 1920)
-    + skip[2]: (B, 256, 3840)
-    ↓ Upsample ×2 → Concat → Conv
-Stage 3: (B, 128, 3840)
-    + skip[1]: (B, 128, 7680)
-    ↓ Upsample ×2 → Concat → Conv
-Stage 2: (B, 64, 7680)
-    + skip[0]: (B, 64, 15360)
-    ↓ Upsample ×2 → Concat → Conv
-Stage 1: (B, 64, 15360)
+    ↓ Upsample ×2 → Concat skip[3] (B, 512, 1920) → Conv → (B, 256, 1920)
+    ↓ Upsample ×2 → Concat skip[2] (B, 256, 3840) → Conv → (B, 128, 3840)
+    ↓ Upsample ×2 → Concat skip[1] (B, 128, 7680) → Conv → (B,  64, 7680)
+    ↓ Upsample ×2 → Concat skip[0] (B,  64,15360) → Conv → (B,  64,15360)
     ↓ Conv1d(64→19)
 Output: (B, 19, 15360)
 ```
@@ -61,33 +53,31 @@ class UNetDecoder(nn.Module):
 
         # Channel progression (reversed): [512, 256, 128, 64]
         channels = [base_channels * (2 ** (depth - 1 - i)) for i in range(depth)]
+        # Skip channels (encoder pre-downsample features): [64, 128, 256, 512]
+        skip_channels = [base_channels * (2 ** i) for i in range(depth)]
 
-        # Build decoder stages
+        # Build decoder stages (upsample at every step, total ×16 back to 15360)
         self.upsample = nn.ModuleList()
         self.decoder_blocks = nn.ModuleList()
 
-        for i in range(depth - 1):
+        for i in range(depth):
             in_ch = channels[i]
-            out_ch = channels[i + 1]
+            out_ch = channels[i + 1] if i < depth - 1 else base_channels
 
             # Transposed convolution for upsampling
             self.upsample.append(
                 nn.ConvTranspose1d(in_ch, out_ch, kernel_size=2, stride=2)
             )
 
+            # After upsample, concatenate with matching skip
+            skip_idx = depth - 1 - i
+            skip_ch = skip_channels[skip_idx]
+
             # Double convolution after skip concatenation
-            # Input will be out_ch (upsampled) + out_ch (skip) = 2*out_ch
             self.decoder_blocks.append(nn.Sequential(
-                ConvBlock(out_ch * 2, out_ch),
+                ConvBlock(out_ch + skip_ch, out_ch),
                 ConvBlock(out_ch, out_ch)
             ))
-
-        # Final stage processes last skip without upsampling
-        # Bottleneck (512) + skip[3] (512) = 1024 channels
-        self.final_block = nn.Sequential(
-            ConvBlock(channels[0] * 2, channels[0]),
-            ConvBlock(channels[0], channels[0])
-        )
 
         # Output projection
         self.output_conv = nn.Conv1d(base_channels, out_channels, kernel_size=1)
@@ -107,23 +97,16 @@ class UNetDecoder(nn.Module):
         Returns:
             Decoded output (B, 19, 15360)
         """
-        # First, concatenate with deepest skip
-        x = torch.cat([x, skips[3]], dim=1)  # (B, 1024, 960)
-        x = self.final_block(x)  # (B, 512, 960)
-
-        # Process decoder stages with remaining skips (reversed)
-        for i in range(self.depth - 1):
+        # Process decoder stages with skips (deepest → shallowest)
+        for i in range(self.depth):
             # Upsample
             x = self.upsample[i](x)
 
-            # Get corresponding skip (reverse order: 2, 1, 0)
-            skip_idx = self.depth - 2 - i
-            skip = skips[skip_idx]
+            # Concat with corresponding skip (reverse order: 3,2,1,0)
+            skip_idx = self.depth - 1 - i
+            x = torch.cat([x, skips[skip_idx]], dim=1)
 
-            # Concatenate with skip
-            x = torch.cat([x, skip], dim=1)
-
-            # Process through decoder block
+            # Decoder block
             x = self.decoder_blocks[i](x)
 
         # Output projection

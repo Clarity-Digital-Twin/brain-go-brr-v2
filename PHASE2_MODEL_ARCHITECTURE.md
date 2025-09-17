@@ -345,31 +345,31 @@ class UNetDecoder(nn.Module):
 
         # Channel progression (reversed): [512, 256, 128, 64]
         channels = [base_channels * (2 ** (depth - 1 - i)) for i in range(depth)]
+        # Skip channels (encoder pre-downsample features): [64, 128, 256, 512]
+        skip_channels = [base_channels * (2 ** i) for i in range(depth)]
 
-        # Decoder stages
+        # Decoder stages: upsample at every step to recover ×16 length
         self.upsample = nn.ModuleList()
         self.decoder_blocks = nn.ModuleList()
 
-        for i in range(depth - 1):
+        for i in range(depth):
             in_ch = channels[i]
-            out_ch = channels[i + 1]
+            out_ch = channels[i + 1] if i < depth - 1 else base_channels
 
             # Upsampling
             self.upsample.append(
                 nn.ConvTranspose1d(in_ch, out_ch, kernel_size=2, stride=2)
             )
 
+            # After upsample, concatenate with matching skip
+            skip_idx = depth - 1 - i
+            skip_ch = skip_channels[skip_idx]
+
             # Double convolution after concatenation with skip
             self.decoder_blocks.append(nn.Sequential(
-                ConvBlock(out_ch + out_ch, out_ch),  # After concat with skip
+                ConvBlock(out_ch + skip_ch, out_ch),
                 ConvBlock(out_ch, out_ch)
             ))
-
-        # Final decoder block (no upsampling)
-        self.decoder_blocks.append(nn.Sequential(
-            ConvBlock(channels[-1] + base_channels, base_channels),
-            ConvBlock(base_channels, base_channels)
-        ))
 
         # Output projection
         self.output_conv = nn.Conv1d(base_channels, out_channels, kernel_size=1)
@@ -383,21 +383,16 @@ class UNetDecoder(nn.Module):
         Returns:
             Decoded output (B, 19, 15360)
         """
-        # Process decoder stages
-        for i in range(self.depth - 1):
+        for i in range(self.depth):
             # Upsample
             x = self.upsample[i](x)
 
-            # Concatenate with skip connection
-            skip = skips[self.depth - 2 - i]  # Reverse order
-            x = torch.cat([x, skip], dim=1)
+            # Concatenate with skip (reverse order: 3,2,1,0)
+            skip_idx = self.depth - 1 - i
+            x = torch.cat([x, skips[skip_idx]], dim=1)
 
             # Decoder block
             x = self.decoder_blocks[i](x)
-
-        # Final stage (use first skip)
-        x = torch.cat([x, skips[0]], dim=1)
-        x = self.decoder_blocks[-1](x)
 
         # Output projection
         return self.output_conv(x)

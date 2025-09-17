@@ -126,10 +126,10 @@ class ModelConfig(BaseModel):
     """Complete model architecture configuration."""
 
     name: Literal["seizure_detector"] = Field(default="seizure_detector", description="Model name")
-    encoder: EncoderConfig = Field(default_factory=EncoderConfig)  # type: ignore[arg-type]
-    rescnn: ResCNNConfig = Field(default_factory=ResCNNConfig)  # type: ignore[arg-type]
+    encoder: EncoderConfig = Field(default_factory=EncoderConfig)
+    rescnn: ResCNNConfig = Field(default_factory=ResCNNConfig)
     mamba: MambaConfig = Field(default_factory=MambaConfig)  # type: ignore[arg-type]
-    decoder: DecoderConfig = Field(default_factory=DecoderConfig)  # type: ignore[arg-type]
+    decoder: DecoderConfig = Field(default_factory=DecoderConfig)
 
 
 class HysteresisConfig(BaseModel):
@@ -149,7 +149,7 @@ class HysteresisConfig(BaseModel):
 class PostprocessingConfig(BaseModel):
     """Post-processing pipeline configuration."""
 
-    hysteresis: HysteresisConfig = Field(default_factory=HysteresisConfig)  # type: ignore[arg-type]
+    hysteresis: HysteresisConfig = Field(default_factory=HysteresisConfig)
     morphology: dict[str, Any] = Field(
         default={"kernel_size": 5}, description="Morphological ops config"
     )
@@ -190,7 +190,7 @@ class TrainingConfig(BaseModel):
     optimizer: Literal["adamw", "adam", "sgd"] = Field(
         default="adamw", description="Optimizer type"
     )
-    scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)  # type: ignore[arg-type]
+    scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
     gradient_clip: float = Field(
         default=1.0, ge=0.0, description="Gradient clipping value (0 = disabled)"
     )
@@ -236,7 +236,7 @@ class ExperimentConfig(BaseModel):
     )
     save_model: bool = Field(default=False, description="Save trained model")
     save_best_only: bool = Field(default=True, description="Only save best checkpoint")
-    wandb: WandbConfig = Field(default_factory=WandbConfig)  # type: ignore[arg-type]
+    wandb: WandbConfig = Field(default_factory=WandbConfig)
 
     @field_validator("cache_dir")
     @classmethod
