@@ -25,7 +25,11 @@
       "Bash(make:*)",
       "Bash(train)",
       "Bash(uv run:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(for:*)",
+      "Bash(do echo \"=== $dir ===\")",
+      "Bash(ls:*)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []
