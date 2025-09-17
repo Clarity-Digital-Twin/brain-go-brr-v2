@@ -139,7 +139,7 @@ def create_scheduler(
 
         sched = LambdaLR(optimizer, lr_lambda=lr_lambda)
         # Reset any change at construction time.
-        for g, lr in zip(optimizer.param_groups, initial_lrs):
+        for g, lr in zip(optimizer.param_groups, initial_lrs, strict=False):
             g["lr"] = lr
         return sched
     else:
@@ -206,8 +206,10 @@ def train_epoch(
         optimizer.zero_grad(set_to_none=True)
 
         # Forward pass with AMP (model returns probabilities in [0,1])
-        with autocast(device_type=("cuda" if device == "cuda" else "cpu"),
-                      enabled=(use_amp and device == "cuda")):
+        with autocast(
+            device_type=("cuda" if device == "cuda" else "cpu"),
+            enabled=(use_amp and device == "cuda"),
+        ):
             probs = model(windows)  # (B, T) probabilities
             # Recover logits for stable BCEWithLogits; logit(sigmoid(z)) == z
             logits = torch.logit(probs.clamp(min=eps, max=1 - eps))

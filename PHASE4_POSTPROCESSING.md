@@ -1,19 +1,19 @@
 # PHASE4_POSTPROCESSING.md — Clinical-Grade Post-Processing Pipeline
 
 ## 🎯 Phase 4 Goal
-Transform raw model probabilities into clinically actionable seizure events through hysteresis thresholding, morphological operations, and intelligent window stitching, achieving target sensitivity at specific FA/24h operating points.
+Convert raw per‑timestep probabilities into clinically actionable seizure events using dual‑tau hysteresis with temporal stability, morphology, duration constraints, window stitching, and event merging, targeting sensitivity at specific FA/24h operating points.
 
 ## 📋 Phase 4 Checklist
-- [ ] Hysteresis thresholding (dual-tau state machine)
-- [ ] Morphological operations (opening/closing with configurable kernels)
-- [ ] Minimum duration filtering (≥3s clinical requirement)
-- [ ] Window stitching for continuous timelines
-- [ ] Event merging (close events within tau_merge seconds)
-- [ ] Confidence scoring per event
-- [ ] CSV_BI export for Temple evaluation
-- [ ] Real-time streaming capability (for future deployment)
-- [ ] TDD: comprehensive tests for each component
-- [ ] Integration with Phase 3 evaluation pipeline
+- [ ] Hysteresis thresholding (dual‑tau with min_onset/min_offset)
+- [ ] Morphology (opening then closing; configurable kernels; CPU/GPU)
+- [ ] Duration filtering (≥3s min; ≤600s max; long‑event segmentation)
+- [ ] Window stitching (overlap‑add; optional triangular weighting)
+- [ ] Event merging (merge gaps ≤ tau_merge)
+- [ ] Confidence scoring (mean/peak/percentile)
+- [ ] CSV_BI export (Temple‑compliant)
+- [ ] Real‑time streaming (future; stateful hysteresis)
+- [ ] TDD: unit + integration tests
+- [ ] Phase 3 integration (schemas + evaluate adapters)
 
 ## 🏗️ Architecture Overview
 
@@ -21,25 +21,21 @@ Transform raw model probabilities into clinically actionable seizure events thro
 Raw Probabilities (B, T) @ 256 Hz
         ↓
 [1] Hysteresis Thresholding
-    - τ_on = 0.86 (seizure onset)
-    - τ_off = 0.78 (seizure offset)
+    - τ_on = 0.86 (onset), τ_off = 0.78 (offset)
+    - Stability: min_onset=128 (0.5s), min_offset=256 (1.0s)
         ↓
-[2] Morphological Operations
-    - Binary opening (remove noise)
-    - Binary closing (fill gaps)
-    - Kernel size: 5 samples (~20ms)
+[2] Morphology (opening → closing)
+    - Opening: remove spikes (k≈11 → ~43ms)
+    - Closing: fill gaps (k≈31 → ~121ms)
         ↓
 [3] Duration Filtering
-    - Minimum: 3 seconds (768 samples)
-    - Maximum: 600 seconds (clinical)
+    - Keep: 3s ≤ duration ≤ 600s; segment longer
         ↓
 [4] Window Stitching
-    - Overlap-add averaging
-    - 60s windows, 10s stride
+    - Overlap‑add (uniform/triangular), 60s window, 10s stride
         ↓
-[5] Event Generation
-    - Continuous mask → event intervals
-    - Merge events < tau_merge apart
+[5] Eventization
+    - Mask → intervals → merge gaps ≤ tau_merge
         ↓
 Clinical Events [(start_s, end_s, confidence)]
 ```
@@ -47,748 +43,136 @@ Clinical Events [(start_s, end_s, confidence)]
 ## 🔧 Implementation Files
 
 ```
-src/experiment/postprocess.py     # Core post-processing pipeline
-src/experiment/events.py          # Event generation and manipulation
-src/experiment/export.py          # CSV_BI and other format exports
-src/experiment/streaming.py       # Real-time processing (future)
+src/experiment/postprocess.py     # Core post-processing ops (hysteresis, morphology, duration, stitching)
+src/experiment/events.py          # Intervals, merging, confidence
+src/experiment/export.py          # CSV_BI and JSON exports
+src/experiment/streaming.py       # Real-time state (future)
 
-tests/test_postprocess.py         # Unit tests for each component
-tests/test_events.py              # Event manipulation tests
-tests/test_export.py              # Export format validation
+tests/test_postprocess.py         # Unit tests for ops
+tests/test_events.py              # Event tests (merge + confidence)
+tests/test_export.py              # CSV_BI compliance tests
 tests/test_integration_post.py    # End-to-end post-processing
 ```
 
-## 📐 Technical Specifications
+## 📐 Algorithms and Specifications
 
-### 1. Hysteresis Thresholding
-State-machine based dual-threshold system preventing rapid oscillations:
+### 1) Hysteresis Thresholding (dual‑tau, stable)
+- OFF→ON: prob > τ_on for ≥ min_onset_samples
+- ON→OFF: prob < τ_off for ≥ min_offset_samples
+- Retroactive onset marking for stability
+- Threshold convention: strictly > τ_on to enter; strictly < τ_off to exit
+- Output: binary mask `(B, T)` bool
+- Performance: vectorized/JIT path required for targets; loop reference acceptable for clarity
 
-```python
-@dataclass
-class HysteresisState:
-    """Track state machine for hysteresis."""
-    in_seizure: bool = False
-    onset_buffer: int = 0
-    offset_buffer: int = 0
+Parameters (defaults):
+- tau_on=0.86, tau_off=0.78
+- min_onset_samples=128 (0.5s @ 256 Hz), min_offset_samples=256 (1.0s)
 
-def apply_hysteresis(
-    probs: torch.Tensor,
-    tau_on: float = 0.86,
-    tau_off: float = 0.78,
-    min_onset_samples: int = 128,  # 0.5s @ 256Hz
-    min_offset_samples: int = 256,  # 1.0s @ 256Hz
-) -> torch.Tensor:
-    """
-    Apply dual-threshold hysteresis with temporal stability.
+### 2) Morphology (opening → closing)
+- Opening (erosion→dilation): removes isolated spikes
+- Closing (dilation→erosion): fills short gaps
+- Defaults (tunable): opening_kernel=11 (~43ms), closing_kernel=31 (~121ms)
+- CPU: SciPy ndimage binary ops; GPU: pooling‑based morphology
+- Output: cleaned mask `(B, T)` bool
 
-    State transitions:
-    - OFF → ON: probs > tau_on for min_onset_samples
-    - ON → OFF: probs < tau_off for min_offset_samples
+GPU alternative sketch (pooling):
+- Dilation: `max_pool1d(x, k, stride=1, padding=k//2)`
+- Erosion: `1 - max_pool1d(1 - x, k, stride=1, padding=k//2)`
 
-    Args:
-        probs: (B, T) probabilities in [0, 1]
-        tau_on: Upper threshold for seizure onset
-        tau_off: Lower threshold for seizure offset
-        min_onset_samples: Minimum samples above tau_on to trigger
-        min_offset_samples: Minimum samples below tau_off to end
+### 3) Duration Filtering
+- Identify contiguous True regions (intervals)
+- Keep intervals with duration in [min_duration_s, max_duration_s]
+- For intervals > max_duration_s, segment into ≤ max_duration_s chunks
+- Return filtered intervals or mask depending on pipeline stage
 
-    Returns:
-        Binary mask (B, T) with hysteresis applied
-    """
-    B, T = probs.shape
-    output = torch.zeros_like(probs, dtype=torch.bool)
+### 4) Window Stitching
+- Inputs: `window_probs: list[(T_window,)]`, `window_starts: list[int]`, `total_length`
+- Methods:
+  - overlap_add (uniform): sum contributions and divide by count
+  - overlap_add_weighted (triangular): weight by distance to window center
+  - max: elementwise maximum (optional)
+- Edge cases: partial windows at boundaries; no division by zero
+- Output: continuous probability `(total_length,)`
 
-    for b in range(B):
-        state = HysteresisState()
+### 5) Eventization and Merging
+- Transitions:
+  - pad with zeros → diff → starts where diff==+1; ends where diff==−1
+  - Convert to seconds via `idx / sampling_rate` (default 256)
+- Merge: if gap ≤ tau_merge (default 2.0s), merge consecutive intervals
+- Confidence:
+  - Default: mean probability within event
+  - Alternatives: peak, percentile (e.g., 0.75), center‑weighted
+  - Clamp to [0,1]
+- Output: `SeizureEvent(start_s, end_s, confidence)` per record
 
-        for t in range(T):
-            p = probs[b, t].item()
+### Units & Conventions
+- Time unit: seconds
+- Inputs: `probs` in [0,1], shape `(B, T)`
+- Masks: bool tensors, shape `(B, T)`
+- Determinism: no in‑place mutation of inputs
 
-            if not state.in_seizure:
-                # Accumulate onset evidence
-                if p > tau_on:
-                    state.onset_buffer += 1
-                    if state.onset_buffer >= min_onset_samples:
-                        state.in_seizure = True
-                        # Retroactively mark onset
-                        start_idx = max(0, t - min_onset_samples + 1)
-                        output[b, start_idx:t+1] = True
-                else:
-                    state.onset_buffer = 0
-            else:
-                # In seizure: check for offset
-                if p < tau_off:
-                    state.offset_buffer += 1
-                    if state.offset_buffer >= min_offset_samples:
-                        state.in_seizure = False
-                        state.offset_buffer = 0
-                else:
-                    state.offset_buffer = 0
-                    output[b, t] = True
+## 🧰 Configuration (Pydantic; extend src/experiment/schemas.py)
 
-                # Continue marking if still in seizure
-                if state.in_seizure:
-                    output[b, t] = True
-
-    return output
-```
-
-**Optimization Note**: For production, implement vectorized version using cumsum tricks or JIT compilation.
-
-### 2. Morphological Operations
-Remove noise and fill gaps using binary morphology:
+Python models (to add):
 
 ```python
-def apply_morphology(
-    mask: torch.Tensor,
-    opening_kernel: int = 5,
-    closing_kernel: int = 5,
-    device: str = "cpu",
-) -> torch.Tensor:
-    """
-    Apply binary opening then closing to clean mask.
+from typing import Literal
+from pydantic import BaseModel, Field, model_validator, field_validator
 
-    Opening: erosion → dilation (removes small noise)
-    Closing: dilation → erosion (fills small gaps)
+class HysteresisConfig(BaseModel):
+    tau_on: float = Field(default=0.86, ge=0.5, le=1.0)
+    tau_off: float = Field(default=0.78, ge=0.5, le=1.0)
+    min_onset_samples: int = Field(default=128, ge=1)
+    min_offset_samples: int = Field(default=256, ge=1)
 
-    Args:
-        mask: (B, T) binary mask
-        opening_kernel: Size for opening operation (samples)
-        closing_kernel: Size for closing operation (samples)
+    @model_validator(mode="after")
+    def _check(self) -> "HysteresisConfig":
+        if self.tau_on <= self.tau_off:
+            raise ValueError("tau_on must be > tau_off")
+        return self
 
-    Returns:
-        Cleaned binary mask (B, T)
-    """
-    from scipy.ndimage import binary_opening, binary_closing
+class MorphologyConfig(BaseModel):
+    opening_kernel: int = Field(default=11, ge=1)
+    closing_kernel: int = Field(default=31, ge=1)
+    use_gpu: bool = Field(default=False)
 
-    B, T = mask.shape
-    output = torch.zeros_like(mask, dtype=torch.bool)
+    @field_validator("opening_kernel", "closing_kernel")
+    @classmethod
+    def _odd(cls, v: int) -> int:
+        if v % 2 == 0:
+            raise ValueError("kernel sizes must be odd")
+        return v
 
-    for b in range(B):
-        # Convert to numpy for scipy operations
-        mask_np = mask[b].cpu().numpy()
+class DurationConfig(BaseModel):
+    min_duration_s: float = Field(default=3.0, ge=1.0)
+    max_duration_s: float = Field(default=600.0, ge=1.0)
 
-        # Opening to remove noise
-        if opening_kernel > 0:
-            mask_np = binary_opening(
-                mask_np,
-                structure=np.ones(opening_kernel)
-            )
+    @model_validator(mode="after")
+    def _check(self) -> "DurationConfig":
+        if self.max_duration_s < self.min_duration_s:
+            raise ValueError("max_duration_s must be ≥ min_duration_s")
+        return self
 
-        # Closing to fill gaps
-        if closing_kernel > 0:
-            mask_np = binary_closing(
-                mask_np,
-                structure=np.ones(closing_kernel)
-            )
+class EventsConfig(BaseModel):
+    tau_merge: float = Field(default=2.0, ge=0.0)
+    confidence_method: Literal["mean", "peak", "percentile"] = Field(default="mean")
+    confidence_percentile: float = Field(default=0.75, gt=0.0, lt=1.0)
 
-        output[b] = torch.from_numpy(mask_np).to(device)
+class StitchingConfig(BaseModel):
+    method: Literal["overlap_add", "overlap_add_weighted", "max"] = Field(default="overlap_add")
+    window_size: int = Field(default=15360, ge=1)
+    stride: int = Field(default=2560, ge=1)
 
-    return output
+class PostprocessingConfig(BaseModel):
+    hysteresis: HysteresisConfig = Field(default_factory=HysteresisConfig)
+    morphology: MorphologyConfig = Field(default_factory=MorphologyConfig)
+    duration: DurationConfig = Field(default_factory=DurationConfig)
+    events: EventsConfig = Field(default_factory=EventsConfig)
+    stitching: StitchingConfig = Field(default_factory=StitchingConfig)
 ```
 
-**GPU Alternative**: Use `torch.nn.functional.max_pool1d` and `min_pool1d` for erosion/dilation.
+Example YAML (configs/postprocess.yaml):
 
-### 3. Duration Filtering
-Enforce clinical minimum/maximum durations:
-
-```python
-def filter_duration(
-    mask: torch.Tensor,
-    min_duration_s: float = 3.0,
-    max_duration_s: float = 600.0,
-    sampling_rate: int = 256,
-) -> torch.Tensor:
-    """
-    Remove events shorter than min or longer than max duration.
-
-    Clinical requirements:
-    - Minimum 3s: Brief events are likely artifacts
-    - Maximum 600s: Longer events need segmentation
-
-    Args:
-        mask: (B, T) binary mask
-        min_duration_s: Minimum event duration in seconds
-        max_duration_s: Maximum event duration in seconds
-        sampling_rate: Hz
-
-    Returns:
-        Filtered mask (B, T)
-    """
-    min_samples = int(min_duration_s * sampling_rate)
-    max_samples = int(max_duration_s * sampling_rate)
-
-    B, T = mask.shape
-    output = torch.zeros_like(mask, dtype=torch.bool)
-
-    for b in range(B):
-        events = mask_to_events(mask[b], sampling_rate)
-
-        for start_s, end_s in events:
-            duration_s = end_s - start_s
-
-            if min_duration_s <= duration_s <= max_duration_s:
-                # Keep this event
-                start_idx = int(start_s * sampling_rate)
-                end_idx = int(end_s * sampling_rate)
-                output[b, start_idx:end_idx] = True
-            elif duration_s > max_duration_s:
-                # Segment long events (optional)
-                # For now, truncate to max
-                start_idx = int(start_s * sampling_rate)
-                end_idx = start_idx + max_samples
-                output[b, start_idx:end_idx] = True
-
-    return output
-```
-
-### 4. Window Stitching
-Reconstruct continuous timeline from overlapping windows:
-
-```python
-def stitch_windows(
-    window_probs: List[torch.Tensor],
-    window_starts: List[int],
-    total_length: int,
-    window_size: int = 15360,  # 60s @ 256Hz
-    stride: int = 2560,         # 10s @ 256Hz
-) -> torch.Tensor:
-    """
-    Overlap-add stitching with weighted averaging.
-
-    Strategy:
-    - Sum overlapping probabilities
-    - Track contribution count per sample
-    - Average by dividing sum by count
-
-    Args:
-        window_probs: List of (T_window,) probability tensors
-        window_starts: Start indices for each window
-        total_length: Total samples in recording
-        window_size: Samples per window
-        stride: Samples between window starts
-
-    Returns:
-        Continuous probability timeline (total_length,)
-    """
-    prob_sum = torch.zeros(total_length, dtype=torch.float32)
-    count = torch.zeros(total_length, dtype=torch.float32)
-
-    for probs, start_idx in zip(window_probs, window_starts):
-        end_idx = min(start_idx + window_size, total_length)
-        actual_size = end_idx - start_idx
-
-        # Add probabilities
-        prob_sum[start_idx:end_idx] += probs[:actual_size]
-        count[start_idx:end_idx] += 1.0
-
-    # Average where we have data
-    continuous = torch.where(
-        count > 0,
-        prob_sum / count,
-        torch.zeros_like(prob_sum)
-    )
-
-    return continuous
-```
-
-**Edge Cases**:
-- Handle partial windows at recording boundaries
-- Ensure no division by zero
-- Consider weighted averaging based on distance from window center
-
-### 5. Event Generation and Merging
-Convert continuous masks to clinical event intervals:
-
-```python
-@dataclass
-class SeizureEvent:
-    """Clinical seizure event with metadata."""
-    start_s: float
-    end_s: float
-    confidence: float
-    merged_count: int = 1
-
-def mask_to_events(
-    mask: torch.Tensor,
-    sampling_rate: int = 256,
-    tau_merge: float = 2.0,
-) -> List[SeizureEvent]:
-    """
-    Convert binary mask to event list with merging.
-
-    Merging logic:
-    - Events within tau_merge seconds are combined
-    - Confidence = mean probability during event
-
-    Args:
-        mask: (T,) binary mask
-        sampling_rate: Hz
-        tau_merge: Merge events closer than this (seconds)
-
-    Returns:
-        List of SeizureEvent objects
-    """
-    # Find transitions
-    mask_np = mask.cpu().numpy()
-    diff = np.diff(np.concatenate([[0], mask_np, [0]]))
-    starts = np.where(diff == 1)[0]
-    ends = np.where(diff == -1)[0]
-
-    events = []
-    for start_idx, end_idx in zip(starts, ends):
-        start_s = start_idx / sampling_rate
-        end_s = end_idx / sampling_rate
-
-        # Calculate confidence (requires original probs)
-        # For now, use 1.0 as placeholder
-        confidence = 1.0
-
-        events.append(SeizureEvent(
-            start_s=start_s,
-            end_s=end_s,
-            confidence=confidence
-        ))
-
-    # Merge close events
-    if tau_merge > 0 and len(events) > 1:
-        merged = [events[0]]
-
-        for event in events[1:]:
-            last = merged[-1]
-            gap = event.start_s - last.end_s
-
-            if gap <= tau_merge:
-                # Merge events
-                last.end_s = event.end_s
-                last.confidence = (
-                    last.confidence * last.merged_count +
-                    event.confidence
-                ) / (last.merged_count + 1)
-                last.merged_count += 1
-            else:
-                merged.append(event)
-
-        events = merged
-
-    return events
-```
-
-### 6. Confidence Scoring
-Assign confidence to each detected event:
-
-```python
-def calculate_event_confidence(
-    probs: torch.Tensor,
-    event: SeizureEvent,
-    sampling_rate: int = 256,
-) -> float:
-    """
-    Calculate confidence score for an event.
-
-    Strategies:
-    1. Mean probability during event
-    2. Peak probability during event
-    3. Percentile (e.g., 75th) during event
-    4. Weighted by distance from event center
-
-    Args:
-        probs: (T,) probability timeline
-        event: SeizureEvent with start/end times
-        sampling_rate: Hz
-
-    Returns:
-        Confidence score in [0, 1]
-    """
-    start_idx = int(event.start_s * sampling_rate)
-    end_idx = int(event.end_s * sampling_rate)
-
-    event_probs = probs[start_idx:end_idx]
-
-    if len(event_probs) == 0:
-        return 0.0
-
-    # Strategy 1: Mean (most stable)
-    confidence = float(event_probs.mean().item())
-
-    # Strategy 2: Peak (most optimistic)
-    # confidence = float(event_probs.max().item())
-
-    # Strategy 3: 75th percentile (robust)
-    # confidence = float(torch.quantile(event_probs, 0.75).item())
-
-    return confidence
-```
-
-## 📊 Integration with Phase 3
-
-### Pipeline Integration
-```python
-def postprocess_predictions(
-    raw_probs: torch.Tensor,
-    config: PostprocessingConfig,
-    sampling_rate: int = 256,
-) -> List[List[SeizureEvent]]:
-    """
-    Complete post-processing pipeline.
-
-    Args:
-        raw_probs: (B, T) model outputs
-        config: PostprocessingConfig from schemas
-        sampling_rate: Hz
-
-    Returns:
-        List of event lists, one per batch item
-    """
-    # 1. Hysteresis
-    masks = apply_hysteresis(
-        raw_probs,
-        tau_on=config.hysteresis.tau_on,
-        tau_off=config.hysteresis.tau_off,
-    )
-
-    # 2. Morphology
-    masks = apply_morphology(
-        masks,
-        opening_kernel=config.morphology.opening_kernel,
-        closing_kernel=config.morphology.closing_kernel,
-    )
-
-    # 3. Duration filtering
-    masks = filter_duration(
-        masks,
-        min_duration_s=config.min_duration_s,
-        max_duration_s=config.max_duration_s,
-        sampling_rate=sampling_rate,
-    )
-
-    # 4. Generate events with confidence
-    all_events = []
-    for b in range(masks.shape[0]):
-        events = mask_to_events(
-            masks[b],
-            sampling_rate=sampling_rate,
-            tau_merge=config.tau_merge,
-        )
-
-        # Calculate confidence for each event
-        for event in events:
-            event.confidence = calculate_event_confidence(
-                raw_probs[b], event, sampling_rate
-            )
-
-        all_events.append(events)
-
-    return all_events
-```
-
-### Config Schema Extension
-```python
-@dataclass
-class PostprocessingConfig:
-    """Extended post-processing configuration."""
-
-    # Hysteresis
-    hysteresis: HysteresisConfig
-
-    # Morphology
-    morphology: MorphologyConfig
-
-    # Duration constraints
-    min_duration_s: float = 3.0
-    max_duration_s: float = 600.0
-
-    # Event merging
-    tau_merge: float = 2.0
-
-    # Confidence scoring
-    confidence_method: str = "mean"  # mean, peak, percentile
-    confidence_percentile: float = 0.75
-
-    # Window stitching
-    stitch_method: str = "overlap_add"  # overlap_add, max, weighted
-
-    # Real-time settings (future)
-    streaming_enabled: bool = False
-    streaming_buffer_s: float = 10.0
-
-@dataclass
-class HysteresisConfig:
-    tau_on: float = 0.86
-    tau_off: float = 0.78
-    min_onset_samples: int = 128
-    min_offset_samples: int = 256
-
-@dataclass
-class MorphologyConfig:
-    opening_kernel: int = 5
-    closing_kernel: int = 5
-    use_gpu: bool = False
-```
-
-## 🧪 Test-Driven Development
-
-### Unit Tests (`tests/test_postprocess.py`)
-```python
-class TestHysteresis:
-    def test_basic_transition(self):
-        """Test OFF→ON→OFF state transition."""
-        probs = torch.tensor([
-            [0.0, 0.9, 0.9, 0.9, 0.7, 0.7, 0.0]
-        ])
-        mask = apply_hysteresis(probs, tau_on=0.86, tau_off=0.78)
-        # Should trigger ON at index 1, OFF at index 6
-
-    def test_no_rapid_oscillation(self):
-        """Verify hysteresis prevents flickering."""
-        probs = torch.tensor([
-            [0.85, 0.87, 0.85, 0.87, 0.85, 0.87]
-        ])
-        mask = apply_hysteresis(probs, tau_on=0.86, tau_off=0.78)
-        # Should stay mostly stable despite oscillation
-
-    def test_minimum_duration_enforcement(self):
-        """Check min onset/offset sample requirements."""
-        # Brief spike shouldn't trigger
-        probs = torch.tensor([[0.0, 0.95, 0.0]])
-        mask = apply_hysteresis(
-            probs, tau_on=0.86, tau_off=0.78,
-            min_onset_samples=2
-        )
-        assert mask.sum() == 0
-
-class TestMorphology:
-    def test_noise_removal(self):
-        """Opening should remove isolated spikes."""
-        mask = torch.tensor([
-            [0, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0]
-        ], dtype=torch.bool)
-        cleaned = apply_morphology(mask, opening_kernel=3)
-        # Isolated spikes at indices 1 and 9 should be removed
-
-    def test_gap_filling(self):
-        """Closing should fill small gaps."""
-        mask = torch.tensor([
-            [1, 1, 0, 1, 1]
-        ], dtype=torch.bool)
-        filled = apply_morphology(mask, closing_kernel=3)
-        # Gap at index 2 should be filled
-
-class TestDurationFilter:
-    def test_minimum_duration(self):
-        """Events < 3s should be removed."""
-        # 2-second event (512 samples @ 256Hz)
-        mask = torch.zeros(1, 1024, dtype=torch.bool)
-        mask[0, 100:612] = True
-        filtered = filter_duration(mask, min_duration_s=3.0)
-        assert filtered.sum() == 0
-
-    def test_maximum_duration(self):
-        """Events > 600s should be truncated."""
-        # Create 700s event
-        mask = torch.ones(1, 179200, dtype=torch.bool)  # 700s @ 256Hz
-        filtered = filter_duration(mask, max_duration_s=600.0)
-        assert filtered.sum() == 153600  # 600s worth
-
-class TestWindowStitching:
-    def test_perfect_overlap(self):
-        """Overlapping windows should average correctly."""
-        # Two windows with 50% overlap
-        window1 = torch.full((100,), 0.8)
-        window2 = torch.full((100,), 0.6)
-
-        stitched = stitch_windows(
-            [window1, window2],
-            [0, 50],
-            total_length=150,
-            window_size=100,
-        )
-
-        # Non-overlapping regions
-        assert abs(stitched[0:50].mean() - 0.8) < 1e-6
-        assert abs(stitched[100:150].mean() - 0.6) < 1e-6
-        # Overlapping region should average
-        assert abs(stitched[50:100].mean() - 0.7) < 1e-6
-
-class TestEventGeneration:
-    def test_event_merging(self):
-        """Close events should merge."""
-        events = [
-            SeizureEvent(10.0, 15.0, 0.9),
-            SeizureEvent(16.0, 20.0, 0.8),  # 1s gap
-            SeizureEvent(25.0, 30.0, 0.85),  # 5s gap
-        ]
-        merged = merge_events(events, tau_merge=2.0)
-        assert len(merged) == 2  # First two merge, third stays
-        assert merged[0].end_s == 20.0
-
-    def test_confidence_calculation(self):
-        """Confidence should reflect probabilities during event."""
-        probs = torch.tensor([0.1, 0.9, 0.95, 0.88, 0.1])
-        event = SeizureEvent(
-            start_s=1/256,
-            end_s=4/256,
-            confidence=0.0
-        )
-        conf = calculate_event_confidence(probs, event, sampling_rate=256)
-        expected = (0.9 + 0.95 + 0.88) / 3
-        assert abs(conf - expected) < 1e-6
-```
-
-### Integration Tests (`tests/test_integration_post.py`)
-```python
-def test_full_pipeline():
-    """End-to-end post-processing validation."""
-    # Generate synthetic data
-    probs = generate_synthetic_probs_with_seizures()
-
-    config = PostprocessingConfig(
-        hysteresis=HysteresisConfig(tau_on=0.86, tau_off=0.78),
-        morphology=MorphologyConfig(opening_kernel=5, closing_kernel=5),
-        min_duration_s=3.0,
-        max_duration_s=600.0,
-        tau_merge=2.0,
-    )
-
-    events = postprocess_predictions(probs, config)
-
-    # Verify clinical constraints
-    for event_list in events:
-        for event in event_list:
-            duration = event.end_s - event.start_s
-            assert duration >= 3.0
-            assert duration <= 600.0
-            assert 0.0 <= event.confidence <= 1.0
-
-def test_real_eeg_scenario():
-    """Test with realistic EEG patterns."""
-    # Load sample predictions from Phase 3
-    probs = torch.load("test_data/sample_predictions.pt")
-    config = PostprocessingConfig.from_yaml("configs/postprocess.yaml")
-
-    events = postprocess_predictions(probs, config)
-
-    # Should detect known seizures
-    assert len(events[0]) > 0  # At least one seizure detected
-```
-
-## 📈 Performance Optimizations
-
-### GPU Acceleration
-```python
-def apply_morphology_gpu(
-    mask: torch.Tensor,
-    opening_kernel: int = 5,
-    closing_kernel: int = 5,
-) -> torch.Tensor:
-    """GPU-accelerated morphology using pooling."""
-    # Erosion via min pooling
-    eroded = F.min_pool1d(
-        mask.float().unsqueeze(1),
-        kernel_size=opening_kernel,
-        stride=1,
-        padding=opening_kernel//2
-    ).squeeze(1) > 0.5
-
-    # Dilation via max pooling
-    dilated = F.max_pool1d(
-        eroded.float().unsqueeze(1),
-        kernel_size=opening_kernel,
-        stride=1,
-        padding=opening_kernel//2
-    ).squeeze(1) > 0.5
-
-    return dilated
-```
-
-### Vectorized Hysteresis
-```python
-@torch.jit.script
-def apply_hysteresis_vectorized(
-    probs: torch.Tensor,
-    tau_on: float,
-    tau_off: float,
-) -> torch.Tensor:
-    """JIT-compiled vectorized hysteresis."""
-    # Implementation using cumsum and torch operations
-    # Avoid Python loops for 10x speedup
-    pass
-```
-
-### Streaming Mode (Future)
-```python
-class StreamingPostProcessor:
-    """Maintain state for real-time processing."""
-
-    def __init__(self, config: PostprocessingConfig):
-        self.config = config
-        self.buffer = deque(maxlen=config.streaming_buffer_s * 256)
-        self.state = HysteresisState()
-
-    def process_chunk(self, chunk: torch.Tensor) -> List[SeizureEvent]:
-        """Process incoming chunk maintaining state."""
-        # Add to buffer
-        # Apply hysteresis with state
-        # Return any completed events
-        pass
-```
-
-## 📊 Metrics and Evaluation
-
-### Clinical Alignment Metrics
-```python
-def evaluate_postprocessing(
-    raw_probs: torch.Tensor,
-    processed_events: List[List[SeizureEvent]],
-    reference_events: List[List[Tuple[float, float]]],
-) -> Dict[str, float]:
-    """
-    Compare raw vs processed performance.
-
-    Returns:
-        - raw_taes: TAES without post-processing
-        - processed_taes: TAES with post-processing
-        - improvement: Relative improvement
-        - fa_reduction: FA/24h reduction
-        - merge_ratio: Events merged / total events
-    """
-    pass
-```
-
-## 🚦 CSV_BI Export
-
-### Temple Format Compliance
-```python
-def export_csv_bi(
-    events: List[SeizureEvent],
-    filename: str,
-    patient_id: str,
-    recording_id: str,
-    sampling_rate: int = 256,
-):
-    """
-    Export to CSV_BI format for Temple evaluation.
-
-    Format:
-    file,start_time,end_time,label,confidence
-    """
-    rows = []
-    for event in events:
-        rows.append({
-            'file': f"{patient_id}_{recording_id}.edf",
-            'start_time': event.start_s,
-            'end_time': event.end_s,
-            'label': 'seiz',
-            'confidence': event.confidence,
-        })
-
-    df = pd.DataFrame(rows)
-    df.to_csv(filename, index=False)
-```
-
-## ⚙️ Configuration
-
-### Default Configuration (`configs/postprocess.yaml`)
 ```yaml
 postprocessing:
   hysteresis:
@@ -798,9 +182,9 @@ postprocessing:
     min_offset_samples: 256
 
   morphology:
-    opening_kernel: 5
-    closing_kernel: 5
-    use_gpu: true
+    opening_kernel: 11
+    closing_kernel: 31
+    use_gpu: false
 
   duration:
     min_duration_s: 3.0
@@ -808,89 +192,150 @@ postprocessing:
 
   events:
     tau_merge: 2.0
-    confidence_method: "mean"
+    confidence_method: mean
     confidence_percentile: 0.75
 
   stitching:
-    method: "overlap_add"
+    method: overlap_add
     window_size: 15360
     stride: 2560
-
-  export:
-    formats: ["csv_bi", "json", "npy"]
-    include_confidence: true
 ```
 
-## ✅ Definition of Done (Phase 4)
+## 🚦 CSV_BI Export (Temple‑Compliant)
 
-1. [ ] All post-processing components implemented with type hints
-2. [ ] Hysteresis prevents rapid state oscillations
-3. [ ] Morphology removes noise and fills gaps correctly
-4. [ ] Duration filtering enforces clinical constraints
-5. [ ] Window stitching produces continuous timelines
-6. [ ] Event merging reduces fragmentation
-7. [ ] Confidence scores are calibrated and meaningful
-8. [ ] CSV_BI export matches Temple format exactly
-9. [ ] GPU optimizations available where beneficial
-10. [ ] Integration with Phase 3 pipeline seamless
-11. [ ] Unit tests achieve >95% coverage
-12. [ ] `make q` passes (Ruff + mypy strict)
-13. [ ] Performance: <100ms for 1-hour recording
-14. [ ] Documentation complete with examples
+Required header lines (exact):
+- `# version = csv_v1.0.0`
+- `# bname = {patient_id}_{recording_id}`
+- `# duration = {duration_seconds:.4f} secs`
+- `# montage_file = nedc_eas_default_montage.txt`
+- `#`
 
-## 🔗 Integration Points
+Columns:
+- `channel,start_time,stop_time,label,confidence`
 
-### From Phase 3
-- Receives: Raw probabilities (B, T) from model output
-- Config: PostprocessingConfig from schemas.py
-- Metrics: TAES, FA/24h calculated on processed events
+Rows:
+- `channel = TERM` (whole‑record events)
+- `start_time`, `stop_time` in seconds; `label = seiz`; `confidence ∈ [0,1]`
 
-### To Phase 5 (Deployment)
-- Provides: Clinical events with confidence scores
-- Exports: CSV_BI for evaluation, JSON for API
-- Streaming: Real-time processing capability
+Notes:
+- Sort rows by start_time; ensure duration header matches actual length
+- Use dot decimal separator; 4 decimal places recommended
 
-## 🚀 Performance Targets
+Example exporter (sketch):
 
-- **Latency**: <100ms for 1-hour recording
-- **Memory**: <1GB for 24-hour recording
-- **Accuracy**: Improve TAES by >10% vs raw
-- **FA Reduction**: Reduce FA/24h by >30%
-- **Clinical**: Maintain >95% sensitivity @ 10 FA/24h
+```python
+from pathlib import Path
 
-## 📝 Implementation Notes
+def export_csv_bi(
+    events: list[SeizureEvent],
+    outfile: Path,
+    patient_id: str,
+    recording_id: str,
+    duration_s: float,
+) -> None:
+    header = (
+        "# version = csv_v1.0.0\n"
+        f"# bname = {patient_id}_{recording_id}\n"
+        f"# duration = {duration_s:.4f} secs\n"
+        "# montage_file = nedc_eas_default_montage.txt\n"
+        "#\n"
+        "channel,start_time,stop_time,label,confidence\n"
+    )
+    lines = [header]
+    for ev in sorted(events, key=lambda e: e.start_s):
+        lines.append(f"TERM,{ev.start_s:.4f},{ev.end_s:.4f},seiz,{ev.confidence:.4f}\n")
+    outfile.write_text("".join(lines), encoding="utf-8")
+```
 
-### SOLID Principles
-- **Single Responsibility**: Each function does one thing
-- **Open/Closed**: Extensible for new methods via config
-- **Liskov**: All processors follow same interface
-- **Interface Segregation**: Minimal dependencies
-- **Dependency Inversion**: Config-driven behavior
+## 📊 Integration with Phase 3
 
-### Critical Considerations
-1. **Determinism**: Same input → same output always
-2. **Numerical Stability**: No NaN/Inf propagation
-3. **Edge Cases**: Handle empty events, single samples
-4. **Memory**: Stream large recordings in chunks
-5. **Compatibility**: Support both GPU and CPU paths
+Entry point:
 
-### Common Pitfalls to Avoid
-- Don't modify probabilities in-place
-- Ensure thread safety for parallel processing
-- Handle timezone/timestamp conversions carefully
-- Validate all indices before array access
-- Test with adversarial inputs (all 0s, all 1s, random)
+```python
+def postprocess_predictions(
+    raw_probs: torch.Tensor,  # (B, T)
+    config: PostprocessingConfig,
+    sampling_rate: int = 256,
+) -> list[list[SeizureEvent]]:
+    # 1) Hysteresis
+    masks = apply_hysteresis(
+        raw_probs,
+        tau_on=config.hysteresis.tau_on,
+        tau_off=config.hysteresis.tau_off,
+        min_onset_samples=config.hysteresis.min_onset_samples,
+        min_offset_samples=config.hysteresis.min_offset_samples,
+    )
+
+    # 2) Morphology
+    masks = apply_morphology(
+        masks,
+        opening_kernel=config.morphology.opening_kernel,
+        closing_kernel=config.morphology.closing_kernel,
+    )
+
+    # 3) Duration filtering (produce intervals)
+    # filter_duration can return intervals directly for efficiency
+
+    # 4) Eventization + merging + confidence
+    all_events: list[list[SeizureEvent]] = []
+    for b in range(masks.shape[0]):
+        events = mask_to_events(
+            masks[b], sampling_rate=sampling_rate, tau_merge=config.events.tau_merge
+        )
+        for ev in events:
+            ev.confidence = calculate_event_confidence(raw_probs[b], ev, sampling_rate)
+        all_events.append(events)
+    return all_events
+```
+
+## 🧪 Test-Driven Development
+
+Unit tests:
+- Hysteresis: OFF→ON→OFF; oscillation robustness; min_onset/min_offset enforcement; equals at thresholds don’t flip
+- Morphology: opening removes spikes; closing fills gaps; GPU≈CPU within tolerance
+- Duration: remove <3s; segment >600s; keep exactly 3.0s/600.0s
+- Stitching: uniform vs triangular correctness; partial window handling
+- Events: merge gaps ≤ tau_merge; confidence mean/peak/percentile
+- Export: exact Temple header/columns; sorted rows; duration consistency
+
+Integration tests:
+- E2E on synthetic traces: stitched probs → events satisfy duration/merging; confidence in [0,1]
+
+## ✅ Definition of Done
+- [ ] Pydantic schemas extended; YAML validated via CLI
+- [ ] Hysteresis with min_onset/min_offset; vectorized path available
+- [ ] Morphology opening+closing (CPU + optional GPU) with sensible defaults
+- [ ] Duration filtering with long‑event segmentation
+- [ ] Stitching (uniform + weighted) implemented and configurable
+- [ ] Event merging + confidence scoring implemented
+- [ ] CSV_BI export passes Temple compliance tests
+- [ ] Tests >95% coverage for Phase 4 modules
+- [ ] `make q` passes (ruff + mypy strict)
+- [ ] Performance: sub‑second for 1‑hour trace on vectorized CPU; <100ms as stretch
+- [ ] Documentation updated with examples
+
+## ⚠️ Critical Considerations
+- Determinism: pure functions; no in‑place modification
+- Numerical stability: clamp divisions with eps; probs in [0,1]
+- Edge cases: empty masks; single‑sample events; boundary windows
+- Memory: avoid full‑day materialization; enable per‑record processing
+- Compatibility: GPU path optional; match CPU outputs within tolerance
+
+## 🔮 Future: Streaming Mode (Stateful)
+- Maintain `HysteresisState` across chunks (carry buffers + in_seizure)
+- Emit completed events once offset stability satisfied
+- Configurable buffer (e.g., 10s)
 
 ---
 
 **Status**: Ready for TDD implementation 🚀
-**Estimated Time**: 3-4 days
+**Estimated Time**: 3–4 days
 **Prerequisites**: Phase 3 complete, model outputs available
-**Owner**: Post-processing specialist 🔬
+**Owner**: Post‑processing specialist 🔬
 
 **Next Steps**:
-1. Write comprehensive unit tests first (TDD)
-2. Implement core functions one by one
-3. Integrate with Phase 3 pipeline
-4. Benchmark performance on real data
-5. Fine-tune thresholds on validation set
+1) Extend Pydantic schemas + YAML
+2) Write unit tests (hysteresis, morphology, duration, stitching, events, export)
+3) Implement core functions one by one
+4) Integrate with evaluation adapters
+5) Benchmark and tune kernels/thresholds on validation set

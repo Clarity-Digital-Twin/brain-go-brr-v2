@@ -44,6 +44,11 @@ lint: ## Run ruff linter
 	@echo "${CYAN}Linting code...${NC}"
 	.venv/bin/ruff check src/ tests/ --fix || uv run ruff check src/ tests/ --fix
 
+lint-fix: ## Fix all lint issues and format code
+	@echo "${CYAN}Fixing lint issues and formatting...${NC}"
+	.venv/bin/ruff check --fix src/ tests/ || uv run ruff check --fix src/ tests/
+	.venv/bin/ruff format src/ tests/ || uv run ruff format src/ tests/
+
 format: ## Format code with ruff
 	@echo "${CYAN}Formatting code...${NC}"
 	.venv/bin/ruff format src/ tests/ || uv run ruff format src/ tests/
