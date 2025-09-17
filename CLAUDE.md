@@ -1,4 +1,4 @@
-# AGENTS.md — AI Assistant Operating Rules
+# CLAUDE.md — AI Assistant Operating Rules
 
 Single source of truth for ALL AI coding assistants (Claude, Copilot, Cursor, etc.). Follow this file for repo‑specific behavior. ✨
 
