@@ -77,16 +77,18 @@ class ResCNNBlock(nn.Module):
                 )
             )
 
-        # Runtime validation: ensure branches sum to input channels
-        assert sum(channel_splits) == channels, \
-            f"Branch channels {channel_splits} don't sum to {channels}"
+        # Robust validation (not stripped under -O): raise ValueError if mismatch
+        if sum(channel_splits) != channels:
+            raise ValueError(
+                f"ResCNN branch split {channel_splits} does not sum to input channels={channels}"
+            )
 
-        # Fusion layer to combine multi-scale features (channel-wise dropout)
-        # Note: out_ch values sum exactly to `channels` (e.g., 170+170+172=512)
+        # Fusion layer to combine multi-scale features (channel-wise dropout for 1D)
+        # Note: branch out_ch values sum exactly to `channels` (e.g., 170+170+172=512)
         self.fusion = nn.Sequential(
             nn.Conv1d(channels, channels, kernel_size=1),
             nn.BatchNorm1d(channels),
-            nn.Dropout2d(dropout)
+            nn.Dropout1d(dropout)
         )
 
         self.relu = nn.ReLU(inplace=True)

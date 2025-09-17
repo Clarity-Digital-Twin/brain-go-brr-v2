@@ -190,10 +190,11 @@ class ResCNNBlock(nn.Module):
                 )
             )
 
-        # Runtime validation: ensure branches sum to input channels
-        assert sum(channel_splits) == channels, (
-            f"Branch channels {channel_splits} don't sum to {channels}"
-        )
+        # Validate branch split invariance (not stripped under -O): raise clear error
+        if sum(channel_splits) != channels:
+            raise ValueError(
+                f"ResCNN branch split {channel_splits} does not sum to input channels={channels}"
+            )
 
         # Fusion layer to combine multi-scale features
         self.fusion = nn.Sequential(
@@ -225,7 +226,10 @@ class ResCNNBlock(nn.Module):
         fused = self.fusion(multi_scale)
         output = self.relu(fused + x)  # Residual connection
 
-        return output  # type: ignore[no-any-return]
+        # Torch layers lack precise typing; cast to satisfy type checkers
+        from typing import cast
+
+        return cast(torch.Tensor, output)
 
 
 class ResCNNStack(nn.Module):
@@ -270,6 +274,8 @@ class ResCNNStack(nn.Module):
         With kernel 7 and 3 blocks: 7 + 6 + 6 = 19 samples
         """
         # Access kernel_sizes attribute directly from first block
-        first_block: ResCNNBlock = self.blocks[0]  # type: ignore[assignment]
+        from typing import cast
+
+        first_block = cast(ResCNNBlock, self.blocks[0])
         max_kernel: int = max(first_block.kernel_sizes)
         return max_kernel + (self.num_blocks - 1) * (max_kernel - 1)
