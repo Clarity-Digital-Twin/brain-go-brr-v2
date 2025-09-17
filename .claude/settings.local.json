@@ -22,7 +22,9 @@
       "Bash(pip install:*)",
       "Bash(make lint:*)",
       "Bash(uv run ruff:*)",
-      "Bash(make:*)"
+      "Bash(make:*)",
+      "Bash(train)",
+      "Bash(uv run:*)"
     ],
     "deny": [],
     "ask": []
