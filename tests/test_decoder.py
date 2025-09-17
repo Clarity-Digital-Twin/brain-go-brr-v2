@@ -34,7 +34,9 @@ class TestUNetDecoder:
             torch.randn(2, 512, 1920),  # Stage 4 (deep)
         ]
 
-    def test_output_shape(self, decoder: UNetDecoder, encoder: UNetEncoder, sample_input: torch.Tensor) -> None:
+    def test_output_shape(
+        self, decoder: UNetDecoder, encoder: UNetEncoder, sample_input: torch.Tensor
+    ) -> None:
         """Test decoder recovers original input dimensions."""
         encoded, skips = encoder(sample_input)
         output = decoder(encoded, skips)
@@ -42,7 +44,9 @@ class TestUNetDecoder:
         assert output.shape == sample_input.shape
         assert output.shape == (2, 19, 15360)
 
-    def test_skip_compatibility_check(self, decoder: UNetDecoder, mock_skips: list[torch.Tensor]) -> None:
+    def test_skip_compatibility_check(
+        self, decoder: UNetDecoder, mock_skips: list[torch.Tensor]
+    ) -> None:
         """Test skip dimension validation."""
         # Correct shapes
         assert decoder.check_skip_compatibility(mock_skips)
@@ -68,14 +72,16 @@ class TestUNetDecoder:
         ]
         assert not decoder.check_skip_compatibility(bad_skips)
 
-    def test_dimension_progression(self, decoder: UNetDecoder, mock_skips: list[torch.Tensor]) -> None:
+    def test_dimension_progression(
+        self, decoder: UNetDecoder, mock_skips: list[torch.Tensor]
+    ) -> None:
         """Test upsampling progression through decoder stages."""
         x = torch.randn(2, 512, 960)  # Bottleneck input
 
         # Hook to capture intermediate shapes
         shapes = []
 
-        def hook(module: torch.nn.Module, input: tuple, output: torch.Tensor) -> None:
+        def hook(module: torch.nn.Module, input_data: tuple, output: torch.Tensor) -> None:
             if isinstance(output, torch.Tensor):
                 shapes.append(output.shape)
 
@@ -101,10 +107,10 @@ class TestUNetDecoder:
 
         # Create skips with unique markers
         skips = [
-            torch.ones(1, 64, 15360) * 1.0,   # Marker: 1
-            torch.ones(1, 128, 7680) * 2.0,   # Marker: 2
-            torch.ones(1, 256, 3840) * 3.0,   # Marker: 3
-            torch.ones(1, 512, 1920) * 4.0,   # Marker: 4
+            torch.ones(1, 64, 15360) * 1.0,  # Marker: 1
+            torch.ones(1, 128, 7680) * 2.0,  # Marker: 2
+            torch.ones(1, 256, 3840) * 3.0,  # Marker: 3
+            torch.ones(1, 512, 1920) * 4.0,  # Marker: 4
         ]
 
         output = decoder(x, skips)
@@ -117,7 +123,9 @@ class TestUNetDecoder:
         assert output.shape == (1, 19, 15360)
         assert not torch.allclose(output, torch.zeros_like(output))
 
-    def test_gradient_flow(self, decoder: UNetDecoder, encoder: UNetEncoder, sample_input: torch.Tensor) -> None:
+    def test_gradient_flow(
+        self, decoder: UNetDecoder, encoder: UNetEncoder, sample_input: torch.Tensor
+    ) -> None:
         """Test gradients flow through encoder-decoder."""
         sample_input.requires_grad = True
 
@@ -184,7 +192,7 @@ class TestUNetDecoder:
     def test_decoder_components(self, decoder: UNetDecoder) -> None:
         """Test decoder has expected architecture."""
         # Verify transposed convolutions
-        for i, up in enumerate(decoder.upsample):
+        for up in decoder.upsample:
             assert isinstance(up, torch.nn.ConvTranspose1d)
             assert up.kernel_size == (2,)
             assert up.stride == (2,)
@@ -197,7 +205,9 @@ class TestUNetDecoder:
         assert decoder.upsample[3].in_channels == 64
         assert decoder.upsample[3].out_channels == 64
 
-    def test_deterministic_eval_mode(self, decoder: UNetDecoder, mock_skips: list[torch.Tensor]) -> None:
+    def test_deterministic_eval_mode(
+        self, decoder: UNetDecoder, mock_skips: list[torch.Tensor]
+    ) -> None:
         """Test deterministic output in eval mode."""
         decoder.eval()
         x = torch.randn(2, 512, 960)
@@ -271,5 +281,5 @@ class TestEncoderDecoderIntegration:
             (1, 512, 1920),
         ]
 
-        for skip, expected in zip(skips, expected_shapes):
+        for skip, expected in zip(skips, expected_shapes, strict=False):
             assert skip.shape == expected

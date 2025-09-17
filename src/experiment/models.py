@@ -529,7 +529,7 @@ class UNetDecoder(nn.Module):
             x = self.decoder_blocks[i](x)
 
         # Final output projection to target channels
-        return self.output_conv(x)
+        return cast(torch.Tensor, self.output_conv(x))
 
     def check_skip_compatibility(self, skips: list[torch.Tensor]) -> bool:
         """Verify skip dimensions match expected shapes.
@@ -551,7 +551,7 @@ class UNetDecoder(nn.Module):
         if len(skips) != self.depth:
             return False
 
-        for i, (skip, expected) in enumerate(zip(skips, expected_shapes[:self.depth])):
+        for skip, expected in zip(skips, expected_shapes[: self.depth], strict=False):
             # Check channel and spatial dimensions (ignore batch)
             if skip.shape[1:] != expected[1:]:
                 return False
