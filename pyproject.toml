@@ -1,7 +1,3 @@
-[project.scripts]
-train = "src.experiment.pipeline:main"
-evaluate = "src.experiment.evaluate:main"
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -12,7 +8,7 @@ dynamic = ["version"]
 description = "Seizure detection using U-Net + ResCNN + Bi-Mamba-2 for O(N) EEG processing"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
 authors = [
     {name = "Clarity Digital Twin Team", email = "team@clarity.ai"},
 ]
@@ -81,14 +77,14 @@ dev-dependencies = [
     # Documentation
     "mkdocs-material>=9.5.0",
     "mkdocstrings[python]>=0.24.0",
-]
-notebooks = [
+
+    # Notebooks
     "jupyter>=1.0.0",
     "ipykernel>=6.0.0",
     "nbformat>=5.0.0",
     "ipywidgets>=8.0.0",
-]
-docs = [
+
+    # Docs
     "mkdocs>=1.4.0",
     "mkdocs-material>=9.0.0",
     "mkdocstrings[python]>=0.20.0",
@@ -100,6 +96,8 @@ Repository = "https://github.com/yourusername/research-project-template.git"
 Issues = "https://github.com/yourusername/research-project-template/issues"
 
 [project.scripts]
+train = "src.experiment.pipeline:main"
+evaluate = "src.experiment.evaluate:main"
 run-experiment = "src.cli:main"
 
 [tool.hatch.version]
@@ -181,39 +179,6 @@ exclude_lines = [
     "raise AssertionError",
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
-]
-
-[tool.black]
-line-length = 88
-target-version = ['py310']
-include = '\.pyi?$'
-extend-exclude = '''
-# A regex preceded by ^/ will apply only to files and directories
-# in the root of the project.
-(
-  ^/cache/          # exclude cache directory
-  | ^/data/         # exclude data directory  
-  | ^/results/      # exclude results directory
-)
-'''
-
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-line_length = 88
-known_first_party = ["experiment"]
-
-[tool.flake8]
-max-line-length = 88
-extend-ignore = ["E203", "W503"]
-exclude = [
-    ".git",
-    "__pycache__",
-    "cache",
-    "data",
-    "results",
-    ".pytest_cache",
-    ".mypy_cache",
 ]
 
 [tool.mypy]

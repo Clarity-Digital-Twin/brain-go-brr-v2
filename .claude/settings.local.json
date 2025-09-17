@@ -19,7 +19,10 @@
       "Bash(sudo apt-get:*)",
       "Bash(sudo apt-get install:*)",
       "Bash(apt-get install:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(make lint:*)",
+      "Bash(uv run ruff:*)",
+      "Bash(make:*)"
     ],
     "deny": [],
     "ask": []
