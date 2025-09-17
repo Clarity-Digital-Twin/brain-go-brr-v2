@@ -9,8 +9,10 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 class DataConfig(BaseModel):
     """Data loading and batching configuration."""
 
-    dataset: Literal["tuh_eeg", "chb_mit"] = Field(description="Dataset to use for training")
-    data_dir: Path = Field(description="Root directory containing EDF files")
+    dataset: Literal["tuh_eeg", "chb_mit"] = Field(
+        default="tuh_eeg", description="Dataset to use for training"
+    )
+    data_dir: Path = Field(default=Path("data"), description="Root directory containing EDF files")
     cache_dir: Path = Field(default=Path("cache/data"), description="Data cache directory")
     use_balanced_sampling: bool = Field(default=True, description="Use balanced sampling")
     sampling_rate: Literal[256] = Field(
@@ -25,8 +27,10 @@ class DataConfig(BaseModel):
     stride: Literal[10] = Field(
         default=10, description="Stride between windows in seconds (fixed at 10s)"
     )
-    num_workers: int = Field(ge=0, le=32, description="DataLoader workers")
-    validation_split: float = Field(ge=0.0, le=0.5, description="Fraction of data for validation")
+    num_workers: int = Field(default=0, ge=0, le=32, description="DataLoader workers")
+    validation_split: float = Field(
+        default=0.2, ge=0.0, le=0.5, description="Fraction of data for validation"
+    )
     max_samples: int | None = Field(
         default=None, ge=1, description="Limit samples for debugging (None = use all)"
     )
@@ -184,7 +188,7 @@ class EarlyStoppingConfig(BaseModel):
 class TrainingConfig(BaseModel):
     """Training loop configuration."""
 
-    epochs: int = Field(ge=1, le=200, description="Number of training epochs")
+    epochs: int = Field(default=1, ge=1, le=200, description="Number of training epochs")
     batch_size: int = Field(default=16, ge=1, le=256, description="Batch size")
     learning_rate: float = Field(
         default=3e-4, ge=1e-6, le=1e-2, description="Initial learning rate"
@@ -228,8 +232,8 @@ class WandbConfig(BaseModel):
 class ExperimentConfig(BaseModel):
     """Experiment tracking configuration."""
 
-    name: str = Field(description="Experiment name for tracking")
-    description: str = Field(description="Experiment description")
+    name: str = Field(default="debug", description="Experiment name for tracking")
+    description: str = Field(default="default experiment", description="Experiment description")
     seed: int = Field(default=42, description="Random seed for reproducibility")
     device: Literal["auto", "cuda", "cpu", "mps"] = Field(
         default="auto", description="Device selection"
@@ -269,14 +273,14 @@ class ResourcesConfig(BaseModel):
 class Config(BaseModel):
     """Complete configuration schema for seizure detection pipeline."""
 
-    data: DataConfig
-    preprocessing: PreprocessingConfig
-    model: ModelConfig
-    postprocessing: PostprocessingConfig
-    training: TrainingConfig
-    evaluation: EvaluationConfig
-    experiment: ExperimentConfig
-    logging: LoggingConfig
+    data: DataConfig = Field(default_factory=DataConfig)
+    preprocessing: PreprocessingConfig = Field(default_factory=PreprocessingConfig)
+    model: ModelConfig = Field(default_factory=ModelConfig)
+    postprocessing: PostprocessingConfig = Field(default_factory=PostprocessingConfig)
+    training: TrainingConfig = Field(default_factory=TrainingConfig)
+    evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
+    experiment: ExperimentConfig = Field(default_factory=ExperimentConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
     resources: ResourcesConfig | None = Field(default=None)
 
     @model_validator(mode="after")

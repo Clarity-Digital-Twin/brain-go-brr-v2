@@ -19,7 +19,7 @@ import torch
 import torch.nn as nn
 from torch.cuda.amp import GradScaler, autocast
 from torch.optim import AdamW, Optimizer
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, LRScheduler
+from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm  # type: ignore[import-untyped]
@@ -117,44 +117,23 @@ def create_scheduler(
 ) -> LRScheduler:
     """Create learning rate scheduler.
 
-    Supports cosine with warmup.
+    Uses a LambdaLR for linear warmup followed by cosine decay.
+    Designed to step once per optimization update.
     """
-    warmup_steps = int(config.warmup_ratio * total_steps)
+    warmup_steps = max(1, int(config.warmup_ratio * total_steps))
 
     if config.type == "cosine":
-        # Use CosineAnnealingWarmRestarts for per-iteration scheduling
-        scheduler = CosineAnnealingWarmRestarts(
-            optimizer,
-            T_0=total_steps - warmup_steps,
-            T_mult=1,
-            eta_min=1e-7,
-        )
+        import math
 
-        # Manual warmup wrapper
-        class WarmupScheduler(LRScheduler):
-            """Wrapper for warmup + base scheduler."""
+        def lr_lambda(step: int) -> float:
+            # Linear warmup
+            if step < warmup_steps:
+                return float(step + 1) / float(warmup_steps)
+            # Cosine decay to 0
+            progress = (step - warmup_steps) / max(1, (total_steps - warmup_steps))
+            return 0.5 * (1.0 + math.cos(math.pi * progress))
 
-            def __init__(self) -> None:
-                self.warmup_steps = warmup_steps
-                self.base_scheduler = scheduler
-                self.current_step = 0
-                super().__init__(optimizer, last_epoch=-1)
-
-            def get_lr(self) -> list[float]:
-                if self.current_step < self.warmup_steps:
-                    # Linear warmup
-                    warmup_factor = self.current_step / max(1, self.warmup_steps)
-                    return [base_lr * warmup_factor for base_lr in self.base_lrs]
-                return self.base_scheduler.get_last_lr()
-
-            def step(self, epoch: int | None = None) -> None:
-                self.current_step += 1
-                if self.current_step > self.warmup_steps:
-                    self.base_scheduler.step()
-                else:
-                    super().step()
-
-        return WarmupScheduler()
+        return LambdaLR(optimizer, lr_lambda=lr_lambda)
     else:
         raise ValueError(f"Unknown scheduler: {config.type}")
 
@@ -431,7 +410,8 @@ class EarlyStopping:
             return False
 
         self.counter += 1
-        return self.counter >= self.patience
+        # Allow exactly `patience` non-improving epochs; stop on the next one.
+        return self.counter > self.patience
 
 
 # ============================================================================
