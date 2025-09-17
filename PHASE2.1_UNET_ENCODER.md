@@ -93,8 +93,8 @@ class UNetEncoder(nn.Module):
         self.downsample = nn.ModuleList()
 
         for i in range(depth):
-            # Encoder blocks take previous stage's output channels as input
-            in_ch = channels[0] if i == 0 else channels[i-1]
+            # Encoder blocks: first stage maintains 64, then each doubles
+            in_ch = channels[i-1] if i > 0 else channels[0]
             out_ch = channels[i]
 
             # Double convolution block
