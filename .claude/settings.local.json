@@ -32,7 +32,10 @@
       "Bash(done)",
       "Bash(grep:*)",
       "Read(//mnt/c/Users/JJ/Desktop/Clarity-Digital-Twin/**)",
-      "Bash(uv add:*)"
+      "Bash(uv add:*)",
+      "Bash(rsync:*)",
+      "Bash(tmux kill-session:*)",
+      "Bash(tmux attach:*)"
     ],
     "deny": [],
     "ask": []
