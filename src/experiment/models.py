@@ -570,7 +570,7 @@ class UNetDecoder(nn.Module):
             "depth": self.depth,
             "channel_progression": [512, 256, 128, 64],
             "spatial_progression": [960, 1920, 3840, 7680, 15360],
-            "skip_usage_order": "skips[3] → skips[2] → skips[1] → skips[0]",
+            "skip_usage_order": "skips[3] -> skips[2] -> skips[1] -> skips[0]",
             "expected_skip_shapes": [
                 (64, 15360),
                 (128, 7680),
@@ -696,7 +696,7 @@ class SeizureDetector(nn.Module):
         temporal = self.mamba(features)  # (B, 512, 960)
         decoded = self.decoder(temporal, skips)  # (B, 19, 15360)
         output = self.detection_head(decoded)  # (B, 1, 15360)
-        return output.squeeze(1)  # (B, 15360)
+        return cast(torch.Tensor, output.squeeze(1))  # (B, 15360)
 
     @classmethod
     def from_config(cls, cfg: "_ModelConfig") -> "SeizureDetector":
@@ -720,23 +720,25 @@ class SeizureDetector(nn.Module):
         """Count total trainable parameters."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
-    def get_layer_info(self) -> dict:
+    def get_layer_info(self) -> dict[str, object]:
         """Get per-component and total parameter counts plus config snapshot."""
-        info = {
-            "encoder_params": sum(p.numel() for p in self.encoder.parameters()),
-            "rescnn_params": sum(p.numel() for p in self.rescnn.parameters()),
-            "mamba_params": sum(p.numel() for p in self.mamba.parameters()),
-            "decoder_params": sum(p.numel() for p in self.decoder.parameters()),
-            "head_params": sum(p.numel() for p in self.detection_head.parameters()),
+        encoder_params = sum(p.numel() for p in self.encoder.parameters())
+        rescnn_params = sum(p.numel() for p in self.rescnn.parameters())
+        mamba_params = sum(p.numel() for p in self.mamba.parameters())
+        decoder_params = sum(p.numel() for p in self.decoder.parameters())
+        head_params = sum(p.numel() for p in self.detection_head.parameters())
+
+        total_params = encoder_params + rescnn_params + mamba_params + decoder_params + head_params
+
+        info: dict[str, object] = {
+            "encoder_params": encoder_params,
+            "rescnn_params": rescnn_params,
+            "mamba_params": mamba_params,
+            "decoder_params": decoder_params,
+            "head_params": head_params,
+            "total_params": total_params,
+            "config": self.config,
         }
-        info["total_params"] = (
-            info["encoder_params"]
-            + info["rescnn_params"]
-            + info["mamba_params"]
-            + info["decoder_params"]
-            + info["head_params"]
-        )
-        info["config"] = self.config
         return info
 
     def get_memory_usage(self, batch_size: int = 16) -> dict[str, float]:
