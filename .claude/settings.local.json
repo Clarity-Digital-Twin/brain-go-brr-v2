@@ -46,7 +46,8 @@
       "Bash(.venv/bin/pytest tests/test_rescnn.py -q)",
       "Bash(.venv/bin/pytest tests/test_decoder.py -v --no-cov)",
       "Bash(.venv/bin/pytest tests/test_decoder.py -q)",
-      "Bash(.venv/bin/pytest tests/test_evaluate.py -q)"
+      "Bash(.venv/bin/pytest tests/test_evaluate.py -q)",
+      "Bash(.venv/bin/pytest tests/test_evaluate.py tests/test_training.py -q --no-cov)"
     ],
     "deny": [],
     "ask": []

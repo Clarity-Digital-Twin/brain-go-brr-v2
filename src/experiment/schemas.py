@@ -11,6 +11,8 @@ class DataConfig(BaseModel):
 
     dataset: Literal["tuh_eeg", "chb_mit"] = Field(description="Dataset to use for training")
     data_dir: Path = Field(description="Root directory containing EDF files")
+    cache_dir: Path = Field(default=Path("cache/data"), description="Data cache directory")
+    use_balanced_sampling: bool = Field(default=True, description="Use balanced sampling")
     sampling_rate: Literal[256] = Field(
         default=256, description="Target sampling rate in Hz (fixed at 256)"
     )
@@ -23,7 +25,6 @@ class DataConfig(BaseModel):
     stride: Literal[10] = Field(
         default=10, description="Stride between windows in seconds (fixed at 10s)"
     )
-    batch_size: int = Field(ge=1, le=256, description="Batch size for training")
     num_workers: int = Field(ge=0, le=32, description="DataLoader workers")
     validation_split: float = Field(ge=0.0, le=0.5, description="Fraction of data for validation")
     max_samples: int | None = Field(
@@ -177,12 +178,14 @@ class EarlyStoppingConfig(BaseModel):
         default="sensitivity_at_10fa",
         description="Metric to monitor (e.g., sensitivity_at_10fa)",
     )
+    mode: Literal["max", "min"] = Field(default="max", description="Maximize or minimize metric")
 
 
 class TrainingConfig(BaseModel):
     """Training loop configuration."""
 
     epochs: int = Field(ge=1, le=200, description="Number of training epochs")
+    batch_size: int = Field(default=16, ge=1, le=256, description="Batch size")
     learning_rate: float = Field(
         default=3e-4, ge=1e-6, le=1e-2, description="Initial learning rate"
     )
@@ -190,6 +193,7 @@ class TrainingConfig(BaseModel):
     optimizer: Literal["adamw", "adam", "sgd"] = Field(
         default="adamw", description="Optimizer type"
     )
+    resume: bool = Field(default=False, description="Resume from last checkpoint")
     scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
     gradient_clip: float = Field(
         default=1.0, ge=0.0, description="Gradient clipping value (0 = disabled)"
@@ -230,6 +234,7 @@ class ExperimentConfig(BaseModel):
     device: Literal["auto", "cuda", "cpu", "mps"] = Field(
         default="auto", description="Device selection"
     )
+    output_dir: Path = Field(default=Path("results"), description="Output directory for results")
     cache_dir: Path = Field(default=Path("cache"), description="Cache directory")
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(
         default="INFO", description="Logging verbosity"

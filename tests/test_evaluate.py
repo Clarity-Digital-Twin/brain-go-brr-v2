@@ -4,11 +4,11 @@ import pytest
 import torch
 
 from src.experiment.evaluate import (
-    calculate_taes,
-    fa_per_24h,
     batch_masks_to_events,
-    sensitivity_at_fa_rates,
+    calculate_taes,
     evaluate_predictions,
+    fa_per_24h,
+    sensitivity_at_fa_rates,
 )
 from src.experiment.schemas import PostprocessingConfig
 
@@ -148,9 +148,7 @@ class TestSensitivityAtFA:
         probs = torch.linspace(0, 1, 15360).unsqueeze(0)
         labels = (probs > 0.6).float()
 
-        metrics = sensitivity_at_fa_rates(
-            probs, labels, [10, 5, 1], post_cfg, sampling_rate=256
-        )
+        metrics = sensitivity_at_fa_rates(probs, labels, [10, 5, 1], post_cfg, sampling_rate=256)
 
         # Monotonicity check
         assert metrics["sensitivity_at_10fa"] >= metrics["sensitivity_at_5fa"]
@@ -164,9 +162,7 @@ class TestSensitivityAtFA:
         # Perfect prediction
         probs = labels.clone()
 
-        metrics = sensitivity_at_fa_rates(
-            probs, labels, [10], post_cfg, sampling_rate=256
-        )
+        metrics = sensitivity_at_fa_rates(probs, labels, [10], post_cfg, sampling_rate=256)
 
         assert metrics["sensitivity_at_10fa"] > 0.9
 
@@ -190,9 +186,7 @@ class TestEvaluatePredictions:
         probs = torch.rand(2, 15360)
         labels = (probs > 0.7).float()
 
-        results = evaluate_predictions(
-            probs, labels, [10, 5, 1], post_cfg
-        )
+        results = evaluate_predictions(probs, labels, [10, 5, 1], post_cfg)
 
         expected_keys = {
             "taes",
@@ -209,9 +203,7 @@ class TestEvaluatePredictions:
         probs = torch.rand(2, 15360)
         labels = (probs > 0.7).float()
 
-        results = evaluate_predictions(
-            probs, labels, [10, 5, 1], post_cfg
-        )
+        results = evaluate_predictions(probs, labels, [10, 5, 1], post_cfg)
 
         # All metrics should be in [0, 1]
         assert 0 <= results["taes"] <= 1

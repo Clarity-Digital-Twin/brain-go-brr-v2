@@ -6,8 +6,8 @@ from typing import Any
 
 import numpy as np
 import torch
-from sklearn.metrics import roc_auc_score
-from scipy import ndimage
+from scipy import ndimage  # type: ignore[import-untyped]
+from sklearn.metrics import roc_auc_score  # type: ignore[import-untyped]
 
 from src.experiment.schemas import PostprocessingConfig
 
@@ -77,7 +77,9 @@ def calculate_taes(
     )
 
     base_score = sum(per_ref_scores) / len(per_ref_scores)
-    penalty = alpha * (fp_duration / max(total_pred_duration, 1e-8)) if total_pred_duration > 0 else 0
+    penalty = (
+        alpha * (fp_duration / max(total_pred_duration, 1e-8)) if total_pred_duration > 0 else 0
+    )
     taes = base_score - penalty
 
     return float(max(0.0, min(1.0, taes)))
@@ -115,9 +117,7 @@ def fa_per_24h(
     return (fa_count / total_hours) * 24.0
 
 
-def batch_masks_to_events(
-    masks: torch.Tensor, fs: int
-) -> list[list[tuple[float, float]]]:
+def batch_masks_to_events(masks: torch.Tensor, fs: int) -> list[list[tuple[float, float]]]:
     """Convert binary masks to event intervals.
 
     Args:
@@ -300,9 +300,7 @@ def sensitivity_at_fa_rates(
         )
 
         # Get predictions at this threshold
-        pred_events = batch_probs_to_events(
-            probs, post_cfg, sampling_rate, threshold=threshold
-        )
+        pred_events = batch_probs_to_events(probs, post_cfg, sampling_rate, threshold=threshold)
 
         # Calculate sensitivity (event-level)
         tp_count = 0
@@ -348,9 +346,7 @@ def evaluate_predictions(
     ref_events = batch_masks_to_events(labels, sampling_rate)
 
     # Use default threshold for TAES (0.5)
-    pred_events_taes = batch_probs_to_events(
-        probs, post_cfg, sampling_rate, threshold=0.5
-    )
+    pred_events_taes = batch_probs_to_events(probs, post_cfg, sampling_rate, threshold=0.5)
 
     # Flatten events for TAES calculation
     all_ref = [evt for record in ref_events for evt in record]
@@ -369,16 +365,14 @@ def evaluate_predictions(
         auroc = 0.5
 
     # Sensitivity at FA rates
-    sensitivity_results = sensitivity_at_fa_rates(
-        probs, labels, fa_rates, post_cfg, sampling_rate
-    )
+    sensitivity_results = sensitivity_at_fa_rates(probs, labels, fa_rates, post_cfg, sampling_rate)
 
     # Generate FA curve (10 points)
     fa_curve = []
     for fa in [0.5, 1, 2.5, 5, 10, 20, 50, 100]:
-        sens = sensitivity_at_fa_rates(
-            probs, labels, [fa], post_cfg, sampling_rate
-        ).get(f"sensitivity_at_{fa}fa", 0.0)
+        sens = sensitivity_at_fa_rates(probs, labels, [fa], post_cfg, sampling_rate).get(
+            f"sensitivity_at_{fa}fa", 0.0
+        )
         fa_curve.append((fa, sens))
 
     results = {

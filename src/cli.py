@@ -85,7 +85,7 @@ def _print_config_summary(config: Config) -> None:
     # Data settings
     data_summary = (
         f"Dataset: {config.data.dataset}\n"
-        f"Batch size: {config.data.batch_size}\n"
+        f"Batch size: {config.training.batch_size}\n"
         f"Window: {config.data.window_size}s @ {config.data.sampling_rate}Hz\n"
         f"Channels: {config.data.n_channels} (10-20)"
     )
@@ -125,6 +125,145 @@ def _print_config_summary(config: Config) -> None:
     table.add_row("Experiment", exp_summary)
 
     console.print(table)
+
+
+@cli.command()
+@click.argument("config_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--resume", is_flag=True, help="Resume from last checkpoint")
+@click.option("--device", type=click.Choice(["auto", "cpu", "cuda"]), default="auto")
+def train(config_path: Path, resume: bool, device: str) -> None:
+    """Train seizure detection model.
+
+    Args:
+        config_path: Path to training configuration YAML
+        resume: Resume from last checkpoint
+        device: Device to train on (auto/cpu/cuda)
+    """
+    try:
+        # Load config
+        console.print(f"[cyan]Loading config:[/cyan] {config_path}")
+        config = Config.from_yaml(config_path)
+
+        # Override CLI options
+        if resume:
+            config.training.resume = True
+        if device != "auto":
+            config.experiment.device = device  # type: ignore[assignment]
+
+        # Import here to avoid circular dependency
+        from src.experiment.pipeline import main as train_main
+
+        console.print("[green]Starting training...[/green]")
+
+        # Mock sys.argv for pipeline.main()
+        import sys
+
+        old_argv = sys.argv
+        sys.argv = ["train", "--config", str(config_path)]
+        if resume:
+            sys.argv.append("--resume")
+
+        try:
+            train_main()
+        finally:
+            sys.argv = old_argv
+
+    except ValidationError as e:
+        console.print(f"[red]Config validation error:[/red] {e}")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Training interrupted by user[/yellow]")
+        sys.exit(130)
+    except Exception as e:
+        console.print(f"[red]Training error:[/red] {e}")
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("checkpoint_path", type=click.Path(exists=True, path_type=Path))
+@click.argument("data_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--config", type=click.Path(exists=True, path_type=Path), help="Config to use")
+@click.option("--device", type=click.Choice(["auto", "cpu", "cuda"]), default="auto")
+def evaluate(checkpoint_path: Path, data_path: Path, config: Path | None, device: str) -> None:
+    """Evaluate model on test data.
+
+    Args:
+        checkpoint_path: Path to model checkpoint
+        data_path: Path to test data directory
+        config: Optional config file (uses checkpoint's config by default)
+        device: Device to evaluate on
+    """
+    try:
+        import torch
+        from torch.utils.data import DataLoader
+
+        from src.experiment.data import EEGWindowDataset
+        from src.experiment.models import SeizureDetector
+        from src.experiment.pipeline import validate_epoch
+
+        console.print(f"[cyan]Loading checkpoint:[/cyan] {checkpoint_path}")
+
+        # Load checkpoint
+        checkpoint = torch.load(checkpoint_path, map_location="cpu")
+
+        # Get config
+        if config:
+            cfg = Config.from_yaml(config)
+        elif "config" in checkpoint:
+            cfg = Config(**checkpoint["config"])
+        else:
+            console.print("[red]No config found in checkpoint or provided[/red]")
+            sys.exit(1)
+
+        # Create model
+        model = SeizureDetector.from_config(cfg.model)
+        model.load_state_dict(checkpoint["model_state_dict"])
+
+        if device == "auto":
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = model.to(device)
+
+        # Load test data
+        edf_files = list(data_path.glob("**/*.edf"))
+        console.print(f"[cyan]Found {len(edf_files)} EDF files[/cyan]")
+
+        dataset = EEGWindowDataset(
+            edf_files,
+            cache_dir=Path(cfg.data.cache_dir) / "test",
+        )
+
+        dataloader = DataLoader(
+            dataset,
+            batch_size=cfg.training.batch_size,
+            shuffle=False,
+            num_workers=cfg.data.num_workers,
+            pin_memory=(device == "cuda"),
+        )
+
+        # Evaluate
+        console.print("[green]Running evaluation...[/green]")
+        metrics = validate_epoch(
+            model,
+            dataloader,
+            cfg.postprocessing,
+            device=device,
+            fa_rates=cfg.evaluation.fa_rates,
+        )
+
+        # Print results
+        table = Table(title="Evaluation Results")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", style="green")
+
+        for key, value in metrics.items():
+            if isinstance(value, float):
+                table.add_row(key, f"{value:.4f}")
+
+        console.print(table)
+
+    except Exception as e:
+        console.print(f"[red]Evaluation error:[/red] {e}")
+        sys.exit(1)
 
 
 @cli.command()

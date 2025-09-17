@@ -5,19 +5,18 @@ from pathlib import Path
 
 import pytest
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
 from src.experiment.models import SeizureDetector
-from src.experiment.schemas import Config, TrainingConfig, EarlyStoppingConfig
 from src.experiment.pipeline import (
-    train_epoch,
-    validate_epoch,
     create_optimizer,
     create_scheduler,
-    save_checkpoint,
     load_checkpoint,
+    save_checkpoint,
+    train_epoch,
+    validate_epoch,
 )
+from src.experiment.schemas import Config, EarlyStoppingConfig, TrainingConfig
 
 
 class TestTrainingSmoke:
@@ -43,8 +42,6 @@ class TestTrainingSmoke:
         # Make 50% positive
         labels[::2, 5000:10000] = 1
 
-        dataset = TensorDataset(windows, labels)
-
         # Split into train/val
         train_dataset = TensorDataset(windows[:8], labels[:8])
         val_dataset = TensorDataset(windows[8:], labels[8:])
@@ -58,15 +55,13 @@ class TestTrainingSmoke:
         self, model: SeizureDetector, synthetic_data: tuple[DataLoader, DataLoader]
     ) -> None:
         """Test single training epoch."""
-        train_loader, val_loader = synthetic_data
+        train_loader, _ = synthetic_data
 
         # Setup optimizer
         optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
 
         # Train one epoch
-        train_loss = train_epoch(
-            model, train_loader, optimizer, device="cpu", use_amp=False
-        )
+        train_loss = train_epoch(model, train_loader, optimizer, device="cpu", use_amp=False)
 
         assert train_loss > 0
         assert train_loss < 10  # Reasonable range
@@ -79,7 +74,7 @@ class TestTrainingSmoke:
         _, val_loader = synthetic_data
 
         # Validate
-        from src.experiment.schemas import PostprocessingConfig, HysteresisConfig
+        from src.experiment.schemas import HysteresisConfig, PostprocessingConfig
 
         post_cfg = PostprocessingConfig(
             hysteresis=HysteresisConfig(tau_on=0.86, tau_off=0.78),
@@ -124,9 +119,7 @@ class TestTrainingSmoke:
             warmup_ratio=0.1,
         )
 
-        scheduler = create_scheduler(
-            optimizer, scheduler_cfg, total_steps=100
-        )
+        scheduler = create_scheduler(optimizer, scheduler_cfg, total_steps=100)
 
         # Check warmup works
         initial_lr = optimizer.param_groups[0]["lr"]
@@ -141,8 +134,7 @@ class TestTrainingSmoke:
             # Save checkpoint
             optimizer = torch.optim.AdamW(model.parameters())
             save_checkpoint(
-                model, optimizer, epoch=5, best_metric=0.95,
-                checkpoint_path=checkpoint_path
+                model, optimizer, epoch=5, best_metric=0.95, checkpoint_path=checkpoint_path
             )
 
             assert checkpoint_path.exists()
@@ -156,9 +148,7 @@ class TestTrainingSmoke:
             )
             new_optimizer = torch.optim.AdamW(new_model.parameters())
 
-            epoch, best_metric = load_checkpoint(
-                checkpoint_path, new_model, new_optimizer
-            )
+            epoch, best_metric = load_checkpoint(checkpoint_path, new_model, new_optimizer)
 
             assert epoch == 5
             assert best_metric == 0.95
@@ -172,9 +162,8 @@ class TestTrainingSmoke:
         optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
 
         # Train with gradient clipping
-        train_loss = train_epoch(
-            model, train_loader, optimizer,
-            device="cpu", use_amp=False, gradient_clip=1.0
+        _ = train_epoch(
+            model, train_loader, optimizer, device="cpu", use_amp=False, gradient_clip=1.0
         )
 
         # Check gradients were clipped (no explosion)
@@ -191,10 +180,7 @@ class TestTrainingSmoke:
         optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
 
         # Should work even on CPU (no-op)
-        train_loss = train_epoch(
-            model, train_loader, optimizer,
-            device="cpu", use_amp=True
-        )
+        train_loss = train_epoch(model, train_loader, optimizer, device="cpu", use_amp=True)
 
         assert train_loss > 0
         assert not torch.isnan(torch.tensor(train_loss))
@@ -258,9 +244,7 @@ class TestTrainingSmoke:
             config.experiment.output_dir = tmpdir
 
             # Train for 2 epochs
-            best_metrics = train(
-                model, train_loader, val_loader, config
-            )
+            best_metrics = train(model, train_loader, val_loader, config)
 
             # Check that we got metrics
             assert "best_epoch" in best_metrics
