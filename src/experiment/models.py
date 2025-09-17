@@ -99,6 +99,15 @@ class UNetEncoder(nn.Module):
         """
         skips = []
 
+        # Defensive check: input length must be divisible by 2**depth to downsample cleanly
+        length = int(x.shape[-1])
+        factor = 2**self.depth
+        if length % factor != 0:
+            raise ValueError(
+                f"UNetEncoder expects input length divisible by {factor}; got L={length}. "
+                "Ensure window size aligns with downsampling (e.g., 15360 for depth=4)."
+            )
+
         # Initial projection
         x = self.input_conv(x)  # (B, 64, 15360)
 
