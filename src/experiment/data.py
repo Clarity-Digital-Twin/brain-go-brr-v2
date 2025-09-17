@@ -11,7 +11,7 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -116,7 +116,12 @@ def preprocess_recording(
 
     Returns float32 array (n_channels, n_samples_new), finite-only (NaN/Inf → 0).
     """
-    from scipy.signal import butter, iirnotch, lfilter, resample  # type: ignore[import-untyped]  # local import
+    from scipy.signal import (  # type: ignore[import-untyped]  # local import
+        butter,
+        iirnotch,
+        lfilter,
+        resample,
+    )
 
     x = np.asarray(data, dtype=np.float64)  # work in float64 for filtering stability
     _n_ch, n_samp = x.shape
@@ -150,7 +155,9 @@ def preprocess_recording(
     x = (x - mean) / (std + 1e-8)
 
     # Sanitize NaNs / Infs and cast
-    x_clean: npt.NDArray[np.float32] = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+    x_clean: npt.NDArray[np.float32] = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0).astype(
+        np.float32
+    )
     return x_clean
 
 
@@ -253,7 +260,9 @@ class EEGWindowDataset(torch.utils.data.Dataset):
                 if labels_arr is not None:
                     self._labels.append(labels_arr[w_idx])
 
-    def _process_file(self, edf_path: Path, file_idx: int) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.float32] | None]:
+    def _process_file(
+        self, edf_path: Path, file_idx: int
+    ) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.float32] | None]:
         # Load & preprocess
         data_uv, fs = load_edf_file(edf_path)
         data_proc = preprocess_recording(data_uv, fs_original=fs)
@@ -292,7 +301,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
     def __len__(self) -> int:
         return len(self._windows)
 
-    def __getitem__(self, idx: int) -> Union[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+    def __getitem__(self, idx: int) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         window = torch.from_numpy(self._windows[idx])
         if self.transform is not None:
             window = self.transform(window)
@@ -301,4 +310,3 @@ class EEGWindowDataset(torch.utils.data.Dataset):
             label = torch.from_numpy(self._labels[idx])
             return window, label
         return window
-

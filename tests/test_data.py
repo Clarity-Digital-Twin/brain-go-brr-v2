@@ -70,10 +70,12 @@ def test_preprocess_shapes_and_dtype() -> None:
     # 2 channels, 4 seconds @ 512 Hz → resample to 256 Hz yields 1024 samples
     fs_in = 512.0
     t = np.arange(0, 4.0, 1.0 / fs_in)
-    x = np.vstack([
-        np.sin(2 * math.pi * 10 * t),
-        np.cos(2 * math.pi * 20 * t),
-    ])
+    x = np.vstack(
+        [
+            np.sin(2 * math.pi * 10 * t),
+            np.cos(2 * math.pi * 20 * t),
+        ]
+    )
     x = x.astype(np.float32)
 
     y = data_mod.preprocess_recording(x, fs_original=fs_in, target_fs=256)
@@ -90,7 +92,9 @@ def test_extract_windows_counts_and_metadata() -> None:
     n_samples = constants.WINDOW_SAMPLES + 2 * constants.STRIDE_SAMPLES  # 3 windows
     x = rng.standard_normal((19, n_samples)).astype(np.float32)
 
-    windows, y, meta = data_mod.extract_windows(x, constants.WINDOW_SAMPLES, constants.STRIDE_SAMPLES)
+    windows, y, meta = data_mod.extract_windows(
+        x, constants.WINDOW_SAMPLES, constants.STRIDE_SAMPLES
+    )
     assert windows.shape == (3, 19, constants.WINDOW_SAMPLES)
     assert y is None
     assert meta["start_samples"] == [0, constants.STRIDE_SAMPLES, 2 * constants.STRIDE_SAMPLES]
