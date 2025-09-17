@@ -123,7 +123,10 @@ class UNetDecoder(nn.Module):
             # Upsample
             x = self.upsample[i](x)
 
-            # Concat with corresponding skip (reverse order: 3,2,1,0)
+            # Concat with corresponding skip
+            # Decoder stage i=0 uses deepest skip (skips[3])
+            # Decoder stage i=1 uses skips[2], etc.
+            # Formula: skip_idx = depth - 1 - i gives us [3,2,1,0]
             skip_idx = self.depth - 1 - i
             x = torch.cat([x, skips[skip_idx]], dim=1)
 

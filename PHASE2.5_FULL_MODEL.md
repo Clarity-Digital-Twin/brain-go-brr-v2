@@ -183,10 +183,11 @@ class SeizureDetector(nn.Module):
         """Construct model from validated schema config to avoid name drift.
 
         This method maps schema field names to constructor parameters.
+        Note: Input channels fixed at 19 for 10-20 EEG montage.
         """
         return cls(
-            in_channels=cfg.encoder.channels[0] // (cfg.encoder.channels[0] // 64) if cfg.encoder.channels else 19,
-            base_channels=64,
+            in_channels=19,  # Fixed for 10-20 montage
+            base_channels=cfg.encoder.channels[0],  # Should be 64
             encoder_depth=cfg.encoder.stages,
             mamba_layers=cfg.mamba.n_layers,
             mamba_d_state=cfg.mamba.d_state,

@@ -62,9 +62,12 @@ class ResCNNBlock(nn.Module):
         remainder = channels % len(kernel_sizes)
 
         self.branches = nn.ModuleList()
+        channel_splits = []  # Track for validation
+
         for i, k in enumerate(kernel_sizes):
             # Add remainder channels to last branch
             out_ch = branch_channels + (remainder if i == len(kernel_sizes) - 1 else 0)
+            channel_splits.append(out_ch)
 
             self.branches.append(
                 nn.Sequential(
@@ -73,6 +76,10 @@ class ResCNNBlock(nn.Module):
                     nn.ReLU(inplace=True)
                 )
             )
+
+        # Runtime validation: ensure branches sum to input channels
+        assert sum(channel_splits) == channels, \
+            f"Branch channels {channel_splits} don't sum to {channels}"
 
         # Fusion layer to combine multi-scale features (channel-wise dropout)
         # Note: out_ch values sum exactly to `channels` (e.g., 170+170+172=512)

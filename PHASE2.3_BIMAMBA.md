@@ -93,7 +93,12 @@ class BiMamba2Layer(nn.Module):
                 expand=expand
             )
         else:
-            # Conv1d fallback for CPU testing; use kernel=5 to mimic Mamba conv span
+            # WARNING: Conv1d fallback for CPU testing only
+            # This is NOT functionally equivalent to Mamba-2 SSM!
+            # - Mamba uses complex state-space transitions with selective gates
+            # - This fallback is a simple convolution for shape validation only
+            # DO NOT use CPU tests to validate model convergence or accuracy
+            print("WARNING: Using Conv1d fallback - NOT equivalent to Mamba-2!")
             self.forward_mamba = nn.Conv1d(d_model, d_model, kernel_size=5, padding=2)
             self.backward_mamba = nn.Conv1d(d_model, d_model, kernel_size=5, padding=2)
 
