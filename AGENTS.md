@@ -1,57 +1,97 @@
-# Repository Guidelines
+# AGENTS.md - Universal AI Agent Instructions
 
-## Project Structure & Module Organization
-- `src/experiment/`: Core code (`schemas.py`, `data.py`, `models.py`, `pipeline.py`, `infra.py`).
-- `src/cli.py`: CLI entry point for running/validating configs.
-- `configs/`: YAML experiment configs (e.g., `configs/local.yaml`).
-- `tests/`: Pytest suite (unit, integration, pipeline, schema tests).
-- `notebooks/`: Exploratory analysis; keep lightweight and data-agnostic.
-- `data/`, `results/`, `cache/`: Artifacts and datasets (git-ignored).
+Universal instructions for ALL AI coding assistants (Claude, GitHub Copilot, Cursor, etc.)
 
-## Build, Test, and Development Commands
-- Setup (Python 3.11+): `make setup` (uses UV), or `make dev` for dev tools + hooks.
-- Run CLI: `python -m src.cli --config configs/local.yaml` (validate/run commands to be added).
-- Validate config: `python -m src.cli validate configs/local.yaml` (planned; not implemented yet).
-- Tests: `make test` (markers: `-m unit`, `-m integration`; coverage: HTML + terminal).
-- Format/lint/type: `make lint`; `make format`; `make type-check` (Ruff + mypy).
-- Optional GPU extras (Mamba SSM): `uv sync -E gpu`
+## 🧠 Project Overview
 
-## Coding Style & Naming Conventions
-- Python: 4-space indent; formatter via Ruff (`ruff format`), line length 100.
-- Lint/type: Ruff rules (see `pyproject.toml`), mypy strict settings in `pyproject.toml`.
-- Naming: modules `snake_case.py`; classes `CamelCase`; functions/vars `snake_case`.
-- Imports: standard → third-party → first-party (`experiment`), sorted by isort.
+**Brain-Go-Brr v2**: World's first Bi-Mamba-2 + U-Net + ResCNN for clinical EEG seizure detection
 
-## Testing Guidelines
-- Framework: pytest; tests live under `tests/` only.
-- Discovery: files `test_*.py`, classes `Test*`, functions `test_*`.
-- Marks: use `@pytest.mark.unit` / `integration` / `slow` as appropriate.
-- Aim for meaningful coverage on core paths; add tests with new code.
+**Why Revolutionary**:
+- Transformers fail on long EEG (O(N²) complexity)
+- CNNs miss global context
+- We achieve O(N) with bidirectional SSM
 
-## Commit & Pull Request Guidelines
-- History is mixed; adopt Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`).
-- Before PR: run `pre-commit run --all-files` and `pytest -v` locally.
-- PRs must include: clear description, linked issue, test updates, and notes on configs/CLI changes.
+## 🏗️ Architecture
 
-## Security & Configuration Tips
-- Do not commit secrets or large artifacts; keep data under `data/` and outputs under `results/`, `cache/`.
-- Use YAML in `configs/`; prefer config-driven changes over hardcoded paths.
-- Keep runs reproducible (respect seeds/devices from config).
+| Component | Specification |
+|-----------|--------------|
+| Input | 19-channel EEG @ 256 Hz |
+| U-Net Encoder | [64, 128, 256, 512] channels, ×16 downsample |
+| ResCNN | 3 blocks, kernels [3, 5, 7] |
+| Bi-Mamba-2 | 6 layers, d_model=512, d_state=16 |
+| Hysteresis | τ_on=0.86, τ_off=0.78 |
+| Output | Per-timestep probabilities |
 
-## Caching & ExCa
-- Cached stages use a hash over `{experiment, stage, _cache_context}`; change config or context to refresh.
-- Data preparation injects `_cache_context=self.config.model_dump()` so config edits produce new cache keys.
-- For custom cached stages, pass `_cache_context=...` explicitly; ensure returned values are picklable to persist.
+## 🎯 Clinical Targets (TAES)
 
-## Agent-Specific Instructions
-- Keep changes minimal and focused; preserve public APIs under `src/experiment/`.
-- Follow tooling pinned in `pyproject.toml`; don’t alter formatting/type settings without discussion.
-- If adding modules or flags, update docs and tests in the same PR.
-- Prefer UV workflows and Ruff for lint/format to stay consistent.
+- **10 FA/24h**: >95% sensitivity
+- **5 FA/24h**: >90% sensitivity
+- **1 FA/24h**: >75% sensitivity
 
-## ⚙️ WSL / Cross-Filesystem UV Tips
-- On WSL or cross-drive setups, `uv` may warn about hardlinking and fall back to copying. This is harmless.
-- For stability and silence, these are set in the Makefile by default:
-  - `export UV_LINK_MODE=copy`
-  - `export UV_CACHE_DIR=.uv_cache`
-  You can export them in your shell if invoking `uv` directly outside of `make`.
+## 📁 Project Structure
+
+```
+src/experiment/     # Core modules
+├── schemas.py      # Pydantic configs
+├── data.py        # EEG preprocessing
+├── models.py      # Bi-Mamba-2 architecture
+├── pipeline.py    # Training orchestration
+└── infra.py       # Infrastructure
+
+configs/           # YAML experiments
+tests/            # Pytest suite
+data/            # Datasets (git-ignored)
+results/         # Outputs (git-ignored)
+```
+
+## ⚡ Essential Commands
+
+| Command | Purpose |
+|---------|---------|
+| `make q` | Quality check (MUST run after code changes) |
+| `make t` | Fast tests |
+| `make train-local` | Local training |
+| `make setup` | Initial setup |
+| `uv sync -E gpu` | GPU support |
+
+## 🔧 Development Rules
+
+1. **Quality First**: Run `make q` after EVERY change
+2. **Type Everything**: Full type hints required
+3. **Test Coverage**: Unit tests for new functions
+4. **No Comments**: Unless explicitly requested
+5. **Follow Patterns**: Check neighboring files first
+
+## 🔬 Technical Stack
+
+- **Python 3.11+** with UV package manager
+- **PyTorch 2.0+** for deep learning
+- **mamba-ssm 2.0+** for Bi-Mamba-2
+- **MNE 1.5+** for EEG I/O
+- **Ruff** for formatting/linting
+- **mypy** for strict typing
+
+## 📊 Data Pipeline
+
+1. Read EDF files with MNE
+2. Bandpass 0.5-120 Hz, notch 60 Hz
+3. Resample to 256 Hz
+4. Window: 60s with 10s stride
+5. Per-channel z-score normalization
+
+## 🚀 Training Strategy
+
+- **Dataset**: TUH EEG Seizure Corpus
+- **Validation**: CHB-MIT
+- **Evaluation**: epilepsybenchmarks.com
+- **No pretrained weights** (novel architecture)
+
+## ⚠️ Critical Notes
+
+- Cache invalidation via config changes
+- WSL users: `export UV_LINK_MODE=copy`
+- Conventional commits (feat:, fix:, test:)
+- Preserve `src/experiment/` APIs
+
+---
+**Mission: Shock the world with O(N) clinical seizure detection**
