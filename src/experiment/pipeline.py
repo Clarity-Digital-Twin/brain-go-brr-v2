@@ -125,6 +125,10 @@ def create_scheduler(
     if config.type == "cosine":
         import math
 
+        # Preserve initial learning rates so creating the scheduler does not
+        # mutate optimizer.param_groups (some schedulers may do this).
+        initial_lrs = [g["lr"] for g in optimizer.param_groups]
+
         def lr_lambda(step: int) -> float:
             # Linear warmup
             if step < warmup_steps:
@@ -133,7 +137,11 @@ def create_scheduler(
             progress = (step - warmup_steps) / max(1, (total_steps - warmup_steps))
             return 0.5 * (1.0 + math.cos(math.pi * progress))
 
-        return LambdaLR(optimizer, lr_lambda=lr_lambda)
+        sched = LambdaLR(optimizer, lr_lambda=lr_lambda)
+        # Reset any change at construction time.
+        for g, lr in zip(optimizer.param_groups, initial_lrs):
+            g["lr"] = lr
+        return sched
     else:
         raise ValueError(f"Unknown scheduler: {config.type}")
 
