@@ -71,6 +71,9 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # Setup project
 make setup
 
+# Optional: install GPU/SSM extras (Mamba SSM)
+# uv sync -E gpu
+
 # Run local training (reduced data)
 make train-local
 

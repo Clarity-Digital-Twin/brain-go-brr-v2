@@ -36,7 +36,7 @@ dependencies = [
 
     # Deep Learning Components
     "einops>=0.7.0",
-    "mamba-ssm>=2.0.0",  # For Bi-Mamba-2
+    # Mamba SSM moved to optional GPU extra for CI stability
 
     # Configuration & Validation
     "pydantic>=2.0.0",
@@ -52,6 +52,12 @@ dependencies = [
     
     # Utilities
     "tqdm>=4.64.0",
+]
+
+[project.optional-dependencies]
+# Install with: uv sync -E gpu  (or pip install .[gpu])
+gpu = [
+    "mamba-ssm>=2.0.0",
 ]
 
 [tool.uv]

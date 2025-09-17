@@ -19,12 +19,12 @@ help: ## Show this help message
 
 install: ## Install all dependencies with uv
 	@echo "${CYAN}Installing dependencies...${NC}"
-	uv sync --all-extras
+	uv sync
 	@echo "${GREEN}✓ Dependencies installed${NC}"
 
 dev: ## Install dev dependencies and pre-commit hooks
 	@echo "${CYAN}Setting up development environment...${NC}"
-	uv sync --all-extras
+	uv sync
 	uv run pre-commit install
 	@echo "${GREEN}✓ Development environment ready${NC}"
 
@@ -77,7 +77,7 @@ clean: ## Clean all artifacts
 setup: ## Initial project setup
 	@echo "${CYAN}Setting up project...${NC}"
 	@command -v uv >/dev/null 2>&1 || { echo "${RED}uv not installed. Install from: https://github.com/astral-sh/uv${NC}" >&2; exit 1; }
-	uv sync --all-extras
+	uv sync
 	uv run pre-commit install
 	@echo "${GREEN}✓ Project ready!${NC}"
 
@@ -88,7 +88,7 @@ hooks: ## Run pre-commit hooks on all files
 update: ## Update all dependencies
 	@echo "${CYAN}Updating dependencies...${NC}"
 	uv lock --upgrade
-	uv sync --all-extras
+	uv sync
 	@echo "${GREEN}✓ Dependencies updated${NC}"
 
 notebook: ## Start Jupyter notebook
