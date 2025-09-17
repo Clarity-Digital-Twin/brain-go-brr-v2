@@ -8,6 +8,8 @@ Phase 2 implementation will land incrementally via TDD:
 - SeizureDetector: Full assembled model (Phase 2.5)
 """
 
+from typing import cast
+
 import torch
 import torch.nn as nn
 
@@ -279,3 +281,163 @@ class ResCNNStack(nn.Module):
         first_block = cast(ResCNNBlock, self.blocks[0])
         max_kernel: int = max(first_block.kernel_sizes)
         return max_kernel + (self.num_blocks - 1) * (max_kernel - 1)
+
+
+# ============================================================================
+# Phase 2.3: Bidirectional Mamba-2 Components
+# ============================================================================
+
+# Conditional import for GPU/CPU compatibility
+try:
+    from mamba_ssm import Mamba2  # type: ignore[import-not-found]
+
+    MAMBA_AVAILABLE = True
+except ImportError:
+    MAMBA_AVAILABLE = False
+    print("Warning: mamba-ssm not available, using Conv1d fallback")
+
+
+class BiMamba2Layer(nn.Module):
+    """Single bidirectional Mamba-2 layer.
+
+    Args:
+        d_model: Feature dimension (matches encoder bottleneck)
+        d_state: SSM state dimension
+        d_conv: Conv kernel size (default 5 to match schemas/configs)
+        expand: Expansion factor in Mamba component
+        dropout: Dropout probability
+    """
+
+    def __init__(
+        self,
+        d_model: int = 512,
+        d_state: int = 16,
+        d_conv: int = 5,
+        expand: int = 2,
+        dropout: float = 0.1,
+    ):
+        super().__init__()
+        self.d_model = d_model
+
+        if MAMBA_AVAILABLE:
+            # Real Mamba-2 for GPU
+            self.forward_mamba = Mamba2(
+                d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand
+            )
+            self.backward_mamba = Mamba2(
+                d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand
+            )
+        else:
+            # WARNING: Conv1d fallback for CPU testing only
+            # This is NOT functionally equivalent to Mamba-2 SSM!
+            # - Mamba uses complex state-space transitions with selective gates
+            # - This fallback is a simple convolution for shape validation only
+            # DO NOT use CPU tests to validate model convergence or accuracy
+            print("WARNING: Using Conv1d fallback - NOT equivalent to Mamba-2!")
+            self.forward_mamba = nn.Conv1d(d_model, d_model, kernel_size=5, padding=2)
+            self.backward_mamba = nn.Conv1d(d_model, d_model, kernel_size=5, padding=2)
+
+        # Fusion and normalization
+        self.output_proj = nn.Linear(d_model * 2, d_model)
+        self.layer_norm = nn.LayerNorm(d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Process input bidirectionally.
+
+        Args:
+            x: Input (B, L, D) where L=960, D=512
+
+        Returns:
+            Bidirectional output (B, L, D)
+        """
+        residual = x
+
+        # Forward direction
+        if MAMBA_AVAILABLE:
+            x_forward = self.forward_mamba(x)
+        else:
+            # Conv1d expects (B, C, L)
+            x_forward = self.forward_mamba(x.transpose(1, 2)).transpose(1, 2)
+
+        # Backward direction (flip sequence)
+        x_backward = x.flip(dims=[1])
+        if MAMBA_AVAILABLE:
+            x_backward = self.backward_mamba(x_backward)
+        else:
+            x_backward = self.backward_mamba(x_backward.transpose(1, 2)).transpose(1, 2)
+
+        # Flip backward to align
+        x_backward = x_backward.flip(dims=[1])
+
+        # Concatenate bidirectional features
+        x_combined = torch.cat([x_forward, x_backward], dim=-1)  # (B, L, 2D)
+
+        # Project back to d_model
+        x_output = self.output_proj(x_combined)  # (B, L, D)
+
+        # Add residual and normalize
+        output = self.layer_norm(residual + self.dropout(x_output))
+
+        return cast(torch.Tensor, output)
+
+
+class BiMamba2(nn.Module):
+    """Stack of bidirectional Mamba-2 layers for O(N) temporal modeling.
+
+    Processes sequences with linear complexity, avoiding the O(N²) cost
+    of transformers on long EEG sequences.
+
+    Args:
+        d_model: Model dimension (512 for encoder bottleneck)
+        d_state: SSM state dimension (16 default)
+        d_conv: Temporal conv kernel (5 default)
+        num_layers: Number of bidirectional layers (6 default)
+        dropout: Dropout probability
+    """
+
+    def __init__(
+        self,
+        d_model: int = 512,
+        d_state: int = 16,
+        d_conv: int = 5,
+        num_layers: int = 6,
+        dropout: float = 0.1,
+    ):
+        super().__init__()
+        self.d_model = d_model
+        self.num_layers = num_layers
+
+        # Stack of bidirectional layers
+        self.layers = nn.ModuleList(
+            [
+                BiMamba2Layer(d_model=d_model, d_state=d_state, d_conv=d_conv, dropout=dropout)
+                for _ in range(num_layers)
+            ]
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Process features through bidirectional Mamba-2 stack.
+
+        Args:
+            x: Input features (B, C, L) where C=512, L=960
+
+        Returns:
+            Temporal output (B, C, L)
+        """
+        # Transpose for sequence processing: (B, L, C)
+        x = x.transpose(1, 2)
+
+        # Process through bidirectional layers
+        for layer in self.layers:
+            x = layer(x)
+
+        # Transpose back: (B, C, L)
+        return x.transpose(1, 2)
+
+    def get_complexity(self) -> str:
+        """Return complexity analysis."""
+        if MAMBA_AVAILABLE:
+            return "O(N) with Mamba-2 SSM"
+        else:
+            return "O(N) with Conv1d fallback"

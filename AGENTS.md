@@ -19,7 +19,7 @@ Why this is different:
 | U‑Net Encoder | [64, 128, 256, 512] channels, ×16 downsample |
 | ResCNN | 3 blocks, kernels [3, 5, 7] |
 | Bi‑Mamba‑2 | 6 layers, d_model=512, d_state=16 |
-| Hysteresis | τ_on=0.86, τ_off=0.78 |
+| Hysteresis | tau_on=0.86, tau_off=0.78 |
 | Output | Per‑timestep probabilities |
 
 ## 🎯 Clinical Targets (TAES)
