@@ -74,7 +74,8 @@ class ResCNNBlock(nn.Module):
                 )
             )
 
-        # Fusion layer to combine multi-scale features (spatial dropout over channels)
+        # Fusion layer to combine multi-scale features (channel-wise dropout)
+        # Note: out_ch values sum exactly to `channels` (e.g., 170+170+172=512)
         self.fusion = nn.Sequential(
             nn.Conv1d(channels, channels, kernel_size=1),
             nn.BatchNorm1d(channels),

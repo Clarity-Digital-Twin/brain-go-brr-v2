@@ -36,18 +36,18 @@ Output: (B, 15360) probabilities
 ```
 
 ### Dimension Tracking
-| Stage | Shape | Downsample | Notes |
-|-------|-------|------------|-------|
-| Input | (B, 19, 15360) | ×1 | 60s @ 256 Hz |
-| Enc-1 | (B, 64, 7680) | ×2 | First encoding |
-| Enc-2 | (B, 128, 3840) | ×4 | Second encoding |
-| Enc-3 | (B, 256, 1920) | ×8 | Third encoding |
-| Enc-4 | (B, 512, 960) | ×16 | Fourth encoding |
-| Bottleneck | (B, 512, 960) | ×16 | Mamba processing |
-| Dec-4 | (B, 256, 1920) | ×8 | + skip from Enc-3 |
-| Dec-3 | (B, 128, 3840) | ×4 | + skip from Enc-2 |
-| Dec-2 | (B, 64, 7680) | ×2 | + skip from Enc-1 |
-| Dec-1 | (B, 19, 15360) | ×1 | + skip from Input |
+| Stage | Input → Output | Skip Saved | Cumulative ↓ | Notes |
+|-------|----------------|------------|--------------|-------|
+| Input | (B, 19, 15360) | - | ×1 | Raw EEG |
+| Enc-1 | (B, 64, 15360) → (B, 128, 7680) | (B, 64, 15360) | ×2 | Skip before ↓ |
+| Enc-2 | (B, 128, 7680) → (B, 256, 3840) | (B, 128, 7680) | ×4 | Skip before ↓ |
+| Enc-3 | (B, 256, 3840) → (B, 512, 1920) | (B, 256, 3840) | ×8 | Skip before ↓ |
+| Enc-4 | (B, 512, 1920) → (B, 512, 960) | (B, 512, 1920) | ×16 | Skip before ↓ |
+| Bottleneck | (B, 512, 960) | - | ×16 | Mamba/ResCNN |
+| Dec-1 | (B, 512, 960) → (B, 256, 1920) | skip[3]: (512,1920) | ×8 | Upsample + concat |
+| Dec-2 | (B, 256, 1920) → (B, 128, 3840) | skip[2]: (256,3840) | ×4 | Upsample + concat |
+| Dec-3 | (B, 128, 3840) → (B, 64, 7680) | skip[1]: (128,7680) | ×2 | Upsample + concat |
+| Dec-4 | (B, 64, 7680) → (B, 64, 15360) | skip[0]: (64,15360) | ×1 | Upsample + concat |
 | Output | (B, 15360) | ×1 | Per-sample probs |
 
 ## 🔨 Component 1: U-Net Encoder
@@ -103,19 +103,27 @@ class UNetEncoder(nn.Module):
         self.downsample = nn.ModuleList()
 
         for i in range(depth):
-            in_ch = channels[0] if i == 0 else channels[i-1]
+            # First stage gets base_channels input, others get previous output
+            in_ch = channels[0] if i == 0 else channels[i]
             out_ch = channels[i]
 
-            # Double convolution block
+            # Double convolution block (maintains channel count)
             self.encoder_blocks.append(nn.Sequential(
-                ConvBlock(in_ch if i == 0 else out_ch, out_ch),
+                ConvBlock(in_ch, out_ch),
                 ConvBlock(out_ch, out_ch)
             ))
 
-            # Downsample after EVERY stage (×16 total reduction to 960 samples)
-            self.downsample.append(
-                nn.Conv1d(out_ch, out_ch, kernel_size=2, stride=2)
-            )
+            # Downsample to next resolution (project to next channel count)
+            if i < depth - 1:
+                next_ch = channels[i + 1]
+                self.downsample.append(
+                    nn.Conv1d(out_ch, next_ch, kernel_size=2, stride=2)
+                )
+            else:
+                # Last stage: downsample but keep same channels
+                self.downsample.append(
+                    nn.Conv1d(out_ch, out_ch, kernel_size=2, stride=2)
+                )
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, List[torch.Tensor]]:
         """
@@ -131,14 +139,18 @@ class UNetEncoder(nn.Module):
         # Initial projection
         x = self.input_conv(x)  # (B, 64, 15360)
 
-        # Encoder stages
+        # Encoder stages with correct skip saving
         for i in range(self.depth):
-            x = self.encoder_blocks[i](x)
-            skips.append(x)  # Save for skip connection (pre-downsample)
+            # Save skip BEFORE processing this stage
+            skips.append(x)
 
-            # Downsample at each stage: 15360→7680→3840→1920→960
+            # Process through encoder block
+            x = self.encoder_blocks[i](x)
+
+            # Downsample for next stage
             x = self.downsample[i](x)
 
+        # After loop: x is (B, 512, 960), skips are [(64,15360), (128,7680), (256,3840), (512,1920)]
         return x, skips
 ```
 
@@ -158,15 +170,20 @@ class ResCNNBlock(nn.Module):
     ):
         super().__init__()
 
-        # Multi-scale convolutions
+        # Multi-scale convolutions with proper channel split
+        # For 512 channels with 3 branches: [170, 170, 172] = 512 total
+        num_branches = len(kernel_sizes)
+        branch_channels = [channels // num_branches] * (num_branches - 1)
+        branch_channels.append(channels - sum(branch_channels))  # Remainder to last
+
         self.branches = nn.ModuleList([
             nn.Sequential(
-                nn.Conv1d(channels, channels // len(kernel_sizes),
+                nn.Conv1d(channels, branch_ch,
                          kernel_size=k, padding=k//2),
-                nn.BatchNorm1d(channels // len(kernel_sizes)),
+                nn.BatchNorm1d(branch_ch),
                 nn.ReLU(inplace=True)
             )
-            for k in kernel_sizes
+            for branch_ch, k in zip(branch_channels, kernel_sizes)
         ])
 
         # Fusion layer (spatial dropout over channels)
@@ -222,11 +239,53 @@ try:
     MAMBA_AVAILABLE = True
 except ImportError:
     MAMBA_AVAILABLE = False
-    print("Warning: mamba-ssm not available, using fallback Conv1d")
+    print("Warning: mamba-ssm not available, using Conv1d fallback")
+
+
+class BiMamba2Layer(nn.Module):
+    """Single bidirectional Mamba-2 layer operating on (B, L, D)."""
+
+    def __init__(
+        self,
+        d_model: int = 512,
+        d_state: int = 16,
+        d_conv: int = 4,
+        expand: int = 2,
+        dropout: float = 0.1
+    ):
+        super().__init__()
+
+        if MAMBA_AVAILABLE:
+            self.forward_mamba = Mamba2(d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand)
+            self.backward_mamba = Mamba2(d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand)
+        else:
+            # Conv1d fallback for CPU testing
+            self.forward_mamba = nn.Conv1d(d_model, d_model, kernel_size=3, padding=1)
+            self.backward_mamba = nn.Conv1d(d_model, d_model, kernel_size=3, padding=1)
+
+        self.output_proj = nn.Linear(d_model * 2, d_model)
+        self.layer_norm = nn.LayerNorm(d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # x: (B, L, D)
+        residual = x
+
+        if MAMBA_AVAILABLE:
+            x_fwd = self.forward_mamba(x)
+            x_bwd = self.backward_mamba(x.flip(dims=[1]))
+        else:
+            # Conv1d expects (B, C, L)
+            x_fwd = self.forward_mamba(x.transpose(1, 2)).transpose(1, 2)
+            x_bwd = self.backward_mamba(x.flip(dims=[1]).transpose(1, 2)).transpose(1, 2)
+
+        x_bwd = x_bwd.flip(dims=[1])
+        x_out = self.output_proj(torch.cat([x_fwd, x_bwd], dim=-1))
+        return self.layer_norm(residual + self.dropout(x_out))
 
 
 class BiMamba2(nn.Module):
-    """Bidirectional Mamba-2 for temporal modeling."""
+    """Stack of bidirectional Mamba-2 layers (operates on (B, C, L))."""
 
     def __init__(
         self,
@@ -237,93 +296,17 @@ class BiMamba2(nn.Module):
         dropout: float = 0.1
     ):
         super().__init__()
-
-        if MAMBA_AVAILABLE:
-            # Real Mamba-2 layers
-            self.forward_mambas = nn.ModuleList([
-                Mamba2(
-                    d_model=d_model,
-                    d_state=d_state,
-                    d_conv=d_conv,
-                    expand=2
-                )
-                for _ in range(num_layers)
-            ])
-
-            self.backward_mambas = nn.ModuleList([
-                Mamba2(
-                    d_model=d_model,
-                    d_state=d_state,
-                    d_conv=d_conv,
-                    expand=2
-                )
-                for _ in range(num_layers)
-            ])
-        else:
-            # Fallback for CPU-only testing
-            print("Using Conv1d fallback for Mamba-2")
-            self.forward_mambas = nn.ModuleList([
-                nn.Conv1d(d_model, d_model, kernel_size=3, padding=1)
-                for _ in range(num_layers)
-            ])
-
-            self.backward_mambas = nn.ModuleList([
-                nn.Conv1d(d_model, d_model, kernel_size=3, padding=1)
-                for _ in range(num_layers)
-            ])
-
-        # Layer norm and dropout
-        self.layer_norms = nn.ModuleList([
-            nn.LayerNorm(d_model)
+        self.layers = nn.ModuleList([
+            BiMamba2Layer(d_model=d_model, d_state=d_state, d_conv=d_conv, dropout=dropout)
             for _ in range(num_layers)
         ])
 
-        self.dropout = nn.Dropout(dropout)
-
-        # Output projection
-        self.output_proj = nn.Linear(d_model * 2, d_model)
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            x: Input tensor (B, C, L) where C=512, L=960
-
-        Returns:
-            Bidirectional output (B, C, L)
-        """
-        B, C, L = x.shape
-
-        # Transpose for Mamba processing: (B, L, C)
-        x_forward = x.transpose(1, 2)
-        x_backward = x.flip(dims=[2]).transpose(1, 2)
-
-        # Process through layers
-        for i in range(len(self.forward_mambas)):
-            # Forward direction
-            if MAMBA_AVAILABLE:
-                z_forward = self.forward_mambas[i](x_forward)
-            else:
-                z_forward = self.forward_mambas[i](x_forward.transpose(1, 2)).transpose(1, 2)
-
-            x_forward = self.layer_norms[i](x_forward + self.dropout(z_forward))
-
-            # Backward direction
-            if MAMBA_AVAILABLE:
-                z_backward = self.backward_mambas[i](x_backward)
-            else:
-                z_backward = self.backward_mambas[i](x_backward.transpose(1, 2)).transpose(1, 2)
-
-            x_backward = self.layer_norms[i](x_backward + self.dropout(z_backward))
-
-        # Flip backward to align with forward
-        x_backward = x_backward.flip(dims=[1])
-
-        # Concatenate and project
-        x_combined = torch.cat([x_forward, x_backward], dim=-1)  # (B, L, 2C)
-        x_output = self.output_proj(x_combined)  # (B, L, C)
-
-        # Transpose back: (B, C, L)
-        return x_output.transpose(1, 2)
+        # x: (B, C, L) → (B, L, C)
+        x = x.transpose(1, 2)
+        for layer in self.layers:
+            x = layer(x)
+        return x.transpose(1, 2)
 ```
 
 ## 🔨 Component 4: U-Net Decoder
@@ -454,7 +437,7 @@ class SeizureDetectorV2(nn.Module):
             Seizure probabilities (B, 15360)
         """
         # Encode with skip connections
-        encoded, skips = self.encoder(x)  # (B, 512, 960), [4 skips]
+        encoded, skips = self.encoder(x)  # (B, 512, 960), skips: [(64,15360), (128,7680), (256,3840), (512,1920)]
 
         # Multi-scale feature extraction
         features = self.rescnn(encoded)  # (B, 512, 960)

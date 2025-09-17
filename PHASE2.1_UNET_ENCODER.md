@@ -28,7 +28,7 @@ Stage 2: (B, 128, 7680) → skip[1]
 Stage 3: (B, 256, 3840) → skip[2]
   ↓ Downsample ×2
 Stage 4: (B, 512, 1920) → skip[3]
-  ↓ Downsample ×2
+  ↓ Downsample → (B, 512, 960)
 Output: (B, 512, 960)
 ```
 
@@ -85,14 +85,16 @@ class UNetEncoder(nn.Module):
         self.downsample = nn.ModuleList()
 
         for i in range(depth):
-            in_ch = channels[0] if i == 0 else channels[i-1]
+            in_ch = channels[0] if i == 0 else channels[i - 1]
             out_ch = channels[i]
 
             # Double convolution at each stage
-            self.encoder_blocks.append(nn.Sequential(
-                ConvBlock(in_ch if i == 0 else out_ch, out_ch),
-                ConvBlock(out_ch, out_ch)
-            ))
+            self.encoder_blocks.append(
+                nn.Sequential(
+                    ConvBlock(in_ch, out_ch),  # correct in_channels per stage
+                    ConvBlock(out_ch, out_ch),
+                )
+            )
 
             # Downsample after EVERY stage (×16 total) to reach length 960
             # This yields 4 downsamples for depth=4: 15360→7680→3840→1920→960

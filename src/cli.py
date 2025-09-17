@@ -160,6 +160,10 @@ def list_configs() -> None:
     console.print(table)
 
 
+# Provide hyphenated alias for convenience
+cli.add_command(list_configs, name="list-configs")
+
+
 def main() -> int:
     """Main entry point."""
     return cli(standalone_mode=False) or 0
