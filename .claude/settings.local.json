@@ -39,7 +39,8 @@
       "Bash(uv sync:*)",
       "Bash(.venv/bin/python:*)",
       "Bash(pytest:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
