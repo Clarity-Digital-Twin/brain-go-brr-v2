@@ -176,19 +176,23 @@ def train_epoch(
     """
     model.train()
     device_obj = torch.device(device)
-    scaler = GradScaler("cuda" if device == "cuda" else "cpu", enabled=use_amp and device != "cpu")
-
-    # BCE loss (model already applies sigmoid)
-    criterion = nn.BCELoss(reduction="none")
+    # Only construct GradScaler when actually using CUDA AMP
+    scaler = GradScaler(enabled=(use_amp and device == "cuda"))
 
     # Calculate class weights from first batch (approximation)
     first_batch = next(iter(dataloader))
     _, first_labels = first_batch
     pos_ratio = float((first_labels > 0).float().mean())
-    pos_weight = (1 - pos_ratio) / max(pos_ratio, 1e-8) if pos_ratio > 0 else 1.0
+    pos_weight_val = (1 - pos_ratio) / max(pos_ratio, 1e-8) if pos_ratio > 0 else 1.0
+
+    # AMP-safe, numerically stable loss on logits
+    # (We keep model outputs as probabilities elsewhere for tests/inference)
+    pos_weight_t = torch.as_tensor(pos_weight_val, device=device_obj, dtype=torch.float32)
+    criterion = nn.BCEWithLogitsLoss(reduction="none", pos_weight=pos_weight_t)
 
     total_loss = 0.0
     num_batches = 0
+    eps = 1e-6
 
     progress = tqdm(dataloader, desc="Training", leave=False)
     for windows, labels in progress:
@@ -201,30 +205,31 @@ def train_epoch(
 
         optimizer.zero_grad(set_to_none=True)
 
-        # Forward pass with AMP
-        with autocast(device_type="cuda" if device == "cuda" else "cpu", enabled=use_amp and device != "cpu"):
-            outputs = model(windows)  # (B, T) probabilities
+        # Forward pass with AMP (model returns probabilities in [0,1])
+        with autocast(device_type=("cuda" if device == "cuda" else "cpu"),
+                      enabled=(use_amp and device == "cuda")):
+            probs = model(windows)  # (B, T) probabilities
+            # Recover logits for stable BCEWithLogits; logit(sigmoid(z)) == z
+            logits = torch.logit(probs.clamp(min=eps, max=1 - eps))
+            per_element_loss = criterion(logits, labels)
+            # Mean reduction since pos_weight is already in criterion
+            loss = per_element_loss.mean()
 
-        # Compute loss outside of autocast (BCELoss is unsafe with autocast)
-        # Ensure dtype matches between outputs and labels
-        outputs_float32 = outputs.float()
-        labels_float32 = labels.float()
-        per_element_loss = criterion(outputs_float32, labels_float32)
-        weights = torch.where(labels_float32 > 0, pos_weight, 1.0)
-        loss = (per_element_loss * weights).sum() / (weights.sum() + 1e-8)
+        # Backward pass with proper scaler handling
+        if scaler.is_enabled():
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+            if gradient_clip > 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            loss.backward()
+            if gradient_clip > 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+            optimizer.step()
 
-        # Backward pass
-        scaler.scale(loss).backward()
-
-        # Gradient clipping
-        scaler.unscale_(optimizer)
-        torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
-
-        # Optimizer step
-        scaler.step(optimizer)
-        scaler.update()
-
-        # Scheduler step (per-iteration)
+        # Scheduler step AFTER optimizer.step() to avoid PyTorch warning
         if scheduler is not None:
             scheduler.step()
 
