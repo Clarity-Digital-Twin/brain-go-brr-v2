@@ -26,31 +26,41 @@ tests/test_evaluate.py            # Metrics unit tests (TAES, FA curves)
 
 ## 📐 Data & Splits
 - Input windows: `(B, 19, 15360)` at 256 Hz (60s, 10s stride) — consistent with Phase 1.
-- **Labels**: `(B, 19, 15360)` per-channel binary masks from Phase 1 data.py
-- **Label Aggregation**: For training loss, reduce to `(B, 15360)` by taking max across channels (any-seizure).
+- **Canonical training labels**: `(B, 15360)` binary masks (any-channel seizure). If a dataset provides per-channel labels `(B, 19, 15360)`, aggregate once via `labels.max(dim=1)[0]`.
 - Train/val split: `data.validation_split` from config (default 0.2).
-- **Balanced sampling**: Use `WeightedRandomSampler` to oversample positive windows.
+- **Balanced sampling**: Use `WeightedRandomSampler` at dataset scope to oversample positive windows (compute once, not per batch).
   ```python
-  # Calculate sample weights
-  seizure_frames = (labels.max(dim=1)[0] > 0).sum(dim=1)  # per window
-  weights = torch.where(seizure_frames > 0, pos_weight, 1.0)
-  sampler = WeightedRandomSampler(weights, len(weights))
+  # window_labels: (N, T) aggregated binary labels per window
+  window_has_seizure = (window_labels.max(dim=1).values > 0).float()  # (N,)
+  pos_ratio = float(window_has_seizure.mean().item())
+  pos_weight = (1 - pos_ratio) / max(pos_ratio, 1e-8)
+
+  # Per-sample weights: positives get pos_weight, negatives 1.0
+  sample_weights = torch.where(window_has_seizure > 0, pos_weight, 1.0)
+  sampler = WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
   ```
 - DataLoader:
   - `batch_size`: from config
   - `num_workers`: from config
   - `pin_memory=True` when CUDA available
   - `sampler=sampler` for balanced training
-  - Deterministic seeding from `experiment.seed`.
+  - Deterministic seeding from `experiment.seed` (set a `torch.Generator` with `manual_seed(seed)` and a `worker_init_fn` to seed NumPy/Python per worker).
 
 ## 🔨 Loss, Optimizer, Scheduler
-- **Loss**: Binary cross-entropy (BCE) over per-timestep probabilities.
-  - Model outputs `(B, 15360)` per Phase 2.5 (sigmoid applied)
-  - Labels: aggregate from `(B, 19, 15360)` → `(B, 15360)` via `labels.max(dim=1)[0]`
-  - Use `torch.nn.BCELoss()` with optional `pos_weight` for class imbalance (99% negative, 1% positive typical)
-  - `pos_weight = (1 - pos_ratio) / pos_ratio` where pos_ratio is fraction of positive samples
+- **Loss**: Binary cross-entropy over per-timestep probabilities with element-wise weighting.
+  - Model outputs `(B, 15360)` (sigmoid already applied in Phase 2.5)
+  - Labels: `(B, 15360)` (aggregate once if necessary)
+  - Class imbalance handling (99% neg / 1% pos typical): compute `pos_ratio` over the training set, then do element-wise weighting with reduction='none'.
+  ```python
+  bce = nn.BCELoss(reduction='none')
+  pos_weight = (1 - pos_ratio) / max(pos_ratio, 1e-8)
+  weights = torch.where(labels_agg > 0, pos_weight, 1.0)  # (B, 15360)
+  per_elem = bce(outputs, labels_agg)
+  loss = (per_elem * weights).sum() / (weights.sum() + 1e-8)
+  ```
+  - Note: If you prefer logits + `nn.BCEWithLogitsLoss(pos_weight=...)`, remove the Sigmoid in the model head and adjust accordingly.
 - **Optimizer**: AdamW with `learning_rate`, `weight_decay` from `training` config.
-- **Scheduler**: Cosine with warmup (`scheduler.type=cosine`, `warmup_ratio` from config).
+- **Scheduler**: Cosine with warmup (`scheduler.type=cosine`, `warmup_ratio` from config). Step per-iteration if using a step-based schedule (recommended for windows); otherwise step per-epoch. Document and keep consistent with the chosen scheduler.
 - **Gradient clipping**: `training.gradient_clip` (global-norm) each step.
 - **Mixed precision**: `training.mixed_precision` → use `torch.cuda.amp.autocast` + `GradScaler` when CUDA.
 
@@ -63,7 +73,9 @@ tests/test_evaluate.py            # Metrics unit tests (TAES, FA curves)
 
        with autocast(enabled=use_amp):
            outputs = model(windows)  # (B, 15360)
-           loss = criterion(outputs, labels_agg)
+           per_elem = bce(outputs, labels_agg)           # reduction='none'
+           weights = torch.where(labels_agg > 0, pos_weight, 1.0)
+           loss = (per_elem * weights).sum() / (weights.sum() + 1e-8)
 
        scaler.scale(loss).backward()
        scaler.unscale_(optimizer)
@@ -74,10 +86,9 @@ tests/test_evaluate.py            # Metrics unit tests (TAES, FA curves)
    ```
 
 2) **Validation step** (end of epoch):
-   - Forward on val set → gather predicted probabilities
-   - Post-processing: hysteresis from `postprocessing.hysteresis` (τ_on=0.86, τ_off=0.78)
-   - Morphological ops: `postprocessing.morphology.kernel_size`
-   - Metrics: TAES, sensitivity, specificity, AUROC, FA@{10,5,2.5,1}
+   - Forward on val set → collect probabilities over time
+   - Post-processing → events: apply hysteresis from `postprocessing.hysteresis` (τ_on=0.86, τ_off=0.78), then morphology (`postprocessing.morphology.kernel_size`), then convert to event intervals [(start_s, end_s), ...]
+   - Metrics (event-level): TAES, AUROC (prob‑wise), sensitivity@FA rates and FA/24h computed from event lists
 
 3) **Early stopping + checkpointing**:
    - Metric: `training.early_stopping.metric` (default: `sensitivity_at_10fa`)
@@ -122,35 +133,51 @@ def calculate_taes(
     # 4. Normalize to [0, 1]
 ```
 
-### FA/24h Calculation
+### FA/24h Calculation (event-level)
 ```python
-def calculate_fa_per_24h(
-    predictions: torch.Tensor,  # (N, T) binary
-    labels: torch.Tensor,       # (N, T) binary
-    sampling_rate: int = 256,
+def fa_per_24h(
+    pred_events: List[List[Tuple[float, float]]],  # per-record predicted events (s)
+    ref_events: List[List[Tuple[float, float]]],   # per-record reference events (s)
+    total_hours: float,
 ) -> float:
-    """Calculate false alarms normalized to 24 hours."""
-    false_alarms = (predictions & ~labels).sum()
-    total_hours = predictions.numel() / (sampling_rate * 3600)
-    fa_per_24h = (false_alarms / total_hours) * 24
-    return fa_per_24h
+    """False alarms per 24h: count predicted events with no overlap to any ref event, normalized by duration."""
+    fa = 0
+    for preds, refs in zip(pred_events, ref_events):
+        for p in preds:
+            if not any(overlap(p, r) > 0 for r in refs):
+                fa += 1
+    return (fa / max(total_hours, 1e-8)) * 24.0
 ```
 
-### Sensitivity at FA Rates
+### Sensitivity at FA Rates (event-level)
 ```python
 def sensitivity_at_fa_rates(
-    probs: torch.Tensor,        # (N, T) probabilities
-    labels: torch.Tensor,       # (N, T) binary
-    fa_targets: List[float],    # [10, 5, 2.5, 1]
+    probs: torch.Tensor,                   # (N, T) probabilities
+    labels: torch.Tensor,                  # (N, T) binary
+    fa_targets: List[float],               # [10, 5, 2.5, 1]
+    post_cfg: PostprocessingConfig,
+    sampling_rate: int = 256,
 ) -> Dict[str, float]:
-    """Find sensitivity at specific FA/24h operating points."""
+    """Find sensitivity at specific FA/24h operating points using eventization + threshold search."""
     results = {}
+    # Convert reference labels to event lists once
+    ref_events = batch_masks_to_events(labels, sampling_rate)
+    total_hours = labels.numel() / (sampling_rate * 3600)
+
     for fa_target in fa_targets:
-        # Binary search for threshold that gives fa_target FA/24h
-        threshold = find_threshold_for_fa(probs, labels, fa_target)
-        preds = (probs >= threshold).float()
-        sensitivity = (preds & labels).sum() / labels.sum()
-        results[f'sensitivity_at_{fa_target}fa'] = sensitivity.item()
+        thr = find_threshold_for_fa_eventized(
+            probs, post_cfg, ref_events, fa_target, total_hours, sampling_rate
+        )
+        pred_events = batch_probs_to_events(probs, post_cfg, sampling_rate, threshold=thr)
+        # Sensitivity = fraction of ref events overlapped by any prediction
+        tp = 0
+        n_ref = 0
+        for refs, preds in zip(ref_events, pred_events):
+            n_ref += len(refs)
+            for r in refs:
+                if any(overlap(r, p) > 0 for p in preds):
+                    tp += 1
+        results[f'sensitivity_at_{fa_target}fa'] = float(tp / max(n_ref, 1))
     return results
 ```
 
@@ -233,24 +260,20 @@ def test_taes_no_overlap():
     pred_events = [(30, 40)]
     assert calculate_taes(pred_events, ref_events) == 0.0
 
-def test_fa_per_24h():
-    """Verify FA/24h calculation."""
-    # 256 Hz, 1 hour of data, 10 false alarms
-    preds = torch.zeros(256 * 3600)
-    labels = torch.zeros(256 * 3600)
-    preds[:10] = 1  # 10 FAs
+def test_fa_per_24h_event_level():
+    """Verify FA/24h counts predicted events without overlap to refs."""
+    # 1 hour total, 10 predicted events, 0 reference events → 10 FA/hr → 240 FA/24h
+    pred_events = [[(i*300.0, i*300.0 + 5.0) for i in range(10)]]  # 10 events in 3600s
+    ref_events = [[]]
+    fa_rate = fa_per_24h(pred_events, ref_events, total_hours=1.0)
+    assert abs(fa_rate - 240.0) < 1e-3
 
-    fa_rate = calculate_fa_per_24h(preds, labels, 256)
-    assert abs(fa_rate - 240.0) < 0.1  # 10 FA/hr * 24 hr
-
-def test_sensitivity_at_fa():
-    """Test sensitivity calculation at FA rates."""
-    # Create synthetic data with known characteristics
-    probs = torch.rand(1000)
-    labels = (probs > 0.7).float()  # 30% positive
-
-    metrics = sensitivity_at_fa_rates(probs, labels, [10, 5, 1])
-    # Verify sensitivity decreases as FA rate decreases
+def test_sensitivity_at_fa_event_level(post_cfg):
+    """Monotonicity: sensitivity decreases as target FA/24h decreases."""
+    # Construct simple probabilities/labels where higher thresholds reduce FA and sensitivity
+    probs = torch.linspace(0, 1, steps=2048).unsqueeze(0)        # (1, T)
+    labels = (probs > 0.6).float()                               # (1, T)
+    metrics = sensitivity_at_fa_rates(probs, labels, [10, 5, 1], post_cfg, sampling_rate=256)
     assert metrics['sensitivity_at_10fa'] >= metrics['sensitivity_at_5fa']
     assert metrics['sensitivity_at_5fa'] >= metrics['sensitivity_at_1fa']
 ```
@@ -261,10 +284,12 @@ Quality gates:
 
 ## ⚙️ Implementation Notes
 - **Seeding**: set `torch`, `numpy`, `random`, and DataLoader seeds from `experiment.seed`
+- **DataLoader determinism**: pass a `torch.Generator().manual_seed(seed)` to DataLoader and a `worker_init_fn` that seeds NumPy/Python per worker.
 - **Device**: `experiment.device=auto` → pick CUDA if available; otherwise CPU
 - **Class imbalance**: typical 99% negative, 1% positive
-  - Use `pos_weight` in BCELoss: `pos_weight = (1 - pos_ratio) / pos_ratio`
-  - WeightedRandomSampler for balanced mini-batches
+  - For probabilities output: use element-wise weighting with `BCELoss(reduction='none')` as shown above
+  - For logits output: use `BCEWithLogitsLoss(pos_weight=...)` and remove Sigmoid from the model head
+  - WeightedRandomSampler at dataset scope for balanced mini-batches
 - **Performance**:
   - Use `pin_memory=True` with CUDA
   - Consider `torch.compile` for model when PyTorch 2.5+
@@ -292,4 +317,3 @@ Quality gates:
 Status: Ready for implementation (TDD-first) ✅
 Estimated Time: 2–3 days
 Owners: Training duo (eng + reviewer) 🔬🚀
-

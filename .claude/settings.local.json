@@ -37,7 +37,9 @@
       "Bash(tmux kill-session:*)",
       "Bash(tmux attach:*)",
       "Bash(uv sync:*)",
-      "Bash(.venv/bin/python:*)"
+      "Bash(.venv/bin/python:*)",
+      "Bash(pytest:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
