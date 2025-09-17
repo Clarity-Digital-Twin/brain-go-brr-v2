@@ -2,13 +2,11 @@
 
 import sys
 from pathlib import Path
-from typing import Optional
 
 import click
 import yaml
 from pydantic import ValidationError
 from rich.console import Console
-from rich.syntax import Syntax
 from rich.table import Table
 
 from experiment.schemas import Config
@@ -25,7 +23,7 @@ def cli() -> None:
 @cli.command()
 @click.argument("config_path", type=click.Path(exists=True, path_type=Path))
 @click.option("--phase", type=click.Choice(["data", "model", "training"]), default=None)
-def validate(config_path: Path, phase: Optional[str]) -> None:
+def validate(config_path: Path, phase: str | None) -> None:
     """Validate a YAML configuration file against schemas.
 
     Args:
@@ -154,7 +152,7 @@ def list_configs() -> None:
                 data = yaml.safe_load(f)
             Config(**data)
             status = "✅ Valid"
-        except:
+        except Exception:
             status = "❌ Invalid"
 
         table.add_row(cfg_path.name, status)

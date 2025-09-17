@@ -78,30 +78,27 @@ dev-dependencies = [
     # Testing
     "pytest>=8.0.0",
     "pytest-cov>=5.0.0",
-    "pytest-xdist>=3.5.0",  # Parallel testing
-    "pytest-sugar>=1.0.0",  # Better test output
+    "pytest-xdist>=3.5.0", # Parallel testing
+    "pytest-sugar>=1.0.0", # Better test output
     "pytest-mock>=3.12.0",
-
     # Code Quality (Ruff replaces black/isort/flake8)
     "ruff>=0.8.0",
     "mypy>=1.13.0",
     "pre-commit>=4.0.0",
-    "pre-commit-uv>=0.4.0",  # Speed up pre-commit
-
+    "pre-commit-uv>=0.4.0", # Speed up pre-commit
     # Notebooks
     "jupyter>=1.0.0",
     "jupyterlab>=4.0.0",
     "ipykernel>=6.0.0",
     "nbformat>=5.0.0",
     "ipywidgets>=8.0.0",
-
     # Docs
     "mkdocs>=1.4.0",
     "mkdocs-material>=9.5.0",
     "mkdocstrings[python]>=0.24.0",
-
     # Visualization/monitoring
     "tensorboard>=2.12.0",
+    "types-pyyaml>=6.0.12.20250915",
 ]
 
 [project.urls]

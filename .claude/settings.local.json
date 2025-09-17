@@ -31,7 +31,8 @@
       "Bash(ls:*)",
       "Bash(done)",
       "Bash(grep:*)",
-      "Read(//mnt/c/Users/JJ/Desktop/Clarity-Digital-Twin/**)"
+      "Read(//mnt/c/Users/JJ/Desktop/Clarity-Digital-Twin/**)",
+      "Bash(uv add:*)"
     ],
     "deny": [],
     "ask": []

@@ -112,11 +112,10 @@ class UNetEncoder(nn.Module):
                 ConvBlock(out_ch, out_ch)
             ))
 
-            # Downsampling (except last stage)
-            if i < depth - 1:
-                self.downsample.append(
-                    nn.Conv1d(out_ch, out_ch, kernel_size=2, stride=2)
-                )
+            # Downsample after EVERY stage (×16 total reduction to 960 samples)
+            self.downsample.append(
+                nn.Conv1d(out_ch, out_ch, kernel_size=2, stride=2)
+            )
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, List[torch.Tensor]]:
         """
@@ -135,11 +134,10 @@ class UNetEncoder(nn.Module):
         # Encoder stages
         for i in range(self.depth):
             x = self.encoder_blocks[i](x)
-            skips.append(x)  # Save for skip connection
+            skips.append(x)  # Save for skip connection (pre-downsample)
 
-            # Downsample (except last stage)
-            if i < self.depth - 1:
-                x = self.downsample[i](x)
+            # Downsample at each stage: 15360→7680→3840→1920→960
+            x = self.downsample[i](x)
 
         return x, skips
 ```
@@ -171,11 +169,11 @@ class ResCNNBlock(nn.Module):
             for k in kernel_sizes
         ])
 
-        # Fusion layer
+        # Fusion layer (spatial dropout over channels)
         self.fusion = nn.Sequential(
             nn.Conv1d(channels, channels, kernel_size=1),
             nn.BatchNorm1d(channels),
-            nn.Dropout(dropout)
+            nn.Dropout2d(dropout)
         )
 
         self.relu = nn.ReLU(inplace=True)

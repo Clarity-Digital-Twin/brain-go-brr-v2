@@ -13,9 +13,11 @@ Implement bidirectional Mamba-2 for O(N) temporal modeling, with CPU fallback fo
 
 ## 🔧 Implementation Files
 ```
-src/experiment/models/mamba.py    # Bi-Mamba-2 only
-tests/test_mamba.py               # Mamba-specific tests
+src/experiment/models.py    # Bi-Mamba components live here (repo convention)
+tests/test_mamba.py         # Mamba-specific tests
 ```
+Note: `mamba-ssm` is an optional GPU extra. CPU-only dev/CI use the fallback path by default.
+To enable GPU path locally: `uv sync -E gpu`.
 
 ## 📐 Architecture
 ```
@@ -36,7 +38,7 @@ Transpose back to (B, 512, 960)
 ## 🔨 Implementation
 
 ```python
-# src/experiment/models/mamba.py
+# src/experiment/models.py (Mamba section)
 
 import torch
 import torch.nn as nn
@@ -188,7 +190,8 @@ class BiMamba2(nn.Module):
 
 import pytest
 import torch
-from src.experiment.models.mamba import BiMamba2Layer, BiMamba2, MAMBA_AVAILABLE
+import torch.nn as nn
+from src.experiment.models import BiMamba2Layer, BiMamba2, MAMBA_AVAILABLE
 
 
 class TestBiMamba2Layer:

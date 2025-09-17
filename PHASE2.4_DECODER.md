@@ -13,8 +13,8 @@ Build U-Net decoder that upsamples from bottleneck back to input resolution, fus
 
 ## 🔧 Implementation Files
 ```
-src/experiment/models/decoder.py    # U-Net decoder only
-tests/test_decoder.py               # Decoder-specific tests
+src/experiment/models.py     # Decoder lives here (repo convention)
+tests/test_decoder.py        # Decoder-specific tests
 ```
 
 ## 📐 Dimension Flow
@@ -39,12 +39,12 @@ Output: (B, 19, 15360)
 ## 🔨 Implementation
 
 ```python
-# src/experiment/models/decoder.py
+# src/experiment/models.py (decoder section)
 
 import torch
 import torch.nn as nn
 from typing import List
-from src.experiment.models.encoder import ConvBlock  # Reuse from encoder
+# Reuse ConvBlock defined in encoder section above
 
 
 class UNetDecoder(nn.Module):
@@ -155,8 +155,7 @@ class UNetDecoder(nn.Module):
 
 import pytest
 import torch
-from src.experiment.models.decoder import UNetDecoder
-from src.experiment.models.encoder import UNetEncoder
+from src.experiment.models import UNetDecoder, UNetEncoder
 
 
 class TestUNetDecoder:

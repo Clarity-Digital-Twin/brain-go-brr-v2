@@ -13,10 +13,9 @@ Assemble all components (Encoder, ResCNN, Bi-Mamba, Decoder) into the complete S
 
 ## 🔧 Implementation Files
 ```
-src/experiment/models/__init__.py    # Export main model
-src/experiment/models/model.py       # Full assembly
-tests/test_full_model.py            # Integration tests
-scripts/test_model.py                # Manual validation
+src/experiment/models.py       # Full assembly (same module as components)
+tests/test_full_model.py       # Integration tests
+scripts/test_model.py          # Manual validation
 ```
 
 ## 📐 Complete Architecture Flow
@@ -39,16 +38,13 @@ Output: Per-sample seizure probabilities
 ## 🔨 Implementation
 
 ```python
-# src/experiment/models/model.py
+# src/experiment/models.py (Full model section)
 
 import torch
 import torch.nn as nn
 from typing import Dict, Any
 
-from src.experiment.models.encoder import UNetEncoder
-from src.experiment.models.rescnn import ResCNNStack
-from src.experiment.models.mamba import BiMamba2
-from src.experiment.models.decoder import UNetDecoder
+# Assumes UNetEncoder, ResCNNStack, BiMamba2, UNetDecoder are defined above in this file
 
 
 class SeizureDetectorV2(nn.Module):
@@ -210,14 +206,6 @@ class SeizureDetectorV2(nn.Module):
             'activation_size_mb': total_activation_bytes / (1024**2),
             'total_size_mb': (param_bytes + total_activation_bytes) / (1024**2)
         }
-```
-
-```python
-# src/experiment/models/__init__.py
-
-from src.experiment.models.model import SeizureDetectorV2
-
-__all__ = ['SeizureDetectorV2']
 ```
 
 ## 🧪 Test Suite

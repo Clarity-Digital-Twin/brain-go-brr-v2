@@ -1,7 +1,7 @@
 """Pydantic schemas for config validation - single source of truth for all configs."""
 
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -9,9 +9,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 class DataConfig(BaseModel):
     """Data loading and batching configuration."""
 
-    dataset: Literal["tuh_eeg", "chb_mit"] = Field(
-        description="Dataset to use for training"
-    )
+    dataset: Literal["tuh_eeg", "chb_mit"] = Field(description="Dataset to use for training")
     data_dir: Path = Field(description="Root directory containing EDF files")
     sampling_rate: Literal[256] = Field(
         default=256, description="Target sampling rate in Hz (fixed at 256)"
@@ -27,13 +25,11 @@ class DataConfig(BaseModel):
     )
     batch_size: int = Field(ge=1, le=256, description="Batch size for training")
     num_workers: int = Field(ge=0, le=32, description="DataLoader workers")
-    validation_split: float = Field(
-        ge=0.0, le=0.5, description="Fraction of data for validation"
-    )
-    max_samples: Optional[int] = Field(
+    validation_split: float = Field(ge=0.0, le=0.5, description="Fraction of data for validation")
+    max_samples: int | None = Field(
         default=None, ge=1, description="Limit samples for debugging (None = use all)"
     )
-    max_hours: Optional[float] = Field(
+    max_hours: float | None = Field(
         default=None, gt=0, description="Limit total hours of data (None = use all)"
     )
 
@@ -56,9 +52,7 @@ class PreprocessingConfig(BaseModel):
     notch_freq: Literal[50, 60] = Field(
         default=60, description="Powerline frequency to notch (50 EU, 60 US)"
     )
-    normalize: bool = Field(
-        default=True, description="Apply per-channel z-score normalization"
-    )
+    normalize: bool = Field(default=True, description="Apply per-channel z-score normalization")
     use_mne: bool = Field(default=True, description="Use MNE for EDF loading")
 
     @field_validator("bandpass")
@@ -80,12 +74,8 @@ class EncoderConfig(BaseModel):
     channels: list[int] = Field(
         default=[64, 128, 256, 512], description="Channel progression per stage"
     )
-    kernel_size: int = Field(
-        default=5, ge=3, le=9, description="Convolution kernel size"
-    )
-    downsample_factor: Literal[2] = Field(
-        default=2, description="Downsampling factor per stage"
-    )
+    kernel_size: int = Field(default=5, ge=3, le=9, description="Convolution kernel size")
+    downsample_factor: Literal[2] = Field(default=2, description="Downsampling factor per stage")
 
     @field_validator("channels")
     @classmethod
@@ -100,12 +90,8 @@ class ResCNNConfig(BaseModel):
     """ResCNN stack configuration."""
 
     n_blocks: Literal[3] = Field(default=3, description="Number of ResCNN blocks")
-    kernel_sizes: list[int] = Field(
-        default=[3, 5, 7], description="Multi-scale kernel sizes"
-    )
-    dropout: float = Field(
-        default=0.1, ge=0.0, le=0.5, description="Dropout rate"
-    )
+    kernel_sizes: list[int] = Field(default=[3, 5, 7], description="Multi-scale kernel sizes")
+    dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout rate")
 
     @field_validator("kernel_sizes")
     @classmethod
@@ -125,44 +111,32 @@ class MambaConfig(BaseModel):
     n_layers: int = Field(ge=1, le=12, description="Number of Mamba layers")
     d_model: Literal[512] = Field(default=512, description="Model dimension")
     d_state: Literal[16] = Field(default=16, description="SSM state dimension")
-    conv_kernel: int = Field(
-        default=5, ge=3, le=9, description="Mamba convolution kernel"
-    )
-    dropout: float = Field(
-        default=0.1, ge=0.0, le=0.5, description="Dropout rate"
-    )
+    conv_kernel: int = Field(default=5, ge=3, le=9, description="Mamba convolution kernel")
+    dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout rate")
 
 
 class DecoderConfig(BaseModel):
     """U-Net decoder configuration."""
 
     stages: Literal[4] = Field(default=4, description="Number of decoder stages")
-    kernel_size: int = Field(
-        default=4, ge=2, le=8, description="Transpose conv kernel size"
-    )
+    kernel_size: int = Field(default=4, ge=2, le=8, description="Transpose conv kernel size")
 
 
 class ModelConfig(BaseModel):
     """Complete model architecture configuration."""
 
-    name: Literal["seizure_detector"] = Field(
-        default="seizure_detector", description="Model name"
-    )
-    encoder: EncoderConfig = Field(default_factory=EncoderConfig)
-    rescnn: ResCNNConfig = Field(default_factory=ResCNNConfig)
-    mamba: MambaConfig = Field(default_factory=MambaConfig)
-    decoder: DecoderConfig = Field(default_factory=DecoderConfig)
+    name: Literal["seizure_detector"] = Field(default="seizure_detector", description="Model name")
+    encoder: EncoderConfig = Field(default_factory=EncoderConfig)  # type: ignore[arg-type]
+    rescnn: ResCNNConfig = Field(default_factory=ResCNNConfig)  # type: ignore[arg-type]
+    mamba: MambaConfig = Field(default_factory=MambaConfig)  # type: ignore[arg-type]
+    decoder: DecoderConfig = Field(default_factory=DecoderConfig)  # type: ignore[arg-type]
 
 
 class HysteresisConfig(BaseModel):
     """Hysteresis thresholding configuration."""
 
-    tau_on: float = Field(
-        default=0.86, ge=0.5, le=1.0, description="Upper threshold"
-    )
-    tau_off: float = Field(
-        default=0.78, ge=0.5, le=1.0, description="Lower threshold"
-    )
+    tau_on: float = Field(default=0.86, ge=0.5, le=1.0, description="Upper threshold")
+    tau_off: float = Field(default=0.78, ge=0.5, le=1.0, description="Lower threshold")
 
     @model_validator(mode="after")
     def validate_thresholds(self) -> "HysteresisConfig":
@@ -212,9 +186,7 @@ class TrainingConfig(BaseModel):
     learning_rate: float = Field(
         default=3e-4, ge=1e-6, le=1e-2, description="Initial learning rate"
     )
-    weight_decay: float = Field(
-        default=0.05, ge=0.0, le=0.2, description="AdamW weight decay"
-    )
+    weight_decay: float = Field(default=0.05, ge=0.0, le=0.2, description="AdamW weight decay")
     optimizer: Literal["adamw", "adam", "sgd"] = Field(
         default="adamw", description="Optimizer type"
     )
@@ -222,9 +194,7 @@ class TrainingConfig(BaseModel):
     gradient_clip: float = Field(
         default=1.0, ge=0.0, description="Gradient clipping value (0 = disabled)"
     )
-    mixed_precision: bool = Field(
-        default=True, description="Use automatic mixed precision (AMP)"
-    )
+    mixed_precision: bool = Field(default=True, description="Use automatic mixed precision (AMP)")
     early_stopping: EarlyStoppingConfig = Field(default_factory=EarlyStoppingConfig)
 
 
@@ -238,9 +208,7 @@ class EvaluationConfig(BaseModel):
     fa_rates: list[float] = Field(
         default=[10, 5, 2.5, 1], description="False alarm rates per 24h for TAES"
     )
-    save_predictions: bool = Field(
-        default=False, description="Save prediction outputs"
-    )
+    save_predictions: bool = Field(default=False, description="Save prediction outputs")
     save_plots: bool = Field(default=True, description="Generate evaluation plots")
 
 
@@ -249,7 +217,7 @@ class WandbConfig(BaseModel):
 
     enabled: bool = Field(default=False, description="Enable W&B logging")
     project: str = Field(default="seizure-detection", description="W&B project name")
-    entity: Optional[str] = Field(default=None, description="W&B entity/team name")
+    entity: str | None = Field(default=None, description="W&B entity/team name")
     tags: list[str] = Field(default_factory=list, description="Run tags")
 
 
@@ -267,9 +235,7 @@ class ExperimentConfig(BaseModel):
         default="INFO", description="Logging verbosity"
     )
     save_model: bool = Field(default=False, description="Save trained model")
-    save_best_only: bool = Field(
-        default=True, description="Only save best checkpoint"
-    )
+    save_best_only: bool = Field(default=True, description="Only save best checkpoint")
     wandb: WandbConfig = Field(default_factory=WandbConfig)
 
     @field_validator("cache_dir")
@@ -282,9 +248,7 @@ class ExperimentConfig(BaseModel):
 class LoggingConfig(BaseModel):
     """Training logging configuration."""
 
-    log_every_n_steps: int = Field(
-        default=10, ge=1, description="Steps between logging"
-    )
+    log_every_n_steps: int = Field(default=10, ge=1, description="Steps between logging")
     log_gradients: bool = Field(default=False, description="Log gradient norms")
     log_weights: bool = Field(default=False, description="Log weight histograms")
 
@@ -292,13 +256,9 @@ class LoggingConfig(BaseModel):
 class ResourcesConfig(BaseModel):
     """Compute resource configuration."""
 
-    max_memory_gb: Optional[float] = Field(
-        default=None, gt=0, description="Maximum GPU memory to use"
-    )
+    max_memory_gb: float | None = Field(default=None, gt=0, description="Maximum GPU memory to use")
     distributed: bool = Field(default=False, description="Use distributed training")
-    mixed_precision: bool = Field(
-        default=True, description="Use mixed precision training"
-    )
+    mixed_precision: bool = Field(default=True, description="Use mixed precision training")
 
 
 class Config(BaseModel):
@@ -312,7 +272,7 @@ class Config(BaseModel):
     evaluation: EvaluationConfig
     experiment: ExperimentConfig
     logging: LoggingConfig
-    resources: Optional[ResourcesConfig] = Field(default=None)
+    resources: ResourcesConfig | None = Field(default=None)
 
     @model_validator(mode="after")
     def validate_device_resources(self) -> "Config":
