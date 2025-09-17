@@ -31,10 +31,10 @@ model:
     kernel_sizes: [3, 5, 7]
     dropout: 0.1
   mamba:
-    n_layers: 8
+    n_layers: 6
     d_model: 512
     d_state: 16
-    conv_kernel: 7
+    conv_kernel: 5
     dropout: 0.1
   decoder:
     stages: 4

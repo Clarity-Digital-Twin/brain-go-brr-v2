@@ -284,7 +284,7 @@ class BiMamba2(nn.Module):
         self,
         d_model: int = 512,
         d_state: int = 16,
-        d_conv: int = 4,
+        d_conv: int = 5,
         num_layers: int = 6,
         dropout: float = 0.1
     ):
