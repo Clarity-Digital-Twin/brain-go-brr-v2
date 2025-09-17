@@ -137,6 +137,9 @@ class PDFToMarkdownConverter:
                     logger.warning(f"OCR extraction also failed, using original extraction")
                     md_text = pymupdf4llm.to_markdown(doc, **image_config)
             
+            # Post-process markdown for cleanliness (headers, counters, paths)
+            md_text = self._postprocess_markdown(md_text, stem, output_dir)
+
             # Save markdown
             md_path.write_text(md_text, encoding='utf-8')
             
@@ -171,6 +174,51 @@ class PDFToMarkdownConverter:
         except Exception as e:
             logger.error(f"❌ Failed to convert {pdf_path.name}: {e}")
             raise
+
+    def _postprocess_markdown(self, md: str, stem: str, output_dir: Path) -> str:
+        """
+        Clean up common PDF artifacts to improve readability and fidelity.
+
+        - Remove page gutters/line-number counters like "**000**" lines
+        - Drop repeated page headers (e.g., ICLR review banner)
+        - Remove explicit page markers like "## Page N"
+        - Make image links relative to the markdown file directory
+        - Collapse excessive blank lines
+        """
+        import re
+
+        lines = md.splitlines()
+        cleaned: list[str] = []
+
+        header_patterns = [
+            r"^Under review as a conference paper at ICLR 20\d{2}\s*$",
+        ]
+        header_res = [re.compile(p, re.IGNORECASE) for p in header_patterns]
+
+        for line in lines:
+            # Remove bold numeric counters (e.g., **000**)
+            if re.match(r"^\*\*\d{3}\*\*\s*$", line):
+                continue
+            # Remove generic page markers
+            if re.match(r"^##\s*Page\s+\d+\s*$", line):
+                continue
+            # Remove known review headers/footers
+            if any(r.match(line) for r in header_res):
+                continue
+            cleaned.append(line)
+
+        text = "\n".join(cleaned)
+
+        # Normalize image paths to be relative (./<filename>.png)
+        # PyMuPDF4LLM typically inserts the full output_dir path
+        # Replace occurrences of the output_dir prefix with './'
+        out_prefix = str(output_dir).replace("\\", "/") + "/"
+        text = text.replace(out_prefix, "./")
+
+        # Collapse >2 consecutive blank lines to at most 1
+        text = re.sub(r"\n{3,}", "\n\n", text)
+
+        return text
 
     def _ocr_extract(self, pdf_path: Path, output_dir: Path) -> str:
         """Extract text using OCR for scanned PDFs."""
