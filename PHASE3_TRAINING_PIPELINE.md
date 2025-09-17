@@ -86,9 +86,10 @@ tests/test_evaluate.py            # Metrics unit tests (TAES, FA curves)
    ```
 
 2) **Validation step** (end of epoch):
-   - Forward on val set → collect probabilities over time
-   - Post-processing → events: apply hysteresis from `postprocessing.hysteresis` (τ_on=0.86, τ_off=0.78), then morphology (`postprocessing.morphology.kernel_size`), then convert to event intervals [(start_s, end_s), ...]
-   - Metrics (event-level): TAES, AUROC (prob‑wise), sensitivity@FA rates and FA/24h computed from event lists
+   - Forward on val set → collect probabilities over time.
+   - Reconstruct per‑record timelines (window stitching): concatenate overlapping windows for each record using overlap‑aware averaging so that metrics operate on continuous sequences per record (not isolated windows).
+   - Post‑processing → events: apply hysteresis from `postprocessing.hysteresis` (τ_on=0.86, τ_off=0.78), then morphology (`postprocessing.morphology.kernel_size`, in samples), then convert to event intervals [(start_s, end_s), ...].
+   - Metrics (event‑level): TAES, AUROC (prob‑wise), sensitivity@FA rates and FA/24h computed from event lists. Compute total_hours as the sum over records of (duration_seconds / 3600).
 
 3) **Early stopping + checkpointing**:
    - Metric: `training.early_stopping.metric` (default: `sensitivity_at_10fa`)
@@ -110,27 +111,76 @@ tests/test_evaluate.py            # Metrics unit tests (TAES, FA curves)
 ## 🧪 Evaluation & Metrics
 
 ### TAES Implementation (Time-Aligned Event Scoring)
-Based on Picone et al. 2021, TAES weights errors by temporal overlap:
+Based on Picone et al. 2021, TAES scores temporal alignment and penalizes false alarms. The simple overlap‑weighted variant below is implementation‑ready and can be extended to DP‑alignment if desired:
 ```python
 def calculate_taes(
     pred_events: List[Tuple[float, float]],  # [(start, end), ...]
     ref_events: List[Tuple[float, float]],
 ) -> float:
     """
-    Calculate TAES metric based on temporal overlap.
+    Calculate TAES based on temporal overlap and FP penalty.
 
-    For each reference event:
-    - Find overlapping predictions
-    - Weight by overlap percentage
-    - Penalize false alarms by duration
+    For each reference event r:
+    - Compute ov_r = sum of overlaps with any predicted event (seconds)
+    - dur_r = duration of r (seconds)
+    - per‑event score s_r = clip(ov_r / max(dur_r, 1e-8), 0, 1)
 
-    Returns: TAES score in [0, 1], higher is better
+    False alarm penalty:
+    - For each predicted event p with zero overlap to any ref, accumulate its duration
+      fp_dur = sum_{p without overlap}(p_end - p_start)
+
+    TAES = mean(s_r over ref events) - alpha * (fp_dur / max(total_pred_span, 1e-8))
+    where total_pred_span = sum_{p}(p_end - p_start), alpha ~ 0.1–0.2 (tunable).
+
+    Returns TAES in [0, 1] approximately; clamp to [0,1] after penalty.
     """
-    # Implementation per literature:
-    # 1. Calculate overlap ratios for each ref event
-    # 2. Weight TPs by overlap percentage
-    # 3. Penalize FPs by their duration
-    # 4. Normalize to [0, 1]
+    # Helper: overlap(a, b) defined below.
+    def _ov(a, b):
+        return max(0.0, min(a[1], b[1]) - max(a[0], b[0]))
+
+    if not ref_events:
+        return 0.0
+
+    # Overlap scores per reference event
+    per_ref = []
+    for r in ref_events:
+        dur_r = max(0.0, r[1] - r[0])
+        ov_r = sum(_ov(r, p) for p in pred_events)
+        per_ref.append(max(0.0, min(1.0, ov_r / max(dur_r, 1e-8))))
+
+    # False alarm penalty
+    fp_dur = 0.0
+    for p in pred_events:
+        if all(_ov(p, r) <= 0.0 for r in ref_events):
+            fp_dur += max(0.0, p[1] - p[0])
+    total_pred_span = sum(max(0.0, p[1] - p[0]) for p in pred_events)
+
+    alpha = 0.15  # tune on validation
+    base = sum(per_ref) / len(per_ref)
+    taes = base - alpha * (fp_dur / max(total_pred_span, 1e-8))
+    return float(max(0.0, min(1.0, taes)))
+```
+
+Eventization helpers (expected signatures):
+```python
+def batch_masks_to_events(masks: torch.Tensor, fs: int) -> List[List[Tuple[float, float]]]:
+    """
+    Convert binary masks per record to event intervals in seconds.
+    masks: (N, T) with values {0,1}; fs: sampling rate (e.g., 256).
+    Returns: list of length N, each is a list of (start_s, end_s) tuples.
+    """
+
+def batch_probs_to_events(
+    probs: torch.Tensor,
+    post_cfg: PostprocessingConfig,
+    fs: int,
+    threshold: float,
+) -> List[List[Tuple[float, float]]]:
+    """
+    Apply threshold + hysteresis + morphology to probabilities, then convert to events.
+    probs: (N, T) in [0,1]; post_cfg supplies hysteresis (tau_on/off), morphology kernel (samples), min_duration (seconds).
+    Returns: list of per‑record (start_s, end_s) pairs.
+    """
 ```
 
 ### FA/24h Calculation (event-level)
@@ -147,6 +197,11 @@ def fa_per_24h(
             if not any(overlap(p, r) > 0 for r in refs):
                 fa += 1
     return (fa / max(total_hours, 1e-8)) * 24.0
+
+# Overlap helper used by multiple metrics
+def overlap(a: Tuple[float, float], b: Tuple[float, float]) -> float:
+    """Return intersection length in seconds between [a0,a1] and [b0,b1]."""
+    return max(0.0, min(a[1], b[1]) - max(a[0], b[0]))
 ```
 
 ### Sensitivity at FA Rates (event-level)
@@ -165,6 +220,7 @@ def sensitivity_at_fa_rates(
     total_hours = labels.numel() / (sampling_rate * 3600)
 
     for fa_target in fa_targets:
+        # Binary search threshold to meet target FA/24h (conservative: highest thr meeting target)
         thr = find_threshold_for_fa_eventized(
             probs, post_cfg, ref_events, fa_target, total_hours, sampling_rate
         )
@@ -179,6 +235,24 @@ def sensitivity_at_fa_rates(
                     tp += 1
         results[f'sensitivity_at_{fa_target}fa'] = float(tp / max(n_ref, 1))
     return results
+```
+
+Threshold search (expected behaviour):
+```python
+def find_threshold_for_fa_eventized(
+    probs: torch.Tensor,
+    post_cfg: PostprocessingConfig,
+    ref_events: List[List[Tuple[float, float]]],
+    fa_target: float,
+    total_hours: float,
+    fs: int,
+) -> float:
+    """
+    Binary search threshold in [0,1] for ~20 iters.
+    If FA > target, increase threshold; else decrease.
+    Return the highest threshold meeting fa_target (conservative operating point).
+    """
+    ...
 ```
 
 Expected evaluation API:
@@ -285,6 +359,8 @@ Quality gates:
 ## ⚙️ Implementation Notes
 - **Seeding**: set `torch`, `numpy`, `random`, and DataLoader seeds from `experiment.seed`
 - **DataLoader determinism**: pass a `torch.Generator().manual_seed(seed)` to DataLoader and a `worker_init_fn` that seeds NumPy/Python per worker.
+ - **DataLoader determinism**: pass a `torch.Generator().manual_seed(seed)` to DataLoader and a `worker_init_fn` that seeds NumPy/Python per worker (e.g., `np.random.seed(seed + worker_id); random.seed(seed + worker_id)`). Do not set `shuffle=True` when using a sampler.
+ - **Scheduler stepping**: for per‑iteration schedules, compute `total_steps = epochs * len(train_loader)` and step once per optimization update; keep warmup as a fraction of total_steps.
 - **Device**: `experiment.device=auto` → pick CUDA if available; otherwise CPU
 - **Class imbalance**: typical 99% negative, 1% positive
   - For probabilities output: use element-wise weighting with `BCELoss(reduction='none')` as shown above

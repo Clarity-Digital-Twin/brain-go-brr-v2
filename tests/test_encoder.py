@@ -23,7 +23,7 @@ class TestUNetEncoder:
         """Test that encoder produces correct output dimensions."""
         encoded, skips = encoder(sample_input)
 
-        # Check final encoding (×16 downsample → 15360/16=960)
+        # Check final encoding (x16 downsample -> 15360/16=960)
         assert encoded.shape == (2, 512, 960), f"Expected (2, 512, 960), got {encoded.shape}"
 
         # Check skip shapes match expected dimensions
@@ -35,10 +35,10 @@ class TestUNetEncoder:
         ]
 
         assert len(skips) == 4, f"Expected 4 skip connections, got {len(skips)}"
-        for i, (skip, expected_shape) in enumerate(zip(skips, expected_skip_shapes)):
-            assert (
-                skip.shape == expected_shape
-            ), f"Skip {i}: expected {expected_shape}, got {skip.shape}"
+        for i, (skip, expected_shape) in enumerate(zip(skips, expected_skip_shapes, strict=False)):
+            assert skip.shape == expected_shape, (
+                f"Skip {i}: expected {expected_shape}, got {skip.shape}"
+            )
 
     def test_channel_progression(self, encoder):
         """Test that channel counts follow expected progression."""
@@ -69,7 +69,7 @@ class TestUNetEncoder:
     def test_gradient_flow(self, encoder, sample_input):
         """Test that gradients flow back through the encoder."""
         sample_input.requires_grad = True
-        encoded, skips = encoder(sample_input)
+        encoded, _skips = encoder(sample_input)
 
         # Simulate loss on encoder output
         loss = encoded.mean()
@@ -88,7 +88,7 @@ class TestUNetEncoder:
     def test_skip_gradient_flow(self, encoder, sample_input):
         """Test that gradients flow through skip connections."""
         sample_input.requires_grad = True
-        encoded, skips = encoder(sample_input)
+        _encoded, skips = encoder(sample_input)
 
         # Simulate loss on skip connections (as decoder would use them)
         loss = sum(skip.mean() for skip in skips)
@@ -117,7 +117,7 @@ class TestUNetEncoder:
 
         # Should be identical
         assert torch.allclose(encoded1, encoded2, atol=1e-6)
-        for skip1, skip2 in zip(skips1, skips2):
+        for skip1, skip2 in zip(skips1, skips2, strict=False):
             assert torch.allclose(skip1, skip2, atol=1e-6)
 
     def test_encoder_blocks_applied(self, encoder, sample_input):
@@ -130,8 +130,17 @@ class TestUNetEncoder:
             x_before = x.clone()
             x_after = encoder.encoder_blocks[i](x)
 
-            # Should be different (blocks apply convolutions)
-            assert not torch.allclose(x_before, x_after)
+            # Check shapes match expected progression
+            # Block 0: 64→64, Block 1: 64→128, Block 2: 128→256, Block 3: 256→512
+            if i == 0:
+                assert x_after.shape[1] == 64
+            else:
+                assert x_after.shape[1] == 64 * (2**i)
+
+            # Blocks should transform the input (not identity)
+            # Can't use allclose if dimensions differ
+            if x_before.shape == x_after.shape:
+                assert not torch.allclose(x_before, x_after)
 
             # Prepare for next stage
             x = encoder.downsample[i](x_after)

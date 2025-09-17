@@ -10,7 +10,6 @@ This module implements the complete model architecture for Phase 2:
 
 import torch
 import torch.nn as nn
-from typing import List, Tuple
 
 
 class ConvBlock(nn.Module):
@@ -38,7 +37,10 @@ class ConvBlock(nn.Module):
         Returns:
             Activated output of shape (B, C_out, L)
         """
-        return self.relu(self.bn(self.conv(x)))
+        x = self.conv(x)
+        x = self.bn(x)
+        x = self.relu(x)
+        return x
 
 
 class UNetEncoder(nn.Module):
@@ -48,7 +50,7 @@ class UNetEncoder(nn.Module):
         - Initial projection: 19 → 64 channels
         - 4 encoder stages with channel doubling: [64, 128, 256, 512]
         - Each stage: double conv block + downsample
-        - Total downsampling: ×16 (15360 → 960)
+        - Total downsampling: x16 (15360 → 960)
         - Skip connections saved before downsampling
     """
 
@@ -83,7 +85,7 @@ class UNetEncoder(nn.Module):
             # Downsample maintains channel count
             self.downsample.append(nn.Conv1d(out_ch, out_ch, kernel_size=2, stride=2))
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, List[torch.Tensor]]:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, list[torch.Tensor]]:
         """Forward pass through encoder.
 
         Args:
