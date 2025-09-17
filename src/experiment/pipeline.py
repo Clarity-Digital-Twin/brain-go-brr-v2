@@ -17,7 +17,7 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 from torch.utils.data import DataLoader, WeightedRandomSampler
@@ -176,7 +176,7 @@ def train_epoch(
     """
     model.train()
     device_obj = torch.device(device)
-    scaler = GradScaler(enabled=use_amp and device != "cpu")
+    scaler = GradScaler("cuda" if device == "cuda" else "cpu", enabled=use_amp and device != "cpu")
 
     # BCE loss (model already applies sigmoid)
     criterion = nn.BCELoss(reduction="none")
@@ -202,12 +202,15 @@ def train_epoch(
         optimizer.zero_grad(set_to_none=True)
 
         # Forward pass with AMP
-        with autocast(enabled=use_amp and device != "cpu"):
+        with autocast(device_type="cuda" if device == "cuda" else "cpu", enabled=use_amp and device != "cpu"):
             outputs = model(windows)  # (B, T) probabilities
 
         # Compute loss outside of autocast (BCELoss is unsafe with autocast)
-        per_element_loss = criterion(outputs, labels)
-        weights = torch.where(labels > 0, pos_weight, 1.0)
+        # Ensure dtype matches between outputs and labels
+        outputs_float32 = outputs.float()
+        labels_float32 = labels.float()
+        per_element_loss = criterion(outputs_float32, labels_float32)
+        weights = torch.where(labels_float32 > 0, pos_weight, 1.0)
         loss = (per_element_loss * weights).sum() / (weights.sum() + 1e-8)
 
         # Backward pass
