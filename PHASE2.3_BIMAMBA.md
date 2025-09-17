@@ -93,9 +93,9 @@ class BiMamba2Layer(nn.Module):
                 expand=expand
             )
         else:
-            # Conv1d fallback for CPU testing
-            self.forward_mamba = nn.Conv1d(d_model, d_model, kernel_size=3, padding=1)
-            self.backward_mamba = nn.Conv1d(d_model, d_model, kernel_size=3, padding=1)
+            # Conv1d fallback for CPU testing; use kernel=5 to mimic Mamba conv span
+            self.forward_mamba = nn.Conv1d(d_model, d_model, kernel_size=5, padding=2)
+            self.backward_mamba = nn.Conv1d(d_model, d_model, kernel_size=5, padding=2)
 
         # Fusion and normalization
         self.output_proj = nn.Linear(d_model * 2, d_model)

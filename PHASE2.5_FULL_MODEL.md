@@ -1,7 +1,7 @@
 # PHASE2.5_FULL_MODEL.md - Complete Model Assembly
 
 ## 🎯 Phase 2.5 Goal
-Assemble all components (Encoder, ResCNN, Bi-Mamba, Decoder) into the complete SeizureDetectorV2 model with detection head.
+Assemble all components (Encoder, ResCNN, Bi-Mamba, Decoder) into the complete SeizureDetector model with detection head.
 
 ## 📋 Phase 2.5 Checklist
 - [ ] Import all component modules
@@ -47,7 +47,7 @@ from typing import Dict, Any, List
 # Assumes UNetEncoder, ResCNNStack, BiMamba2, UNetDecoder are defined above in this file
 
 
-class SeizureDetectorV2(nn.Module):
+class SeizureDetector(nn.Module):
     """Complete Bi-Mamba-2 + U-Net + ResCNN architecture for seizure detection."""
 
     def __init__(
@@ -178,6 +178,24 @@ class SeizureDetectorV2(nn.Module):
         # Squeeze channel dimension
         return output.squeeze(1)  # (B, 15360)
 
+    @classmethod
+    def from_config(cls, cfg: "ModelConfig") -> "SeizureDetector":  # noqa: F821 (type only at runtime)
+        """Construct model from validated schema config to avoid name drift.
+
+        This method maps schema field names to constructor parameters.
+        """
+        return cls(
+            in_channels=cfg.encoder.channels[0] // (cfg.encoder.channels[0] // 64) if cfg.encoder.channels else 19,
+            base_channels=64,
+            encoder_depth=cfg.encoder.stages,
+            mamba_layers=cfg.mamba.n_layers,
+            mamba_d_state=cfg.mamba.d_state,
+            mamba_d_conv=cfg.mamba.conv_kernel,
+            rescnn_blocks=cfg.rescnn.n_blocks,
+            rescnn_kernels=cfg.rescnn.kernel_sizes,
+            dropout=cfg.mamba.dropout,
+        )
+
     def count_parameters(self) -> int:
         """Count total trainable parameters."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
@@ -221,14 +239,14 @@ class SeizureDetectorV2(nn.Module):
 
 import pytest
 import torch
-from src.experiment.models import SeizureDetectorV2
+from src.experiment.models import SeizureDetector
 
 
-class TestSeizureDetectorV2:
+class TestSeizureDetector:
 
     @pytest.fixture
     def model(self):
-        return SeizureDetectorV2(
+        return SeizureDetector(
             in_channels=19,
             base_channels=64,
             encoder_depth=4,
@@ -338,16 +356,16 @@ import time
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.experiment.models import SeizureDetectorV2
+from src.experiment.models import SeizureDetector
 
 
 def main():
     print("="*60)
-    print("SeizureDetectorV2 Full Model Test")
+    print("SeizureDetector Full Model Test")
     print("="*60)
 
     # Initialize model
-    model = SeizureDetectorV2()
+    model = SeizureDetector()
     model.eval()
 
     # Model info

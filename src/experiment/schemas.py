@@ -108,7 +108,7 @@ class ResCNNConfig(BaseModel):
 class MambaConfig(BaseModel):
     """Bi-Mamba-2 configuration."""
 
-    n_layers: int = Field(ge=1, le=12, description="Number of Mamba layers")
+    n_layers: int = Field(default=6, ge=1, le=12, description="Number of Mamba layers")
     d_model: Literal[512] = Field(default=512, description="Model dimension")
     d_state: Literal[16] = Field(default=16, description="SSM state dimension")
     conv_kernel: int = Field(default=5, ge=3, le=9, description="Mamba convolution kernel")
@@ -119,7 +119,7 @@ class DecoderConfig(BaseModel):
     """U-Net decoder configuration."""
 
     stages: Literal[4] = Field(default=4, description="Number of decoder stages")
-    kernel_size: int = Field(default=4, ge=2, le=8, description="Transpose conv kernel size")
+    kernel_size: int = Field(default=2, ge=2, le=8, description="Transpose conv kernel size")
 
 
 class ModelConfig(BaseModel):
@@ -128,7 +128,7 @@ class ModelConfig(BaseModel):
     name: Literal["seizure_detector"] = Field(default="seizure_detector", description="Model name")
     encoder: EncoderConfig = Field(default_factory=EncoderConfig)
     rescnn: ResCNNConfig = Field(default_factory=ResCNNConfig)
-    mamba: MambaConfig = Field(default_factory=MambaConfig)  # type: ignore[arg-type]
+    mamba: MambaConfig = Field(default_factory=MambaConfig)
     decoder: DecoderConfig = Field(default_factory=DecoderConfig)
 
 

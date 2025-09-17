@@ -5,7 +5,7 @@ Build the complete neural architecture combining U-Net spatial processing, ResCN
 
 ## 📋 Phase 2 Checklist
 - [ ] U-Net encoder (4 stages, skip connections)
-- [ ] U-Net decoder (4 stages, skip fusion)
+- [ ] U-Net decoder (4 stages, skip connection fusion)
 - [ ] ResCNN stack (3 blocks, multi-scale kernels)
 - [ ] Bidirectional Mamba-2 bottleneck
 - [ ] Full model assembly with detection head
@@ -33,6 +33,10 @@ Bi-Mamba-2: Bidirectional temporal modeling
 U-Net Decoder: 4 stages, ×16 upsample
     ↓
 Output: (B, 15360) probabilities
+
+Note: Inputs are the 19 canonical 10-20 EEG channels in fixed order and z-scored per
+channel, exactly as produced by Phase 1. Shapes and normalization are assumed
+throughout.
 ```
 
 ### Dimension Tracking
@@ -381,7 +385,7 @@ class UNetDecoder(nn.Module):
 ```python
 # src/experiment/models.py (continued)
 
-class SeizureDetectorV2(nn.Module):
+class SeizureDetector(nn.Module):
     """Complete Bi-Mamba-2 + U-Net + ResCNN architecture."""
 
     def __init__(
@@ -424,6 +428,9 @@ class SeizureDetectorV2(nn.Module):
         )
 
         # Detection head
+        # Rationale: the decoder reconstructs 19-channel features to preserve
+        # channel-specific information up to the final step; a 1×1 conv then
+        # fuses to a single per-timestep probability sequence.
         self.detection_head = nn.Sequential(
             nn.Conv1d(in_channels, 1, kernel_size=1),
             nn.Sigmoid()
@@ -485,17 +492,17 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.experiment.models import SeizureDetectorV2
+from src.experiment.models import SeizureDetector
 
 def validate_model():
     """Validate model forward pass and dimensions."""
 
     print("="*50)
-    print("Testing SeizureDetectorV2 Forward Pass")
+    print("Testing SeizureDetector Forward Pass")
     print("="*50)
 
     # Initialize model
-    model = SeizureDetectorV2()
+    model = SeizureDetector()
     model.eval()
 
     # Print model info
