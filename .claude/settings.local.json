@@ -41,7 +41,8 @@
       "Bash(pytest:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest tests/test_encoder.py -v --no-cov)"
+      "Bash(PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest tests/test_encoder.py -v --no-cov)",
+      "Bash(.venv/bin/pytest tests/test_rescnn.py -v)"
     ],
     "deny": [],
     "ask": []
