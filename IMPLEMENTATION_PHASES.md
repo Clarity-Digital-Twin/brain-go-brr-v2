@@ -8,7 +8,7 @@ Build the world's first Bi-Mamba-2 + U-Net + ResCNN architecture for O(N) clinic
 - [ ] CHB-MIT dataset access
 - [ ] GPU with CUDA (A100 preferred)
 - [ ] All reference repos cloned
-- [ ] Dependencies installed (`uv sync -E gpu`)
+- [ ] Dependencies installed (`uv sync -E gpu,post,eval`)
 
 ## 🚀 PHASE 1: DATA PIPELINE (Week 1)
 
