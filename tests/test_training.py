@@ -123,6 +123,8 @@ class TestTrainingSmoke:
 
         # Check warmup works
         initial_lr = optimizer.param_groups[0]["lr"]
+        # Need to call optimizer.step() before scheduler.step() in PyTorch 1.1+
+        optimizer.step()
         scheduler.step()
         assert optimizer.param_groups[0]["lr"] < initial_lr  # Starts low
 
