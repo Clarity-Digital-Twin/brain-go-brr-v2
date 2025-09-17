@@ -8,6 +8,7 @@ Phase 2 implementation will land incrementally via TDD:
 - SeizureDetector: Full assembled model (Phase 2.5)
 """
 
+import warnings
 from typing import cast
 
 import torch
@@ -294,7 +295,11 @@ try:
     MAMBA_AVAILABLE = True
 except ImportError:
     MAMBA_AVAILABLE = False
-    print("Warning: mamba-ssm not available, using Conv1d fallback")
+    warnings.warn(
+        "mamba-ssm not available; using Conv1d fallback for BiMamba2. "
+        "Fallback is for shape validation only and is not functionally equivalent.",
+        stacklevel=1,
+    )
 
 
 class BiMamba2Layer(nn.Module):
@@ -333,7 +338,10 @@ class BiMamba2Layer(nn.Module):
             # - Mamba uses complex state-space transitions with selective gates
             # - This fallback is a simple convolution for shape validation only
             # DO NOT use CPU tests to validate model convergence or accuracy
-            print("WARNING: Using Conv1d fallback - NOT equivalent to Mamba-2!")
+            warnings.warn(
+                "Using Conv1d fallback for BiMamba2Layer — NOT equivalent to Mamba-2.",
+                stacklevel=1,
+            )
             self.forward_mamba = nn.Conv1d(d_model, d_model, kernel_size=5, padding=2)
             self.backward_mamba = nn.Conv1d(d_model, d_model, kernel_size=5, padding=2)
 
@@ -441,3 +449,133 @@ class BiMamba2(nn.Module):
             return "O(N) with Mamba-2 SSM"
         else:
             return "O(N) with Conv1d fallback"
+
+
+# ============================================================================
+# Phase 2.4: U-Net Decoder Components
+# ============================================================================
+
+
+class UNetDecoder(nn.Module):
+    """U-Net decoder with skip connections and progressive upsampling.
+
+    Architecture:
+        - 4 decoder stages with channel halving: [512, 256, 128, 64]
+        - Each stage: upsample + skip concat + double conv
+        - Total upsampling: x16 (960 -> 15360)
+        - Output projection: 64 -> 19 channels
+    """
+
+    def __init__(self, out_channels: int = 19, base_channels: int = 64, depth: int = 4):
+        super().__init__()
+        self.depth = depth
+
+        # Channel progression (reversed): [512, 256, 128, 64]
+        channels = [base_channels * (2 ** (depth - 1 - i)) for i in range(depth)]
+
+        # Build decoder stages
+        self.upsample = nn.ModuleList()
+        self.decoder_blocks = nn.ModuleList()
+
+        for i in range(depth):
+            # Current stage channels
+            in_ch = channels[i]
+            out_ch = channels[i + 1] if i < depth - 1 else base_channels
+
+            # Transposed convolution for x2 upsampling
+            self.upsample.append(nn.ConvTranspose1d(in_ch, out_ch, kernel_size=2, stride=2))
+
+            # After concatenation with skip, we have out_ch + skip_ch channels
+            # Skip channels match encoder output at each stage (before downsampling)
+            # Stage 0 uses skip[3] (512 channels), Stage 1 uses skip[2] (256), etc.
+            skip_idx = depth - 1 - i
+            skip_ch = base_channels * (2**skip_idx)
+
+            # Double convolution after skip concatenation
+            self.decoder_blocks.append(
+                nn.Sequential(
+                    ConvBlock(out_ch + skip_ch, out_ch, kernel_size=5, padding=2),
+                    ConvBlock(out_ch, out_ch, kernel_size=5, padding=2),
+                )
+            )
+
+        # Output projection
+        self.output_conv = nn.Conv1d(base_channels, out_channels, kernel_size=1)
+
+    def forward(self, x: torch.Tensor, skips: list[torch.Tensor]) -> torch.Tensor:
+        """Forward pass through decoder with skip connections.
+
+        Args:
+            x: Bottleneck features (B, 512, 960) from BiMamba2
+            skips: Skip connections from encoder [4 tensors]
+                   Order: [stage1, stage2, stage3, stage4] from encoder
+                   Shapes: [(B,64,15360), (B,128,7680), (B,256,3840), (B,512,1920)]
+                   Used in reverse: skip[3], skip[2], skip[1], skip[0]
+
+        Returns:
+            Decoded output (B, 19, 15360)
+        """
+        # Process decoder stages with skips (deepest → shallowest)
+        for i in range(self.depth):
+            # Upsample by 2x
+            x = self.upsample[i](x)
+
+            # Concatenate with corresponding skip (reverse order)
+            # Decoder stage 0 uses skip[3] (deepest), stage 1 uses skip[2], etc.
+            skip_idx = self.depth - 1 - i
+            x = torch.cat([x, skips[skip_idx]], dim=1)
+
+            # Process through decoder block
+            x = self.decoder_blocks[i](x)
+
+        # Final output projection to target channels
+        return self.output_conv(x)
+
+    def check_skip_compatibility(self, skips: list[torch.Tensor]) -> bool:
+        """Verify skip dimensions match expected shapes.
+
+        Args:
+            skips: List of skip tensors from encoder
+
+        Returns:
+            True if all skip dimensions are compatible
+        """
+        # Expected shapes for depth=4, base_channels=64
+        expected_shapes = [
+            (None, 64, 15360),  # Stage 1
+            (None, 128, 7680),  # Stage 2
+            (None, 256, 3840),  # Stage 3
+            (None, 512, 1920),  # Stage 4
+        ]
+
+        if len(skips) != self.depth:
+            return False
+
+        for i, (skip, expected) in enumerate(zip(skips, expected_shapes[:self.depth])):
+            # Check channel and spatial dimensions (ignore batch)
+            if skip.shape[1:] != expected[1:]:
+                return False
+
+        return True
+
+    def get_dimension_info(self) -> dict:
+        """Get information about decoder dimensions for debugging.
+
+        Returns:
+            Dictionary with stage dimensions and channel counts
+        """
+        info = {
+            "output_channels": 19,
+            "base_channels": 64,
+            "depth": self.depth,
+            "channel_progression": [512, 256, 128, 64],
+            "spatial_progression": [960, 1920, 3840, 7680, 15360],
+            "skip_usage_order": "skips[3] → skips[2] → skips[1] → skips[0]",
+            "expected_skip_shapes": [
+                (64, 15360),
+                (128, 7680),
+                (256, 3840),
+                (512, 1920),
+            ],
+        }
+        return info
