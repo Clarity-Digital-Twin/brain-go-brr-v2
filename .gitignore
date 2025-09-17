@@ -43,10 +43,9 @@ wheels/
 *.egg
 MANIFEST
 .pytest_cache/
-.coverage
-*.cover
 .hypothesis/
-.env
+
+# Virtual environments
 .venv
 env/
 venv/
@@ -111,7 +110,7 @@ uv.lock
 .mypy_cache/
 dmypy.json
 
-# Coverage
+# Coverage reports
 htmlcov/
 .coverage
 .coverage.*
@@ -122,6 +121,7 @@ coverage.xml
 .env
 .env.local
 .env.*.local
+# Note: .env.example is tracked (it's a template)
 
 # Node (if using any JS tools)
 node_modules/
