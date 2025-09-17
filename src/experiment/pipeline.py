@@ -205,10 +205,10 @@ def train_epoch(
         with autocast(enabled=use_amp and device != "cpu"):
             outputs = model(windows)  # (B, T) probabilities
 
-            # Element-wise weighted loss (normalize by total weight)
-            per_element_loss = criterion(outputs, labels)
-            weights = torch.where(labels > 0, pos_weight, 1.0)
-            loss = (per_element_loss * weights).sum() / (weights.sum() + 1e-8)
+        # Compute loss outside of autocast (BCELoss is unsafe with autocast)
+        per_element_loss = criterion(outputs, labels)
+        weights = torch.where(labels > 0, pos_weight, 1.0)
+        loss = (per_element_loss * weights).sum() / (weights.sum() + 1e-8)
 
         # Backward pass
         scaler.scale(loss).backward()
