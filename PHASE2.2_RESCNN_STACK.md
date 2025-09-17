@@ -11,10 +11,10 @@ Build multi-scale ResCNN blocks for feature extraction at the bottleneck, proces
 - [ ] Unit tests for shape preservation
 - [ ] Verify residual connections work
 
-## 🔧 Implementation Files
+## 🧩 Implementation Files
 ```
-src/experiment/models/rescnn.py    # ResCNN components only
-tests/test_rescnn.py               # ResCNN-specific tests
+src/experiment/models.py    # ResCNN components live here (repo convention)
+tests/test_rescnn.py        # ResCNN-specific tests
 ```
 
 ## 📐 Architecture
@@ -36,7 +36,7 @@ Output: (B, 512, 960) - shape preserved!
 ## 🔨 Implementation
 
 ```python
-# src/experiment/models/rescnn.py
+# src/experiment/models.py (ResCNN section)
 
 import torch
 import torch.nn as nn
@@ -74,11 +74,11 @@ class ResCNNBlock(nn.Module):
                 )
             )
 
-        # Fusion layer to combine multi-scale features
+        # Fusion layer to combine multi-scale features (spatial dropout over channels)
         self.fusion = nn.Sequential(
             nn.Conv1d(channels, channels, kernel_size=1),
             nn.BatchNorm1d(channels),
-            nn.Dropout(dropout)
+            nn.Dropout2d(dropout)
         )
 
         self.relu = nn.ReLU(inplace=True)
@@ -154,7 +154,7 @@ class ResCNNStack(nn.Module):
 
 import pytest
 import torch
-from src.experiment.models.rescnn import ResCNNBlock, ResCNNStack
+from src.experiment.models import ResCNNBlock, ResCNNStack
 
 
 class TestResCNNBlock:
@@ -171,12 +171,11 @@ class TestResCNNBlock:
         output = block(sample_input)
         assert output.shape == sample_input.shape
 
-    def test_residual_connection(self, block):
-        # Test with zeros - should return zeros due to residual
-        x = torch.zeros(2, 512, 960)
-        output = block(x)
-        # Output shouldn't be all zeros if processing works
-        assert output.abs().sum() > 0
+    def test_residual_connection_effect(self, block):
+        # With random input, residual path should alter activations (not identity)
+        x = torch.randn(2, 512, 960)
+        y = block(x)
+        assert torch.norm(y - x) > 0
 
     def test_multi_scale_branches(self, block):
         # Check that all branches are used

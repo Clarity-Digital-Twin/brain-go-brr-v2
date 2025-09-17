@@ -30,7 +30,8 @@
       "Bash(do echo \"=== $dir ===\")",
       "Bash(ls:*)",
       "Bash(done)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Read(//mnt/c/Users/JJ/Desktop/Clarity-Digital-Twin/**)"
     ],
     "deny": [],
     "ask": []
