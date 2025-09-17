@@ -190,12 +190,12 @@ class TrainingConfig(BaseModel):
     optimizer: Literal["adamw", "adam", "sgd"] = Field(
         default="adamw", description="Optimizer type"
     )
-    scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
+    scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)  # type: ignore[arg-type]
     gradient_clip: float = Field(
         default=1.0, ge=0.0, description="Gradient clipping value (0 = disabled)"
     )
     mixed_precision: bool = Field(default=True, description="Use automatic mixed precision (AMP)")
-    early_stopping: EarlyStoppingConfig = Field(default_factory=EarlyStoppingConfig)
+    early_stopping: EarlyStoppingConfig = Field(default_factory=EarlyStoppingConfig)  # type: ignore[arg-type]
 
 
 class EvaluationConfig(BaseModel):
