@@ -20,6 +20,9 @@ Note: `mamba-ssm` is an optional GPU extra. CPU-only dev/CI use the fallback pat
 To enable GPU path locally: `uv sync -E gpu`.
 
 ## 📐 Architecture
+
+Note: we refer to the Mamba temporal convolution as "d_conv (conv kernel)". Default
+throughout the repo is 5 and matches schemas/configs.
 ```
 Input: (B, 512, 960) from ResCNN
     ↓
@@ -54,7 +57,15 @@ except ImportError:
 
 
 class BiMamba2Layer(nn.Module):
-    """Single bidirectional Mamba-2 layer."""
+    """Single bidirectional Mamba-2 layer.
+
+    Args:
+        d_model: Feature dimension (matches encoder bottleneck)
+        d_state: SSM state dimension
+        d_conv: Conv kernel size ("conv kernel"); default 5 to match schemas/configs
+        expand: Expansion factor in Mamba component
+        dropout: Dropout probability
+    """
 
     def __init__(
         self,

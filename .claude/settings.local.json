@@ -36,7 +36,8 @@
       "Bash(rsync:*)",
       "Bash(tmux kill-session:*)",
       "Bash(tmux attach:*)",
-      "Bash(uv sync:*)"
+      "Bash(uv sync:*)",
+      "Bash(.venv/bin/python:*)"
     ],
     "deny": [],
     "ask": []

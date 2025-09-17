@@ -139,7 +139,7 @@ def extract_windows(
     Returns:
       windows: (n_windows, n_channels, window_size)
       window_labels: (n_windows, window_size) or None
-      metadata: {"start_samples": list[int]}
+      metadata: {"start_samples": List[int]}
 
     Only full windows are returned (no padding). End-truncation is acceptable in Phase 1.
     """
@@ -239,4 +239,3 @@ Baseline performance targets (CPU, single file)
 Status: Ready for implementation (TDD-first) ✅
 Estimated Time: 2–3 days
 Owners: Data pipeline duo (eng + reviewer) 🧪
-

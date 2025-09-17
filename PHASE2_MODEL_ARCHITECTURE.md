@@ -36,6 +36,8 @@ Output: (B, 15360) probabilities
 ```
 
 ### Dimension Tracking
+Note: we use "d_conv (conv kernel)" to denote Mamba's temporal convolution kernel;
+default is 5 across docs/configs.
 | Stage | Input → Output | Skip Saved | Cumulative ↓ | Notes |
 |-------|----------------|------------|--------------|-------|
 | Input | (B, 19, 15360) | - | ×1 | Raw EEG |

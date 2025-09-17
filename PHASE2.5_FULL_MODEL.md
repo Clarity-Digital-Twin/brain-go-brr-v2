@@ -60,7 +60,7 @@ class SeizureDetectorV2(nn.Module):
         # Mamba params
         mamba_layers: int = 6,
         mamba_d_state: int = 16,
-        mamba_d_conv: int = 5,
+        mamba_d_conv: int = 5,  # conv kernel size ("d_conv")
         # ResCNN params
         rescnn_blocks: int = 3,
         rescnn_kernels: List[int] = None,
