@@ -258,9 +258,13 @@ class BiMamba2Layer(nn.Module):
             self.forward_mamba = Mamba2(d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand)
             self.backward_mamba = Mamba2(d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand)
         else:
-            # Conv1d fallback for CPU testing
-            self.forward_mamba = nn.Conv1d(d_model, d_model, kernel_size=3, padding=1)
-            self.backward_mamba = nn.Conv1d(d_model, d_model, kernel_size=3, padding=1)
+            # WARNING: Conv1d fallback for CPU testing only
+            # This is NOT functionally equivalent to Mamba-2 SSM!
+            # - Mamba uses state-space transitions with selective gating
+            # - This fallback is a simple convolution for shape validation only
+            print("WARNING: Using Conv1d fallback - NOT equivalent to Mamba-2!")
+            self.forward_mamba = nn.Conv1d(d_model, d_model, kernel_size=5, padding=2)
+            self.backward_mamba = nn.Conv1d(d_model, d_model, kernel_size=5, padding=2)
 
         self.output_proj = nn.Linear(d_model * 2, d_model)
         self.layer_norm = nn.LayerNorm(d_model)
