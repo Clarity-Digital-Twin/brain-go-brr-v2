@@ -65,7 +65,7 @@ WINDOW_SAMPLES = WINDOW_SIZE_SEC * SAMPLING_RATE   # 15360
 STRIDE_SAMPLES = STRIDE_SIZE_SEC * SAMPLING_RATE   # 2560
 ```
 
-### 2) EDF Reader
+### 2) EDF Reader with Header Repair Fallback
 ```
 # src/experiment/data.py
 
@@ -82,7 +82,8 @@ def load_edf_file(
     """
     Load EDF and return data (n_channels, n_samples) in canonical order and original fs.
 
-    - Uses MNE for robust EDF reading.
+    - Uses MNE for robust EDF reading (already permissive with malformed headers).
+    - If MNE fails on header issues (e.g., TUSZ date separators), repairs on temp copy.
     - Enforces 19-channel 10–20 order; errors if required channels are missing.
     - Always converts units to microvolts (µV) after `raw.get_data()`.
     - Optionally sets montage to 'standard_1020' for alignment.
@@ -91,10 +92,13 @@ def load_edf_file(
 
 Key rules
 - Use `mne.io.read_raw_edf(file_path, preload=True, verbose="WARNING")`.
+- **NEW**: If MNE fails with header/startdate error, create temp copy, fix date separators (colons→periods at byte 168-175), retry.
 - If `apply_montage`, call `raw.set_montage("standard_1020", on_missing="ignore")`.
 - Handle synonyms: map channel names via `CHANNEL_SYNONYMS` before validation.
 - Validate presence and order; `raw.pick_channels(target_channels, ordered=True)`.
 - `raw.get_data()` returns Volts; standardize by multiplying by `1e6` → µV; cast to `np.float32`.
+
+**Header Repair**: Based on TUSZ v2.0.3 experience, 1/865 files has malformed date separators (colons instead of periods). MNE is typically permissive, but we add fallback for edge cases.
 
 ### 3) Preprocessing Pipeline
 ```
@@ -220,6 +224,7 @@ Baseline performance targets (CPU, single file)
 |---|---|
 | Missing channels | Use `CHANNEL_SYNONYMS`; error if still missing |
 | Non-standard montage | `raw.set_montage('standard_1020')` with `on_missing='ignore'` |
+| Malformed EDF header | Auto-repair date separators on temp copy (TUSZ fix) |
 | Corrupted EDF | Catch MNE errors; skip file with log; continue pipeline |
 | Memory pressure | Switch to memmap cache; per-file index in Dataset |
 | Slow resample | Consider `resample_poly` in Phase 2 if needed |

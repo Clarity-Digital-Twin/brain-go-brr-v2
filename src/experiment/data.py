@@ -9,6 +9,8 @@ Design goals:
 from __future__ import annotations
 
 import contextlib
+import shutil
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -31,6 +33,28 @@ def _read_raw_edf(file_path: Path) -> Any:  # pragma: no cover - thin wrapper
     return mne.io.read_raw_edf(file_path, preload=True, verbose="WARNING")
 
 
+def _repair_edf_header_inplace(file_path: Path) -> bool:
+    """Repair common EDF header issues in-place (dates with wrong separators).
+
+    Returns True if repair was needed and successful, False otherwise.
+    """
+    try:
+        with open(file_path, "r+b") as f:
+            # Check header for date format issues (byte 168-175: DD.MM.YY)
+            f.seek(168)
+            date_bytes = f.read(8)
+
+            # Fix colons to periods in date field
+            if b":" in date_bytes:
+                fixed_date = date_bytes.replace(b":", b".")
+                f.seek(168)
+                f.write(fixed_date)
+                return True
+    except Exception:
+        pass
+    return False
+
+
 def load_edf_file(
     file_path: Path,
     target_channels: list[str] | None = None,
@@ -51,13 +75,34 @@ def load_edf_file(
 
     Raises:
         ValueError: If required channels are missing after synonym remapping
+
+    Note:
+        MNE is generally permissive with malformed headers (e.g., TUSZ files
+        with colon date separators). If MNE fails on header issues, we attempt
+        a repair on a temp copy and retry.
     """
     if target_channels is None:
         target_channels = constants.CHANNEL_NAMES_10_20
     if channel_synonyms is None:
         channel_synonyms = constants.CHANNEL_SYNONYMS
 
-    raw = _read_raw_edf(file_path)
+    # First attempt with MNE (already permissive)
+    try:
+        raw = _read_raw_edf(file_path)
+    except Exception as e:
+        # If MNE fails with header/date error, try repair on temp copy
+        if "startdate" in str(e) or "header" in str(e).lower():
+            with tempfile.NamedTemporaryFile(suffix=".edf", delete=False) as tmp:
+                tmp_path = Path(tmp.name)
+                shutil.copy2(file_path, tmp_path)
+
+                try:
+                    _repair_edf_header_inplace(tmp_path)
+                    raw = _read_raw_edf(tmp_path)
+                finally:
+                    tmp_path.unlink(missing_ok=True)
+        else:
+            raise
 
     # Optional montage alignment (best-effort)
     if apply_montage:
