@@ -66,6 +66,43 @@ def test_load_edf_missing_channels_raises(monkeypatch: pytest.MonkeyPatch) -> No
 
 
 @pytest.mark.unit
+def test_load_edf_header_repair_fallback(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Test that malformed EDF headers trigger repair fallback."""
+    # Create a mock EDF file with bad header (colons in date field)
+    edf_path = tmp_path / "bad_header.edf"
+    with open(edf_path, "wb") as f:
+        # Write minimal EDF header with bad date
+        f.write(b"0       ")  # version
+        f.write(b" " * 80)  # patient ID
+        f.write(b" " * 80)  # recording ID
+        f.write(b"01:01:85")  # date with colons (bad!)
+        f.write(b"00.00.00")  # time
+        f.write(b" " * (256 - f.tell()))  # pad to 256
+
+    # First call should fail with header error
+    call_count = 0
+
+    def mock_read_edf(path: Path) -> FakeRaw:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # First attempt fails with header error
+            raise RuntimeError("the file is not EDF(+) compliant, the startdate is incorrect")
+        else:
+            # Second attempt (after repair) succeeds
+            sig = np.random.randn(19, 15360).astype(np.float32)
+            return FakeRaw(ch_names=constants.CHANNEL_NAMES_10_20, data=sig, sfreq=256.0)
+
+    monkeypatch.setattr(data_mod, "_read_raw_edf", mock_read_edf)
+
+    # Should succeed after repair
+    arr, fs = data_mod.load_edf_file(edf_path)
+    assert arr.shape == (19, 15360)
+    assert fs == 256.0
+    assert call_count == 2  # Called twice: failed, then succeeded after repair
+
+
+@pytest.mark.unit
 def test_preprocess_shapes_and_dtype() -> None:
     # 2 channels, 4 seconds @ 512 Hz → resample to 256 Hz yields 1024 samples
     fs_in = 512.0
