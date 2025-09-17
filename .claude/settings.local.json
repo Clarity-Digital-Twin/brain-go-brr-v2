@@ -48,7 +48,9 @@
       "Bash(.venv/bin/pytest tests/test_decoder.py -q)",
       "Bash(.venv/bin/pytest tests/test_evaluate.py -q)",
       "Bash(.venv/bin/pytest tests/test_evaluate.py tests/test_training.py -q --no-cov)",
-      "Bash(.venv/bin/pytest tests/test_training.py::TestTrainingSmoke::test_full_training_loop -q --no-cov)"
+      "Bash(.venv/bin/pytest tests/test_training.py::TestTrainingSmoke::test_full_training_loop -q --no-cov)",
+      "Bash(.venv/bin/pytest tests/test_smoke.py -v)",
+      "Bash(.venv/bin/pytest -n auto --cov=src --cov-report=term-missing:skip-covered --cov-report=html)"
     ],
     "deny": [],
     "ask": []

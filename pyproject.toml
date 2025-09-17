@@ -127,14 +127,9 @@ include = [
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = """
-    -n auto
-    --cov=src
-    --cov-report=term-missing:skip-covered
-    --cov-report=html
     --tb=short
     --strict-markers
     --strict-config
-    -v
 """
 testpaths = ["tests"]
 python_files = ["test_*.py"]
