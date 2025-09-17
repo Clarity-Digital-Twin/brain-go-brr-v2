@@ -106,7 +106,7 @@ Notes:
 ### 2.4 Full Model Assembly
 **File:** `src/experiment/models.py`
 ```python
-class SeizureDetectorV2(nn.Module):
+class SeizureDetector(nn.Module):
     def __init__(self):
         self.encoder = UNetEncoder()
         self.rescnn = ResCNNStack()

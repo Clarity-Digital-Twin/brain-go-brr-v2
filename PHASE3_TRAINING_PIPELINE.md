@@ -240,7 +240,7 @@ def test_training_smoke():
     config.training.epochs = 1
 
     # Train one epoch
-    model = SeizureDetectorV2()
+    model = SeizureDetector()
     train_epoch(model, dataloader, config)
 
     # Verify: loss finite, checkpoint written, no NaN
