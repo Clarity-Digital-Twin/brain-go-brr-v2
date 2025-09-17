@@ -108,12 +108,16 @@ class TestUNetEncoder:
 
     def test_deterministic_forward(self, encoder):
         """Test that forward pass is deterministic."""
+        # BatchNorm layers update running stats in train mode;
+        # switch to eval() to ensure deterministic behavior across calls.
+        encoder.eval()
         torch.manual_seed(42)
         x = torch.randn(2, 19, 15360)
 
-        # Two forward passes with same input
-        encoded1, skips1 = encoder(x)
-        encoded2, skips2 = encoder(x)
+        # Two forward passes with same input in eval mode should match exactly
+        with torch.no_grad():
+            encoded1, skips1 = encoder(x)
+            encoded2, skips2 = encoder(x)
 
         # Should be identical
         assert torch.allclose(encoded1, encoded2, atol=1e-6)

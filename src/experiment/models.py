@@ -1,7 +1,7 @@
 """Neural architecture components for Bi-Mamba-2 + U-Net + ResCNN seizure detection.
 
-This module implements the complete model architecture for Phase 2:
-- UNetEncoder: 4-stage encoder with skip connections
+Phase 2 implementation will land incrementally via TDD:
+- UNetEncoder: 4-stage encoder with skip connections (implemented in Phase 2.1)
 - ResCNNStack: Multi-scale residual CNN blocks (Phase 2.2)
 - BiMamba2: Bidirectional Mamba-2 layers (Phase 2.3)
 - UNetDecoder: 4-stage decoder with skip fusion (Phase 2.4)
@@ -47,10 +47,10 @@ class UNetEncoder(nn.Module):
     """U-Net encoder with progressive downsampling and skip connections.
 
     Architecture:
-        - Initial projection: 19 → 64 channels
+        - Initial projection: 19 -> 64 channels
         - 4 encoder stages with channel doubling: [64, 128, 256, 512]
         - Each stage: double conv block + downsample
-        - Total downsampling: x16 (15360 → 960)
+        - Total downsampling: x16 (15360 -> 960)
         - Skip connections saved before downsampling
     """
 
@@ -61,7 +61,7 @@ class UNetEncoder(nn.Module):
         # Channel progression: [64, 128, 256, 512]
         channels = [base_channels * (2**i) for i in range(depth)]
 
-        # Initial projection from 19 → 64 channels
+        # Initial projection from 19 -> 64 channels
         # Use kernel_size=7 as specified in docs
         self.input_conv = ConvBlock(in_channels, channels[0], kernel_size=7, padding=3)
 
@@ -70,7 +70,7 @@ class UNetEncoder(nn.Module):
         self.downsample = nn.ModuleList()
 
         for i in range(depth):
-            # Channel progression: 64→64, 64→128, 128→256, 256→512
+            # Channel progression: 64->64, 64->128, 128->256, 256->512
             in_ch = channels[i - 1] if i > 0 else channels[0]
             out_ch = channels[i]
 
