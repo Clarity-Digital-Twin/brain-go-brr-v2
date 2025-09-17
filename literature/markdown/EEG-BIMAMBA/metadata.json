@@ -1,8 +1,8 @@
 {
   "source_pdf": "pdfs/EEG-BIMAMBA.pdf",
-  "converted_at": "2025-09-16T19:36:42.166431",
-  "duration_seconds": 3.811741,
-  "markdown_size": 93781,
+  "converted_at": "2025-09-16T20:01:27.221144",
+  "duration_seconds": 32.245831,
+  "markdown_size": 75822,
   "images_extracted": 14,
   "config": {
     "write_images": true,
@@ -15,7 +15,9 @@
     "force_text": true,
     "show_progress": true,
     "margins": 0,
-    "detect_bg_color": true
+    "detect_bg_color": true,
+    "use_ocr": true,
+    "force_ocr": true
   },
   "pages": 27
 }

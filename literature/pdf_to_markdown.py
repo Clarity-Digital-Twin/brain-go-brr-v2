@@ -24,6 +24,14 @@ import pymupdf4llm
 import logging
 from datetime import datetime
 import json
+import pymupdf
+try:
+    import pytesseract
+    from PIL import Image
+    import io
+    OCR_AVAILABLE = True
+except ImportError:
+    OCR_AVAILABLE = False
 
 # Configure logging
 logging.basicConfig(
@@ -50,6 +58,7 @@ class PDFToMarkdownConverter:
         'show_progress': True,        # Show conversion progress
         'margins': 0,                 # Use full page
         'detect_bg_color': True,      # Preserve background highlights
+        'use_ocr': False,             # Use OCR for scanned PDFs
     }
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
@@ -104,14 +113,29 @@ class PDFToMarkdownConverter:
             
             # Configure image path for extraction
             image_config = self.config.copy()
+            # Remove our custom keys that pymupdf4llm doesn't understand
+            use_ocr = image_config.pop('use_ocr', False)
+            force_ocr = image_config.pop('force_ocr', False)
             if image_config['write_images']:
                 image_config['image_path'] = str(output_dir)
             
-            # Convert to markdown
+            # Try normal extraction first
             md_text = pymupdf4llm.to_markdown(
                 doc,
                 **image_config
             )
+
+            # If forcing OCR or if text is mostly empty/numbers and OCR is requested
+            text_without_spaces = ''.join(md_text.split())
+            should_ocr = force_ocr or (use_ocr and (len(md_text.strip()) < 1000 or
+                           (text_without_spaces and text_without_spaces.replace('*','').isdigit())))
+
+            if should_ocr:
+                logger.info(f"Text extraction yielded little content, attempting OCR...")
+                md_text = self._ocr_extract(pdf_path, output_dir)
+                if not md_text:
+                    logger.warning(f"OCR extraction also failed, using original extraction")
+                    md_text = pymupdf4llm.to_markdown(doc, **image_config)
             
             # Save markdown
             md_path.write_text(md_text, encoding='utf-8')
@@ -147,7 +171,42 @@ class PDFToMarkdownConverter:
         except Exception as e:
             logger.error(f"❌ Failed to convert {pdf_path.name}: {e}")
             raise
-    
+
+    def _ocr_extract(self, pdf_path: Path, output_dir: Path) -> str:
+        """Extract text using OCR for scanned PDFs."""
+        if not OCR_AVAILABLE:
+            logger.warning("OCR libraries not available (install pytesseract and pillow)")
+            return ""
+
+        try:
+            doc = pymupdf.open(pdf_path)
+            full_text = []
+
+            for page_num, page in enumerate(doc):
+                # Get page as image
+                mat = pymupdf.Matrix(2.0, 2.0)  # 2x zoom for better OCR
+                pix = page.get_pixmap(matrix=mat)
+                img_data = pix.pil_tobytes(format="PNG")
+
+                # Convert to PIL Image and run OCR
+                image = Image.open(io.BytesIO(img_data))
+
+                try:
+                    # Try OCR with Tesseract
+                    text = pytesseract.image_to_string(image)
+                    if text.strip():
+                        full_text.append(f"## Page {page_num + 1}\n\n{text}\n")
+                        logger.info(f"OCR extracted {len(text)} chars from page {page_num + 1}")
+                except Exception as e:
+                    logger.warning(f"OCR failed on page {page_num + 1}: {e}")
+
+            doc.close()
+            return "\n".join(full_text)
+
+        except Exception as e:
+            logger.error(f"OCR extraction failed: {e}")
+            return ""
+
     def convert_all(self, pdf_dir: Path = None, overwrite: bool = False) -> Dict[str, Path]:
         """
         Convert all PDFs in a directory.
@@ -228,6 +287,16 @@ Examples:
         action='store_true',
         help='Skip image extraction'
     )
+    parser.add_argument(
+        '--ocr',
+        action='store_true',
+        help='Use OCR for scanned PDFs (requires tesseract)'
+    )
+    parser.add_argument(
+        '--force-ocr',
+        action='store_true',
+        help='Force OCR extraction regardless of text content'
+    )
     
     args = parser.parse_args()
     
@@ -242,6 +311,15 @@ Examples:
     
     if args.no_images:
         config['write_images'] = False
+
+    if args.ocr:
+        config['use_ocr'] = True
+        logger.info("OCR mode enabled for scanned PDFs")
+
+    if hasattr(args, 'force_ocr') and args.force_ocr:
+        config['force_ocr'] = True
+        config['use_ocr'] = True
+        logger.info("Forcing OCR extraction")
     
     # Create converter
     converter = PDFToMarkdownConverter(config)

@@ -14,7 +14,12 @@
       "WebSearch",
       "Bash(git restore:*)",
       "Bash(pandoc:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(tesseract:*)",
+      "Bash(sudo apt-get:*)",
+      "Bash(sudo apt-get install:*)",
+      "Bash(apt-get install:*)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []
