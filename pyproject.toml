@@ -60,6 +60,18 @@ gpu = [
     "mamba-ssm>=2.0.0",
 ]
 
+# Optional extras for specific feature sets
+# Install with, e.g.: uv sync -E post,eval
+post = [
+    "scikit-image>=0.21.0",
+]
+eval = [
+    "pandas>=2.0.0",
+]
+monitoring = [
+    "wandb>=0.16.0",
+]
+
 [tool.uv]
 managed = true
 dev-dependencies = [

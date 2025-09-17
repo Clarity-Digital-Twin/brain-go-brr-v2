@@ -71,8 +71,11 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 # Setup project
 make setup
 
-# Optional: install GPU/SSM extras (Mamba SSM)
-# uv sync -E gpu
+# Optional: install extras
+#   - GPU/SSM: Mamba-SSM kernels
+#   - Post-processing: scikit-image (hysteresis)
+#   - Evaluation: pandas (CSV_BI)
+# uv sync -E gpu,post,eval
 
 # Run local training (reduced data)
 make train-local

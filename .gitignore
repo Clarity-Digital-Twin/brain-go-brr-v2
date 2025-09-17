@@ -110,7 +110,6 @@ uv.lock
 # Mypy
 .mypy_cache/
 dmypy.json
-dmypy.json
 
 # Coverage
 htmlcov/

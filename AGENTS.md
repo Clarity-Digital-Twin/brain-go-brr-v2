@@ -54,6 +54,7 @@ results/           # Outputs (git‑ignored)
 | `make setup` | Initial setup (uv, hooks) |
 | `make train-local` | Local training config |
 | `uv sync -E gpu` | GPU extra (Mamba‑SSM) |
+| `uv sync -E post,eval` | Extras: post‑proc + eval |
 
 ## 🔧 Development Rules
 
@@ -74,6 +75,8 @@ Code style
 - MNE ≥1.5.0
 - Ruff (lint/format), mypy (strict typing)
 - mamba‑ssm (GPU extra only): install with `uv sync -E gpu`
+- scikit‑image (post‑processing extra): install with `uv sync -E post`
+- pandas (evaluation extra): install with `uv sync -E eval`
 
 ## 📊 Data Pipeline
 
