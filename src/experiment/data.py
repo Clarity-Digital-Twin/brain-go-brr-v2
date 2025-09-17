@@ -11,6 +11,7 @@ from __future__ import annotations
 import contextlib
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -20,12 +21,12 @@ from . import constants
 
 
 # --- Internal helper to enable monkeypatching in tests ---
-def _read_raw_edf(file_path: Path):  # pragma: no cover - thin wrapper
+def _read_raw_edf(file_path: Path) -> Any:  # pragma: no cover - thin wrapper
     """Read EDF via MNE with preload.
 
     Split out for easy monkeypatching in tests (avoids depending on MNE).
     """
-    import mne  # Imported locally to avoid mypy missing stubs
+    import mne  # type: ignore[import-untyped]  # MNE has no stubs
 
     return mne.io.read_raw_edf(file_path, preload=True, verbose="WARNING")
 
@@ -115,7 +116,7 @@ def preprocess_recording(
 
     Returns float32 array (n_channels, n_samples_new), finite-only (NaN/Inf → 0).
     """
-    from scipy.signal import butter, iirnotch, lfilter, resample  # local import
+    from scipy.signal import butter, iirnotch, lfilter, resample  # type: ignore[import-untyped]  # local import
 
     x = np.asarray(data, dtype=np.float64)  # work in float64 for filtering stability
     _n_ch, n_samp = x.shape
@@ -149,8 +150,8 @@ def preprocess_recording(
     x = (x - mean) / (std + 1e-8)
 
     # Sanitize NaNs / Infs and cast
-    x = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
-    return x
+    x_clean: npt.NDArray[np.float32] = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+    return x_clean
 
 
 def extract_windows(
@@ -241,7 +242,10 @@ class EEGWindowDataset(torch.utils.data.Dataset):
             else:
                 windows_arr, labels_arr = self._process_file(edf_path, i)
                 if cache_path is not None:
-                    np.savez_compressed(cache_path, windows=windows_arr, labels=labels_arr)
+                    if labels_arr is not None:
+                        np.savez_compressed(cache_path, windows=windows_arr, labels=labels_arr)
+                    else:
+                        np.savez_compressed(cache_path, windows=windows_arr)
 
             # Store
             for w_idx in range(windows_arr.shape[0]):
@@ -288,7 +292,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
     def __len__(self) -> int:
         return len(self._windows)
 
-    def __getitem__(self, idx: int):  # type: ignore[override]
+    def __getitem__(self, idx: int) -> Union[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
         window = torch.from_numpy(self._windows[idx])
         if self.transform is not None:
             window = self.transform(window)

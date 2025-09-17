@@ -35,7 +35,8 @@
       "Bash(uv add:*)",
       "Bash(rsync:*)",
       "Bash(tmux kill-session:*)",
-      "Bash(tmux attach:*)"
+      "Bash(tmux attach:*)",
+      "Bash(uv sync:*)"
     ],
     "deny": [],
     "ask": []
