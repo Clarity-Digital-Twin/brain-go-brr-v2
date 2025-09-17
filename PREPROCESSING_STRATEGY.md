@@ -106,14 +106,14 @@ def extract_windows(data, window_sec=60, stride_sec=10, fs=256):
 
 ### Required
 ```txt
-numpy>=1.21.0
-scipy>=1.7.0
-torch>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+torch>=2.5.0
 ```
 
 ### Optional (for robust EDF handling)
 ```txt
-mne>=1.0.0  # Only if dealing with messy real-world EDFs
+mne>=1.5.0  # Only if dealing with messy real-world EDFs
 ```
 
 ## Decision Tree

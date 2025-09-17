@@ -13,8 +13,8 @@ Build and test the U-Net encoder with 4-stage progressive downsampling and skip 
 
 ## 🔧 Implementation Files
 ```
-src/experiment/models/encoder.py    # U-Net encoder only
-tests/test_encoder.py               # Encoder-specific tests
+src/experiment/models.py     # U-Net encoder lives here (repo convention)
+tests/test_encoder.py        # Encoder-specific tests
 ```
 
 ## 📐 Dimension Flow
@@ -35,7 +35,7 @@ Output: (B, 512, 960)
 ## 🔨 Implementation
 
 ```python
-# src/experiment/models/encoder.py
+# src/experiment/models.py (encoder section)
 
 import torch
 import torch.nn as nn
@@ -94,11 +94,11 @@ class UNetEncoder(nn.Module):
                 ConvBlock(out_ch, out_ch)
             ))
 
-            # Downsample between stages (not after last)
-            if i < depth - 1:
-                self.downsample.append(
-                    nn.Conv1d(out_ch, out_ch, kernel_size=2, stride=2)
-                )
+            # Downsample after EVERY stage (×16 total) to reach length 960
+            # This yields 4 downsamples for depth=4: 15360→7680→3840→1920→960
+            self.downsample.append(
+                nn.Conv1d(out_ch, out_ch, kernel_size=2, stride=2)
+            )
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, List[torch.Tensor]]:
         """
@@ -117,11 +117,10 @@ class UNetEncoder(nn.Module):
         # Process through encoder stages
         for i in range(self.depth):
             x = self.encoder_blocks[i](x)
-            skips.append(x)  # Save for decoder
+            skips.append(x)  # Save for decoder (pre-downsample feature)
 
-            # Downsample (except last stage)
-            if i < self.depth - 1:
-                x = self.downsample[i](x)
+            # Downsample at each stage to achieve ×16 reduction overall
+            x = self.downsample[i](x)
 
         return x, skips
 ```
@@ -133,7 +132,7 @@ class UNetEncoder(nn.Module):
 
 import pytest
 import torch
-from src.experiment.models.encoder import UNetEncoder
+from src.experiment.models import UNetEncoder
 
 
 class TestUNetEncoder:
@@ -149,7 +148,7 @@ class TestUNetEncoder:
     def test_output_shape(self, encoder, sample_input):
         encoded, skips = encoder(sample_input)
 
-        # Check final encoding
+        # Check final encoding (×16 downsample → 15360/16=960)
         assert encoded.shape == (2, 512, 960)
 
         # Check skip shapes
