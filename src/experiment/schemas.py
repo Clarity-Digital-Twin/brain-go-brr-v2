@@ -149,7 +149,7 @@ class HysteresisConfig(BaseModel):
 class PostprocessingConfig(BaseModel):
     """Post-processing pipeline configuration."""
 
-    hysteresis: HysteresisConfig = Field(default_factory=HysteresisConfig)
+    hysteresis: HysteresisConfig = Field(default_factory=HysteresisConfig)  # type: ignore[arg-type]
     morphology: dict[str, Any] = Field(
         default={"kernel_size": 5}, description="Morphological ops config"
     )
@@ -236,7 +236,7 @@ class ExperimentConfig(BaseModel):
     )
     save_model: bool = Field(default=False, description="Save trained model")
     save_best_only: bool = Field(default=True, description="Only save best checkpoint")
-    wandb: WandbConfig = Field(default_factory=WandbConfig)
+    wandb: WandbConfig = Field(default_factory=WandbConfig)  # type: ignore[arg-type]
 
     @field_validator("cache_dir")
     @classmethod
