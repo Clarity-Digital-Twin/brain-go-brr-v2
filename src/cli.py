@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
-from experiment.schemas import Config
+from src.experiment.schemas import Config
 
 console = Console()
 
