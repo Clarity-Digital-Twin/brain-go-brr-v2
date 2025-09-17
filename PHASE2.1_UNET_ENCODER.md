@@ -20,16 +20,24 @@ tests/test_encoder.py        # Encoder-specific tests
 ## 📐 Dimension Flow
 ```
 Input: (B, 19, 15360)
-  ↓ Input Conv (k=7)
-Stage 1: (B, 64, 15360) → skip[0]
+  ↓ Input Conv (19→64)
+(B, 64, 15360)
+  ↓ Encoder Block 1 (64→64)
+(B, 64, 15360) → skip[0]
   ↓ Downsample ×2
-Stage 2: (B, 128, 7680) → skip[1]
+(B, 64, 7680)
+  ↓ Encoder Block 2 (64→128)
+(B, 128, 7680) → skip[1]
   ↓ Downsample ×2
-Stage 3: (B, 256, 3840) → skip[2]
+(B, 128, 3840)
+  ↓ Encoder Block 3 (128→256)
+(B, 256, 3840) → skip[2]
   ↓ Downsample ×2
-Stage 4: (B, 512, 1920) → skip[3]
-  ↓ Downsample → (B, 512, 960)
-Output: (B, 512, 960)
+(B, 256, 1920)
+  ↓ Encoder Block 4 (256→512)
+(B, 512, 1920) → skip[3]
+  ↓ Downsample ×2
+(B, 512, 960) [Output]
 ```
 
 ## 🔨 Implementation
@@ -85,19 +93,19 @@ class UNetEncoder(nn.Module):
         self.downsample = nn.ModuleList()
 
         for i in range(depth):
-            in_ch = channels[0] if i == 0 else channels[i - 1]
+            # Encoder blocks take previous stage's output channels as input
+            in_ch = channels[0] if i == 0 else channels[i-1]
             out_ch = channels[i]
 
-            # Double convolution at each stage
+            # Double convolution block
             self.encoder_blocks.append(
                 nn.Sequential(
-                    ConvBlock(in_ch, out_ch),  # correct in_channels per stage
+                    ConvBlock(in_ch, out_ch),
                     ConvBlock(out_ch, out_ch),
                 )
             )
 
-            # Downsample after EVERY stage (×16 total) to reach length 960
-            # This yields 4 downsamples for depth=4: 15360→7680→3840→1920→960
+            # Downsample maintains channel count
             self.downsample.append(
                 nn.Conv1d(out_ch, out_ch, kernel_size=2, stride=2)
             )
@@ -118,12 +126,16 @@ class UNetEncoder(nn.Module):
 
         # Process through encoder stages
         for i in range(self.depth):
+            # Process through encoder block
             x = self.encoder_blocks[i](x)
-            skips.append(x)  # Save for decoder (pre-downsample feature)
 
-            # Downsample at each stage to achieve ×16 reduction overall
+            # Save skip AFTER block, BEFORE downsample
+            skips.append(x)
+
+            # Downsample for next stage
             x = self.downsample[i](x)
 
+        # After loop: x is (B, 512, 960), skips are [(64,15360), (128,7680), (256,3840), (512,1920)]
         return x, skips
 ```
 

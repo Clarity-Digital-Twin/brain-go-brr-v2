@@ -20,10 +20,30 @@ tests/test_decoder.py        # Decoder-specific tests
 ## 📐 Dimension Flow
 ```
 Input: (B, 512, 960) from Mamba
-    ↓ Upsample ×2 → Concat skip[3] (B, 512, 1920) → Conv → (B, 256, 1920)
-    ↓ Upsample ×2 → Concat skip[2] (B, 256, 3840) → Conv → (B, 128, 3840)
-    ↓ Upsample ×2 → Concat skip[1] (B, 128, 7680) → Conv → (B,  64, 7680)
-    ↓ Upsample ×2 → Concat skip[0] (B,  64,15360) → Conv → (B,  64,15360)
+    ↓ Upsample ×2 (512→256)
+(B, 256, 1920)
+    ↓ Concat skip[3] (512, 1920)
+(B, 768, 1920)  [256+512]
+    ↓ Conv (768→256)
+(B, 256, 1920)
+    ↓ Upsample ×2 (256→128)
+(B, 128, 3840)
+    ↓ Concat skip[2] (256, 3840)
+(B, 384, 3840)  [128+256]
+    ↓ Conv (384→128)
+(B, 128, 3840)
+    ↓ Upsample ×2 (128→64)
+(B, 64, 7680)
+    ↓ Concat skip[1] (128, 7680)
+(B, 192, 7680)  [64+128]
+    ↓ Conv (192→64)
+(B, 64, 7680)
+    ↓ Upsample ×2 (64→64)
+(B, 64, 15360)
+    ↓ Concat skip[0] (64, 15360)
+(B, 128, 15360)  [64+64]
+    ↓ Conv (128→64)
+(B, 64, 15360)
     ↓ Conv1d(64→19)
 Output: (B, 19, 15360)
 ```
@@ -91,8 +111,9 @@ class UNetDecoder(nn.Module):
         Args:
             x: Bottleneck features (B, 512, 960)
             skips: Skip connections from encoder [4 tensors]
-                   Order: [stage1, stage2, stage3, stage4]
+                   Order: [stage1, stage2, stage3, stage4] (encoder order)
                    Shapes: [(B,64,15360), (B,128,7680), (B,256,3840), (B,512,1920)]
+                   Used by decoder in reverse: skip[3], skip[2], skip[1], skip[0]
 
         Returns:
             Decoded output (B, 19, 15360)
@@ -114,11 +135,12 @@ class UNetDecoder(nn.Module):
 
     def check_skip_compatibility(self, skips: List[torch.Tensor]) -> bool:
         """Verify skip dimensions match expected shapes."""
+        # Skips are provided in encoder order: [stage1, stage2, stage3, stage4]
         expected_shapes = [
-            (None, 64, 15360),   # Stage 1
-            (None, 128, 7680),   # Stage 2
-            (None, 256, 3840),   # Stage 3
-            (None, 512, 1920),   # Stage 4
+            (None, 64, 15360),   # Stage 1 (used last by decoder)
+            (None, 128, 7680),   # Stage 2 (used third by decoder)
+            (None, 256, 3840),   # Stage 3 (used second by decoder)
+            (None, 512, 1920),   # Stage 4 (used first by decoder)
         ]
 
         if len(skips) != len(expected_shapes):
@@ -202,8 +224,8 @@ class TestUNetDecoder:
         _ = decoder(x, skips)
 
         # Check upsampling progression
-        expected_lengths = [1920, 3840, 7680]  # After each upsample
-        for i, shape in enumerate(shapes[:3]):
+        expected_lengths = [1920, 3840, 7680, 15360]  # After each upsample
+        for i, shape in enumerate(shapes[:4]):
             assert shape[2] == expected_lengths[i]
 
     def test_gradient_flow(self, decoder, encoder, sample_input):

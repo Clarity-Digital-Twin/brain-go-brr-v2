@@ -39,10 +39,10 @@ Output: (B, 15360) probabilities
 | Stage | Input → Output | Skip Saved | Cumulative ↓ | Notes |
 |-------|----------------|------------|--------------|-------|
 | Input | (B, 19, 15360) | - | ×1 | Raw EEG |
-| Enc-1 | (B, 64, 15360) → (B, 128, 7680) | (B, 64, 15360) | ×2 | Skip before ↓ |
-| Enc-2 | (B, 128, 7680) → (B, 256, 3840) | (B, 128, 7680) | ×4 | Skip before ↓ |
-| Enc-3 | (B, 256, 3840) → (B, 512, 1920) | (B, 256, 3840) | ×8 | Skip before ↓ |
-| Enc-4 | (B, 512, 1920) → (B, 512, 960) | (B, 512, 1920) | ×16 | Skip before ↓ |
+| Enc-1 | (B, 64, 15360) → (B, 64, 7680) | (B, 64, 15360) | ×2 | Skip saved pre-↓ |
+| Enc-2 | (B, 64, 7680) → (B, 128, 3840) | (B, 128, 7680) | ×4 | Skip saved pre-↓ |
+| Enc-3 | (B, 128, 3840) → (B, 256, 1920) | (B, 256, 3840) | ×8 | Skip saved pre-↓ |
+| Enc-4 | (B, 256, 1920) → (B, 512, 960) | (B, 512, 1920) | ×16 | Skip saved pre-↓ |
 | Bottleneck | (B, 512, 960) | - | ×16 | Mamba/ResCNN |
 | Dec-1 | (B, 512, 960) → (B, 256, 1920) | skip[3]: (512,1920) | ×8 | Upsample + concat |
 | Dec-2 | (B, 256, 1920) → (B, 128, 3840) | skip[2]: (256,3840) | ×4 | Upsample + concat |
@@ -103,27 +103,20 @@ class UNetEncoder(nn.Module):
         self.downsample = nn.ModuleList()
 
         for i in range(depth):
-            # First stage gets base_channels input, others get previous output
-            in_ch = channels[0] if i == 0 else channels[i]
+            # First stage consumes 64; subsequent stages consume previous stage's channels
+            in_ch = channels[0] if i == 0 else channels[i - 1]
             out_ch = channels[i]
 
-            # Double convolution block (maintains channel count)
+            # Double convolution block (allows channel growth per stage)
             self.encoder_blocks.append(nn.Sequential(
                 ConvBlock(in_ch, out_ch),
                 ConvBlock(out_ch, out_ch)
             ))
 
-            # Downsample to next resolution (project to next channel count)
-            if i < depth - 1:
-                next_ch = channels[i + 1]
-                self.downsample.append(
-                    nn.Conv1d(out_ch, next_ch, kernel_size=2, stride=2)
-                )
-            else:
-                # Last stage: downsample but keep same channels
-                self.downsample.append(
-                    nn.Conv1d(out_ch, out_ch, kernel_size=2, stride=2)
-                )
+            # Downsample to next resolution (keep channel count the same)
+            self.downsample.append(
+                nn.Conv1d(out_ch, out_ch, kernel_size=2, stride=2)
+            )
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, List[torch.Tensor]]:
         """
@@ -141,11 +134,11 @@ class UNetEncoder(nn.Module):
 
         # Encoder stages with correct skip saving
         for i in range(self.depth):
-            # Save skip BEFORE processing this stage
-            skips.append(x)
-
             # Process through encoder block
             x = self.encoder_blocks[i](x)
+
+            # Save skip AFTER block, BEFORE downsample (typical U-Net)
+            skips.append(x)
 
             # Downsample for next stage
             x = self.downsample[i](x)
@@ -597,4 +590,4 @@ After Phase 2 completion:
 ---
 **Status**: Ready for implementation
 **Estimated Time**: 2-3 days
-**Dependencies**: torch, mamba-ssm (optional for GPU)a
+**Dependencies**: torch, mamba-ssm (optional for GPU)
