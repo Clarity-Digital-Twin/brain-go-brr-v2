@@ -9,6 +9,25 @@ Build the world's first Bi-Mamba-2 + U-Net + ResCNN architecture for O(N) clinic
 - [ ] GPU with CUDA (A100 preferred)
 - [ ] All reference repos cloned
 - [ ] Dependencies installed (`uv sync -E gpu,post,eval`)
+  - CPU-only dev: skip `gpu` extra → `uv sync -E post,eval`
+
+## 🔒 PHASE 0: SCHEMAS + CLI VALIDATION (Pre‑Week)
+
+### 0.1 Config Schemas
+**File:** `src/experiment/schemas.py`
+**Goal:** Lock config shape before coding; keep YAMLs, CLI, and code in sync.
+
+- Pydantic models: Data, Preprocessing, Model, Postprocessing, Training, Evaluation, Experiment, Logging, Resources
+- Model fields reflect keys used in `configs/local.yaml` and `configs/production.yaml`
+- Reserve/ignore `configs/seizure_local.yaml` (bannered DO NOT USE)
+
+### 0.2 CLI Validate Command
+**File:** `src/cli.py`
+**Goal:** `python -m src.cli validate <yaml>` validates against schemas and pretty‑prints summary.
+
+**Success Criteria:**
+- `configs/local.yaml` and `configs/production.yaml` validate ✅
+- Invalid/missing keys produce clear errors and non‑zero exit ✅
 
 ## 🚀 PHASE 1: DATA PIPELINE (Week 1)
 
@@ -22,6 +41,12 @@ Build the world's first Bi-Mamba-2 + U-Net + ResCNN architecture for O(N) clinic
 - preprocess_recording(data, fs) -> processed_data
 ```
 
+Notes:
+- Enforce exact 19‑channel 10‑20 order; error or robust mapping for missing channels
+- Dtype float32; units in microvolts (consistent across pipeline)
+- Re‑reference strategy decided and documented (e.g., Cz/average); be explicit
+- NaN/flatline handling (drop segment or impute 0) — deterministic
+
 ### 1.2 Window Extraction
 **File:** `src/experiment/data.py`
 ```python
@@ -30,12 +55,18 @@ Build the world's first Bi-Mamba-2 + U-Net + ResCNN architecture for O(N) clinic
 - create_window_dataset(edf_paths, labels)
 ```
 
+Notes:
+- Sampling rate fixed at 256 Hz → window 60s = 15360 samples; stride 10s = 2560 samples
+- Return shapes: X → (N, 19, 15360), y → (N, 15360) or per‑window label mask
+- Deterministic ordering; carry file/segment metadata for later stitching
+
 ### 1.3 Data Validation
 **Deliverable:** Script that loads and validates 10 sample EDFs
 **Success Criteria:**
 - Loads TUH/CHB-MIT files
 - Outputs shape (B, 19, 15360)
 - Normalized correctly
+ - No NaN/Inf; channel order matches expected list
 
 ## 🏗️ PHASE 2: MODEL COMPONENTS (Week 1-2)
 
@@ -69,6 +100,8 @@ class BiMamba2(nn.Module):
     # Forward + backward Mamba2
     # State concatenation
 ```
+Notes:
+- Optional GPU extra; for CPU‑only smoke tests provide a no‑op or tiny Conv1d fallback path (flag‑gated)
 
 ### 2.4 Full Model Assembly
 **File:** `src/experiment/models.py`
@@ -79,14 +112,14 @@ class SeizureDetectorV2(nn.Module):
         self.rescnn = ResCNNStack()
         self.mamba = BiMamba2()
         self.decoder = UNetDecoder()
-        self.head = nn.Conv1d(64, 1, 1)
+        self.head = nn.Conv1d(64, 1, 1)  # followed by Sigmoid in forward()
 ```
 
 ### 2.5 Model Validation
 **Deliverable:** Test forward pass
 **Success Criteria:**
 - Input: (B, 19, 15360)
-- Output: (B, 15360) probabilities
+- Output: (B, 15360) probabilities in [0,1]
 
 ## 🔄 PHASE 3: TRAINING PIPELINE (Week 2)
 
@@ -113,6 +146,8 @@ class SeizureDetectorV2(nn.Module):
 - Real-time TAES during validation
 - FA/24h tracking
 ```
+Notes:
+- If `nedc_bench` is not installed, use an internal placeholder scoring module (same API) to keep training loops unblocked
 
 ### 3.4 Initial Training Run
 **Deliverable:** 1-epoch test on subset
@@ -137,11 +172,13 @@ class SeizureDetectorV2(nn.Module):
 - Opening/closing with kernel=5
 - Minimum duration filter (≥3s)
 ```
+Notes:
+- Kernel sizes are in samples (e.g., 5 samples at 256 Hz ≈ 19.5 ms)
 
 ### 4.3 Window Stitching
 **File:** `src/experiment/postprocess.py`
 ```python
-- Overlap averaging for 50s regions
+- Overlap‑add with per‑sample averaging across windows (60s windows, 10s stride)
 - Reconstruct full timeline
 ```
 
@@ -158,7 +195,7 @@ class SeizureDetectorV2(nn.Module):
 **Target:** 50-100 epochs on full TUH
 **Hardware:** A100 GPU (2-3 days)
 **Monitoring:**
-- Wandb/Tensorboard logging
+- Wandb/Tensorboard logging (use `-E monitoring` for wandb)
 - Checkpoint best dev performance
 
 ### 5.3 Final Evaluation
