@@ -1,4 +1,4 @@
-# Setup Notes for Seizure Detection Project
+# 🛠️ Setup Notes for Seizure Detection Project
 
 ## System Requirements
 
@@ -29,7 +29,10 @@ This project uses `uv` for fast, modern dependency management:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Setup project
-make setup  # or: uv sync --all-extras
+make setup  # or: uv sync
+
+# Optional GPU/SSM extras (Mamba SSM)
+# uv sync -E gpu
 ```
 
 ### Development Workflow
@@ -63,3 +66,9 @@ This PDF appears to be a scanned document. The extracted images show it contains
 **Final Stack:** U-Net (1D CNN) → ResCNN stack → Bi-Mamba-2 → U-Net decoder → sigmoid → Hysteresis → TAES
 
 See `FINAL_STACK_ANALYSIS.md` for complete specification.
+
+## ⚙️ WSL / Cross-Filesystem Tips
+- On WSL or when working across filesystems (Windows <-> Linux), uv may print a hardlink warning and fall back to copying; this is safe.
+- For less noise and better stability, export (the Makefile already sets these for you):
+  - `export UV_LINK_MODE=copy`
+  - `export UV_CACHE_DIR=.uv_cache`

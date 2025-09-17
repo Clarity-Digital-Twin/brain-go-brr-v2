@@ -14,6 +14,7 @@
 - Validate config: `python -m src.cli validate configs/local.yaml` (planned; not implemented yet).
 - Tests: `make test` (markers: `-m unit`, `-m integration`; coverage: HTML + terminal).
 - Format/lint/type: `make lint`; `make format`; `make type-check` (Ruff + mypy).
+- Optional GPU extras (Mamba SSM): `uv sync -E gpu`
 
 ## Coding Style & Naming Conventions
 - Python: 4-space indent; formatter via Ruff (`ruff format`), line length 100.
@@ -47,3 +48,10 @@
 - Follow tooling pinned in `pyproject.toml`; don’t alter formatting/type settings without discussion.
 - If adding modules or flags, update docs and tests in the same PR.
 - Prefer UV workflows and Ruff for lint/format to stay consistent.
+
+## ⚙️ WSL / Cross-Filesystem UV Tips
+- On WSL or cross-drive setups, `uv` may warn about hardlinking and fall back to copying. This is harmless.
+- For stability and silence, these are set in the Makefile by default:
+  - `export UV_LINK_MODE=copy`
+  - `export UV_CACHE_DIR=.uv_cache`
+  You can export them in your shell if invoking `uv` directly outside of `make`.
