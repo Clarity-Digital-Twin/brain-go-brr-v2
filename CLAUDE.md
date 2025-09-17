@@ -1,113 +1,101 @@
-# CLAUDE.md - Brain-Go-Brr v2 - AI Agent Instructions
+# AGENTS.md — AI Assistant Operating Rules
 
-## Project: First-Ever Bi-Mamba-2 + U-Net + ResCNN for Clinical EEG
+Single source of truth for ALL AI coding assistants (Claude, Copilot, Cursor, etc.). Follow this file for repo‑specific behavior. ✨
 
-**Revolutionary**: World's first bidirectional Mamba-2 SSM + U-Net CNN + ResNet for seizure detection. O(N) complexity vs transformers' O(N²).
+## 🧠 Project Overview
 
-## Critical Commands - RUN THESE
+Brain‑Go‑Brr v2: First Bi‑Mamba‑2 + U‑Net + ResCNN for clinical EEG seizure detection — O(N) sequence modeling with bidirectional SSM.
 
-```bash
-make q          # MUST run after EVERY code change - quality check
-make t          # Test fast (no coverage)
-make l          # Auto-fix linting issues
-make train-local # Local training run
-uv run train    # Direct training access
-```
+Why this is different:
+- Transformers struggle on long EEG (O(N²) cost)
+- Pure CNNs miss global temporal context
+- Bidirectional Mamba‑2 brings O(N) global context efficiently
 
-## Architecture Specifications
+## 🏗️ Architecture
 
 | Component | Specification |
 |-----------|--------------|
-| Input | 19-channel EEG @ 256 Hz |
-| U-Net Encoder | 4 stages [64, 128, 256, 512], ×16 downsample |
-| ResCNN | 3 residual blocks, multi-kernel [3, 5, 7] |
-| Bi-Mamba-2 | 6 layers, d_model=512, d_state=16, bidirectional |
-| Hysteresis | τ_on=0.86, τ_off=0.78 (FA reduction) |
-| Output | Per-timestep probabilities @ 256 Hz |
+| Input | 19‑channel EEG @ 256 Hz |
+| U‑Net Encoder | [64, 128, 256, 512] channels, ×16 downsample |
+| ResCNN | 3 blocks, kernels [3, 5, 7] |
+| Bi‑Mamba‑2 | 6 layers, d_model=512, d_state=16 |
+| Hysteresis | τ_on=0.86, τ_off=0.78 |
+| Output | Per‑timestep probabilities |
 
-## Clinical Targets (TAES @ NEDC)
+## 🎯 Clinical Targets (TAES)
 
-- **10 FA/24h**: >95% sensitivity (clinical deployment)
-- **5 FA/24h**: >90% sensitivity (ICU standard)
-- **1 FA/24h**: >75% sensitivity (home monitoring)
+- 10 FA/24h: >95% sensitivity
+- 5 FA/24h: >90% sensitivity
+- 1 FA/24h: >75% sensitivity
 
-## Workflow - YOU MUST FOLLOW
-
-1. **ALWAYS** read existing code before modifying
-2. **ALWAYS** run `make q` after EVERY code change
-3. **NEVER** write comments unless explicitly requested
-4. **ALWAYS** use type hints for all functions
-5. **ALWAYS** write unit tests for new functions
-6. **ALWAYS** follow patterns in neighboring files
-
-## Project Structure
+## 📁 Project Structure
 
 ```
-src/experiment/     # Core modules - DO NOT break APIs
-├── schemas.py      # Pydantic configs
-├── data.py        # EEG preprocessing pipeline
-├── models.py      # Bi-Mamba-2 implementation
-├── pipeline.py    # Training orchestration
-└── infra.py       # Infrastructure utilities
+src/experiment/     # Core modules (preserve public APIs)
+├── schemas.py      # Pydantic configs (planned)
+├── data.py        # EEG preprocessing (planned)
+├── models.py      # Bi‑Mamba‑2 architecture (planned)
+├── pipeline.py    # Orchestration (stub)
+└── infra.py       # Infra utils (planned)
 
-configs/           # YAML experiment configs
-tests/            # Pytest suite (unit/integration/slow markers)
-data/            # Datasets (git-ignored)
-results/         # Outputs (git-ignored)
+configs/           # YAML experiments
+tests/             # Pytest suite
+data/              # Datasets (git‑ignored)
+results/           # Outputs (git‑ignored)
 ```
 
-## Data Pipeline
+## ⚡ Essential Commands
 
-1. **MNE**: Read EDF files, channel selection, montage
-2. **scipy**: Bandpass 0.5-120 Hz, 60 Hz notch, resample 256 Hz
-3. **Window**: 60s windows, 10s stride (50s overlap)
-4. **Normalize**: Per-channel z-score over full recording
+| Command | Purpose |
+|---------|---------|
+| `make q` | Quality check (lint+format+mypy) ✅ |
+| `make t` | Fast tests (no coverage) |
+| `make l` / `make f` | Lint / Format with Ruff |
+| `make setup` | Initial setup (uv, hooks) |
+| `make train-local` | Local training config |
+| `uv sync -E gpu` | GPU extra (Mamba‑SSM) |
 
-## Tech Stack
+## 🔧 Development Rules
 
-- **Python 3.11+** with UV package manager (10-100x faster than pip)
-- **PyTorch 2.0+** for deep learning
-- **mamba-ssm 2.0+** for Bi-Mamba-2 implementation
-- **MNE 1.5+** for EEG I/O
-- **Ruff** for formatting/linting (replaces Black/isort/flake8)
-- **mypy** strict mode for type checking
+1) Quality first: run `make q` after EVERY change 🧹
+2) Type everything: full type hints required
+3) Tests required for new functions (unit/integration markers)
+4) No comments unless explicitly requested
+5) Follow neighboring file patterns; preserve `src/experiment/` APIs
 
-## Training Strategy
+Code style
+- Python 3.11+, 4‑space indent, Ruff line length 100
+- Imports: stdlib → third‑party → first‑party (sorted)
 
-- **Train**: TUH EEG Seizure Corpus (from scratch - no pretrained weights)
-- **Validate**: CHB-MIT dataset
-- **Evaluate**: epilepsybenchmarks.com
-- **Note**: Cannot use SeizureTransformer weights (architecture mismatch)
+## 🔬 Tech Stack
 
-## Development Rules
+- Python 3.11+ (UV package manager)
+- PyTorch ≥2.5.0
+- MNE ≥1.5.0
+- Ruff (lint/format), mypy (strict typing)
+- mamba‑ssm (GPU extra only): install with `uv sync -E gpu`
 
-1. **Code Style**: Line length 100, 4-space indent, snake_case
-2. **Imports**: standard → third-party → first-party (sorted)
-3. **Testing**: pytest with markers (@pytest.mark.unit/integration/slow)
-4. **Commits**: Conventional (feat:, fix:, docs:, test:)
-5. **Caching**: ExCa uses config hash - change config to refresh cache
+## 📊 Data Pipeline
 
-## Critical Notes
+1) Read EDF via MNE; 10‑20 montage
+2) Bandpass 0.5–120 Hz; 60 Hz notch
+3) Resample to 256 Hz
+4) Window 60s with 10s stride
+5) Per‑channel z‑score normalization
 
-- **Quality**: Run `make q` BEFORE considering any task complete
-- **APIs**: Preserve public APIs in `src/experiment/`
-- **WSL**: If on WSL, `export UV_LINK_MODE=copy`
-- **GPU**: For Mamba-2 GPU support: `uv sync -E gpu`
-- **Focus**: We optimize TAES, not accuracy
+## 🚀 Training Strategy
 
-## Key Files Reference
+- Train: TUH EEG Seizure Corpus
+- Validate: CHB‑MIT
+- Evaluate: epilepsybenchmarks.com
+- No pretrained weights (novel architecture)
 
-- README.md: Full architecture details
-- pyproject.toml: Dependencies and tool configs
-- configs/local.yaml: Experiment configuration
-- Makefile: All available commands
+## ⚠️ Critical Notes
 
-## Git Workflow
-
-- Conventional commits ONLY
-- Run `make q` before EVERY commit
-- Include tests with code changes
-- Update docs with API changes
+- Caching keys depend on config; edit config to invalidate cache
+- WSL tip: `export UV_LINK_MODE=copy` (Makefile sets this by default) ⚙️
+- CI uses `uv sync` (no extras) to avoid GPU builds on non‑CUDA runners
+- Keep README, Makefile, pyproject, and configs in sync with this file
 
 ---
-**Mission: Shock the world with O(N) clinical seizure detection that actually works.**
+Mission: Shock the world with O(N) clinical seizure detection. 🚀

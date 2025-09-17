@@ -80,3 +80,18 @@ experiment:
   wandb:
     enabled: false
     project: seizure-detection
+# ================================================================
+# WARNING: UNALIGNED CONFIG — DO NOT USE ⚠️
+#
+# This file predates our current architecture and schemas and is NOT
+# used by any CLI, CI, or Makefile target. It will be fully rewritten
+# and aligned once `src/experiment/schemas.py` lands.
+#
+# Use these instead for any local or production runs:
+#   - configs/local.yaml
+#   - configs/production.yaml
+#
+# Action items:
+#   - [ ] Recreate this config from the new schemas when available
+#   - [ ] Remove or archive this file after replacement
+# ================================================================

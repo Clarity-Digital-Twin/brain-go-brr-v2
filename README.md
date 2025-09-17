@@ -56,7 +56,7 @@ Based on NEDC benchmarking standards and epilepsybenchmarks.com:
 ## 🛠️ Technical Stack (2025 Best Practices)
 
 - **Python 3.11+** with UV package manager (10-100x faster than pip)
-- **PyTorch 2.5+** with FlashAttention-3 and torch.compile
+- **PyTorch 2.5+** with `torch.compile` (FlashAttention optional in future extras)
 - **MNE-Python** for robust EDF/BDF file I/O and montage handling
 - **Ruff** for blazing-fast linting/formatting (replacing Black/isort/flake8)
 - **Pre-commit hooks** ensuring code quality
