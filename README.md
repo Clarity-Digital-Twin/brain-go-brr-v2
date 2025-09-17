@@ -1,6 +1,6 @@
-# Brain-Go-Brr v2: Next-Generation Seizure Detection with Bi-Mamba State Space Models
+# 🧠 Brain-Go-Brr v2: Next-Generation Seizure Detection with Bi-Mamba State Space Models
 
-## Mission Statement
+## 🎯 Mission Statement
 
 This project pioneers the first systematic evaluation of **bidirectional Mamba-2 state space models** combined with **U-Net CNN encoders** and **Residual CNN stacks** for clinical-grade seizure detection. While transformers have dominated recent EEG research, their O(N²) complexity limits real-time deployment. We propose a novel architecture achieving O(N) complexity while maintaining or exceeding transformer performance.
 
@@ -53,7 +53,7 @@ Based on NEDC benchmarking standards and epilepsybenchmarks.com:
 | TAES Score | >0.85 | ~0.75 | Temporal alignment quality |
 | Cross-dataset AUC | >0.95 | ~0.92 | Generalization capability |
 
-## Technical Stack (2025 Best Practices)
+## 🛠️ Technical Stack (2025 Best Practices)
 
 - **Python 3.11+** with UV package manager (10-100x faster than pip)
 - **PyTorch 2.5+** with FlashAttention-3 and torch.compile
@@ -62,7 +62,7 @@ Based on NEDC benchmarking standards and epilepsybenchmarks.com:
 - **Pre-commit hooks** ensuring code quality
 - **Apache 2.0 License** for open collaboration
 
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
 # Install UV (modern Python package manager)
@@ -81,7 +81,12 @@ make train-local
 make train
 ```
 
-## Literature Foundation
+Note for WSL/cross-filesystem users ⚙️
+- If you ever see a uv hardlink warning during installs, it’s harmless. For silence and stability, you can export these (already defaulted in the Makefile):
+  - `export UV_LINK_MODE=copy`
+  - `export UV_CACHE_DIR=.uv_cache`
+
+## 📚 Literature Foundation
 
 Our approach synthesizes insights from key papers:
 
@@ -123,7 +128,7 @@ MNE-hybrid approach optimized for seizure morphology:
 - **Morphological filtering**: 5-sample kernel
 - **Minimum duration**: 3 seconds (clinical standard)
 
-## Evaluation Strategy
+## 📊 Evaluation Strategy
 
 ### Primary Metrics (NEDC Standard)
 - TAES @ [10, 5, 2.5, 1] FA/24h
@@ -135,7 +140,7 @@ MNE-hybrid approach optimized for seizure morphology:
 2. **CHB-MIT** (pediatric validation)
 3. **epilepsybenchmarks.com** (final evaluation)
 
-## Project Structure
+## 🗂️ Project Structure
 
 ```
 brain-go-brr-v2/
@@ -174,7 +179,7 @@ If you use this code, please cite:
 }
 ```
 
-## Contact
+## ✉️ Contact
 
 For questions, issues, or collaboration:
 - GitHub Issues: [Create an issue](https://github.com/clarity-digital-twin/brain-go-brr-v2/issues)
