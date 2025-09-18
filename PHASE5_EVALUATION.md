@@ -29,12 +29,12 @@ Eventization must follow Phase 4: hysteresis (τ_on=0.86, τ_off=0.78), morpholo
 - Convert masks to intervals by diff on zero‑padded mask.
 
 ## 🎛️ Threshold Search & FA Targets
-- Purpose: choose decision threshold θ such that FA/24h ≈ target (conservative bisection).
+- Purpose: choose hysteresis τ_on such that FA/24h ≈ target (conservative bisection). Use τ_off = max(0, τ_on − Δ) with Δ≈0.08.
 - Procedure:
-  1) For a candidate θ, eventize probs → predicted intervals.
-  2) Compute FA/24h across the corpus.
-  3) Binary search on θ ∈ [0,1] until tolerance (1e‑4) or max_iters.
-- Sensitivity@FA: once θ found, compute event‑level sensitivity vs references.
+  1) For a candidate τ_on, set τ_off accordingly and post‑process probs → predicted events.
+  2) Compute FA/24h across the corpus using per‑record durations (stitching if needed).
+  3) Binary search on τ_on ∈ [Δ, 1] until tolerance (1e‑4) or max_iters.
+- Sensitivity@FA: once τ_on found, compute event‑level sensitivity vs references.
 
 ## 📚 Datasets & Splits
 - Train: TUH EEG Seizure Corpus
@@ -85,9 +85,9 @@ Already present (to standardize):
 - `evaluate.sensitivity_at_fa_rates(probs, labels, fa_targets, post_cfg, sampling_rate)`
 - `evaluate.evaluate_predictions(probs, labels, fa_rates, post_cfg, sampling_rate)`
 
-Phase 4 dependencies (to finalize):
+Phase 4 dependencies (implemented):
 - `postprocess.apply_hysteresis`, `apply_morphology`, `filter_duration`, `stitch_windows`
-- `events.mask_to_events`, `events.merge_intervals`, `events.calculate_event_confidence`
+- `events.mask_to_events`, `events.merge_events`, `events.calculate_event_confidence`
 - `export.export_csv_bi`
 
 During Phase 5, swap in the Phase 4 APIs internally (keep current functions as adapters for test stability until migration is complete).
@@ -132,4 +132,3 @@ Make (optional additions):
 - NEDC TAES specifications and scoring methodology.
 - epilepsybenchmarks.com submission formats.
 - Internal Phase docs: PHASE2.* (model), PHASE3_TRAINING_PIPELINE.md, PHASE4_POSTPROCESSING.md.
-
