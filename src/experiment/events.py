@@ -151,7 +151,7 @@ def calculate_event_confidence(
     else:
         raise ValueError(f"Unknown confidence method: {method}")
 
-    return np.clip(confidence, 0.0, 1.0)
+    return float(np.clip(confidence, 0.0, 1.0))
 
 
 def add_confidence_scores(

@@ -109,7 +109,8 @@ Issues = "https://github.com/clarity-digital-twin/brain-go-brr-v2/issues"
 
 [project.scripts]
 train = "src.experiment.pipeline:main"
-evaluate = "src.experiment.evaluate:main"
+# Route 'evaluate' to unified CLI, which exposes an 'evaluate' subcommand
+evaluate = "src.cli:main"
 run-experiment = "src.cli:main"
 
 [tool.hatch.version]

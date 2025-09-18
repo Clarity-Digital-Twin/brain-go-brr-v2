@@ -170,13 +170,16 @@ def batch_probs_to_events(
 
     # Convert masks to events with merging and confidence
     # Safely access nested config fields with defaults
+    from typing import Literal
+
     tau_merge = 2.0  # default
-    confidence_method = "mean"  # default
+    confidence_method: Literal["mean", "peak", "percentile"] = "mean"  # default
 
     if hasattr(post_cfg, "events"):
         if hasattr(post_cfg.events, "tau_merge"):
             tau_merge = post_cfg.events.tau_merge
         if hasattr(post_cfg.events, "confidence_method"):
+            # Type is already correct from EventsConfig
             confidence_method = post_cfg.events.confidence_method
 
     batch_events_objects = batch_mask_to_events(
