@@ -165,28 +165,31 @@ def apply_morphology(
 
         return x > 0.5  # Back to bool
 
-    # CPU path using scipy ndimage
+    # CPU path using scipy ndimage - optimized batch processing
     batch_size = masks.shape[0]
     device = masks.device
-    cleaned_masks = torch.zeros_like(masks)
 
+    # Process all masks at once for better memory locality
+    masks_np = masks.cpu().numpy().astype(float)
+
+    # Precompute kernels once
+    opening_struct = np.ones(opening_kernel) if opening_kernel > 1 else None
+    closing_struct = np.ones(closing_kernel) if closing_kernel > 1 else None
+
+    # Process batch
     for b in range(batch_size):
-        mask_np = masks[b].cpu().numpy().astype(float)
-
         # Opening: erosion followed by dilation (removes spikes)
-        if opening_kernel > 1:
-            kernel = np.ones(opening_kernel)
-            mask_np = ndimage.binary_erosion(mask_np, kernel).astype(float)
-            mask_np = ndimage.binary_dilation(mask_np, kernel).astype(float)
+        if opening_kernel > 1 and opening_struct is not None:
+            masks_np[b] = ndimage.binary_erosion(masks_np[b], opening_struct).astype(float)
+            masks_np[b] = ndimage.binary_dilation(masks_np[b], opening_struct).astype(float)
 
         # Closing: dilation followed by erosion (fills gaps)
-        if closing_kernel > 1:
-            kernel = np.ones(closing_kernel)
-            mask_np = ndimage.binary_dilation(mask_np, kernel).astype(float)
-            mask_np = ndimage.binary_erosion(mask_np, kernel).astype(float)
+        if closing_kernel > 1 and closing_struct is not None:
+            masks_np[b] = ndimage.binary_dilation(masks_np[b], closing_struct).astype(float)
+            masks_np[b] = ndimage.binary_erosion(masks_np[b], closing_struct).astype(float)
 
-        cleaned_masks[b] = torch.from_numpy(mask_np.astype(bool)).to(device)
-
+    # Convert back to torch tensor efficiently
+    cleaned_masks = torch.from_numpy(masks_np.astype(bool)).to(device)
     return cleaned_masks
 
 

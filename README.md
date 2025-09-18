@@ -144,7 +144,8 @@ GPU parity: morphology uses pooling (max/min) on CUDA; CPU path uses SciPy ndima
 
 ### Evaluation
 - Time-Aligned Event Scoring (TAES), Sensitivity@FA/24h, FA curve, AUROC.
-- Threshold search to hit FA targets {10, 5, 2.5, 1}.
+- Threshold search varies hysteresis τ_on (with τ_off = τ_on − 0.08) to hit FA targets {10, 5, 2.5, 1};
+  FA/24h time uses overlap-aware duration: (N−1)×stride + window_size.
 
 See `PHASE5_EVALUATION.md` for the end-to-end evaluation and benchmarking plan, with TDD.
 

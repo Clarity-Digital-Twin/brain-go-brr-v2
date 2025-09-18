@@ -28,6 +28,11 @@ Eventization must follow Phase 4: hysteresis (τ_on=0.86, τ_off=0.78), morpholo
 - Min duration default 3.0s; max duration default 600.0s with segmentation.
 - Convert masks to intervals by diff on zero‑padded mask.
 
+Note: Evaluation currently uses the corrected duration formula for overlapped windows
+to compute FA/24h time (for N windows: duration = (N−1)×stride + window_size). Full
+cross‑window event stitching (merging events crossing window boundaries) is available
+in Phase 4 and can be threaded into evaluation as needed.
+
 ## 🎛️ Threshold Search & FA Targets
 - Purpose: choose hysteresis τ_on such that FA/24h ≈ target (conservative bisection). Use τ_off = max(0, τ_on − Δ) with Δ≈0.08.
 - Procedure:
@@ -35,6 +40,12 @@ Eventization must follow Phase 4: hysteresis (τ_on=0.86, τ_off=0.78), morpholo
   2) Compute FA/24h across the corpus using per‑record durations (stitching if needed).
   3) Binary search on τ_on ∈ [Δ, 1] until tolerance (1e‑4) or max_iters.
 - Sensitivity@FA: once τ_on found, compute event‑level sensitivity vs references.
+
+Implementation details:
+- The legacy `threshold` parameter in `evaluate.batch_probs_to_events(...)` is deprecated
+  and ignored. Post‑processing uses hysteresis thresholds from the config exclusively.
+- TAES false‑alarm penalty weight defaults to α = 0.15 in code; this balances temporal
+  alignment against spurious predictions.
 
 ## 📚 Datasets & Splits
 - Train: TUH EEG Seizure Corpus
@@ -78,7 +89,7 @@ Performance determinism:
 
 Already present (to standardize):
 - `evaluate.batch_masks_to_events(masks, fs)`
-- `evaluate.batch_probs_to_events(probs, post_cfg, fs, threshold)`
+- `evaluate.batch_probs_to_events(probs, post_cfg, fs, threshold)` [Deprecated: `threshold` ignored]
 - `evaluate.fa_per_24h(pred_events, ref_events, total_hours)`
 - `evaluate.calculate_taes(pred_events, ref_events, alpha=0.15)`
 - `evaluate.find_threshold_for_fa_eventized(probs, post_cfg, ref_events, fa_target, total_hours, fs)`
@@ -92,11 +103,17 @@ Phase 4 dependencies (implemented):
 
 During Phase 5, swap in the Phase 4 APIs internally (keep current functions as adapters for test stability until migration is complete).
 
+Outputs enhancement:
+- `evaluate.evaluate_predictions(...)` returns a `thresholds` table mapping FA target → τ_on
+  used for sensitivity evaluation (e.g., `{ "10": 0.8725, "5": 0.9031, ... }`).
+
 ## 🧵 CLI & Make Targets
 
 CLI (suggested):
 - `python -m src.cli evaluate --config configs/production.yaml --split dev --out results/metrics/dev.json`
-- `python -m src.cli export --pred results/preds/*.npy --out results/exports/dev_csv_bi/`
+
+Exports: use library functions in `src/experiment/export.py` (CSV_BI/JSON).
+If desired, a dedicated CLI subcommand can be added later.
 
 Make (optional additions):
 - `make eval-dev` → run evaluation on validation split; write metrics JSON + plots.

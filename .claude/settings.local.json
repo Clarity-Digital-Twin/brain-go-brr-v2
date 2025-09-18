@@ -81,7 +81,8 @@
       "Bash(.venv/bin/pytest tests/ -q --tb=short)",
       "Bash(.venv/bin/pytest tests/test_data.py -v)",
       "Bash(.venv/bin/pytest tests/test_postprocess.py::TestMorphology -v)",
-      "Bash(.venv/bin/pytest tests/test_postprocess.py::TestHysteresis::test_hysteresis_equality_edge_cases -v)"
+      "Bash(.venv/bin/pytest tests/test_postprocess.py::TestHysteresis::test_hysteresis_equality_edge_cases -v)",
+      "Bash(.venv/bin/pytest tests/test_streaming.py -v)"
     ],
     "deny": [],
     "ask": []

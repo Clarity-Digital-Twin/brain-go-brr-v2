@@ -372,7 +372,8 @@ def evaluate_predictions(
     # Convert to events for TAES
     ref_events = batch_masks_to_events(labels, sampling_rate)
 
-    # Use default threshold for TAES (0.5)
+    # Use default threshold for TAES (0.5) — batch_probs_to_events ignores threshold
+    # and uses hysteresis from post_cfg; kept for back-compat behavior.
     pred_events_taes = batch_probs_to_events(probs, post_cfg, sampling_rate, threshold=0.5)
 
     # Flatten events for TAES calculation
@@ -391,8 +392,48 @@ def evaluate_predictions(
         # Handle case with single class
         auroc = 0.5
 
-    # Sensitivity at FA rates
-    sensitivity_results = sensitivity_at_fa_rates(probs, labels, fa_rates, post_cfg, sampling_rate)
+    # Sensitivity at FA rates with threshold table (τ_on per FA target)
+    # Compute total_hours with overlap-aware duration: (N-1)*stride + window
+    n_windows = labels.shape[0]
+    total_duration_s = (n_windows - 1) * 10.0 + 60.0 if n_windows > 0 else 0.0
+    total_hours = total_duration_s / 3600.0 if total_duration_s > 0 else 0.0
+
+    thresholds: dict[str, float] = {}
+    sensitivity_results: dict[str, float] = {}
+
+    # Reuse reference events (already computed)
+    for fa in fa_rates:
+        tau_on = find_threshold_for_fa_eventized(
+            probs,
+            post_cfg,
+            ref_events,
+            fa_target=fa,
+            total_hours=total_hours,
+            fs=sampling_rate,
+        )
+        thresholds[f"{fa}"] = float(tau_on)
+
+        # Evaluate sensitivity at this τ_on by updating hysteresis
+        cfg_for_eval = deepcopy(post_cfg)
+        cfg_for_eval.hysteresis.tau_on = tau_on
+        cfg_for_eval.hysteresis.tau_off = max(0.0, tau_on - 0.08)
+
+        pred_events_at_fa = batch_probs_to_events(
+            probs, cfg_for_eval, sampling_rate, threshold=None
+        )
+
+        # Event-level sensitivity: proportion of reference events overlapped by any prediction
+        tp_count = 0
+        total_ref_events = 0
+        for refs, preds in zip(ref_events, pred_events_at_fa, strict=False):
+            total_ref_events += len(refs)
+            for ref_start, ref_end in refs:
+                if any(
+                    overlap((ref_start, ref_end), (ps, pe)) > 0 for (ps, pe) in preds
+                ):
+                    tp_count += 1
+        sensitivity = tp_count / max(total_ref_events, 1)
+        sensitivity_results[f"sensitivity_at_{fa}fa"] = float(sensitivity)
 
     # Generate FA curve (10 points)
     fa_curve = []
@@ -408,6 +449,7 @@ def evaluate_predictions(
         "fa_curve": fa_curve,
     }
     results.update(sensitivity_results)
+    results["thresholds"] = thresholds  # FA target → τ_on
 
     return results
 
