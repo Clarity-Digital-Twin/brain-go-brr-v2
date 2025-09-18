@@ -1,11 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 timeout 5 .venv/bin/python -c \"from scipy import ndimage; print(''scipy.ndimage imported OK'')\")",
-      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 .venv/bin/python -m src.experiment.pipeline --config configs/smoke_test.yaml)",
-      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 timeout 5 python -c \"from scipy import ndimage; print(''scipy.ndimage imported OK'')\")",
-      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 LD_LIBRARY_PATH=/home/jj/proj/brain-go-brr-v2/.venv/lib/python3.11/site-packages/torch/lib:$LD_LIBRARY_PATH .venv/bin/python -m src.experiment.pipeline --config configs/smoke_test.yaml)",
-      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 .venv/bin/python -c \"\nprint(''1. Importing numpy...'')\nimport numpy as np\nprint(''2. Importing torch...'')\nimport torch\nprint(''3. Importing torch.nn...'')\nimport torch.nn as nn\nprint(''4. All imports OK!'')\nprint(f''Torch version: {torch.__version__}'')\nprint(f''CUDA available: {torch.cuda.is_available()}'')\n\")"
+      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 .venv/bin/python -c \"\nprint(''Testing all pipeline imports...'')\nimport sys\nprint(f''Python: {sys.executable}'')\n\nprint(''1. numpy...'')\nimport numpy as np\nprint(''2. torch...'')\nimport torch\nprint(''3. torch.nn...'')\nimport torch.nn as nn\nprint(''4. torch.cuda.amp...'')\nfrom torch.cuda.amp import GradScaler, autocast\nprint(''5. torch.optim...'')\nfrom torch.optim import AdamW, Optimizer\nprint(''6. torch.utils.data...'')\nfrom torch.utils.data import DataLoader, WeightedRandomSampler\nprint(''7. torch.utils.tensorboard...'')\nfrom torch.utils.tensorboard import SummaryWriter\nprint(''8. tqdm...'')\nfrom tqdm import tqdm\nprint(''9. src.experiment.evaluate...'')\nfrom src.experiment.evaluate import evaluate_predictions\nprint(''10. src.experiment.models...'')\nfrom src.experiment.models import SeizureDetector\nprint(''11. src.experiment.schemas...'')\nfrom src.experiment.schemas import Config, EarlyStoppingConfig, PostprocessingConfig, SchedulerConfig, TrainingConfig\nprint(''✅ ALL IMPORTS OK!'')\n\")",
+      "Bash(export:*)"
     ],
     "deny": [],
     "ask": []

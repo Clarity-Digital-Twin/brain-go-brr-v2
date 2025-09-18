@@ -3,6 +3,7 @@
 
 # CRITICAL: Set library path for mamba-ssm CUDA linking in WSL2
 export LD_LIBRARY_PATH=/home/jj/proj/brain-go-brr-v2/.venv/lib/python3.11/site-packages/torch/lib:$LD_LIBRARY_PATH
+export CUDA_HOME=/usr/local/cuda-12.6
 
 # These ONLY limit CPU threads for scipy/numpy - GPU runs FULL POWER!
 export OPENBLAS_NUM_THREADS=1
