@@ -4,23 +4,22 @@
 Convert raw per‑timestep probabilities into clinically actionable seizure events using dual‑tau hysteresis with temporal stability, morphology, duration constraints, window stitching, and event merging, targeting sensitivity at specific FA/24h operating points.
 
 ## 📋 Phase 4 Checklist
-- [ ] Hysteresis thresholding (dual‑tau with min_onset/min_offset)
-- [ ] Morphology (opening then closing; configurable kernels; CPU/GPU)
-- [ ] Duration filtering (≥3s min; ≤600s max; long‑event segmentation)
-- [ ] Window stitching (overlap‑add; optional triangular weighting)
-- [ ] Event merging (merge gaps ≤ tau_merge)
-- [ ] Confidence scoring (mean/peak/percentile)
-- [ ] CSV_BI export (Temple‑compliant)
+- [x] Hysteresis thresholding (dual‑tau with min_onset/min_offset)
+- [x] Morphology (opening → closing; configurable kernels; CPU/GPU)
+- [x] Duration filtering (≥3s min; ≤600s max; long‑event segmentation)
+- [x] Window stitching (overlap‑add; optional triangular weighting)
+- [x] Event merging (merge gaps ≤ tau_merge)
+- [x] Confidence scoring (mean/peak/percentile)
+- [x] CSV_BI export (Temple‑compliant)
 - [ ] Real‑time streaming (future; stateful hysteresis)
-- [ ] TDD: unit + integration tests
-- [ ] Phase 3 integration (schemas + evaluate adapters)
+- [x] TDD: unit + integration tests
+- [x] Phase 3 integration (schemas + evaluate adapters)
 
 ## 🧭 Scope & Status
 
-- Scope: Target design for Phase 4 post‑processing (final APIs, algorithms, and configs).
-- Status: Design ready for TDD implementation; current code provides a minimal interim path in
-  `src/experiment/evaluate.py` (details below). This document is the source of truth for the
-  end‑state; where current code differs, it is called out explicitly.
+- Scope: Final design and implementation status for Phase 4 post‑processing (APIs, algorithms, configs).
+- Status: Fully implemented and wired into evaluation on CPU; GPU morphology path implemented via pooling. Tests cover hysteresis,
+  morphology, duration filtering, stitching, eventization, merging, and confidence. Streaming remains future work.
 
 ## 🏗️ Architecture Overview
 
@@ -50,20 +49,16 @@ Clinical Events [(start_s, end_s, confidence)]
 ## 🔧 Implementation Files
 
 ```
-src/experiment/postprocess.py     # Core post-processing ops (hysteresis, morphology, duration, stitching) [planned]
-src/experiment/events.py          # Intervals, merging, confidence [planned]
-src/experiment/export.py          # CSV_BI and JSON exports [planned]
-src/experiment/streaming.py       # Real-time state (future) [planned]
+src/experiment/postprocess.py     # Core post‑processing ops (hysteresis, morphology, duration, stitching)
+src/experiment/events.py          # Intervals, merging, confidence
+src/experiment/export.py          # CSV_BI and JSON exports
+src/experiment/streaming.py       # Real‑time state (future)
 
-Current interim code paths (used today):
-- src/experiment/evaluate.py: batch_probs_to_events, batch_masks_to_events, evaluate_predictions
-  - Contains a simple hysteresis (τ_on/τ_off) and ndimage morphology step with a single kernel.
-  - Implements min_duration (lower bound only); no max_duration or event merging yet.
+src/experiment/evaluate.py        # Uses Phase 4 APIs for eventization and metrics
 
-tests/test_postprocess.py         # Unit tests for ops
+tests/test_postprocess.py         # Unit tests (hysteresis, morphology, duration, stitching)
 tests/test_events.py              # Event tests (merge + confidence)
 tests/test_export.py              # CSV_BI compliance tests
-tests/test_integration_post.py    # End-to-end post-processing
 ```
 
 ## 📐 Algorithms and Specifications
@@ -73,35 +68,25 @@ tests/test_integration_post.py    # End-to-end post-processing
 - ON→OFF: prob < τ_off to exit seizure state
 - Threshold convention: strictly > τ_on to enter; strictly < τ_off to exit
 - Output: binary mask `(B, T)` bool
-- Performance: vectorized/JIT path required for targets; loop reference acceptable for clarity
+- Performance: implemented reference path (loop with retroactive onset). Vectorization is optional future optimization.
 
 Parameters (defaults):
 - tau_on=0.86, tau_off=0.78
 
-**Target future enhancement** (not yet implemented):
-- min_onset_samples=128 (0.5s @ 256 Hz) - require sustained τ_on crossing
-- min_offset_samples=256 (1.0s @ 256 Hz) - require sustained τ_off crossing
-- Retroactive onset marking for stability
-
-**Current implementation**: Simple per-sample switching without stability windows (see `evaluate.py` lines 183-191)
+Implemented stability windows:
+- min_onset_samples=128 (0.5s @ 256 Hz) — require sustained τ_on crossing; retroactive onset marking
+- min_offset_samples=256 (1.0s @ 256 Hz) — require sustained τ_off crossing
 
 ### 2) Morphology
-**Target design**: Opening (erosion→dilation) THEN closing (dilation→erosion)
+Implemented sequence: Opening (erosion→dilation) THEN closing (dilation→erosion)
 - Opening removes isolated spikes
 - Closing fills short gaps
 - Defaults (tunable): opening_kernel=11 (~43ms), closing_kernel=31 (~121ms)
-- CPU: SciPy ndimage binary ops; GPU: pooling‑based morphology (future)
+- CPU: SciPy ndimage binary ops; GPU: pooling‑based morphology (max/min pooling)
 - Output: cleaned mask `(B, T)` bool
 
-**Current implementation issues**:
-- Only applies ONE morphology operation (not the sequence)
-- Default is closing with kernel_size=5
-- **BUG in evaluate.py line 201**: elif checks for "closing" when it should check "opening"
-- Uses untyped dict config instead of MorphologyConfig class
-
-GPU alternative sketch (pooling):
-- Dilation: `max_pool1d(x, k, stride=1, padding=k//2)`
-- Erosion: `1 - max_pool1d(1 - x, k, stride=1, padding=k//2)`
+Notes:
+- GPU path uses max_pool1d and its negation for dilation/erosion and matches CPU semantics within tolerance.
 
 ### 3) Duration Filtering
 - Identify contiguous True regions (intervals)
@@ -109,8 +94,7 @@ GPU alternative sketch (pooling):
 - For intervals > max_duration_s, segment into ≤ max_duration_s chunks
 - Return filtered intervals or mask depending on pipeline stage
 
-Note (current implementation): only a minimum duration filter is applied today. The upper bound and
-segmentation of long events will be added in Phase 4 modules.
+Implemented: minimum and maximum duration filtering; long events are segmented into chunks ≤ max_duration_s.
 
 ### 4) Window Stitching
 - Inputs: `window_probs: list[(T_window,)]`, `window_starts: list[int]`, `total_length`
@@ -122,18 +106,12 @@ segmentation of long events will be added in Phase 4 modules.
 - Output: continuous probability `(total_length,)`
 
 ### 5) Eventization and Merging
-**Target design**:
+Implemented:
 - Transitions: pad with zeros → diff → starts where diff==+1; ends where diff==−1
 - Convert to seconds via `idx / sampling_rate` (default 256)
 - Merge: if gap ≤ tau_merge (default 2.0s), merge consecutive intervals
 - Confidence: mean/peak/percentile probability within event, clamped to [0,1]
 - Output: `SeizureEvent(start_s, end_s, confidence)` per record
-
-**Current implementation gaps**:
-- ✅ Basic eventization works (ndimage.label → intervals)
-- ❌ NO event merging (tau_merge not implemented)
-- ❌ NO confidence scoring (events are just (start_s, end_s) tuples)
-- ❌ NO SeizureEvent class (using raw tuples instead)
 
 ### Units & Conventions
 - Time unit: seconds

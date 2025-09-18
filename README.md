@@ -134,11 +134,13 @@ MNE-hybrid approach optimized for seizure morphology:
 - O(N) complexity vs Transformer's O(N²)
 
 ### Post-Processing
-- **Hysteresis**: τ_on=0.86, τ_off=0.78 (empirically optimized)
-- **Morphological filtering**: 5-sample kernel
-- **Minimum duration**: 3 seconds (clinical standard)
+- Hysteresis: τ_on=0.86, τ_off=0.78 with stability windows (min_onset=128, min_offset=256 samples)
+- Morphology: opening → closing with odd kernels (defaults: 11 and 31 samples)
+- Duration filter: keep 3s ≤ duration ≤ 600s; segment longer events
+- Stitching: overlap-add (uniform/weighted) and max options
+- Confidence: mean/peak/percentile per event, clamped to [0,1]
 
-See `PHASE4_POSTPROCESSING.md` for the complete Phase 4 post-processing specification, target APIs, and TDD plan.
+GPU parity: morphology uses pooling (max/min) on CUDA; CPU path uses SciPy ndimage. See `PHASE4_POSTPROCESSING.md` for details.
 
 ### Evaluation
 - Time-Aligned Event Scoring (TAES), Sensitivity@FA/24h, FA curve, AUROC.
@@ -164,11 +166,14 @@ See `PHASE5_EVALUATION.md` for the end-to-end evaluation and benchmarking plan, 
 brain-go-brr-v2/
 ├── src/
 │   └── experiment/
-│       ├── schemas.py    # Pydantic config models (planned)
-│       ├── data.py       # EDF loading, preprocessing (planned)
-│       ├── models.py     # U-Net, ResCNN, Bi-Mamba-2 (planned)
-│       ├── pipeline.py   # Orchestration entrypoint (stub)
-│       └── infra.py      # Caching, logging, utils (planned)
+│       ├── schemas.py    # Pydantic config models
+│       ├── data.py       # EDF loading, preprocessing, windowing
+│       ├── models.py     # U-Net, ResCNN, Bi-Mamba-2 (CPU/GPU dispatch)
+│       ├── postprocess.py# Hysteresis, morphology, duration, stitching
+│       ├── events.py     # Eventization, merging, confidence
+│       ├── evaluate.py   # TAES/FA/threshold search + adapters
+│       ├── pipeline.py   # Orchestration entrypoint
+│       └── export.py     # CSV_BI and JSON exports
 ├── configs/              # YAML experiment configs (EEG-focused)
 ├── literature/           # Converted papers, references
 ├── tests/                # Pytest suites
