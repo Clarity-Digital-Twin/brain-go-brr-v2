@@ -32,16 +32,19 @@ Why this is different:
 
 ```
 src/experiment/     # Core modules (preserve public APIs)
-├── schemas.py      # Pydantic configs (planned)
-├── data.py        # EEG preprocessing (planned)
-├── models.py      # Bi‑Mamba‑2 architecture (planned)
-├── pipeline.py    # Orchestration (stub)
-└── infra.py       # Infra utils (planned)
+├── schemas.py      # Pydantic configs
+├── data.py         # EDF loading, preprocessing, windowing
+├── models.py       # U‑Net, ResCNN, Bi‑Mamba‑2 (CPU/GPU dispatch)
+├── postprocess.py  # Hysteresis, morphology, duration, stitching
+├── events.py       # Eventization, merging, confidence
+├── evaluate.py     # TAES/FA/threshold search + adapters
+├── export.py       # CSV_BI and JSON exports
+└── pipeline.py     # Orchestration (training/validation)
 
-configs/           # YAML experiments
-tests/             # Pytest suite
-data/              # Datasets (git‑ignored)
-results/           # Outputs (git‑ignored)
+configs/            # YAML experiments
+tests/              # Pytest suite
+data/               # Datasets (git‑ignored)
+results/            # Outputs (git‑ignored)
 ```
 
 ## ⚡ Essential Commands
@@ -75,7 +78,8 @@ Code style
 - MNE ≥1.5.0
 - Ruff (lint/format), mypy (strict typing)
 - mamba‑ssm (GPU extra only): install with `uv sync -E gpu`
-- scikit‑image (post‑processing extra): install with `uv sync -E post`
+- SciPy ndimage used for CPU morphology (base dependency)
+- scikit‑image optional (post‑processing extra): install with `uv sync -E post`
 - pandas (evaluation extra): install with `uv sync -E eval`
 
 ## 📊 Data Pipeline
