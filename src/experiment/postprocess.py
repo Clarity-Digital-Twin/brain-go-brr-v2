@@ -10,6 +10,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 from scipy import ndimage  # type: ignore[import-untyped]
+from torch.nn import functional
 
 from src.experiment.schemas import (
     PostprocessingConfig,
@@ -110,8 +111,6 @@ def apply_morphology(
 
     if use_gpu and masks.is_cuda:
         # GPU path using pooling operations
-        import torch.nn.functional as F
-
         # Convert bool to float for pooling operations
         x = masks.float()
 
@@ -120,9 +119,9 @@ def apply_morphology(
             padding = opening_kernel // 2
             # Erosion via -max_pool1d(-x)
             x = x.unsqueeze(1)  # Add channel dim for pooling
-            x = -F.max_pool1d(-x, kernel_size=opening_kernel, stride=1, padding=padding)
+            x = -functional.max_pool1d(-x, kernel_size=opening_kernel, stride=1, padding=padding)
             # Dilation via max_pool1d
-            x = F.max_pool1d(x, kernel_size=opening_kernel, stride=1, padding=padding)
+            x = functional.max_pool1d(x, kernel_size=opening_kernel, stride=1, padding=padding)
             x = x.squeeze(1)
 
         # Closing: dilation (max pool) then erosion (min pool)
@@ -131,9 +130,9 @@ def apply_morphology(
             if x.dim() == 2:
                 x = x.unsqueeze(1)
             # Dilation via max_pool1d
-            x = F.max_pool1d(x, kernel_size=closing_kernel, stride=1, padding=padding)
+            x = functional.max_pool1d(x, kernel_size=closing_kernel, stride=1, padding=padding)
             # Erosion via -max_pool1d(-x)
-            x = -F.max_pool1d(-x, kernel_size=closing_kernel, stride=1, padding=padding)
+            x = -functional.max_pool1d(-x, kernel_size=closing_kernel, stride=1, padding=padding)
             x = x.squeeze(1)
 
         return x > 0.5  # Back to bool
