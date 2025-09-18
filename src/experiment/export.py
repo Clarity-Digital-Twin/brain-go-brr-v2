@@ -123,7 +123,7 @@ def export_batch_csv_bi(
     if not (len(batch_events) == len(patient_ids) == len(recording_ids) == len(durations_s)):
         raise ValueError("All input lists must have the same length")
 
-    for i, (events, patient_id, recording_id, duration) in enumerate(
+    for _i, (events, patient_id, recording_id, duration) in enumerate(
         zip(batch_events, patient_ids, recording_ids, durations_s, strict=False)
     ):
         output_file = output_dir / f"{patient_id}_{recording_id}.csv"

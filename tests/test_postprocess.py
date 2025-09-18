@@ -80,7 +80,7 @@ class TestMorphology:
 
         # After closing, the gap should be filled but edges may erode
         # Check that the gap at position 3 is filled
-        assert cleaned[0, 3] == True  # Gap is filled
+        assert cleaned[0, 3]  # Gap is filled
         # The continuous region should be preserved
         assert cleaned[0, 1:6].all()  # Main region preserved
 

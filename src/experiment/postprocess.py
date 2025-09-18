@@ -155,7 +155,6 @@ def filter_duration(
         Filtered binary masks (B, T) as bool
     """
     batch_size = masks.shape[0]
-    device = masks.device
     filtered_masks = torch.zeros_like(masks)
 
     for b in range(batch_size):

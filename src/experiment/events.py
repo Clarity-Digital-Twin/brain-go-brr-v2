@@ -54,10 +54,7 @@ def mask_to_events(
     Returns:
         List of SeizureEvent objects
     """
-    if isinstance(mask, torch.Tensor):
-        mask_np = mask.cpu().numpy()
-    else:
-        mask_np = mask
+    mask_np = mask.cpu().numpy() if isinstance(mask, torch.Tensor) else mask
 
     # Ensure binary
     if mask_np.dtype != bool:
@@ -130,10 +127,7 @@ def calculate_event_confidence(
     Returns:
         Confidence score in [0, 1]
     """
-    if isinstance(probs, torch.Tensor):
-        probs_np = probs.cpu().numpy()
-    else:
-        probs_np = probs
+    probs_np = probs.cpu().numpy() if isinstance(probs, torch.Tensor) else probs
 
     # Get indices for this event
     start_idx = int(event.start_s * sampling_rate)
