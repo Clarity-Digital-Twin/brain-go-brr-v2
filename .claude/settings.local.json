@@ -62,7 +62,12 @@
       "Bash(tmux list-sessions:*)",
       "Bash(.venv/bin/mypy:*)",
       "Bash(killall:*)",
-      "Bash(.venv/bin/pytest tests/test_training.py::TestTrainingSmoke::test_single_epoch -q)"
+      "Bash(.venv/bin/pytest tests/test_training.py::TestTrainingSmoke::test_single_epoch -q)",
+      "Bash(.venv/bin/pytest tests/test_postprocess.py tests/test_events.py -v)",
+      "Bash(.venv/bin/pytest tests/test_postprocess.py::TestMorphology::test_closing_fills_gaps -xvs)",
+      "Bash(.venv/bin/pytest tests/test_postprocess.py tests/test_events.py -q)",
+      "Bash(.venv/bin/pytest tests/test_postprocess.py -v)",
+      "Bash(.venv/bin/pytest tests/test_postprocess.py::TestIntegration::test_full_pipeline -v)"
     ],
     "deny": [],
     "ask": []

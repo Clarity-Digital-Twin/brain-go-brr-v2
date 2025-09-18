@@ -68,28 +68,36 @@ tests/test_integration_post.py    # End-to-end post-processing
 
 ## 📐 Algorithms and Specifications
 
-### 1) Hysteresis Thresholding (dual‑tau, stable)
-- OFF→ON: prob > τ_on for ≥ min_onset_samples
-- ON→OFF: prob < τ_off for ≥ min_offset_samples
-- Retroactive onset marking for stability
+### 1) Hysteresis Thresholding (dual‑tau)
+- OFF→ON: prob > τ_on to enter seizure state
+- ON→OFF: prob < τ_off to exit seizure state
 - Threshold convention: strictly > τ_on to enter; strictly < τ_off to exit
 - Output: binary mask `(B, T)` bool
 - Performance: vectorized/JIT path required for targets; loop reference acceptable for clarity
 
 Parameters (defaults):
 - tau_on=0.86, tau_off=0.78
-- min_onset_samples=128 (0.5s @ 256 Hz), min_offset_samples=256 (1.0s)
 
-### 2) Morphology (opening → closing)
-- Opening (erosion→dilation): removes isolated spikes
-- Closing (dilation→erosion): fills short gaps
+**Target future enhancement** (not yet implemented):
+- min_onset_samples=128 (0.5s @ 256 Hz) - require sustained τ_on crossing
+- min_offset_samples=256 (1.0s @ 256 Hz) - require sustained τ_off crossing
+- Retroactive onset marking for stability
+
+**Current implementation**: Simple per-sample switching without stability windows (see `evaluate.py` lines 183-191)
+
+### 2) Morphology
+**Target design**: Opening (erosion→dilation) THEN closing (dilation→erosion)
+- Opening removes isolated spikes
+- Closing fills short gaps
 - Defaults (tunable): opening_kernel=11 (~43ms), closing_kernel=31 (~121ms)
-- CPU: SciPy ndimage binary ops (current) or scikit‑image alternatives; GPU: pooling‑based morphology
+- CPU: SciPy ndimage binary ops; GPU: pooling‑based morphology (future)
 - Output: cleaned mask `(B, T)` bool
 
-Note (current implementation): the interim path applies a single morphology operation (default
-closing) with one configurable kernel via `post_cfg.morphology`. Phase 4 will standardize opening
-then closing with two independently configurable kernels as specified above.
+**Current implementation issues**:
+- Only applies ONE morphology operation (not the sequence)
+- Default is closing with kernel_size=5
+- **BUG in evaluate.py line 201**: elif checks for "closing" when it should check "opening"
+- Uses untyped dict config instead of MorphologyConfig class
 
 GPU alternative sketch (pooling):
 - Dilation: `max_pool1d(x, k, stride=1, padding=k//2)`
@@ -114,18 +122,18 @@ segmentation of long events will be added in Phase 4 modules.
 - Output: continuous probability `(total_length,)`
 
 ### 5) Eventization and Merging
-- Transitions:
-  - pad with zeros → diff → starts where diff==+1; ends where diff==−1
-  - Convert to seconds via `idx / sampling_rate` (default 256)
+**Target design**:
+- Transitions: pad with zeros → diff → starts where diff==+1; ends where diff==−1
+- Convert to seconds via `idx / sampling_rate` (default 256)
 - Merge: if gap ≤ tau_merge (default 2.0s), merge consecutive intervals
-- Confidence:
-  - Default: mean probability within event
-  - Alternatives: peak, percentile (e.g., 0.75), center‑weighted
-  - Clamp to [0,1]
+- Confidence: mean/peak/percentile probability within event, clamped to [0,1]
 - Output: `SeizureEvent(start_s, end_s, confidence)` per record
 
-Note (current implementation): event merging and confidence scoring are not yet implemented in the
-interim path; Phase 4 modules will introduce these features.
+**Current implementation gaps**:
+- ✅ Basic eventization works (ndimage.label → intervals)
+- ❌ NO event merging (tau_merge not implemented)
+- ❌ NO confidence scoring (events are just (start_s, end_s) tuples)
+- ❌ NO SeizureEvent class (using raw tuples instead)
 
 ### Units & Conventions
 - Time unit: seconds
@@ -349,18 +357,28 @@ Unit tests:
 Integration tests:
 - E2E on synthetic traces: stitched probs → events satisfy duration/merging; confidence in [0,1]
 
-## ✅ Definition of Done
-- [ ] Pydantic schemas extended; YAML validated via CLI
-- [ ] Hysteresis with min_onset/min_offset; vectorized path available
-- [ ] Morphology opening+closing (CPU + optional GPU) with sensible defaults
-- [ ] Duration filtering with long‑event segmentation
-- [ ] Stitching (uniform + weighted) implemented and configurable
-- [ ] Event merging + confidence scoring implemented
-- [ ] CSV_BI export passes Temple compliance tests
-- [ ] Tests >95% coverage for Phase 4 modules
-- [ ] `make q` passes (ruff + mypy strict)
-- [ ] Performance: sub‑second for 1‑hour trace on vectorized CPU; <100ms as stretch
-- [ ] Documentation updated with examples
+## ✅ Definition of Done (Phase 4 Implementation)
+**Current Status**: Design complete, partial implementation in evaluate.py
+
+**Completed**:
+- [x] Basic hysteresis (without stability windows)
+- [x] Single morphology operation (needs sequence fix)
+- [x] Minimum duration filtering
+- [x] Basic eventization (ndimage.label)
+
+**TODO for Phase 4 completion**:
+- [ ] Fix morphology bug (line 201) and implement opening→closing sequence
+- [ ] Add typed Pydantic schemas (MorphologyConfig, DurationConfig, EventsConfig)
+- [ ] Implement stability windows for hysteresis (min_onset/min_offset)
+- [ ] Add max_duration with segmentation (currently only min_duration)
+- [ ] Implement event merging (tau_merge)
+- [ ] Add confidence scoring (mean/peak/percentile)
+- [ ] Create SeizureEvent dataclass
+- [ ] Window stitching (overlap_add methods)
+- [ ] CSV_BI export with Temple compliance
+- [ ] Extract to separate modules (postprocess.py, events.py, export.py)
+- [ ] Tests >95% coverage for new modules
+- [ ] Performance optimization (vectorization, optional GPU)
 
 ## ⚠️ Critical Considerations
 - Determinism: pure functions; no in‑place modification

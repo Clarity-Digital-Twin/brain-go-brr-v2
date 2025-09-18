@@ -142,6 +142,8 @@ class HysteresisConfig(BaseModel):
 
     tau_on: float = Field(default=0.86, ge=0.5, le=1.0, description="Upper threshold")
     tau_off: float = Field(default=0.78, ge=0.5, le=1.0, description="Lower threshold")
+    min_onset_samples: int = Field(default=128, ge=1, description="Min samples above tau_on to enter")
+    min_offset_samples: int = Field(default=256, ge=1, description="Min samples below tau_off to exit")
 
     @model_validator(mode="after")
     def validate_thresholds(self) -> "HysteresisConfig":
@@ -151,15 +153,70 @@ class HysteresisConfig(BaseModel):
         return self
 
 
+class MorphologyConfig(BaseModel):
+    """Morphological operations configuration."""
+
+    opening_kernel: int = Field(default=11, ge=1, description="Opening kernel size (samples)")
+    closing_kernel: int = Field(default=31, ge=1, description="Closing kernel size (samples)")
+    use_gpu: bool = Field(default=False, description="Use GPU acceleration if available")
+
+    @field_validator("opening_kernel", "closing_kernel")
+    @classmethod
+    def validate_odd(cls, v: int) -> int:
+        """Ensure kernel sizes are odd."""
+        if v % 2 == 0:
+            raise ValueError(f"Kernel size {v} must be odd")
+        return v
+
+
+class DurationConfig(BaseModel):
+    """Event duration filtering configuration."""
+
+    min_duration_s: float = Field(default=3.0, ge=0.0, description="Minimum event duration (seconds)")
+    max_duration_s: float = Field(default=600.0, gt=0.0, description="Maximum event duration (seconds)")
+
+    @model_validator(mode="after")
+    def validate_durations(self) -> "DurationConfig":
+        """Ensure max >= min."""
+        if self.max_duration_s < self.min_duration_s:
+            raise ValueError(f"max_duration_s must be >= min_duration_s")
+        return self
+
+
+class EventsConfig(BaseModel):
+    """Event merging and confidence configuration."""
+
+    tau_merge: float = Field(default=2.0, ge=0.0, description="Max gap to merge events (seconds)")
+    confidence_method: Literal["mean", "peak", "percentile"] = Field(
+        default="mean", description="Method for confidence scoring"
+    )
+    confidence_percentile: float = Field(
+        default=0.75, gt=0.0, lt=1.0, description="Percentile for confidence if method='percentile'"
+    )
+
+
+class StitchingConfig(BaseModel):
+    """Window stitching configuration."""
+
+    method: Literal["overlap_add", "overlap_add_weighted", "max"] = Field(
+        default="overlap_add", description="Stitching method"
+    )
+    window_size: int = Field(default=15360, ge=1, description="Window size (samples)")
+    stride: int = Field(default=2560, ge=1, description="Window stride (samples)")
+
+
 class PostprocessingConfig(BaseModel):
     """Post-processing pipeline configuration."""
 
     hysteresis: HysteresisConfig = Field(default_factory=HysteresisConfig)
-    morphology: dict[str, Any] = Field(
-        default={"kernel_size": 5}, description="Morphological ops config"
-    )
+    morphology: MorphologyConfig = Field(default_factory=MorphologyConfig)
+    duration: DurationConfig = Field(default_factory=DurationConfig)
+    events: EventsConfig = Field(default_factory=EventsConfig)
+    stitching: StitchingConfig = Field(default_factory=StitchingConfig)
+
+    # Backward compatibility - will be removed after migration
     min_duration: float = Field(
-        default=3.0, ge=1.0, description="Minimum seizure duration in seconds"
+        default=3.0, ge=1.0, description="[Deprecated] Use duration.min_duration_s"
     )
 
 
