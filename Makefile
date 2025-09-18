@@ -36,12 +36,24 @@ dev: ## Install dev dependencies and pre-commit hooks
 PYTEST := $(if $(wildcard .venv/bin/pytest),.venv/bin/pytest,uv run pytest)
 
 test: ## Run tests with coverage
-	@echo "${CYAN}Running tests...${NC}"
-	$(PYTEST) -n auto --cov=src --cov-report=term-missing --cov-report=html
+	@echo "${CYAN}Running tests with coverage...${NC}"
+	$(PYTEST) -n auto --cov=src --cov-report=term-missing:skip-covered --cov-report=html
 
 test-fast: ## Run tests without coverage (faster)
 	@echo "${CYAN}Running fast tests...${NC}"
-	$(PYTEST) -n auto -x
+	$(PYTEST) -n 4 --dist=loadfile -q
+
+test-cov: ## Run tests with full coverage report
+	@echo "${CYAN}Running tests with full coverage...${NC}"
+	$(PYTEST) -n auto --cov=src --cov-report=term-missing --cov-report=html
+
+test-gpu: ## Run tests optimized for GPU (serial)
+	@echo "${CYAN}Running GPU tests (serial)...${NC}"
+	$(PYTEST) -n 1 -v -k "mamba or cuda"
+
+test-cpu: ## Run CPU tests in parallel
+	@echo "${CYAN}Running CPU tests (parallel)...${NC}"
+	$(PYTEST) -n 4 --dist=loadfile -k "not (mamba or cuda)" -q
 
 # Detect available tools (professional pattern)
 RUFF := $(if $(wildcard .venv/bin/ruff),.venv/bin/ruff,uv run ruff)
