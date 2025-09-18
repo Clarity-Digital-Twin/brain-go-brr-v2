@@ -8,7 +8,10 @@
       "Bash(tmux:*)",
       "Bash(dos2unix:*)",
       "Read(//mnt/c/**)",
-      "Bash(ln:*)"
+      "Bash(ln:*)",
+      "Bash(uv pip uninstall:*)",
+      "Bash(MAMBA_FORCE_BUILD=1 MAMBA_SKIP_CUDA_BUILD=0 uv pip install mamba-ssm)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
