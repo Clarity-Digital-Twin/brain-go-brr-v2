@@ -185,7 +185,9 @@ def train(config_path: Path, resume: bool, device: str) -> None:
 @click.option("--config", type=click.Path(exists=True, path_type=Path), help="Config to use")
 @click.option("--device", type=click.Choice(["auto", "cpu", "cuda"]), default="auto")
 @click.option("--output-json", type=click.Path(path_type=Path), help="Save metrics to JSON file")
-@click.option("--output-csv-bi", type=click.Path(path_type=Path), help="Export events in CSV_BI format")
+@click.option(
+    "--output-csv-bi", type=click.Path(path_type=Path), help="Export events in CSV_BI format"
+)
 def evaluate(
     checkpoint_path: Path,
     data_path: Path,
@@ -207,15 +209,16 @@ def evaluate(
     try:
         import json
         from datetime import datetime
+
         import torch
         from torch.utils.data import DataLoader
 
         from src.experiment.data import EEGWindowDataset
-        from src.experiment.models import SeizureDetector
-        from src.experiment.pipeline import validate_epoch
         from src.experiment.evaluate import batch_probs_to_events
         from src.experiment.events import SeizureEvent
-        from src.experiment.export import export_csv_bi, export_json
+        from src.experiment.export import export_csv_bi
+        from src.experiment.models import SeizureDetector
+        from src.experiment.pipeline import validate_epoch
 
         console.print(f"[cyan]Loading checkpoint:[/cyan] {checkpoint_path}")
 
@@ -276,7 +279,8 @@ def evaluate(
                 table.add_row(key, f"{value:.4f}")
             elif key == "thresholds" and isinstance(value, dict):
                 for fa_target, threshold in value.items():
-                    table.add_row(f"τ_on @ {fa_target} FA/24h", f"{threshold:.4f}")
+                    if isinstance(threshold, (int, float)):
+                        table.add_row(f"τ_on @ {fa_target} FA/24h", f"{threshold:.4f}")
 
         console.print(table)
 
@@ -311,14 +315,16 @@ def evaluate(
             probs = torch.cat(all_probs, dim=0)
 
             # Convert to events using best threshold
-            best_threshold = metrics.get("thresholds", {}).get("10", 0.86)
+            thresholds_dict = metrics.get("thresholds", {})
+            if isinstance(thresholds_dict, dict):
+                best_threshold = thresholds_dict.get("10", 0.86)
+            else:
+                best_threshold = 0.86
             cfg_for_export = cfg.postprocessing
             cfg_for_export.hysteresis.tau_on = best_threshold
             cfg_for_export.hysteresis.tau_off = max(0.0, best_threshold - 0.08)
 
-            pred_events = batch_probs_to_events(
-                probs, cfg_for_export, cfg.data.sampling_rate
-            )
+            pred_events = batch_probs_to_events(probs, cfg_for_export, cfg.data.sampling_rate)
 
             # Convert to SeizureEvent objects for export
             seizure_events = []

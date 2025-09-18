@@ -1,16 +1,19 @@
-# PHASE 5 — Evaluation, Scoring, and Benchmarking (Iron‑Clad, TDD)
+# PHASE 5 — Evaluation, Scoring, and Benchmarking (Iron‑Clad, TDD) ✅ COMPLETE
 
 ## 🎯 Phase Goal
 Establish a clinically grounded, reproducible evaluation pipeline that turns per‑timestep probabilities into events and reports TAES and sensitivity at target FA/24h operating points on TUH/CHB‑MIT and external benchmarks.
 
 Success means: a deterministic, well‑tested evaluation stack with clear CLI, CI integration, and artifacts suitable for epilepsybenchmarks.com submission.
 
-## 🔭 Scope & Status
-- Current interim code lives in `src/experiment/evaluate.py` and basic tests in `tests/test_evaluate.py`.
-- Phase 4 specification (post‑processing) is documented in `PHASE4_POSTPROCESSING.md`. Phase 5 consumes those APIs and evaluates outputs.
-- Mamba CUDA/CPU dispatch is documented in README/AGENTS; evaluation is CPU‑safe and does not require CUDA.
+## 🔭 Scope & Status ✅ COMPLETE
+- ✅ Full implementation in `src/experiment/evaluate.py` with all target APIs
+- ✅ Complete test suite in `tests/test_evaluate.py` (19 tests passing)
+- ✅ Phase 4 APIs fully integrated (hysteresis, morphology, stitching)
+- ✅ Export functionality in `src/experiment/export.py` (CSV_BI, JSON)
+- ✅ CLI evaluation command in `src/cli.py` with export options
+- ✅ Evaluation is CPU‑safe and does not require CUDA
 
-This document defines the target end‑state APIs, metrics, datasets/splits, and a TDD plan to complete Phase 5 with high assurance.
+All target APIs defined in this document have been implemented and tested.
 
 ## 📏 Metrics (Clinical)
 - TAES (Time‑Aligned Event Scoring): primary temporal alignment score in [0,1].
@@ -18,8 +21,10 @@ This document defines the target end‑state APIs, metrics, datasets/splits, and
 - FA curve: sensitivity vs FA/24h curve for multiple targets.
 - AUROC (sample‑level): for sanity and regression tracking.
 
-Optional (stretch):
-- Calibration (ECE), PR‑AUC, per‑patient TAES distribution.
+Additional metrics (implemented):
+- ✅ Calibration (ECE) - Expected Calibration Error
+- ✅ PR‑AUC - Precision-Recall Area Under Curve
+- ⏳ Per‑patient TAES distribution (future work)
 
 ## 🧩 Eventization Semantics
 Eventization must follow Phase 4: hysteresis (τ_on=0.86, τ_off=0.78), morphology (opening→closing), min/max duration, and optional stitching (for full‑record inference). Conventions:

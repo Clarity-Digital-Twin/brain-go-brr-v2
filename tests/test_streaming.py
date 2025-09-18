@@ -8,7 +8,7 @@ from src.experiment.schemas import (
     MorphologyConfig,
     PostprocessingConfig,
 )
-from src.experiment.streaming import HysteresisState, StreamingPostProcessor
+from src.experiment.streaming import StreamingPostProcessor
 
 
 class TestStreamingPostProcessor:
@@ -42,20 +42,16 @@ class TestStreamingPostProcessor:
         assert processor.state.offset_counter == 0
         assert processor.state.total_samples_processed == 0
 
-    def test_chunk_processing(
-        self, processor: StreamingPostProcessor
-    ) -> None:
+    def test_chunk_processing(self, processor: StreamingPostProcessor) -> None:
         """Test processing single chunk."""
         # Create chunk with rising/falling pattern
         probs = torch.tensor([0.5, 0.9, 0.95, 0.85, 0.7, 0.6, 0.5])
-        masks, events = processor.process_chunk(probs, return_events=True)
+        masks, _events = processor.process_chunk(probs, return_events=True)
 
         assert masks.shape == probs.shape
         assert processor.state.total_samples_processed == 7
 
-    def test_state_persistence_across_chunks(
-        self, processor: StreamingPostProcessor
-    ) -> None:
+    def test_state_persistence_across_chunks(self, processor: StreamingPostProcessor) -> None:
         """Test hysteresis state maintained across chunk boundaries."""
         # Disable morphology for this test (it removes short events)
         processor.config.morphology.opening_kernel = 1
@@ -79,14 +75,12 @@ class TestStreamingPostProcessor:
 
         # Third chunk: end event
         chunk3 = torch.tensor([0.75, 0.70, 0.65, 0.60])  # Below tau_off
-        masks3, _ = processor.process_chunk(chunk3)
+        _masks3, _ = processor.process_chunk(chunk3)
 
         # Should exit event after min_offset_samples (3)
         assert processor.state.in_event is False
 
-    def test_event_spanning_chunks(
-        self, processor: StreamingPostProcessor
-    ) -> None:
+    def test_event_spanning_chunks(self, processor: StreamingPostProcessor) -> None:
         """Test events that span multiple chunks."""
         # Set min samples to 1 for simpler testing
         processor.config.hysteresis.min_onset_samples = 1
@@ -97,11 +91,11 @@ class TestStreamingPostProcessor:
 
         # Chunk 1: Event starts (0.9 > 0.86)
         chunk1 = torch.tensor([0.5, 0.9, 0.88, 0.87])
-        masks1, events1 = processor.process_chunk(chunk1, return_events=True)
+        masks1, _events1 = processor.process_chunk(chunk1, return_events=True)
 
         # Chunk 2: Event continues and ends (0.77 < 0.78)
         chunk2 = torch.tensor([0.85, 0.77, 0.70, 0.65])
-        masks2, events2 = processor.process_chunk(chunk2, return_events=True)
+        masks2, _events2 = processor.process_chunk(chunk2, return_events=True)
 
         # Should have detected parts of the event in both chunks
         assert torch.any(masks1[1:])  # Event starts at sample 1
@@ -123,9 +117,7 @@ class TestStreamingPostProcessor:
         assert processor.state.total_samples_processed == 0
         assert processor.state.in_event is False
 
-    def test_state_serialization(
-        self, processor: StreamingPostProcessor
-    ) -> None:
+    def test_state_serialization(self, processor: StreamingPostProcessor) -> None:
         """Test saving and loading state."""
         # Process some chunks to build state
         chunk1 = torch.tensor([0.5, 0.9, 0.88])
@@ -138,16 +130,13 @@ class TestStreamingPostProcessor:
         assert state_dict["total_samples_processed"] == 3
 
         # Create new processor and load state
-        new_processor = StreamingPostProcessor(
-            processor.config, sampling_rate=256
-        )
+        new_processor = StreamingPostProcessor(processor.config, sampling_rate=256)
         new_processor.load_state_dict(state_dict)
 
         # States should match
         assert new_processor.state.in_event == processor.state.in_event
         assert (
-            new_processor.state.total_samples_processed
-            == processor.state.total_samples_processed
+            new_processor.state.total_samples_processed == processor.state.total_samples_processed
         )
 
     def test_gpu_processing(self, processor: StreamingPostProcessor) -> None:

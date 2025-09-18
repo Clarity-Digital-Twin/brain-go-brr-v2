@@ -252,7 +252,7 @@ def validate_epoch(
     post_config: PostprocessingConfig,
     device: str = "cpu",
     fa_rates: list[float] | None = None,
-) -> dict[str, float]:
+) -> dict[str, Any]:
     """Validate model and compute metrics.
 
     Args:
@@ -650,7 +650,7 @@ def main() -> None:
             seizure_indices = torch.randperm(len(train_dataset))[:n_seizure_est]
             weights[seizure_indices] = pos_weight
 
-            train_sampler = WeightedRandomSampler(weights, len(weights), replacement=True)
+            train_sampler = WeightedRandomSampler(weights.tolist(), len(weights), replacement=True)
 
     train_loader = DataLoader(
         train_dataset,

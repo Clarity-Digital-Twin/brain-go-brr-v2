@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 import torch
-from sklearn.metrics import roc_auc_score, average_precision_score  # type: ignore[import-untyped]
+from sklearn.metrics import average_precision_score, roc_auc_score  # type: ignore[import-untyped]
 
 from src.experiment.events import batch_mask_to_events
 from src.experiment.postprocess import postprocess_predictions
@@ -19,9 +19,7 @@ def overlap(a: tuple[float, float], b: tuple[float, float]) -> float:
     return max(0.0, min(a[1], b[1]) - max(a[0], b[0]))
 
 
-def calculate_ece(
-    probs: np.ndarray, labels: np.ndarray, n_bins: int = 10
-) -> float:
+def calculate_ece(probs: np.ndarray, labels: np.ndarray, n_bins: int = 10) -> float:
     """Calculate Expected Calibration Error (ECE).
 
     ECE measures the difference between predicted probabilities and actual
@@ -479,9 +477,7 @@ def evaluate_predictions(
         for refs, preds in zip(ref_events, pred_events_at_fa, strict=False):
             total_ref_events += len(refs)
             for ref_start, ref_end in refs:
-                if any(
-                    overlap((ref_start, ref_end), (ps, pe)) > 0 for (ps, pe) in preds
-                ):
+                if any(overlap((ref_start, ref_end), (ps, pe)) > 0 for (ps, pe) in preds):
                     tp_count += 1
         sensitivity = tp_count / max(total_ref_events, 1)
         sensitivity_results[f"sensitivity_at_{fa}fa"] = float(sensitivity)

@@ -12,7 +12,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from .postprocess import apply_morphology, filter_duration
+from .postprocess import apply_morphology
 from .schemas import PostprocessingConfig
 
 

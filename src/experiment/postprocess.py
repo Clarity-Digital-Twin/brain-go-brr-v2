@@ -73,7 +73,7 @@ def apply_hysteresis(
 
         for b in range(batch_size):
             prob_seq = probs[b].cpu().numpy()
-            mask = np.zeros(seq_len, dtype=bool)
+            mask_np = np.zeros(seq_len, dtype=bool)
 
             in_event = False
             onset_counter = 0
@@ -89,7 +89,7 @@ def apply_hysteresis(
                             onset_start = i
                         if onset_counter >= min_onset_samples:
                             # Retroactively mark onset
-                            mask[onset_start : i + 1] = True
+                            mask_np[onset_start : i + 1] = True
                             in_event = True
                             onset_counter = 0
                     else:
@@ -101,16 +101,16 @@ def apply_hysteresis(
                         offset_counter += 1
                         # Still mark as True until we confirm offset
                         if offset_counter < min_offset_samples:
-                            mask[i] = True
+                            mask_np[i] = True
                         if offset_counter >= min_offset_samples:
                             # Exit event (don't mark the final offset samples)
                             in_event = False
                             offset_counter = 0
                     else:
                         offset_counter = 0
-                        mask[i] = True
+                        mask_np[i] = True
 
-            masks[b] = torch.from_numpy(mask).to(device)
+            masks[b] = torch.from_numpy(mask_np).to(device)
 
     return masks
 

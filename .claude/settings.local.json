@@ -83,7 +83,10 @@
       "Bash(.venv/bin/pytest tests/test_postprocess.py::TestMorphology -v)",
       "Bash(.venv/bin/pytest tests/test_postprocess.py::TestHysteresis::test_hysteresis_equality_edge_cases -v)",
       "Bash(.venv/bin/pytest tests/test_streaming.py -v)",
-      "Bash(.venv/bin/pytest tests/test_streaming.py::TestStreamingPostProcessor::test_state_persistence_across_chunks -xvs)"
+      "Bash(.venv/bin/pytest tests/test_streaming.py::TestStreamingPostProcessor::test_state_persistence_across_chunks -xvs)",
+      "Bash(.venv/bin/pytest tests/test_evaluate.py::TestECE -v)",
+      "Bash(.venv/bin/pytest tests/ -q)",
+      "Bash(.venv/bin/pytest tests/test_postprocess.py tests/test_evaluate.py tests/test_streaming.py -q)"
     ],
     "deny": [],
     "ask": []

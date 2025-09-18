@@ -5,6 +5,7 @@ import torch
 
 from src.experiment.evaluate import (
     batch_masks_to_events,
+    calculate_ece,
     calculate_taes,
     evaluate_predictions,
     fa_per_24h,
@@ -58,6 +59,44 @@ class TestTAES:
         pred_events = [(10.0, 20.0), (30.0, 40.0)]
         taes = calculate_taes(pred_events, ref_events)
         assert taes < 1.0  # Penalty for FA
+
+
+class TestECE:
+    """Test Expected Calibration Error metric."""
+
+    def test_perfect_calibration(self) -> None:
+        """ECE should be near 0 for perfectly calibrated predictions."""
+        import numpy as np
+
+        # Perfect calibration: predicted probs match actual accuracy
+        probs = np.array([0.2] * 20 + [0.8] * 80)
+        labels = np.array([1] * 4 + [0] * 16 + [1] * 64 + [0] * 16)  # 20% and 80% positive rates
+        ece = calculate_ece(probs, labels, n_bins=10)
+        assert ece < 0.01  # Near perfect calibration
+
+    def test_poor_calibration(self) -> None:
+        """ECE should be high for poorly calibrated predictions."""
+        import numpy as np
+
+        # Poor calibration: all predictions are 0.9 but only 10% positive
+        probs = np.array([0.9] * 100)
+        labels = np.array([1] * 10 + [0] * 90)  # 10% positive
+        ece = calculate_ece(probs, labels, n_bins=10)
+        assert ece > 0.7  # Very poor calibration
+
+    def test_edge_cases(self) -> None:
+        """Test ECE edge cases."""
+        import numpy as np
+
+        # Empty arrays
+        ece = calculate_ece(np.array([]), np.array([]), n_bins=10)
+        assert ece == 0.0
+
+        # Single class
+        probs = np.array([0.5] * 10)
+        labels = np.array([0] * 10)
+        ece = calculate_ece(probs, labels, n_bins=10)
+        assert 0.4 < ece < 0.6  # Should be around 0.5 calibration error
 
 
 class TestFARate:
@@ -191,10 +230,13 @@ class TestEvaluatePredictions:
         expected_keys = {
             "taes",
             "auroc",
+            "pr_auc",
+            "ece",
             "sensitivity_at_10fa",
             "sensitivity_at_5fa",
             "sensitivity_at_1fa",
             "fa_curve",
+            "thresholds",
         }
         assert set(results.keys()) >= expected_keys
 
@@ -208,6 +250,8 @@ class TestEvaluatePredictions:
         # All metrics should be in [0, 1]
         assert 0 <= results["taes"] <= 1
         assert 0 <= results["auroc"] <= 1
+        assert 0 <= results["pr_auc"] <= 1
+        assert 0 <= results["ece"] <= 1
         assert 0 <= results["sensitivity_at_10fa"] <= 1
         assert 0 <= results["sensitivity_at_5fa"] <= 1
         assert 0 <= results["sensitivity_at_1fa"] <= 1
@@ -216,3 +260,13 @@ class TestEvaluatePredictions:
         assert isinstance(results["fa_curve"], list)
         if results["fa_curve"]:
             assert all(isinstance(pt, tuple) and len(pt) == 2 for pt in results["fa_curve"])
+
+        # Threshold table should have entries for each FA target
+        assert "thresholds" in results
+        assert "10" in results["thresholds"]
+        assert "5" in results["thresholds"]
+        assert "1" in results["thresholds"]
+
+        # Thresholds should be monotonic (stricter FA -> higher threshold)
+        assert results["thresholds"]["1"] >= results["thresholds"]["5"]
+        assert results["thresholds"]["5"] >= results["thresholds"]["10"]
