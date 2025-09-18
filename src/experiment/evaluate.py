@@ -6,9 +6,10 @@ from typing import Any
 
 import numpy as np
 import torch
-from scipy import ndimage  # type: ignore[import-untyped]
 from sklearn.metrics import roc_auc_score  # type: ignore[import-untyped]
 
+from src.experiment.events import batch_mask_to_events, mask_to_events
+from src.experiment.postprocess import postprocess_predictions
 from src.experiment.schemas import PostprocessingConfig
 
 
@@ -127,23 +128,19 @@ def batch_masks_to_events(masks: torch.Tensor, fs: int) -> list[list[tuple[float
     Returns:
         List of N lists, each containing (start_s, end_s) tuples
     """
-    batch_events = []
+    # Use new Phase 4 event conversion without merging or confidence
+    batch_events_objects = batch_mask_to_events(
+        masks,
+        sampling_rate=fs,
+        tau_merge=None,  # No merging for direct mask to event conversion
+        probs=None,  # No confidence scoring
+    )
 
-    for mask in masks:
-        mask_np = mask.cpu().numpy()
-
-        # Find connected components (seizure regions)
-        labeled, num_features = ndimage.label(mask_np)
-
-        events = []
-        for i in range(1, num_features + 1):
-            indices = np.where(labeled == i)[0]
-            if len(indices) > 0:
-                start_s = float(indices[0]) / fs
-                end_s = float(indices[-1] + 1) / fs
-                events.append((start_s, end_s))
-
-        batch_events.append(events)
+    # Convert SeizureEvent objects to tuples for backward compatibility
+    batch_events = [
+        [(event.start_s, event.end_s) for event in events]
+        for events in batch_events_objects
+    ]
 
     return batch_events
 
@@ -160,65 +157,28 @@ def batch_probs_to_events(
         probs: (N, T) probabilities in [0,1]
         post_cfg: Post-processing configuration
         fs: Sampling rate (Hz)
-        threshold: Detection threshold
+        threshold: Detection threshold (unused, kept for backward compatibility)
 
     Returns:
         List of N lists, each containing (start_s, end_s) tuples
     """
-    batch_events = []
+    # Use new Phase 4 modules
+    masks = postprocess_predictions(probs, post_cfg, sampling_rate=fs)
 
-    for prob in probs:
-        prob_np = prob.cpu().numpy()
+    # Convert masks to events with merging and confidence
+    batch_events_objects = batch_mask_to_events(
+        masks,
+        sampling_rate=fs,
+        tau_merge=post_cfg.events.tau_merge if hasattr(post_cfg.events, "tau_merge") else 2.0,
+        probs=probs,
+        confidence_method=post_cfg.events.confidence_method if hasattr(post_cfg.events, "confidence_method") else "mean",
+    )
 
-        # Apply threshold
-        binary = (prob_np > threshold).astype(float)
-
-        # Apply hysteresis (two-threshold smoothing)
-        tau_on = post_cfg.hysteresis.tau_on
-        tau_off = post_cfg.hysteresis.tau_off
-
-        hysteresis_mask = np.zeros_like(binary)
-        in_event = False
-
-        for i in range(len(prob_np)):
-            if not in_event and prob_np[i] > tau_on:
-                in_event = True
-                hysteresis_mask[i] = 1
-            elif in_event:
-                if prob_np[i] < tau_off:
-                    in_event = False
-                else:
-                    hysteresis_mask[i] = 1
-
-        # Apply morphology
-        kernel_size = post_cfg.morphology.get("kernel_size", 5)
-        if kernel_size > 0:
-            kernel = np.ones(kernel_size)
-            if post_cfg.morphology.get("operation", "closing") == "closing":
-                # Closing: dilation followed by erosion
-                hysteresis_mask = ndimage.binary_dilation(hysteresis_mask, kernel).astype(float)
-                hysteresis_mask = ndimage.binary_erosion(hysteresis_mask, kernel).astype(float)
-            elif post_cfg.morphology.get("operation", "closing") == "opening":
-                # Opening: erosion followed by dilation
-                hysteresis_mask = ndimage.binary_erosion(hysteresis_mask, kernel).astype(float)
-                hysteresis_mask = ndimage.binary_dilation(hysteresis_mask, kernel).astype(float)
-
-        # Convert to events
-        labeled, num_features = ndimage.label(hysteresis_mask)
-        events = []
-
-        for i in range(1, num_features + 1):
-            indices = np.where(labeled == i)[0]
-            if len(indices) > 0:
-                start_s = float(indices[0]) / fs
-                end_s = float(indices[-1] + 1) / fs
-                duration = end_s - start_s
-
-                # Apply minimum duration filter
-                if duration >= post_cfg.min_duration:
-                    events.append((start_s, end_s))
-
-        batch_events.append(events)
+    # Convert SeizureEvent objects to tuples for backward compatibility
+    batch_events = [
+        [(event.start_s, event.end_s) for event in events]
+        for events in batch_events_objects
+    ]
 
     return batch_events
 

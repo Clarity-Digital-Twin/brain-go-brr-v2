@@ -67,7 +67,9 @@
       "Bash(.venv/bin/pytest tests/test_postprocess.py::TestMorphology::test_closing_fills_gaps -xvs)",
       "Bash(.venv/bin/pytest tests/test_postprocess.py tests/test_events.py -q)",
       "Bash(.venv/bin/pytest tests/test_postprocess.py -v)",
-      "Bash(.venv/bin/pytest tests/test_postprocess.py::TestIntegration::test_full_pipeline -v)"
+      "Bash(.venv/bin/pytest tests/test_postprocess.py::TestIntegration::test_full_pipeline -v)",
+      "Bash(.venv/bin/pytest tests/test_evaluate.py -v)",
+      "Bash(.venv/bin/pytest tests/test_evaluate.py::TestEventization -v)"
     ],
     "deny": [],
     "ask": []
