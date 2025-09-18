@@ -45,8 +45,14 @@ postprocessing:
     tau_on: 0.86
     tau_off: 0.78
   morphology:
-    kernel_size: 5
-  min_duration: 3.0
+    opening_kernel: 11
+    closing_kernel: 31
+  duration:
+    min_duration_s: 3.0
+    max_duration_s: 600.0
+  events:
+    tau_merge: 2.0
+    confidence_method: mean
 
 training:
   epochs: 60
