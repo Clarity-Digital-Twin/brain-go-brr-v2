@@ -55,7 +55,8 @@
       "Bash(tee:*)",
       "Bash(nvidia-smi:*)",
       "Bash(.venv/bin/pytest tests/test_mamba.py::TestBiMamba2Layer::test_mamba_path_active -v)",
-      "Bash(.venv/bin/pytest tests/test_training.py::TestTrainingSmoke::test_single_epoch -q --no-cov)"
+      "Bash(.venv/bin/pytest tests/test_training.py::TestTrainingSmoke::test_single_epoch -q --no-cov)",
+      "Bash(.venv/bin/pytest tests/test_training.py tests/test_evaluate.py -q --no-cov)"
     ],
     "deny": [],
     "ask": []
