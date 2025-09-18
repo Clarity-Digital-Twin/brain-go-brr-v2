@@ -57,6 +57,10 @@ class TestStreamingPostProcessor:
         self, processor: StreamingPostProcessor
     ) -> None:
         """Test hysteresis state maintained across chunk boundaries."""
+        # Disable morphology for this test (it removes short events)
+        processor.config.morphology.opening_kernel = 1
+        processor.config.morphology.closing_kernel = 1
+
         # First chunk: start event but don't end it
         chunk1 = torch.tensor([0.5, 0.87, 0.88, 0.89])  # Triggers at sample 1
         masks1, _ = processor.process_chunk(chunk1)
@@ -87,6 +91,9 @@ class TestStreamingPostProcessor:
         # Set min samples to 1 for simpler testing
         processor.config.hysteresis.min_onset_samples = 1
         processor.config.hysteresis.min_offset_samples = 1
+        # Disable morphology for this test
+        processor.config.morphology.opening_kernel = 1
+        processor.config.morphology.closing_kernel = 1
 
         # Chunk 1: Event starts (0.9 > 0.86)
         chunk1 = torch.tensor([0.5, 0.9, 0.88, 0.87])
