@@ -1,16 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 timeout 5 .venv/bin/python -c \"from scipy import ndimage; print(''scipy.ndimage imported OK'')\")",
-      "Bash(nvidia-smi:*)",
-      "Bash(python:*)",
-      "Bash(uv pip install:*)",
-      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 timeout 5 python -c \"from scipy import ndimage; print(''scipy.ndimage imported OK'')\")",
-      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 python -m src.experiment.pipeline)",
-      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 python -m src.experiment.pipeline --config configs/smoke_test.yaml)",
-      "Bash(git pull:*)",
-      "Bash(git add:*)",
-      "Bash(git stash:*)"
+      "Bash(chmod:*)",
+      "Bash(tmux new-session:*)",
+      "Bash(tmux list-sessions:*)",
+      "Bash(screen:*)",
+      "Bash(tmux:*)"
     ],
     "deny": [],
     "ask": []
