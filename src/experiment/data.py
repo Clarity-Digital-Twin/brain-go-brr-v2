@@ -402,7 +402,8 @@ def parse_tusz_csv(csv_path: Path) -> tuple[float, list[tuple[float, float, str]
             # Normalize label: treat any seizure-coded label as positive.
             # TUSZ commonly uses codes ending with 'sz' (e.g., cpsz, fnsz, gnsz, tcsz, tnsz, absz, mysz),
             # and sometimes the generic 'seiz'. We exclude explicit background 'bckg'.
-            if label != "bckg" and (label == "seiz" or label.endswith("sz")):
+            # Also handle 'atnz' (atonic seizure) and any label containing 'seiz'.
+            if label != "bckg" and (label == "seiz" or label.endswith("sz") or label == "atnz" or "seiz" in label):
                 events.append((start, stop, label))
 
     # If duration not present, infer from max stop
