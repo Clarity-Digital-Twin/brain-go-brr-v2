@@ -631,7 +631,7 @@ def main() -> None:
     if config.data.use_balanced_sampling:
         # For large datasets, computing all labels is expensive
         # Use simple random sampling for now (P2 optimization)
-        logger.info("Balanced sampling disabled for memory efficiency")
+        # Balanced sampling disabled for memory efficiency
         train_sampler = None
 
     train_loader = DataLoader(
