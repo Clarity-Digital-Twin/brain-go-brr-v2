@@ -1,8 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(./run_gpu.sh:*)",
-      "Bash(source:*)"
+      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 timeout 5 .venv/bin/python -c \"from scipy import ndimage; print(''scipy.ndimage imported OK'')\")",
+      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 .venv/bin/python -m src.experiment.pipeline --config configs/smoke_test.yaml)"
     ],
     "deny": [],
     "ask": []
