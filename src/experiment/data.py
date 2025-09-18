@@ -334,7 +334,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         """
         # CSV_BI (Temple/TUSZ) annotations
         if label_path.suffix.lower() == ".csv" and label_path.exists():
-            duration_s, events = parse_tusz_csv(label_path)
+            _duration_s, events = parse_tusz_csv(label_path)
             # Convert to binary mask aligned to requested n_samples @ 256 Hz
             return events_to_binary_mask(events, n_samples, fs=constants.SAMPLING_RATE)
 
@@ -350,6 +350,52 @@ class EEGWindowDataset(torch.utils.data.Dataset):
 
         # Fallback: no labels
         return np.zeros((n_samples,), dtype=np.float32)
+
+    def __len__(self) -> int:
+        return len(self._index_map)
+
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        """Return window and label as tuple. Always returns tuple for consistency.
+
+        Loads data on-demand from cache or computes if needed.
+        When no labels exist, returns zero tensor of correct shape as label.
+        This ensures train_epoch always gets (window, label) tuple.
+        """
+        file_idx, window_idx = self._index_map[idx]
+        edf_path = self.edf_files[file_idx]
+
+        # Load from cache or compute
+        cache_path = None
+        if self.cache_dir is not None:
+            cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"
+
+        if cache_path is not None and cache_path.exists():
+            # Load specific window from cache
+            with np.load(cache_path) as cached:
+                window = cached["windows"][window_idx].astype(np.float32)
+                if "labels" in cached and cached["labels"] is not None:
+                    label = cached["labels"][window_idx].astype(np.float32)
+                else:
+                    label = None
+        else:
+            # Compute on-the-fly if no cache
+            windows_arr, labels_arr = self._process_file(edf_path, file_idx)
+            window = windows_arr[window_idx]
+            label = labels_arr[window_idx] if labels_arr is not None else None
+
+        # Convert to tensors
+        window_tensor = torch.from_numpy(window)
+        if self.transform is not None:
+            window_tensor = self.transform(window_tensor)
+
+        if label is not None:
+            label_tensor = torch.from_numpy(label)
+        else:
+            # ALWAYS return tuple with zero labels when none exist
+            # Shape matches window's time dimension for per-timestep labels
+            label_tensor = torch.zeros(window_tensor.shape[-1], dtype=torch.float32)
+
+        return window_tensor, label_tensor
 
 
 def parse_tusz_csv(csv_path: Path) -> tuple[float, list[tuple[float, float, str]]]:
@@ -403,7 +449,9 @@ def parse_tusz_csv(csv_path: Path) -> tuple[float, list[tuple[float, float, str]
             # TUSZ commonly uses codes ending with 'sz' (e.g., cpsz, fnsz, gnsz, tcsz, tnsz, absz, mysz),
             # and sometimes the generic 'seiz'. We exclude explicit background 'bckg'.
             # Also handle 'atnz' (atonic seizure) and any label containing 'seiz'.
-            if label != "bckg" and (label == "seiz" or label.endswith("sz") or label == "atnz" or "seiz" in label):
+            if label != "bckg" and (
+                label == "seiz" or label.endswith("sz") or label == "atnz" or "seiz" in label
+            ):
                 events.append((start, stop, label))
 
     # If duration not present, infer from max stop
@@ -433,57 +481,11 @@ def events_to_binary_mask(
 
     for start_s, stop_s, _ in events:
         # Convert to indices and clamp to valid range
-        s_idx = max(0, int(round(start_s * fs)))
-        e_idx = max(s_idx, int(round(stop_s * fs)))
+        s_idx = max(0, round(start_s * fs))
+        e_idx = max(s_idx, round(stop_s * fs))
         if s_idx >= n_samples:
             continue
         e_idx = min(e_idx, n_samples)
         if e_idx > s_idx:
             mask[s_idx:e_idx] = 1.0
     return mask
-
-    def __len__(self) -> int:
-        return len(self._index_map)
-
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
-        """Return window and label as tuple. Always returns tuple for consistency.
-
-        Loads data on-demand from cache or computes if needed.
-        When no labels exist, returns zero tensor of correct shape as label.
-        This ensures train_epoch always gets (window, label) tuple.
-        """
-        file_idx, window_idx = self._index_map[idx]
-        edf_path = self.edf_files[file_idx]
-
-        # Load from cache or compute
-        cache_path = None
-        if self.cache_dir is not None:
-            cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"
-
-        if cache_path is not None and cache_path.exists():
-            # Load specific window from cache
-            with np.load(cache_path) as cached:
-                window = cached["windows"][window_idx].astype(np.float32)
-                if "labels" in cached and cached["labels"] is not None:
-                    label = cached["labels"][window_idx].astype(np.float32)
-                else:
-                    label = None
-        else:
-            # Compute on-the-fly if no cache
-            windows_arr, labels_arr = self._process_file(edf_path, file_idx)
-            window = windows_arr[window_idx]
-            label = labels_arr[window_idx] if labels_arr is not None else None
-
-        # Convert to tensors
-        window_tensor = torch.from_numpy(window)
-        if self.transform is not None:
-            window_tensor = self.transform(window_tensor)
-
-        if label is not None:
-            label_tensor = torch.from_numpy(label)
-        else:
-            # ALWAYS return tuple with zero labels when none exist
-            # Shape matches window's time dimension for per-timestep labels
-            label_tensor = torch.zeros(window_tensor.shape[-1], dtype=torch.float32)
-
-        return window_tensor, label_tensor
