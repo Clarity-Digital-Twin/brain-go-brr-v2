@@ -17,7 +17,9 @@
       "Bash(pip uninstall:*)",
       "Bash(.venv/bin/python:*)",
       "Bash(.venv/bin/pip install:*)",
-      "Bash(.venv/bin/pip:*)"
+      "Bash(.venv/bin/pip:*)",
+      "Bash(nvcc:*)",
+      "Read(//tmp/causal-conv1d/**)"
     ],
     "deny": [],
     "ask": []
