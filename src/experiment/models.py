@@ -335,7 +335,7 @@ class BiMamba2Layer(nn.Module):
         if MAMBA_AVAILABLE and d_conv not in _allowed:
             warnings.warn(
                 f"Mamba CUDA path coerced conv kernel from {d_conv}→{self._mamba_conv_k} "
-                "(CUDA op supports only 2–4). CPU fallback still uses configured kernel.",
+                "(CUDA op supports only 2-4). CPU fallback still uses configured kernel.",
                 stacklevel=1,
             )
 
@@ -355,8 +355,12 @@ class BiMamba2Layer(nn.Module):
         # Fallback for CPU/testing (Conv1d to match docs/tests; operates on (B, C, L))
         # WARNING: This is NOT functionally equivalent to Mamba-2 SSM!
         padding = max(0, self.d_conv // 2)
-        self.forward_mamba_fallback = nn.Conv1d(d_model, d_model, kernel_size=self.d_conv, padding=padding)
-        self.backward_mamba_fallback = nn.Conv1d(d_model, d_model, kernel_size=self.d_conv, padding=padding)
+        self.forward_mamba_fallback = nn.Conv1d(
+            d_model, d_model, kernel_size=self.d_conv, padding=padding
+        )
+        self.backward_mamba_fallback = nn.Conv1d(
+            d_model, d_model, kernel_size=self.d_conv, padding=padding
+        )
 
         # Fusion and normalization
         self.output_proj = nn.Linear(d_model * 2, d_model)
@@ -406,11 +410,11 @@ class BiMamba2Layer(nn.Module):
         )
 
         # Forward direction
-        if use_mamba:
-            x_forward = self.forward_mamba_real(x)
-        else:
-            # Conv1d fallback expects (B, C, L)
-            x_forward = self.forward_mamba_fallback(x.transpose(1, 2)).transpose(1, 2)
+        x_forward = (
+            self.forward_mamba_real(x)
+            if use_mamba
+            else self.forward_mamba_fallback(x.transpose(1, 2)).transpose(1, 2)
+        )
 
         # Backward direction (flip sequence)
         x_backward = x.flip(dims=[1])

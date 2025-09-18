@@ -138,6 +138,9 @@ MNE-hybrid approach optimized for seizure morphology:
 - **Morphological filtering**: 5-sample kernel
 - **Minimum duration**: 3 seconds (clinical standard)
 
+See `PHASE4_POSTPROCESSING.md` for the complete Phase 4 post-processing specification, target
+APIs, and TDD plan.
+
 ## 📊 Evaluation Strategy
 
 ### Primary Metrics (NEDC Standard)

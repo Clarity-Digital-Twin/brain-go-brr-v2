@@ -15,6 +15,13 @@ Convert raw per‑timestep probabilities into clinically actionable seizure even
 - [ ] TDD: unit + integration tests
 - [ ] Phase 3 integration (schemas + evaluate adapters)
 
+## 🧭 Scope & Status
+
+- Scope: Target design for Phase 4 post‑processing (final APIs, algorithms, and configs).
+- Status: Design ready for TDD implementation; current code provides a minimal interim path in
+  `src/experiment/evaluate.py` (details below). This document is the source of truth for the
+  end‑state; where current code differs, it is called out explicitly.
+
 ## 🏗️ Architecture Overview
 
 ```
@@ -43,10 +50,15 @@ Clinical Events [(start_s, end_s, confidence)]
 ## 🔧 Implementation Files
 
 ```
-src/experiment/postprocess.py     # Core post-processing ops (hysteresis, morphology, duration, stitching)
-src/experiment/events.py          # Intervals, merging, confidence
-src/experiment/export.py          # CSV_BI and JSON exports
-src/experiment/streaming.py       # Real-time state (future)
+src/experiment/postprocess.py     # Core post-processing ops (hysteresis, morphology, duration, stitching) [planned]
+src/experiment/events.py          # Intervals, merging, confidence [planned]
+src/experiment/export.py          # CSV_BI and JSON exports [planned]
+src/experiment/streaming.py       # Real-time state (future) [planned]
+
+Current interim code paths (used today):
+- src/experiment/evaluate.py: batch_probs_to_events, batch_masks_to_events, evaluate_predictions
+  - Contains a simple hysteresis (τ_on/τ_off) and ndimage morphology step with a single kernel.
+  - Implements min_duration (lower bound only); no max_duration or event merging yet.
 
 tests/test_postprocess.py         # Unit tests for ops
 tests/test_events.py              # Event tests (merge + confidence)
@@ -72,8 +84,12 @@ Parameters (defaults):
 - Opening (erosion→dilation): removes isolated spikes
 - Closing (dilation→erosion): fills short gaps
 - Defaults (tunable): opening_kernel=11 (~43ms), closing_kernel=31 (~121ms)
-- CPU: SciPy ndimage binary ops; GPU: pooling‑based morphology
+- CPU: SciPy ndimage binary ops (current) or scikit‑image alternatives; GPU: pooling‑based morphology
 - Output: cleaned mask `(B, T)` bool
+
+Note (current implementation): the interim path applies a single morphology operation (default
+closing) with one configurable kernel via `post_cfg.morphology`. Phase 4 will standardize opening
+then closing with two independently configurable kernels as specified above.
 
 GPU alternative sketch (pooling):
 - Dilation: `max_pool1d(x, k, stride=1, padding=k//2)`
@@ -84,6 +100,9 @@ GPU alternative sketch (pooling):
 - Keep intervals with duration in [min_duration_s, max_duration_s]
 - For intervals > max_duration_s, segment into ≤ max_duration_s chunks
 - Return filtered intervals or mask depending on pipeline stage
+
+Note (current implementation): only a minimum duration filter is applied today. The upper bound and
+segmentation of long events will be added in Phase 4 modules.
 
 ### 4) Window Stitching
 - Inputs: `window_probs: list[(T_window,)]`, `window_starts: list[int]`, `total_length`
@@ -105,6 +124,9 @@ GPU alternative sketch (pooling):
   - Clamp to [0,1]
 - Output: `SeizureEvent(start_s, end_s, confidence)` per record
 
+Note (current implementation): event merging and confidence scoring are not yet implemented in the
+interim path; Phase 4 modules will introduce these features.
+
 ### Units & Conventions
 - Time unit: seconds
 - Inputs: `probs` in [0,1], shape `(B, T)`
@@ -113,7 +135,7 @@ GPU alternative sketch (pooling):
 
 ## 🧰 Configuration (Pydantic; extend src/experiment/schemas.py)
 
-Python models (to add):
+Target Python models (to add):
 
 ```python
 from typing import Literal
@@ -170,6 +192,16 @@ class PostprocessingConfig(BaseModel):
     events: EventsConfig = Field(default_factory=EventsConfig)
     stitching: StitchingConfig = Field(default_factory=StitchingConfig)
 ```
+
+Current schema (today):
+- PostprocessingConfig contains:
+  - hysteresis: HysteresisConfig(tau_on, tau_off)
+  - morphology: dict with keys like {"kernel_size": int, "operation": "closing"|"opening"}
+  - min_duration: float (seconds)
+
+Phase 4 will replace the morphology dict with a typed MorphologyConfig, add min_onset/min_offset in
+HysteresisConfig, and introduce Duration/Events/Stitching configs as shown above. Tests already
+target the current interim schema; migrations will be done TDD‑first in Phase 4.
 
 Example YAML (configs/postprocess.yaml):
 
@@ -249,7 +281,7 @@ def export_csv_bi(
 
 ## 📊 Integration with Phase 3
 
-Entry point:
+Entry point (target Phase 4 API):
 
 ```python
 def postprocess_predictions(
@@ -286,6 +318,22 @@ def postprocess_predictions(
             ev.confidence = calculate_event_confidence(raw_probs[b], ev, sampling_rate)
         all_events.append(events)
     return all_events
+```
+
+Interim integration (today):
+
+```python
+from src.experiment.evaluate import (
+    batch_probs_to_events,
+    batch_masks_to_events,
+    evaluate_predictions,
+)
+
+# TAES/AUROC and sensitivity@FA are computed via evaluate_predictions
+results = evaluate_predictions(probs, labels, fa_rates=[10, 5, 1], post_cfg, sampling_rate=256)
+
+# If you only need events at a given threshold
+events = batch_probs_to_events(probs, post_cfg, fs=256, threshold=0.5)
 ```
 
 ## 🧪 Test-Driven Development
