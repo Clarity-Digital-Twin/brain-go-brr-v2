@@ -162,7 +162,52 @@ def load_edf_file(
     available = [ch for ch in target_channels if ch in raw.ch_names]
     if len(available) != len(target_channels):
         missing = set(target_channels) - set(available)
-        raise ValueError(f"Missing required channels: {sorted(missing)}")
+
+        # Only handle known missing pattern (Fz/Pz from TUSZ)
+        if missing.issubset({"Fz", "Pz"}):
+            import logging
+
+            import mne
+
+            # 1) Add missing channels as zero-valued EEG
+            raw.load_data()  # Ensure data is in memory
+            zeros = np.zeros((len(missing), raw.n_times), dtype=np.float64)
+            info_new = mne.create_info(
+                ch_names=sorted(missing),
+                sfreq=float(raw.info["sfreq"]),
+                ch_types="eeg",
+            )
+            raw_missing = mne.io.RawArray(zeros, info_new, verbose="WARNING")
+            raw.add_channels([raw_missing], force_update_info=True)
+
+            # 2) Set montage to get electrode positions for interpolation
+            if apply_montage:
+                with contextlib.suppress(Exception):
+                    raw.set_montage("standard_1020", on_missing="ignore")
+            else:
+                # Interpolation requires electrode positions
+                raise ValueError(
+                    f"Missing required channels {sorted(missing)} and montage disabled"
+                )
+
+            # 3) Mark channels as bad and interpolate
+            current_bads = set(raw.info.get("bads", []))
+            raw.info["bads"] = sorted(current_bads.union(missing))
+            with contextlib.suppress(Exception):
+                raw.interpolate_bads(reset_bads=True, mode="accurate")
+
+            # 4) Verify interpolation succeeded
+            if not all(ch in raw.ch_names for ch in target_channels):
+                still_missing = sorted(set(target_channels) - set(raw.ch_names))
+                raise ValueError(f"Missing required channels after interpolation: {still_missing}")
+
+            logging.getLogger(__name__).warning(
+                "Interpolated channels %s for %s",
+                sorted(missing),
+                file_path.name,
+            )
+        else:
+            raise ValueError(f"Missing required channels: {sorted(missing)}")
 
     # Pick channels by name (not position) then reorder
     try:

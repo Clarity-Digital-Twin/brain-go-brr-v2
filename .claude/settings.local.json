@@ -92,7 +92,9 @@
       "WebFetch(domain:mne.tools)",
       "Bash(awk:*)",
       "Bash(timeout:*)",
-      "Bash(tmux kill-server:*)"
+      "Bash(tmux kill-server:*)",
+      "Bash(.venv/bin/pytest tests/test_interpolation.py -v)",
+      "Bash(.venv/bin/pytest tests/test_interpolation.py::test_interpolation_fz_pz_missing -v)"
     ],
     "deny": [],
     "ask": []
