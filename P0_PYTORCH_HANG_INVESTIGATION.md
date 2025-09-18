@@ -111,7 +111,24 @@ WSL2 on Windows struggles with memory-mapping massive CUDA libraries (700MB+ eac
 
 After fixing PyTorch, discovered `scipy.ndimage` also hangs on import. This is another WSL2/OpenBLAS threading issue.
 
-**Workaround being investigated:**
-- Setting thread environment variables doesn't fix it
-- May need to reinstall scipy or use different BLAS backend
-- This only affects WSL2 development, not native Linux GPU training
+**✅ FIXED: Use thread limiting environment variables:**
+```bash
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OMP_NUM_THREADS=1
+```
+
+## ✅ FINAL STATUS: ALL ISSUES RESOLVED
+
+**GPU/CUDA Status:**
+- RTX 4090 detected and working
+- CUDA 12.8 available
+- PyTorch 2.0.1+cu117 running with GPU support
+- Pipeline runs successfully with thread limiting
+
+**To run the pipeline:**
+```bash
+OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 python -m src.experiment.pipeline --config configs/smoke_test.yaml
+```
+
+**Note:** mamba-ssm NOW INSTALLED for full GPU acceleration with RTX 4090!
