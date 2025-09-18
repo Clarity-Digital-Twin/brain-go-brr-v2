@@ -5,7 +5,10 @@
       "Bash(tmux new-session:*)",
       "Bash(tmux list-sessions:*)",
       "Bash(screen:*)",
-      "Bash(tmux:*)"
+      "Bash(tmux:*)",
+      "Bash(dos2unix:*)",
+      "Read(//mnt/c/**)",
+      "Bash(ln:*)"
     ],
     "deny": [],
     "ask": []
