@@ -43,22 +43,26 @@ test-fast: ## Run tests without coverage (faster)
 	@echo "${CYAN}Running fast tests...${NC}"
 	$(PYTEST) -n auto -x
 
+# Detect available tools (professional pattern)
+RUFF := $(if $(wildcard .venv/bin/ruff),.venv/bin/ruff,uv run ruff)
+MYPY := $(if $(wildcard .venv/bin/mypy),.venv/bin/mypy,uv run mypy)
+
 lint: ## Run ruff linter
 	@echo "${CYAN}Linting code...${NC}"
-	.venv/bin/ruff check src/ tests/ --fix || uv run ruff check src/ tests/ --fix
+	$(RUFF) check src/ tests/ --fix
 
 lint-fix: ## Fix all lint issues and format code
 	@echo "${CYAN}Fixing lint issues and formatting...${NC}"
-	.venv/bin/ruff check --fix src/ tests/ || uv run ruff check --fix src/ tests/
-	.venv/bin/ruff format src/ tests/ || uv run ruff format src/ tests/
+	$(RUFF) check --fix src/ tests/
+	$(RUFF) format src/ tests/
 
 format: ## Format code with ruff
 	@echo "${CYAN}Formatting code...${NC}"
-	.venv/bin/ruff format src/ tests/ || uv run ruff format src/ tests/
+	$(RUFF) format src/ tests/
 
 type-check: ## Run mypy type checking
 	@echo "${CYAN}Type checking...${NC}"
-	.venv/bin/mypy src/ || uv run mypy src/
+	$(MYPY) src/
 
 quality: lint format type-check ## Run all code quality checks
 	@echo "${GREEN}✓ All quality checks passed${NC}"
