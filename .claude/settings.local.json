@@ -1,8 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 .venv/bin/python -c \"\nprint(''Testing all pipeline imports...'')\nimport sys\nprint(f''Python: {sys.executable}'')\n\nprint(''1. numpy...'')\nimport numpy as np\nprint(''2. torch...'')\nimport torch\nprint(''3. torch.nn...'')\nimport torch.nn as nn\nprint(''4. torch.cuda.amp...'')\nfrom torch.cuda.amp import GradScaler, autocast\nprint(''5. torch.optim...'')\nfrom torch.optim import AdamW, Optimizer\nprint(''6. torch.utils.data...'')\nfrom torch.utils.data import DataLoader, WeightedRandomSampler\nprint(''7. torch.utils.tensorboard...'')\nfrom torch.utils.tensorboard import SummaryWriter\nprint(''8. tqdm...'')\nfrom tqdm import tqdm\nprint(''9. src.experiment.evaluate...'')\nfrom src.experiment.evaluate import evaluate_predictions\nprint(''10. src.experiment.models...'')\nfrom src.experiment.models import SeizureDetector\nprint(''11. src.experiment.schemas...'')\nfrom src.experiment.schemas import Config, EarlyStoppingConfig, PostprocessingConfig, SchedulerConfig, TrainingConfig\nprint(''✅ ALL IMPORTS OK!'')\n\")",
-      "Bash(export:*)"
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []
