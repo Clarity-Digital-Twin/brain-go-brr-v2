@@ -184,7 +184,16 @@ def train(config_path: Path, resume: bool, device: str) -> None:
 @click.argument("data_path", type=click.Path(exists=True, path_type=Path))
 @click.option("--config", type=click.Path(exists=True, path_type=Path), help="Config to use")
 @click.option("--device", type=click.Choice(["auto", "cpu", "cuda"]), default="auto")
-def evaluate(checkpoint_path: Path, data_path: Path, config: Path | None, device: str) -> None:
+@click.option("--output-json", type=click.Path(path_type=Path), help="Save metrics to JSON file")
+@click.option("--output-csv-bi", type=click.Path(path_type=Path), help="Export events in CSV_BI format")
+def evaluate(
+    checkpoint_path: Path,
+    data_path: Path,
+    config: Path | None,
+    device: str,
+    output_json: Path | None,
+    output_csv_bi: Path | None,
+) -> None:
     """Evaluate model on test data.
 
     Args:
@@ -192,14 +201,21 @@ def evaluate(checkpoint_path: Path, data_path: Path, config: Path | None, device
         data_path: Path to test data directory
         config: Optional config file (uses checkpoint's config by default)
         device: Device to evaluate on
+        output_json: Optional path to save metrics JSON
+        output_csv_bi: Optional path to export events in CSV_BI format
     """
     try:
+        import json
+        from datetime import datetime
         import torch
         from torch.utils.data import DataLoader
 
         from src.experiment.data import EEGWindowDataset
         from src.experiment.models import SeizureDetector
         from src.experiment.pipeline import validate_epoch
+        from src.experiment.evaluate import batch_probs_to_events
+        from src.experiment.events import SeizureEvent
+        from src.experiment.export import export_csv_bi, export_json
 
         console.print(f"[cyan]Loading checkpoint:[/cyan] {checkpoint_path}")
 
@@ -258,8 +274,74 @@ def evaluate(checkpoint_path: Path, data_path: Path, config: Path | None, device
         for key, value in metrics.items():
             if isinstance(value, float):
                 table.add_row(key, f"{value:.4f}")
+            elif key == "thresholds" and isinstance(value, dict):
+                for fa_target, threshold in value.items():
+                    table.add_row(f"τ_on @ {fa_target} FA/24h", f"{threshold:.4f}")
 
         console.print(table)
+
+        # Export metrics to JSON if requested
+        if output_json:
+            # Add metadata
+            metrics["metadata"] = {
+                "checkpoint": str(checkpoint_path),
+                "data_path": str(data_path),
+                "timestamp": datetime.now().isoformat(),
+                "device": device,
+            }
+
+            output_json.parent.mkdir(parents=True, exist_ok=True)
+            with output_json.open("w") as f:
+                json.dump(metrics, f, indent=2, default=str)
+            console.print(f"[green]✅ Metrics saved to:[/green] {output_json}")
+
+        # Export events to CSV_BI if requested
+        if output_csv_bi:
+            console.print("[cyan]Generating predictions for CSV_BI export...[/cyan]")
+
+            # Run inference to get probabilities
+            model.eval()
+            all_probs = []
+            with torch.no_grad():
+                for batch in dataloader:
+                    inputs = batch["window"].to(device)
+                    outputs = model(inputs)
+                    all_probs.append(outputs.cpu())
+
+            probs = torch.cat(all_probs, dim=0)
+
+            # Convert to events using best threshold
+            best_threshold = metrics.get("thresholds", {}).get("10", 0.86)
+            cfg_for_export = cfg.postprocessing
+            cfg_for_export.hysteresis.tau_on = best_threshold
+            cfg_for_export.hysteresis.tau_off = max(0.0, best_threshold - 0.08)
+
+            pred_events = batch_probs_to_events(
+                probs, cfg_for_export, cfg.data.sampling_rate
+            )
+
+            # Convert to SeizureEvent objects for export
+            seizure_events = []
+            for record_events in pred_events:
+                for start_s, end_s in record_events:
+                    seizure_events.append(
+                        SeizureEvent(
+                            start_s=start_s,
+                            end_s=end_s,
+                            confidence=0.9,  # Default confidence
+                        )
+                    )
+
+            # Export to CSV_BI
+            total_duration = len(probs) * 60.0  # Assuming 60s windows
+            export_csv_bi(
+                seizure_events,
+                output_csv_bi,
+                patient_id="test",
+                recording_id="eval",
+                duration_s=total_duration,
+            )
+            console.print(f"[green]✅ Events exported to:[/green] {output_csv_bi}")
 
     except Exception as e:
         console.print(f"[red]Evaluation error:[/red] {e}")
