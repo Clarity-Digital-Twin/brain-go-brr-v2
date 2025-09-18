@@ -143,13 +143,25 @@ def load_edf_file(
         missing = set(target_channels) - set(available)
         raise ValueError(f"Missing required channels: {sorted(missing)}")
 
-    # Reorder to canonical order
+    # Pick channels by name (not position) then reorder
     try:
-        raw.pick_channels(target_channels, ordered=True)
-    except Exception:
+        # First, check which required channels are available
+        available_required = [ch for ch in target_channels if ch in raw.ch_names]
+        if len(available_required) != len(target_channels):
+            missing = set(target_channels) - set(available_required)
+            raise ValueError(f"Missing required channels: {missing}")
+
+        # Pick channels without forcing order (channels exist but may be in any position)
+        raw.pick_channels(target_channels, ordered=False)
+        # Now reorder to canonical order
+        raw.reorder_channels(target_channels)
+    except Exception as e:
         # Fallback: manual reindex if the object doesn't support pick_channels
-        idx = [raw.ch_names.index(ch) for ch in target_channels]
-        data_v = raw.get_data()[idx]
+        if "pick_channels" in str(e) or "reorder_channels" in str(e):
+            idx = [raw.ch_names.index(ch) for ch in target_channels]
+            data_v = raw.get_data()[idx]
+        else:
+            raise
         fs_v = float(getattr(raw, "info", {}).get("sfreq", getattr(raw, "sfreq", 0.0)))
         data_uv = (data_v * 1e6).astype(np.float32)
         return data_uv, fs_v
