@@ -384,9 +384,17 @@ class EEGWindowDataset(torch.utils.data.Dataset):
                 cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"
 
             if cache_path is not None and cache_path.exists():
-                # Just load shape info from cache
-                with np.load(cache_path) as cached:
-                    n_windows = cached["windows"].shape[0]
+                try:
+                    with np.load(cache_path) as cached:
+                        n_windows = cached["windows"].shape[0]
+                except Exception:
+                    windows_arr, labels_arr = self._process_file(edf_path, i)
+                    n_windows = windows_arr.shape[0]
+                    if cache_path is not None:
+                        if labels_arr is not None:
+                            np.savez_compressed(cache_path, windows=windows_arr, labels=labels_arr)
+                        else:
+                            np.savez_compressed(cache_path, windows=windows_arr)
             else:
                 # Process file to create cache (but don't keep in memory)
                 windows_arr, labels_arr = self._process_file(edf_path, i)
