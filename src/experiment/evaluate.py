@@ -231,6 +231,7 @@ def find_threshold_for_fa_eventized(
 
     # Create a copy of config to modify during search
     import copy
+
     search_cfg = copy.deepcopy(post_cfg)
 
     for _ in range(max_iters):
