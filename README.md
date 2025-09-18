@@ -148,6 +148,7 @@ GPU parity: morphology uses pooling (max/min) on CUDA; CPU path uses SciPy ndima
   FA/24h time uses overlap-aware duration: (N−1)×stride + window_size.
 
 See `PHASE5_EVALUATION.md` for the end-to-end evaluation and benchmarking plan, with TDD.
+For online/real-time inference, see `PHASE6_STREAMING.md`.
 
 ## 📊 Evaluation Strategy
 
