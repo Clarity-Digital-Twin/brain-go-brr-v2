@@ -1,9 +1,10 @@
 #!/bin/bash
 # Run pipeline with full GPU power + mamba-ssm CUDA support
 
-# CRITICAL: Set library path for mamba-ssm CUDA linking in WSL2
-export LD_LIBRARY_PATH=/home/jj/proj/brain-go-brr-v2/.venv/lib/python3.11/site-packages/torch/lib:$LD_LIBRARY_PATH
+# CRITICAL: Set library path for mamba-ssm CUDA linking in WSL2 (dynamic detection)
+export LD_LIBRARY_PATH="$(.venv/bin/python -c 'import site,os,torch; print(os.path.join(site.getsitepackages()[0],"torch","lib"))'):${LD_LIBRARY_PATH}"
 export CUDA_HOME=/usr/local/cuda-12.6
+export TORCH_CUDA_ARCH_LIST="8.9"  # RTX 4090 architecture
 
 # These ONLY limit CPU threads for scipy/numpy - GPU runs FULL POWER!
 export OPENBLAS_NUM_THREADS=1
