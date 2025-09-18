@@ -290,6 +290,100 @@ cat src/experiment/streaming.py | head -100
 - FieldTrip buffer (too complex for our needs)
 - Neuromorphic approaches (different paradigm)
 
+## 🔬 CODEBASE ANALYSIS - Current State vs Phase 6 Needs
+
+### **What We Have (src/experiment/):**
+
+1. **`streaming.py`** - Already has:
+   - ✅ `HysteresisState` dataclass (lines 19-27)
+   - ✅ `StreamingPostProcessor` class (lines 30-100+)
+   - ✅ Stateful hysteresis across chunks
+   - ✅ Buffer management for morphology
+   - ❌ Missing: Duration filtering
+   - ❌ Missing: Event finalization/flush
+   - ❌ Missing: SeizureEvent creation
+
+2. **`models.py`** - BiMamba2 implementation:
+   - ✅ `BiMamba2Layer` class (line 306)
+   - ✅ Uses `mamba_ssm.Mamba2` when available (lines 340-353)
+   - ✅ Bidirectional processing (forward + backward)
+   - ❌ Currently using convolutional mode for training
+   - ❌ No stateful/recurrent mode for streaming
+
+3. **`postprocess.py`** - Has all algorithms:
+   - ✅ `apply_hysteresis()`
+   - ✅ `apply_morphology()` (CPU/GPU paths)
+   - ✅ `filter_duration()`
+   - ✅ `stitch_segments()`
+
+### **Critical Integration Points:**
+
+```python
+# 1. STATEFUL MAMBA - Need to modify BiMamba2Layer
+class StatefulBiMamba2Layer(BiMamba2Layer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.forward_state = None
+        self.backward_state = None
+
+    def forward_streaming(self, x, use_cache=True):
+        # Use Mamba's selective_scan_fn with:
+        # - return_last_state=True
+        # - prev_state=self.forward_state
+        # This is the KEY change!
+```
+
+```python
+# 2. RING BUFFER - Adapt MNE-LSL pattern
+class RingBuffer:
+    def __init__(self, capacity=5120):  # 20s @ 256Hz
+        self.buffer = np.zeros(capacity)
+        self.head = 0
+        self.tail = 0
+        self.size = 0
+
+    def push(self, data):
+        # Circular write with overlap management
+        pass
+```
+
+```python
+# 3. OVERLAP-ADD - From Pyannote
+def overlap_add_chunks(chunks, overlap=256):
+    # Hamming window
+    window = np.hamming(overlap * 2)
+    # Weighted aggregation at boundaries
+    # Lines 562-644 from pyannote/inference.py
+```
+
+### **Phase 6 Implementation Roadmap:**
+
+#### **Phase 6.1: Stateful Mamba (HIGH PRIORITY)**
+1. Create `StatefulBiMamba2Layer` that wraps our existing model
+2. Add `return_last_state=True` to Mamba2 forward calls
+3. Cache states between chunks (forward & backward)
+
+#### **Phase 6.2: Enhanced Streaming (MEDIUM)**
+1. Add duration filtering to `StreamingPostProcessor`
+2. Add `flush()` method for stream termination
+3. Create `SeizureEvent` objects with confidence
+
+#### **Phase 6.3: Boundary Management (LOW)**
+1. Implement ring buffer for overlapping chunks
+2. Add overlap-add stitching for smooth boundaries
+3. Handle warm-up/cool-down at chunk edges
+
+### **Memory & Performance Estimates:**
+
+| Component | Memory | Latency |
+|-----------|--------|---------|
+| BiMamba2 states (6 layers) | ~6MB | <10ms |
+| Ring buffer (20s) | ~20KB | <1ms |
+| Overlap buffers | ~10KB | <1ms |
+| **Total overhead** | <7MB | <15ms |
+
+**Target: <100ms for 10s chunk ✅ ACHIEVABLE**
+
 ---
 
 **Bottom Line**: We enhance our existing streaming.py with Mamba's recurrent mode and MNE-LSL buffer patterns. No wheel reinvention, just smart integration of proven components.
@@ -445,3 +539,143 @@ echo "Done! Check phase6_refs/ directory"
 ---
 
 **ACTION**: Clone the CRITICAL repos first, then papers 1, 2, 3, and 10. That's your iron-clad foundation.
+
+---
+
+## 🔎 CLONED REPOS EXAMINATION RESULTS
+
+### ✅ **What We Now Have:**
+
+1. **`/reference_repos/mamba/`** - OFFICIAL Mamba SSM ✅
+   - Key file: `mamba_ssm/ops/selective_scan_interface.py`
+   - Has `return_last_state=False` and `prev_state` parameters for stateful inference
+   - Perfect for our streaming needs
+
+2. **`/reference_repos/mne-lsl/`** - MNE Lab Streaming Layer ✅ [NEW]
+   - Key file: `src/mne_lsl/stream/base.py` - Circular buffer implementation (line 81)
+   - Key file: `src/mne_lsl/stream/stream_lsl.py` - LSL streaming
+   - Examples: `examples/30_real_time_evoked_responses.py`
+   - **PyPI installable**: `pip install mne-lsl`
+
+3. **`/reference_repos/pyannote-audio/`** - Overlap-add stitching ✅ [NEW]
+   - Key file: `pyannote/audio/core/inference.py`
+   - Lines 562-644: Hamming window overlap-add aggregation
+   - Warm-up windows for chunk boundaries
+   - **PyPI installable**: `pip install pyannote.audio`
+
+4. **`/reference_repos/nedc-bench/`** - NEDC evaluation tools ✅
+   - `nedc_eeg_eval/v6.0.0/lib/` - All scoring scripts
+
+### 📦 **PyPI Installation Strategy:**
+
+```bash
+# For Phase 6, we can install via pip:
+pip install mne-lsl  # Real-time streaming
+# pip install pyannote.audio  # Optional - we can just copy the pattern
+
+# We already have in pyproject.toml:
+# - mamba-ssm (GPU extra)
+# - mne (base)
+# - torch, numpy, etc.
+```
+
+### 🔑 **Key Patterns to Extract:**
+
+**From MNE-LSL (circular buffer):**
+```python
+# From base.py line 81
+# "Pull new samples in the internal circular buffer"
+# They use a numpy array as ring buffer with head/tail tracking
+```
+
+**From Pyannote (overlap-add):**
+```python
+# From inference.py lines 562-644
+# Hamming window: np.hamming(num_frames_per_chunk)
+# Warm-up windows to exclude edges
+# Overlap-add aggregation:
+aggregated_output[start_frame : start_frame + num_frames] += (
+    score * mask * hamming_window * warm_up_window
+)
+```
+
+**From Mamba (stateful inference):**
+```python
+# From selective_scan_interface.py
+def selective_scan_fn(..., return_last_state=False, prev_state=None):
+    # Use prev_state for continuity between chunks
+    # Return last_state for next chunk
+```
+
+### 📄 **Do We Need Papers?**
+
+**VERDICT: Not critically needed** - The code tells us everything:
+
+1. **Mamba paper** - Nice for theory but `selective_scan_interface.py` shows the implementation
+2. **MNE-LSL docs** - The examples are more useful than papers
+3. **Pyannote papers** - The overlap-add code is self-explanatory
+
+**If you want ONE paper**: Read Mamba-1 Section 3.4 on recurrent mode (5 min read)
+
+### 🚀 **Next Steps:**
+
+1. **Add to pyproject.toml**:
+   ```toml
+   [project.optional-dependencies]
+   streaming = ["mne-lsl>=1.3.0"]
+   ```
+
+2. **Study these specific files**:
+   - `mamba_ssm/ops/selective_scan_interface.py` (lines 27-108)
+   - `mne-lsl/src/mne_lsl/stream/base.py` (buffer logic)
+   - `pyannote-audio/pyannote/audio/core/inference.py` (lines 562-644)
+
+3. **Implementation approach**:
+   - Use MNE-LSL's circular buffer pattern (don't import, just copy pattern)
+   - Use Pyannote's overlap-add math (don't import, just copy formula)
+   - Use Mamba's existing stateful interface (we already have mamba-ssm)
+
+---
+
+## ⚡ IRON-CLAD IMPLEMENTATION CHECKLIST
+
+### **Day 1: Stateful Mamba Integration**
+- [ ] Study `/reference_repos/mamba/mamba_ssm/ops/selective_scan_interface.py`
+- [ ] Create `StatefulBiMamba2` wrapper in `models.py`
+- [ ] Add state caching between chunks
+- [ ] Test state persistence with synthetic data
+
+### **Day 2: Streaming Enhancement**
+- [ ] Add duration filtering to `StreamingPostProcessor`
+- [ ] Implement `flush()` method
+- [ ] Create `SeizureEvent` with confidence scoring
+- [ ] Add event buffer management
+
+### **Day 3: Boundary Management**
+- [ ] Implement ring buffer (MNE-LSL pattern)
+- [ ] Add overlap-add stitching (Pyannote formula)
+- [ ] Test chunk boundary continuity
+- [ ] Benchmark memory usage
+
+### **Day 4: Integration Testing**
+- [ ] Streaming vs offline equivalence test
+- [ ] Latency benchmarks (<100ms target)
+- [ ] NEDC scoring integration
+- [ ] End-to-end EDF streaming test
+
+### **Day 5: CLI & Documentation**
+- [ ] Add `stream` command to CLI
+- [ ] Create streaming examples
+- [ ] Update Phase 6 documentation
+- [ ] Final performance validation
+
+### **Success Metrics:**
+- ✅ Streaming output within ±1 sample of offline
+- ✅ <100ms latency per 10s chunk
+- ✅ <10MB additional memory overhead
+- ✅ NEDC scores match offline processing
+- ✅ All tests pass with `make q`
+
+---
+
+**FINAL VERDICT**: This plan is iron-clad. We have all reference code, clear implementation path, and specific success metrics. Ready to execute!
