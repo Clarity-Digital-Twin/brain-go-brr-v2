@@ -3,7 +3,7 @@
 
 data:
   dataset: tuh_eeg  # or chb_mit
-  data_dir: data/raw
+  data_dir: data/tusz/edf/dev
   sampling_rate: 256
   n_channels: 19
   window_size: 60  # seconds
@@ -12,6 +12,7 @@ data:
   num_workers: 4
   validation_split: 0.2
   max_samples: 1000  # Limit for quick testing
+  cache_dir: cache
 
 preprocessing:
   montage: "10-20"

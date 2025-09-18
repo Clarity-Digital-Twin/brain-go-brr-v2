@@ -89,7 +89,8 @@
       "Bash(.venv/bin/pytest tests/test_postprocess.py tests/test_evaluate.py tests/test_streaming.py -q)",
       "Bash(rm:*)",
       "Bash(git checkout:*)",
-      "WebFetch(domain:mne.tools)"
+      "WebFetch(domain:mne.tools)",
+      "Bash(awk:*)"
     ],
     "deny": [],
     "ask": []
