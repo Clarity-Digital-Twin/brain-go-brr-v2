@@ -369,7 +369,7 @@ def parse_tusz_csv(csv_path: Path) -> tuple[float, list[tuple[float, float, str]
     if not csv_path.exists():
         return duration, events
 
-    with open(csv_path, "r", encoding="utf-8") as f:
+    with open(csv_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
