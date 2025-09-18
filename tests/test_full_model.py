@@ -27,16 +27,18 @@ class TestSeizureDetector:
         assert output.shape == (4, 15360)
 
     def test_output_range(self, model: SeizureDetector, sample_input: torch.Tensor) -> None:
+        """Test that model outputs raw logits (can be any real value)."""
         output = model(sample_input)
-        assert torch.all(output >= 0)
-        assert torch.all(output <= 1)
+        # Logits can be any real value, just check they're finite
+        assert torch.all(torch.isfinite(output))
 
     def test_gradient_flow(self, model: SeizureDetector, sample_input: torch.Tensor) -> None:
         sample_input.requires_grad = True
         output = model(sample_input)
 
         target = torch.rand_like(output)
-        loss = torch.nn.functional.binary_cross_entropy(output, target)
+        # Use BCEWithLogitsLoss since model outputs logits
+        loss = torch.nn.functional.binary_cross_entropy_with_logits(output, target)
         loss.backward()
 
         assert sample_input.grad is not None

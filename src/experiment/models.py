@@ -708,11 +708,9 @@ class SeizureDetector(nn.Module):
             out_channels=in_channels, base_channels=base_channels, depth=encoder_depth
         )
 
-        # Detection head: fuse 19 channels to 1 probability channel
-        self.detection_head = nn.Sequential(
-            nn.Conv1d(in_channels, 1, kernel_size=1),
-            nn.Sigmoid(),
-        )
+        # Detection head: fuse 19 channels to 1 logit channel
+        # Note: outputs raw logits; apply sigmoid at inference for probabilities
+        self.detection_head = nn.Conv1d(in_channels, 1, kernel_size=1)
 
         self._initialize_weights()
 
@@ -738,7 +736,7 @@ class SeizureDetector(nn.Module):
             x: (B, 19, 15360) EEG window tensor
 
         Returns:
-            (B, 15360) per-sample seizure probabilities in [0, 1].
+            (B, 15360) per-sample seizure logits (raw scores).
         """
         encoded, skips = self.encoder(x)  # (B, 512, 960) + 4 skips
         features = self.rescnn(encoded)  # (B, 512, 960)

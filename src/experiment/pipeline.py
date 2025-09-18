@@ -192,7 +192,6 @@ def train_epoch(
 
     total_loss = 0.0
     num_batches = 0
-    eps = 1e-6
 
     progress = tqdm(dataloader, desc="Training", leave=False)
     for windows, labels in progress:
@@ -205,14 +204,12 @@ def train_epoch(
 
         optimizer.zero_grad(set_to_none=True)
 
-        # Forward pass with AMP (model returns probabilities in [0,1])
+        # Forward pass with AMP (model returns raw logits)
         with autocast(
             device_type=("cuda" if device == "cuda" else "cpu"),
             enabled=(use_amp and device == "cuda"),
         ):
-            probs = model(windows)  # (B, T) probabilities
-            # Recover logits for stable BCEWithLogits; logit(sigmoid(z)) == z
-            logits = torch.logit(probs.clamp(min=eps, max=1 - eps))
+            logits = model(windows)  # (B, T) raw logits
             per_element_loss = criterion(logits, labels)
             # Mean reduction since pos_weight is already in criterion
             loss = per_element_loss.mean()
@@ -273,7 +270,7 @@ def validate_epoch(
 
     model.eval()
     device_obj = torch.device(device)
-    criterion = nn.BCELoss()
+    criterion = nn.BCEWithLogitsLoss()  # Use BCEWithLogitsLoss for raw logits
 
     all_probs = []
     all_labels = []
@@ -289,10 +286,12 @@ def validate_epoch(
             if labels.dim() == 3:
                 labels = labels.max(dim=1)[0]
 
-            outputs = model(windows)
-            loss = criterion(outputs, labels)
+            logits = model(windows)  # Model now outputs raw logits
+            loss = criterion(logits, labels)
 
-            all_probs.append(outputs.cpu())
+            # Convert logits to probabilities for evaluation
+            probs = torch.sigmoid(logits)
+            all_probs.append(probs.cpu())
             all_labels.append(labels.cpu())
 
             total_loss += loss.item()

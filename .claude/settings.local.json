@@ -74,7 +74,11 @@
       "Bash(.venv/bin/pytest tests/test_data.py::TestEEGWindowDataset -v)",
       "Bash(.venv/bin/pytest tests/ -k \"dataset\" -v)",
       "Bash(.venv/bin/ruff check src/ tests/ --fix --unsafe-fixes)",
-      "Bash(.venv/bin/pytest tests/test_postprocess.py tests/test_events.py tests/test_evaluate.py -q)"
+      "Bash(.venv/bin/pytest tests/test_postprocess.py tests/test_events.py tests/test_evaluate.py -q)",
+      "Bash(.venv/bin/pytest tests/ -n 4 -q)",
+      "Bash(.venv/bin/pytest tests/ -x -v --tb=short)",
+      "Bash(.venv/bin/pytest tests/ -k \"not test_output_range\" -x -v --tb=short)",
+      "Bash(.venv/bin/pytest tests/ -q --tb=short)"
     ],
     "deny": [],
     "ask": []

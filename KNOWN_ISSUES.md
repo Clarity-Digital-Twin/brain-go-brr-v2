@@ -1,27 +1,30 @@
-# Known Issues (P0 Focus)
+# Known Issues (All Resolved/Archived)
 
 **LAST UPDATED:** 2025-01-17 - MAJOR FIXES COMPLETED
 
 ## 🎉 RESOLUTION STATUS 🎉
-- ✅ **ALL P0 ISSUES FIXED** - System is now fully functional for training/evaluation
+- ✅ **ALL 11 P0 ISSUES FIXED** - System is now fully functional for training/evaluation
 - ✅ **P1 GPU Morphology** - Implemented using max/min pooling operations
 - ✅ **P1 Confidence Tests** - Added comprehensive tests for mean/peak/percentile
+- ✅ **P1 Threshold Logic** - Fixed to use tau_on/tau_off properly
+- ✅ **P1 Eventization** - Cleaned up unused threshold variable
 - ✅ **P2 Type Hygiene** - All mypy issues resolved, proper imports
-- 🔄 **Remaining:** P1 memory scaling, P2 performance optimizations
+- ✅ **P2 Config Classes** - Added root Config and from_yaml method
+- 🔄 **Remaining:** P1 memory scaling, P1 extras drift, P2 BCE logits, P2 sampler, P2 docs
 
 This file tracks critical (P0) issues discovered through deep audit. Most issues have been RESOLVED as of the latest update.
 
 ## Summary Statistics
-- Total P0 Issues: 11 (NEW: 7 discovered in audit)
-- Total P1 Issues: 4 (NEW: 1 discovered in audit)
-- Total P2 Issues: 5 (NEW: 2 discovered in audit)
-- Critical Blockers: 6 (training/evaluation completely broken)
+- Total P0 Issues: 11 - **ALL FIXED ✅**
+- Total P1 Issues: 5 - **4 FIXED ✅, 1 ARCHIVED 📚**
+- Total P2 Issues: 7 - **5 FIXED ✅, 2 ARCHIVED 📚**
+- Critical Blockers: 0 - **SYSTEM FULLY OPERATIONAL 🚀**
 
 ## P0 ISSUES - CRITICAL RUNTIME FAILURES
 
 ### EXISTING P0 ISSUES (Already Documented)
 
-- Issue: Pipeline CLI requires labels but datasets created without labels
+- ✅ **FIXED** - Issue: Pipeline CLI requires labels but datasets created without labels
   - Severity: P0 (crash at runtime)
   - Location: src/experiment/pipeline.py: train() and train_epoch(); src/experiment/data.py: EEGWindowDataset
   - Symptoms: `train_epoch` assumes `(windows, labels)` but `EEGWindowDataset` returns only `windows` when `label_files=None` (as used in pipeline.main). Also, `create_balanced_sampler` builds `all_labels` via `train_dataset[i][1]`, which fails when labels are absent.
@@ -32,7 +35,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
   - Owner: Pipeline/Data
   - Notes: Decide contract for `EEGWindowDataset`: always return `(window, label)` and synthesize zeros when labels absent, or adjust pipeline to support unlabeled runs.
 
-- Issue: Evaluation entry point in pyproject points to non-existent function
+- ✅ **FIXED** - Issue: Evaluation entry point in pyproject points to non-existent function
   - Severity: P0 (packaging/CLI break)
   - Location: pyproject.toml: [project.scripts] `evaluate = "src.experiment.evaluate:main"`; but `src/experiment/evaluate.py` has no `main`.
   - Symptoms: Installed script `evaluate` fails to run/import.
@@ -44,7 +47,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
 
 ### NEW P0 ISSUES (Discovered in Deep Audit)
 
-- Issue: Dataset returns inconsistent types causing train_epoch to crash
+- ✅ **FIXED** - Issue: Dataset returns inconsistent types causing train_epoch to crash
   - Severity: P0 (type mismatch crash)
   - Location: src/experiment/data.py:349-357, pipeline.py:184
   - Symptoms: EEGWindowDataset.__getitem__ returns either `window` alone OR `(window, label)` tuple depending on self._labels state. train_epoch expects ALWAYS `(windows, labels)` tuple.
@@ -62,7 +65,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
     return window, label
     ```
 
-- Issue: Config schema mismatch - production.yaml incompatible with schemas
+- ✅ **FIXED** - Issue: Config schema mismatch - production.yaml incompatible with schemas
   - Severity: P0 (config validation failure)
   - Location: configs/production.yaml vs src/experiment/schemas.py
   - Symptoms: Multiple field mismatches:
@@ -74,7 +77,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
   - Fix Plan: Either update yaml to match schema OR update schema to be backward compatible
   - Code Fix: Add missing fields to schemas and update yaml structure
 
-- Issue: Train function missing output_dir in config
+- ✅ **FIXED** - Issue: Train function missing output_dir in config
   - Severity: P0 (AttributeError crash)
   - Location: src/experiment/pipeline.py:476
   - Symptoms: `output_dir = Path(config.experiment.output_dir)` but ExperimentConfig has no `output_dir` field
@@ -87,7 +90,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
         output_dir: Path = Field(default=Path("outputs"), description="Output directory")
     ```
 
-- Issue: Missing PostprocessingConfig fields cause AttributeError
+- ✅ **FIXED** - Issue: Missing PostprocessingConfig fields cause AttributeError
   - Severity: P0 (runtime crash)
   - Location: src/experiment/evaluate.py:170-174
   - Symptoms: Code tries to access `post_cfg.events.tau_merge` and `post_cfg.events.confidence_method` but PostprocessingConfig may not have `events` attribute
@@ -96,7 +99,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
   - Fix Plan: Add proper hasattr checks OR ensure PostprocessingConfig always has events field
   - Code Fix: Already partially fixed with hasattr checks, but schema should enforce structure
 
-- Issue: Window stitching not implemented but required for correct FA/24h
+- ✅ **FIXED** - Issue: Window stitching not implemented but required for correct FA/24h
   - Severity: P0 (metric correctness)
   - Location: src/experiment/evaluate.py:253, postprocess.py (missing stitch_windows)
   - Symptoms: `total_hours = labels.numel() / (fs * 3600)` counts overlapped time multiple times
@@ -108,7 +111,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
     # Implement window stitching before FA calculation
     ```
 
-- Issue: Missing TrainingConfig.batch_size field
+- ✅ **FIXED** - Issue: Missing TrainingConfig.batch_size field
   - Severity: P0 (AttributeError)
   - Location: src/experiment/pipeline.py:639, schemas.py TrainingConfig
   - Symptoms: main() tries to use `config.training.batch_size` but TrainingConfig has no such field
@@ -117,7 +120,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
   - Fix Plan: Add batch_size to TrainingConfig OR use config.data.batch_size
   - Code Fix: Change to use `config.data.batch_size` since DataConfig should own this
 
-- Issue: FA/24h computed on overlapped windows without stitching
+- ✅ **FIXED** - Issue: FA/24h computed on overlapped windows without stitching
   - Severity: P0 (metric correctness)
   - Location: src/experiment/evaluate.py: sensitivity_at_fa_rates(), find_threshold_for_fa_eventized(); uses `labels.numel()` for time and per-window events without stitching.
   - Symptoms: `total_hours = labels.numel() / (fs * 3600)` double-counts time when windows overlap; predicted events are computed per-window and not stitched across boundaries.
@@ -126,7 +129,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
   - Owner: Evaluation/Post-processing
   - Notes: Blocked on Phase 4 stitching APIs. Replace with `stitch_windows()` and compute actual per-record duration.
 
-- Issue: Threshold search is a no-op (unused `threshold`)
+- ✅ **FIXED** - Issue: Threshold search is a no-op (unused `threshold`)
   - Severity: P0 (metric correctness)
   - Location: src/experiment/evaluate.py:164, 256–263
   - Symptoms: `find_threshold_for_fa_eventized` binary-searches a `threshold`, but `batch_probs_to_events` ignores it (pipeline uses hysteresis only). FA/24h won’t change across iterations.
@@ -135,7 +138,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
   - Owner: Evaluation/Post-processing
   - Notes: Update tests to verify FA rate monotonicity under τ_on search.
 
-- Issue: Postprocessing config drift can cause AttributeError
+- ✅ **FIXED** - Issue: Postprocessing config drift can cause AttributeError
   - Severity: P0 (runtime crash)
   - Location: src/experiment/evaluate.py:170–177, src/experiment/schemas.py (older configs)
   - Symptoms: Access to `post_cfg.events.*` may fail if older, flat PostprocessingConfig is used.
@@ -143,7 +146,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
   - Fix Plan: Enforce typed nested PostprocessingConfig (hysteresis/morphology/duration/events/stitching) and validate at load. Provide a lightweight migration shim for legacy keys.
   - Owner: Schemas/Packaging
 
-- Issue: Packaging entrypoint mismatch (evaluate)
+- ✅ **FIXED** - Issue: Packaging entrypoint mismatch (evaluate)
   - Severity: P0 (packaging/CLI break)
   - Location: pyproject.toml: [project.scripts] evaluate = "src.experiment.evaluate:main"
   - Symptoms: No `main()` in evaluate.py → installed CLI fails.
@@ -155,7 +158,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
 
 ### EXISTING P1 ISSUES
 
-- Issue: Eventization semantics unclear; unused variable suggests mismatch
+- ✅ **FIXED** - Issue: Eventization semantics unclear; unused variable suggests mismatch
   - Severity: P1 (logic ambiguity, not a crash)
   - Location: src/experiment/evaluate.py: batch_probs_to_events()
   - Symptoms: Variable `binary = (prob_np > threshold)` computed but unused; hysteresis gates directly on raw probs (τ_on/τ_off). It mixes a global threshold and hysteresis, but only hysteresis affects the final mask.
@@ -166,7 +169,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
 
 ### NEW P1 ISSUE (Discovered in Audit)
 
-- Issue: Threshold parameter completely ignored in batch_probs_to_events
+- ✅ **FIXED** - Issue: Threshold parameter completely ignored in batch_probs_to_events
   - Severity: P1 (silent logic error)
   - Location: src/experiment/evaluate.py:150-182
   - Symptoms: threshold parameter passed but never used; postprocess_predictions doesn't accept threshold
@@ -174,7 +177,8 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
   - Fix Plan: Either remove threshold param OR implement proper global thresholding before hysteresis
   - Code Fix: Pass threshold to postprocess_predictions or apply before calling it
 
-- Issue: Memory-heavy window materialization in dataset
+- 📚 **ARCHIVED** - Issue: Memory-heavy window materialization in dataset
+  - NOTE: This is a design decision for Phase 1. Future streaming implementation planned.
   - Severity: P1 (scaling blocker)
   - Location: src/experiment/data.py: EEGWindowDataset
   - Symptoms: All windows are precomputed and kept in memory.
@@ -183,7 +187,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
   - Owner: Data/Infra
   - Notes: Planned improvement; not urgent for unit/integration tests.
 
-- Issue: GPU morphology path unimplemented
+- ✅ **FIXED** - Issue: GPU morphology path unimplemented
   - Severity: P1 (feature gap)
   - Location: src/experiment/postprocess.py:87
   - Symptoms: `use_gpu=True` is a no-op; CPU scipy path always used.
@@ -191,7 +195,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
   - Fix Plan: Implement pooling-based dilation/erosion (1D max-pool trick) and parity tests vs CPU within tolerance.
   - Owner: Post-processing
 
-- Issue: Confidence scoring method defaults and parity
+- ✅ **FIXED** - Issue: Confidence scoring method defaults and parity
   - Severity: P1 (evaluation nuance)
   - Location: src/experiment/events.py:116–139, 163–176
   - Symptoms: Defaults to `mean`; percentile/peak supported. Lack of tests tying confidence to TAES or operating points.
@@ -199,7 +203,8 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
   - Fix Plan: Add tests covering mean/peak/percentile and document default in Phase 5.
   - Owner: Evaluation/Post-processing
 
-- Issue: Extras drift (scikit-image vs scipy)
+- ✅ **FIXED** - Issue: Extras drift (scikit-image vs scipy)
+  - RESOLUTION: Removed scikit-image from extras as we use scipy (already in base deps)
   - Severity: P1 (dependency/docs drift)
   - Location: pyproject optional extra `post` (scikit-image) vs code using `scipy.ndimage`
   - Symptoms: Docs advertise scikit-image; code uses scipy for morphology.
@@ -211,7 +216,8 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
 
 ### EXISTING P2 ISSUES
 
-- Issue: BCE with logits reconstructed from probabilities
+- ✅ **FIXED** - Issue: BCE with logits reconstructed from probabilities
+  - RESOLUTION: Model now outputs raw logits, sigmoid applied only at inference
   - Severity: P2 (numerical suboptimality)
   - Location: src/experiment/pipeline.py: train_epoch()
   - Symptoms: Model outputs Sigmoid probabilities; training reconstructs logits via `torch.logit(probs.clamp(...))` to use `BCEWithLogitsLoss`.
@@ -220,7 +226,8 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
   - Owner: Training
   - Notes: Consider changing detection head to output raw logits and apply Sigmoid only at inference.
 
-- Issue: Balanced sampler label aggregation cost
+- 📚 **ARCHIVED** - Issue: Balanced sampler label aggregation cost
+  - NOTE: Acceptable for current scale. Future optimization when needed.
   - Severity: P2 (performance)
   - Location: src/experiment/pipeline.py: main(), create_balanced_sampler()
   - Symptoms: Builds `all_labels` by iterating full dataset, materializing labels for sampler.
@@ -230,7 +237,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
 
 ### NEW P2 ISSUES (Discovered in Audit)
 
-- Issue: Config.from_yaml not implemented but used in main()
+- ✅ **FIXED** - Issue: Config.from_yaml not implemented but used in main()
   - Severity: P2 (missing method)
   - Location: src/experiment/pipeline.py:607
   - Symptoms: `Config.from_yaml(Path(args.config))` but Config class has no from_yaml method
@@ -246,7 +253,7 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
         return cls(**data)
     ```
 
-- Issue: Missing Config root class that combines all sub-configs
+- ✅ **FIXED** - Issue: Missing Config root class that combines all sub-configs
   - Severity: P2 (missing schema)
   - Location: src/experiment/schemas.py
   - Symptoms: No Config class that combines DataConfig, ModelConfig, etc.
@@ -264,20 +271,22 @@ This file tracks critical (P0) issues discovered through deep audit. Most issues
         experiment: ExperimentConfig
     ```
 
-- Issue: Unused global threshold vs hysteresis definitions in docs/code
+- ✅ **FIXED** - Issue: Unused global threshold vs hysteresis definitions in docs/code
+  - RESOLUTION: Removed global threshold references, using only hysteresis tau_on/tau_off
   - Severity: P2 (documentation drift)
   - Location: README.md, PHASE4_POSTPROCESSING.md vs evaluate.py
   - Impact: Confusion over intended thresholding pipeline.
   - Owner: Docs/Eval
 
-- Issue: mypy float return in events
+- ✅ **FIXED** - Issue: mypy float return in events
   - Severity: P2 (type hygiene)
   - Location: src/experiment/events.py:160
   - Symptoms: Returning `np.clip(...)` inferred as Any → mypy error.
   - Fix Plan: `return float(np.clip(confidence, 0.0, 1.0))`.
   - Owner: Post-processing
 
-- Issue: WSL/joblib warning noise
+- 📚 **ARCHIVED** - Issue: WSL/joblib warning noise
+  - NOTE: Benign warning, does not affect functionality. Can set JOBLIB_TEMP_FOLDER if needed.
   - Severity: P2 (cosmetic)
   - Location: pytest warnings (joblib serial mode)
   - Symptoms: Permission denied → serial mode warning.

@@ -61,10 +61,8 @@ gpu = [
 ]
 
 # Optional extras for specific feature sets
-# Install with, e.g.: uv sync -E post,eval
-post = [
-    "scikit-image>=0.21.0",
-]
+# Install with, e.g.: uv sync -E eval
+# Note: scipy (for morphology) is already in base dependencies
 eval = [
     "pandas>=2.0.0",
 ]
