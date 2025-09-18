@@ -6,7 +6,10 @@ data:
   n_channels: 19
   window_size: 60
   stride: 10                    # fixed stride value
-  num_workers: 2
+  num_workers: 0                # WSL2-safe: avoid multiprocessing hangs
+  pin_memory: false             # WSL2-safe: prevent /dev/shm issues
+  persistent_workers: false     # WSL2-safe: critical for stability
+  prefetch_factor: 2            # ignored when num_workers=0
   validation_split: 0.2
 
 preprocessing:

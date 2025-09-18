@@ -18,6 +18,12 @@ from typing import Any
 
 import numpy as np
 import torch
+
+# WSL2-safe multiprocessing defaults (must be before any DataLoader creation)
+import torch.multiprocessing as mp
+if mp.get_start_method(allow_none=True) != "spawn":
+    mp.set_start_method("spawn", force=True)
+    print("[DEBUG] Set multiprocessing start method to spawn for WSL2 safety")
 import torch.nn as nn
 from torch.cuda.amp import GradScaler, autocast
 from torch.optim import AdamW, Optimizer

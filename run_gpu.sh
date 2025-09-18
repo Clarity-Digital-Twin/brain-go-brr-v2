@@ -6,6 +6,11 @@ export LD_LIBRARY_PATH="$(.venv/bin/python -c 'import site,os,torch; print(os.pa
 export CUDA_HOME=/usr/local/cuda-12.6
 export TORCH_CUDA_ARCH_LIST="8.9"  # RTX 4090 architecture
 
+# WSL2 stability fixes
+export PYTHONUNBUFFERED=1              # Force unbuffered output to see debug prints
+export PYTHONFAULTHANDLER=1            # Dump tracebacks if something deadlocks
+export LIBTORCH_USE_RTLD_GLOBAL=YES    # Help .so symbol resolution
+
 # These ONLY limit CPU threads for scipy/numpy - GPU runs FULL POWER!
 export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
