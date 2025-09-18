@@ -1,0 +1,91 @@
+# TUSZ training configuration (paired EDF + CSV_BI annotations)
+
+data:
+  dataset: tuh_eeg
+  data_dir: data/tusz/edf/train   # root containing .edf + .csv pairs
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60
+  stride: 10
+  num_workers: 4
+  validation_split: 0.2
+
+preprocessing:
+  montage: "10-20"
+  bandpass: [0.5, 120]
+  notch_freq: 60
+  normalize: true
+  use_mne: true
+
+model:
+  name: seizure_detector
+  encoder:
+    stages: 4
+    channels: [64, 128, 256, 512]
+    kernel_size: 5
+    downsample_factor: 2
+  rescnn:
+    n_blocks: 3
+    kernel_sizes: [3, 5, 7]
+    dropout: 0.1
+  mamba:
+    n_layers: 6
+    d_model: 512
+    d_state: 16
+    conv_kernel: 5
+    dropout: 0.1
+  decoder:
+    stages: 4
+    kernel_size: 4
+
+postprocessing:
+  hysteresis:
+    tau_on: 0.86
+    tau_off: 0.78
+  morphology:
+    opening_kernel: 11
+    closing_kernel: 31
+  duration:
+    min_duration_s: 3.0
+    max_duration_s: 600.0
+  events:
+    tau_merge: 2.0
+    confidence_method: mean
+
+training:
+  epochs: 1            # increase for full training
+  batch_size: 16
+  learning_rate: 3e-4
+  weight_decay: 0.05
+  optimizer: adamw
+  scheduler:
+    type: cosine
+    warmup_ratio: 0.03
+  gradient_clip: 1.0
+  mixed_precision: true
+  early_stopping:
+    patience: 5
+    metric: sensitivity_at_10fa
+
+evaluation:
+  metrics: [taes, sensitivity, specificity, auroc]
+  fa_rates: [10, 5, 2.5, 1]
+  save_predictions: false
+  save_plots: false
+
+experiment:
+  name: tusz_debug
+  description: "TUSZ training (paired EDF+CSV)"
+  seed: 42
+  device: auto
+  output_dir: results/tusz
+  cache_dir: cache/tusz
+  log_level: INFO
+  save_model: false
+  save_best_only: true
+
+logging:
+  log_every_n_steps: 50
+  log_gradients: false
+  log_weights: false
+

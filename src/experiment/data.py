@@ -332,8 +332,14 @@ class EEGWindowDataset(torch.utils.data.Dataset):
 
         This is a placeholder; format-specific loaders can be added later.
         """
+        # CSV_BI (Temple/TUSZ) annotations
+        if label_path.suffix.lower() == ".csv" and label_path.exists():
+            duration_s, events = parse_tusz_csv(label_path)
+            # Convert to binary mask aligned to requested n_samples @ 256 Hz
+            return events_to_binary_mask(events, n_samples, fs=constants.SAMPLING_RATE)
+
         # Simple baseline: if .npy present, load; else return zeros
-        if label_path.suffix == ".npy" and label_path.exists():
+        if label_path.suffix.lower() == ".npy" and label_path.exists():
             arr = np.load(label_path)
             vec = np.asarray(arr).reshape(-1).astype(np.float32)
             if vec.shape[0] < n_samples:
@@ -341,7 +347,99 @@ class EEGWindowDataset(torch.utils.data.Dataset):
             else:
                 vec = vec[:n_samples]
             return vec
+
+        # Fallback: no labels
         return np.zeros((n_samples,), dtype=np.float32)
+
+
+def parse_tusz_csv(csv_path: Path) -> tuple[float, list[tuple[float, float, str]]]:
+    """Parse a TUSZ/Temple CSV_BI annotation file.
+
+    Returns:
+        duration_s: Total recording duration in seconds (from header, or inferred)
+        events: List of (start_s, stop_s, label) tuples across all channels
+
+    Notes:
+        - We treat labels "seiz" and "cpsz" as seizures; others are ignored.
+        - Multi-channel rows are aggregated by union (any-channel seizure → positive).
+    """
+    duration: float = 0.0
+    events: list[tuple[float, float, str]] = []
+
+    if not csv_path.exists():
+        return duration, events
+
+    with open(csv_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith("#"):
+                # Header lines like: "# duration = 301.00 secs"
+                if line.lower().startswith("# duration") and "=" in line:
+                    try:
+                        rhs = line.split("=", 1)[1]
+                        duration_str = rhs.replace("secs", "").strip()
+                        duration = float(duration_str)
+                    except Exception:
+                        # Keep default 0.0 if parsing fails
+                        pass
+                continue
+            # Skip column header
+            if line.lower().startswith("channel,"):
+                continue
+
+            parts = [p.strip() for p in line.split(",")]
+            # Expected: channel, start_time, stop_time, label, confidence
+            if len(parts) < 4:
+                continue
+            try:
+                start = float(parts[1])
+                stop = float(parts[2])
+            except Exception:
+                continue
+            label = parts[3].strip().lower()
+            # Normalize label: treat any seizure-coded label as positive.
+            # TUSZ commonly uses codes ending with 'sz' (e.g., cpsz, fnsz, gnsz, tcsz, tnsz, absz, mysz),
+            # and sometimes the generic 'seiz'. We exclude explicit background 'bckg'.
+            if label != "bckg" and (label == "seiz" or label.endswith("sz")):
+                events.append((start, stop, label))
+
+    # If duration not present, infer from max stop
+    if duration <= 0.0 and events:
+        duration = max(stop for _, stop, _ in events)
+    return duration, events
+
+
+def events_to_binary_mask(
+    events: list[tuple[float, float, str]],
+    n_samples: int,
+    fs: int = constants.SAMPLING_RATE,
+) -> npt.NDArray[np.float32]:
+    """Convert seizure events to a binary mask of length n_samples.
+
+    Args:
+        events: List of (start_s, stop_s, label)
+        n_samples: Desired length of output vector
+        fs: Sampling rate (Hz), default 256
+
+    Returns:
+        mask: (n_samples,) float32 with 1.0 for seizure, 0.0 otherwise
+    """
+    mask = np.zeros((n_samples,), dtype=np.float32)
+    if not events or n_samples <= 0:
+        return mask
+
+    for start_s, stop_s, _ in events:
+        # Convert to indices and clamp to valid range
+        s_idx = max(0, int(round(start_s * fs)))
+        e_idx = max(s_idx, int(round(stop_s * fs)))
+        if s_idx >= n_samples:
+            continue
+        e_idx = min(e_idx, n_samples)
+        if e_idx > s_idx:
+            mask[s_idx:e_idx] = 1.0
+    return mask
 
     def __len__(self) -> int:
         return len(self._index_map)

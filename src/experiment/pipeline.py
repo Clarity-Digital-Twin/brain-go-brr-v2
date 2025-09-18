@@ -606,8 +606,9 @@ def main() -> None:
     config = Config.from_yaml(Path(args.config))
     config.training.resume = args.resume
 
-    # Create datasets
-    edf_files = list(Path(config.data.data_dir).glob("**/*.edf"))
+    # Create datasets (discover EDF files and paired CSV_BI annotations if present)
+    data_root = Path(config.data.data_dir)
+    edf_files = sorted(data_root.glob("**/*.edf"))
 
     # Split train/val
     val_split = int(len(edf_files) * config.data.validation_split)
@@ -616,13 +617,19 @@ def main() -> None:
 
     print(f"Loading {len(train_files)} train, {len(val_files)} val files")
 
+    # Pair label files (CSV next to EDF with same stem); pass even if missing
+    train_label_files = [p.with_suffix(".csv") for p in train_files]
+    val_label_files = [p.with_suffix(".csv") for p in val_files]
+
     train_dataset = EEGWindowDataset(
         train_files,
+        label_files=train_label_files,
         cache_dir=Path(config.data.cache_dir) / "train",
     )
 
     val_dataset = EEGWindowDataset(
         val_files,
+        label_files=val_label_files,
         cache_dir=Path(config.data.cache_dir) / "val",
     )
 
