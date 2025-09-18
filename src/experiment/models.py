@@ -325,27 +325,23 @@ class BiMamba2Layer(nn.Module):
         self.d_model = d_model
         self.d_conv = d_conv  # Store for dispatch decision
 
+        # Always create both paths - decide at runtime
         if MAMBA_AVAILABLE:
             # Real Mamba-2 for GPU
-            self.forward_mamba = Mamba2(
+            self.forward_mamba_real = Mamba2(
                 d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand
             )
-            self.backward_mamba = Mamba2(
+            self.backward_mamba_real = Mamba2(
                 d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand
             )
         else:
-            # WARNING: Conv1d fallback for CPU testing only
-            # This is NOT functionally equivalent to Mamba-2 SSM!
-            # - Mamba uses complex state-space transitions with selective gates
-            # - This fallback is a simple convolution for shape validation only
-            # DO NOT use CPU tests to validate model convergence or accuracy
-            warnings.warn(
-                "Using Conv1d fallback for BiMamba2Layer — NOT equivalent to Mamba-2.",
-                stacklevel=1,
-            )
-            # Use Linear instead of Conv1d to match Mamba's (B, L, D) interface
-            self.forward_mamba = nn.Linear(d_model, d_model)
-            self.backward_mamba = nn.Linear(d_model, d_model)
+            self.forward_mamba_real = None
+            self.backward_mamba_real = None
+
+        # Fallback for CPU/testing
+        # WARNING: This is NOT functionally equivalent to Mamba-2 SSM!
+        self.forward_mamba_fallback = nn.Linear(d_model, d_model)
+        self.backward_mamba_fallback = nn.Linear(d_model, d_model)
 
         # Fusion and normalization
         self.output_proj = nn.Linear(d_model * 2, d_model)
@@ -377,18 +373,18 @@ class BiMamba2Layer(nn.Module):
 
         # Forward direction
         if use_mamba:
-            x_forward = self.forward_mamba(x)
+            x_forward = self.forward_mamba_real(x)
         else:
             # Linear fallback (CPU-safe, any kernel width)
-            x_forward = self.forward_mamba(x)
+            x_forward = self.forward_mamba_fallback(x)
 
         # Backward direction (flip sequence)
         x_backward = x.flip(dims=[1])
         if use_mamba:
-            x_backward = self.backward_mamba(x_backward)
+            x_backward = self.backward_mamba_real(x_backward)
         else:
             # Linear fallback
-            x_backward = self.backward_mamba(x_backward)
+            x_backward = self.backward_mamba_fallback(x_backward)
 
         # Flip backward to align
         x_backward = x_backward.flip(dims=[1])
