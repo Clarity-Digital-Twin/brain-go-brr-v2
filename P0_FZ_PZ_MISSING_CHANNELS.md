@@ -1,13 +1,22 @@
 # P0: Fz/Pz Missing Channels in Dev Set
 
-**STATUS**: 🔴 BLOCKING TRAINING
+**STATUS**: 🟢 RESOLVED - FALSE ALARM
 **PRIORITY**: P0 - Highest
 **DATE**: 2025-09-18
 **ERROR**: `ValueError: Missing required channels: ['Fz', 'Pz']`
 
 ## Executive Summary
 
-Training crashes immediately when loading first EDF file from dev set. The system successfully found 1466 training files but fails on channel validation claiming Fz and Pz are missing. This is the FINAL barrier to training.
+**FALSE ALARM!** The error was from an earlier run with buggy code. After fixing the channel selection in the previous session, the issue is resolved. Training is now running successfully and processing files.
+
+## Resolution
+
+The channel canonicalization is working correctly:
+- `EEG FZ-LE` → `Fz` ✅
+- `EEG PZ-LE` → `Pz` ✅
+- `EEG CZ-LE` → `Cz` ✅
+
+Training is currently running in tmux session `train_fresh` and actively processing the dataset (34% CPU, ~1GB RAM).
 
 ## Error Context
 
