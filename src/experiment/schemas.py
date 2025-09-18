@@ -142,8 +142,12 @@ class HysteresisConfig(BaseModel):
 
     tau_on: float = Field(default=0.86, ge=0.5, le=1.0, description="Upper threshold")
     tau_off: float = Field(default=0.78, ge=0.5, le=1.0, description="Lower threshold")
-    min_onset_samples: int = Field(default=128, ge=1, description="Min samples above tau_on to enter")
-    min_offset_samples: int = Field(default=256, ge=1, description="Min samples below tau_off to exit")
+    min_onset_samples: int = Field(
+        default=128, ge=1, description="Min samples above tau_on to enter"
+    )
+    min_offset_samples: int = Field(
+        default=256, ge=1, description="Min samples below tau_off to exit"
+    )
 
     @model_validator(mode="after")
     def validate_thresholds(self) -> "HysteresisConfig":
@@ -172,8 +176,12 @@ class MorphologyConfig(BaseModel):
 class DurationConfig(BaseModel):
     """Event duration filtering configuration."""
 
-    min_duration_s: float = Field(default=3.0, ge=0.0, description="Minimum event duration (seconds)")
-    max_duration_s: float = Field(default=600.0, gt=0.0, description="Maximum event duration (seconds)")
+    min_duration_s: float = Field(
+        default=3.0, ge=0.0, description="Minimum event duration (seconds)"
+    )
+    max_duration_s: float = Field(
+        default=600.0, gt=0.0, description="Maximum event duration (seconds)"
+    )
 
     @model_validator(mode="after")
     def validate_durations(self) -> "DurationConfig":

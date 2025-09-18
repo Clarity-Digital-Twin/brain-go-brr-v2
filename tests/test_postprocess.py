@@ -24,7 +24,9 @@ class TestHysteresis:
             [[0.2, 0.9, 0.9, 0.2, 0.2, 0.9, 0.2]]  # Below, above, above, below, below, above, below
         )
 
-        masks = apply_hysteresis(probs, tau_on=0.85, tau_off=0.3, min_onset_samples=1, min_offset_samples=1)
+        masks = apply_hysteresis(
+            probs, tau_on=0.85, tau_off=0.3, min_onset_samples=1, min_offset_samples=1
+        )
 
         # With tau_off=0.3, it exits at index 3 (0.2 < 0.3)
         # Then re-enters at index 5 (0.9 > 0.85)
@@ -127,7 +129,7 @@ class TestStitching:
             window_probs=[window1, window2],
             window_starts=[0, 2],
             total_length=6,
-            method="overlap_add"
+            method="overlap_add",
         )
 
         # Check shape and range
@@ -144,10 +146,7 @@ class TestStitching:
         window2 = torch.tensor([0.5, 0.95, 0.3, 0.2])
 
         stitched = stitch_windows(
-            window_probs=[window1, window2],
-            window_starts=[0, 2],
-            total_length=6,
-            method="max"
+            window_probs=[window1, window2], window_starts=[0, 2], total_length=6, method="max"
         )
 
         # Check max is taken in overlap

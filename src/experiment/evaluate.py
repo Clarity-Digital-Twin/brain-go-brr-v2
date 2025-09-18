@@ -138,8 +138,7 @@ def batch_masks_to_events(masks: torch.Tensor, fs: int) -> list[list[tuple[float
 
     # Convert SeizureEvent objects to tuples for backward compatibility
     batch_events = [
-        [(event.start_s, event.end_s) for event in events]
-        for events in batch_events_objects
+        [(event.start_s, event.end_s) for event in events] for events in batch_events_objects
     ]
 
     return batch_events
@@ -171,13 +170,14 @@ def batch_probs_to_events(
         sampling_rate=fs,
         tau_merge=post_cfg.events.tau_merge if hasattr(post_cfg.events, "tau_merge") else 2.0,
         probs=probs,
-        confidence_method=post_cfg.events.confidence_method if hasattr(post_cfg.events, "confidence_method") else "mean",
+        confidence_method=post_cfg.events.confidence_method
+        if hasattr(post_cfg.events, "confidence_method")
+        else "mean",
     )
 
     # Convert SeizureEvent objects to tuples for backward compatibility
     batch_events = [
-        [(event.start_s, event.end_s) for event in events]
-        for events in batch_events_objects
+        [(event.start_s, event.end_s) for event in events] for events in batch_events_objects
     ]
 
     return batch_events

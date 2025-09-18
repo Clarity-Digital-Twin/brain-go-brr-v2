@@ -54,8 +54,8 @@ class TestMaskToEvents:
 
         events = mask_to_events(mask, sampling_rate=256)
         assert len(events) == 1
-        assert abs(events[0].start_s - 50/256) < 0.01
-        assert abs(events[0].end_s - 150/256) < 0.01
+        assert abs(events[0].start_s - 50 / 256) < 0.01
+        assert abs(events[0].end_s - 150 / 256) < 0.01
 
     def test_multiple_events(self):
         """Test multiple separate events."""
@@ -109,7 +109,7 @@ class TestConfidence:
     def test_mean_confidence(self):
         """Test mean confidence calculation."""
         probs = np.array([0.1, 0.2, 0.8, 0.9, 0.7, 0.3, 0.1])
-        event = SeizureEvent(start_s=2/7, end_s=5/7)  # Covers indices 2-4
+        event = SeizureEvent(start_s=2 / 7, end_s=5 / 7)  # Covers indices 2-4
 
         conf = calculate_event_confidence(probs, event, sampling_rate=7, method="mean")
         expected = np.mean([0.8, 0.9, 0.7])
@@ -118,7 +118,7 @@ class TestConfidence:
     def test_peak_confidence(self):
         """Test peak confidence calculation."""
         probs = np.array([0.1, 0.2, 0.8, 0.9, 0.7, 0.3, 0.1])
-        event = SeizureEvent(start_s=2/7, end_s=5/7)
+        event = SeizureEvent(start_s=2 / 7, end_s=5 / 7)
 
         conf = calculate_event_confidence(probs, event, sampling_rate=7, method="peak")
         assert conf == 0.9
@@ -126,7 +126,7 @@ class TestConfidence:
     def test_percentile_confidence(self):
         """Test percentile confidence calculation."""
         probs = np.array([0.1, 0.2, 0.8, 0.9, 0.7, 0.3, 0.1])
-        event = SeizureEvent(start_s=2/7, end_s=5/7)
+        event = SeizureEvent(start_s=2 / 7, end_s=5 / 7)
 
         conf = calculate_event_confidence(
             probs, event, sampling_rate=7, method="percentile", percentile=0.75
@@ -152,7 +152,7 @@ class TestBatchProcessing:
             sampling_rate=256,
             tau_merge=0.1,  # Merge if gap < 0.1s
             probs=probs,
-            confidence_method="mean"
+            confidence_method="mean",
         )
 
         assert len(batch_events) == 2

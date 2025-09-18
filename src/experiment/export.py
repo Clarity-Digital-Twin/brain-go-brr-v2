@@ -46,9 +46,7 @@ def export_csv_bi(
     # Add events sorted by start time
     sorted_events = sorted(events, key=lambda e: e.start_s)
     for event in sorted_events:
-        lines.append(
-            f"TERM,{event.start_s:.4f},{event.end_s:.4f},seiz,{event.confidence:.4f}\n"
-        )
+        lines.append(f"TERM,{event.start_s:.4f},{event.end_s:.4f},seiz,{event.confidence:.4f}\n")
 
     # Write to file
     output_path.write_text("".join(lines), encoding="utf-8")
@@ -167,10 +165,10 @@ def validate_csv_bi(file_path: Path | str) -> tuple[bool, list[str]]:
     for i, expected in enumerate(expected_headers):
         if i in [1, 2, 3]:  # Prefix checks
             if not lines[i].startswith(expected):
-                errors.append(f"Line {i+1}: Expected to start with '{expected}'")
+                errors.append(f"Line {i + 1}: Expected to start with '{expected}'")
         else:
             if lines[i] != expected:
-                errors.append(f"Line {i+1}: Expected '{expected}', got '{lines[i]}'")
+                errors.append(f"Line {i + 1}: Expected '{expected}', got '{lines[i]}'")
 
     # Check data rows
     for i, line in enumerate(lines[6:], start=7):
