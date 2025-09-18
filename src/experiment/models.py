@@ -317,12 +317,13 @@ class BiMamba2Layer(nn.Module):
         self,
         d_model: int = 512,
         d_state: int = 16,
-        d_conv: int = 5,
+        d_conv: int = 4,  # Changed from 5 to 4 for causal_conv1d compatibility
         expand: int = 2,
         dropout: float = 0.1,
     ):
         super().__init__()
         self.d_model = d_model
+        self.d_conv = d_conv  # Store for dispatch decision
 
         if MAMBA_AVAILABLE:
             # Real Mamba-2 for GPU
@@ -361,16 +362,28 @@ class BiMamba2Layer(nn.Module):
         """
         residual = x
 
+        # Use real Mamba only if:
+        # 1. Library is available
+        # 2. CUDA is available
+        # 3. Input is on CUDA
+        # 4. Kernel width is supported (2-4 for causal_conv1d)
+        use_mamba = (
+            MAMBA_AVAILABLE
+            and torch.cuda.is_available()
+            and x.is_cuda
+            and self.d_conv in (2, 3, 4)  # causal_conv1d constraint
+        )
+
         # Forward direction
-        if MAMBA_AVAILABLE:
+        if use_mamba:
             x_forward = self.forward_mamba(x)
         else:
-            # Conv1d expects (B, C, L)
+            # Conv1d fallback (CPU-safe, any kernel width)
             x_forward = self.forward_mamba(x.transpose(1, 2)).transpose(1, 2)
 
         # Backward direction (flip sequence)
         x_backward = x.flip(dims=[1])
-        if MAMBA_AVAILABLE:
+        if use_mamba:
             x_backward = self.backward_mamba(x_backward)
         else:
             x_backward = self.backward_mamba(x_backward.transpose(1, 2)).transpose(1, 2)
@@ -408,7 +421,7 @@ class BiMamba2(nn.Module):
         self,
         d_model: int = 512,
         d_state: int = 16,
-        d_conv: int = 5,
+        d_conv: int = 4,  # Changed from 5 to 4 for causal_conv1d compatibility
         num_layers: int = 6,
         dropout: float = 0.1,
     ):
@@ -611,7 +624,7 @@ class SeizureDetector(nn.Module):
         # Mamba params
         mamba_layers: int = 6,
         mamba_d_state: int = 16,
-        mamba_d_conv: int = 5,
+        mamba_d_conv: int = 4,  # Changed from 5 to 4 for causal_conv1d compatibility
         # ResCNN params
         rescnn_blocks: int = 3,
         rescnn_kernels: list[int] | None = None,

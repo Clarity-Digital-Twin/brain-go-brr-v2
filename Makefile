@@ -32,13 +32,16 @@ dev: ## Install dev dependencies and pre-commit hooks
 	uv run pre-commit install
 	@echo "${GREEN}✓ Development environment ready${NC}"
 
+# Detect available test runner (professional pattern from Google/DeepMind)
+PYTEST := $(if $(wildcard .venv/bin/pytest),.venv/bin/pytest,uv run pytest)
+
 test: ## Run tests with coverage
 	@echo "${CYAN}Running tests...${NC}"
-	.venv/bin/pytest -n auto --cov=src --cov-report=term-missing --cov-report=html || uv run pytest -n auto --cov=src --cov-report=term-missing --cov-report=html
+	$(PYTEST) -n auto --cov=src --cov-report=term-missing --cov-report=html
 
 test-fast: ## Run tests without coverage (faster)
 	@echo "${CYAN}Running fast tests...${NC}"
-	.venv/bin/pytest -n auto -x || uv run pytest -n auto -x
+	$(PYTEST) -n auto -x
 
 lint: ## Run ruff linter
 	@echo "${CYAN}Linting code...${NC}"
