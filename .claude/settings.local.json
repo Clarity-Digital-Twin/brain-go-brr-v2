@@ -69,7 +69,8 @@
       "Bash(.venv/bin/pytest tests/test_postprocess.py -v)",
       "Bash(.venv/bin/pytest tests/test_postprocess.py::TestIntegration::test_full_pipeline -v)",
       "Bash(.venv/bin/pytest tests/test_evaluate.py -v)",
-      "Bash(.venv/bin/pytest tests/test_evaluate.py::TestEventization -v)"
+      "Bash(.venv/bin/pytest tests/test_evaluate.py::TestEventization -v)",
+      "Bash(.venv/bin/pytest tests/test_postprocess.py tests/test_events.py tests/test_evaluate.py -v)"
     ],
     "deny": [],
     "ask": []

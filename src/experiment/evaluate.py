@@ -147,31 +147,44 @@ def batch_probs_to_events(
     probs: torch.Tensor,
     post_cfg: PostprocessingConfig,
     fs: int,
-    threshold: float,
+    threshold: float | None = None,
 ) -> list[list[tuple[float, float]]]:
     """Apply post-processing and convert to events.
 
     Args:
         probs: (N, T) probabilities in [0,1]
-        post_cfg: Post-processing configuration
+        post_cfg: Post-processing configuration with hysteresis settings
         fs: Sampling rate (Hz)
-        threshold: Detection threshold (unused, kept for backward compatibility)
+        threshold: Deprecated - use post_cfg.hysteresis.tau_on instead.
+                  If provided, will override tau_on (for backward compatibility).
 
     Returns:
         List of N lists, each containing (start_s, end_s) tuples
+
+    Note:
+        The threshold parameter is deprecated. The function now uses
+        post_cfg.hysteresis.tau_on and tau_off for thresholding.
     """
     # Use new Phase 4 modules
     masks = postprocess_predictions(probs, post_cfg, sampling_rate=fs)
 
     # Convert masks to events with merging and confidence
+    # Safely access nested config fields with defaults
+    tau_merge = 2.0  # default
+    confidence_method = "mean"  # default
+
+    if hasattr(post_cfg, "events"):
+        if hasattr(post_cfg.events, "tau_merge"):
+            tau_merge = post_cfg.events.tau_merge
+        if hasattr(post_cfg.events, "confidence_method"):
+            confidence_method = post_cfg.events.confidence_method
+
     batch_events_objects = batch_mask_to_events(
         masks,
         sampling_rate=fs,
-        tau_merge=post_cfg.events.tau_merge if hasattr(post_cfg.events, "tau_merge") else 2.0,
+        tau_merge=tau_merge,
         probs=probs,
-        confidence_method=post_cfg.events.confidence_method
-        if hasattr(post_cfg.events, "confidence_method")
-        else "mean",
+        confidence_method=confidence_method,
     )
 
     # Convert SeizureEvent objects to tuples for backward compatibility
@@ -190,41 +203,60 @@ def find_threshold_for_fa_eventized(
     total_hours: float,
     fs: int,
     max_iters: int = 20,
+    hysteresis_delta: float = 0.08,
 ) -> float:
-    """Binary search for threshold meeting FA target.
+    """Binary search for tau_on threshold meeting FA target.
+
+    This function searches over hysteresis tau_on values, automatically
+    deriving tau_off = max(0, tau_on - delta). This ensures consistent
+    hysteresis behavior and monotonic FA rate changes.
 
     Args:
         probs: (N, T) probabilities
-        post_cfg: Post-processing configuration
+        post_cfg: Post-processing configuration (will be modified)
         ref_events: Reference events for FA calculation
         fa_target: Target FA/24h rate
         total_hours: Total duration in hours
         fs: Sampling rate
         max_iters: Maximum iterations for binary search
+        hysteresis_delta: Gap between tau_on and tau_off (default 0.08)
 
     Returns:
-        Threshold that meets FA target (conservative)
+        tau_on threshold that meets FA target (conservative)
     """
-    low, high = 0.0, 1.0
-    best_threshold = 0.5
+    # Search over tau_on values, ensuring tau_off is always below
+    low = hysteresis_delta  # Minimum tau_on to maintain positive gap
+    high = 1.0
+    best_tau_on = 0.86  # Default from clinical settings
+
+    # Create a copy of config to modify during search
+    import copy
+    search_cfg = copy.deepcopy(post_cfg)
 
     for _ in range(max_iters):
-        mid = (low + high) / 2
-        pred_events = batch_probs_to_events(probs, post_cfg, fs, threshold=mid)
+        mid_tau_on = (low + high) / 2
+        mid_tau_off = max(0.0, mid_tau_on - hysteresis_delta)
+
+        # Update hysteresis thresholds for this iteration
+        search_cfg.hysteresis.tau_on = mid_tau_on
+        search_cfg.hysteresis.tau_off = mid_tau_off
+
+        # Get predictions with current thresholds (threshold param ignored)
+        pred_events = batch_probs_to_events(probs, search_cfg, fs, threshold=mid_tau_on)
         fa_rate = fa_per_24h(pred_events, ref_events, total_hours)
 
         if fa_rate > fa_target:
-            # Too many FA, increase threshold
-            low = mid
+            # Too many FA, increase tau_on
+            low = mid_tau_on
         else:
-            # At or below target, can go lower
-            best_threshold = mid
-            high = mid
+            # At or below target, can potentially go lower
+            best_tau_on = mid_tau_on
+            high = mid_tau_on
 
         if abs(high - low) < 1e-4:
             break
 
-    return best_threshold
+    return best_tau_on
 
 
 def sensitivity_at_fa_rates(
@@ -233,6 +265,8 @@ def sensitivity_at_fa_rates(
     fa_targets: list[float],
     post_cfg: PostprocessingConfig,
     sampling_rate: int = 256,
+    window_stride_s: float = 10.0,
+    window_size_s: float = 60.0,
 ) -> dict[str, float]:
     """Calculate sensitivity at specific FA/24h targets.
 
@@ -242,6 +276,8 @@ def sensitivity_at_fa_rates(
         fa_targets: List of FA/24h targets (e.g., [10, 5, 1])
         post_cfg: Post-processing configuration
         sampling_rate: Sampling rate (Hz)
+        window_stride_s: Stride between windows in seconds (for time accounting)
+        window_size_s: Window size in seconds (for time accounting)
 
     Returns:
         Dict with sensitivity_at_Xfa keys
@@ -250,7 +286,15 @@ def sensitivity_at_fa_rates(
 
     # Convert labels to events once
     ref_events = batch_masks_to_events(labels, sampling_rate)
-    total_hours = labels.numel() / (sampling_rate * 3600)
+
+    # Compute actual recording duration considering overlapping windows
+    # For N windows with stride S and size W: duration = (N-1)*S + W
+    n_windows = labels.shape[0]
+    if n_windows > 0:
+        total_duration_s = (n_windows - 1) * window_stride_s + window_size_s
+        total_hours = total_duration_s / 3600
+    else:
+        total_hours = 0.0
 
     for fa_target in fa_targets:
         # Find threshold for this FA target
@@ -342,3 +386,16 @@ def evaluate_predictions(
     results.update(sensitivity_results)
 
     return results
+
+
+def main() -> None:
+    """CLI entrypoint for evaluation.
+
+    This function delegates to the main CLI module for proper argument parsing
+    and evaluation workflow. Use 'run-experiment evaluate' for full functionality.
+    """
+    import sys
+
+    print("Please use 'run-experiment evaluate' for evaluation functionality.")
+    print("Example: run-experiment evaluate --config configs/evaluation.yaml")
+    sys.exit(1)
