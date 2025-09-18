@@ -1,15 +1,17 @@
 """Test interpolation of missing Fz/Pz channels."""
 
+from unittest.mock import patch
+
+import mne
 import numpy as np
 import pytest
-from unittest.mock import patch
-import mne
 
 
 def test_interpolation_fz_pz_missing():
     """Test that missing Fz/Pz channels are interpolated correctly."""
-    from src.experiment.data import load_edf_file
     from pathlib import Path
+
+    from src.experiment.data import load_edf_file
 
     # Create synthetic Raw with 17 channels (missing Fz, Pz)
     sfreq = 256.0
@@ -70,8 +72,9 @@ def test_interpolation_fz_pz_missing():
 
 def test_interpolation_other_channel_missing_raises():
     """Test that missing channels other than Fz/Pz raise an error."""
-    from src.experiment.data import load_edf_file
     from pathlib import Path
+
+    from src.experiment.data import load_edf_file
 
     # Create synthetic Raw missing O1 (not allowed)
     sfreq = 256.0
@@ -105,14 +108,15 @@ def test_interpolation_other_channel_missing_raises():
         mock_read.return_value = raw
 
         # Should raise ValueError for missing O1
-        with pytest.raises(ValueError, match="Missing required channels.*O1"):
+        with pytest.raises(ValueError, match=r"Missing required channels.*O1"):
             load_edf_file(Path("dummy.edf"))
 
 
 def test_interpolation_with_montage_disabled():
     """Test that interpolation fails gracefully when montage is disabled."""
-    from src.experiment.data import load_edf_file
     from pathlib import Path
+
+    from src.experiment.data import load_edf_file
 
     # Create synthetic Raw missing Fz
     sfreq = 256.0
@@ -152,9 +156,10 @@ def test_interpolation_with_montage_disabled():
 
 def test_interpolation_warning_logged(caplog):
     """Test that interpolation emits a warning."""
-    from src.experiment.data import load_edf_file
-    from pathlib import Path
     import logging
+    from pathlib import Path
+
+    from src.experiment.data import load_edf_file
 
     # Set up logging to capture warnings
     caplog.set_level(logging.WARNING)
