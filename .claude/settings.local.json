@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 timeout 5 .venv/bin/python -c \"from scipy import ndimage; print(''scipy.ndimage imported OK'')\")",
-      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 .venv/bin/python -m src.experiment.pipeline --config configs/smoke_test.yaml)"
+      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 .venv/bin/python -m src.experiment.pipeline --config configs/smoke_test.yaml)",
+      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 timeout 5 python -c \"from scipy import ndimage; print(''scipy.ndimage imported OK'')\")",
+      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 LD_LIBRARY_PATH=/home/jj/proj/brain-go-brr-v2/.venv/lib/python3.11/site-packages/torch/lib:$LD_LIBRARY_PATH .venv/bin/python -m src.experiment.pipeline --config configs/smoke_test.yaml)",
+      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 .venv/bin/python -c \"\nprint(''1. Importing numpy...'')\nimport numpy as np\nprint(''2. Importing torch...'')\nimport torch\nprint(''3. Importing torch.nn...'')\nimport torch.nn as nn\nprint(''4. All imports OK!'')\nprint(f''Torch version: {torch.__version__}'')\nprint(f''CUDA available: {torch.cuda.is_available()}'')\n\")"
     ],
     "deny": [],
     "ask": []

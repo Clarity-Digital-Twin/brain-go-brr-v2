@@ -12,4 +12,4 @@ export OMP_NUM_THREADS=1
 echo "🚀 Running with RTX 4090 + MAMBA-SSM!"
 echo "✅ LD_LIBRARY_PATH set for CUDA"
 echo "✅ O(N) sequence modeling with Bi-Mamba-2"
-python -m src.experiment.pipeline --config "${1:-configs/smoke_test.yaml}"
+.venv/bin/python -m src.experiment.pipeline --config "${1:-configs/smoke_test.yaml}"
