@@ -109,8 +109,34 @@ def apply_morphology(
         raise ValueError("Kernel sizes must be odd")
 
     if use_gpu and masks.is_cuda:
-        # TODO: Implement GPU path using max_pool1d
-        pass
+        # GPU path using pooling operations
+        import torch.nn.functional as F
+
+        # Convert bool to float for pooling operations
+        x = masks.float()
+
+        # Opening: erosion (min pool) then dilation (max pool)
+        if opening_kernel > 1:
+            padding = opening_kernel // 2
+            # Erosion via -max_pool1d(-x)
+            x = x.unsqueeze(1)  # Add channel dim for pooling
+            x = -F.max_pool1d(-x, kernel_size=opening_kernel, stride=1, padding=padding)
+            # Dilation via max_pool1d
+            x = F.max_pool1d(x, kernel_size=opening_kernel, stride=1, padding=padding)
+            x = x.squeeze(1)
+
+        # Closing: dilation (max pool) then erosion (min pool)
+        if closing_kernel > 1:
+            padding = closing_kernel // 2
+            if x.dim() == 2:
+                x = x.unsqueeze(1)
+            # Dilation via max_pool1d
+            x = F.max_pool1d(x, kernel_size=closing_kernel, stride=1, padding=padding)
+            # Erosion via -max_pool1d(-x)
+            x = -F.max_pool1d(-x, kernel_size=closing_kernel, stride=1, padding=padding)
+            x = x.squeeze(1)
+
+        return x > 0.5  # Back to bool
 
     # CPU path using scipy ndimage
     batch_size = masks.shape[0]

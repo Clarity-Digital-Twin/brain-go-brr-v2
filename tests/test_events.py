@@ -156,3 +156,38 @@ class TestBatchProcessing:
         assert len(batch_events[0]) == 1  # Two events merged
         assert len(batch_events[1]) == 1
         assert batch_events[0][0].confidence > 0  # Has confidence
+
+    def test_confidence_methods(self):
+        """Test different confidence calculation methods."""
+        # Create event with known probabilities
+        probs = torch.tensor([0.2, 0.4, 0.6, 0.8, 1.0])
+        event = SeizureEvent(start_s=0.0, end_s=5.0/256)
+
+        # Test mean confidence
+        conf_mean = calculate_event_confidence(
+            probs, event, sampling_rate=256, method="mean"
+        )
+        assert abs(conf_mean - 0.6) < 0.01  # Mean of [0.2, 0.4, 0.6, 0.8, 1.0]
+
+        # Test peak confidence
+        conf_peak = calculate_event_confidence(
+            probs, event, sampling_rate=256, method="peak"
+        )
+        assert conf_peak == 1.0  # Max value
+
+        # Test percentile confidence (75th percentile)
+        conf_percentile = calculate_event_confidence(
+            probs, event, sampling_rate=256, method="percentile", percentile=0.75
+        )
+        assert abs(conf_percentile - 0.8) < 0.01  # 75th percentile
+
+    def test_confidence_bounds(self):
+        """Test confidence scores are bounded [0, 1]."""
+        # Test with extreme values
+        probs = torch.tensor([2.0, -1.0, 0.5])  # Out of bounds
+        event = SeizureEvent(start_s=0.0, end_s=3.0/256)
+
+        conf = calculate_event_confidence(
+            probs, event, sampling_rate=256, method="mean"
+        )
+        assert 0.0 <= conf <= 1.0  # Must be clamped

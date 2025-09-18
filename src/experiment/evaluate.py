@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
 import torch
@@ -147,7 +148,7 @@ def batch_probs_to_events(
     probs: torch.Tensor,
     post_cfg: PostprocessingConfig,
     fs: int,
-    threshold: float | None = None,
+    threshold: float | None = None,  # Deprecated, kept for backward compatibility
 ) -> list[list[tuple[float, float]]]:
     """Apply post-processing and convert to events.
 
@@ -169,25 +170,13 @@ def batch_probs_to_events(
     masks = postprocess_predictions(probs, post_cfg, sampling_rate=fs)
 
     # Convert masks to events with merging and confidence
-    # Safely access nested config fields with defaults
-    from typing import Literal
-
-    tau_merge = 2.0  # default
-    confidence_method: Literal["mean", "peak", "percentile"] = "mean"  # default
-
-    if hasattr(post_cfg, "events"):
-        if hasattr(post_cfg.events, "tau_merge"):
-            tau_merge = post_cfg.events.tau_merge
-        if hasattr(post_cfg.events, "confidence_method"):
-            # Type is already correct from EventsConfig
-            confidence_method = post_cfg.events.confidence_method
-
+    # PostprocessingConfig always has events field with defaults from schema
     batch_events_objects = batch_mask_to_events(
         masks,
         sampling_rate=fs,
-        tau_merge=tau_merge,
+        tau_merge=post_cfg.events.tau_merge,
         probs=probs,
-        confidence_method=confidence_method,
+        confidence_method=post_cfg.events.confidence_method,
     )
 
     # Convert SeizureEvent objects to tuples for backward compatibility
@@ -233,9 +222,7 @@ def find_threshold_for_fa_eventized(
     best_tau_on = 0.86  # Default from clinical settings
 
     # Create a copy of config to modify during search
-    import copy
-
-    search_cfg = copy.deepcopy(post_cfg)
+    search_cfg = deepcopy(post_cfg)
 
     for _ in range(max_iters):
         mid_tau_on = (low + high) / 2
