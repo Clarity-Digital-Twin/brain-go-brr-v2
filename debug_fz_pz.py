@@ -40,7 +40,7 @@ print(f"Cz variants found (for comparison): {cz_variants}")
 print("\n" + "=" * 60)
 print("TESTING OUR CANONICALIZATION:")
 
-from src.experiment.data import CHANNEL_NAMES_10_20
+from src.experiment import constants
 
 # Recreate the canonicalization logic to debug
 def debug_canonical(name: str) -> str | None:
@@ -72,7 +72,7 @@ def debug_canonical(name: str) -> str | None:
             break
 
     # Map to canonical
-    upper_to_canon = {ch.upper(): ch for ch in CHANNEL_NAMES_10_20}
+    upper_to_canon = {ch.upper(): ch for ch in constants.CHANNEL_NAMES_10_20}
     # Add common synonyms
     upper_to_canon.update({
         "T7": "T3",
@@ -96,7 +96,7 @@ for ch in raw.ch_names:
 print(f"\n{len(canonical_names)} channels mapped to canonical names")
 
 # Check what's missing
-missing = sorted(set(CHANNEL_NAMES_10_20) - set(canonical_names.values()))
+missing = sorted(set(constants.CHANNEL_NAMES_10_20) - set(canonical_names.values()))
 print(f"\nMISSING CHANNELS: {missing}")
 
 if missing:
@@ -121,5 +121,5 @@ print("SUMMARY:")
 print(f"File: {test_file}")
 print(f"Total channels in file: {len(raw.ch_names)}")
 print(f"Channels mapped: {len(canonical_names)}")
-print(f"Required channels: {len(CHANNEL_NAMES_10_20)}")
+print(f"Required channels: {len(constants.CHANNEL_NAMES_10_20)}")
 print(f"Missing: {missing if missing else 'None! ✓'}")
