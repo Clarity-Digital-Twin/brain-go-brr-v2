@@ -6,7 +6,7 @@
 - `AGENTS.md` - AI assistant operating rules (single source of truth)
 - `CLAUDE.md` - Claude-specific configuration
 - `README.md` - Project overview and quickstart
-- `LICENSE` - MIT License
+- `LICENSE` - Apache 2.0 License
 
 ### `/docs/phases/` - Implementation Phases
 - `PHASE1_DATA_PIPELINE.md` - Data loading and preprocessing
