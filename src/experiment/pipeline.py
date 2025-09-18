@@ -628,11 +628,29 @@ def main() -> None:
 
     # Create data loaders
     train_sampler = None
-    if config.data.use_balanced_sampling:
-        # For large datasets, computing all labels is expensive
-        # Use simple random sampling for now (P2 optimization)
-        # Balanced sampling disabled for memory efficiency
-        train_sampler = None
+    if config.data.use_balanced_sampling and len(train_dataset) > 0:
+        # Memory-optimized: sample subset to estimate class balance
+        sample_size = min(500, len(train_dataset))
+        sample_indices = torch.randperm(len(train_dataset))[:sample_size]
+
+        seizure_count = 0
+        for idx in sample_indices:
+            _, label = train_dataset[idx.item()]
+            if label.max().item() > 0.5:
+                seizure_count += 1
+
+        if seizure_count > 0:
+            # Create approximate balanced sampler
+            seizure_ratio = seizure_count / sample_size
+            weights = torch.ones(len(train_dataset))
+
+            # Randomly assign higher weights based on estimated ratio
+            pos_weight = (1 - seizure_ratio) / max(seizure_ratio, 1e-8)
+            n_seizure_est = int(len(train_dataset) * seizure_ratio)
+            seizure_indices = torch.randperm(len(train_dataset))[:n_seizure_est]
+            weights[seizure_indices] = pos_weight
+
+            train_sampler = WeightedRandomSampler(weights, len(weights), replacement=True)
 
     train_loader = DataLoader(
         train_dataset,

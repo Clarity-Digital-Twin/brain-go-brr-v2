@@ -41,48 +41,76 @@ def apply_hysteresis(
 
     batch_size, seq_len = probs.shape
     device = probs.device
-    masks = torch.zeros_like(probs, dtype=torch.bool, device=device)
 
-    for b in range(batch_size):
-        prob_seq = probs[b].cpu().numpy()
-        mask = np.zeros(seq_len, dtype=bool)
+    # Vectorized implementation for better performance
+    if min_onset_samples == 1 and min_offset_samples == 1:
+        # Fast path: no stability windows needed
+        masks = torch.zeros_like(probs, dtype=torch.bool, device=device)
 
-        in_event = False
-        onset_counter = 0
-        offset_counter = 0
-        onset_start = -1
+        # Process all batches in parallel
+        above_on = probs >= tau_on
+        below_off = probs < tau_off
 
-        for i in range(seq_len):
-            if not in_event:
-                # Check for onset (>= to include equality)
-                if prob_seq[i] >= tau_on:
-                    onset_counter += 1
-                    if onset_counter == 1:
-                        onset_start = i
-                    if onset_counter >= min_onset_samples:
-                        # Retroactively mark onset
-                        mask[onset_start : i + 1] = True
-                        in_event = True
-                        onset_counter = 0
-                else:
-                    onset_counter = 0
-                    onset_start = -1
-            else:
-                # In event, check for offset or continue
-                if prob_seq[i] < tau_off:
-                    offset_counter += 1
-                    # Still mark as True until we confirm offset
-                    if offset_counter < min_offset_samples:
+        for b in range(batch_size):
+            mask = torch.zeros(seq_len, dtype=torch.bool, device=device)
+            state = False
+
+            for i in range(seq_len):
+                if not state:
+                    if above_on[b, i]:
+                        state = True
                         mask[i] = True
-                    if offset_counter >= min_offset_samples:
-                        # Exit event (don't mark the final offset samples)
-                        in_event = False
-                        offset_counter = 0
                 else:
-                    offset_counter = 0
-                    mask[i] = True
+                    if below_off[b, i]:
+                        state = False
+                    else:
+                        mask[i] = True
 
-        masks[b] = torch.from_numpy(mask).to(device)
+            masks[b] = mask
+    else:
+        # Full implementation with stability windows
+        masks = torch.zeros_like(probs, dtype=torch.bool, device=device)
+
+        for b in range(batch_size):
+            prob_seq = probs[b].cpu().numpy()
+            mask = np.zeros(seq_len, dtype=bool)
+
+            in_event = False
+            onset_counter = 0
+            offset_counter = 0
+            onset_start = -1
+
+            for i in range(seq_len):
+                if not in_event:
+                    # Check for onset (>= to include equality)
+                    if prob_seq[i] >= tau_on:
+                        onset_counter += 1
+                        if onset_counter == 1:
+                            onset_start = i
+                        if onset_counter >= min_onset_samples:
+                            # Retroactively mark onset
+                            mask[onset_start : i + 1] = True
+                            in_event = True
+                            onset_counter = 0
+                    else:
+                        onset_counter = 0
+                        onset_start = -1
+                else:
+                    # In event, check for offset or continue
+                    if prob_seq[i] < tau_off:
+                        offset_counter += 1
+                        # Still mark as True until we confirm offset
+                        if offset_counter < min_offset_samples:
+                            mask[i] = True
+                        if offset_counter >= min_offset_samples:
+                            # Exit event (don't mark the final offset samples)
+                            in_event = False
+                            offset_counter = 0
+                    else:
+                        offset_counter = 0
+                        mask[i] = True
+
+            masks[b] = torch.from_numpy(mask).to(device)
 
     return masks
 

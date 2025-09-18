@@ -258,6 +258,7 @@ def sensitivity_at_fa_rates(
     sampling_rate: int = 256,
     window_stride_s: float = 10.0,
     window_size_s: float = 60.0,
+    stitch_windows: bool = True,
 ) -> dict[str, float]:
     """Calculate sensitivity at specific FA/24h targets.
 
@@ -269,23 +270,55 @@ def sensitivity_at_fa_rates(
         sampling_rate: Sampling rate (Hz)
         window_stride_s: Stride between windows in seconds (for time accounting)
         window_size_s: Window size in seconds (for time accounting)
+        stitch_windows: If True, stitch overlapping windows for record-level events
 
     Returns:
         Dict with sensitivity_at_Xfa keys
     """
     results = {}
 
-    # Convert labels to events once
-    ref_events = batch_masks_to_events(labels, sampling_rate)
+    # Optionally stitch windows for record-level processing
+    if stitch_windows and window_stride_s < window_size_s:
+        from .postprocess import stitch_windows as stitch_fn
 
-    # Compute actual recording duration considering overlapping windows
-    # For N windows with stride S and size W: duration = (N-1)*S + W
-    n_windows = labels.shape[0]
-    if n_windows > 0:
-        total_duration_s = (n_windows - 1) * window_stride_s + window_size_s
+        # Calculate window starts in samples
+        stride_samples = int(window_stride_s * sampling_rate)
+        window_starts = [i * stride_samples for i in range(probs.shape[0])]
+        total_samples = window_starts[-1] + probs.shape[1] if window_starts else probs.shape[1]
+
+        # Stitch probabilities and labels
+        probs_stitched = stitch_fn(
+            window_probs=list(probs),
+            window_starts=window_starts,
+            total_length=total_samples,
+            method="overlap_add",
+        )
+        labels_stitched = stitch_fn(
+            window_probs=list(labels.float()),
+            window_starts=window_starts,
+            total_length=total_samples,
+            method="max",
+        )
+        labels_stitched = labels_stitched > 0.5
+
+        # Work with stitched record
+        probs = probs_stitched.unsqueeze(0)
+        labels = labels_stitched.unsqueeze(0)
+
+        # Update duration calculation for stitched record
+        total_duration_s = total_samples / sampling_rate
         total_hours = total_duration_s / 3600
     else:
-        total_hours = 0.0
+        # Original window-based processing
+        n_windows = labels.shape[0]
+        if n_windows > 0:
+            total_duration_s = (n_windows - 1) * window_stride_s + window_size_s
+            total_hours = total_duration_s / 3600
+        else:
+            total_hours = 0.0
+
+    # Convert labels to events once
+    ref_events = batch_masks_to_events(labels, sampling_rate)
 
     for fa_target in fa_targets:
         # Find threshold for this FA target
