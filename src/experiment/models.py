@@ -351,12 +351,20 @@ class BiMamba2Layer(nn.Module):
     @property
     def forward_mamba(self) -> nn.Module:
         """Compatibility property for tests."""
-        return self.forward_mamba_real if self.forward_mamba_real is not None else self.forward_mamba_fallback
+        return (
+            self.forward_mamba_real
+            if self.forward_mamba_real is not None
+            else self.forward_mamba_fallback
+        )
 
     @property
     def backward_mamba(self) -> nn.Module:
         """Compatibility property for tests."""
-        return self.backward_mamba_real if self.backward_mamba_real is not None else self.backward_mamba_fallback
+        return (
+            self.backward_mamba_real
+            if self.backward_mamba_real is not None
+            else self.backward_mamba_fallback
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Process input bidirectionally.
