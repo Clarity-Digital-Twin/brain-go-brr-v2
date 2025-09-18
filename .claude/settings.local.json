@@ -11,7 +11,13 @@
       "Bash(ln:*)",
       "Bash(uv pip uninstall:*)",
       "Bash(MAMBA_FORCE_BUILD=1 MAMBA_SKIP_CUDA_BUILD=0 uv pip install mamba-ssm)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(pip install:*)",
+      "Bash(pip show:*)",
+      "Bash(pip uninstall:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(.venv/bin/pip install:*)",
+      "Bash(.venv/bin/pip:*)"
     ],
     "deny": [],
     "ask": []
