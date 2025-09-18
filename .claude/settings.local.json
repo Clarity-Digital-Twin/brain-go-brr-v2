@@ -90,7 +90,9 @@
       "Bash(rm:*)",
       "Bash(git checkout:*)",
       "WebFetch(domain:mne.tools)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(timeout:*)",
+      "Bash(tmux kill-server:*)"
     ],
     "deny": [],
     "ask": []

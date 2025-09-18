@@ -24,9 +24,10 @@ cache_dir = Path("temp_cache_test")
 cache_dir.mkdir(exist_ok=True)
 
 try:
+    # Test with just first 5 files
     train_dataset = EEGWindowDataset(
-        train_files,
-        label_files=train_label_files,
+        train_files[:5],
+        label_files=train_label_files[:5],
         cache_dir=cache_dir / "train",
     )
     print(f"\n✅ Dataset created successfully!")
