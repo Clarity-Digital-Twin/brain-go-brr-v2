@@ -150,9 +150,9 @@ def load_edf_file(
 
         rename_map_norm: dict[str, str] = {}
         for ch in list(raw.ch_names):
-            canon: str | None = _to_canonical(ch)
-            if canon is not None and canon != ch:
-                rename_map_norm[ch] = canon
+            canonical_name = _to_canonical(ch)
+            if canonical_name is not None and canonical_name != ch:
+                rename_map_norm[ch] = canonical_name
         if rename_map_norm:
             raw.rename_channels(rename_map_norm)
     except Exception:
