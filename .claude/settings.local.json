@@ -1,8 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(CUDA_VISIBLE_DEVICES=\"\" .venv/bin/python -c \"import torch; print(f''torch ok: {torch.__version__}'')\")",
-      "Bash(CUDA_VISIBLE_DEVICES=\"\" OMP_NUM_THREADS=1 .venv/bin/python -c \"import os; os.environ[''CUDA_VISIBLE_DEVICES'']=''''; import torch; print(f''CPU-only torch: {torch.__version__}, CUDA available: {torch.cuda.is_available()}'')\")"
+      "Bash(OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 OMP_NUM_THREADS=1 timeout 5 .venv/bin/python -c \"from scipy import ndimage; print(''scipy.ndimage imported OK'')\")"
     ],
     "deny": [],
     "ask": []

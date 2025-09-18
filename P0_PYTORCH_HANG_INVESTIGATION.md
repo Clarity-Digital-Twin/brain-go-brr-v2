@@ -106,3 +106,12 @@ WSL2 on Windows struggles with memory-mapping massive CUDA libraries (700MB+ eac
 ---
 
 **STATUS: ✅ RESOLVED - CPU-only PyTorch for WSL2, CUDA PyTorch for GPU training**
+
+## UPDATE: scipy.ndimage Also Hangs in WSL2
+
+After fixing PyTorch, discovered `scipy.ndimage` also hangs on import. This is another WSL2/OpenBLAS threading issue.
+
+**Workaround being investigated:**
+- Setting thread environment variables doesn't fix it
+- May need to reinstall scipy or use different BLAS backend
+- This only affects WSL2 development, not native Linux GPU training
