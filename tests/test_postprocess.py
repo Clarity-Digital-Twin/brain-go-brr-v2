@@ -56,6 +56,16 @@ class TestHysteresis:
         with pytest.raises(ValueError, match=r"tau_on.*must be > tau_off"):
             apply_hysteresis(probs, tau_on=0.5, tau_off=0.7)
 
+    def test_hysteresis_equality_edge_cases(self):
+        """Test hysteresis behavior at exact threshold values."""
+        # Test exact equality cases: should trigger at tau_on, stay on at tau_off
+        probs = torch.tensor([[0.85, 0.86, 0.86, 0.78, 0.78, 0.77]])
+        masks = apply_hysteresis(probs, tau_on=0.86, tau_off=0.78)
+
+        # Should trigger at 0.86 (>=), stay on at 0.78 (not <), off at 0.77 (<)
+        expected = torch.tensor([[False, True, True, True, True, False]])
+        assert torch.equal(masks, expected)
+
 
 class TestMorphology:
     """Test morphological operations."""

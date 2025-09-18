@@ -54,8 +54,8 @@ def apply_hysteresis(
 
         for i in range(seq_len):
             if not in_event:
-                # Check for onset
-                if prob_seq[i] > tau_on:
+                # Check for onset (>= to include equality)
+                if prob_seq[i] >= tau_on:
                     onset_counter += 1
                     if onset_counter == 1:
                         onset_start = i
