@@ -53,7 +53,7 @@ class TestHysteresis:
     def test_invalid_thresholds(self):
         """Test that invalid thresholds raise error."""
         probs = torch.randn(1, 10).sigmoid()
-        with pytest.raises(ValueError, match="tau_on.*must be > tau_off"):
+        with pytest.raises(ValueError, match=r"tau_on.*must be > tau_off"):
             apply_hysteresis(probs, tau_on=0.5, tau_off=0.7)
 
 
