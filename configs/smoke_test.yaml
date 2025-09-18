@@ -1,11 +1,11 @@
 # Quick smoke test config - 1 epoch, small batch
 data:
   dataset: tuh_eeg
-  data_dir: data/edf           # adjust to your data location
+  data_dir: data/tusz/edf/dev  # using dev subset for smoke test
   sampling_rate: 256
   n_channels: 19
   window_size: 60
-  stride: 30                    # larger stride for faster testing
+  stride: 10                    # fixed stride value
   num_workers: 2
   validation_split: 0.2
 

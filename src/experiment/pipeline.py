@@ -17,7 +17,7 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.amp import GradScaler, autocast
+from torch.cuda.amp import GradScaler, autocast
 from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 from torch.utils.data import DataLoader, WeightedRandomSampler

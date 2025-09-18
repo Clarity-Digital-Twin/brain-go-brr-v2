@@ -109,13 +109,32 @@ def load_edf_file(
         with contextlib.suppress(Exception):
             raw.set_montage("standard_1020", on_missing="ignore")
 
-    # Rename channels according to synonyms mapping (alt → canonical)
+    # Canonicalize channel names to 10-20 using robust normalization
     try:
-        rename_map = {alt: canon for alt, canon in channel_synonyms.items() if alt in raw.ch_names}
-        if rename_map:
-            raw.rename_channels(rename_map)
+        # Build uppercase → canonical map (includes synonyms like T7→T3)
+        upper_to_canon: dict[str, str] = {c.upper(): c for c in target_channels}
+        for alt, canon in channel_synonyms.items():
+            upper_to_canon[alt.upper()] = canon
+
+        def _to_canonical(name: str) -> str | None:
+            s = name.strip()
+            if s.upper().startswith("EEG "):
+                s = s[4:]
+            for suf in ("-REF", "-LE", "-AR", "-AVG"):
+                if s.upper().endswith(suf):
+                    s = s[: -len(suf)]
+                    break
+            key = s.upper()
+            return upper_to_canon.get(key)
+
+        rename_map_norm: dict[str, str] = {}
+        for ch in list(raw.ch_names):
+            canon = _to_canonical(ch)
+            if canon is not None and canon != ch:
+                rename_map_norm[ch] = canon
+        if rename_map_norm:
+            raw.rename_channels(rename_map_norm)
     except Exception:
-        # If rename fails (non-MNE stub), ignore; tests may not require it
         pass
 
     # Validate required channels presence
