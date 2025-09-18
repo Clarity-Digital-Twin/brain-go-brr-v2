@@ -343,8 +343,9 @@ class BiMamba2Layer(nn.Module):
                 "Using Conv1d fallback for BiMamba2Layer — NOT equivalent to Mamba-2.",
                 stacklevel=1,
             )
-            self.forward_mamba = nn.Conv1d(d_model, d_model, kernel_size=5, padding=2)
-            self.backward_mamba = nn.Conv1d(d_model, d_model, kernel_size=5, padding=2)
+            # Use Linear instead of Conv1d to match Mamba's (B, L, D) interface
+            self.forward_mamba = nn.Linear(d_model, d_model)
+            self.backward_mamba = nn.Linear(d_model, d_model)
 
         # Fusion and normalization
         self.output_proj = nn.Linear(d_model * 2, d_model)
@@ -378,15 +379,16 @@ class BiMamba2Layer(nn.Module):
         if use_mamba:
             x_forward = self.forward_mamba(x)
         else:
-            # Conv1d fallback (CPU-safe, any kernel width)
-            x_forward = self.forward_mamba(x.transpose(1, 2)).transpose(1, 2)
+            # Linear fallback (CPU-safe, any kernel width)
+            x_forward = self.forward_mamba(x)
 
         # Backward direction (flip sequence)
         x_backward = x.flip(dims=[1])
         if use_mamba:
             x_backward = self.backward_mamba(x_backward)
         else:
-            x_backward = self.backward_mamba(x_backward.transpose(1, 2)).transpose(1, 2)
+            # Linear fallback
+            x_backward = self.backward_mamba(x_backward)
 
         # Flip backward to align
         x_backward = x_backward.flip(dims=[1])
