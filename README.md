@@ -62,6 +62,13 @@ Based on NEDC benchmarking standards and epilepsybenchmarks.com:
 - **Pre-commit hooks** ensuring code quality
 - **Apache 2.0 License** for open collaboration
 
+### Mamba CUDA Dispatch
+
+- Default temporal conv kernel is `d_conv=5` (docs/configs). The CUDA kernel in `mamba-ssm` supports widths {2,3,4}.
+- We keep `5` publicly and internally coerce to `4` for the CUDA path only. CPU fallback (Conv1d) uses the configured kernel.
+- Real Mamba runs only if `mamba-ssm` is importable, CUDA is available, and tensors are on GPU.
+- Force fallback regardless of CUDA by exporting `SEIZURE_MAMBA_FORCE_FALLBACK=1`.
+
 ## 🚀 Quick Start
 
 ```bash

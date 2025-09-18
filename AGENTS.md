@@ -99,6 +99,11 @@ Code style
 - WSL tip: `export UV_LINK_MODE=copy` (Makefile sets this by default) ⚙️
 - CI uses `uv sync` (no extras) to avoid GPU builds on non‑CUDA runners
 - Keep README, Makefile, pyproject, and configs in sync with this file
+- Mamba dispatch: The real Mamba‑2 CUDA path is used only when mamba‑ssm is importable, CUDA is
+  available, and tensors are on GPU. The Mamba CUDA op supports conv kernel width ∈ {2,3,4}. We
+  keep the public default `d_conv=5` and internally coerce to 4 for the CUDA path only; the CPU
+  fallback continues to use the configured kernel (e.g., 5). Set `SEIZURE_MAMBA_FORCE_FALLBACK=1`
+  to force the fallback path irrespective of CUDA.
 
 ---
 Mission: Shock the world with O(N) clinical seizure detection. 🚀

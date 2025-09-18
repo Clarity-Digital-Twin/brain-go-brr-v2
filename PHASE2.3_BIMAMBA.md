@@ -23,6 +23,9 @@ To enable GPU path locally: `uv sync -E gpu`.
 
 Note: we refer to the Mamba temporal convolution as "d_conv (conv kernel)". Default
 throughout the repo is 5 and matches schemas/configs.
+However, the CUDA kernel used by `mamba-ssm` only supports widths {2, 3, 4}.
+We keep the public/default at 5, and internally coerce to 4 for the CUDA path only.
+CPU fallback continues to use the configured kernel (e.g., 5).
 ```
 Input: (B, 512, 960) from ResCNN
     ↓
@@ -77,21 +80,19 @@ class BiMamba2Layer(nn.Module):
     ):
         super().__init__()
         self.d_model = d_model
+        self.d_conv = d_conv
+
+        # Allow forcing fallback via env for debugging/CI
+        self._force_fallback = os.getenv("SEIZURE_MAMBA_FORCE_FALLBACK", "0") == "1"
+
+        # CUDA kernel width guard: coerce only for the real Mamba path
+        allowed = (2, 3, 4)
+        mamba_conv_k = d_conv if d_conv in allowed else 4
 
         if MAMBA_AVAILABLE:
             # Real Mamba-2 for GPU
-            self.forward_mamba = Mamba2(
-                d_model=d_model,
-                d_state=d_state,
-                d_conv=d_conv,
-                expand=expand
-            )
-            self.backward_mamba = Mamba2(
-                d_model=d_model,
-                d_state=d_state,
-                d_conv=d_conv,
-                expand=expand
-            )
+            self.forward_mamba = Mamba2(d_model=d_model, d_state=d_state, d_conv=mamba_conv_k, expand=expand)
+            self.backward_mamba = Mamba2(d_model=d_model, d_state=d_state, d_conv=mamba_conv_k, expand=expand)
         else:
             # WARNING: Conv1d fallback for CPU testing only
             # This is NOT functionally equivalent to Mamba-2 SSM!
@@ -119,7 +120,11 @@ class BiMamba2Layer(nn.Module):
         residual = x
 
         # Forward direction
-        if MAMBA_AVAILABLE:
+        use_mamba = (
+            MAMBA_AVAILABLE and torch.cuda.is_available() and x.is_cuda and not self._force_fallback
+        )
+
+        if use_mamba:
             x_forward = self.forward_mamba(x)
         else:
             # Conv1d expects (B, C, L)
@@ -127,7 +132,7 @@ class BiMamba2Layer(nn.Module):
 
         # Backward direction (flip sequence)
         x_backward = x.flip(dims=[1])
-        if MAMBA_AVAILABLE:
+        if use_mamba:
             x_backward = self.backward_mamba(x_backward)
         else:
             x_backward = self.backward_mamba(x_backward.transpose(1, 2)).transpose(1, 2)
@@ -198,6 +203,16 @@ class BiMamba2(nn.Module):
         else:
             return "O(N) with Conv1d fallback"
 ```
+
+### Runtime Dispatch Summary
+
+- Use the real Mamba CUDA path only when all are true:
+  - `mamba-ssm` importable, and
+  - `torch.cuda.is_available()` is True, and
+  - the input tensor is on CUDA (`x.is_cuda`), and
+  - env `SEIZURE_MAMBA_FORCE_FALLBACK` is not set to `1`.
+- Otherwise, use the Conv1d fallback (CPU-safe). Fallback keeps the configured kernel (e.g., 5).
+
 
 ## 🧪 Test Suite
 

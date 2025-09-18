@@ -8,6 +8,7 @@ Phase 2 implementation will land incrementally via TDD:
 - SeizureDetector: Full assembled model (Phase 2.5)
 """
 
+import os
 import warnings
 from typing import TYPE_CHECKING, cast
 
@@ -317,31 +318,45 @@ class BiMamba2Layer(nn.Module):
         self,
         d_model: int = 512,
         d_state: int = 16,
-        d_conv: int = 4,  # Changed from 5 to 4 for causal_conv1d compatibility
+        d_conv: int = 5,
         expand: int = 2,
         dropout: float = 0.1,
     ):
         super().__init__()
         self.d_model = d_model
-        self.d_conv = d_conv  # Store for dispatch decision
+        self.d_conv = d_conv  # Public/configured kernel (docs/schemas default=5)
+
+        # Optional override to force fallback even if CUDA/Mamba are available
+        self._force_fallback = os.getenv("SEIZURE_MAMBA_FORCE_FALLBACK", "0") == "1"
+
+        # Mamba CUDA kernel supports width in {2, 3, 4}; coerce if needed (GPU path only)
+        _allowed = (2, 3, 4)
+        self._mamba_conv_k = d_conv if d_conv in _allowed else 4
+        if MAMBA_AVAILABLE and d_conv not in _allowed:
+            warnings.warn(
+                f"Mamba CUDA path coerced conv kernel from {d_conv}→{self._mamba_conv_k} "
+                "(CUDA op supports only 2–4). CPU fallback still uses configured kernel.",
+                stacklevel=1,
+            )
 
         # Always create both paths - decide at runtime
         if MAMBA_AVAILABLE:
             # Real Mamba-2 for GPU
             self.forward_mamba_real = Mamba2(
-                d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand
+                d_model=d_model, d_state=d_state, d_conv=self._mamba_conv_k, expand=expand
             )
             self.backward_mamba_real = Mamba2(
-                d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand
+                d_model=d_model, d_state=d_state, d_conv=self._mamba_conv_k, expand=expand
             )
         else:
             self.forward_mamba_real = None
             self.backward_mamba_real = None
 
-        # Fallback for CPU/testing
+        # Fallback for CPU/testing (Conv1d to match docs/tests; operates on (B, C, L))
         # WARNING: This is NOT functionally equivalent to Mamba-2 SSM!
-        self.forward_mamba_fallback = nn.Linear(d_model, d_model)
-        self.backward_mamba_fallback = nn.Linear(d_model, d_model)
+        padding = max(0, self.d_conv // 2)
+        self.forward_mamba_fallback = nn.Conv1d(d_model, d_model, kernel_size=self.d_conv, padding=padding)
+        self.backward_mamba_fallback = nn.Conv1d(d_model, d_model, kernel_size=self.d_conv, padding=padding)
 
         # Fusion and normalization
         self.output_proj = nn.Linear(d_model * 2, d_model)
@@ -384,25 +399,26 @@ class BiMamba2Layer(nn.Module):
         # 4. Kernel width is supported (2-4 for causal_conv1d)
         use_mamba = (
             MAMBA_AVAILABLE
+            and x.is_cuda  # check tensor first to avoid noisy CUDA init on CPU
             and torch.cuda.is_available()
-            and x.is_cuda
-            and self.d_conv in (2, 3, 4)  # causal_conv1d constraint
+            and self._mamba_conv_k in (2, 3, 4)  # causal_conv1d constraint
+            and not self._force_fallback
         )
 
         # Forward direction
         if use_mamba:
             x_forward = self.forward_mamba_real(x)
         else:
-            # Linear fallback (CPU-safe, any kernel width)
-            x_forward = self.forward_mamba_fallback(x)
+            # Conv1d fallback expects (B, C, L)
+            x_forward = self.forward_mamba_fallback(x.transpose(1, 2)).transpose(1, 2)
 
         # Backward direction (flip sequence)
         x_backward = x.flip(dims=[1])
         if use_mamba:
             x_backward = self.backward_mamba_real(x_backward)
         else:
-            # Linear fallback
-            x_backward = self.backward_mamba_fallback(x_backward)
+            # Conv1d fallback with transpose
+            x_backward = self.backward_mamba_fallback(x_backward.transpose(1, 2)).transpose(1, 2)
 
         # Flip backward to align
         x_backward = x_backward.flip(dims=[1])
@@ -437,7 +453,7 @@ class BiMamba2(nn.Module):
         self,
         d_model: int = 512,
         d_state: int = 16,
-        d_conv: int = 4,  # Changed from 5 to 4 for causal_conv1d compatibility
+        d_conv: int = 5,
         num_layers: int = 6,
         dropout: float = 0.1,
     ):
@@ -640,7 +656,7 @@ class SeizureDetector(nn.Module):
         # Mamba params
         mamba_layers: int = 6,
         mamba_d_state: int = 16,
-        mamba_d_conv: int = 4,  # Changed from 5 to 4 for causal_conv1d compatibility
+        mamba_d_conv: int = 5,
         # ResCNN params
         rescnn_blocks: int = 3,
         rescnn_kernels: list[int] | None = None,
