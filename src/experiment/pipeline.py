@@ -17,7 +17,7 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 from torch.utils.data import DataLoader, WeightedRandomSampler
@@ -206,7 +206,7 @@ def train_epoch(
 
         # Forward pass with AMP (model returns raw logits)
         with autocast(
-            device_type="cuda",  # autocast only works with CUDA
+            device_type="cuda",
             enabled=(use_amp and device == "cuda"),
         ):
             logits = model(windows)  # (B, T) raw logits
