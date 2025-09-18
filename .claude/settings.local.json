@@ -73,7 +73,8 @@
       "Bash(.venv/bin/pytest tests/test_postprocess.py tests/test_events.py tests/test_evaluate.py -v)",
       "Bash(.venv/bin/pytest tests/test_data.py::TestEEGWindowDataset -v)",
       "Bash(.venv/bin/pytest tests/ -k \"dataset\" -v)",
-      "Bash(.venv/bin/ruff check src/ tests/ --fix --unsafe-fixes)"
+      "Bash(.venv/bin/ruff check src/ tests/ --fix --unsafe-fixes)",
+      "Bash(.venv/bin/pytest tests/test_postprocess.py tests/test_events.py tests/test_evaluate.py -q)"
     ],
     "deny": [],
     "ask": []
