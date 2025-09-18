@@ -120,8 +120,19 @@ def load_edf_file(
             s = name.strip().upper()
 
             # Filter out known non-EEG channels early
-            non_eeg_prefixes = ("EKG", "ECG", "EOG", "EMG", "RESP", "PHOTIC", "IBI",
-                                "BURSTS", "SUPPR", "LOC", "ROC")
+            non_eeg_prefixes = (
+                "EKG",
+                "ECG",
+                "EOG",
+                "EMG",
+                "RESP",
+                "PHOTIC",
+                "IBI",
+                "BURSTS",
+                "SUPPR",
+                "LOC",
+                "ROC",
+            )
             if any(s.startswith(p) for p in non_eeg_prefixes):
                 return None
 
@@ -161,13 +172,13 @@ def load_edf_file(
             missing = set(target_channels) - set(available_required)
             raise ValueError(f"Missing required channels: {missing}")
 
-        # Pick channels without forcing order (channels exist but may be in any position)
-        raw.pick_channels(target_channels, ordered=False)
+        # Pick channels (preserves their order in the file)
+        raw.pick(target_channels)
         # Now reorder to canonical order
         raw.reorder_channels(target_channels)
     except Exception as e:
-        # Fallback: manual reindex if the object doesn't support pick_channels
-        if "pick_channels" in str(e) or "reorder_channels" in str(e):
+        # Fallback: manual reindex if the object doesn't support pick
+        if "pick" in str(e) or "reorder_channels" in str(e):
             idx = [raw.ch_names.index(ch) for ch in target_channels]
             data_v = raw.get_data()[idx]
         else:
