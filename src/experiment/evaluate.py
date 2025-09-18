@@ -5,8 +5,9 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+import numpy as np
 import torch
-from sklearn.metrics import roc_auc_score  # type: ignore[import-untyped]
+from sklearn.metrics import roc_auc_score, average_precision_score  # type: ignore[import-untyped]
 
 from src.experiment.events import batch_mask_to_events
 from src.experiment.postprocess import postprocess_predictions
@@ -16,6 +17,47 @@ from src.experiment.schemas import PostprocessingConfig
 def overlap(a: tuple[float, float], b: tuple[float, float]) -> float:
     """Return intersection length in seconds between [a0,a1] and [b0,b1]."""
     return max(0.0, min(a[1], b[1]) - max(a[0], b[0]))
+
+
+def calculate_ece(
+    probs: np.ndarray, labels: np.ndarray, n_bins: int = 10
+) -> float:
+    """Calculate Expected Calibration Error (ECE).
+
+    ECE measures the difference between predicted probabilities and actual
+    accuracy across confidence bins.
+
+    Args:
+        probs: Predicted probabilities [0, 1]
+        labels: Binary labels {0, 1}
+        n_bins: Number of confidence bins
+
+    Returns:
+        ECE score (lower is better, 0 is perfectly calibrated)
+    """
+    if len(probs) == 0:
+        return 0.0
+
+    # Create bins
+    bin_boundaries = np.linspace(0, 1, n_bins + 1)
+    bin_lowers = bin_boundaries[:-1]
+    bin_uppers = bin_boundaries[1:]
+
+    ece = 0.0
+    for bin_lower, bin_upper in zip(bin_lowers, bin_uppers, strict=False):
+        # Find samples in this bin
+        in_bin = (probs > bin_lower) & (probs <= bin_upper)
+        prop_in_bin = in_bin.mean()
+
+        if prop_in_bin > 0:
+            # Accuracy in bin
+            accuracy_in_bin = labels[in_bin].mean()
+            # Average confidence in bin
+            avg_confidence_in_bin = probs[in_bin].mean()
+            # Weight by proportion of samples
+            ece += np.abs(avg_confidence_in_bin - accuracy_in_bin) * prop_in_bin
+
+    return float(ece)
 
 
 def calculate_taes(
@@ -382,7 +424,7 @@ def evaluate_predictions(
 
     taes = calculate_taes(all_pred, all_ref) if all_ref else 0.0
 
-    # AUROC (sample-level)
+    # AUROC and PR-AUC (sample-level)
     probs_flat = probs.cpu().numpy().flatten()
     labels_flat = labels.cpu().numpy().flatten()
 
@@ -391,6 +433,15 @@ def evaluate_predictions(
     except ValueError:
         # Handle case with single class
         auroc = 0.5
+
+    try:
+        pr_auc = float(average_precision_score(labels_flat, probs_flat))
+    except ValueError:
+        # Handle case with single class or no positive samples
+        pr_auc = 0.0
+
+    # Expected Calibration Error (ECE) with 10 bins
+    ece = calculate_ece(probs_flat, labels_flat, n_bins=10)
 
     # Sensitivity at FA rates with threshold table (τ_on per FA target)
     # Compute total_hours with overlap-aware duration: (N-1)*stride + window
@@ -446,6 +497,8 @@ def evaluate_predictions(
     results = {
         "taes": taes,
         "auroc": auroc,
+        "pr_auc": pr_auc,
+        "ece": ece,
         "fa_curve": fa_curve,
     }
     results.update(sensitivity_results)
