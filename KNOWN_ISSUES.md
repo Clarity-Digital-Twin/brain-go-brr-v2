@@ -117,6 +117,31 @@ This file tracks critical (P0) issues discovered through deep audit. Do not fix 
   - Owner: Evaluation/Post-processing
   - Notes: Blocked on Phase 4 stitching APIs. Replace with `stitch_windows()` and compute actual per-record duration.
 
+- Issue: Threshold search is a no-op (unused `threshold`)
+  - Severity: P0 (metric correctness)
+  - Location: src/experiment/evaluate.py:164, 256–263
+  - Symptoms: `find_threshold_for_fa_eventized` binary-searches a `threshold`, but `batch_probs_to_events` ignores it (pipeline uses hysteresis only). FA/24h won’t change across iterations.
+  - Impact: Sensitivity@FA and FA tuning are unreliable; search converges arbitrarily.
+  - Fix Plan (Decision below): Search over hysteresis τ_on (and derive τ_off), not a separate global threshold. Remove/ignore `threshold` arg.
+  - Owner: Evaluation/Post-processing
+  - Notes: Update tests to verify FA rate monotonicity under τ_on search.
+
+- Issue: Postprocessing config drift can cause AttributeError
+  - Severity: P0 (runtime crash)
+  - Location: src/experiment/evaluate.py:170–177, src/experiment/schemas.py (older configs)
+  - Symptoms: Access to `post_cfg.events.*` may fail if older, flat PostprocessingConfig is used.
+  - Impact: Runtime AttributeError in evaluation on older configs.
+  - Fix Plan: Enforce typed nested PostprocessingConfig (hysteresis/morphology/duration/events/stitching) and validate at load. Provide a lightweight migration shim for legacy keys.
+  - Owner: Schemas/Packaging
+
+- Issue: Packaging entrypoint mismatch (evaluate)
+  - Severity: P0 (packaging/CLI break)
+  - Location: pyproject.toml: [project.scripts] evaluate = "src.experiment.evaluate:main"
+  - Symptoms: No `main()` in evaluate.py → installed CLI fails.
+  - Impact: Users cannot run `evaluate` after install.
+  - Fix Plan: Either add minimal `main()` in evaluate.py delegating to src.cli, or repoint script to `src.cli:main` subcommand.
+  - Owner: Packaging/CLI
+
 ## P1 ISSUES - LOGIC ERRORS AND AMBIGUITIES
 
 ### EXISTING P1 ISSUES
@@ -148,6 +173,30 @@ This file tracks critical (P0) issues discovered through deep audit. Do not fix 
   - Workaround: Keep for unit tests and small runs; switch to streaming/dynamic windowing for large runs.
   - Owner: Data/Infra
   - Notes: Planned improvement; not urgent for unit/integration tests.
+
+- Issue: GPU morphology path unimplemented
+  - Severity: P1 (feature gap)
+  - Location: src/experiment/postprocess.py:87
+  - Symptoms: `use_gpu=True` is a no-op; CPU scipy path always used.
+  - Impact: Slower post-processing on large batches if GPU desired.
+  - Fix Plan: Implement pooling-based dilation/erosion (1D max-pool trick) and parity tests vs CPU within tolerance.
+  - Owner: Post-processing
+
+- Issue: Confidence scoring method defaults and parity
+  - Severity: P1 (evaluation nuance)
+  - Location: src/experiment/events.py:116–139, 163–176
+  - Symptoms: Defaults to `mean`; percentile/peak supported. Lack of tests tying confidence to TAES or operating points.
+  - Impact: Confidence column for CSV_BI may not reflect chosen clinical criterion.
+  - Fix Plan: Add tests covering mean/peak/percentile and document default in Phase 5.
+  - Owner: Evaluation/Post-processing
+
+- Issue: Extras drift (scikit-image vs scipy)
+  - Severity: P1 (dependency/docs drift)
+  - Location: pyproject optional extra `post` (scikit-image) vs code using `scipy.ndimage`
+  - Symptoms: Docs advertise scikit-image; code uses scipy for morphology.
+  - Impact: Confusion; unnecessary dependency or missed optimization.
+  - Fix Plan: Either migrate to scikit-image ops or update extras/docs to reflect scipy-only path.
+  - Owner: Docs/Infra
 
 ## P2 ISSUES - PERFORMANCE AND MINOR PROBLEMS
 
@@ -212,6 +261,20 @@ This file tracks critical (P0) issues discovered through deep audit. Do not fix 
   - Impact: Confusion over intended thresholding pipeline.
   - Owner: Docs/Eval
 
+- Issue: mypy float return in events
+  - Severity: P2 (type hygiene)
+  - Location: src/experiment/events.py:160
+  - Symptoms: Returning `np.clip(...)` inferred as Any → mypy error.
+  - Fix Plan: `return float(np.clip(confidence, 0.0, 1.0))`.
+  - Owner: Post-processing
+
+- Issue: WSL/joblib warning noise
+  - Severity: P2 (cosmetic)
+  - Location: pytest warnings (joblib serial mode)
+  - Symptoms: Permission denied → serial mode warning.
+  - Fix Plan: Optionally set `JOBLIB_TEMP_FOLDER` in CI; otherwise ignore as benign.
+  - Owner: CI/Infra
+
 # CRITICAL FIX PRIORITIES
 
 ## Must Fix Before ANY Training/Evaluation (P0 Blockers):
@@ -221,12 +284,56 @@ This file tracks critical (P0) issues discovered through deep audit. Do not fix 
 4. Missing TrainingConfig.batch_size - blocks training
 5. Missing output_dir in ExperimentConfig - blocks checkpoint saving
 6. Window stitching for correct FA/24h - blocks accurate evaluation
+7. Threshold search semantics (use τ_on/τ_off, not unused global threshold)
 
 ## Fix Plan Execution Order:
 1. **Phase 1: Type Safety** (Fix dataset return types, ensure consistent tuple returns)
 2. **Phase 2: Schema Alignment** (Add missing Config class, align yaml with schemas)
 3. **Phase 3: Window Stitching** (Implement proper stitching for overlapped windows)
-4. **Phase 4: Threshold Logic** (Clarify threshold vs hysteresis semantics)
+4. **Phase 4: Threshold Logic** (Switch to τ_on search; derive τ_off)
+
+---
+
+## Phase 4 Decisions (Robust Path, No Surprises)
+
+### Thresholding Semantics (Chosen Approach)
+- Decision: Eliminate separate global thresholding in evaluation. Search over hysteresis τ_on only; derive τ_off = max(0, τ_on − Δ).
+- Default Δ: 0.08 (consistent with 0.86/0.78). Expose as `hysteresis.delta` for tuning.
+- Implementation:
+  - Change `find_threshold_for_fa_eventized` to binary-search τ_on in [τ_off_min+Δ, 1.0].
+  - Remove `threshold` arg from `batch_probs_to_events` or keep for backward-compat but unused.
+  - Ensure `postprocess_predictions` only uses hysteresis; no hidden sample-level gating.
+  - Update tests to assert FA rate changes monotonically with τ_on.
+
+### FA/24h Time Accounting
+- Decision: Compute total_hours per-record after stitching (or from known durations), not from flattened sample counts.
+- Implementation:
+  - Use `stitch_windows` for probabilities/masks as needed.
+  - Track per-record lengths (seconds) from dataset metadata; sum to total_hours.
+
+### Morphology GPU
+- Decision: Implement 1D pooling-based dilation/erosion for GPU parity (optional), with tolerance tests vs CPU scipy.
+
+### Confidence Scoring
+- Decision: Keep default `mean` confidence; add tests for `peak` and `percentile` and document implications in Phase 5.
+
+---
+
+## Test Gaps To Add (Once Code Changes Land)
+- Hysteresis τ_on/τ_off search changes FA rate monotonically (binary search convergence checks).
+- Equal-threshold semantics: probs==τ_on/τ_off do not flip state.
+- Stitching correctness: overlap_add and weighted variants; boundary windows.
+- GPU morphology parity: pooling-based approach within tolerance to scipy.
+- Event confidence: mean/peak/percentile in [0,1], consistent sorting.
+- GPU-only Mamba tests: dispatch on CUDA, kernel coercion (conv 5→4) and env override.
+
+---
+
+## Ownership & Coordination
+- Pipeline/Data: dataset tuple contract; balanced sampler expectations.
+- Schemas/Packaging: strict nested PostprocessingConfig; entrypoint fix; config migration.
+- Evaluation/Post-processing: τ_on search; stitching-based time accounting; morphology GPU parity; confidence tests.
+- CI/Infra: WSL/joblib warning mitigation; optional `SEIZURE_MAMBA_FORCE_FALLBACK=1` for CPU-only CI.
 
 # Coordination Notes
 - Phase 4 implementation (postprocess/events/export) will address stitching, morphology, and eventization; evaluation should be refactored to consume those APIs.
@@ -285,4 +392,3 @@ class DataConfig(BaseModel):
 - Packaging/CLI: evaluate entrypoint mismatch
 - Evaluation/Post-processing: FA/24h time accounting; stitching; eventization semantics
 - Training: logits vs probabilities
-
