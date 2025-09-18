@@ -187,7 +187,7 @@ class DurationConfig(BaseModel):
     def validate_durations(self) -> "DurationConfig":
         """Ensure max >= min."""
         if self.max_duration_s < self.min_duration_s:
-            raise ValueError(f"max_duration_s must be >= min_duration_s")
+            raise ValueError("max_duration_s must be >= min_duration_s")
         return self
 
 

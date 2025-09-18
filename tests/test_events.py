@@ -1,17 +1,14 @@
 """Tests for event processing."""
 
-import pytest
 import numpy as np
 import torch
 
 from src.experiment.events import (
     SeizureEvent,
+    batch_mask_to_events,
+    calculate_event_confidence,
     mask_to_events,
     merge_events,
-    calculate_event_confidence,
-    add_confidence_scores,
-    events_to_mask,
-    batch_mask_to_events,
 )
 
 

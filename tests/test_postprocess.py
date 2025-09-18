@@ -2,14 +2,13 @@
 
 import pytest
 import torch
-import numpy as np
 
 from src.experiment.postprocess import (
     apply_hysteresis,
     apply_morphology,
     filter_duration,
-    stitch_windows,
     postprocess_predictions,
+    stitch_windows,
 )
 from src.experiment.schemas import PostprocessingConfig
 

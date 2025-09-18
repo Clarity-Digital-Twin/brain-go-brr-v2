@@ -7,18 +7,12 @@ to clinical seizure events.
 
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 import torch
 from scipy import ndimage  # type: ignore[import-untyped]
 
 from src.experiment.schemas import (
-    DurationConfig,
-    HysteresisConfig,
-    MorphologyConfig,
     PostprocessingConfig,
-    StitchingConfig,
 )
 
 
@@ -219,14 +213,14 @@ def stitch_windows(
 
     if method == "max":
         # Simple max across overlapping windows
-        for prob, start in zip(window_probs, window_starts):
+        for prob, start in zip(window_probs, window_starts, strict=False):
             end = min(start + len(prob), total_length)
             output[start:end] = torch.maximum(output[start:end], prob[: end - start])
 
     elif method == "overlap_add":
         # Average overlapping windows
         counts = torch.zeros(total_length, device=device, dtype=torch.float32)
-        for prob, start in zip(window_probs, window_starts):
+        for prob, start in zip(window_probs, window_starts, strict=False):
             end = min(start + len(prob), total_length)
             output[start:end] += prob[: end - start]
             counts[start:end] += 1
@@ -235,7 +229,7 @@ def stitch_windows(
     elif method == "overlap_add_weighted":
         # Weighted average using triangular window
         weights_sum = torch.zeros(total_length, device=device, dtype=torch.float32)
-        for prob, start in zip(window_probs, window_starts):
+        for prob, start in zip(window_probs, window_starts, strict=False):
             window_len = len(prob)
             end = min(start + window_len, total_length)
 

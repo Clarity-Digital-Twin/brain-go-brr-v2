@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from src.experiment.events import SeizureEvent
 
@@ -55,7 +55,7 @@ def export_csv_bi(
 def export_json(
     events: list[SeizureEvent],
     output_path: Path | str,
-    metadata: Optional[dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
 ) -> None:
     """Export events in JSON format.
 
@@ -124,7 +124,7 @@ def export_batch_csv_bi(
         raise ValueError("All input lists must have the same length")
 
     for i, (events, patient_id, recording_id, duration) in enumerate(
-        zip(batch_events, patient_ids, recording_ids, durations_s)
+        zip(batch_events, patient_ids, recording_ids, durations_s, strict=False)
     ):
         output_file = output_dir / f"{patient_id}_{recording_id}.csv"
         export_csv_bi(events, output_file, patient_id, recording_id, duration, montage_file)

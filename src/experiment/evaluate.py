@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-import numpy as np
 import torch
 from sklearn.metrics import roc_auc_score  # type: ignore[import-untyped]
 
-from src.experiment.events import batch_mask_to_events, mask_to_events
+from src.experiment.events import batch_mask_to_events
 from src.experiment.postprocess import postprocess_predictions
 from src.experiment.schemas import PostprocessingConfig
 

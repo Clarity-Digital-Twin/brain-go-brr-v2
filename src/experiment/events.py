@@ -6,7 +6,7 @@ Handles conversion from masks to events, event merging, and confidence scoring.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import torch
@@ -216,8 +216,8 @@ def events_to_mask(
 def batch_mask_to_events(
     masks: torch.Tensor,
     sampling_rate: int = 256,
-    tau_merge: Optional[float] = None,
-    probs: Optional[torch.Tensor] = None,
+    tau_merge: float | None = None,
+    probs: torch.Tensor | None = None,
     confidence_method: Literal["mean", "peak", "percentile"] = "mean",
     confidence_percentile: float = 0.75,
 ) -> list[list[SeizureEvent]]:
