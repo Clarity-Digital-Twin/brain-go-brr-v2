@@ -58,7 +58,9 @@
       "Bash(.venv/bin/pytest tests/test_training.py::TestTrainingSmoke::test_single_epoch -q --no-cov)",
       "Bash(.venv/bin/pytest tests/test_training.py tests/test_evaluate.py -q --no-cov)",
       "Bash(.venv/bin/pytest -n 4 --cov=src --cov-report=term-missing:skip-covered -q)",
-      "Bash(.venv/bin/mypy src/ --no-error-summary)"
+      "Bash(.venv/bin/mypy src/ --no-error-summary)",
+      "Bash(tmux list-sessions:*)",
+      "Bash(.venv/bin/mypy:*)"
     ],
     "deny": [],
     "ask": []

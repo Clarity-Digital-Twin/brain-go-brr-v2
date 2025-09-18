@@ -138,8 +138,13 @@ MNE-hybrid approach optimized for seizure morphology:
 - **Morphological filtering**: 5-sample kernel
 - **Minimum duration**: 3 seconds (clinical standard)
 
-See `PHASE4_POSTPROCESSING.md` for the complete Phase 4 post-processing specification, target
-APIs, and TDD plan.
+See `PHASE4_POSTPROCESSING.md` for the complete Phase 4 post-processing specification, target APIs, and TDD plan.
+
+### Evaluation
+- Time-Aligned Event Scoring (TAES), Sensitivity@FA/24h, FA curve, AUROC.
+- Threshold search to hit FA targets {10, 5, 2.5, 1}.
+
+See `PHASE5_EVALUATION.md` for the end-to-end evaluation and benchmarking plan, with TDD.
 
 ## 📊 Evaluation Strategy
 

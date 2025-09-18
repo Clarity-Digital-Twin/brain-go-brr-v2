@@ -291,7 +291,7 @@ class ResCNNStack(nn.Module):
 
 # Conditional import for GPU/CPU compatibility
 try:
-    from mamba_ssm import Mamba2  # type: ignore[import-not-found]
+    from mamba_ssm import Mamba2  # type: ignore[import-untyped]
 
     MAMBA_AVAILABLE = True
 except ImportError:
