@@ -117,15 +117,25 @@ def load_edf_file(
             upper_to_canon[alt.upper()] = canon
 
         def _to_canonical(name: str) -> str | None:
-            s = name.strip()
-            if s.upper().startswith("EEG "):
+            s = name.strip().upper()
+
+            # Filter out known non-EEG channels early
+            non_eeg_prefixes = ("EKG", "ECG", "EOG", "EMG", "RESP", "PHOTIC", "IBI",
+                                "BURSTS", "SUPPR", "LOC", "ROC")
+            if any(s.startswith(p) for p in non_eeg_prefixes):
+                return None
+
+            # Handle EEG prefix
+            if s.startswith("EEG "):
                 s = s[4:]
-            for suf in ("-REF", "-LE", "-AR", "-AVG"):
-                if s.upper().endswith(suf):
+
+            # Remove reference suffixes
+            for suf in ("-REF", "-LE", "-AR", "-AVG", "-DC"):
+                if s.endswith(suf):
                     s = s[: -len(suf)]
                     break
-            key = s.upper()
-            return upper_to_canon.get(key)
+
+            return upper_to_canon.get(s)
 
         rename_map_norm: dict[str, str] = {}
         for ch in list(raw.ch_names):
