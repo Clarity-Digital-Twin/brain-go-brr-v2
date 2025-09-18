@@ -206,7 +206,7 @@ def train_epoch(
 
         # Forward pass with AMP (model returns raw logits)
         with autocast(
-            device_type=("cuda" if device == "cuda" else "cpu"),
+            device_type="cuda",  # autocast only works with CUDA
             enabled=(use_amp and device == "cuda"),
         ):
             logits = model(windows)  # (B, T) raw logits
