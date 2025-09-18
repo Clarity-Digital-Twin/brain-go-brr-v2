@@ -211,5 +211,6 @@ module = [
     "torchvision.*",
     "matplotlib.*",
     "seaborn.*",
+    "mamba_ssm.*",
 ]
 ignore_missing_imports = true

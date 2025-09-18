@@ -60,7 +60,9 @@
       "Bash(.venv/bin/pytest -n 4 --cov=src --cov-report=term-missing:skip-covered -q)",
       "Bash(.venv/bin/mypy src/ --no-error-summary)",
       "Bash(tmux list-sessions:*)",
-      "Bash(.venv/bin/mypy:*)"
+      "Bash(.venv/bin/mypy:*)",
+      "Bash(killall:*)",
+      "Bash(.venv/bin/pytest tests/test_training.py::TestTrainingSmoke::test_single_epoch -q)"
     ],
     "deny": [],
     "ask": []
