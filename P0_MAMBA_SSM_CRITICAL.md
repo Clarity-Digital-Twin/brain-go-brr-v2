@@ -84,4 +84,40 @@ y = model(x)
 print(f"Mamba output: {y.shape}")  # Should be [1, 100, 512]
 ```
 
-## STATUS: FIXING NOW...
+## STATUS: CRITICAL ISSUE IN WSL2
+
+### What We've Tried:
+- ✅ PyTorch 2.2.2 + CUDA 12.1 installed
+- ✅ NumPy downgraded to 1.26.4
+- ✅ All dependencies aligned
+- ❌ STILL FAILS with: `undefined symbol: _ZN3c104cuda14ExchangeDeviceEa`
+
+### THE REAL PROBLEM:
+WSL2 + mamba-ssm compiled extensions = INCOMPATIBLE
+The .so files are not linking correctly with CUDA libraries in WSL2 environment.
+
+## TEMPORARY WORKAROUND: USE CONV1D FALLBACK
+
+The model WILL train with Conv1d fallback! It's slower but functional:
+```python
+# In models.py, BiMamba2 falls back to Conv1d when mamba-ssm fails
+# This is NOT ideal but allows training to proceed
+```
+
+## PERMANENT SOLUTIONS:
+
+### Option 1: Move to Native Linux (RECOMMENDED)
+Deploy to actual Linux machine with GPU, not WSL2
+
+### Option 2: Use Docker with CUDA
+```bash
+docker run --gpus all -it pytorch/pytorch:2.2.2-cuda12.1-cudnn8-runtime
+```
+
+### Option 3: Accept Conv1d Fallback for Development
+Train with fallback, deploy real mamba-ssm on production GPU servers
+
+## IMPACT:
+- Training WILL work with Conv1d fallback
+- Performance degraded but functional
+- Full mamba-ssm only on native Linux/production
