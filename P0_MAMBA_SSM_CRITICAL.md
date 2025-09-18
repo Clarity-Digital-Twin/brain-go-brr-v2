@@ -84,40 +84,63 @@ y = model(x)
 print(f"Mamba output: {y.shape}")  # Should be [1, 100, 512]
 ```
 
-## STATUS: CRITICAL ISSUE IN WSL2
+## STATUS: RESOLVED IN WSL2! 🎉
 
-### What We've Tried:
+### SOLUTION THAT WORKS (2025-01-18):
 - ✅ PyTorch 2.2.2 + CUDA 12.1 installed
-- ✅ NumPy downgraded to 1.26.4
-- ✅ All dependencies aligned
-- ❌ STILL FAILS with: `undefined symbol: _ZN3c104cuda14ExchangeDeviceEa`
+- ✅ NumPy 1.26.4 (critical - numpy 2.x breaks everything)
+- ✅ causal-conv1d 1.4.0 installed with MAX_JOBS=4
+- ✅ mamba-ssm installed from git with --no-build-isolation
+- ✅ LD_LIBRARY_PATH fix for runtime linking
 
-### THE REAL PROBLEM:
-WSL2 + mamba-ssm compiled extensions = INCOMPATIBLE
-The .so files are not linking correctly with CUDA libraries in WSL2 environment.
-
-## TEMPORARY WORKAROUND: USE CONV1D FALLBACK
-
-The model WILL train with Conv1d fallback! It's slower but functional:
-```python
-# In models.py, BiMamba2 falls back to Conv1d when mamba-ssm fails
-# This is NOT ideal but allows training to proceed
-```
-
-## PERMANENT SOLUTIONS:
-
-### Option 1: Move to Native Linux (RECOMMENDED)
-Deploy to actual Linux machine with GPU, not WSL2
-
-### Option 2: Use Docker with CUDA
+### THE WORKING COMMANDS:
 ```bash
-docker run --gpus all -it pytorch/pytorch:2.2.2-cuda12.1-cudnn8-runtime
+# 1. Install PyTorch 2.2.2 (MUST MATCH!)
+uv pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cu121
+
+# 2. Install causal-conv1d 1.4.0 (NOT 1.0.2!)
+MAX_JOBS=4 .venv/bin/pip install causal-conv1d==1.4.0 --no-cache-dir
+
+# 3. Install mamba-ssm from git with no-build-isolation
+.venv/bin/python -m pip install --no-build-isolation -v "mamba-ssm @ git+https://github.com/state-spaces/mamba.git"
+
+# 4. CRITICAL: Set LD_LIBRARY_PATH for runtime
+export LD_LIBRARY_PATH=/home/jj/proj/brain-go-brr-v2/.venv/lib/python3.11/site-packages/torch/lib:$LD_LIBRARY_PATH
 ```
 
-### Option 3: Accept Conv1d Fallback for Development
-Train with fallback, deploy real mamba-ssm on production GPU servers
+### THE REAL PROBLEM (SOLVED):
+WSL2 + mamba-ssm compiled extensions have CUDA library linking issues.
+The .so files compile but can't find libc10.so, libtorch_cpu.so at runtime.
+Setting LD_LIBRARY_PATH fixes the runtime linking!
+
+## UPDATE RUN_GPU.SH WITH LD_LIBRARY_PATH:
+```bash
+#!/bin/bash
+# CRITICAL: Set library path for mamba-ssm CUDA
+export LD_LIBRARY_PATH=/home/jj/proj/brain-go-brr-v2/.venv/lib/python3.11/site-packages/torch/lib:$LD_LIBRARY_PATH
+
+# Thread limits for scipy (doesn't affect GPU)
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OMP_NUM_THREADS=1
+
+python -m src.experiment.pipeline --config "${1:-configs/smoke_test.yaml}"
+```
+
+## VERIFICATION TEST:
+```python
+# Test mamba-ssm is working (WITH LD_LIBRARY_PATH SET!)
+import torch
+from mamba_ssm import Mamba
+
+model = Mamba(d_model=512, d_state=16, d_conv=4, expand=2).cuda()
+x = torch.randn(1, 100, 512).cuda()
+y = model(x)
+print(f"✅ Mamba working! Output: {y.shape}")  # Should be [1, 100, 512]
+```
 
 ## IMPACT:
-- Training WILL work with Conv1d fallback
-- Performance degraded but functional
-- Full mamba-ssm only on native Linux/production
+- ✅ Training now works with REAL mamba-ssm (not fallback!)
+- ✅ Full O(N) sequence modeling achieved
+- ✅ RTX 4090 running at full power with Bi-Mamba-2
+- ⚠️ MUST set LD_LIBRARY_PATH in all scripts that use mamba-ssm

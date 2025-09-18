@@ -19,7 +19,10 @@
       "Bash(.venv/bin/pip install:*)",
       "Bash(.venv/bin/pip:*)",
       "Bash(nvcc:*)",
-      "Read(//tmp/causal-conv1d/**)"
+      "Read(//tmp/causal-conv1d/**)",
+      "Bash(MAX_JOBS=4 .venv/bin/pip install causal-conv1d==1.4.0 --no-cache-dir)",
+      "Bash(ldd:*)",
+      "Bash(LD_LIBRARY_PATH=/home/jj/proj/brain-go-brr-v2/.venv/lib/python3.11/site-packages/torch/lib:$LD_LIBRARY_PATH .venv/bin/python -c \"\nimport sys\nsys.path.insert(0, ''/home/jj/proj/brain-go-brr-v2/.venv/lib/python3.11/site-packages'')\nimport causal_conv1d\nprint(''Available:'', dir(causal_conv1d))\n\n# Try to access the functions directly\nfrom causal_conv1d import causal_conv1d_fn\nprint(''causal_conv1d_fn imported!'')\n\n# Try the cuda module\nimport causal_conv1d_cuda\nprint(''causal_conv1d_cuda functions:'', [x for x in dir(causal_conv1d_cuda) if ''conv'' in x.lower()])\n\")"
     ],
     "deny": [],
     "ask": []
