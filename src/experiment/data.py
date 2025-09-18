@@ -257,7 +257,7 @@ def extract_windows(
 class EEGWindowDataset(torch.utils.data.Dataset):
     """PyTorch dataset for windowed EEG.
 
-    Phase 1: simple materialization in memory (OK for unit tests and small sets).
+    Memory-efficient: loads windows on-demand from cache or computes them.
     """
 
     def __init__(
@@ -275,35 +275,35 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         if self.cache_dir is not None:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-        # Materialize windows
-        self._windows: list[npt.NDArray[np.float32]] = []
-        self._labels: list[npt.NDArray[np.float32]] = []
+        # Build index mapping: (file_idx, window_idx) for each dataset index
+        self._index_map: list[tuple[int, int]] = []
+        self._file_window_counts: list[int] = []
+        self._has_labels = label_files is not None
 
+        # Pre-compute or load window counts for each file
         for i, edf_path in enumerate(self.edf_files):
             cache_path = None
             if self.cache_dir is not None:
                 cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"
 
-            windows_arr: npt.NDArray[np.float32]
-            labels_arr: npt.NDArray[np.float32] | None
-
             if cache_path is not None and cache_path.exists():
-                cached = np.load(cache_path)
-                windows_arr = cached["windows"].astype(np.float32)
-                labels_arr = cached.get("labels", None)
+                # Just load shape info from cache
+                with np.load(cache_path) as cached:
+                    n_windows = cached["windows"].shape[0]
             else:
+                # Process file to create cache (but don't keep in memory)
                 windows_arr, labels_arr = self._process_file(edf_path, i)
+                n_windows = windows_arr.shape[0]
                 if cache_path is not None:
                     if labels_arr is not None:
                         np.savez_compressed(cache_path, windows=windows_arr, labels=labels_arr)
                     else:
                         np.savez_compressed(cache_path, windows=windows_arr)
 
-            # Store
-            for w_idx in range(windows_arr.shape[0]):
-                self._windows.append(windows_arr[w_idx])
-                if labels_arr is not None:
-                    self._labels.append(labels_arr[w_idx])
+            # Build index map
+            self._file_window_counts.append(n_windows)
+            for w_idx in range(n_windows):
+                self._index_map.append((i, w_idx))
 
     def _process_file(
         self, edf_path: Path, file_idx: int
@@ -344,23 +344,47 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         return np.zeros((n_samples,), dtype=np.float32)
 
     def __len__(self) -> int:
-        return len(self._windows)
+        return len(self._index_map)
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         """Return window and label as tuple. Always returns tuple for consistency.
 
+        Loads data on-demand from cache or computes if needed.
         When no labels exist, returns zero tensor of correct shape as label.
         This ensures train_epoch always gets (window, label) tuple.
         """
-        window = torch.from_numpy(self._windows[idx])
-        if self.transform is not None:
-            window = self.transform(window)
+        file_idx, window_idx = self._index_map[idx]
+        edf_path = self.edf_files[file_idx]
 
-        if self._labels:
-            label = torch.from_numpy(self._labels[idx])
+        # Load from cache or compute
+        cache_path = None
+        if self.cache_dir is not None:
+            cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"
+
+        if cache_path is not None and cache_path.exists():
+            # Load specific window from cache
+            with np.load(cache_path) as cached:
+                window = cached["windows"][window_idx].astype(np.float32)
+                if "labels" in cached and cached["labels"] is not None:
+                    label = cached["labels"][window_idx].astype(np.float32)
+                else:
+                    label = None
+        else:
+            # Compute on-the-fly if no cache
+            windows_arr, labels_arr = self._process_file(edf_path, file_idx)
+            window = windows_arr[window_idx]
+            label = labels_arr[window_idx] if labels_arr is not None else None
+
+        # Convert to tensors
+        window_tensor = torch.from_numpy(window)
+        if self.transform is not None:
+            window_tensor = self.transform(window_tensor)
+
+        if label is not None:
+            label_tensor = torch.from_numpy(label)
         else:
             # ALWAYS return tuple with zero labels when none exist
             # Shape matches window's time dimension for per-timestep labels
-            label = torch.zeros(window.shape[-1], dtype=torch.float32)
+            label_tensor = torch.zeros(window_tensor.shape[-1], dtype=torch.float32)
 
-        return window, label
+        return window_tensor, label_tensor

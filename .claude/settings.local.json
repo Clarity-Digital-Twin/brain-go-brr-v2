@@ -78,7 +78,8 @@
       "Bash(.venv/bin/pytest tests/ -n 4 -q)",
       "Bash(.venv/bin/pytest tests/ -x -v --tb=short)",
       "Bash(.venv/bin/pytest tests/ -k \"not test_output_range\" -x -v --tb=short)",
-      "Bash(.venv/bin/pytest tests/ -q --tb=short)"
+      "Bash(.venv/bin/pytest tests/ -q --tb=short)",
+      "Bash(.venv/bin/pytest tests/test_data.py -v)"
     ],
     "deny": [],
     "ask": []

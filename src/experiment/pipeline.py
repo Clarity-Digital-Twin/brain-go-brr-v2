@@ -629,9 +629,34 @@ def main() -> None:
     # Create data loaders
     train_sampler = None
     if config.data.use_balanced_sampling:
-        # Get all labels for sampler
-        all_labels = torch.stack([train_dataset[i][1] for i in range(len(train_dataset))])
-        train_sampler = create_balanced_sampler(all_labels)
+        # Efficiently compute label statistics without loading all data
+        # Sample a subset to estimate class balance (faster startup)
+        n_samples = min(1000, len(train_dataset))  # Sample up to 1000 windows
+        sample_indices = torch.randperm(len(train_dataset))[:n_samples]
+        sample_labels = torch.stack([train_dataset[idx.item()][1] for idx in sample_indices])
+
+        # Use sample statistics for entire dataset weighting
+        window_has_seizure = (sample_labels.max(dim=1).values > 0).float()
+        pos_ratio = float(window_has_seizure.mean().item())
+
+        if pos_ratio < 1e-8:
+            pos_ratio = 1e-8
+        pos_weight = (1 - pos_ratio) / pos_ratio
+
+        # Create weights for ALL samples based on estimated ratio
+        all_weights = []
+        for i in range(len(train_dataset)):
+            _, label = train_dataset[i]
+            has_seizure = float(label.max() > 0)
+            weight = pos_weight if has_seizure else 1.0
+            all_weights.append(weight)
+
+        train_sampler = WeightedRandomSampler(
+            weights=all_weights,
+            num_samples=len(all_weights),
+            replacement=True,
+            generator=torch.Generator().manual_seed(42),
+        )
 
     train_loader = DataLoader(
         train_dataset,
