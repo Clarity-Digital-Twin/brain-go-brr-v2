@@ -346,12 +346,21 @@ class EEGWindowDataset(torch.utils.data.Dataset):
     def __len__(self) -> int:
         return len(self._windows)
 
-    def __getitem__(self, idx: int) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+        """Return window and label as tuple. Always returns tuple for consistency.
+
+        When no labels exist, returns zero tensor of correct shape as label.
+        This ensures train_epoch always gets (window, label) tuple.
+        """
         window = torch.from_numpy(self._windows[idx])
         if self.transform is not None:
             window = self.transform(window)
 
         if self._labels:
             label = torch.from_numpy(self._labels[idx])
-            return window, label
-        return window
+        else:
+            # ALWAYS return tuple with zero labels when none exist
+            # Shape matches window's time dimension for per-timestep labels
+            label = torch.zeros(window.shape[-1], dtype=torch.float32)
+
+        return window, label
