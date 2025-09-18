@@ -1,0 +1,45 @@
+{
+  "total_files": 7364,
+  "by_subset": {
+    "edf": 7364
+  },
+  "by_montage": {
+    "02_tcp_le": 547,
+    "01_tcp_ar": 5508,
+    "03_tcp_ar_a": 1309
+  },
+  "by_reference": {
+    "LE": 547,
+    "REF": 6817
+  },
+  "files_with_all_19": 7115,
+  "files_with_errors": 0,
+  "missing_channel_frequency": {
+    "Fz": 249,
+    "Pz": 249
+  },
+  "percent_with_all_19": 96.61868549701249,
+  "montage_specific": {
+    "02_tcp_le": {
+      "total": 547,
+      "with_all_19": 547,
+      "common_missing": {}
+    },
+    "01_tcp_ar": {
+      "total": 5508,
+      "with_all_19": 5295,
+      "common_missing": {
+        "Fz": 213,
+        "Pz": 213
+      }
+    },
+    "03_tcp_ar_a": {
+      "total": 1309,
+      "with_all_19": 1273,
+      "common_missing": {
+        "Fz": 36,
+        "Pz": 36
+      }
+    }
+  }
+}
