@@ -150,7 +150,7 @@ def load_edf_file(
 
         rename_map_norm: dict[str, str] = {}
         for ch in list(raw.ch_names):
-            canon = _to_canonical(ch)
+            canon: str | None = _to_canonical(ch)
             if canon is not None and canon != ch:
                 rename_map_norm[ch] = canon
         if rename_map_norm:
