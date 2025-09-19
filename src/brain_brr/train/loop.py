@@ -166,7 +166,9 @@ def train_epoch(
     gradient_clip: float = 1.0,
     scheduler: LRScheduler | None = None,
     global_step: int = 0,
-) -> tuple[float, int]:
+    *,
+    return_step: bool = False,
+) -> float | tuple[float, int]:
     """Train for one epoch.
 
     Args:
@@ -178,9 +180,10 @@ def train_epoch(
         gradient_clip: Max gradient norm
         scheduler: Optional LR scheduler (per-iteration)
         global_step: Global step counter for scheduler
+        return_step: If True, return (loss, global_step). If False, return just loss.
 
     Returns:
-        Tuple of (average training loss, updated global_step)
+        Average training loss (default) or tuple of (loss, global_step) if return_step=True
     """
     model.train()
     device_obj = torch.device(device)
@@ -206,7 +209,7 @@ def train_epoch(
 
     # Use enumerate for batch indexing (satisfies ruff SIM113)
     # But track global_step separately for proper scheduler behavior
-    for batch_idx, (windows, labels) in enumerate(progress):
+    for _, (windows, labels) in enumerate(progress):
         windows = windows.to(device_obj)
         labels = labels.to(device_obj)
 
@@ -251,7 +254,8 @@ def train_epoch(
         if use_tqdm and isinstance(progress, tqdm):
             progress.set_postfix({"loss": f"{loss.item():.4f}"})
 
-    return total_loss / max(1, num_batches), global_step
+    avg_loss = total_loss / max(1, num_batches)
+    return (avg_loss, global_step) if return_step else avg_loss
 
 
 # ============================================================================
@@ -514,7 +518,7 @@ def train(
         print(f"\nEpoch {epoch + 1}/{config.training.epochs}")
 
         # Train
-        train_loss, global_step = train_epoch(
+        result = train_epoch(
             model,
             train_loader,
             optimizer,
@@ -523,7 +527,11 @@ def train(
             gradient_clip=config.training.gradient_clip,
             scheduler=scheduler,
             global_step=global_step,
+            return_step=True,
         )
+        # Type narrowing for mypy
+        assert isinstance(result, tuple), "return_step=True should return tuple"
+        train_loss, global_step = result
 
         # Validate
         val_metrics = validate_epoch(

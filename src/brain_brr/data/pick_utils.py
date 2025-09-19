@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import numpy as np
-
 
 def pick_and_order(raw: Any, required: list[str]) -> tuple[Any, list[str]]:
     """Subset and impose exact channel order robustly across MNE versions and test doubles.
@@ -74,7 +72,7 @@ def pick_and_order(raw: Any, required: list[str]) -> tuple[Any, list[str]]:
             return raw, missing
 
         # Build new Raw with correct channel order
-        import mne
+        import mne  # type: ignore[import-untyped]
 
         info = mne.create_info(
             ch_names=present, sfreq=raw.info["sfreq"], ch_types="eeg", verbose=False
