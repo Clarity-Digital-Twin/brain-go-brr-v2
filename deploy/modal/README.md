@@ -2,6 +2,15 @@
 
 Deploy Brain-Go-Brr v2 training to Modal's GPU infrastructure.
 
+> **Important**: This deployment uses NVIDIA CUDA development images for mamba-ssm compilation.
+> First build takes ~10-15 minutes due to CUDA kernel compilation. Subsequent runs use cached images.
+
+## Prerequisites
+
+- Modal CLI installed and authenticated
+- ~10GB free space for Docker image caching
+- Patience for first-time mamba-ssm compilation (one-time cost)
+
 ## Setup
 
 ### 1. Install Modal CLI
@@ -101,6 +110,30 @@ modal volume get brain-go-brr-results /evaluations ./results/evaluations
 modal setup
 ```
 
+### Mamba-SSM build failures
+
+**Problem**: `nvcc was not found` or `bare_metal_version is not defined`
+
+**Solution**: We use `nvidia/cuda:12.1.0-devel-ubuntu22.04` base image which includes:
+- nvcc (CUDA compiler)
+- CUDA development headers
+- All tools for compiling CUDA kernels
+
+**Why it happens**:
+- `debian_slim` images lack CUDA development tools
+- PyTorch runtime images don't include nvcc
+- Mamba-SSM requires compiling custom CUDA kernels
+
+### Long first-time build
+
+**Expected**: First deployment takes 10-15 minutes
+- Downloading CUDA dev image (~7GB)
+- Installing PyTorch 2.2.2 + CUDA libs
+- Compiling mamba-ssm CUDA kernels
+- Building all dependencies
+
+**After first build**: Image is cached, deployments take ~30 seconds
+
 ### Monitoring training progress
 ```bash
 # After launching, you'll see:
@@ -115,6 +148,23 @@ modal setup
 modal volume create brain-go-brr-data
 modal volume create brain-go-brr-results
 ```
+
+## Technical Architecture
+
+### Image Build Strategy
+```python
+# Uses NVIDIA CUDA devel image (not debian_slim!)
+modal.Image.from_registry(
+    "nvidia/cuda:12.1.0-devel-ubuntu22.04",
+    add_python="3.11"
+)
+```
+
+### Why This Architecture?
+1. **CUDA Development Image**: Required for nvcc compiler
+2. **PyTorch 2.2.2**: Specific version for mamba-ssm compatibility
+3. **Build Order**: PyTorch → numpy → mamba-ssm (order matters!)
+4. **A100-80GB**: 3x faster than RTX 4090, worth the cost
 
 ## File Structure
 
