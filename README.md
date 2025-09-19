@@ -1,7 +1,7 @@
 # 🧠 Brain-Go-Brr v2: Next-Generation Seizure Detection with Bi-Mamba State Space Models
 
-## 🎯 Mission Statement
-
+## 🎯 Mission Statement 
+ 
 This project pioneers the first systematic evaluation of **bidirectional Mamba-2 state space models** combined with **U-Net CNN encoders** and **Residual CNN stacks** for clinical-grade seizure detection. While transformers have dominated recent EEG research, their O(N²) complexity limits real-time deployment. We propose a novel architecture achieving O(N) complexity while maintaining or exceeding transformer performance.
 
 **No one has tested this specific architecture combination before.**
@@ -80,9 +80,12 @@ make setup
 
 # Optional: install extras
 #   - GPU/SSM: Mamba-SSM kernels
-#   - Post-processing: scikit-image (hysteresis)
-#   - Evaluation: pandas (CSV_BI)
+#   - Post-processing: SciPy ndimage operations
+#   - Evaluation: pandas (CSV_BI export)
 # uv sync -E gpu,post,eval
+
+# Run quality checks (lint + type checking)
+make q  # Run after every change!
 
 # Run local training (reduced data)
 make train-local
@@ -91,8 +94,26 @@ make train-local
 make train
 ```
 
+### 🌩️ Cloud Deployment (Modal.com)
+
+```bash
+# Install Modal CLI
+pip install --upgrade modal
+
+# Authenticate
+modal setup
+
+# Run training on L40S GPU (48GB VRAM)
+modal run modal_train.py --action train --config configs/smoke_test.yaml
+
+# Large-scale training on 8x H100 GPUs
+modal run modal_train.py --action train-large --config configs/full_training.yaml
+```
+
+See [docs/deployment/MODAL_DEPLOYMENT_GUIDE.md](docs/deployment/MODAL_DEPLOYMENT_GUIDE.md) for complete cloud deployment instructions.
+
 Note for WSL/cross-filesystem users ⚙️
-- If you ever see a uv hardlink warning during installs, it’s harmless. For silence and stability, you can export these (already defaulted in the Makefile):
+- If you ever see a uv hardlink warning during installs, it's harmless. For silence and stability, you can export these (already defaulted in the Makefile):
   - `export UV_LINK_MODE=copy`
   - `export UV_CACHE_DIR=.uv_cache`
 
@@ -140,15 +161,15 @@ MNE-hybrid approach optimized for seizure morphology:
 - Stitching: overlap-add (uniform/weighted) and max options
 - Confidence: mean/peak/percentile per event, clamped to [0,1]
 
-GPU parity: morphology uses pooling (max/min) on CUDA; CPU path uses SciPy ndimage. See `PHASE4_POSTPROCESSING.md` for details.
+GPU parity: morphology uses pooling (max/min) on CUDA; CPU path uses SciPy ndimage. See [docs/phases/PHASE4_POSTPROCESSING.md](docs/phases/PHASE4_POSTPROCESSING.md) for details.
 
 ### Evaluation
-- Time-Aligned Event Scoring (TAES), Sensitivity@FA/24h, FA curve, AUROC.
-- Threshold search varies hysteresis τ_on (with τ_off = τ_on − 0.08) to hit FA targets {10, 5, 2.5, 1};
-  FA/24h time uses overlap-aware duration: (N−1)×stride + window_size.
+- Time-Aligned Event Scoring (TAES), Sensitivity@FA/24h, FA curve, AUROC
+- Threshold search varies hysteresis τ_on (with τ_off = τ_on − 0.08) to hit FA targets {10, 5, 2.5, 1}
+- FA/24h time uses overlap-aware duration: (N−1)×stride + window_size
 
-See `PHASE5_EVALUATION.md` for the end-to-end evaluation and benchmarking plan, with TDD.
-For online/real-time inference, see `PHASE6_STREAMING.md`.
+See [docs/phases/PHASE5_EVALUATION.md](docs/phases/PHASE5_EVALUATION.md) for the end-to-end evaluation and benchmarking plan.
+For online/real-time inference, see [docs/phases/PHASE6_STREAMING.md](docs/phases/PHASE6_STREAMING.md).
 
 ## 📊 Evaluation Strategy
 
@@ -167,20 +188,58 @@ For online/real-time inference, see `PHASE6_STREAMING.md`.
 ```
 brain-go-brr-v2/
 ├── src/
-│   └── experiment/
-│       ├── schemas.py    # Pydantic config models
-│       ├── data.py       # EDF loading, preprocessing, windowing
-│       ├── models.py     # U-Net, ResCNN, Bi-Mamba-2 (CPU/GPU dispatch)
-│       ├── postprocess.py# Hysteresis, morphology, duration, stitching
-│       ├── events.py     # Eventization, merging, confidence
-│       ├── evaluate.py   # TAES/FA/threshold search + adapters
-│       ├── pipeline.py   # Orchestration entrypoint
-│       └── export.py     # CSV_BI and JSON exports
+│   └── brain_brr/        # Core modules (refactored from experiment/)
+│       ├── models/       # Neural network components
+│       │   ├── detector.py  # Main SeizureDetector class
+│       │   ├── unet.py      # U-Net encoder/decoder
+│       │   ├── rescnn.py    # Residual CNN blocks
+│       │   └── mamba.py     # Bidirectional Mamba-2
+│       ├── data/         # EEG preprocessing & datasets
+│       │   ├── io.py        # EDF/MNE file handling
+│       │   ├── dataset.py   # PyTorch Dataset/DataLoader
+│       │   └── preprocess.py # Filtering, windowing, normalization
+│       ├── train/        # Training pipeline
+│       │   ├── trainer.py   # PyTorch Lightning trainer
+│       │   └── callbacks.py # Checkpointing, early stopping
+│       ├── post/         # Post-processing
+│       │   ├── postprocess.py # Hysteresis, morphology, stitching
+│       │   └── events.py     # Event generation, confidence
+│       ├── eval/         # Evaluation metrics
+│       │   ├── metrics.py    # TAES, AUROC, FA curves
+│       │   └── benchmark.py  # epilepsybenchmarks.com adapter
+│       ├── config/       # Configuration schemas
+│       │   └── schemas.py    # Pydantic v2 config models
+│       ├── cli/          # Command-line interface
+│       │   └── cli.py        # Main entry point
+│       └── utils/        # Shared utilities
+│           └── pick_utils.py # Channel selection helpers
 ├── configs/              # YAML experiment configs (EEG-focused)
-├── literature/           # Converted papers, references
-├── tests/                # Pytest suites
+├── docs/                 # Documentation
+│   ├── architecture/     # Architecture specs
+│   ├── deployment/       # Modal.com deployment guide
+│   └── phases/           # Development phases (1-6)
+├── tests/                # Pytest test suites
+├── modal_train.py        # Modal cloud deployment
 └── Makefile              # Automation commands
 ```
+
+## 🏗️ Architecture Benefits
+
+The modular refactoring from monolithic `src/experiment/` to `src/brain_brr/` provides:
+
+1. **Clear Separation of Concerns**: Each module has a single responsibility
+2. **Easier Testing**: Isolated components with focused test coverage
+3. **Better Maintainability**: Navigate directly to functionality
+4. **Cloud-Ready**: Modal.com deployment script included
+5. **Extensibility**: Easy to add new models, metrics, or preprocessing
+
+## Key Development Notes
+
+- **Quality First**: Run `make q` after every change for lint + type checking
+- **Type Everything**: Full type hints required throughout codebase
+- **Test Coverage**: Unit and integration tests with pytest markers
+- **No Comments**: Code should be self-documenting (unless explicitly needed)
+- **Follow Patterns**: Match style of neighboring files
 
 ## Why This Will Work
 
