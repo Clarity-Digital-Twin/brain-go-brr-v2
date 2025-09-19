@@ -6,8 +6,8 @@ import numpy as np
 import pytest
 import torch
 
-from src.experiment import constants
-from src.experiment import data as data_mod
+from src.brain_brr import constants
+from src.brain_brr import data as data_mod
 
 
 class FakeRaw:

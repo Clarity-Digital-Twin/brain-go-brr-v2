@@ -11,7 +11,7 @@ def test_interpolation_fz_pz_missing():
     """Test that missing Fz/Pz channels are interpolated correctly."""
     from pathlib import Path
 
-    from src.experiment.data import load_edf_file
+    from src.brain_brr.data import load_edf_file
 
     # Create synthetic Raw with 17 channels (missing Fz, Pz)
     sfreq = 256.0
@@ -57,7 +57,7 @@ def test_interpolation_fz_pz_missing():
 
         # Verify Fz and Pz were added and have finite values
         # The order should match CHANNEL_NAMES_10_20 from constants.py
-        from src.experiment.constants import CHANNEL_NAMES_10_20
+        from src.brain_brr.constants import CHANNEL_NAMES_10_20
 
         fz_idx = CHANNEL_NAMES_10_20.index("Fz")
         pz_idx = CHANNEL_NAMES_10_20.index("Pz")
@@ -74,7 +74,7 @@ def test_interpolation_other_channel_missing_raises():
     """Test that missing channels other than Fz/Pz raise an error."""
     from pathlib import Path
 
-    from src.experiment.data import load_edf_file
+    from src.brain_brr.data import load_edf_file
 
     # Create synthetic Raw missing O1 (not allowed)
     sfreq = 256.0
@@ -116,7 +116,7 @@ def test_interpolation_with_montage_disabled():
     """Test that interpolation fails gracefully when montage is disabled."""
     from pathlib import Path
 
-    from src.experiment.data import load_edf_file
+    from src.brain_brr.data import load_edf_file
 
     # Create synthetic Raw missing Fz
     sfreq = 256.0
@@ -159,7 +159,7 @@ def test_interpolation_warning_logged(caplog):
     import logging
     from pathlib import Path
 
-    from src.experiment.data import load_edf_file
+    from src.brain_brr.data import load_edf_file
 
     # Set up logging to capture warnings
     caplog.set_level(logging.WARNING)

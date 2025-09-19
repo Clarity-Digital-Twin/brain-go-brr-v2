@@ -3,15 +3,15 @@
 import pytest
 import torch
 
-from src.experiment.evaluate import (
+from src.brain_brr.eval import (
     calculate_ece,
     calculate_taes,
     evaluate_predictions,
     fa_per_24h,
     sensitivity_at_fa_rates,
 )
-from src.experiment.events import batch_mask_to_events as batch_masks_to_events
-from src.experiment.schemas import PostprocessingConfig
+from src.brain_brr.events import batch_mask_to_events as batch_masks_to_events
+from src.brain_brr.config.schemas import PostprocessingConfig
 
 
 class TestTAES:
@@ -173,7 +173,7 @@ class TestSensitivityAtFA:
     @pytest.fixture
     def post_cfg(self) -> PostprocessingConfig:
         """Create post-processing config."""
-        from src.experiment.schemas import HysteresisConfig
+        from src.brain_brr.config.schemas import HysteresisConfig
 
         return PostprocessingConfig(
             hysteresis=HysteresisConfig(tau_on=0.86, tau_off=0.78),
@@ -212,7 +212,7 @@ class TestEvaluatePredictions:
     @pytest.fixture
     def post_cfg(self) -> PostprocessingConfig:
         """Create post-processing config."""
-        from src.experiment.schemas import HysteresisConfig
+        from src.brain_brr.config.schemas import HysteresisConfig
 
         return PostprocessingConfig(
             hysteresis=HysteresisConfig(tau_on=0.86, tau_off=0.78),

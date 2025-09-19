@@ -89,7 +89,10 @@
       "Bash(.venv/bin/pytest tests/test_interpolation.py -v)",
       "Bash(.venv/bin/pytest tests/ --collect-only)",
       "Bash(.venv/bin/pytest tests/test_training.py::TestTrainingSmoke::test_early_stopping -xvs)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(do sed -i 's/from src\\.experiment/from src.brain_brr/g' \"$file\")",
+      "Bash(.venv/bin/pytest:*)",
+      "Bash(sed:*)"
     ],
     "deny": [],
     "ask": []

@@ -3,12 +3,12 @@
 import pytest
 import torch
 
-from src.experiment.schemas import (
+from src.brain_brr.config.schemas import (
     HysteresisConfig,
     MorphologyConfig,
     PostprocessingConfig,
 )
-from src.experiment.streaming import StreamingPostProcessor
+from src.brain_brr.streaming import StreamingPostProcessor
 
 
 class TestStreamingPostProcessor:

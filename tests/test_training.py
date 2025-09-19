@@ -7,8 +7,8 @@ import pytest
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from src.experiment.models import SeizureDetector
-from src.experiment.pipeline import (
+from src.brain_brr.models import SeizureDetector
+from src.brain_brr.train import (
     create_optimizer,
     create_scheduler,
     load_checkpoint,
@@ -16,7 +16,7 @@ from src.experiment.pipeline import (
     train_epoch,
     validate_epoch,
 )
-from src.experiment.schemas import Config, EarlyStoppingConfig, TrainingConfig
+from src.brain_brr.config.schemas import Config, EarlyStoppingConfig, TrainingConfig
 
 
 class TestTrainingSmoke:
@@ -74,7 +74,7 @@ class TestTrainingSmoke:
         _, val_loader = synthetic_data
 
         # Validate
-        from src.experiment.schemas import HysteresisConfig, PostprocessingConfig
+        from src.brain_brr.config.schemas import HysteresisConfig, PostprocessingConfig
 
         post_cfg = PostprocessingConfig(
             hysteresis=HysteresisConfig(tau_on=0.86, tau_off=0.78),
@@ -111,7 +111,7 @@ class TestTrainingSmoke:
 
     def test_scheduler_creation(self, model: SeizureDetector) -> None:
         """Test scheduler creation."""
-        from src.experiment.schemas import SchedulerConfig
+        from src.brain_brr.config.schemas import SchedulerConfig
 
         optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
         scheduler_cfg = SchedulerConfig(
@@ -189,7 +189,7 @@ class TestTrainingSmoke:
 
     def test_early_stopping(self) -> None:
         """Test early stopping logic."""
-        from src.experiment.pipeline import EarlyStopping
+        from src.brain_brr.train import EarlyStopping
 
         config = EarlyStoppingConfig(
             patience=3,
@@ -212,7 +212,7 @@ class TestTrainingSmoke:
 
     def test_balanced_sampling(self) -> None:
         """Test balanced sampler creation."""
-        from src.experiment.pipeline import create_balanced_sampler
+        from src.brain_brr.train import create_balanced_sampler
 
         # Create imbalanced labels (90% negative, 10% positive)
         labels = torch.zeros(100, 15360)
@@ -233,7 +233,7 @@ class TestTrainingSmoke:
         self, model: SeizureDetector, synthetic_data: tuple[DataLoader, DataLoader]
     ) -> None:
         """Test complete training loop for 2 epochs."""
-        from src.experiment.pipeline import train
+        from src.brain_brr.train import train
 
         train_loader, val_loader = synthetic_data
 

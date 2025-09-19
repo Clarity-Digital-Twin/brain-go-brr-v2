@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from src.experiment.models import SeizureDetector
+from src.brain_brr.models import SeizureDetector
 
 
 class TestSeizureDetector:

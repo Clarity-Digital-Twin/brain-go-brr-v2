@@ -3,7 +3,7 @@
 import numpy as np
 import torch
 
-from src.experiment.events import (
+from src.brain_brr.events import (
     SeizureEvent,
     batch_mask_to_events,
     calculate_event_confidence,
