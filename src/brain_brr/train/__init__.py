@@ -12,16 +12,22 @@ This module will contain:
 # During migration, re-export from experiment
 try:
     from src.experiment.pipeline import (
-        EarlyStopping,
+        create_optimizer,
+        create_scheduler,
+        load_checkpoint,
+        save_checkpoint,
+        train,
         train_epoch,
-        train_model,
         validate_epoch,
     )
 
     __all__ = [
-        "EarlyStopping",
+        "create_optimizer",
+        "create_scheduler",
+        "load_checkpoint",
+        "save_checkpoint",
+        "train",
         "train_epoch",
-        "train_model",
         "validate_epoch",
     ]
 except ImportError:
