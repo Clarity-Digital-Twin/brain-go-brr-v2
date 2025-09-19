@@ -124,6 +124,10 @@ coverage.xml
 .env.*.local
 # Note: .env.example is tracked (it's a template)
 
+# Modal authentication
+.modal.toml
+*.modal.toml
+
 # Node (if using any JS tools)
 node_modules/
 npm-debug.log*

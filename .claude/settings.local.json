@@ -33,7 +33,9 @@
       "Bash(while read -r link)",
       "Bash(do [ -f \"$link\" ])",
       "Bash(echo:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(git fetch:*)",
+      "Read(//home/jj/**)"
     ],
     "deny": [],
     "ask": []
