@@ -65,7 +65,8 @@
       "Bash(.venv/bin/pytest tests/test_evaluate.py::TestECE -v)",
       "Bash(.venv/bin/pytest tests/ -q)",
       "Bash(.venv/bin/pytest tests/test_postprocess.py tests/test_evaluate.py tests/test_streaming.py -q)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(.venv/bin/pytest tests/test_smoke.py -v --tb=short)"
     ],
     "deny": [],
     "ask": []

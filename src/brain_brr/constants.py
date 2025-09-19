@@ -1,26 +1,9 @@
 """EEG constants for Phase 1 data pipeline.
 
 These constants define the canonical 10-20 channel order and windowing params.
-
-DEPRECATED: This module has been moved to brain_brr.constants
-Please update your imports to use the new location.
 """
 
 from __future__ import annotations
-
-import warnings
-
-warnings.warn(
-    "Importing from 'src.experiment.constants' is deprecated. "
-    "Please use 'from brain_brr.constants import ...' instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
-# Import everything from new location for compatibility
-from src.brain_brr.constants import *  # noqa: F403, F401
-
-# Keep local definitions for reference during migration
 
 # Canonical 10-20 montage order (19 channels)
 CHANNEL_NAMES_10_20: list[str] = [
