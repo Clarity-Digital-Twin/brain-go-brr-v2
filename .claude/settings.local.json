@@ -4,7 +4,11 @@
       "Bash(timeout:*)",
       "Bash(tmux kill-session:*)",
       "Bash(tmux new:*)",
-      "Bash(git check-ignore:*)"
+      "Bash(git check-ignore:*)",
+      "Bash(tmux ls:*)",
+      "Bash(tmux capture-pane:*)",
+      "Bash(./run_gpu.sh:*)",
+      "Bash(make:*)"
     ],
     "deny": [],
     "ask": []

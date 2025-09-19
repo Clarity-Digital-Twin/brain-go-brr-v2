@@ -10,20 +10,13 @@ SOLID principles applied:
 
 from __future__ import annotations
 
-print("[DEBUG] Starting pipeline.py imports...")
-
 import random
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import torch
-
-# WSL2-safe multiprocessing defaults (must be before any DataLoader creation)
 import torch.multiprocessing as mp
-if mp.get_start_method(allow_none=True) != "spawn":
-    mp.set_start_method("spawn", force=True)
-    print("[DEBUG] Set multiprocessing start method to spawn for WSL2 safety")
 import torch.nn as nn
 from torch.cuda.amp import GradScaler, autocast
 from torch.optim import AdamW, Optimizer
@@ -32,11 +25,8 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm  # type: ignore[import-untyped]
 
-print("[DEBUG] Importing evaluate_predictions...")
 from src.experiment.evaluate import evaluate_predictions
-print("[DEBUG] Importing SeizureDetector...")
 from src.experiment.models import SeizureDetector
-print("[DEBUG] Importing schemas...")
 from src.experiment.schemas import (
     Config,
     EarlyStoppingConfig,
@@ -44,6 +34,10 @@ from src.experiment.schemas import (
     SchedulerConfig,
     TrainingConfig,
 )
+
+# WSL2-safe multiprocessing defaults (must be before any DataLoader creation)
+if mp.get_start_method(allow_none=True) != "spawn":
+    mp.set_start_method("spawn", force=True)
 
 # ============================================================================
 # Reproducibility utilities (Single Responsibility)
@@ -594,12 +588,9 @@ def train(
 
 def main() -> None:
     """CLI entry point for training."""
-    print("[DEBUG] Entering main()...")
     import argparse
 
-    print("[DEBUG] Importing EEGWindowDataset from src.experiment.data...")
     from src.experiment.data import EEGWindowDataset
-    print("[DEBUG] Import successful!")
 
     parser = argparse.ArgumentParser(description="Train seizure detection model")
     parser.add_argument(
@@ -617,10 +608,8 @@ def main() -> None:
     args = parser.parse_args()
 
     # Load config
-    print(f"[DEBUG] Loading config from {args.config}...")
     config = Config.from_yaml(Path(args.config))
     config.training.resume = args.resume
-    print("[DEBUG] Config loaded successfully!")
 
     # Create datasets (discover EDF files and paired CSV_BI annotations if present)
     data_root = Path(config.data.data_dir)
