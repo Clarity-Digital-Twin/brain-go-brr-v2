@@ -41,7 +41,9 @@ def test_load_edf_orders_channels_correctly(monkeypatch: pytest.MonkeyPatch) -> 
     sig = rng.standard_normal((len(chans_syn), constants.WINDOW_SAMPLES)).astype(np.float32)
     raw = FakeRaw(ch_names=chans_syn, data=sig, sfreq=256.0)
 
-    monkeypatch.setattr(data_mod, "_read_raw_edf", lambda p: raw)
+    # Patch the actual module where the function is defined
+    import src.brain_brr.data.io as io_mod
+    monkeypatch.setattr(io_mod, "_read_raw_edf", lambda p: raw)
 
     arr, fs = data_mod.load_edf_file(Path("dummy.edf"))
     assert isinstance(fs, float)
@@ -60,7 +62,9 @@ def test_load_edf_missing_channels_raises(monkeypatch: pytest.MonkeyPatch) -> No
     sig = rng.standard_normal((len(missing), 1000)).astype(np.float32)
     raw = FakeRaw(ch_names=missing, data=sig, sfreq=250.0)
 
-    monkeypatch.setattr(data_mod, "_read_raw_edf", lambda p: raw)
+    # Patch the actual module where the function is defined
+    import src.brain_brr.data.io as io_mod
+    monkeypatch.setattr(io_mod, "_read_raw_edf", lambda p: raw)
     with pytest.raises(ValueError, match="Missing required channels"):
         _ = data_mod.load_edf_file(Path("dummy.edf"))
 
@@ -93,7 +97,9 @@ def test_load_edf_header_repair_fallback(monkeypatch: pytest.MonkeyPatch, tmp_pa
             sig = np.random.randn(19, 15360).astype(np.float32)
             return FakeRaw(ch_names=constants.CHANNEL_NAMES_10_20, data=sig, sfreq=256.0)
 
-    monkeypatch.setattr(data_mod, "_read_raw_edf", mock_read_edf)
+    # Patch the actual module where the function is defined
+    import src.brain_brr.data.io as io_mod
+    monkeypatch.setattr(io_mod, "_read_raw_edf", mock_read_edf)
 
     # Should succeed after repair
     arr, fs = data_mod.load_edf_file(edf_path)

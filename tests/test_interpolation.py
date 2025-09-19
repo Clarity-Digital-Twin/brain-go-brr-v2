@@ -45,7 +45,7 @@ def test_interpolation_fz_pz_missing():
     raw.set_montage("standard_1020", on_missing="ignore")
 
     # Mock _read_raw_edf to return our synthetic Raw
-    with patch("src.experiment.data._read_raw_edf") as mock_read:
+    with patch("src.brain_brr.data.io._read_raw_edf") as mock_read:
         mock_read.return_value = raw
 
         # Call load_edf_file
@@ -104,7 +104,7 @@ def test_interpolation_other_channel_missing_raises():
     info = mne.create_info(ch_names=channels_without_o1, sfreq=sfreq, ch_types="eeg")
     raw = mne.io.RawArray(data / 1e6, info)
 
-    with patch("src.experiment.data._read_raw_edf") as mock_read:
+    with patch("src.brain_brr.data.io._read_raw_edf") as mock_read:
         mock_read.return_value = raw
 
         # Should raise ValueError for missing O1
@@ -146,7 +146,7 @@ def test_interpolation_with_montage_disabled():
     info = mne.create_info(ch_names=channels_without_fz, sfreq=sfreq, ch_types="eeg")
     raw = mne.io.RawArray(data / 1e6, info)
 
-    with patch("src.experiment.data._read_raw_edf") as mock_read:
+    with patch("src.brain_brr.data.io._read_raw_edf") as mock_read:
         mock_read.return_value = raw
 
         # Should raise ValueError when montage is disabled
@@ -192,7 +192,7 @@ def test_interpolation_warning_logged(caplog):
     raw = mne.io.RawArray(data / 1e6, info)
     raw.set_montage("standard_1020", on_missing="ignore")
 
-    with patch("src.experiment.data._read_raw_edf") as mock_read:
+    with patch("src.brain_brr.data.io._read_raw_edf") as mock_read:
         mock_read.return_value = raw
 
         # Call load_edf_file
