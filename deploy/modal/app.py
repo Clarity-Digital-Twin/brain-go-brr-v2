@@ -10,17 +10,23 @@ import modal
 # Get repo root for proper path resolution
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-# Build the Modal image with exact dependencies from pyproject.toml
+# Build the Modal image with CUDA development tools for mamba-ssm compilation
 image = (
-    modal.Image.debian_slim(python_version="3.11")
-    # Install PyTorch 2.2.2 with CUDA (required for mamba-ssm)
+    # Use NVIDIA CUDA devel image for nvcc compiler (required by mamba-ssm)
+    modal.Image.from_registry("nvidia/cuda:12.1.0-devel-ubuntu22.04", add_python="3.11")
+    .entrypoint([])  # Clear entrypoint from CUDA image
+    # Install PyTorch 2.2.2 with CUDA 12.1
     .pip_install(
         "torch==2.2.2",
-        "numpy<2.0",  # Install with torch to avoid version conflicts
+        "torchvision==0.17.2",
+        "numpy<2.0",  # mamba-ssm constraint
         index_url="https://download.pytorch.org/whl/cu121",
     )
-    # Install mamba-ssm (requires torch and numpy to be installed first)
-    .pip_install("mamba-ssm>=2.0.0")
+    # Install mamba-ssm with CUDA kernels (nvcc now available)
+    .pip_install(
+        "mamba-ssm>=2.0.0",
+        "packaging",  # Required by mamba-ssm build
+    )
     # Core dependencies
     .pip_install(
         "scipy>=1.10.0",
