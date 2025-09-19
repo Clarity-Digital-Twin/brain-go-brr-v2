@@ -16,13 +16,13 @@ image = (
     # Install PyTorch 2.2.2 with CUDA (required for mamba-ssm)
     .pip_install(
         "torch==2.2.2",
+        "numpy<2.0",  # Install with torch to avoid version conflicts
         index_url="https://download.pytorch.org/whl/cu121",
     )
-    # Install mamba-ssm (requires torch to be installed first)
+    # Install mamba-ssm (requires torch and numpy to be installed first)
     .pip_install("mamba-ssm>=2.0.0")
     # Core dependencies
     .pip_install(
-        "numpy<2.0",  # mamba-ssm constraint
         "scipy>=1.10.0",
         "scikit-learn>=1.3.0",
         "mne>=1.5.0",
