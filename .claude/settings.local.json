@@ -35,7 +35,10 @@
       "Bash(echo:*)",
       "Bash(done)",
       "Bash(git fetch:*)",
-      "Read(//home/jj/**)"
+      "Read(//home/jj/**)",
+      "Bash(git merge:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
