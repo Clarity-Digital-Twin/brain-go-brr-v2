@@ -18,13 +18,24 @@ image = (
     )
     # Mamba-SSM GPU extra (prebuilt wheels)
     .pip_install("mamba-ssm>=2.0.0")
-    # Copy project code
-    .copy_local_dir("src", "/app/src")
-    .copy_local_dir("configs", "/app/configs")
-    .copy_local_file("pyproject.toml", "/app/pyproject.toml")
+    # Install project dependencies
+    .pip_install(
+        "numpy<2.0",  # Required for mamba-ssm
+        "scipy>=1.10.0",
+        "scikit-learn>=1.3.0",
+        "mne>=1.5.0",
+        "pyedflib>=0.1.30",
+        "einops>=0.7.0",
+        "pydantic>=2.0.0",
+        "pyyaml>=6.0.0",
+        "click>=8.1.7",
+        "rich>=13.0.0",
+        "matplotlib>=3.5.0",
+        "seaborn>=0.11.0",
+        "tqdm>=4.64.0",
+        "pandas>=2.0.0",
+    )
     .workdir("/app")
-    # Install project (will bring in remaining deps from pyproject)
-    .run_commands("pip install -e .[eval]")
 )
 
 # Create Modal app
@@ -34,6 +45,9 @@ app = modal.App("brain-go-brr-v2", image=image, secrets=[])
 data_volume = modal.Volume.from_name("brain-go-brr-data", create_if_missing=True)
 results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missing=True)
 
+# Mount local code
+code_mount = modal.mount.from_local_dir(".", remote_path="/app")
+
 
 @app.function(
     gpu=gpu.L40S(),
@@ -42,6 +56,7 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
         "/data": data_volume,
         "/results": results_volume,
     },
+    mounts=[code_mount],
     memory=32768,
     cpu=8,
 )
