@@ -86,7 +86,10 @@
       "Bash(.venv/bin/pytest tests/ -v)",
       "Bash(.venv/bin/pytest tests/test_interpolation.py -xvs)",
       "Bash(.venv/bin/pytest tests/test_data.py::test_load_edf_orders_channels_correctly -xvs)",
-      "Bash(.venv/bin/pytest tests/test_interpolation.py -v)"
+      "Bash(.venv/bin/pytest tests/test_interpolation.py -v)",
+      "Bash(.venv/bin/pytest tests/ --collect-only)",
+      "Bash(.venv/bin/pytest tests/test_training.py::TestTrainingSmoke::test_early_stopping -xvs)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

@@ -1,6 +1,8 @@
 """Training utilities and pipeline."""
 
 from .loop import (
+    EarlyStopping,
+    create_balanced_sampler,
     create_optimizer,
     create_scheduler,
     load_checkpoint,
@@ -11,6 +13,8 @@ from .loop import (
 )
 
 __all__ = [
+    "EarlyStopping",
+    "create_balanced_sampler",
     "create_optimizer",
     "create_scheduler",
     "load_checkpoint",
