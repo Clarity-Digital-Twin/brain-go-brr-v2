@@ -3,7 +3,9 @@
     "allow": [
       "Bash(BGB_LIMIT_FILES=2 .venv/bin/python -m src train configs/smoke_test.yaml)",
       "Bash(export BGB_LIMIT_FILES=2)",
-      "Bash(.venv/bin/python:*)"
+      "Bash(.venv/bin/python:*)",
+      "Bash(export BGB_LIMIT_FILES=1 PYTHONFAULTHANDLER=1)",
+      "Bash(export PYTHONPATH=/home/jj/proj/brain-go-brr-v2)"
     ],
     "deny": [],
     "ask": []
