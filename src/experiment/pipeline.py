@@ -695,6 +695,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    print("[DEBUG] __main__ called, running main()...")
     main()
-    print("[DEBUG] main() completed!")
