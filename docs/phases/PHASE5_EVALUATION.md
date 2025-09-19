@@ -128,7 +128,7 @@ Make (optional additions):
 
 ## 📦 Artifacts & Logging
 - Metrics JSON: TAES, AUROC, sensitivity@{10,5,2.5,1}fa, FA curve.
-- Threshold table: FA target → θ.
+- Threshold table: FA target → τ_on.
 - CSV_BI folder with per‑record events.
 - Plots: FA curve, ROC, calibration (optional).
 - Manifest: data split listing, duration totals.
