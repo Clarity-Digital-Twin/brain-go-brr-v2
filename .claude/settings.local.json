@@ -82,7 +82,10 @@
       "Bash(done)",
       "Bash(for:*)",
       "Bash(.venv/bin/pytest tests/test_data.py tests/test_interpolation.py tests/test_training.py tests/test_evaluate.py -q --tb=short)",
-      "Bash(.venv/bin/pytest tests/ -q --tb=no)"
+      "Bash(.venv/bin/pytest tests/ -q --tb=no)",
+      "Bash(.venv/bin/pytest tests/ -v)",
+      "Bash(.venv/bin/pytest tests/test_interpolation.py -xvs)",
+      "Bash(.venv/bin/pytest tests/test_data.py::test_load_edf_orders_channels_correctly -xvs)"
     ],
     "deny": [],
     "ask": []

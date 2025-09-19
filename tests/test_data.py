@@ -179,7 +179,9 @@ def test_dataset_len_and_item_shapes(monkeypatch: pytest.MonkeyPatch, tmp_path: 
         sig = np.zeros((19, n), dtype=np.float32)
         return sig, float(constants.SAMPLING_RATE)
 
-    monkeypatch.setattr(data_mod, "load_edf_file", _fake_load)
+    # Patch the actual call site used inside EEGWindowDataset
+    import src.brain_brr.data.datasets as ds_mod
+    monkeypatch.setattr(ds_mod, "load_edf_file", _fake_load)
 
     edf_files = [tmp_path / "a.edf", tmp_path / "b.edf"]
     ds = data_mod.EEGWindowDataset(edf_files=edf_files, cache_dir=None)
