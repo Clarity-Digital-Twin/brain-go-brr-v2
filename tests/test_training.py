@@ -7,6 +7,7 @@ import pytest
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
+from src.brain_brr.config.schemas import Config, EarlyStoppingConfig, TrainingConfig
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train import (
     create_optimizer,
@@ -16,7 +17,6 @@ from src.brain_brr.train import (
     train_epoch,
     validate_epoch,
 )
-from src.brain_brr.config.schemas import Config, EarlyStoppingConfig, TrainingConfig
 
 
 class TestTrainingSmoke:

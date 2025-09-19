@@ -92,7 +92,8 @@
       "Bash(grep:*)",
       "Bash(do sed -i 's/from src\\.experiment/from src.brain_brr/g' \"$file\")",
       "Bash(.venv/bin/pytest:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

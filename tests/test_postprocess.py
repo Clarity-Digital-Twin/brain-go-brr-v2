@@ -3,6 +3,7 @@
 import pytest
 import torch
 
+from src.brain_brr.config.schemas import PostprocessingConfig
 from src.brain_brr.post import (
     apply_hysteresis,
     apply_morphology,
@@ -10,7 +11,6 @@ from src.brain_brr.post import (
     postprocess_predictions,
     stitch_windows,
 )
-from src.brain_brr.config.schemas import PostprocessingConfig
 
 
 class TestHysteresis:

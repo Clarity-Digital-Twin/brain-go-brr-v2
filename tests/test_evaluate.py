@@ -3,6 +3,7 @@
 import pytest
 import torch
 
+from src.brain_brr.config.schemas import PostprocessingConfig
 from src.brain_brr.eval import (
     calculate_ece,
     calculate_taes,
@@ -11,7 +12,6 @@ from src.brain_brr.eval import (
     sensitivity_at_fa_rates,
 )
 from src.brain_brr.events import batch_mask_to_events as batch_masks_to_events
-from src.brain_brr.config.schemas import PostprocessingConfig
 
 
 class TestTAES:
