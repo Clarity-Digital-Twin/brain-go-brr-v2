@@ -307,10 +307,11 @@ def evaluate(
             model.eval()
             all_probs = []
             with torch.no_grad():
-                for batch in dataloader:
-                    inputs = batch["window"].to(device)
-                    outputs = model(inputs)
-                    all_probs.append(outputs.cpu())
+                for windows, _labels in dataloader:
+                    inputs = windows.to(device)
+                    logits = model(inputs)
+                    probs_batch = torch.sigmoid(logits)
+                    all_probs.append(probs_batch.cpu())
 
             probs = torch.cat(all_probs, dim=0)
 

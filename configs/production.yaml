@@ -7,7 +7,6 @@ data:
   n_channels: 19
   window_size: 60
   stride: 10
-  batch_size: 64
   num_workers: 8
   validation_split: 0.2
   max_hours: null  # use full dataset
@@ -56,6 +55,7 @@ postprocessing:
 
 training:
   epochs: 60
+  batch_size: 64
   learning_rate: 3e-4
   weight_decay: 0.05
   optimizer: adamw

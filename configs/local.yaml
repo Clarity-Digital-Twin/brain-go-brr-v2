@@ -8,7 +8,6 @@ data:
   n_channels: 19
   window_size: 60  # seconds
   stride: 10  # seconds
-  batch_size: 16
   num_workers: 4
   validation_split: 0.2
   max_samples: 1000  # Limit for quick testing
@@ -58,6 +57,7 @@ postprocessing:
 
 training:
   epochs: 5  # Quick dev runs
+  batch_size: 16
   learning_rate: 3e-4
   weight_decay: 0.05
   optimizer: adamw
