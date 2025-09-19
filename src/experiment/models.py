@@ -8,7 +8,10 @@ Please update your imports to use the new locations:
 - from src.brain_brr.models.mamba import BiMamba2Layer, BiMamba2
 """
 
+# Import everything from new location for compatibility (imports first per E402)
 import warnings
+
+from src.brain_brr.models import *  # noqa: F403
 
 warnings.warn(
     "Importing from 'src.experiment.models' is deprecated. "
@@ -16,6 +19,3 @@ warnings.warn(
     DeprecationWarning,
     stacklevel=2,
 )
-
-# Import everything from new location for compatibility
-from src.brain_brr.models import *  # noqa: F403

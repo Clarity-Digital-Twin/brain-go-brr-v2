@@ -4,7 +4,10 @@ DEPRECATED: This module has been moved to brain_brr.events
 Please update your imports to use the new location.
 """
 
+# Import everything from new location for compatibility (imports first per E402)
 import warnings
+
+from src.brain_brr.events import *  # noqa: F403
 
 warnings.warn(
     "Importing from 'src.experiment.events' is deprecated. "
@@ -12,6 +15,3 @@ warnings.warn(
     DeprecationWarning,
     stacklevel=2,
 )
-
-# Import everything from new location for compatibility
-from src.brain_brr.events import *  # noqa: F403
