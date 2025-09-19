@@ -126,9 +126,9 @@ class SeizureDetector(nn.Module):
 ### 3.1 Loss Functions
 **File:** `src/experiment/losses.py`
 ```python
-- BCE with boundary tolerance
-- Dice loss component
-- Combined weighted loss
+- Binary cross-entropy with element-wise weighting
+- pos_weight = (1 - pos_ratio) / pos_ratio
+- No Dice loss, no boundary tolerance
 ```
 
 ### 3.2 Training Loop
@@ -169,7 +169,8 @@ Notes:
 ### 4.2 Morphological Operations
 **Import:** `from scipy.ndimage import binary_opening, binary_closing`
 ```python
-- Opening/closing with kernel=5
+- Opening with kernel=11 (~43ms @ 256 Hz)
+- Closing with kernel=31 (~121ms @ 256 Hz)
 - Minimum duration filter (≥3s)
 ```
 Notes:

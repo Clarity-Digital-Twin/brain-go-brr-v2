@@ -201,7 +201,7 @@ All morphology kernel sizes are specified in samples unless otherwise stated.
 
 ### Phase 4: Training Pipeline
 - [ ] Implement balanced sampler with hard negative mining
-- [ ] Set up loss function with boundary tolerance
+- [ ] Set up loss function with element-wise weighting
 - [ ] Configure optimizer and training loop
 - [ ] Add early stopping on dev sensitivity
 
