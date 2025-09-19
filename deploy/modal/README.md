@@ -63,11 +63,37 @@ modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/be
 
 ## Data Management
 
-### Upload Training Data
+### For Massive EEG Datasets (TUH/CHB-MIT)
+
+**Option 1: S3/Cloud Storage (RECOMMENDED for >100GB)**
+
+1. **Upload to S3 (one-time):**
 ```bash
-# Create and populate data volume
-modal volume put brain-go-brr-data ./data/tuh_eeg_seizure /tuh_eeg_seizure
-modal volume put brain-go-brr-data ./data/chb-mit /chb-mit
+# TUH is ~1.5TB, CHB-MIT is ~40GB
+aws s3 sync ./tuh_eeg_seizure_v2.0.0 s3://your-eeg-bucket/tuh/
+aws s3 sync ./chb-mit s3://your-eeg-bucket/chb-mit/
+```
+
+2. **Create Modal secret:**
+```bash
+modal secret create aws-s3-secret \
+  AWS_ACCESS_KEY_ID=your_key \
+  AWS_SECRET_ACCESS_KEY=your_secret \
+  AWS_REGION=us-east-1
+```
+
+3. **Update app.py:** Uncomment CloudBucketMount section
+
+**Option 2: Modal Volumes (for smaller/preprocessed data)**
+```bash
+# Only for smaller datasets or preprocessed windows
+modal volume put brain-go-brr-data ./data/preprocessed /preprocessed
+```
+
+**Option 3: Stream from public URLs**
+```python
+# In your config, use URLs directly
+data_url: "https://physionet.org/files/chb-mit/1.0.0/"
 ```
 
 ### Download Results

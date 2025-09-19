@@ -7,10 +7,8 @@ from typing import Optional
 
 import modal
 
-# Get repo root for proper path resolution
-REPO_ROOT = Path(__file__).resolve().parents[2]
-
 # Build the Modal image with CUDA development tools for mamba-ssm compilation
+# Use lazy evaluation - only build when Modal needs it
 image = (
     # Use NVIDIA CUDA devel image for nvcc compiler (required by mamba-ssm)
     modal.Image.from_registry("nvidia/cuda:12.1.0-devel-ubuntu22.04", add_python="3.11")
@@ -40,14 +38,14 @@ image = (
         "rich>=13.0.0",
         "tqdm>=4.64.0",
         "pandas>=2.0.0",  # For eval extras
+        "tensorboard>=2.10.0",  # For training metrics
     )
-    # Add project code
-    .add_local_dir(str(REPO_ROOT / "src"), "/app/src")
-    .add_local_dir(str(REPO_ROOT / "configs"), "/app/configs")
-    .add_local_file(str(REPO_ROOT / "pyproject.toml"), "/app/pyproject.toml")
+    # Set working directory before adding local files
     .workdir("/app")
-    # Install the project
-    .run_commands("pip install -e .")
+    # Add project code - MUST be last for Modal image caching
+    # Modal resolves these paths relative to where the script is run from
+    .add_local_dir("../../src", "/app/src")
+    .add_local_dir("../../configs", "/app/configs")
 )
 
 # Modal app configuration
@@ -60,7 +58,17 @@ app = modal.App(
     ],
 )
 
-# Persistent storage volumes
+# Option 1: S3 bucket mount for massive EEG data (RECOMMENDED)
+# Uncomment and configure with your S3 bucket:
+# s3_secret = modal.Secret.from_name("aws-s3-secret")  # Create in Modal dashboard
+# data_mount = modal.CloudBucketMount(
+#     "your-eeg-bucket-name",  # Just bucket name, not full ARN
+#     secret=s3_secret,
+#     key_prefix="tuh_eeg_seizure_v2.0.0/",  # Optional: mount only this folder
+#     read_only=True,  # EEG data is read-only
+# )
+
+# Option 2: Persistent volumes (for smaller datasets or cached processing)
 data_volume = modal.Volume.from_name("brain-go-brr-data", create_if_missing=True)
 results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missing=True)
 
@@ -88,6 +96,13 @@ def train(
     """
     import os
     import subprocess
+
+    # Test mamba-ssm import
+    try:
+        import mamba_ssm
+        print(f"✓ Mamba-SSM imported successfully: {mamba_ssm.__version__}")
+    except ImportError as e:
+        print(f"⚠️ Mamba-SSM import failed: {e}")
 
     # Set environment
     env = os.environ.copy()
@@ -143,8 +158,8 @@ def train(
     result = subprocess.run(cmd, env=env, capture_output=True, text=True)
 
     if result.returncode != 0:
-        print(f"Training failed:\n{result.stderr}")
-        raise RuntimeError(f"Training failed: {result.stderr[:500]}")
+        print(f"Training failed:\nSTDOUT:\n{result.stdout[-2000:]}\n\nSTDERR:\n{result.stderr[-2000:]}")
+        raise RuntimeError(f"Training failed with exit code {result.returncode}")
 
     print(f"Training completed:\n{result.stdout[-1000:]}")  # Last 1000 chars
     # Return best checkpoint path under /results
