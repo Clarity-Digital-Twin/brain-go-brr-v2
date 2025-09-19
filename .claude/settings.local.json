@@ -48,7 +48,8 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(aws configure set:*)",
-      "Bash(strace:*)"
+      "Bash(strace:*)",
+      "Bash(tmux send-keys:*)"
     ],
     "deny": [],
     "ask": []

@@ -63,7 +63,7 @@ s3_secret = modal.Secret.from_name("aws-s3-secret")
 data_mount = modal.CloudBucketMount(
     "brain-go-brr-eeg-data-20250919",  # Your actual bucket!
     secret=s3_secret,
-    key_prefix="raw/tusz/",  # Mount just the TUH data
+    key_prefix="tusz/",  # Mount just the TUH data (matches actual upload path)
     read_only=True,  # EEG data is read-only
 )
 
@@ -124,7 +124,7 @@ def train(
 
     # Auto-select dataset under /data if present
     preferred_roots = [
-        "/data/edf/train",  # S3 mounted path: /data/raw/tusz/edf/train
+        "/data/edf/train",  # S3 mounted path: /data/tusz/edf/train
         "/data",  # Fallback to root of mount
     ]
     for root in preferred_roots:
