@@ -36,7 +36,13 @@
       "Bash(done)",
       "Bash(git fetch:*)",
       "Read(//home/jj/**)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Read(//mnt/**)",
+      "Bash(aws s3:*)",
+      "Bash(aws configure:*)",
+      "Bash(curl:*)",
+      "Bash(unzip:*)",
+      "Bash(sudo:*)"
     ],
     "deny": [],
     "ask": []
