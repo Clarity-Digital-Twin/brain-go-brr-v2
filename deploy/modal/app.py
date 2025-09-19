@@ -48,8 +48,8 @@ image = (
     .workdir("/app")
     # Add project code - MUST be last for Modal image caching
     # Modal resolves these paths relative to where the script is run from
-    .add_local_dir("src", "/app/src")
-    .add_local_dir("configs", "/app/configs")
+    .add_local_dir("../../src", "/app/src")
+    .add_local_dir("../../configs", "/app/configs")
 )
 
 # Modal app configuration
