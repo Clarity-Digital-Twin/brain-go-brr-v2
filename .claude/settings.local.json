@@ -66,7 +66,10 @@
       "Bash(.venv/bin/pytest tests/ -q)",
       "Bash(.venv/bin/pytest tests/test_postprocess.py tests/test_evaluate.py tests/test_streaming.py -q)",
       "Bash(rm:*)",
-      "Bash(.venv/bin/pytest tests/test_smoke.py -v --tb=short)"
+      "Bash(.venv/bin/pytest tests/test_smoke.py -v --tb=short)",
+      "Bash(journalctl:*)",
+      "Bash(dmesg:*)",
+      "Bash(.venv/bin/pytest tests/test_data.py::TestEEGWindowDataset::test_dataset_creation -v)"
     ],
     "deny": [],
     "ask": []
