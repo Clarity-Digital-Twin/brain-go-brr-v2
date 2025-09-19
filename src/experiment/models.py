@@ -430,11 +430,15 @@ class BiMamba2Layer(nn.Module):
                 x_backward = self.backward_mamba_real(x_backward)
             else:
                 # Conv1d fallback with transpose
-                x_backward = self.backward_mamba_fallback(x_backward.transpose(1, 2)).transpose(1, 2)
+                x_backward = self.backward_mamba_fallback(x_backward.transpose(1, 2)).transpose(
+                    1, 2
+                )
         except (AttributeError, RuntimeError) as e:
             # Mamba CUDA kernel not available, fall back to Conv1d
             if "causal_conv1d" in str(e) or "NoneType" in str(e):
-                x_backward = self.backward_mamba_fallback(x_backward.transpose(1, 2)).transpose(1, 2)
+                x_backward = self.backward_mamba_fallback(x_backward.transpose(1, 2)).transpose(
+                    1, 2
+                )
             else:
                 raise
 

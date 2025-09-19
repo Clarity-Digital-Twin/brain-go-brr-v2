@@ -12,7 +12,8 @@
       "Bash(uv lock:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(uv run pytest:*)"
+      "Bash(uv run pytest:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
