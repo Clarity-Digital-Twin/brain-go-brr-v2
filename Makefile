@@ -81,13 +81,13 @@ quality: lint format type-check ## Run all code quality checks
 
 train-local: ## Train model with local config
 	@echo "${CYAN}Training with local config...${NC}"
-	uv run python -m src.experiment.pipeline --config configs/local.yaml
+	uv run python -m src train configs/local.yaml
 
 train: train-prod ## Alias: full training with production config
 
 train-prod: ## Train model with production config
 	@echo "${CYAN}Training with production config...${NC}"
-	uv run python -m src.experiment.pipeline --config configs/production.yaml
+	uv run python -m src train configs/production.yaml
 
 clean: ## Clean all artifacts
 	@echo "${CYAN}Cleaning artifacts...${NC}"

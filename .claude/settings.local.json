@@ -6,7 +6,8 @@
       "Bash(.venv/bin/python:*)",
       "Bash(export BGB_LIMIT_FILES=1 PYTHONFAULTHANDLER=1)",
       "Bash(export PYTHONPATH=/home/jj/proj/brain-go-brr-v2)",
-      "Bash(strace -e trace=open,openat,read timeout 5 .venv/bin/python -m src train configs/smoke_test.yaml)"
+      "Bash(strace -e trace=open,openat,read timeout 5 .venv/bin/python -m src train configs/smoke_test.yaml)",
+      "Bash(uv pip compile:*)"
     ],
     "deny": [],
     "ask": []
