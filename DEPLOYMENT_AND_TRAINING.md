@@ -46,13 +46,13 @@ pip install awscli
 aws configure
 
 # Create secure bucket
-aws s3 mb s3://brain-go-brr-eeg-data --region us-east-1
-aws s3api put-bucket-encryption --bucket brain-go-brr-eeg-data \
+aws s3 mb s3://your-eeg-bucket --region us-east-1
+aws s3api put-bucket-encryption --bucket your-eeg-bucket \
   --server-side-encryption-configuration '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
 
 # Upload TUSZ (79GB)
-aws s3 sync /home/jj/proj/brain-go-brr-v2/data_ext4/tusz/ \
-  s3://brain-go-brr-eeg-data/tusz/ \
+aws s3 sync /path/to/local/tusz/ \
+  s3://your-eeg-bucket/tusz/ \
   --storage-class INTELLIGENT_TIERING \
   --sse AES256
 ```
