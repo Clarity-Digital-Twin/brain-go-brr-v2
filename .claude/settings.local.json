@@ -42,7 +42,10 @@
       "Bash(aws configure:*)",
       "Bash(curl:*)",
       "Bash(unzip:*)",
-      "Bash(sudo:*)"
+      "Bash(sudo:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
