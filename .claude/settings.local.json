@@ -24,7 +24,8 @@
       "Bash(xargs ls:*)",
       "Bash(make:*)",
       "Bash(export BGB_LIMIT_FILES=1)",
-      "Bash(timeout 10 python:*)"
+      "Bash(timeout 10 python:*)",
+      "Bash(git branch:*)"
     ],
     "deny": [],
     "ask": []
