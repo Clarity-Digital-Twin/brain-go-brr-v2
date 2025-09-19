@@ -24,7 +24,16 @@
       "Bash(xargs ls:*)",
       "Bash(make:*)",
       "Bash(export BGB_LIMIT_FILES=1)",
-      "Bash(timeout 10 python:*)"
+      "Bash(timeout 10 python:*)",
+      "Bash(git branch:*)",
+      "Bash(modal:*)",
+      "Bash(pip install:*)",
+      "WebFetch(domain:modal.com)",
+      "Bash(xargs:*)",
+      "Bash(while read -r link)",
+      "Bash(do [ -f \"$link\" ])",
+      "Bash(echo:*)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []
