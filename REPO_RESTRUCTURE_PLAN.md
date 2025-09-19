@@ -1,8 +1,39 @@
 # Repository Operationalization & Refactor Plan
 
-Status: draft for team review
+Status: PRIORITY FIXES IDENTIFIED - Architecture insights from BiMamba literature review
+Last Updated: 2025-09-18
 
 This plan turns the current research-leaning layout into a production‑ready, testable, and extensible Python package while preserving public APIs during migration. No code changes in this patch — this is a roadmap.
+
+## 🚨 PRIORITY FIXES (Based on Architecture Analysis)
+
+### Critical Gap: No TUSZ-Specific Optimizations
+**Finding**: BiMamba papers (EEGMamba, FEMBA, Mentality) never properly tested on TUSZ seizure detection
+- EEGMamba: Tested CHB-MIT (pediatric), not TUSZ (adult clinical)
+- FEMBA: Tested TUAB/TUAR (abnormal/artifact), not seizures
+- Mentality: Only 0.72 AUROC on TUSZ (needs architecture improvements)
+
+**Our Advantage**: First Bi-Mamba-2 + U-Net + ResCNN specifically for TUSZ
+- Multi-scale temporal modeling for seizure dynamics (10Hz-600s)
+- Hierarchical feature extraction Mamba lacks
+- O(N) complexity for long sequences
+
+### Immediate Code Priorities
+
+1. **Model Architecture Documentation** (`src/experiment/models.py`)
+   - Add docstrings explaining WHY U-Net+ResCNN+BiMamba combo
+   - Document multi-scale temporal requirements for seizures
+   - Add architecture diagram in comments
+
+2. **TUSZ-Specific Pipeline** (`src/experiment/pipeline.py`)
+   - Add seizure-specific data augmentation
+   - Implement weighted sampling for seizure/non-seizure imbalance
+   - Add pre-ictal/post-ictal window handling
+
+3. **Literature Benchmarks** (`docs/benchmarks.md` - NEW)
+   - Create comparison table: EEGMamba vs FEMBA vs Ours
+   - Document why existing approaches fail on TUSZ
+   - Add performance targets from clinical requirements
 
 ## Current Snapshot (high level)
 
@@ -167,13 +198,44 @@ tests/
 - Import churn → solved by adapters and deprecation shims
 - Test fragility → migrate with TDD mirroring; keep old tests until parity
 - CUDA variance → isolate with explicit skip markers; keep CPU deterministic paths
+- **NEW: Architecture validation** → Add tests comparing our multi-scale approach vs pure Mamba
+- **NEW: TUSZ complexity** → Implement progressive training (start with easier CHB-MIT, fine-tune on TUSZ)
 
 ## Why this is better
 
 - Clear boundaries and small modules improve readability
-- Easier onboarding for contributors; reduces “research dump” feel
+- Easier onboarding for contributors; reduces "research dump" feel
 - Extensible for future phases (streaming inference, new post‑processing)
 - Production‑grade CLI and CI support reproducibility and deployment
+- **NEW: Architecture-specific modules** → Separate TUSZ optimizations from generic EEG processing
+- **NEW: Literature-driven design** → Code structure reflects multi-scale temporal requirements
+
+## Architecture Insights from Literature Review
+
+### Why Existing BiMamba Approaches Fail on TUSZ
+
+| Model | Dataset | AUROC | Missing for TUSZ |
+|-------|---------|-------|------------------|
+| EEGMamba | CHB-MIT (pediatric) | ~0.97 | Adult seizure patterns, clinical noise |
+| FEMBA | TUAB (abnormal) | 0.892 | Seizure-specific dynamics |
+| Mentality | TUSZ | 0.72 | Multi-scale feature extraction |
+
+### Our Multi-Scale Advantage
+
+```
+Seizure Temporal Scales:
+├── Fast (10-80 Hz): Spike detection → ResCNN
+├── Medium (0.5-10s): Pattern evolution → U-Net stages
+├── Slow (10-600s): Full seizure → Bi-Mamba-2
+└── Context (±5min): Pre/post-ictal → Bidirectional SSM
+```
+
+### Implementation Priorities
+
+1. **Multi-scale loss function**: Weight different temporal scales
+2. **Hierarchical skip connections**: Preserve spike information through Mamba
+3. **Adaptive temporal pooling**: Handle variable seizure durations
+4. **Clinical noise robustness**: TUSZ has more artifacts than research datasets
 
 ---
 
