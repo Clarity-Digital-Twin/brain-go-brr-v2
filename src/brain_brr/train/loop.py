@@ -143,7 +143,7 @@ def create_scheduler(
             progress = (step - warmup_steps) / max(1, (total_steps - warmup_steps))
             return 0.5 * (1.0 + math.cos(math.pi * progress))
 
-        sched = LambdaLR(optimizer, lr_lambda=lr_lambda)
+        sched = LambdaLR(optimizer, lr_lambda=lr_lambda, last_epoch=-1)
         # Reset any change at construction time.
         for g, lr in zip(optimizer.param_groups, initial_lrs, strict=False):
             g["lr"] = lr
