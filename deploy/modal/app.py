@@ -21,9 +21,11 @@ image = (
         index_url="https://download.pytorch.org/whl/cu121",
     )
     # Install mamba-ssm with CUDA kernels (nvcc now available)
+    # Force rebuild to link with our PyTorch version
     .pip_install(
         "mamba-ssm>=2.0.0",
         "packaging",  # Required by mamba-ssm build
+        force_build=True,  # Rebuild with our PyTorch
     )
     # Core dependencies
     .pip_install(
