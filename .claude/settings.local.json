@@ -8,7 +8,8 @@
       "Bash(tmux ls:*)",
       "Bash(tmux capture-pane:*)",
       "Bash(./run_gpu.sh:*)",
-      "Bash(make:*)"
+      "Bash(make:*)",
+      "Bash(uv lock:*)"
     ],
     "deny": [],
     "ask": []
