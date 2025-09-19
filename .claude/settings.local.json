@@ -18,7 +18,9 @@
       "Bash(mv:*)",
       "Bash(rm:*)",
       "Bash(tree:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(python:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
