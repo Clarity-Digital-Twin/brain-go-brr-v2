@@ -204,8 +204,9 @@ def train_epoch(
     use_tqdm = not os.getenv("BGB_DISABLE_TQDM")
     progress = tqdm(dataloader, desc="Training", leave=False) if use_tqdm else dataloader
 
-    # Use enumerate to track global_step, satisfying ruff SIM113
-    for batch_idx, (windows, labels) in enumerate(progress, start=global_step):
+    # Use enumerate for batch indexing (satisfies ruff SIM113)
+    # But track global_step separately for proper scheduler behavior
+    for batch_idx, (windows, labels) in enumerate(progress):
         windows = windows.to(device_obj)
         labels = labels.to(device_obj)
 
@@ -236,12 +237,12 @@ def train_epoch(
                 torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
             optimizer.step()
 
-        # Update global_step from enumerate
-        global_step = batch_idx + 1
+        # Increment global step counter
+        global_step += 1
 
         # Scheduler step AFTER optimizer.step() to avoid PyTorch warning
-        # Skip first step to avoid the warning (scheduler initialized with last_epoch=-1)
-        if scheduler is not None and batch_idx > 0:
+        # Only skip the very FIRST global step (not first of each epoch!)
+        if scheduler is not None and global_step > 1:
             scheduler.step()
 
         total_loss += loss.item()
