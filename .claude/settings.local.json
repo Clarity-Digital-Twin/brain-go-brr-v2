@@ -9,7 +9,9 @@
       "Bash(tmux capture-pane:*)",
       "Bash(./run_gpu.sh:*)",
       "Bash(make:*)",
-      "Bash(uv lock:*)"
+      "Bash(uv lock:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
