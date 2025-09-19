@@ -532,9 +532,8 @@ def train(
 
         for fa_rate in config.evaluation.fa_rates:
             key = f"sensitivity_at_{fa_rate}fa"
-            if key in val_metrics:
-                if writer is not None:
-                    writer.add_scalar(f"Metrics/{key}", val_metrics[key], epoch)
+            if key in val_metrics and writer is not None:
+                writer.add_scalar(f"Metrics/{key}", val_metrics[key], epoch)
 
         # Print metrics
         print(f"  Train Loss: {train_loss:.4f}")
