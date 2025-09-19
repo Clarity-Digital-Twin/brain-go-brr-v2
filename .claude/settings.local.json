@@ -73,7 +73,8 @@
       "Bash(python:*)",
       "Bash(md5sum:*)",
       "Bash(.venv/bin/ruff format src/ tests/)",
-      "Bash(.venv/bin/ruff check src/ tests/ --fix)"
+      "Bash(.venv/bin/ruff check src/ tests/ --fix)",
+      "Bash(.venv/bin/pytest tests/test_smoke.py -q)"
     ],
     "deny": [],
     "ask": []
