@@ -74,7 +74,7 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
 
 @app.function(
     gpu="A100-80GB",  # 80GB VRAM, 3x faster than 4090
-    timeout=108000,  # 30 hours (100 epochs @ ~15 min/epoch + buffer)
+    timeout=86400,  # 24 hours max (Modal limit)
     volumes={
         "/data": data_mount,  # S3 bucket with TUH data!
         "/results": results_volume,
