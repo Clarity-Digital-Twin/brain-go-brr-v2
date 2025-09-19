@@ -29,7 +29,11 @@
       "Bash(modal:*)",
       "Bash(pip install:*)",
       "WebFetch(domain:modal.com)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(while read -r link)",
+      "Bash(do [ -f \"$link\" ])",
+      "Bash(echo:*)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []
