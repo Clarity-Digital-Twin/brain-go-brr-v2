@@ -111,9 +111,9 @@ modal run app.py --action train --config configs/production.yaml --detach
 ✅ Local training functional (100 epochs running)
 ✅ Modal deployment configured with S3
 ✅ AWS CLI installed and configured
-✅ S3 bucket created: `brain-go-brr-eeg-data-20250919`
+✅ S3 bucket created and configured
 ✅ Modal secret created: `aws-s3-secret`
-⏳ TUH data uploading to S3 (79GB in progress)
+⏳ TUH data uploading to S3 (79GB)
 
 ## S3 Cost Breakdown
 - **Storage**: $1.82/month for 79GB (Intelligent Tiering)
