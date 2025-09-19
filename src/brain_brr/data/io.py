@@ -185,8 +185,12 @@ def load_edf_file(
     if missing:
         raise ValueError(f"Missing required channels: {missing}")
 
-    # Reorder/pick channels (use new API to avoid deprecation warning)
-    raw.pick(available, ordered=True)
+    # Reorder/pick channels
+    # NOTE: We use pick_channels() despite deprecation warning because:
+    # - pick() doesn't support ordered=True parameter (checked MNE 1.10.1)
+    # - We need ordered=True to ensure channel order matches REQUIRED_CHANNELS
+    # - Until MNE adds ordered param to pick(), we must use pick_channels()
+    raw.pick_channels(available, ordered=True)
 
     # Best-effort montage (permissive - won't fail if some positions missing)
     if apply_montage:
