@@ -25,7 +25,10 @@
       "Bash(make:*)",
       "Bash(export BGB_LIMIT_FILES=1)",
       "Bash(timeout 10 python:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(modal:*)",
+      "Bash(pip install:*)",
+      "WebFetch(domain:modal.com)"
     ],
     "deny": [],
     "ask": []
