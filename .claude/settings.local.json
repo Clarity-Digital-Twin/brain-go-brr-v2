@@ -28,7 +28,8 @@
       "Bash(git branch:*)",
       "Bash(modal:*)",
       "Bash(pip install:*)",
-      "WebFetch(domain:modal.com)"
+      "WebFetch(domain:modal.com)",
+      "Bash(xargs:*)"
     ],
     "deny": [],
     "ask": []
