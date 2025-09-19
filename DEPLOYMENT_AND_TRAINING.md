@@ -1,9 +1,9 @@
 # Deployment & Training Guide
 
 ## Current Status
-- **Local Training**: Running 1-epoch test on TUSZ dataset (~44 hours ETA)
-- **Modal Deployment**: Fixed and working, awaiting AWS S3 setup for data
-- **Dataset**: 79GB TUSZ at `/home/jj/proj/brain-go-brr-v2/data_ext4/tusz/`
+- **Local Training**: Running 100-epoch TUSZ training
+- **Modal Deployment**: Configured with S3 CloudBucketMount
+- **Dataset**: 79GB TUSZ EEG data
 
 ## Local Training
 
