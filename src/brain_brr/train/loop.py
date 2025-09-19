@@ -165,7 +165,8 @@ def train_epoch(
     use_amp: bool = False,
     gradient_clip: float = 1.0,
     scheduler: LRScheduler | None = None,
-) -> float:
+    global_step: int = 0,
+) -> tuple[float, int]:
     """Train for one epoch.
 
     Args:
@@ -176,9 +177,10 @@ def train_epoch(
         use_amp: Use automatic mixed precision
         gradient_clip: Max gradient norm
         scheduler: Optional LR scheduler (per-iteration)
+        global_step: Global step counter for scheduler
 
     Returns:
-        Average training loss
+        Tuple of (average training loss, updated global_step)
     """
     model.train()
     device_obj = torch.device(device)
@@ -198,7 +200,6 @@ def train_epoch(
 
     total_loss = 0.0
     num_batches = 0
-    global_step = 0  # Track global step for scheduler
 
     use_tqdm = not os.getenv("BGB_DISABLE_TQDM")
     progress = tqdm(dataloader, desc="Training", leave=False) if use_tqdm else dataloader
@@ -245,7 +246,7 @@ def train_epoch(
         if use_tqdm and isinstance(progress, tqdm):
             progress.set_postfix({"loss": f"{loss.item():.4f}"})
 
-    return total_loss / max(1, num_batches)
+    return total_loss / max(1, num_batches), global_step
 
 
 # ============================================================================
@@ -502,12 +503,13 @@ def train(
 
     # Training loop
     best_metrics: dict[str, Any] = {"best_epoch": 0}
+    global_step = 0  # Track global step across epochs for scheduler
 
     for epoch in range(start_epoch, config.training.epochs):
         print(f"\nEpoch {epoch + 1}/{config.training.epochs}")
 
         # Train
-        train_loss = train_epoch(
+        train_loss, global_step = train_epoch(
             model,
             train_loader,
             optimizer,
@@ -515,6 +517,7 @@ def train(
             use_amp=config.training.mixed_precision,
             gradient_clip=config.training.gradient_clip,
             scheduler=scheduler,
+            global_step=global_step,
         )
 
         # Validate
