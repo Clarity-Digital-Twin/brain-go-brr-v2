@@ -85,7 +85,8 @@
       "Bash(.venv/bin/pytest tests/ -q --tb=no)",
       "Bash(.venv/bin/pytest tests/ -v)",
       "Bash(.venv/bin/pytest tests/test_interpolation.py -xvs)",
-      "Bash(.venv/bin/pytest tests/test_data.py::test_load_edf_orders_channels_correctly -xvs)"
+      "Bash(.venv/bin/pytest tests/test_data.py::test_load_edf_orders_channels_correctly -xvs)",
+      "Bash(.venv/bin/pytest tests/test_interpolation.py -v)"
     ],
     "deny": [],
     "ask": []
