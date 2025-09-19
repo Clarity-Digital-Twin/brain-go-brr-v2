@@ -12,7 +12,7 @@ This document serves as the single source of truth for the complete architecture
 
 #### 1.1 Input Specifications
 - [ ] **File Format**: EDF/EDF+ support via MNE
-  - Location: `src/brain_brr/data/loader.py::load_edf_file()`
+  - Location: `src/brain_brr/data/io.py::load_edf_file()`
   - [ ] Handles malformed headers (TUSZ date separator fix: colons→periods at bytes 168-175)
   - [ ] Fallback header repair on temp copy if MNE fails with startdate error
 
@@ -21,11 +21,11 @@ This document serves as the single source of truth for the complete architecture
   - Order: `["Fp1", "F3", "C3", "P3", "F7", "T3", "T5", "O1", "Fz", "Cz", "Pz", "Fp2", "F4", "C4", "P4", "F8", "T4", "T6", "O2"]`
   - [ ] Channel synonym mapping: T7→T3, T8→T4, P7→T5, P8→T6 (via CHANNEL_SYNONYMS)
   - [ ] Missing channel interpolation for Fz, Pz (automatic via MNE `set_montage`)
-  - [ ] Fixed channel ordering with `pick_channels(ordered=True)`
+  - [ ] Fixed channel ordering with `pick_and_order(...)` utility
 
 #### 1.2 Preprocessing Pipeline
 - [ ] **Resampling**: Target 256 Hz
-  - Location: `src/brain_brr/data/loader.py::preprocess_recording()`
+  - Location: `src/brain_brr/data/preprocess.py::preprocess_recording()`
   - [ ] Uses `scipy.signal.resample()` for Phase 1 baseline
 
 - [ ] **Filtering**:
@@ -46,13 +46,13 @@ This document serves as the single source of truth for the complete architecture
   - [ ] Overlap: 50 seconds (83.3%)
 
 - [ ] **Output Shape**: `(B, 19, 15360)` where B = batch size
-  - Location: `src/brain_brr/data/loader.py::extract_windows()`
+  - Location: `src/brain_brr/data/windows.py::extract_windows()`
   - [ ] Float32 dtype
   - [ ] Window metadata tracking: `{"start_samples": List[int]}` for reconstruction
 
 #### 1.4 Dataset & Caching
 - [ ] **PyTorch Dataset**: `EEGWindowDataset`
-  - Location: `src/brain_brr/data/dataset.py`
+  - Location: `src/brain_brr/data/datasets.py`
   - [ ] In-memory baseline (Phase 1)
   - [ ] NPZ cache support with `cache_dir` parameter
   - [ ] File ID and `start_samples` tracking for timeline reconstruction
@@ -138,8 +138,7 @@ This document serves as the single source of truth for the complete architecture
 
 - [ ] **Final Layers**:
   - [ ] Conv1d: 19→1 channel (kernel=1)
-  - [ ] Sigmoid activation
-  - [ ] Output: (B, 15360) probabilities in [0, 1]
+  - [ ] Output: (B, 15360) raw logits; apply Sigmoid at inference/eval
   - [ ] `.squeeze(1)` to remove channel dimension
 
 #### 2.6 Complete Model Assembly
@@ -155,7 +154,7 @@ This document serves as the single source of truth for the complete architecture
 **Purpose**: Robust training with clinical metrics and reproducibility
 
 #### 3.1 Data Loading
-- Location: `src/brain_brr/train/pipeline.py`
+- Location: `src/brain_brr/train/loop.py`
 
 - [ ] **Balanced Sampling**:
   - [ ] WeightedRandomSampler at dataset level (not per-batch)
@@ -191,7 +190,7 @@ This document serves as the single source of truth for the complete architecture
   - [ ] Dropout: 0.1 throughout model
 
 #### 3.3 Training Loop
-- Location: `src/brain_brr/train/pipeline.py::train_epoch()`
+- Location: `src/brain_brr/train/loop.py::train_epoch()`
 
 - [ ] **Per Epoch**:
   - [ ] Forward pass with AMP autocast
@@ -206,7 +205,7 @@ This document serves as the single source of truth for the complete architecture
   - [ ] Gradient norms (optional)
 
 #### 3.4 Validation & Metrics
-- Location: `src/brain_brr/eval/evaluate.py`
+- Location: `src/brain_brr/eval/metrics.py`
 
 - [ ] **Clinical Metrics**:
   - [ ] TAES (Time-Aligned Event Scoring)
@@ -270,7 +269,7 @@ This document serves as the single source of truth for the complete architecture
 **Purpose**: Clinical evaluation and benchmarking
 
 #### 5.1 Metrics Implementation
-- Location: `src/brain_brr/eval/evaluate.py`
+- Location: `src/brain_brr/eval/metrics.py`
 
 - [ ] **TAES Calculation**:
   - [ ] Overlap-weighted scoring per reference event
@@ -380,20 +379,22 @@ This document serves as the single source of truth for the complete architecture
 
 ## 🔍 VERIFICATION CHECKLIST
 
-### Code Organization (Refactored)
-- [ ] Model components split across:
-  - [ ] `src/brain_brr/models/detector.py` (main SeizureDetector)
-  - [ ] `src/brain_brr/models/unet.py` (encoder/decoder)
-  - [ ] `src/brain_brr/models/rescnn.py` (ResCNN stack)
-  - [ ] `src/brain_brr/models/mamba.py` (BiMamba2)
-- [ ] Data pipeline in:
-  - [ ] `src/brain_brr/data/loader.py` (EDF loading, preprocessing)
-  - [ ] `src/brain_brr/data/dataset.py` (PyTorch Dataset)
-- [ ] Training in `src/brain_brr/train/pipeline.py`
-- [ ] Evaluation in `src/brain_brr/eval/evaluate.py`
-- [ ] Post-processing in `src/brain_brr/post/postprocess.py`
-- [ ] Configuration in `src/brain_brr/config/schemas.py`
-- [ ] Constants in `src/brain_brr/constants.py`
+  ### Code Organization (Refactored)
+  - [ ] Model components split across:
+    - [ ] `src/brain_brr/models/detector.py` (main SeizureDetector)
+    - [ ] `src/brain_brr/models/unet.py` (encoder/decoder)
+    - [ ] `src/brain_brr/models/rescnn.py` (ResCNN stack)
+    - [ ] `src/brain_brr/models/mamba.py` (BiMamba2)
+  - [ ] Data pipeline in:
+    - [ ] `src/brain_brr/data/io.py` (EDF loading, annotations)
+    - [ ] `src/brain_brr/data/preprocess.py` (filtering/resampling/normalization)
+    - [ ] `src/brain_brr/data/windows.py` (window extraction)
+    - [ ] `src/brain_brr/data/datasets.py` (PyTorch Dataset)
+  - [ ] Training in `src/brain_brr/train/loop.py`
+  - [ ] Evaluation in `src/brain_brr/eval/metrics.py`
+  - [ ] Post-processing in `src/brain_brr/post/postprocess.py`
+  - [ ] Configuration in `src/brain_brr/config/schemas.py`
+  - [ ] Constants in `src/brain_brr/constants.py`
 
 ### Dependencies
 - [ ] PyTorch ≥2.5.0
