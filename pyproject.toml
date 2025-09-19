@@ -107,9 +107,9 @@ Issues = "https://github.com/clarity-digital-twin/brain-go-brr-v2/issues"
 
 [project.scripts]
 train = "src.brain_brr.train.loop:main"
-# Route 'evaluate' to unified CLI, which exposes an 'evaluate' subcommand
-evaluate = "src.cli:main"
-run-experiment = "src.cli:main"
+# Route scripts to unified CLI in brain_brr
+evaluate = "src.brain_brr.cli.cli:main"
+run-experiment = "src.brain_brr.cli.cli:main"
 
 [tool.hatch.version]
 path = "src/brain_brr/__init__.py"

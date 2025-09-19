@@ -34,7 +34,7 @@ class SeizureDetector(nn.Module):
           -> ResCNNStack (B, 512, 960) [Local pattern refinement]
           -> BiMamba2 (B, 512, 960) [Global bidirectional context]
           -> UNetDecoder (B, 19, 15360) [Multi-scale reconstruction]
-          -> 1x1 Conv + Sigmoid -> (B, 15360) [Per-sample probabilities]
+          -> 1x1 Conv -> (B, 15360) [Per-sample logits]
     """
 
     def __init__(

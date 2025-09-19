@@ -230,7 +230,7 @@ This document serves as the single source of truth for the complete architecture
   - [ ] τ_on: 0.86 (onset threshold - default, binary search finds actual)
   - [ ] τ_off: 0.78 (offset threshold - default, typically τ_on - 0.08)
   - [ ] Stability windows: min_onset=128 samples (0.5s), min_offset=256 samples (1.0s)
-  - [ ] Strictly > τ_on to enter; strictly < τ_off to exit
+  - [ ] Threshold equality semantics: ≥ τ_on to enter; < τ_off to exit
 
 #### 4.2 Morphological Operations
 - Location: `src/brain_brr/post/postprocess.py::apply_morphology()`
@@ -320,7 +320,7 @@ This document serves as the single source of truth for the complete architecture
   - [ ] configs/smoke_test.yaml (CI testing)
 
 #### 6.2 CLI Interface
-- Location: `src/cli.py`
+- Location: `src/brain_brr/cli/cli.py`
 
 - [ ] **Commands**:
   - [ ] train: Full training pipeline
@@ -400,14 +400,14 @@ This document serves as the single source of truth for the complete architecture
 - [ ] PyTorch ≥2.5.0
 - [ ] MNE ≥1.5.0
 - [ ] mamba-ssm (GPU extra)
-- [ ] scikit-image (post extra)
+- [ ] SciPy ndimage (base; morphology)
 - [ ] pandas (eval extra)
 
 ### Critical Invariants
 - [ ] Channel order ALWAYS: Fp1→F3→...→O2 (19 channels)
 - [ ] Sampling rate ALWAYS: 256 Hz
 - [ ] Window size ALWAYS: 60s (15,360 samples)
-- [ ] Output ALWAYS: Per-timestep probabilities [0,1]
+- [ ] Output: model head emits logits; probabilities in [0,1] after Sigmoid
 - [ ] Hysteresis ALWAYS: τ_on > τ_off
 
 ---

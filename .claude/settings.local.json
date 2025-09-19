@@ -22,7 +22,9 @@
       "Bash(python:*)",
       "Bash(find:*)",
       "Bash(xargs ls:*)",
-      "Bash(make:*)"
+      "Bash(make:*)",
+      "Bash(export BGB_LIMIT_FILES=1)",
+      "Bash(timeout 10 python:*)"
     ],
     "deny": [],
     "ask": []

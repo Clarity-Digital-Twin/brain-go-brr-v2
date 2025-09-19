@@ -64,9 +64,9 @@ tests/test_export.py              # CSV_BI compliance tests
 ## 📐 Algorithms and Specifications
 
 ### 1) Hysteresis Thresholding (dual‑tau)
-- OFF→ON: prob > τ_on to enter seizure state
+- OFF→ON: prob ≥ τ_on to enter seizure state
 - ON→OFF: prob < τ_off to exit seizure state
-- Threshold convention: strictly > τ_on to enter; strictly < τ_off to exit
+- Threshold convention: ≥ τ_on to enter; < τ_off to exit
 - Output: binary mask `(B, T)` bool
 - Performance: implemented reference path (loop with retroactive onset). Vectorization is optional future optimization.
 
@@ -325,7 +325,7 @@ events = batch_probs_to_events(probs, post_cfg, fs=256, threshold=0.5)
 ## 🧪 Test-Driven Development
 
 Unit tests:
-- Hysteresis: OFF→ON→OFF; oscillation robustness; min_onset/min_offset enforcement; equals at thresholds don’t flip
+- Hysteresis: OFF→ON→OFF; oscillation robustness; min_onset/min_offset enforcement; equality semantics: ≥ τ_on enters; = τ_off stays on
 - Morphology: opening removes spikes; closing fills gaps; GPU≈CPU within tolerance
 - Duration: remove <3s; segment >600s; keep exactly 3.0s/600.0s
 - Stitching: uniform vs triangular correctness; partial window handling

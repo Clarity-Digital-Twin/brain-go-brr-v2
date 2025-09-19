@@ -21,7 +21,6 @@
 - `PHASE5_EVALUATION.md` - Evaluation metrics and scoring
 
 ### `/docs/architecture/` - Architecture Documentation
-- `NOVEL_ARCHITECTURE.md` - Bi-Mamba-2 innovation details
 - `ARCHITECTURE_CLARIFICATION.md` - Technical architecture specs
 - `ASCII_PIPELINE_PLAN.md` - Visual pipeline representation
 - `FINAL_STACK_ANALYSIS.md` - Complete stack analysis

@@ -10,7 +10,7 @@ Success means: a deterministic, well‑tested evaluation stack with clear CLI, C
 - ✅ Complete test suite in `tests/test_evaluate.py` (19 tests passing)
 - ✅ Phase 4 APIs fully integrated (hysteresis, morphology, stitching)
 - ✅ Export functionality in `src/experiment/export.py` (CSV_BI, JSON)
-- ✅ CLI evaluation command in `src/cli.py` with export options
+- ✅ CLI evaluation command in `src/brain_brr/cli/cli.py` (and runnable via `python -m src`) with export options
 - ✅ Evaluation is CPU‑safe and does not require CUDA
 
 All target APIs defined in this document have been implemented and tested.
@@ -28,7 +28,7 @@ Additional metrics (implemented):
 
 ## 🧩 Eventization Semantics
 Eventization must follow Phase 4: hysteresis (τ_on=0.86, τ_off=0.78), morphology (opening→closing), min/max duration, and optional stitching (for full‑record inference). Conventions:
-- Thresholding: strictly > τ_on to enter; strictly < τ_off to exit; stable windows min_onset/min_offset when added.
+- Thresholding: ≥ τ_on to enter; < τ_off to exit; stable windows min_onset/min_offset when added.
 - Morphology kernels are odd; defaults documented in Phase 4.
 - Min duration default 3.0s; max duration default 600.0s with segmentation.
 - Convert masks to intervals by diff on zero‑padded mask.
@@ -117,7 +117,7 @@ Outputs enhancement:
 ## 🧵 CLI & Make Targets
 
 CLI (suggested):
-- `python -m src.cli evaluate --config configs/production.yaml --split dev --out results/metrics/dev.json`
+- `python -m src evaluate --config configs/production.yaml --split dev --out results/metrics/dev.json`
 
 Exports: use library functions in `src/experiment/export.py` (CSV_BI/JSON).
 If desired, a dedicated CLI subcommand can be added later.
