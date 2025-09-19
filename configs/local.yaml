@@ -8,7 +8,8 @@ data:
   n_channels: 19
   window_size: 60  # seconds
   stride: 10  # seconds
-  num_workers: 4
+  num_workers: 0  # WSL2-safe: avoid multiprocessing hangs
+  pin_memory: false  # WSL2-safe: prevent /dev/shm issues
   validation_split: 0.2
   max_samples: 1000  # Limit for quick testing
   cache_dir: cache
@@ -57,7 +58,7 @@ postprocessing:
 
 training:
   epochs: 5  # Quick dev runs
-  batch_size: 16
+  batch_size: 8  # WSL2-safe default
   learning_rate: 3e-4
   weight_decay: 0.05
   optimizer: adamw

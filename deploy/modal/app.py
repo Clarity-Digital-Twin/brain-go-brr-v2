@@ -84,7 +84,7 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
 )
 def train(
     config_path: str = "configs/tusz_train_a100.yaml",  # A100-optimized config
-    checkpoint_path: Optional[str] = None,  # Resume from checkpoint
+    resume: bool = False,  # Resume training from last.pt in output_dir
 ):
     """Run training on Modal GPU.
 
@@ -152,10 +152,10 @@ def train(
     # Build command - our CLI takes positional config only
     cmd = ["python", "-m", "src", "train", tmp_cfg]
 
-    # Add checkpoint resumption if provided
-    if checkpoint_path and os.path.exists(checkpoint_path):
-        cmd.extend(["--checkpoint", checkpoint_path])
-        print(f"Resuming from checkpoint: {checkpoint_path}")
+    # Use built-in resume mechanism (relies on last.pt in output_dir/checkpoints)
+    if resume:
+        cmd.append("--resume")
+        print("Resuming training from last.pt if present in output_dir")
 
     print(f"Running: {' '.join(cmd)}")
     print(f"Config: {config_path}")
@@ -237,7 +237,7 @@ def evaluate(
 def main(
     action: str = "train",
     config: str = "configs/tusz_train_a100.yaml",  # Default to A100-optimized
-    checkpoint: Optional[str] = None,  # Resume training from checkpoint
+    resume: bool = False,  # Resume training from last.pt
     detach: bool = False,
 ):
     """Modal deployment entrypoint.
@@ -249,8 +249,8 @@ def main(
         # Full A100 training (detached)
         modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --detach
 
-        # Resume training from checkpoint
-        modal run deploy/modal/app.py --action train --checkpoint /results/checkpoints/last.pt
+        # Resume training from last.pt in output_dir
+        modal run deploy/modal/app.py --action train --resume true
 
         # Evaluate checkpoint
         modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.ckpt
@@ -260,11 +260,11 @@ def main(
 
     if action == "train":
         if detach:
-            handle = train.spawn(config_path=config, checkpoint_path=checkpoint)
+            handle = train.spawn(config_path=config, resume=resume)
             print(f"Training started (detached). Run ID: {handle.object_id}")
             print(f"Monitor at: https://modal.com/apps/{handle.object_id}")
         else:
-            result = train.remote(config_path=config, checkpoint_path=checkpoint)
+            result = train.remote(config_path=config, resume=resume)
             print(f"✓ Training complete. Checkpoint: {result}")
 
     elif action == "evaluate":

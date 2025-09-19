@@ -63,11 +63,11 @@ uv sync -E gpu
 # Local smoke test (1 epoch, small batch)
 make train-local
 
-# Full training
-python -m src train configs/tusz_train.yaml
+# Full training (local, WSL2-safe settings)
+python -m src train configs/tusz_train_wsl2.yaml
 
-# With custom config
-python -m src train configs/production.yaml
+# With custom config (dev)
+python -m src train configs/local.yaml
 ```
 
 ### 🌩️ Cloud Training (Modal.com)
@@ -77,11 +77,11 @@ python -m src train configs/production.yaml
 pip install --upgrade modal
 modal setup
 
-# Train on L40S GPU (48GB VRAM, optimized for Mamba-2)
-modal run modal_train.py --action train --config configs/smoke_test.yaml
+# Train on Modal (A100-80GB, optimized)
+modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml
 
-# Large-scale on 8x H100 GPUs
-modal run modal_train.py --action train-large --config configs/full_training.yaml
+# Quick smoke on Modal
+modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml
 ```
 
 → Full guide: [`docs/deployment/MODAL_DEPLOYMENT_GUIDE.md`](docs/deployment/MODAL_DEPLOYMENT_GUIDE.md)
