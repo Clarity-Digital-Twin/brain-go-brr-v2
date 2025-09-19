@@ -53,7 +53,7 @@ postprocessing:
     confidence_method: mean
 
 training:
-  epochs: 1            # increase for full training
+  epochs: 100          # full training - will early stop if converged
   batch_size: 16
   learning_rate: 3e-4
   weight_decay: 0.05
@@ -74,14 +74,14 @@ evaluation:
   save_plots: false
 
 experiment:
-  name: tusz_debug
-  description: "TUSZ training (paired EDF+CSV)"
+  name: tusz_production_100ep
+  description: "Full TUSZ training 100 epochs with early stopping"
   seed: 42
   device: auto
-  output_dir: results/tusz
+  output_dir: results/tusz_full_100ep
   cache_dir: cache/tusz
   log_level: INFO
-  save_model: false
+  save_model: true
   save_best_only: true
 
 logging:
