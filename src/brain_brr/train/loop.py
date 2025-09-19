@@ -26,8 +26,6 @@ from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm  # type: ignore[import-untyped]
 
-from src.brain_brr.eval.metrics import evaluate_predictions
-from src.brain_brr.models import SeizureDetector
 from src.brain_brr.config.schemas import (
     Config,
     EarlyStoppingConfig,
@@ -35,6 +33,8 @@ from src.brain_brr.config.schemas import (
     SchedulerConfig,
     TrainingConfig,
 )
+from src.brain_brr.eval.metrics import evaluate_predictions
+from src.brain_brr.models import SeizureDetector
 
 # WSL2-safe multiprocessing defaults (must be before any DataLoader creation)
 if mp.get_start_method(allow_none=True) != "spawn":

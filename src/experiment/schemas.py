@@ -6,9 +6,9 @@ Please update your imports to use the new location:
 """
 
 # Import everything from new location for compatibility (imports first per E402)
-from src.brain_brr.config.schemas import *  # noqa: F403
-
 import warnings
+
+from src.brain_brr.config.schemas import *  # noqa: F403
 
 warnings.warn(
     "Importing from 'src.experiment.schemas' is deprecated. "
