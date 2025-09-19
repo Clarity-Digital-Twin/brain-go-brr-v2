@@ -113,7 +113,7 @@ def load_edf_file(
         # Remove reference suffixes like '-LE', '-REF', '-AR' (TUSZ montages)
         for suffix in ["-LE", "-REF", "-AR"]:
             if name.endswith(suffix):
-                name = name[:-len(suffix)]
+                name = name[: -len(suffix)]
                 break
 
         return name
