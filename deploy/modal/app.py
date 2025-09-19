@@ -23,10 +23,11 @@ image = (
         index_url="https://download.pytorch.org/whl/cu121",
     )
     # Install mamba-ssm with CUDA kernels (nvcc now available)
-    # Install packaging and ninja first, then mamba-ssm with no-build-isolation
-    .pip_install("packaging", "ninja")
+    # Install packaging first, ninja is already installed via apt
+    .pip_install("packaging")
+    # Critical: Use CC and CXX env vars to specify compiler, install with verbose output
     .run_commands(
-        "pip install --no-build-isolation 'mamba-ssm>=2.0.0'"
+        "export CC=gcc CXX=g++ && pip install -v --no-build-isolation 'mamba-ssm>=2.0.0'"
     )
     # Core dependencies
     .pip_install(
@@ -47,8 +48,8 @@ image = (
     .workdir("/app")
     # Add project code - MUST be last for Modal image caching
     # Modal resolves these paths relative to where the script is run from
-    .add_local_dir("../../src", "/app/src")
-    .add_local_dir("../../configs", "/app/configs")
+    .add_local_dir("src", "/app/src")
+    .add_local_dir("configs", "/app/configs")
 )
 
 # Modal app configuration
