@@ -11,7 +11,8 @@
       "Bash(make:*)",
       "Bash(uv lock:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(uv run pytest:*)"
     ],
     "deny": [],
     "ask": []

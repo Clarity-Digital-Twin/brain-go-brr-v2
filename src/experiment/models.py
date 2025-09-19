@@ -410,19 +410,33 @@ class BiMamba2Layer(nn.Module):
         )
 
         # Forward direction
-        x_forward = (
-            self.forward_mamba_real(x)
-            if use_mamba
-            else self.forward_mamba_fallback(x.transpose(1, 2)).transpose(1, 2)
-        )
+        try:
+            x_forward = (
+                self.forward_mamba_real(x)
+                if use_mamba
+                else self.forward_mamba_fallback(x.transpose(1, 2)).transpose(1, 2)
+            )
+        except (AttributeError, RuntimeError) as e:
+            # Mamba CUDA kernel not available, fall back to Conv1d
+            if "causal_conv1d" in str(e) or "NoneType" in str(e):
+                x_forward = self.forward_mamba_fallback(x.transpose(1, 2)).transpose(1, 2)
+            else:
+                raise
 
         # Backward direction (flip sequence)
         x_backward = x.flip(dims=[1])
-        if use_mamba:
-            x_backward = self.backward_mamba_real(x_backward)
-        else:
-            # Conv1d fallback with transpose
-            x_backward = self.backward_mamba_fallback(x_backward.transpose(1, 2)).transpose(1, 2)
+        try:
+            if use_mamba:
+                x_backward = self.backward_mamba_real(x_backward)
+            else:
+                # Conv1d fallback with transpose
+                x_backward = self.backward_mamba_fallback(x_backward.transpose(1, 2)).transpose(1, 2)
+        except (AttributeError, RuntimeError) as e:
+            # Mamba CUDA kernel not available, fall back to Conv1d
+            if "causal_conv1d" in str(e) or "NoneType" in str(e):
+                x_backward = self.backward_mamba_fallback(x_backward.transpose(1, 2)).transpose(1, 2)
+            else:
+                raise
 
         # Flip backward to align
         x_backward = x_backward.flip(dims=[1])

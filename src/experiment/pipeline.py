@@ -239,11 +239,8 @@ def train_epoch(
         total_loss += loss.item()
         num_batches += 1
 
-        if use_tqdm:
-            try:
-                progress.set_postfix({"loss": f"{loss.item():.4f}"})
-            except Exception:
-                pass
+        if use_tqdm and isinstance(progress, tqdm):
+            progress.set_postfix({"loss": f"{loss.item():.4f}"})
 
     return total_loss / max(1, num_batches)
 
