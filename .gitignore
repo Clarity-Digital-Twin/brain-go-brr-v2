@@ -151,3 +151,4 @@ literature/pdfs/
 
 # Reference repositories (for brainstorming only)
 reference_repos/
+.env

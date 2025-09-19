@@ -108,15 +108,20 @@ modal run app.py --action train --config configs/production.yaml --detach
 - **Post**: Hysteresis (τ_on=0.86, τ_off=0.78) → morphology → duration filter
 
 ## Status
-✅ Local training functional
-✅ Modal deployment fixed
-✅ AWS CLI installed
-⏸️ AWS credentials needed
-⏸️ S3 bucket creation pending
-⏸️ Data upload pending
+✅ Local training functional (100 epochs running)
+✅ Modal deployment configured with S3
+✅ AWS CLI installed and configured
+✅ S3 bucket created: `brain-go-brr-eeg-data-20250919`
+✅ Modal secret created: `aws-s3-secret`
+⏳ TUH data uploading to S3 (79GB in progress)
+
+## S3 Cost Breakdown
+- **Storage**: $1.82/month for 79GB (Intelligent Tiering)
+- **Transfer to Modal**: FREE (same region)
+- **Auto-optimization**: Moves to cheaper tiers if not accessed
 
 ## Next Steps
-1. Get AWS credentials
-2. Upload TUSZ to S3
-3. Configure Modal secrets
-4. Run full training on A100s
+1. ✅ ~~Get AWS credentials~~ DONE
+2. ⏳ Wait for S3 upload to complete (~30 min)
+3. Deploy to Modal: `modal deploy deploy/modal/app.py`
+4. Run on A100s: `modal run deploy/modal/app.py --detach`
