@@ -60,7 +60,7 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
 
 
 @app.function(
-    gpu=modal.gpu.L40S(),  # 48GB VRAM, best for Mamba-2
+    gpu="L40S",  # 48GB VRAM, best for Mamba-2
     timeout=7200,  # 2 hours
     volumes={
         "/data": data_volume,
@@ -108,7 +108,7 @@ def train(
 
 
 @app.function(
-    gpu=modal.gpu.A100(),  # A100 for evaluation
+    gpu="A100",  # A100 for evaluation
     timeout=3600,  # 1 hour
     volumes={
         "/data": data_volume,
