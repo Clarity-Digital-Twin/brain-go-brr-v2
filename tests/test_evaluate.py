@@ -4,13 +4,13 @@ import pytest
 import torch
 
 from src.experiment.evaluate import (
-    batch_masks_to_events,
     calculate_ece,
     calculate_taes,
     evaluate_predictions,
     fa_per_24h,
     sensitivity_at_fa_rates,
 )
+from src.experiment.events import batch_mask_to_events as batch_masks_to_events
 from src.experiment.schemas import PostprocessingConfig
 
 
@@ -147,7 +147,7 @@ class TestEventization:
         mask[0, 256:512] = 1  # 1-2s
         mask[0, 1024:1536] = 1  # 4-6s
 
-        events = batch_masks_to_events(mask, fs=256)
+        events = batch_masks_to_events(mask, sampling_rate=256)
         assert len(events) == 1
         assert len(events[0]) == 2
         assert abs(events[0][0][0] - 1.0) < 0.1
@@ -161,7 +161,7 @@ class TestEventization:
         masks[0, 0:256] = 1  # First record: 0-1s
         masks[1, 256:512] = 1  # Second record: 1-2s
 
-        events = batch_masks_to_events(masks, fs=256)
+        events = batch_masks_to_events(masks, sampling_rate=256)
         assert len(events) == 2
         assert len(events[0]) == 1
         assert len(events[1]) == 1

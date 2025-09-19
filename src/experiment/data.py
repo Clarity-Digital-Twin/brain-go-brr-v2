@@ -11,6 +11,7 @@ Please update your imports to use the new locations:
 import warnings
 
 from src.brain_brr.data import *  # noqa: F403
+from src.brain_brr.data.io import _read_raw_edf, _repair_edf_header_inplace
 
 warnings.warn(
     "Importing from 'src.experiment.data' is deprecated. "

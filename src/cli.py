@@ -218,7 +218,7 @@ def evaluate(
         from src.brain_brr.events import SeizureEvent
         from src.brain_brr.events.export import export_csv_bi
         from src.brain_brr.models import SeizureDetector
-        from src.experiment.pipeline import validate_epoch
+        from src.brain_brr.train.loop import validate_epoch
 
         console.print(f"[cyan]Loading checkpoint:[/cyan] {checkpoint_path}")
 
