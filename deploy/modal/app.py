@@ -60,7 +60,7 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
 
 
 @app.function(
-    gpu="L40S",  # 48GB VRAM, best for Mamba-2
+    gpu="A100-80GB",  # 80GB VRAM, 3x faster than 4090
     timeout=7200,  # 2 hours
     volumes={
         "/data": data_volume,
@@ -88,9 +88,46 @@ def train(
     env["CUDA_VISIBLE_DEVICES"] = "0"
     env["PYTHONPATH"] = "/app"
     env["SEIZURE_MAMBA_FORCE_FALLBACK"] = "0"  # Use CUDA kernels
+    # Speed up smoke tests by limiting files if not explicitly set
+    env.setdefault("BGB_LIMIT_FILES", "50")
+
+    # Prepare a temp config to ensure data/output point to persistent volumes
+    import tempfile
+    import yaml
+
+    cfg_abs = config_path
+    if not config_path.startswith("/"):
+        cfg_abs = str(Path("/app") / config_path)
+
+    with open(cfg_abs, "r") as f:
+        data = yaml.safe_load(f)
+
+    # Auto-select dataset under /data if present
+    preferred_roots = [
+        "/data/chb-mit",
+        "/data/tuh_eeg_seizure_v2.0.0",
+    ]
+    for root in preferred_roots:
+        if os.path.isdir(root):
+            data.setdefault("data", {})["data_dir"] = root
+            break
+
+    # Force outputs and cache into /results volume
+    exp = data.setdefault("experiment", {})
+    out_name = Path(exp.get("output_dir", "results/run")).name
+    exp["output_dir"] = f"/results/{out_name}"
+    cache = exp.get("cache_dir", f"cache/{out_name}")
+    exp["cache_dir"] = f"/results/{cache}" if not str(cache).startswith("/") else str(cache)
+
+    Path(exp["output_dir"]).mkdir(parents=True, exist_ok=True)
+    (Path(exp["output_dir"]) / "checkpoints").mkdir(parents=True, exist_ok=True)
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as tmp:
+        yaml.safe_dump(data, tmp)
+        tmp_cfg = tmp.name
 
     # Build command - our CLI takes positional config only
-    cmd = ["python", "-m", "src", "train", config_path]
+    cmd = ["python", "-m", "src", "train", tmp_cfg]
 
     print(f"Running: {' '.join(cmd)}")
     print(f"Config: {config_path}")
@@ -104,7 +141,10 @@ def train(
         raise RuntimeError(f"Training failed: {result.stderr[:500]}")
 
     print(f"Training completed:\n{result.stdout[-1000:]}")  # Last 1000 chars
-    return "/results/checkpoints/best.ckpt"
+    # Return best checkpoint path under /results
+    checkpoint_dir = Path(data["experiment"]["output_dir"]) / "checkpoints"
+    # Our training saves best.pt
+    return str(checkpoint_dir / "best.pt")
 
 
 @app.function(
