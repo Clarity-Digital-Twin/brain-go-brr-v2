@@ -1,6 +1,6 @@
 # Data files and databases
-data/
-data_ext4/
+/data/
+/data_ext4/
 *.db
 *.sqlite
 *.sqlite3
@@ -88,7 +88,7 @@ temp/
 *.pt
 *.ckpt
 *.safetensors
-models/
+/models/
 checkpoints/
 
 # Output files

@@ -4,7 +4,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from src.experiment.models import MAMBA_AVAILABLE, BiMamba2, BiMamba2Layer
+from src.brain_brr.models import MAMBA_AVAILABLE, BiMamba2, BiMamba2Layer
 
 
 class TestBiMamba2Layer:
@@ -185,7 +185,7 @@ class TestBiMamba2:
 
     def test_integration_with_rescnn(self) -> None:
         """Test integration with ResCNN output."""
-        from src.experiment.models import ResCNNStack
+        from src.brain_brr.models import ResCNNStack
 
         # Create ResCNN and BiMamba2
         rescnn = ResCNNStack(channels=512)
@@ -207,7 +207,7 @@ class TestIntegrationPipeline:
 
     def test_full_pipeline(self) -> None:
         """Test complete Phase 2 pipeline integration."""
-        from src.experiment.models import BiMamba2, ResCNNStack, UNetEncoder
+        from src.brain_brr.models import BiMamba2, ResCNNStack, UNetEncoder
 
         # Create full pipeline
         encoder = UNetEncoder(in_channels=19, base_channels=64, depth=4)
@@ -233,7 +233,7 @@ class TestIntegrationPipeline:
 
     def test_gradient_flow_pipeline(self) -> None:
         """Test gradients flow through entire pipeline."""
-        from src.experiment.models import BiMamba2, ResCNNStack, UNetEncoder
+        from src.brain_brr.models import BiMamba2, ResCNNStack, UNetEncoder
 
         encoder = UNetEncoder(in_channels=19, base_channels=64, depth=4)
         rescnn = ResCNNStack(channels=512)

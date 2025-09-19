@@ -1,12 +1,13 @@
 import math
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
 import pytest
 import torch
 
-from src.experiment import constants
-from src.experiment import data as data_mod
+from src.brain_brr import constants
+from src.brain_brr import data as data_mod
 
 
 class FakeRaw:
@@ -17,10 +18,15 @@ class FakeRaw:
         self._data = data
         self.info: dict[str, float] = {"sfreq": float(sfreq)}
 
-    def rename_channels(self, mapping: dict[str, str]) -> None:
-        for i, name in enumerate(self.ch_names):
-            if name in mapping:
-                self.ch_names[i] = mapping[name]
+    def rename_channels(self, mapping: dict[str, str] | Callable) -> None:
+        if callable(mapping):
+            # Handle lambda function
+            self.ch_names = [mapping(ch) for ch in self.ch_names]
+        else:
+            # Handle dictionary
+            for i, name in enumerate(self.ch_names):
+                if name in mapping:
+                    self.ch_names[i] = mapping[name]
 
     def pick_channels(self, picks: list[str], ordered: bool = True) -> None:
         idx = [self.ch_names.index(ch) for ch in picks]
@@ -41,7 +47,10 @@ def test_load_edf_orders_channels_correctly(monkeypatch: pytest.MonkeyPatch) -> 
     sig = rng.standard_normal((len(chans_syn), constants.WINDOW_SAMPLES)).astype(np.float32)
     raw = FakeRaw(ch_names=chans_syn, data=sig, sfreq=256.0)
 
-    monkeypatch.setattr(data_mod, "_read_raw_edf", lambda p: raw)
+    # Patch the actual module where the function is defined
+    import src.brain_brr.data.io as io_mod
+
+    monkeypatch.setattr(io_mod, "_read_raw_edf", lambda p: raw)
 
     arr, fs = data_mod.load_edf_file(Path("dummy.edf"))
     assert isinstance(fs, float)
@@ -60,7 +69,10 @@ def test_load_edf_missing_channels_raises(monkeypatch: pytest.MonkeyPatch) -> No
     sig = rng.standard_normal((len(missing), 1000)).astype(np.float32)
     raw = FakeRaw(ch_names=missing, data=sig, sfreq=250.0)
 
-    monkeypatch.setattr(data_mod, "_read_raw_edf", lambda p: raw)
+    # Patch the actual module where the function is defined
+    import src.brain_brr.data.io as io_mod
+
+    monkeypatch.setattr(io_mod, "_read_raw_edf", lambda p: raw)
     with pytest.raises(ValueError, match="Missing required channels"):
         _ = data_mod.load_edf_file(Path("dummy.edf"))
 
@@ -93,7 +105,10 @@ def test_load_edf_header_repair_fallback(monkeypatch: pytest.MonkeyPatch, tmp_pa
             sig = np.random.randn(19, 15360).astype(np.float32)
             return FakeRaw(ch_names=constants.CHANNEL_NAMES_10_20, data=sig, sfreq=256.0)
 
-    monkeypatch.setattr(data_mod, "_read_raw_edf", mock_read_edf)
+    # Patch the actual module where the function is defined
+    import src.brain_brr.data.io as io_mod
+
+    monkeypatch.setattr(io_mod, "_read_raw_edf", mock_read_edf)
 
     # Should succeed after repair
     arr, fs = data_mod.load_edf_file(edf_path)
@@ -164,7 +179,10 @@ def test_dataset_len_and_item_shapes(monkeypatch: pytest.MonkeyPatch, tmp_path: 
         sig = np.zeros((19, n), dtype=np.float32)
         return sig, float(constants.SAMPLING_RATE)
 
-    monkeypatch.setattr(data_mod, "load_edf_file", _fake_load)
+    # Patch the actual call site used inside EEGWindowDataset
+    import src.brain_brr.data.datasets as ds_mod
+
+    monkeypatch.setattr(ds_mod, "load_edf_file", _fake_load)
 
     edf_files = [tmp_path / "a.edf", tmp_path / "b.edf"]
     ds = data_mod.EEGWindowDataset(edf_files=edf_files, cache_dir=None)

@@ -3,15 +3,15 @@
 import pytest
 import torch
 
-from src.experiment.evaluate import (
-    batch_masks_to_events,
+from src.brain_brr.config.schemas import PostprocessingConfig
+from src.brain_brr.eval import (
     calculate_ece,
     calculate_taes,
     evaluate_predictions,
     fa_per_24h,
     sensitivity_at_fa_rates,
 )
-from src.experiment.schemas import PostprocessingConfig
+from src.brain_brr.events import batch_mask_to_events as batch_masks_to_events
 
 
 class TestTAES:
@@ -147,13 +147,13 @@ class TestEventization:
         mask[0, 256:512] = 1  # 1-2s
         mask[0, 1024:1536] = 1  # 4-6s
 
-        events = batch_masks_to_events(mask, fs=256)
+        events = batch_masks_to_events(mask, sampling_rate=256)
         assert len(events) == 1
         assert len(events[0]) == 2
-        assert abs(events[0][0][0] - 1.0) < 0.1
-        assert abs(events[0][0][1] - 2.0) < 0.1
-        assert abs(events[0][1][0] - 4.0) < 0.1
-        assert abs(events[0][1][1] - 6.0) < 0.1
+        assert abs(events[0][0].start_s - 1.0) < 0.1
+        assert abs(events[0][0].end_s - 2.0) < 0.1
+        assert abs(events[0][1].start_s - 4.0) < 0.1
+        assert abs(events[0][1].end_s - 6.0) < 0.1
 
     def test_batch_masks_to_events(self) -> None:
         """Test batch conversion."""
@@ -161,7 +161,7 @@ class TestEventization:
         masks[0, 0:256] = 1  # First record: 0-1s
         masks[1, 256:512] = 1  # Second record: 1-2s
 
-        events = batch_masks_to_events(masks, fs=256)
+        events = batch_masks_to_events(masks, sampling_rate=256)
         assert len(events) == 2
         assert len(events[0]) == 1
         assert len(events[1]) == 1
@@ -173,7 +173,7 @@ class TestSensitivityAtFA:
     @pytest.fixture
     def post_cfg(self) -> PostprocessingConfig:
         """Create post-processing config."""
-        from src.experiment.schemas import HysteresisConfig
+        from src.brain_brr.config.schemas import HysteresisConfig
 
         return PostprocessingConfig(
             hysteresis=HysteresisConfig(tau_on=0.86, tau_off=0.78),
@@ -212,7 +212,7 @@ class TestEvaluatePredictions:
     @pytest.fixture
     def post_cfg(self) -> PostprocessingConfig:
         """Create post-processing config."""
-        from src.experiment.schemas import HysteresisConfig
+        from src.brain_brr.config.schemas import HysteresisConfig
 
         return PostprocessingConfig(
             hysteresis=HysteresisConfig(tau_on=0.86, tau_off=0.78),
