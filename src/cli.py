@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
-from src.experiment.schemas import Config
+from src.brain_brr.config.schemas import Config
 
 console = Console()
 
@@ -151,7 +151,7 @@ def train(config_path: Path, resume: bool, device: str) -> None:
             config.experiment.device = device  # type: ignore[assignment]
 
         # Import here to avoid circular dependency
-        from src.experiment.pipeline import main as train_main
+        from src.brain_brr.train.loop import main as train_main
 
         console.print("[green]Starting training...[/green]")
 
@@ -213,11 +213,11 @@ def evaluate(
         import torch
         from torch.utils.data import DataLoader
 
-        from src.experiment.data import EEGWindowDataset
-        from src.experiment.evaluate import batch_probs_to_events
-        from src.experiment.events import SeizureEvent
-        from src.experiment.export import export_csv_bi
-        from src.experiment.models import SeizureDetector
+        from src.brain_brr.data import EEGWindowDataset
+        from src.brain_brr.eval.metrics import batch_probs_to_events
+        from src.brain_brr.events import SeizureEvent
+        from src.brain_brr.events.export import export_csv_bi
+        from src.brain_brr.models import SeizureDetector
         from src.experiment.pipeline import validate_epoch
 
         console.print(f"[cyan]Loading checkpoint:[/cyan] {checkpoint_path}")
