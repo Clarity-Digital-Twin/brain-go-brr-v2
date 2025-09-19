@@ -1,5 +1,6 @@
 import math
 from pathlib import Path
+from typing import Callable, Union
 
 import numpy as np
 import pytest
@@ -17,10 +18,15 @@ class FakeRaw:
         self._data = data
         self.info: dict[str, float] = {"sfreq": float(sfreq)}
 
-    def rename_channels(self, mapping: dict[str, str]) -> None:
-        for i, name in enumerate(self.ch_names):
-            if name in mapping:
-                self.ch_names[i] = mapping[name]
+    def rename_channels(self, mapping: Union[dict[str, str], Callable]) -> None:
+        if callable(mapping):
+            # Handle lambda function
+            self.ch_names = [mapping(ch) for ch in self.ch_names]
+        else:
+            # Handle dictionary
+            for i, name in enumerate(self.ch_names):
+                if name in mapping:
+                    self.ch_names[i] = mapping[name]
 
     def pick_channels(self, picks: list[str], ordered: bool = True) -> None:
         idx = [self.ch_names.index(ch) for ch in picks]

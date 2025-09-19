@@ -80,7 +80,9 @@
       "Bash(wc:*)",
       "Bash(head:*)",
       "Bash(done)",
-      "Bash(for:*)"
+      "Bash(for:*)",
+      "Bash(.venv/bin/pytest tests/test_data.py tests/test_interpolation.py tests/test_training.py tests/test_evaluate.py -q --tb=short)",
+      "Bash(.venv/bin/pytest tests/ -q --tb=no)"
     ],
     "deny": [],
     "ask": []
