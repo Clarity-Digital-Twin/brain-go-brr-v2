@@ -189,7 +189,7 @@ class ResCNNBlock(nn.Module):
         self.fusion = nn.Sequential(
             nn.Conv1d(channels, channels, kernel_size=1),
             nn.BatchNorm1d(channels),
-            nn.Dropout2d(dropout)
+            nn.Dropout1d(dropout)
         )
 
         self.relu = nn.ReLU(inplace=True)
