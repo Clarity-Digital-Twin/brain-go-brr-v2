@@ -61,7 +61,7 @@ class TestTrainingSmoke:
         optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
 
         # Train one epoch
-        train_loss = train_epoch(model, train_loader, optimizer, device="cpu", use_amp=False)
+        train_loss, _ = train_epoch(model, train_loader, optimizer, device="cpu", use_amp=False)
 
         assert train_loss > 0
         assert train_loss < 10  # Reasonable range
@@ -182,7 +182,7 @@ class TestTrainingSmoke:
         optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
 
         # Should work even on CPU (no-op)
-        train_loss = train_epoch(model, train_loader, optimizer, device="cpu", use_amp=True)
+        train_loss, _ = train_epoch(model, train_loader, optimizer, device="cpu", use_amp=True)
 
         assert train_loss > 0
         assert not torch.isnan(torch.tensor(train_loss))
