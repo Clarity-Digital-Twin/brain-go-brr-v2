@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(tmux kill-session:*)",
+      "Bash(tmux new:*)",
+      "Bash(git check-ignore:*)"
     ],
     "deny": [],
     "ask": []

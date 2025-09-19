@@ -3,7 +3,7 @@
 
 data:
   dataset: tuh_eeg  # or chb_mit
-  data_dir: data/tusz/edf/dev
+  data_dir: data_ext4/tusz/edf/dev  # FAST ext4 filesystem!
   sampling_rate: 256
   n_channels: 19
   window_size: 60  # seconds

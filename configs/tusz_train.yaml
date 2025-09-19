@@ -2,7 +2,7 @@
 
 data:
   dataset: tuh_eeg
-  data_dir: data/tusz/edf/train   # root containing .edf + .csv pairs
+  data_dir: data_ext4/tusz/edf/train   # FAST ext4! root containing .edf + .csv pairs
   sampling_rate: 256
   n_channels: 19
   window_size: 60
