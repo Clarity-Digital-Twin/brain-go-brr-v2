@@ -8,7 +8,7 @@ import warnings
 
 warnings.warn(
     "Importing from 'src.experiment.streaming' is deprecated. "
-    "Please use 'from brain_brr.streaming import ...' instead.",
+    "Please use 'from src.brain_brr.streaming import ...' instead.",
     DeprecationWarning,
     stacklevel=2,
 )

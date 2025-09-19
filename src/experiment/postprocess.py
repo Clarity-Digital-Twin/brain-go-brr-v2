@@ -8,7 +8,7 @@ import warnings
 
 warnings.warn(
     "Importing from 'src.experiment.postprocess' is deprecated. "
-    "Please use 'from brain_brr.post import ...' instead.",
+    "Please use 'from src.brain_brr.post import ...' instead.",
     DeprecationWarning,
     stacklevel=2,
 )

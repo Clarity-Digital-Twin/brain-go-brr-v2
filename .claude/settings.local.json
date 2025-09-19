@@ -69,7 +69,9 @@
       "Bash(.venv/bin/pytest tests/test_smoke.py -v --tb=short)",
       "Bash(journalctl:*)",
       "Bash(dmesg:*)",
-      "Bash(.venv/bin/pytest tests/test_data.py::TestEEGWindowDataset::test_dataset_creation -v)"
+      "Bash(.venv/bin/pytest tests/test_data.py::TestEEGWindowDataset::test_dataset_creation -v)",
+      "Bash(python:*)",
+      "Bash(md5sum:*)"
     ],
     "deny": [],
     "ask": []

@@ -8,7 +8,7 @@ import warnings
 
 warnings.warn(
     "Importing from 'src.experiment.export' is deprecated. "
-    "Please use 'from brain_brr.events.export import ...' instead.",
+    "Please use 'from src.brain_brr.events.export import ...' instead.",
     DeprecationWarning,
     stacklevel=2,
 )

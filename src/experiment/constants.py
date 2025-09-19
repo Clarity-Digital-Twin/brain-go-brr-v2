@@ -12,7 +12,7 @@ import warnings
 
 warnings.warn(
     "Importing from 'src.experiment.constants' is deprecated. "
-    "Please use 'from brain_brr.constants import ...' instead.",
+    "Please use 'from src.brain_brr.constants import ...' instead.",
     DeprecationWarning,
     stacklevel=2,
 )
