@@ -1,28 +1,14 @@
 """Brain-Go-Brr: Bi-Mamba-2 + U-Net + ResCNN for TUSZ seizure detection.
 
-This is the refactored package structure. During migration, all imports
-are re-exported from src.experiment for backwards compatibility.
+First architecture to combine:
+- Bidirectional Mamba-2 for O(N) sequence modeling
+- U-Net for multi-scale feature extraction
+- ResCNN for temporal convolution
+Specifically optimized for TUSZ seizure detection.
 """
 
 __version__ = "2.0.0-alpha"
 
-# Compatibility re-exports during migration
-# These will be replaced with direct imports once migration is complete
-
-import warnings
-
-
-def _compatibility_warning(old_path: str, new_path: str) -> None:
-    """Issue deprecation warning for old import paths."""
-    warnings.warn(
-        f"Importing from '{old_path}' is deprecated. Please use '{new_path}' instead.",
-        DeprecationWarning,
-        stacklevel=3,
-    )
-
-
-# For now, re-export everything from experiment to maintain compatibility
-try:
-    from src.experiment import *  # noqa: F403, F401
-except ImportError:
-    pass  # During initial setup, experiment might not exist yet
+# Clean imports from new package structure
+from .constants import *  # noqa: F403
+from .models import *  # noqa: F403

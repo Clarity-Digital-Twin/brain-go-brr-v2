@@ -18,4 +18,4 @@ warnings.warn(
 )
 
 # Import everything from new location for compatibility
-from src.brain_brr.models import *  # noqa: F403, F401
+from src.brain_brr.models import *  # noqa: F403

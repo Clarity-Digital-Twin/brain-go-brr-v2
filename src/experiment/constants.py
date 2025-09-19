@@ -18,7 +18,7 @@ warnings.warn(
 )
 
 # Import everything from new location for compatibility
-from src.brain_brr.constants import *  # noqa: F403, F401
+from src.brain_brr.constants import *  # noqa: F403
 
 # Keep local definitions for reference during migration
 

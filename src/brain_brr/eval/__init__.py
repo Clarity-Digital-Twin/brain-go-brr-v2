@@ -10,19 +10,19 @@ This module will contain:
 # During migration, re-export from experiment
 try:
     from src.experiment.evaluate import (
-        compute_taes,
-        find_fa_thresholds,
         calculate_metrics_at_thresholds,
+        compute_taes,
         evaluate_model,
+        find_fa_thresholds,
         plot_roc_curve,
         plot_sensitivity_fa_curve,
     )
 
     __all__ = [
-        "compute_taes",
-        "find_fa_thresholds",
         "calculate_metrics_at_thresholds",
+        "compute_taes",
         "evaluate_model",
+        "find_fa_thresholds",
         "plot_roc_curve",
         "plot_sensitivity_fa_curve",
     ]

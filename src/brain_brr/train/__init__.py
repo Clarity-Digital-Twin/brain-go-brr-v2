@@ -12,17 +12,17 @@ This module will contain:
 # During migration, re-export from experiment
 try:
     from src.experiment.pipeline import (
-        train_model,
-        train_epoch,
-        validate_epoch,
         EarlyStopping,
+        train_epoch,
+        train_model,
+        validate_epoch,
     )
 
     __all__ = [
-        "train_model",
-        "train_epoch",
-        "validate_epoch",
         "EarlyStopping",
+        "train_epoch",
+        "train_model",
+        "validate_epoch",
     ]
 except ImportError:
     # Clean-slate imports will go here after migration

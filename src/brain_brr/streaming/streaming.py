@@ -12,8 +12,8 @@ from typing import Any
 import numpy as np
 import torch
 
-from .postprocess import apply_morphology
-from .schemas import PostprocessingConfig
+from src.brain_brr.post.postprocess import apply_morphology
+from src.experiment.schemas import PostprocessingConfig
 
 
 @dataclass

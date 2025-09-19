@@ -12,14 +12,14 @@ from .postprocess import (
     apply_hysteresis,
     apply_morphology,
     filter_duration,
-    stitch_windows,
     postprocess_predictions,
+    stitch_windows,
 )
 
 __all__ = [
     "apply_hysteresis",
     "apply_morphology",
     "filter_duration",
-    "stitch_windows",
     "postprocess_predictions",
+    "stitch_windows",
 ]

@@ -71,7 +71,9 @@
       "Bash(dmesg:*)",
       "Bash(.venv/bin/pytest tests/test_data.py::TestEEGWindowDataset::test_dataset_creation -v)",
       "Bash(python:*)",
-      "Bash(md5sum:*)"
+      "Bash(md5sum:*)",
+      "Bash(.venv/bin/ruff format src/ tests/)",
+      "Bash(.venv/bin/ruff check src/ tests/ --fix)"
     ],
     "deny": [],
     "ask": []
