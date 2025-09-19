@@ -1,0 +1,78 @@
+# TUSZ Dev Set - Hyperparameter Tuning ONLY
+# Use this AFTER training to tune thresholds and hyperparameters
+
+data:
+  dataset: tuh_eeg
+  data_dir: data_ext4/tusz/edf/dev   # DEV SET - 55 patients for tuning
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60
+  stride: 10
+  num_workers: 4
+  validation_split: 0.0  # No split - use entire dev set
+
+preprocessing:
+  montage: "10-20"
+  bandpass: [0.5, 120]
+  notch_freq: 60
+  normalize: true
+  use_mne: true
+
+model:
+  name: seizure_detector
+  encoder:
+    stages: 4
+    channels: [64, 128, 256, 512]
+    kernel_size: 5
+    downsample_factor: 2
+  rescnn:
+    n_blocks: 3
+    kernel_sizes: [3, 5, 7]
+    dropout: 0.1
+  mamba:
+    n_layers: 6
+    d_model: 512
+    d_state: 16
+    conv_kernel: 5
+    dropout: 0.1
+  decoder:
+    stages: 4
+    kernel_size: 4
+
+postprocessing:
+  hysteresis:
+    tau_on: 0.86      # TUNE THESE ON DEV SET
+    tau_off: 0.78     # TUNE THESE ON DEV SET
+  morphology:
+    opening_kernel: 11
+    closing_kernel: 31
+  duration:
+    min_duration_s: 3.0
+    max_duration_s: 600.0
+  events:
+    tau_merge: 2.0
+    confidence_method: mean
+
+training:
+  epochs: 0  # NO TRAINING - evaluation only
+  batch_size: 32
+  mixed_precision: true
+
+evaluation:
+  metrics: [taes, sensitivity, specificity, auroc]
+  fa_rates: [10, 5, 2.5, 1]
+  mode: tuning  # Special mode for hyperparameter search
+
+experiment:
+  name: tusz_dev_tuning_$(date +%Y%m%d_%H%M%S)
+  description: "Hyperparameter tuning on TUSZ dev set"
+  seed: 42
+  device: auto
+  output_dir: results/tuning
+  cache_dir: cache/dev_tuning
+  log_level: INFO
+  checkpoint_path: results/tusz_100ep/checkpoints/best.pt  # Load trained model
+
+logging:
+  log_every_n_steps: 50
+  tensorboard: true

@@ -1,7 +1,7 @@
 # Quick smoke test config - 1 epoch, small batch
 data:
   dataset: tuh_eeg
-  data_dir: data_ext4/tusz/edf/dev  # FAST ext4 filesystem!
+  data_dir: data_ext4/tusz/edf/train  # Use TRAIN for smoke tests (limit files via env)
   sampling_rate: 256
   n_channels: 19
   window_size: 60
