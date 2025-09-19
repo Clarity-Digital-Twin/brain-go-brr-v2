@@ -74,7 +74,7 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
 
 @app.function(
     gpu="A100-80GB",  # 80GB VRAM, 3x faster than 4090
-    timeout=7200,  # 2 hours
+    timeout=108000,  # 30 hours (100 epochs @ ~15 min/epoch + buffer)
     volumes={
         "/data": data_mount,  # S3 bucket with TUH data!
         "/results": results_volume,
@@ -83,7 +83,8 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
     cpu=8,
 )
 def train(
-    config_path: str = "configs/smoke_test.yaml",
+    config_path: str = "configs/tusz_train_a100.yaml",  # A100-optimized config
+    checkpoint_path: Optional[str] = None,  # Resume from checkpoint
 ):
     """Run training on Modal GPU.
 
@@ -108,8 +109,10 @@ def train(
     env["CUDA_VISIBLE_DEVICES"] = "0"
     env["PYTHONPATH"] = "/app"
     env["SEIZURE_MAMBA_FORCE_FALLBACK"] = "0"  # Use CUDA kernels
-    # Speed up smoke tests by limiting files if not explicitly set
-    env.setdefault("BGB_LIMIT_FILES", "50")
+    # Only limit files for smoke tests
+    if "smoke" in config_path.lower():
+        env.setdefault("BGB_LIMIT_FILES", "50")
+    # For production, use full dataset (no limit)
 
     # Prepare a temp config to ensure data/output point to persistent volumes
     import tempfile
@@ -148,6 +151,11 @@ def train(
 
     # Build command - our CLI takes positional config only
     cmd = ["python", "-m", "src", "train", tmp_cfg]
+
+    # Add checkpoint resumption if provided
+    if checkpoint_path and os.path.exists(checkpoint_path):
+        cmd.extend(["--checkpoint", checkpoint_path])
+        print(f"Resuming from checkpoint: {checkpoint_path}")
 
     print(f"Running: {' '.join(cmd)}")
     print(f"Config: {config_path}")
@@ -228,7 +236,8 @@ def evaluate(
 @app.local_entrypoint()
 def main(
     action: str = "train",
-    config: str = "configs/smoke_test.yaml",
+    config: str = "configs/tusz_train_a100.yaml",  # Default to A100-optimized
+    checkpoint: Optional[str] = None,  # Resume training from checkpoint
     detach: bool = False,
 ):
     """Modal deployment entrypoint.
@@ -237,8 +246,11 @@ def main(
         # Quick smoke test
         modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml
 
-        # Full training (detached)
-        modal run deploy/modal/app.py --action train --config configs/production.yaml --detach
+        # Full A100 training (detached)
+        modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --detach
+
+        # Resume training from checkpoint
+        modal run deploy/modal/app.py --action train --checkpoint /results/checkpoints/last.pt
 
         # Evaluate checkpoint
         modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.ckpt
@@ -248,11 +260,11 @@ def main(
 
     if action == "train":
         if detach:
-            handle = train.spawn(config_path=config)
+            handle = train.spawn(config_path=config, checkpoint_path=checkpoint)
             print(f"Training started (detached). Run ID: {handle.object_id}")
             print(f"Monitor at: https://modal.com/apps/{handle.object_id}")
         else:
-            result = train.remote(config_path=config)
+            result = train.remote(config_path=config, checkpoint_path=checkpoint)
             print(f"✓ Training complete. Checkpoint: {result}")
 
     elif action == "evaluate":

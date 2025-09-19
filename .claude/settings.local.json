@@ -55,7 +55,8 @@
       "Bash(else echo \"No coverage report found\")",
       "Bash(fi)",
       "Bash(dmesg:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []
