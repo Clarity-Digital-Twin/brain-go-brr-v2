@@ -150,10 +150,10 @@ class TestEventization:
         events = batch_masks_to_events(mask, sampling_rate=256)
         assert len(events) == 1
         assert len(events[0]) == 2
-        assert abs(events[0][0][0] - 1.0) < 0.1
-        assert abs(events[0][0][1] - 2.0) < 0.1
-        assert abs(events[0][1][0] - 4.0) < 0.1
-        assert abs(events[0][1][1] - 6.0) < 0.1
+        assert abs(events[0][0].start_s - 1.0) < 0.1
+        assert abs(events[0][0].end_s - 2.0) < 0.1
+        assert abs(events[0][1].start_s - 4.0) < 0.1
+        assert abs(events[0][1].end_s - 6.0) < 0.1
 
     def test_batch_masks_to_events(self) -> None:
         """Test batch conversion."""
