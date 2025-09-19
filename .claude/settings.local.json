@@ -13,7 +13,11 @@
       "Bash(tmux new-session:*)",
       "Bash(tmux new:*)",
       "Bash(tmux capture-pane:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []
