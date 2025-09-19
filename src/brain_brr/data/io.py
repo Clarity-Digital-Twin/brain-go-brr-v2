@@ -13,6 +13,7 @@ import numpy as np
 import numpy.typing as npt
 
 from src.brain_brr import constants
+from .pick_utils import pick_and_order
 
 logger = logging.getLogger(__name__)
 
@@ -167,7 +168,7 @@ def load_edf_file(
         _apply_montage_best_effort(raw)
 
         # Mark as bads and interpolate based on montage positions
-        raw.info["bads"] = missing_midline.copy()
+        raw.info["bads"] = list(missing_midline)  # Ensure it's a list
         with contextlib.suppress(Exception):
             raw.interpolate_bads(reset_bads=True)
 
@@ -185,12 +186,12 @@ def load_edf_file(
     if missing:
         raise ValueError(f"Missing required channels: {missing}")
 
-    # Reorder/pick channels
-    # NOTE: We use pick_channels() despite deprecation warning because:
-    # - pick() doesn't support ordered=True parameter (checked MNE 1.10.1)
-    # - We need ordered=True to ensure channel order matches REQUIRED_CHANNELS
-    # - Until MNE adds ordered param to pick(), we must use pick_channels()
-    raw.pick_channels(available, ordered=True)
+    # Use our robust channel ordering utility
+    # This uses integer indices to guarantee exact order preservation
+    # Works across MNE versions and test mocks
+    raw, remaining_missing = pick_and_order(raw, available)
+    if remaining_missing:
+        raise ValueError(f"Failed to select channels: {remaining_missing}")
 
     # Best-effort montage (permissive - won't fail if some positions missing)
     if apply_montage:

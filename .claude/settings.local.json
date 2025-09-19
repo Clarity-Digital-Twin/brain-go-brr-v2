@@ -100,7 +100,9 @@
       "Bash(while read f)",
       "WebFetch(domain:github.com)",
       "Bash(awk:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "WebFetch(domain:mne.tools)",
+      "Bash(.venv/bin/ruff check src/brain_brr/train/loop.py)"
     ],
     "deny": [],
     "ask": []
