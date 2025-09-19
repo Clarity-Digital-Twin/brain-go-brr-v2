@@ -34,7 +34,8 @@
       "Bash(do [ -f \"$link\" ])",
       "Bash(echo:*)",
       "Bash(done)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Read(//home/jj/**)"
     ],
     "deny": [],
     "ask": []
