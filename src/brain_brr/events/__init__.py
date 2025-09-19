@@ -10,16 +10,20 @@ This module contains:
 # Import from the moved module
 from .events import (
     SeizureEvent,
-    mask_to_intervals,
-    intervals_to_mask,
+    mask_to_events,
     merge_events,
-    compute_event_confidence,
+    calculate_event_confidence,
+    add_confidence_scores,
+    events_to_mask,
+    batch_mask_to_events,
 )
 
 __all__ = [
     "SeizureEvent",
-    "mask_to_intervals",
-    "intervals_to_mask",
+    "mask_to_events",
     "merge_events",
-    "compute_event_confidence",
+    "calculate_event_confidence",
+    "add_confidence_scores",
+    "events_to_mask",
+    "batch_mask_to_events",
 ]

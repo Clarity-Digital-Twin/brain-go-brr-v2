@@ -7,21 +7,19 @@ This module will contain:
 - stitch.py: Window stitching and overlap handling
 """
 
-# During migration, re-export from experiment
-try:
-    from src.experiment.postprocess import (
-        apply_hysteresis,
-        apply_morphology,
-        apply_duration_filter,
-        PostProcessor,
-    )
+# Import from moved module
+from .postprocess import (
+    apply_hysteresis,
+    apply_morphology,
+    filter_duration,
+    stitch_windows,
+    postprocess_predictions,
+)
 
-    __all__ = [
-        "apply_hysteresis",
-        "apply_morphology",
-        "apply_duration_filter",
-        "PostProcessor",
-    ]
-except ImportError:
-    # Clean-slate imports will go here after migration
-    pass
+__all__ = [
+    "apply_hysteresis",
+    "apply_morphology",
+    "filter_duration",
+    "stitch_windows",
+    "postprocess_predictions",
+]
