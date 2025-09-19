@@ -3,14 +3,14 @@
 import pytest
 import torch
 
-from src.experiment.postprocess import (
+from src.brain_brr.config.schemas import PostprocessingConfig
+from src.brain_brr.post import (
     apply_hysteresis,
     apply_morphology,
     filter_duration,
     postprocess_predictions,
     stitch_windows,
 )
-from src.experiment.schemas import PostprocessingConfig
 
 
 class TestHysteresis:

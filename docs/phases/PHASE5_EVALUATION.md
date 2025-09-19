@@ -10,7 +10,7 @@ Success means: a deterministic, well‑tested evaluation stack with clear CLI, C
 - ✅ Complete test suite in `tests/test_evaluate.py` (19 tests passing)
 - ✅ Phase 4 APIs fully integrated (hysteresis, morphology, stitching)
 - ✅ Export functionality in `src/experiment/export.py` (CSV_BI, JSON)
-- ✅ CLI evaluation command in `src/cli.py` with export options
+- ✅ CLI evaluation command in `src/brain_brr/cli/cli.py` (and runnable via `python -m src`) with export options
 - ✅ Evaluation is CPU‑safe and does not require CUDA
 
 All target APIs defined in this document have been implemented and tested.
@@ -28,7 +28,7 @@ Additional metrics (implemented):
 
 ## 🧩 Eventization Semantics
 Eventization must follow Phase 4: hysteresis (τ_on=0.86, τ_off=0.78), morphology (opening→closing), min/max duration, and optional stitching (for full‑record inference). Conventions:
-- Thresholding: strictly > τ_on to enter; strictly < τ_off to exit; stable windows min_onset/min_offset when added.
+- Thresholding: ≥ τ_on to enter; < τ_off to exit; stable windows min_onset/min_offset when added.
 - Morphology kernels are odd; defaults documented in Phase 4.
 - Min duration default 3.0s; max duration default 600.0s with segmentation.
 - Convert masks to intervals by diff on zero‑padded mask.
@@ -47,8 +47,10 @@ in Phase 4 and can be threaded into evaluation as needed.
 - Sensitivity@FA: once τ_on found, compute event‑level sensitivity vs references.
 
 Implementation details:
-- The legacy `threshold` parameter in `evaluate.batch_probs_to_events(...)` is deprecated
-  and ignored. Post‑processing uses hysteresis thresholds from the config exclusively.
+- The legacy `threshold` parameter in `evaluate.batch_probs_to_events(...)` is deprecated.
+  Evaluation selects τ_on via binary search to meet the FA/24h target (conservative),
+  with τ_off = max(0, τ_on − Δ). Hysteresis values in the config act as defaults/initial
+  seeds; evaluation is not limited to fixed config thresholds.
 - TAES false‑alarm penalty weight defaults to α = 0.15 in code; this balances temporal
   alignment against spurious predictions.
 
@@ -75,12 +77,12 @@ Unit tests (small, deterministic):
 - `tests/test_evaluate.py` (extend):
   - TAES correctness on synthetic cases (single/multiple overlaps, FP penalty).
   - FA/24h computation with controlled durations and gaps.
-  - Binary search threshold converges (monotone FA vs θ) with mock traces.
+  - Binary search on τ_on converges (monotone FA vs τ_on) with mock traces.
   - Sensitivity@FA matches ground truth under simple scenarios.
 
 Integration tests:
 - `tests/test_integration_eval.py`:
-  - End‑to‑end: probs → postprocess (Phase 4) → events → metrics (satisfy invariants; e.g., θ_high ≥ θ_low, FA monotonicity).
+  - End‑to‑end: probs → postprocess (Phase 4) → events → metrics (satisfy invariants; e.g., τ_on,high ≥ τ_on,low; FA monotonicity).
   - Window stitching path: reconstruct full timeline and verify boundary behavior.
 
 Export/Compliance tests:
@@ -115,7 +117,7 @@ Outputs enhancement:
 ## 🧵 CLI & Make Targets
 
 CLI (suggested):
-- `python -m src.cli evaluate --config configs/production.yaml --split dev --out results/metrics/dev.json`
+- `python -m src evaluate --config configs/production.yaml --split dev --out results/metrics/dev.json`
 
 Exports: use library functions in `src/experiment/export.py` (CSV_BI/JSON).
 If desired, a dedicated CLI subcommand can be added later.
@@ -126,7 +128,7 @@ Make (optional additions):
 
 ## 📦 Artifacts & Logging
 - Metrics JSON: TAES, AUROC, sensitivity@{10,5,2.5,1}fa, FA curve.
-- Threshold table: FA target → θ.
+- Threshold table: FA target → τ_on.
 - CSV_BI folder with per‑record events.
 - Plots: FA curve, ROC, calibration (optional).
 - Manifest: data split listing, duration totals.
@@ -145,7 +147,7 @@ Make (optional additions):
 - Documentation (this file + README link) up‑to‑date and concise.
 
 ## ⚠️ Risks & Mitigations
-- Non‑monotone FA vs θ under rare post‑proc combos → enforce monotonicity by increasing θ when binary search oscillates; log warning.
+- Non‑monotone FA vs τ_on under rare post‑proc combos → enforce monotonicity by increasing τ_on when binary search oscillates; log warning.
 - Stitching boundary artifacts → tests with partial windows and off‑by‑one checks.
 - Dataset header quirks (TUH EDF) → addressed in `TUSZ_EDF_HEADER_FIX.md`; ensure eval respects fixed channel order.
 - CPU/GPU divergence → Evaluation runs CPU‑deterministic; GPU only affects model inference (Phase 2/3).

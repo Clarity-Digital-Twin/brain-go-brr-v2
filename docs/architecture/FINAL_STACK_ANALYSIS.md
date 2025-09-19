@@ -47,12 +47,10 @@ Input (B,19,15360) → U-Net Encoder → ResCNN → Bi-Mamba-2 → U-Net Decoder
 - **Downsampling factor:** ×2 per stage (total ×16)
 - **Channel progression:** [64, 128, 256, 512]
 - **Block structure:**
-  - Depthwise-separable Conv1d (kernel=5)
-  - GroupNorm
-  - SiLU activation
-  - 1×1 Conv (pointwise)
-  - Residual connection
-- **Skip connections:** Save pre-downsample features for decoder
+  - Double Conv1d per stage (kernel=5, padding=2)
+  - BatchNorm1d
+  - ReLU activation
+- **Skip connections:** Save features AFTER block, BEFORE downsample
 
 ### 2.2 ResCNN Stack (Local Pattern Enhancement)
 **Purpose:** Refine local temporal patterns before global modeling
@@ -85,12 +83,11 @@ Input (B,19,15360) → U-Net Encoder → ResCNN → Bi-Mamba-2 → U-Net Decoder
 **Purpose:** Upsample to original temporal resolution with skip connections
 
 - **Stages:** 4 upsampling blocks
-- **Upsampling:** ConvTranspose1d (kernel=4, stride=2, padding=1)
+- **Upsampling:** ConvTranspose1d (kernel=2, stride=2)
 - **Skip fusion:**
   1. Concatenate encoder skip with upsampled features
-  2. Depthwise-separable Conv1d (kernel=5)
-  3. GroupNorm → SiLU → 1×1 Conv
-  4. Residual connection
+  2. Double Conv1d (kernel=5, padding=2)
+  3. BatchNorm1d → ReLU
 - **Channel progression:** [512, 256, 128, 64] → 1
 
 ### 2.5 Output Head
@@ -126,8 +123,8 @@ Input (B,19,15360) → U-Net Encoder → ResCNN → Bi-Mamba-2 → U-Net Decoder
   Note: Hysteresis alone stops immediately upon crossing τ_off; the subsequent morphological closing (Section 3.3) can fill brief sub-threshold dips. We still apply opening first, then closing.
 
 ### 3.3 Morphological Operations
-- **Opening:** Remove isolated spikes (kernel_size=5 samples ≈ 20 ms @ 256 Hz)
-- **Closing:** Fill small gaps (kernel_size=5 samples ≈ 20 ms @ 256 Hz)
+- **Opening:** Remove isolated spikes (kernel_size=11 ≈ 43 ms @ 256 Hz)
+- **Closing:** Fill small gaps (kernel_size=31 ≈ 121 ms @ 256 Hz)
 - **Order:** Open first, then close
 
 All morphology kernel sizes are specified in samples unless otherwise stated.
@@ -145,8 +142,7 @@ All morphology kernel sizes are specified in samples unless otherwise stated.
 ## 4. TRAINING CONFIGURATION
 
 ### Loss Function
-- **Components:** Weighted BCE + Soft Dice
-- **Boundary tolerance:** ±1 second around event boundaries
+- **Components:** Binary cross-entropy with element-wise weighting
 - **Class weights:** Computed from dataset statistics
 
 ### Data Sampling Strategy
@@ -205,7 +201,7 @@ All morphology kernel sizes are specified in samples unless otherwise stated.
 
 ### Phase 4: Training Pipeline
 - [ ] Implement balanced sampler with hard negative mining
-- [ ] Set up loss function with boundary tolerance
+- [ ] Set up loss function with element-wise weighting
 - [ ] Configure optimizer and training loop
 - [ ] Add early stopping on dev sensitivity
 
@@ -236,7 +232,7 @@ All morphology kernel sizes are specified in samples unless otherwise stated.
 ### Post-processing Parameters
 - **τ_on:** 0.86
 - **τ_off:** 0.78
-- **Morphological kernel:** 5 samples (≈20 ms @ 256 Hz)
+- **Morphology:** opening_kernel=11, closing_kernel=31 (samples)
 - **Minimum duration:** 3.0 seconds
 
 ### Training Parameters

@@ -11,7 +11,7 @@ def test_interpolation_fz_pz_missing():
     """Test that missing Fz/Pz channels are interpolated correctly."""
     from pathlib import Path
 
-    from src.experiment.data import load_edf_file
+    from src.brain_brr.data import load_edf_file
 
     # Create synthetic Raw with 17 channels (missing Fz, Pz)
     sfreq = 256.0
@@ -45,7 +45,7 @@ def test_interpolation_fz_pz_missing():
     raw.set_montage("standard_1020", on_missing="ignore")
 
     # Mock _read_raw_edf to return our synthetic Raw
-    with patch("src.experiment.data._read_raw_edf") as mock_read:
+    with patch("src.brain_brr.data.io._read_raw_edf") as mock_read:
         mock_read.return_value = raw
 
         # Call load_edf_file
@@ -57,7 +57,7 @@ def test_interpolation_fz_pz_missing():
 
         # Verify Fz and Pz were added and have finite values
         # The order should match CHANNEL_NAMES_10_20 from constants.py
-        from src.experiment.constants import CHANNEL_NAMES_10_20
+        from src.brain_brr.constants import CHANNEL_NAMES_10_20
 
         fz_idx = CHANNEL_NAMES_10_20.index("Fz")
         pz_idx = CHANNEL_NAMES_10_20.index("Pz")
@@ -74,7 +74,7 @@ def test_interpolation_other_channel_missing_raises():
     """Test that missing channels other than Fz/Pz raise an error."""
     from pathlib import Path
 
-    from src.experiment.data import load_edf_file
+    from src.brain_brr.data import load_edf_file
 
     # Create synthetic Raw missing O1 (not allowed)
     sfreq = 256.0
@@ -104,7 +104,7 @@ def test_interpolation_other_channel_missing_raises():
     info = mne.create_info(ch_names=channels_without_o1, sfreq=sfreq, ch_types="eeg")
     raw = mne.io.RawArray(data / 1e6, info)
 
-    with patch("src.experiment.data._read_raw_edf") as mock_read:
+    with patch("src.brain_brr.data.io._read_raw_edf") as mock_read:
         mock_read.return_value = raw
 
         # Should raise ValueError for missing O1
@@ -116,7 +116,7 @@ def test_interpolation_with_montage_disabled():
     """Test that interpolation fails gracefully when montage is disabled."""
     from pathlib import Path
 
-    from src.experiment.data import load_edf_file
+    from src.brain_brr.data import load_edf_file
 
     # Create synthetic Raw missing Fz
     sfreq = 256.0
@@ -146,7 +146,7 @@ def test_interpolation_with_montage_disabled():
     info = mne.create_info(ch_names=channels_without_fz, sfreq=sfreq, ch_types="eeg")
     raw = mne.io.RawArray(data / 1e6, info)
 
-    with patch("src.experiment.data._read_raw_edf") as mock_read:
+    with patch("src.brain_brr.data.io._read_raw_edf") as mock_read:
         mock_read.return_value = raw
 
         # Should raise ValueError when montage is disabled
@@ -159,7 +159,7 @@ def test_interpolation_warning_logged(caplog):
     import logging
     from pathlib import Path
 
-    from src.experiment.data import load_edf_file
+    from src.brain_brr.data import load_edf_file
 
     # Set up logging to capture warnings
     caplog.set_level(logging.WARNING)
@@ -192,7 +192,7 @@ def test_interpolation_warning_logged(caplog):
     raw = mne.io.RawArray(data / 1e6, info)
     raw.set_montage("standard_1020", on_missing="ignore")
 
-    with patch("src.experiment.data._read_raw_edf") as mock_read:
+    with patch("src.brain_brr.data.io._read_raw_edf") as mock_read:
         mock_read.return_value = raw
 
         # Call load_edf_file

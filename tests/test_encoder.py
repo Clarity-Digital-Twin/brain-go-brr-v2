@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from src.experiment.models import UNetEncoder
+from src.brain_brr.models import UNetEncoder
 
 
 class TestUNetEncoder:

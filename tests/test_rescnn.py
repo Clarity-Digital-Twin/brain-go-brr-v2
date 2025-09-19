@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from src.experiment.models import ResCNNBlock, ResCNNStack
+from src.brain_brr.models import ResCNNBlock, ResCNNStack
 
 
 class TestResCNNBlock:
