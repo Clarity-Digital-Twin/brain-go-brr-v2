@@ -10,6 +10,7 @@ SOLID principles applied:
 
 from __future__ import annotations
 
+import os
 import random
 from pathlib import Path
 from typing import Any
@@ -198,7 +199,8 @@ def train_epoch(
     total_loss = 0.0
     num_batches = 0
 
-    progress = tqdm(dataloader, desc="Training", leave=False)
+    use_tqdm = not os.getenv("BGB_DISABLE_TQDM")
+    progress = tqdm(dataloader, desc="Training", leave=False) if use_tqdm else dataloader
     for windows, labels in progress:
         windows = windows.to(device_obj)
         labels = labels.to(device_obj)
@@ -237,8 +239,11 @@ def train_epoch(
         total_loss += loss.item()
         num_batches += 1
 
-        # Update progress bar
-        progress.set_postfix({"loss": f"{loss.item():.4f}"})
+        if use_tqdm:
+            try:
+                progress.set_postfix({"loss": f"{loss.item():.4f}"})
+            except Exception:
+                pass
 
     return total_loss / max(1, num_batches)
 
@@ -279,8 +284,10 @@ def validate_epoch(
     total_loss = 0.0
     num_batches = 0
 
+    use_tqdm = not os.getenv("BGB_DISABLE_TQDM")
     with torch.no_grad():
-        for windows, labels in tqdm(dataloader, desc="Validating", leave=False):
+        iterator = tqdm(dataloader, desc="Validating", leave=False) if use_tqdm else dataloader
+        for windows, labels in iterator:
             windows = windows.to(device_obj)
             labels = labels.to(device_obj)
 
@@ -478,7 +485,9 @@ def train(
     checkpoint_dir = output_dir / "checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-    writer = SummaryWriter(output_dir / "tensorboard")
+    writer: SummaryWriter | None = None
+    if not os.getenv("BGB_DISABLE_TB"):
+        writer = SummaryWriter(output_dir / "tensorboard")
 
     # Early stopping
     early_stopping = EarlyStopping(config.training.early_stopping)
@@ -518,15 +527,17 @@ def train(
         )
 
         # Log metrics
-        writer.add_scalar("Loss/train", train_loss, epoch)
-        writer.add_scalar("Loss/val", val_metrics["val_loss"], epoch)
-        writer.add_scalar("Metrics/TAES", val_metrics["taes"], epoch)
-        writer.add_scalar("Metrics/AUROC", val_metrics["auroc"], epoch)
+        if writer is not None:
+            writer.add_scalar("Loss/train", train_loss, epoch)
+            writer.add_scalar("Loss/val", val_metrics["val_loss"], epoch)
+            writer.add_scalar("Metrics/TAES", val_metrics["taes"], epoch)
+            writer.add_scalar("Metrics/AUROC", val_metrics["auroc"], epoch)
 
         for fa_rate in config.evaluation.fa_rates:
             key = f"sensitivity_at_{fa_rate}fa"
             if key in val_metrics:
-                writer.add_scalar(f"Metrics/{key}", val_metrics[key], epoch)
+                if writer is not None:
+                    writer.add_scalar(f"Metrics/{key}", val_metrics[key], epoch)
 
         # Print metrics
         print(f"  Train Loss: {train_loss:.4f}")
@@ -572,7 +583,8 @@ def train(
             config,
         )
 
-    writer.close()
+    if writer is not None:
+        writer.close()
     print(f"\nTraining complete. Best epoch: {best_metrics['best_epoch']}")
 
     return best_metrics
@@ -619,6 +631,19 @@ def main() -> None:
 
     print(f"Loading {len(train_files)} train, {len(val_files)} val files")
 
+    # Optional file limit for fast bring-up via env var (does not change config)
+    limit_env = os.getenv("BGB_LIMIT_FILES")
+    if limit_env:
+        try:
+            limit = max(1, int(limit_env))
+            train_files = train_files[:limit]
+            val_files = val_files[: max(1, min(len(val_files), max(1, limit // 5)))]
+            print(
+                f"[DEBUG] BGB_LIMIT_FILES={limit}: using {len(train_files)} train, {len(val_files)} val files"
+            )
+        except Exception:
+            pass
+
     # Pair label files (CSV next to EDF with same stem); pass even if missing
     train_label_files = [p.with_suffix(".csv") for p in train_files]
     val_label_files = [p.with_suffix(".csv") for p in val_files]
@@ -661,23 +686,29 @@ def main() -> None:
 
             train_sampler = WeightedRandomSampler(weights.tolist(), len(weights), replacement=True)
 
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=config.training.batch_size,
-        sampler=train_sampler,
-        shuffle=(train_sampler is None),
-        num_workers=config.data.num_workers,
-        pin_memory=torch.cuda.is_available(),
-        worker_init_fn=worker_init_fn,
-    )
+    train_loader_kwargs: dict[str, Any] = {
+        "batch_size": config.training.batch_size,
+        "sampler": train_sampler,
+        "shuffle": (train_sampler is None),
+        "num_workers": config.data.num_workers,
+        "pin_memory": bool(config.data.pin_memory),
+        "worker_init_fn": worker_init_fn,
+    }
+    if config.data.num_workers > 0:
+        train_loader_kwargs["persistent_workers"] = bool(config.data.persistent_workers)
+        train_loader_kwargs["prefetch_factor"] = int(config.data.prefetch_factor)
+    train_loader = DataLoader(train_dataset, **train_loader_kwargs)
 
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=config.training.batch_size,
-        shuffle=False,
-        num_workers=config.data.num_workers,
-        pin_memory=torch.cuda.is_available(),
-    )
+    val_loader_kwargs: dict[str, Any] = {
+        "batch_size": config.training.batch_size,
+        "shuffle": False,
+        "num_workers": config.data.num_workers,
+        "pin_memory": bool(config.data.pin_memory),
+    }
+    if config.data.num_workers > 0:
+        val_loader_kwargs["persistent_workers"] = bool(config.data.persistent_workers)
+        val_loader_kwargs["prefetch_factor"] = int(config.data.prefetch_factor)
+    val_loader = DataLoader(val_dataset, **val_loader_kwargs)
 
     # Create model
     model = SeizureDetector.from_config(config.model)

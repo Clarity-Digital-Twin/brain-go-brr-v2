@@ -28,6 +28,16 @@ class DataConfig(BaseModel):
         default=10, description="Stride between windows in seconds (fixed at 10s)"
     )
     num_workers: int = Field(default=0, ge=0, le=32, description="DataLoader workers")
+    pin_memory: bool = Field(
+        default=False, description="Pin memory for CUDA transfers (WSL2: keep false for stability)"
+    )
+    persistent_workers: bool = Field(
+        default=False,
+        description="Keep DataLoader workers alive between epochs (requires num_workers>0)",
+    )
+    prefetch_factor: int = Field(
+        default=2, ge=2, description="Batches to prefetch per worker (requires num_workers>0)"
+    )
     validation_split: float = Field(
         default=0.2, ge=0.0, le=0.5, description="Fraction of data for validation"
     )
