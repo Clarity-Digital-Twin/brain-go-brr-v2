@@ -46,7 +46,8 @@
       "Bash(sudo:*)",
       "Bash(git checkout:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(aws configure set:*)"
     ],
     "deny": [],
     "ask": []

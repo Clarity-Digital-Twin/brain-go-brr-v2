@@ -58,17 +58,16 @@ app = modal.App(
     ],
 )
 
-# Option 1: S3 bucket mount for massive EEG data (RECOMMENDED)
-# Uncomment and configure with your S3 bucket:
-# s3_secret = modal.Secret.from_name("aws-s3-secret")  # Create in Modal dashboard
-# data_mount = modal.CloudBucketMount(
-#     "your-eeg-bucket-name",  # Just bucket name, not full ARN
-#     secret=s3_secret,
-#     key_prefix="tuh_eeg_seizure_v2.0.0/",  # Optional: mount only this folder
-#     read_only=True,  # EEG data is read-only
-# )
+# S3 bucket mount for massive EEG data
+s3_secret = modal.Secret.from_name("aws-s3-secret")
+data_mount = modal.CloudBucketMount(
+    "brain-go-brr-eeg-data-20250919",  # Your actual bucket!
+    secret=s3_secret,
+    key_prefix="raw/tusz/",  # Mount just the TUH data
+    read_only=True,  # EEG data is read-only
+)
 
-# Option 2: Persistent volumes (for smaller datasets or cached processing)
+# Persistent volumes for results
 data_volume = modal.Volume.from_name("brain-go-brr-data", create_if_missing=True)
 results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missing=True)
 
@@ -77,7 +76,7 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
     gpu="A100-80GB",  # 80GB VRAM, 3x faster than 4090
     timeout=7200,  # 2 hours
     volumes={
-        "/data": data_volume,
+        "/data": data_mount,  # S3 bucket with TUH data!
         "/results": results_volume,
     },
     memory=32768,  # 32GB RAM
@@ -125,8 +124,8 @@ def train(
 
     # Auto-select dataset under /data if present
     preferred_roots = [
-        "/data/chb-mit",
-        "/data/tuh_eeg_seizure_v2.0.0",
+        "/data/edf/train",  # S3 mounted path: /data/raw/tusz/edf/train
+        "/data",  # Fallback to root of mount
     ]
     for root in preferred_roots:
         if os.path.isdir(root):
