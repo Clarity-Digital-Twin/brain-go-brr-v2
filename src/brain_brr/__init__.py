@@ -15,8 +15,7 @@ import warnings
 def _compatibility_warning(old_path: str, new_path: str) -> None:
     """Issue deprecation warning for old import paths."""
     warnings.warn(
-        f"Importing from '{old_path}' is deprecated. "
-        f"Please use '{new_path}' instead.",
+        f"Importing from '{old_path}' is deprecated. Please use '{new_path}' instead.",
         DeprecationWarning,
         stacklevel=3,
     )
