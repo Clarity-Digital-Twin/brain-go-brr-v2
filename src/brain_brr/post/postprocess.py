@@ -12,7 +12,7 @@ import torch
 from scipy import ndimage  # type: ignore[import-untyped]
 from torch.nn import functional
 
-from src.experiment.schemas import (
+from src.brain_brr.config.schemas import (
     PostprocessingConfig,
 )
 

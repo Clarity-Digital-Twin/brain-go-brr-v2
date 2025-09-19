@@ -9,9 +9,9 @@ import numpy as np
 import torch
 from sklearn.metrics import average_precision_score, roc_auc_score  # type: ignore[import-untyped]
 
-from src.experiment.events import batch_mask_to_events
-from src.experiment.postprocess import postprocess_predictions
-from src.experiment.schemas import PostprocessingConfig
+from src.brain_brr.events import batch_mask_to_events
+from src.brain_brr.postprocess import postprocess_predictions
+from src.brain_brr.config.schemas import PostprocessingConfig
 
 
 def overlap(a: tuple[float, float], b: tuple[float, float]) -> float:
@@ -319,7 +319,7 @@ def sensitivity_at_fa_rates(
 
     # Optionally stitch windows for record-level processing
     if stitch_windows and window_stride_s < window_size_s:
-        from .postprocess import stitch_windows as stitch_fn
+        from src.brain_brr.postprocess import stitch_windows as stitch_fn
 
         # Calculate window starts in samples
         stride_samples = int(window_stride_s * sampling_rate)

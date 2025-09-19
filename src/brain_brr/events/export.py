@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from src.experiment.events import SeizureEvent
+from src.brain_brr.events import SeizureEvent
 
 
 def export_csv_bi(
