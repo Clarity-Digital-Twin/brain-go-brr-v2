@@ -1,6 +1,6 @@
 import math
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Union
 
 import numpy as np
 import pytest
@@ -18,7 +18,7 @@ class FakeRaw:
         self._data = data
         self.info: dict[str, float] = {"sfreq": float(sfreq)}
 
-    def rename_channels(self, mapping: Union[dict[str, str], Callable]) -> None:
+    def rename_channels(self, mapping: dict[str, str] | Callable) -> None:
         if callable(mapping):
             # Handle lambda function
             self.ch_names = [mapping(ch) for ch in self.ch_names]
@@ -49,6 +49,7 @@ def test_load_edf_orders_channels_correctly(monkeypatch: pytest.MonkeyPatch) -> 
 
     # Patch the actual module where the function is defined
     import src.brain_brr.data.io as io_mod
+
     monkeypatch.setattr(io_mod, "_read_raw_edf", lambda p: raw)
 
     arr, fs = data_mod.load_edf_file(Path("dummy.edf"))
@@ -70,6 +71,7 @@ def test_load_edf_missing_channels_raises(monkeypatch: pytest.MonkeyPatch) -> No
 
     # Patch the actual module where the function is defined
     import src.brain_brr.data.io as io_mod
+
     monkeypatch.setattr(io_mod, "_read_raw_edf", lambda p: raw)
     with pytest.raises(ValueError, match="Missing required channels"):
         _ = data_mod.load_edf_file(Path("dummy.edf"))
@@ -105,6 +107,7 @@ def test_load_edf_header_repair_fallback(monkeypatch: pytest.MonkeyPatch, tmp_pa
 
     # Patch the actual module where the function is defined
     import src.brain_brr.data.io as io_mod
+
     monkeypatch.setattr(io_mod, "_read_raw_edf", mock_read_edf)
 
     # Should succeed after repair
