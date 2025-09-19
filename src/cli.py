@@ -159,7 +159,7 @@ def train(config_path: Path, resume: bool, device: str) -> None:
         import sys
 
         old_argv = sys.argv
-        sys.argv = ["train", "--config", str(config_path)]
+        sys.argv = ["train", str(config_path)]  # Positional argument now
         if resume:
             sys.argv.append("--resume")
 

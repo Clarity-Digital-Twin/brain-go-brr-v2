@@ -98,7 +98,8 @@
       "Bash(pgrep:*)",
       "Bash(pip search:*)",
       "Bash(while read f)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(awk:*)"
     ],
     "deny": [],
     "ask": []

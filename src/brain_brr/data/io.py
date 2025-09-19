@@ -185,8 +185,8 @@ def load_edf_file(
     if missing:
         raise ValueError(f"Missing required channels: {missing}")
 
-    # Reorder/pick channels
-    raw.pick_channels(available, ordered=True)
+    # Reorder/pick channels (use new API to avoid deprecation warning)
+    raw.pick(available, ordered=True)
 
     # Best-effort montage (permissive - won't fail if some positions missing)
     if apply_montage:

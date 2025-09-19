@@ -198,6 +198,7 @@ def train_epoch(
 
     total_loss = 0.0
     num_batches = 0
+    global_step = 0  # Track global step for scheduler
 
     use_tqdm = not os.getenv("BGB_DISABLE_TQDM")
     progress = tqdm(dataloader, desc="Training", leave=False) if use_tqdm else dataloader
@@ -233,8 +234,10 @@ def train_epoch(
             optimizer.step()
 
         # Scheduler step AFTER optimizer.step() to avoid PyTorch warning
-        if scheduler is not None:
+        # Skip first step to avoid the warning (scheduler initialized with last_epoch=-1)
+        if scheduler is not None and global_step > 0:
             scheduler.step()
+        global_step += 1
 
         total_loss += loss.item()
         num_batches += 1
@@ -541,6 +544,12 @@ def train(
         print(f"  TAES: {val_metrics['taes']:.4f}")
         print(f"  AUROC: {val_metrics['auroc']:.4f}")
 
+        # Print sensitivity at FA rates
+        for fa_rate in config.evaluation.fa_rates:
+            key = f"sensitivity_at_{fa_rate}fa"
+            if key in val_metrics:
+                print(f"  Sensitivity@{fa_rate}FA/24h: {val_metrics[key]:.4f}")
+
         # Track best model
         metric_name = config.training.early_stopping.metric
         current_metric = val_metrics.get(metric_name, 0.0)
@@ -599,9 +608,8 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="Train seizure detection model")
     parser.add_argument(
-        "--config",
+        "config",  # Make positional argument for easier CLI usage
         type=str,
-        required=True,
         help="Path to config YAML file",
     )
     parser.add_argument(
