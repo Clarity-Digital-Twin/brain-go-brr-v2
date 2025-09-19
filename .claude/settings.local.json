@@ -74,7 +74,13 @@
       "Bash(md5sum:*)",
       "Bash(.venv/bin/ruff format src/ tests/)",
       "Bash(.venv/bin/ruff check src/ tests/ --fix)",
-      "Bash(.venv/bin/pytest tests/test_smoke.py -q)"
+      "Bash(.venv/bin/pytest tests/test_smoke.py -q)",
+      "Bash(for f in src/experiment/*.py)",
+      "Bash(do echo \"=== $f ===\")",
+      "Bash(wc:*)",
+      "Bash(head:*)",
+      "Bash(done)",
+      "Bash(for:*)"
     ],
     "deny": [],
     "ask": []
