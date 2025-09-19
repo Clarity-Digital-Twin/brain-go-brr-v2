@@ -1,5 +1,19 @@
 # Modal Deployment Lessons Learned
 
+## Key Deployment Issues We Solved
+
+### 1. Image Build Order (Modal Best Practice)
+**Problem**: Modal throws `InvalidError` if you run commands after `add_local_*`
+**Solution**: Always put `add_local_dir` and `add_local_file` LAST in your image chain
+
+### 2. Path Resolution in Containers
+**Problem**: `Path(__file__).parents[2]` fails in containers where file is at `/root/app.py`
+**Solution**: Use relative paths that Modal resolves from the run location
+
+### 3. Missing Dependencies
+**Problem**: `tensorboard` wasn't included but is imported by training code
+**Solution**: Add all dependencies including optional ones like tensorboard
+
 ## The Mamba-SSM Compilation Challenge
 
 ### What We Tried That Failed
@@ -58,9 +72,18 @@ modal.Image.from_registry(
 
 **Recommendation**: Use A100-80GB for serious training, T4 for debugging.
 
+## Current Status
+
+✅ **Deployment Working**: Modal successfully builds and runs our code
+✅ **CUDA Compilation**: Mamba-SSM compiles with nvcc (takes ~2 min first time)
+✅ **Path Resolution**: Fixed all container path issues
+✅ **Dependencies**: Added all required packages including tensorboard
+⚠️ **Mamba-SSM Runtime**: Warning about fallback to Conv1d - may need debugging
+
 ## Future Improvements
 
-1. Consider pre-building mamba-ssm wheel
-2. Explore Modal's new image builder (vs legacy)
-3. Test with H100 for even faster training
-4. Add spot instance support for 70% cost savings
+1. Debug why mamba-ssm falls back to Conv1d despite successful installation
+2. Consider pre-building mamba-ssm wheel to avoid compilation time
+3. Explore Modal's new image builder (vs legacy)
+4. Test with H100 for even faster training
+5. Add spot instance support for 70% cost savings

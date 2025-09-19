@@ -35,7 +35,8 @@
       "Bash(echo:*)",
       "Bash(done)",
       "Bash(git fetch:*)",
-      "Read(//home/jj/**)"
+      "Read(//home/jj/**)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
