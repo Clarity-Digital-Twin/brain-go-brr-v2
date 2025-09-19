@@ -21,7 +21,7 @@ This document serves as the single source of truth for the complete architecture
   - Order: `["Fp1", "F3", "C3", "P3", "F7", "T3", "T5", "O1", "Fz", "Cz", "Pz", "Fp2", "F4", "C4", "P4", "F8", "T4", "T6", "O2"]`
   - [ ] Channel synonym mapping: T7→T3, T8→T4, P7→T5, P8→T6 (via CHANNEL_SYNONYMS)
   - [ ] Missing channel interpolation for Fz, Pz (automatic via MNE `set_montage`)
-  - [ ] Fixed channel ordering with `pick_and_order(...)` utility
+  - [ ] Fixed channel ordering with `pick_and_order(...)` utility in `src/brain_brr/utils/pick_utils.py`
 
 #### 1.2 Preprocessing Pipeline
 - [ ] **Resampling**: Target 256 Hz

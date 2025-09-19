@@ -20,7 +20,9 @@
       "Bash(tree:*)",
       "WebSearch",
       "Bash(python:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(xargs ls:*)",
+      "Bash(make:*)"
     ],
     "deny": [],
     "ask": []

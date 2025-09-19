@@ -14,7 +14,7 @@ import numpy.typing as npt
 
 from src.brain_brr import constants
 
-from .pick_utils import pick_and_order
+from ..utils.pick_utils import pick_and_order
 
 logger = logging.getLogger(__name__)
 
