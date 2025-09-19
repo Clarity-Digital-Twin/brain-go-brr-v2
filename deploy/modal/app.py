@@ -13,6 +13,8 @@ image = (
     # Use NVIDIA CUDA devel image for nvcc compiler (required by mamba-ssm)
     modal.Image.from_registry("nvidia/cuda:12.1.0-devel-ubuntu22.04", add_python="3.11")
     .entrypoint([])  # Clear entrypoint from CUDA image
+    # Install build tools required for compiling CUDA extensions
+    .apt_install("build-essential", "ninja-build")
     # Install PyTorch 2.2.2 with CUDA 12.1
     .pip_install(
         "torch==2.2.2",
@@ -21,8 +23,8 @@ image = (
         index_url="https://download.pytorch.org/whl/cu121",
     )
     # Install mamba-ssm with CUDA kernels (nvcc now available)
-    # Install packaging first, then mamba-ssm with no-build-isolation
-    .pip_install("packaging")
+    # Install packaging and ninja first, then mamba-ssm with no-build-isolation
+    .pip_install("packaging", "ninja")
     .run_commands(
         "pip install --no-build-isolation 'mamba-ssm>=2.0.0'"
     )
