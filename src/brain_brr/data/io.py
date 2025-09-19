@@ -100,8 +100,25 @@ def load_edf_file(
             raise
 
     # Normalize channel names - standardize to canonical case
-    # Step 1: Remove spaces
-    raw.rename_channels(lambda x: x.replace(" ", ""))
+    # Step 1: Handle TUSZ-specific naming (e.g., "EEG FP1-LE" -> "FP1")
+    def clean_tusz_name(name: str) -> str:
+        """Clean TUSZ channel names by removing prefixes and suffixes."""
+        # Remove spaces first
+        name = name.replace(" ", "")
+
+        # Remove 'EEG' prefix if present (common in TUSZ)
+        if name.startswith("EEG"):
+            name = name[3:].lstrip()
+
+        # Remove reference suffixes like '-LE', '-REF', '-AR' (TUSZ montages)
+        for suffix in ["-LE", "-REF", "-AR"]:
+            if name.endswith(suffix):
+                name = name[:-len(suffix)]
+                break
+
+        return name
+
+    raw.rename_channels(lambda x: clean_tusz_name(x))
 
     # Step 2: Apply standard casing for known channels
     # Create case-insensitive mapping to canonical names

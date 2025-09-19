@@ -106,13 +106,13 @@ Repository = "https://github.com/clarity-digital-twin/brain-go-brr-v2.git"
 Issues = "https://github.com/clarity-digital-twin/brain-go-brr-v2/issues"
 
 [project.scripts]
-train = "src.experiment.pipeline:main"
+train = "src.brain_brr.train.loop:main"
 # Route 'evaluate' to unified CLI, which exposes an 'evaluate' subcommand
 evaluate = "src.cli:main"
 run-experiment = "src.cli:main"
 
 [tool.hatch.version]
-path = "src/experiment/__init__.py"
+path = "src/brain_brr/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]

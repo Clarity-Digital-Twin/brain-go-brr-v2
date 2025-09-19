@@ -93,7 +93,12 @@
       "Bash(do sed -i 's/from src\\.experiment/from src.brain_brr/g' \"$file\")",
       "Bash(.venv/bin/pytest:*)",
       "Bash(sed:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(tmux send-keys:*)",
+      "Bash(pgrep:*)",
+      "Bash(pip search:*)",
+      "Bash(while read f)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []

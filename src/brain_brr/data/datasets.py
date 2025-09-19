@@ -105,7 +105,9 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         if label_path.suffix.lower() == ".csv" and label_path.exists():
             _duration_s, events = parse_tusz_csv(label_path)
             # Convert to binary mask aligned to requested n_samples @ 256 Hz
-            return events_to_binary_mask(events, n_samples, fs=constants.SAMPLING_RATE)
+            # NOTE: events_to_binary_mask expects duration in SECONDS, not samples!
+            duration_sec = n_samples / constants.SAMPLING_RATE
+            return events_to_binary_mask(events, duration_sec, fs=constants.SAMPLING_RATE)
 
         # Simple baseline: if .npy present, load; else return zeros
         if label_path.suffix.lower() == ".npy" and label_path.exists():
