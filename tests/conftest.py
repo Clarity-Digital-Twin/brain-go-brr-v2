@@ -29,6 +29,17 @@ if torch.cuda.is_available():
     torch.cuda.set_device(0)
 
 
+# Register custom markers
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line("markers", "gpu: tests requiring GPU/CUDA")
+    config.addinivalue_line("markers", "performance: performance benchmarks")
+    config.addinivalue_line("markers", "clinical: clinical validation tests")
+    config.addinivalue_line("markers", "edge: edge case stress tests")
+    config.addinivalue_line("markers", "integration: integration tests")
+    config.addinivalue_line("markers", "serial: tests that must run serially")
+
+
 @pytest.fixture(scope="session")
 def sample_edf_data():
     """Generate valid 19-channel EDF test data."""
@@ -227,6 +238,80 @@ def temp_checkpoint(tmp_path: Path, minimal_model) -> Path:
 
     torch.save(state, checkpoint_path)
     return checkpoint_path
+
+
+@pytest.fixture
+def real_corrupted_edf():
+    """Return ACTUAL corrupted EDF path from TUSZ that crashes MNE."""
+    # These are known problematic files
+    problem_files = [
+        Path("data_ext4/tusz/edf/train/01_tcp_ar/002/00000258/s002_2003_07_21/00000258_s002_t000.edf"),
+        Path("data_ext4/tusz/edf/train/01_tcp_ar/081/00008184/s001_2013_07_11/00008184_s001_t001.edf"),
+    ]
+
+    for f in problem_files:
+        if f.exists():
+            return f
+
+    # If specific files not found, find any EDF
+    data_dir = Path("data_ext4/tusz/edf/train")
+    if data_dir.exists():
+        edf_files = list(data_dir.glob("**/*.edf"))
+        if edf_files:
+            return edf_files[0]
+
+    pytest.skip("No TUSZ data found for corrupted file test")
+
+
+@pytest.fixture
+def real_imbalanced_dataset():
+    """REAL dataset with 99.9% background from TUSZ."""
+    from src.brain_brr.data.datasets import SeizureDataset
+
+    data_dir = Path("data_ext4/tusz/edf/train")
+    if not data_dir.exists():
+        pytest.skip("TUSZ data not found")
+
+    # Limit files for speed but ensure imbalance
+    os.environ["BGB_LIMIT_FILES"] = "20"
+
+    try:
+        dataset = SeizureDataset(
+            data_dir=str(data_dir),
+            split="train",
+            sampling_rate=256,
+            window_size=60,
+            stride=10,
+            cache_dir="cache/test_imbalanced",
+        )
+        return dataset
+    finally:
+        if "BGB_LIMIT_FILES" in os.environ:
+            del os.environ["BGB_LIMIT_FILES"]
+
+
+@pytest.fixture
+def gpu_memory_tracker():
+    """Track REAL GPU memory usage during tests."""
+    if not torch.cuda.is_available():
+        return None
+
+    class GPUTracker:
+        def __init__(self):
+            torch.cuda.reset_peak_memory_stats()
+            self.start_memory = torch.cuda.memory_allocated()
+
+        def get_peak_usage(self):
+            return torch.cuda.max_memory_allocated() - self.start_memory
+
+        def get_current_usage(self):
+            return torch.cuda.memory_allocated() - self.start_memory
+
+        def reset(self):
+            torch.cuda.reset_peak_memory_stats()
+            self.start_memory = torch.cuda.memory_allocated()
+
+    return GPUTracker()
 
 
 @pytest.fixture

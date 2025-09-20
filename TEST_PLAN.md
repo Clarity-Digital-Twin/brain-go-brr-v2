@@ -33,7 +33,7 @@
 
 ### Priority 1: Data Corruption (REAL FILES) 🔴
 ```python
-# tests/unit/data/test_io_edge_cases.py
+# tests/integration/data/test_io_edge_cases.py
 def test_real_corrupted_tusz_files():
     """Test ACTUAL corrupted TUSZ files that crash in production"""
     # Use REAL problematic files from TUSZ that have:
@@ -94,7 +94,7 @@ def test_mixed_precision_numerical_stability():
 
 ### Priority 4: Post-Processing Stress (REAL PREDICTIONS) 🟢
 ```python
-# tests/unit/post/test_hysteresis_edge.py
+# tests/integration/post/test_hysteresis_edge.py
 def test_rapid_oscillations_stress():
     """Generate 1M samples oscillating at Nyquist frequency"""
     # Probability flips every sample between 0.1 and 0.9
@@ -221,11 +221,11 @@ make test-all
 
 ## 📝 CRITICAL RULES
 
-- **NO MOCKS** - Use real data, real models, real GPU
-- **NO SKIPPING** - If it needs GPU, it gets GPU
-- **NO SYNTHETIC** - Use actual TUSZ/CHB-MIT files
-- **STRESS TEST** - Push to actual failure points
-- **MEASURE REAL** - Actual latency, actual memory, actual throughput
+- **NO MOCKS in integration/perf tests** - Use real data, real models, real GPU
+- **Unit tests stay pure** - Fast, isolated, no disk/GPU
+- **Mark tests properly** - @pytest.mark.integration, @pytest.mark.gpu, @pytest.mark.performance
+- **STRESS TEST** - Push to actual failure points in integration tests
+- **MEASURE REAL** - Actual latency, actual memory, actual throughput in perf tests
 
 ---
 
