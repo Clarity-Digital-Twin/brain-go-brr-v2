@@ -246,15 +246,17 @@ def main(
 ):
     """Modal deployment entrypoint.
 
-    Examples:
-        # Quick smoke test
-        modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml
+    ⚠️ IMPORTANT: Always use --detach flag for training to prevent disconnection from stopping your job!
 
-        # Full A100 training (detached)
+    Examples:
+        # Quick smoke test (ALWAYS use --detach)
+        modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml --detach
+
+        # Full A100 training (ALWAYS use --detach)
         modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --detach
 
-        # Resume training from last.pt in output_dir
-        modal run deploy/modal/app.py --action train --resume true
+        # Resume training from last.pt in output_dir (ALWAYS use --detach)
+        modal run deploy/modal/app.py --action train --resume true --detach
 
         # Evaluate checkpoint
         modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.ckpt

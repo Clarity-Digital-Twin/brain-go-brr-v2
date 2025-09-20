@@ -45,15 +45,22 @@ modal secret create wandb-secret WANDB_API_KEY=<your-key>
 
 ## Usage
 
+> ⚠️ **CRITICAL**: Always use the `--detach` flag when running training jobs!
+>
+> Without `--detach`, Modal will kill your training if your local connection drops (e.g., closing terminal, network issues, interrupting the command).
+> With `--detach`, your training continues running in the cloud even if you disconnect.
+
 ### Training
 
 **Smoke Test** (quick validation):
 ```bash
-modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml
+# ALWAYS use --detach to prevent disconnection from killing your training!
+modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml --detach
 ```
 
 **Full Training** (A100-optimized):
 ```bash
+# ALWAYS use --detach for long-running training jobs!
 modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --detach
 ```
 
