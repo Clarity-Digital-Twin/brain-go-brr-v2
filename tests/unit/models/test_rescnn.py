@@ -97,6 +97,7 @@ class TestResCNNBlock:
             y = block(x)
             assert y.shape == x.shape, f"Shape mismatch for {channels} channels"
 
+    @pytest.mark.serial
     def test_dropout_effect(self):
         """Test that dropout actually drops activations in training mode."""
         block = ResCNNBlock(channels=512, dropout=0.5)
@@ -192,6 +193,7 @@ class TestResCNNStack:
             y = stack(x)
             assert y.shape == x.shape, f"Shape mismatch with {num_blocks} blocks"
 
+    @pytest.mark.serial
     def test_memory_efficiency(self, stack):
         """Test stack doesn't leak memory in eval mode."""
         stack.eval()
