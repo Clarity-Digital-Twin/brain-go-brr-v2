@@ -39,6 +39,16 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "integration: integration tests")
     config.addinivalue_line("markers", "serial: tests that must run serially")
 
+    # Filter known warnings that are expected behavior
+    config.addinivalue_line(
+        "filterwarnings", "ignore:Mamba CUDA path coerced conv kernel:UserWarning"
+    )
+    config.addinivalue_line(
+        "filterwarnings",
+        "ignore:.*autograd.function.Function.*should not be instantiated:DeprecationWarning",
+    )
+    config.addinivalue_line("filterwarnings", "ignore:TensorFloat32 tensor cores.*:UserWarning")
+
 
 @pytest.fixture(scope="session")
 def sample_edf_data():
