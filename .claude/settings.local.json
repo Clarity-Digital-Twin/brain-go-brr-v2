@@ -42,7 +42,12 @@
       "Bash(git pull:*)",
       "Bash(tmux attach:*)",
       "Bash(git tag:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(gh release create:*)",
+      "Bash(gh release edit:*)",
+      "Bash(gh release delete:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)"
     ],
     "deny": [],
     "ask": []
