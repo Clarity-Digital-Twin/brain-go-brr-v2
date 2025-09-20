@@ -339,6 +339,10 @@ def train_epoch(
             global_step += 1
 
             # Scheduler step AFTER optimizer.step()
+            # NOTE: PyTorch warns about scheduler.step() before optimizer.step() on first batch.
+            # This is a false positive - we call them in correct order (optimizer then scheduler).
+            # The warning occurs because PyTorch doesn't understand our LambdaLR with last_epoch=-1
+            # is already properly initialized. The LR schedule works correctly despite the warning.
             if scheduler is not None:
                 scheduler.step()
 
