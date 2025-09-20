@@ -38,15 +38,21 @@ image = (
         "numpy<2.0",
         index_url="https://download.pytorch.org/whl/cu121",
     )
-    # CRITICAL: Install packaging and ninja for build process
-    .pip_install("packaging", "ninja")
-    # CRITICAL: Use --no-build-isolation to link with our PyTorch
+    # CRITICAL: Install packaging for build process
+    .pip_install("packaging")
+    # CRITICAL: Use CC/CXX env vars AND --no-build-isolation AND verbose output
     .run_commands(
-        "pip install --no-build-isolation 'mamba-ssm>=2.0.0'"
+        "export CC=gcc CXX=g++ && pip install -v --no-build-isolation 'mamba-ssm>=2.0.0'"
     )
     # Rest of dependencies...
 )
 ```
+
+### 🔴 Problem 5: Legacy Image Builder Warning
+**Warning**: "Using legacy Image Builder version. We suggest upgrading"
+- **Cause**: Workspace using old Image Builder version
+- **Solution**: Go to https://modal.com/settings/image-config → Select 2025.06 → Save
+- **Benefits**: Better dependency isolation, no conflicts, faster builds
 
 ## Key Lessons Learned
 
@@ -64,11 +70,34 @@ image = (
 5. Mamba-SSM compilation from source
 6. Other Python packages
 
-### 3. Debugging Steps That Helped
+### 3. Critical Setup Steps (IN ORDER!)
+
+#### A. Configure Modal Workspace
+1. **Set Image Builder Version** (REQUIRED - Do this FIRST!)
+   - Go to https://modal.com/settings/image-config
+   - Select "2025.06" (NOT the legacy version)
+   - Click Save
+   - This avoids dependency conflicts and compilation issues
+
+2. **Create AWS S3 Secret**
+   ```bash
+   modal secret create aws-s3-secret \
+     --env AWS_ACCESS_KEY_ID=your_key \
+     --env AWS_SECRET_ACCESS_KEY=your_secret \
+     --env AWS_DEFAULT_REGION=us-east-1
+   ```
+
+3. **Verify Modal Credits**
+   ```bash
+   modal status  # Need ~$140 for full training
+   ```
+
+#### B. Debugging Steps That Helped
 - Check Modal logs at: https://modal.com/apps/clarity-digital-twin/
 - Test with smoke_test.yaml first (1 epoch, minimal cost)
 - Monitor image build logs for compilation errors
-- Verify CUDA availability in runtime
+- Use verbose output (-v) for pip install to debug compilation
+- Export CC=gcc CXX=g++ for compiler specification
 
 ## Environment Specifications
 
@@ -109,27 +138,40 @@ If Mamba-SSM CUDA fails to load at runtime:
 ## Commands for Testing
 
 ```bash
-# Quick smoke test
-modal run deploy/modal/app.py --config configs/smoke_test.yaml
+# FIRST TIME SETUP (REQUIRED!)
+modal setup  # Login to Modal
+# Then go to https://modal.com/settings/image-config and set to 2025.06!
 
-# Full A100 training
-modal run deploy/modal/app.py --config configs/tusz_train_a100.yaml --detach
+# Quick smoke test (do this first!)
+cd deploy/modal
+modal run app.py --action train --config configs/smoke_test.yaml
+
+# Full A100 training (after smoke test succeeds)
+modal run app.py --action train --config configs/tusz_train_a100.yaml --detach
 
 # Resume from checkpoint
-modal run deploy/modal/app.py --resume true
+modal run app.py --action train --resume true
 
 # Check Modal credits
 modal status
+
+# List running apps
+modal app list
+
+# Stop an app
+modal app stop <app-id>
 ```
 
-## Troubleshooting Checklist
+## Pre-Flight Checklist (DO IN ORDER!)
 
-- [ ] AWS S3 secret configured: `modal secret list | grep aws-s3-secret`
-- [ ] Modal credits sufficient: Need ~$140 for full run
-- [ ] Build tools installed in image
-- [ ] PyTorch CUDA version matches image CUDA
-- [ ] Mamba-SSM compiles without errors
-- [ ] Smoke test completes successfully
+1. [ ] **Image Builder Version**: Set to 2025.06 at https://modal.com/settings/image-config
+2. [ ] **Modal CLI**: Installed and authenticated (`modal setup`)
+3. [ ] **AWS S3 Secret**: Created with `modal secret create aws-s3-secret ...`
+4. [ ] **S3 Bucket**: Data uploaded to `brain-go-brr-eeg-data-20250919` bucket
+5. [ ] **Modal Credits**: Have $140+ available (`modal status`)
+6. [ ] **Local Test**: Run `make q` to ensure code quality
+7. [ ] **Smoke Test**: Complete successfully before full training
+8. [ ] **Clean Old Apps**: Use `modal app stop` to clean up failed runs
 
 ## References
 
@@ -139,5 +181,21 @@ modal status
 
 ---
 
-**Last Updated**: 2025-01-19
-**Status**: WORKING - Mamba-SSM compiling with CUDA support
+**Last Updated**: 2025-01-19 (Evening)
+**Status**: FULLY WORKING - Successfully deployed with Image Builder 2025.06
+
+## Complete Deployment Timeline
+
+1. **Initial attempts**: Failed with legacy Image Builder
+2. **Mamba-SSM compilation**: Fixed with CC/CXX env vars + --no-build-isolation
+3. **Timeout issues**: Fixed by setting to 86400s (Modal's 24h limit)
+4. **Image Builder upgrade**: Switched to 2025.06 - SOLVED ALL ISSUES!
+5. **Success**: Smoke test running on A100-80GB with full CUDA support
+
+## Key Takeaways
+
+- **ALWAYS** set Image Builder to latest version BEFORE deployment
+- **ALWAYS** use verbose output (-v) for debugging compilation
+- **ALWAYS** run smoke test before committing to full training
+- **NEVER** skip the CC/CXX environment variables for Mamba-SSM
+- **NEVER** use legacy Image Builder with complex CUDA dependencies

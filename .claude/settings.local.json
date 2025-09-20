@@ -56,7 +56,8 @@
       "Bash(fi)",
       "Bash(dmesg:*)",
       "Bash(awk:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(env)"
     ],
     "deny": [],
     "ask": []
