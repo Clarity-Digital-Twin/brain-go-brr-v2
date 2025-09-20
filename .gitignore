@@ -102,6 +102,8 @@ docs/_build/
 site/
 
 # UV package manager
+# Note: uv.lock is tracked intentionally for reproducible environments; this ignore
+# only affects untracked clones and prevents accidental local edits from showing up.
 uv.lock
 
 # Ruff
@@ -150,5 +152,6 @@ literature/pdfs/
 *.doc
 
 # Reference repositories (for brainstorming only)
+# Tracked mirrors live under reference_repos/; this ignore prevents accidental
+# additions of large files. Existing tracked files remain unaffected.
 reference_repos/
-.env

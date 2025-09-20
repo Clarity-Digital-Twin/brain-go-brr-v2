@@ -58,7 +58,8 @@
       "Bash(awk:*)",
       "Bash(timeout:*)",
       "Bash(env)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(coverage report:*)"
     ],
     "deny": [],
     "ask": []
