@@ -508,7 +508,11 @@ def compute_roc_curve(
     predictions: torch.Tensor | np.ndarray, labels: torch.Tensor | np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, float]:
     """Return FPR, TPR, thresholds, and AUROC for binary classification."""
-    preds = predictions.detach().cpu().numpy() if isinstance(predictions, torch.Tensor) else np.asarray(predictions)
+    preds = (
+        predictions.detach().cpu().numpy()
+        if isinstance(predictions, torch.Tensor)
+        else np.asarray(predictions)
+    )
     labs = labels.detach().cpu().numpy() if isinstance(labels, torch.Tensor) else np.asarray(labels)
     fpr, tpr, thresh = roc_curve(labs.ravel(), preds.ravel())
     try:

@@ -64,7 +64,8 @@
       "Bash(pytest:*)",
       "Bash(export PYTHONFAULTHANDLER=1)",
       "Bash(pkill:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(export BGB_LIMIT_FILES=2 PYTHONFAULTHANDLER=1)"
     ],
     "deny": [],
     "ask": []

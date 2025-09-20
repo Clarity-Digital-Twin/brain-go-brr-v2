@@ -1,6 +1,5 @@
 """Clinical validation tests for TAES (Time-Aligned Event Scoring) metrics."""
 
-
 import numpy as np
 import pytest
 import torch
