@@ -78,7 +78,8 @@
       "Bash(.venv/bin/pytest tests/integration/test_model_assembly.py::TestSeizureDetector::test_output_range -xvs)",
       "Bash(for test in test_memory_efficiency test_dropout_effect test_single_epoch)",
       "Bash(do grep -l \"def $test\" tests/unit/**/*.py)",
-      "Bash(while read file)"
+      "Bash(while read file)",
+      "Read(//tmp/**)"
     ],
     "deny": [],
     "ask": []

@@ -94,7 +94,7 @@ def apply_hysteresis(
                             onset_counter = 0
                     else:
                         onset_counter = 0
-                        onset_start = -1
+                        onset_start = i + 1
                 else:
                     # In event, check for offset or continue
                     if prob_seq[i] < tau_off:

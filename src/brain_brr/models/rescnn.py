@@ -63,9 +63,10 @@ class ResCNNBlock(nn.Module):
         self.fusion = nn.Sequential(
             nn.Conv1d(channels, channels, kernel_size=1),
             nn.BatchNorm1d(channels),
-            nn.Dropout1d(dropout),  # Channel-wise dropout for 1D signals
         )
 
+        # Apply dropout separately to control its placement
+        self.dropout = nn.Dropout1d(dropout) if dropout > 0 else nn.Identity()
         self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -87,6 +88,8 @@ class ResCNNBlock(nn.Module):
 
         # Fusion and residual connection
         fused = self.fusion(multi_scale)
+        # Apply dropout before residual connection for stronger effect
+        fused = self.dropout(fused)
         output = self.relu(fused + x)  # Residual connection
 
         return cast(torch.Tensor, output)

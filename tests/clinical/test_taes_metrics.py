@@ -252,6 +252,7 @@ class TestROCAnalysis:
         assert len(tpr) > 0
 
 
+@pytest.mark.serial
 class TestClinicalEventDetection:
     """Test clinical event detection and scoring."""
 

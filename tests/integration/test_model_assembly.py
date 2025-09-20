@@ -78,10 +78,15 @@ class TestSeizureDetector:
     def test_deterministic(self, model: SeizureDetector) -> None:
         torch.manual_seed(42)
         x = torch.randn(2, 19, 15360)
-        out1 = model(x)
+        model.eval()  # Ensure eval mode for deterministic behavior
+        with torch.no_grad():
+            out1 = model(x)
+
         torch.manual_seed(42)
         x2 = torch.randn(2, 19, 15360)
-        out2 = model(x2)
+        with torch.no_grad():
+            out2 = model(x2)
+
         assert torch.allclose(out1, out2, atol=1e-6)
 
     def test_config_storage(self, model: SeizureDetector) -> None:

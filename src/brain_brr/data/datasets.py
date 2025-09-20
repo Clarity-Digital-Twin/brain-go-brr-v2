@@ -94,6 +94,10 @@ class EEGWindowDataset(torch.utils.data.Dataset):
             stride=constants.STRIDE_SAMPLES,
             labels=labels,
         )
+        # Ensure float32 before caching
+        windows = windows.astype(np.float32, copy=False)
+        if window_labels is not None:
+            window_labels = window_labels.astype(np.float32, copy=False)
         return windows, window_labels
 
     def _load_labels(self, label_path: Path, n_samples: int) -> npt.NDArray[np.float32]:

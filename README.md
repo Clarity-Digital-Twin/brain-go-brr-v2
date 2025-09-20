@@ -6,6 +6,17 @@
 [![PyTorch 2.2.2](https://img.shields.io/badge/pytorch-2.2.2-red.svg)](https://pytorch.org)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 
+<details>
+<summary><strong>Status: Active Development (Benchmarks Pending)</strong></summary>
+
+- Architecture and pipeline are implemented; training/evaluation are in progress.
+- No published results yet — benchmarks and clinical metrics will be added once validated.
+- For local runs use `configs/tusz_train_wsl2.yaml`; for Modal A100 use `configs/tusz_train_a100.yaml`.
+- Data split discipline: train for training; dev for tuning; eval for final one‑shot testing.
+- Last updated: 2025‑09‑19.
+
+</details>
+
 ## 🎯 Mission
 
 We're solving the critical gap in clinical seizure detection: current systems have **>10 false alarms per day**, making them clinically unusable. While transformers show promise, their O(N²) complexity prevents real-time deployment on long EEG recordings.
