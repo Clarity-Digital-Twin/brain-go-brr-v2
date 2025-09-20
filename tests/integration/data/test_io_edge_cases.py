@@ -30,7 +30,7 @@ class TestRealTUSZFiles:
             pytest.skip("No EDF files found")
 
         for edf_file in edf_files:
-            data, sample_rate, channel_names, start_time, annotations = load_edf_file(
+            data, sample_rate = load_edf_file(
                 Path(edf_file),
                 target_channels=None,  # Load all channels
             )
@@ -50,7 +50,7 @@ class TestRealTUSZFiles:
         edf_files = list(data_dir.glob("**/*.edf"))[:10]
 
         for edf_file in edf_files:
-            data, sample_rate, channel_names, _, _ = load_edf_file(
+            data, sample_rate = load_edf_file(
                 Path(edf_file),
                 target_channels=CHANNEL_NAMES_10_20,
             )
@@ -62,18 +62,17 @@ class TestRealTUSZFiles:
 
     def test_extreme_class_imbalance_in_dataset(self, data_dir):
         """Test REAL class imbalance in TUSZ dataset."""
-        from src.brain_brr.data.datasets import SeizureDataset
+        from src.brain_brr.data.datasets import EEGWindowDataset
 
         # Use limited files for speed
         os.environ["BGB_LIMIT_FILES"] = "10"
 
         try:
-            dataset = SeizureDataset(
+            dataset = EEGWindowDataset(
                 data_dir=str(data_dir),
-                split="train",
-                sampling_rate=256,
-                window_size=60,
-                stride=10,
+                target_sample_rate=256,
+                window_duration_s=60,
+                stride_s=10,
                 cache_dir="cache/test_imbalance",
             )
 
