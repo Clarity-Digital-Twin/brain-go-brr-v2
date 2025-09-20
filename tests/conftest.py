@@ -79,6 +79,7 @@ def trained_model(tmp_path):
     for param in model.parameters():
         if param.dim() > 1:
             torch.nn.init.xavier_uniform_(param)
+    model.eval()  # evaluation mode for deterministic BatchNorm/Dropout and speed
 
     return model
 
