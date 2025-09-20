@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import numpy as np
 import torch
-from scipy import ndimage  # type: ignore[import-untyped]
 from torch.nn import functional
 
 from src.brain_brr.config.schemas import (
@@ -147,60 +146,27 @@ def apply_morphology(
     if opening_kernel % 2 == 0 or closing_kernel % 2 == 0:
         raise ValueError("Kernel sizes must be odd")
 
-    if use_gpu and masks.is_cuda:
-        # GPU path using pooling operations
-        # Convert bool to float for pooling operations
-        x = masks.float()
+    # Unified fast path using pooling ops on both CPU and GPU
+    x = masks.float()
 
-        # Opening: erosion (min pool) then dilation (max pool)
-        if opening_kernel > 1:
-            padding = opening_kernel // 2
-            # Erosion via -max_pool1d(-x)
-            x = x.unsqueeze(1)  # Add channel dim for pooling
-            x = -functional.max_pool1d(-x, kernel_size=opening_kernel, stride=1, padding=padding)
-            # Dilation via max_pool1d
-            x = functional.max_pool1d(x, kernel_size=opening_kernel, stride=1, padding=padding)
-            x = x.squeeze(1)
+    # Opening: erosion (min pool) then dilation (max pool)
+    if opening_kernel > 1:
+        padding = opening_kernel // 2
+        x = x.unsqueeze(1)  # (B,1,T)
+        x = -functional.max_pool1d(-x, kernel_size=opening_kernel, stride=1, padding=padding)
+        x = functional.max_pool1d(x, kernel_size=opening_kernel, stride=1, padding=padding)
+        x = x.squeeze(1)
 
-        # Closing: dilation (max pool) then erosion (min pool)
-        if closing_kernel > 1:
-            padding = closing_kernel // 2
-            if x.dim() == 2:
-                x = x.unsqueeze(1)
-            # Dilation via max_pool1d
-            x = functional.max_pool1d(x, kernel_size=closing_kernel, stride=1, padding=padding)
-            # Erosion via -max_pool1d(-x)
-            x = -functional.max_pool1d(-x, kernel_size=closing_kernel, stride=1, padding=padding)
-            x = x.squeeze(1)
+    # Closing: dilation (max pool) then erosion (min pool)
+    if closing_kernel > 1:
+        padding = closing_kernel // 2
+        if x.dim() == 2:
+            x = x.unsqueeze(1)
+        x = functional.max_pool1d(x, kernel_size=closing_kernel, stride=1, padding=padding)
+        x = -functional.max_pool1d(-x, kernel_size=closing_kernel, stride=1, padding=padding)
+        x = x.squeeze(1)
 
-        return x > 0.5  # Back to bool
-
-    # CPU path using scipy ndimage - optimized batch processing
-    batch_size = masks.shape[0]
-    device = masks.device
-
-    # Process all masks at once for better memory locality
-    masks_np = masks.cpu().numpy().astype(float)
-
-    # Precompute kernels once
-    opening_struct = np.ones(opening_kernel) if opening_kernel > 1 else None
-    closing_struct = np.ones(closing_kernel) if closing_kernel > 1 else None
-
-    # Process batch
-    for b in range(batch_size):
-        # Opening: erosion followed by dilation (removes spikes)
-        if opening_kernel > 1 and opening_struct is not None:
-            masks_np[b] = ndimage.binary_erosion(masks_np[b], opening_struct).astype(float)
-            masks_np[b] = ndimage.binary_dilation(masks_np[b], opening_struct).astype(float)
-
-        # Closing: dilation followed by erosion (fills gaps)
-        if closing_kernel > 1 and closing_struct is not None:
-            masks_np[b] = ndimage.binary_dilation(masks_np[b], closing_struct).astype(float)
-            masks_np[b] = ndimage.binary_erosion(masks_np[b], closing_struct).astype(float)
-
-    # Convert back to torch tensor efficiently
-    cleaned_masks = torch.from_numpy(masks_np.astype(bool)).to(device)
-    return cleaned_masks
+    return x > 0.5
 
 
 def filter_duration(

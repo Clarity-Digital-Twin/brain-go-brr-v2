@@ -166,14 +166,21 @@ def train(
     print(f"Config: {config_path}")
     print("-" * 50)
 
-    # Run training
-    result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+    # Run training with REAL-TIME output streaming
+    print("Starting training process with real-time logging...")
+    print(f"Data loading from S3 may take 10-20 minutes for large datasets", flush=True)
 
-    if result.returncode != 0:
-        print(f"Training failed:\nSTDOUT:\n{result.stdout[-2000:]}\n\nSTDERR:\n{result.stderr[-2000:]}")
-        raise RuntimeError(f"Training failed with exit code {result.returncode}")
+    # Use Popen for real-time output instead of capture_output
+    import sys
+    process = subprocess.Popen(cmd, env=env, stdout=sys.stdout, stderr=sys.stderr, text=True)
 
-    print(f"Training completed:\n{result.stdout[-1000:]}")  # Last 1000 chars
+    # Wait for process to complete
+    returncode = process.wait()
+
+    if returncode != 0:
+        raise RuntimeError(f"Training failed with exit code {returncode}")
+
+    print(f"Training completed successfully!", flush=True)
     # Return best checkpoint path under /results
     checkpoint_dir = Path(data["experiment"]["output_dir"]) / "checkpoints"
     # Our training saves best.pt
