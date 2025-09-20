@@ -17,6 +17,9 @@ from click.testing import CliRunner
 import multiprocessing
 import os
 
+# Force single GPU visibility for tests to avoid Triton device issues
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 if torch.cuda.is_available():
     # Only set spawn if not already set and CUDA is available
     try:
@@ -24,6 +27,9 @@ if torch.cuda.is_available():
     except RuntimeError:
         # Already set, that's fine
         pass
+
+    # Ensure device 0 is set as default for Triton
+    torch.cuda.set_device(0)
 
 
 @pytest.fixture(scope="session")
