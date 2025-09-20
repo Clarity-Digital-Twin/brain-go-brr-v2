@@ -74,7 +74,11 @@
       "Bash(for file in tests/unit/models/test_decoder.py tests/unit/models/test_mamba.py tests/unit/models/test_rescnn.py tests/unit/models/test_unet.py tests/integration/test_model_assembly.py)",
       "Bash(do)",
       "Bash(.venv/bin/pytest -n auto -m \"not serial\" --co -q)",
-      "Bash(.venv/bin/pytest -m serial --co -q)"
+      "Bash(.venv/bin/pytest -m serial --co -q)",
+      "Bash(.venv/bin/pytest tests/integration/test_model_assembly.py::TestSeizureDetector::test_output_range -xvs)",
+      "Bash(for test in test_memory_efficiency test_dropout_effect test_single_epoch)",
+      "Bash(do grep -l \"def $test\" tests/unit/**/*.py)",
+      "Bash(while read file)"
     ],
     "deny": [],
     "ask": []
