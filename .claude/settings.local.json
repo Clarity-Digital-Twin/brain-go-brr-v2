@@ -66,7 +66,9 @@
       "Bash(pkill:*)",
       "Bash(grep:*)",
       "Bash(export BGB_LIMIT_FILES=2 PYTHONFAULTHANDLER=1)",
-      "Bash(ruff check:*)"
+      "Bash(ruff check:*)",
+      "Bash(.venv/bin/pytest tests/unit/cli/test_cli_commands.py::TestCLIEvaluateCommand::test_evaluate_with_json_output -xvs)",
+      "Bash(.venv/bin/pytest tests/clinical/test_channel_order.py::TestChannelOrdering::test_channel_synonyms_mapping -xvs)"
     ],
     "deny": [],
     "ask": []
