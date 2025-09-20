@@ -20,4 +20,4 @@ def perf_env_guard():
     # Set PyTorch threads
     torch.set_num_threads(1)
 
-    yield
+    return

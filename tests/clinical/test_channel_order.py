@@ -204,9 +204,7 @@ class TestChannelDataIntegrity:
         for target_idx, ch_name in enumerate(original_order):
             source_idx = shuffled_order.index(ch_name)  # Where this channel was in shuffled
             # The channel at source_idx should now be at target_idx
-            np.testing.assert_array_equal(
-                original_data[source_idx], reordered_data[target_idx]
-            )
+            np.testing.assert_array_equal(original_data[source_idx], reordered_data[target_idx])
 
     def test_channel_picking_subset(self):
         """Test picking subset of channels maintains correct data."""
