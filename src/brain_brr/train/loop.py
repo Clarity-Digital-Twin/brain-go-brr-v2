@@ -25,7 +25,7 @@ import torch.nn as nn
 from torch.cuda.amp import GradScaler, autocast
 from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
-from torch.utils.data import DataLoader, WeightedRandomSampler
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm  # type: ignore[import-untyped]
 
