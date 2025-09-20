@@ -261,7 +261,7 @@ def main(
         modal run --detach deploy/modal/app.py -- --action train --resume true
 
         # Evaluate checkpoint
-        modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.ckpt
+        modal run deploy/modal/app.py -- --action evaluate --config /results/checkpoints/best.ckpt
     """
     print("🚀 Brain-Go-Brr v2 Modal Deployment")
     print("=" * 50)

@@ -69,7 +69,7 @@ modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_t
 ### Evaluation
 
 ```bash
-modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.ckpt
+modal run deploy/modal/app.py -- --action evaluate --config /results/checkpoints/best.ckpt
 ```
 
 ## Data Management

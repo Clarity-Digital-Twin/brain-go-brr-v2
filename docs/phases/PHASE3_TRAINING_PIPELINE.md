@@ -292,7 +292,7 @@ def evaluate_predictions(
 - Validate config: `python -m src validate configs/local.yaml`
 - Train (local/dev): `python -m src train configs/local.yaml`
 - Train (WSL2 long-run): `python -m src train configs/tusz_train_wsl2.yaml`
-- Modal A100 (cloud): `modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml`
+- Modal A100 (cloud): `modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml`
 - Resume training: `python -m src train configs/local.yaml --resume`
 - Makefile shortcuts:
   - `make train-local` → local smoke/dev

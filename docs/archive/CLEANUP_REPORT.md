@@ -35,7 +35,7 @@ Runbook (Updated 2025-09-19)
 - Quality: `make q`
 - Fast tests: `make t`
 - Train (local, WSL2-safe): `python -m src train configs/tusz_train_wsl2.yaml`
-- Train (Modal A100): `modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml`
+- Train (Modal A100): `modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml`
 - Dev tuning (no training): `python -m src evaluate <best.pt> data_ext4/tusz/edf/dev --config configs/tusz_dev_tuning.yaml --output-json results/dev_metrics.json`
 - Final eval (no training): `python -m src evaluate <best.pt> data_ext4/tusz/edf/eval --config configs/tusz_eval_final.yaml --output-json results/final_metrics.json --output-csv-bi results/final_events.csv`
 

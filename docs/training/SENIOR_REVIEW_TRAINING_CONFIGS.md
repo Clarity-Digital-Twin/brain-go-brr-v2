@@ -153,7 +153,8 @@ python -m src train configs/tusz_train_wsl2.yaml
 
 # Modal deployment (after review approval)
 modal deploy deploy/modal/app.py
-modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml
+# Modal's --detach must go BEFORE the script; use `--` to separate app args
+modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml
 ```
 
 ## Senior Sign-off Checklist

@@ -9,13 +9,13 @@ Last updated: 2025-09-19
 Canonical commands:
 ```
 # Smoke
-modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml
+modal run --detach deploy/modal/app.py -- --action train --config configs/smoke_test.yaml
 
 # Full A100 training (Modal's --detach MUST go before script name)
-modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml
+modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml
 
 # Evaluate (checkpoint on Modal volume)
-modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.ckpt
+modal run deploy/modal/app.py -- --action evaluate --config /results/checkpoints/best.ckpt
 ```
 
 ## 🚀 Quick Start

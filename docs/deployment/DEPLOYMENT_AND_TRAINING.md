@@ -74,7 +74,7 @@ modal secret create aws-s3-secret \
 modal deploy deploy/modal/app.py
 
 # Run training (A100-80GB, ~3x faster than RTX 4090) - Modal's --detach BEFORE script!
-modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml
+modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml
 
 # Monitor at https://modal.com/apps
 ```

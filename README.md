@@ -78,10 +78,10 @@ pip install --upgrade modal
 modal setup
 
 # Train on Modal (A100-80GB, optimized)
-modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml
+modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml
 
 # Quick smoke on Modal
-modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml
+modal run --detach deploy/modal/app.py -- --action train --config configs/smoke_test.yaml
 ```
 
 → Full guide: [`docs/deployment/MODAL_DEPLOYMENT_COMPLETE_GUIDE.md`](docs/deployment/MODAL_DEPLOYMENT_COMPLETE_GUIDE.md)
