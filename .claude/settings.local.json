@@ -35,7 +35,9 @@
       "Bash(for f in configs/*.yaml)",
       "Bash(done)",
       "Bash(awk:*)",
-      "Bash(xargs -r kill -9)"
+      "Bash(xargs -r kill -9)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
