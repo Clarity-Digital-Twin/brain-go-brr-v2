@@ -26,7 +26,10 @@
       "Bash(timeout 60 python:*)",
       "Bash(timeout:*)",
       "Bash(export BGB_LIMIT_FILES=2)",
-      "Bash(export BGB_LIMIT_FILES=3)"
+      "Bash(export BGB_LIMIT_FILES=3)",
+      "Bash(tmux new-session:*)",
+      "Bash(tmux capture-pane:*)",
+      "Bash(tmux send-keys:*)"
     ],
     "deny": [],
     "ask": []
