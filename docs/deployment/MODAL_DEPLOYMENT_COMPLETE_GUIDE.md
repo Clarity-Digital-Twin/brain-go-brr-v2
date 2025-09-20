@@ -7,8 +7,8 @@ Last updated: 2025-09-19
 > ⚠️ **CRITICAL**: Always use `--detach` flag to prevent disconnection from killing your training!
 
 ```bash
-# ALWAYS use --detach to keep training running even if you disconnect
-modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml --detach
+# Modal's --detach MUST go BEFORE script name to prevent disconnection!
+modal run --detach deploy/modal/app.py -- --action train --config configs/smoke_test.yaml
 ```
 
 ## 🎯 First-Time Setup (MANDATORY - DO IN ORDER!)
@@ -60,8 +60,8 @@ grep "brain-go-brr-eeg-data" deploy/modal/app.py
 ### 1. Smoke Test (ALWAYS DO FIRST!)
 
 ```bash
-# Run 1-epoch test (~15 minutes, ~$1.40) - ALWAYS use --detach!
-modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml --detach
+# Run 1-epoch test (~15 minutes, ~$1.40) - Modal's --detach prevents disconnection!
+modal run --detach deploy/modal/app.py -- --action train --config configs/smoke_test.yaml
 
 # Monitor at the URL provided, e.g.:
 # https://modal.com/apps/clarity-digital-twin/main/ap-xxxxx
@@ -78,8 +78,8 @@ Running: python -m src train /tmp/tmp_xxx.yaml
 ### 2. Full Training (After Successful Smoke Test)
 
 ```bash
-# Full 100-epoch training (detached mode)
-modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --detach
+# Full 100-epoch training (Modal's --detach prevents disconnection)
+modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml
 
 # Get the app ID from output, monitor at:
 # https://modal.com/apps/clarity-digital-twin/main/<app-id>
@@ -88,8 +88,8 @@ modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.ya
 ### 3. Resume Training (If Interrupted)
 
 ```bash
-# Resumes from last.pt checkpoint - ALWAYS use --detach!
-modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --resume true --detach
+# Resumes from last.pt checkpoint (Modal's --detach prevents disconnection)
+modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml --resume true
 ```
 
 ## 🛠️ Management Commands
