@@ -88,7 +88,9 @@
       "Bash(.venv/bin/pytest --markers)",
       "Bash(.venv/bin/pytest --collect-only -q -m performance)",
       "Bash(.venv/bin/pytest --collect-only -q -m serial)",
-      "Bash(.venv/bin/pytest --cov=src --cov-report=term-missing:skip-covered -n auto -m \"not performance\" -q)"
+      "Bash(.venv/bin/pytest --cov=src --cov-report=term-missing:skip-covered -n auto -m \"not performance\" -q)",
+      "Bash(nvidia-smi:*)",
+      "Bash(kill:*)"
     ],
     "deny": [],
     "ask": []

@@ -82,7 +82,7 @@ experiment:
   name: tusz_wsl2_100ep
   description: "WSL2-safe TUSZ training 100 epochs with early stopping"
   seed: 42
-  device: auto
+  device: cuda
   output_dir: results/tusz_wsl2_100ep
   cache_dir: cache/tusz
   log_level: INFO
