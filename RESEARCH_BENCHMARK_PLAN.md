@@ -1,6 +1,6 @@
 # Research Benchmark & Ablation Plan — Brain‑Go‑Brr v2
 
-Last updated: 2025‑09‑20
+Last updated: 2025‑09‑20 (Revised with optimal dataset strategy)
 
 Status: Planning document for rigorous, publishable benchmarking of a Bi‑Mamba‑2 + U‑Net + ResCNN seizure detector. Targets SzCORE/NEDC‑style event metrics on TUSZ and cross‑dataset generalization.
 
@@ -12,18 +12,45 @@ Status: Planning document for rigorous, publishable benchmarking of a Bi‑Mamba
 
 ## Datasets & Splits
 
-- TUSZ EEG Seizure Corpus (v2.x)
-  - train/: model training only
-  - dev/: hyperparameter/threshold tuning
-  - eval/: final one‑shot test; never used in training/tuning
-  - Pathing: `data_ext4/tusz/edf/{train,dev,eval}` (ext4‑mounted volume recommended)
-- CHB‑MIT: cross‑site generalization (patient‑level disjoint split)
-- Optional: TUAB/TUAR for pretraining or auxiliary validation
-- Notes:
-  - Channel synonyms mapping enforced (T7→T3, T8→T4, P7→T5, P8→T6) and canonical 10‑20 order preserved (see `src/brain_brr/constants.py`).
-  - Record and document dataset versions and any repairs applied.
+### Optimal Strategy: Maximum Rigor + Performance
+
+**Training Set (Natural Sampling - Gold Standard):**
+- TUSZ train: 100% of all training data
+- Siena Scalp: 100% of all 14 subjects
+- **Sampling**: Natural frequency (no artificial weighting)
+- **Rationale**: Reflects real-world data distribution, most rigorous for claims
+
+**Validation Set:**
+- TUSZ dev only (threshold tuning, early stopping, hyperparameter selection)
+
+**Test Sets (Zero-Shot Evaluation):**
+- TUSZ eval: Primary benchmark (patient-disjoint, one-shot)
+- CHB-MIT: Cross-dataset generalization (all 23 patients, zero-shot)
+  - **Key Result**: No CHB-MIT in training → strongest generalization claim
+  - Most compelling evidence for clinical deployment readiness
+
+### Dataset Characteristics
+
+| Dataset | Patient-Disjoint | N Patients/Subjects | Role | Rationale |
+|---------|-----------------|---------------------|------|----------|
+| TUSZ | ✅ YES | ~600 train, 50 dev, 50 eval | Primary train/test | Gold standard, proper splits |
+| CHB-MIT | ✅ YES | 23 patients | Zero-shot test only | Cross-site generalization |
+| Siena | ❌ NO | 14 subjects (PN00-PN13) | Train augmentation | Protocol diversity |
+
+### Paths
+- TUSZ: `data_ext4/tusz/edf/{train,dev,eval}/`
+- CHB-MIT: `data_ext4/chb-mit/`
+- Siena: `data_ext4/siena-scalp-eeg-database-1.0.0/`
+
+### Critical Notes
+- Channel synonyms enforced (T7→T3, T8→T4, P7→T5, P8→T6)
+- Canonical 10-20 order preserved (see `src/brain_brr/constants.py`)
+- Siena never appears in test claims (not patient-disjoint)
+- Document exact dataset versions and any repairs applied
 
 ## Metrics (Event‑Level + Operating Curves)
+
+### Primary Metrics (Publication Focus)
 
 - NEDC/TAES‑style event metrics:
   - Sensitivity/Recall@
@@ -39,6 +66,9 @@ Status: Planning document for rigorous, publishable benchmarking of a Bi‑Mamba
   - Peak memory and throughput (windows/s) on CPU/GPU
 - Export:
   - CSV_BI event files per TUH convention; JSON summaries
+- **Cross-Dataset Zero-Shot**:
+  - Report TUSZ→CHB-MIT transfer without any target training
+  - Key differentiator for publication impact
 
 ## Preprocessing (SSOT)
 
@@ -78,6 +108,33 @@ Baseline and variants trained/evaluated with identical preprocessing and post‑
 
 ## Training Protocol
 
+### Dataset Mixing Strategy - DEFINITIVE CHOICE
+
+**Best for Our Use Case: Two-Stage Training**
+
+**Stage 1: TUSZ-Only Training (Epochs 1-30)**
+- Train on 100% TUSZ train only
+- Optimize for NEDC/TAES benchmark performance
+- Save checkpoint at best TUSZ dev performance
+
+**Stage 2: Mixed Fine-tuning (Epochs 31-40)**
+- Continue from Stage 1 checkpoint
+- 50/50 sampling from TUSZ + Siena
+- Improves robustness without destroying TUSZ performance
+- Early stop if TUSZ dev degrades >2%
+
+**Why this is optimal:**
+1. **Maximizes TUSZ eval scores** (primary benchmark)
+2. **Still improves CHB-MIT transfer** (via fine-tuning)
+3. **Best of both worlds** - strong primary metrics + generalization
+4. **Defensible strategy** - similar to domain adaptation literature
+
+**Implementation:**
+- Stage 1: Natural TUSZ sampling (standard training)
+- Stage 2: Balanced TUSZ/Siena (robustness fine-tuning)
+- Monitor TUSZ dev throughout to prevent catastrophic forgetting
+- Report both Stage 1 and Stage 2 results in paper
+
 - Hardware profiles
   - Local WSL2 (WSL‑safe): `configs/tusz_train_wsl2.yaml` (num_workers=0)
   - Modal A100‑80GB: `configs/tusz_train_a100.yaml`
@@ -112,6 +169,19 @@ Baseline and variants trained/evaluated with identical preprocessing and post‑
 
 ## Reporting Package (Per Model)
 
+### Core Results Matrix
+
+| Model | TUSZ eval Sens@10FA | CHB-MIT Sens@10FA | Δ Transfer |
+|-------|---------------------|-------------------|------------|
+| A0: CNN-only | Target | Zero-shot | Gap % |
+| A1: Transformer | Target | Zero-shot | Gap % |
+| A2: Uni-Mamba | Target | Zero-shot | Gap % |
+| A3: Bi-Mamba (ours) | Target | Zero-shot | Gap % |
+
+**Key Claims**:
+1. Bi-Mamba achieves smallest transfer gap (best generalization)
+2. Zero-shot CHB-MIT performance competitive with supervised baselines
+
 - Tables
   - Sensitivity at 10/5/1 FA/24 h (dev, eval)
   - Event F1, TAES summary
@@ -125,6 +195,12 @@ Baseline and variants trained/evaluated with identical preprocessing and post‑
   - Channel‑wise attribution or per‑channel head; FP gating experiment
 
 ## Publication Targets & Framing
+
+### Unique Contributions
+1. **First Bi-Mamba for EEG**: O(N) bidirectional sequence modeling
+2. **Zero-shot cross-dataset**: TUSZ→CHB-MIT without target training
+3. **Rigorous benchmark**: Patient-disjoint, event-level TAES metrics
+4. **Open artifacts**: Code, configs, checkpoints, event files
 
 - EMBC / JBHI / ML4H
   - Applied/clinical framing; strong if cross‑dataset results and practical FP‑reduction components included
@@ -140,6 +216,12 @@ Baseline and variants trained/evaluated with identical preprocessing and post‑
 3. Week 5–6: Canonical (A3) + variants; cross‑dataset CHB‑MIT
 4. Week 7: Error taxonomy; interpretability/gating experiment
 5. Week 8: Draft report; artifact release (configs, checkpoints, events, metrics)
+
+### Training Runs Priority
+1. A3 Bi-Mamba on TUSZ+Siena → eval TUSZ & CHB-MIT
+2. A0 CNN-only baseline (same data mix)
+3. A2 Uni-Mamba ablation (bidirectionality impact)
+4. A1 Transformer if compute allows (completeness)
 
 ## Risks & Mitigations
 
@@ -161,6 +243,21 @@ Baseline and variants trained/evaluated with identical preprocessing and post‑
 
 ## Command Cookbook
 
+### Enhanced Training Commands
+- TUSZ+Siena mixed training:
+  ```bash
+  python -m src train configs/tusz_siena_mixed_a100.yaml \
+    --tusz-weight 0.8 --siena-weight 0.2
+  ```
+
+### Zero-Shot Evaluation
+- CHB-MIT zero-shot test:
+  ```bash
+  python -m src evaluate checkpoints/best_tusz_siena.pt \
+    data_ext4/chb-mit/ --config configs/chb_mit_zero_shot.yaml \
+    --output-json results/chb_mit_zero_shot.json
+  ```
+
 - Local smoke: `python -m src train configs/smoke_test.yaml`
 - Local full (WSL2‑safe): `python -m src train configs/tusz_train_wsl2.yaml`
 - Modal smoke: `modal run --detach deploy/modal/app.py -- --action train --config configs/smoke_test.yaml`
@@ -171,4 +268,12 @@ Baseline and variants trained/evaluated with identical preprocessing and post‑
 ---
 
 This document is a planning SSOT for benchmarking work. Claims remain pending until results and artifacts are released.
+
+## Why This Strategy?
+
+1. **Maximum Rigor**: TUSZ eval and CHB-MIT never seen during training
+2. **Best Performance**: Siena augmentation improves robustness
+3. **Strongest Claims**: Zero-shot CHB-MIT shows true generalization
+4. **Publication Impact**: Cross-dataset zero-shot is rare and valuable
+5. **Clinical Relevance**: Different sites/protocols = real-world deployment
 
