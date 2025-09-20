@@ -36,8 +36,10 @@ dev: ## Install dev dependencies and pre-commit hooks
 PYTEST := $(if $(wildcard .venv/bin/pytest),.venv/bin/pytest,uv run pytest)
 
 test: ## Run tests with coverage
-	@echo "${CYAN}Running tests with coverage...${NC}"
-	$(PYTEST) -n auto --cov=src --cov-report=term-missing:skip-covered --cov-report=html
+	@echo "${CYAN}Running non-serial tests (xdist)...${NC}"
+	$(PYTEST) -n auto -m "not serial" --cov=src --cov-append --cov-report=term-missing:skip-covered
+	@echo "${CYAN}Running serial tests...${NC}"
+	$(PYTEST) -n 0 -m serial --cov=src --cov-append --cov-report=term-missing:skip-covered --cov-report=html
 
 test-fast: ## Run tests without coverage (faster)
 	@echo "${CYAN}Running fast tests...${NC}"
