@@ -23,7 +23,10 @@
       "Bash(timeout 30 python:*)",
       "Bash(export BGB_LIMIT_FILES=5)",
       "Bash(export BGB_DISABLE_TQDM=1)",
-      "Bash(timeout 60 python:*)"
+      "Bash(timeout 60 python:*)",
+      "Bash(timeout:*)",
+      "Bash(export BGB_LIMIT_FILES=2)",
+      "Bash(export BGB_LIMIT_FILES=3)"
     ],
     "deny": [],
     "ask": []

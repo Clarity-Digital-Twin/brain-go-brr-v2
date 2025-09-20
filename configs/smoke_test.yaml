@@ -61,6 +61,9 @@ postprocessing:
 training:
   epochs: 1                    # Just 1 epoch for smoke test
   batch_size: 8                # Small batch for memory
+  loss: focal                  # USE FOCAL LOSS FOR EXTREME IMBALANCE!
+  focal_alpha: 0.25            # Balance factor (0.25 = 75% weight on negatives)
+  focal_gamma: 2.0             # Focusing parameter (higher = more focus on hard examples)
   learning_rate: 3e-4
   weight_decay: 0.05
   optimizer: adamw
