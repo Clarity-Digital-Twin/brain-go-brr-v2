@@ -36,26 +36,26 @@ dev: ## Install dev dependencies and pre-commit hooks
 PYTEST := $(if $(wildcard .venv/bin/pytest),.venv/bin/pytest,uv run pytest)
 
 test: ## Run tests with coverage (excludes performance benchmarks)
-    @echo "${CYAN}Running non-serial tests (xdist)...${NC}"
-    $(PYTEST) -n auto -m "not serial and not performance" --cov=src --cov-append --cov-report=term-missing:skip-covered
-    @echo "${CYAN}Running serial tests (excluding performance)...${NC}"
-    $(PYTEST) -n 0 -m "serial and not performance" --cov=src --cov-append --cov-report=term-missing:skip-covered --cov-report=html
+	@echo "${CYAN}Running non-serial tests (xdist)...${NC}"
+	$(PYTEST) -n auto -m "not serial and not performance" --cov=src --cov-append --cov-report=term-missing:skip-covered
+	@echo "${CYAN}Running serial tests (excluding performance)...${NC}"
+	$(PYTEST) -n 0 -m "serial and not performance" --cov=src --cov-append --cov-report=term-missing:skip-covered --cov-report=html
 
 test-fast: ## Run tests without coverage (faster, excludes performance)
-    @echo "${CYAN}Running fast tests...${NC}"
-    $(PYTEST) -n 4 --dist=loadfile -m "not performance" -q
+	@echo "${CYAN}Running fast tests...${NC}"
+	$(PYTEST) -n 4 --dist=loadfile -m "not performance" -q
 
 test-cov: ## Run tests with full coverage report
-    @echo "${CYAN}Running tests with full coverage...${NC}"
-    $(PYTEST) -n auto -m "not performance" --cov=src --cov-report=term-missing --cov-report=html
+	@echo "${CYAN}Running tests with full coverage...${NC}"
+	$(PYTEST) -n auto -m "not performance" --cov=src --cov-report=term-missing --cov-report=html
 
 test-integration: ## Run only integration tests (excludes performance)
-    @echo "${CYAN}Running integration tests...${NC}"
-    $(PYTEST) -n auto -m "integration and not performance" -v
+	@echo "${CYAN}Running integration tests...${NC}"
+	$(PYTEST) -n auto -m "integration and not performance" -v
 
 test-performance: ## Run only performance benchmarks (serial)
-    @echo "${CYAN}Running performance benchmarks (serial)...${NC}"
-    $(PYTEST) -n 0 -m performance -v
+	@echo "${CYAN}Running performance benchmarks (serial)...${NC}"
+	$(PYTEST) -n 0 -m performance -v
 
 test-gpu: ## Run tests optimized for GPU (serial)
 	@echo "${CYAN}Running GPU tests (serial)...${NC}"
