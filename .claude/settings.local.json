@@ -29,7 +29,8 @@
       "Bash(export BGB_LIMIT_FILES=3)",
       "Bash(tmux new-session:*)",
       "Bash(tmux capture-pane:*)",
-      "Bash(tmux send-keys:*)"
+      "Bash(tmux send-keys:*)",
+      "Bash(modal run:*)"
     ],
     "deny": [],
     "ask": []

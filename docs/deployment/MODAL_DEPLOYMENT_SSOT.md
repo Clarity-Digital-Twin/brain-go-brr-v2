@@ -23,13 +23,16 @@
 
 ```bash
 # Smoke test (2 files, 1 epoch) - VERIFIED WORKING
-modal run --detach deploy/modal/app.py -- --action train --config configs/smoke_test.yaml
+modal run --detach deploy/modal/app.py --action train --config configs/smoke_test.yaml
 
 # Full A100 training (100 epochs, ~24 hours)
-modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml
+modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml
+
+# Resume training from last checkpoint
+modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --resume true
 
 # Evaluate checkpoint
-modal run deploy/modal/app.py -- --action evaluate --checkpoint /results/checkpoints/best.pt
+modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.pt
 ```
 
 **CRITICAL**: Always use `--detach` flag to prevent disconnection from killing training!
