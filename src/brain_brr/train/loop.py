@@ -243,9 +243,8 @@ def train_epoch(
         # Increment global step counter
         global_step += 1
 
-        # Scheduler step AFTER optimizer.step() to avoid PyTorch warning
-        # Only skip the very FIRST global step (not first of each epoch!)
-        if scheduler is not None and global_step > 1:
+        # Scheduler step AFTER optimizer.step()
+        if scheduler is not None:
             scheduler.step()
 
         total_loss += loss.item()
