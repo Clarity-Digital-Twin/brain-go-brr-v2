@@ -32,15 +32,13 @@ class TestTrainingExplosions:
         """Create a small model for testing."""
         model = SeizureDetector(
             in_channels=19,
-            encoder_channels=[32, 64, 128, 256],  # Smaller for faster tests
-            encoder_stages=4,
+            base_channels=32,  # Smaller for faster tests
+            encoder_depth=4,
             rescnn_blocks=2,
             rescnn_kernels=[3, 5],
             mamba_layers=2,
-            mamba_d_model=256,
             mamba_d_state=8,
-            decoder_stages=4,
-            decoder_kernel_size=2,
+            dropout=0.1,
         )
         if torch.cuda.is_available():
             model = model.cuda()

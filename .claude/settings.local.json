@@ -57,7 +57,9 @@
       "Bash(.venv/bin/pytest tests/unit/data/test_io_edge_cases.py -xvs --tb=short)",
       "Bash(.venv/bin/pytest tests/unit/data/test_io_edge_cases.py::TestRealCorruptedFiles::test_extreme_class_imbalance_real_data -xvs --tb=short)",
       "Bash(.venv/bin/pytest tests/integration/data/test_io_edge_cases.py -xvs --tb=short)",
-      "Bash(.venv/bin/pytest tests/integration/post/test_hysteresis_edge.py -xvs --tb=short)"
+      "Bash(.venv/bin/pytest tests/integration/post/test_hysteresis_edge.py -xvs --tb=short)",
+      "Bash(.venv/bin/pytest tests/integration/test_training_edge_cases.py::TestTrainingExplosions::test_gradient_explosion_extreme_lr -xvs --tb=short)",
+      "Bash(.venv/bin/pytest tests/integration/ -m integration -q --tb=short)"
     ],
     "deny": [],
     "ask": []

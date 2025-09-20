@@ -4,69 +4,79 @@ import numpy as np
 import pytest
 import torch
 
-from src.brain_brr.post.postprocess import PostProcessor
+from src.brain_brr.post.postprocess import apply_hysteresis
 
 
 @pytest.mark.integration
 class TestHysteresisEdgeCases:
     """Test hysteresis with edge cases."""
 
-    @pytest.fixture
-    def postprocessor(self):
-        """Create postprocessor with default settings."""
-        return PostProcessor(
+    def test_rapid_oscillations(self):
+        """Test rapid oscillations don't trigger false positives."""
+        # Create rapidly oscillating probabilities
+        num_samples = 10000
+        probabilities = torch.zeros(1, num_samples)  # Shape (B, T)
+
+        # Oscillate every sample
+        probabilities[0, ::2] = 0.95  # Above tau_on
+        probabilities[0, 1::2] = 0.1  # Below tau_off
+
+        binary = apply_hysteresis(
+            probabilities,
             tau_on=0.86,
             tau_off=0.78,
             min_onset_samples=128,
             min_offset_samples=256,
-            opening_kernel=11,
-            closing_kernel=31,
-            min_duration=3.0,
-            sample_rate=256,
         )
-
-    def test_rapid_oscillations(self, postprocessor):
-        """Test rapid oscillations don't trigger false positives."""
-        # Create rapidly oscillating probabilities
-        num_samples = 10000
-        probabilities = np.zeros(num_samples, dtype=np.float32)
-
-        # Oscillate every sample
-        probabilities[::2] = 0.95  # Above tau_on
-        probabilities[1::2] = 0.1  # Below tau_off
-
-        binary = postprocessor.hysteresis_threshold(probabilities)
 
         # Should not detect seizures due to min_onset_samples
         assert binary.sum() == 0, "Rapid oscillations should not trigger"
 
-    def test_boundary_conditions(self, postprocessor):
+    def test_boundary_conditions(self):
         """Test onset/offset at exact boundaries."""
         num_samples = 5000
-        probabilities = np.ones(num_samples, dtype=np.float32) * 0.5
+        probabilities = torch.ones(1, num_samples) * 0.5  # Shape (B, T)
 
         # Onset right at min_onset_samples
-        probabilities[1000:1000+128] = 0.9  # Exactly min_onset_samples
+        probabilities[0, 1000:1128] = 0.9  # Exactly min_onset_samples
 
-        binary = postprocessor.hysteresis_threshold(probabilities)
+        binary = apply_hysteresis(
+            probabilities,
+            tau_on=0.86,
+            tau_off=0.78,
+            min_onset_samples=128,
+            min_offset_samples=256,
+        )
 
         # Should trigger since we meet minimum
-        if binary[1100] == 0:
+        if binary[0, 1100] == 0:
             # Try with one more sample
-            probabilities[1000:1000+129] = 0.9
-            binary = postprocessor.hysteresis_threshold(probabilities)
-            assert binary[1100] == 1, "Should trigger with sufficient onset samples"
+            probabilities[0, 1000:1129] = 0.9
+            binary = apply_hysteresis(
+                probabilities,
+                tau_on=0.86,
+                tau_off=0.78,
+                min_onset_samples=128,
+                min_offset_samples=256,
+            )
+            assert binary[0, 1100] == 1, "Should trigger with sufficient onset samples"
 
-    def test_single_spike_filtering(self, postprocessor):
+    def test_single_spike_filtering(self):
         """Test single sample spikes are filtered."""
         num_samples = 1000
-        probabilities = np.ones(num_samples, dtype=np.float32) * 0.5
+        probabilities = torch.ones(1, num_samples) * 0.5  # Shape (B, T)
 
         # Add single sample spikes
         for i in range(100, 900, 100):
-            probabilities[i] = 0.99
+            probabilities[0, i] = 0.99
 
-        binary = postprocessor.hysteresis_threshold(probabilities)
+        binary = apply_hysteresis(
+            probabilities,
+            tau_on=0.86,
+            tau_off=0.78,
+            min_onset_samples=128,
+            min_offset_samples=256,
+        )
 
         # Should not trigger on single spikes
         assert binary.sum() == 0, "Single spikes should be filtered"
