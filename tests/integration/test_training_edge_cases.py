@@ -80,7 +80,7 @@ class TestTrainingExplosions:
 
                 # Forward pass
                 output = small_model(data)
-                loss = criterion(output, labels)
+                loss = criterion(output, labels).mean()  # Reduce to scalar for backward
 
                 # Check for collapse
                 with torch.no_grad():
@@ -255,7 +255,7 @@ class TestTrainingExplosions:
             optimizer.zero_grad()
 
             # Mixed precision forward pass
-            with autocast(device_type='cuda'):
+            with autocast():
                 output = small_model(data)
                 loss = criterion(output, labels)
 
@@ -286,7 +286,7 @@ class TestTrainingExplosions:
 
             # Verify model still produces valid output
             with torch.no_grad():
-                with autocast(device_type='cuda'):
+                with autocast():
                     test_output = small_model(data[:1])
                     assert not torch.isnan(test_output).any(), f"NaN output at step {step}"
 
