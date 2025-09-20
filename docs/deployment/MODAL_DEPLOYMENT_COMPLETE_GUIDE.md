@@ -4,8 +4,11 @@ Last updated: 2025-09-19
 
 ## ⚡ Quick Start (If Everything is Set Up)
 
+> ⚠️ **CRITICAL**: Always use `--detach` flag to prevent disconnection from killing your training!
+
 ```bash
-modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml
+# ALWAYS use --detach to keep training running even if you disconnect
+modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml --detach
 ```
 
 ## 🎯 First-Time Setup (MANDATORY - DO IN ORDER!)
