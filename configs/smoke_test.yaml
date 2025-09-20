@@ -15,7 +15,8 @@ data:
   persistent_workers: false     # WSL2-safe: critical for stability
   prefetch_factor: 2            # ignored when num_workers=0
   validation_split: 0.2
-  use_balanced_sampling: true   # CRITICAL: Use positive-aware sampling
+  # ⚠️ CRITICAL: Without balanced sampling, batches may have ZERO seizures! ⚠️
+  use_balanced_sampling: true   # CRITICAL: Ensures every batch contains seizures
 
 preprocessing:
   montage: "10-20"
@@ -61,8 +62,10 @@ postprocessing:
 training:
   epochs: 1                    # Just 1 epoch for smoke test
   batch_size: 8                # Small batch for memory
+  # ⚠️ CRITICAL: MUST use focal loss for 12:1 class imbalance! ⚠️
+  # Without this, model WILL collapse to AUROC=0.5 (useless)
   loss: focal                  # USE FOCAL LOSS FOR EXTREME IMBALANCE!
-  focal_alpha: 0.5             # Neutral alpha; rely on pos_weight to handle imbalance
+  focal_alpha: 0.5             # MUST BE 0.5! (neutral - let pos_weight handle imbalance)
   focal_gamma: 2.0             # Focusing parameter (higher = more focus on hard examples)
   learning_rate: 3e-4
   weight_decay: 0.05

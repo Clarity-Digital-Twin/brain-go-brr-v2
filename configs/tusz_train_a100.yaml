@@ -13,6 +13,7 @@ data:
   persistent_workers: true               # Reuse workers between epochs
   prefetch_factor: 4                     # Pre-load batches
   validation_split: 0.2
+  # ⚠️ CRITICAL: Without balanced sampling, batches may have ZERO seizures! ⚠️
   use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling
 
 preprocessing:
@@ -60,8 +61,10 @@ postprocessing:
 training:
   epochs: 100                          # full training - will early stop if converged
   batch_size: 64                       # A100 80GB can handle 4x larger batches
+  # ⚠️ CRITICAL: MUST use focal loss for 12:1 class imbalance! ⚠️
+  # Without this, model WILL collapse to AUROC=0.5 (useless)
   loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
-  focal_alpha: 0.5                     # Neutral alpha; rely on pos_weight from dataset sample
+  focal_alpha: 0.5                     # MUST BE 0.5! (neutral - let pos_weight handle imbalance)
   focal_gamma: 2.0                     # Focusing parameter (higher = more focus on hard examples)
   learning_rate: 3e-4
   weight_decay: 0.05
