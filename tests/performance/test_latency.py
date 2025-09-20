@@ -32,6 +32,11 @@ class TestInferenceLatency:
         )
         model = SeizureDetector.from_config(config)
         model.eval()
+
+        # Move to CUDA if available for performance testing
+        if torch.cuda.is_available():
+            model = model.cuda()
+
         return model
 
     @pytest.mark.performance
@@ -39,6 +44,10 @@ class TestInferenceLatency:
         """Test latency for processing a single 60s window."""
         # 60s window at 256Hz
         window = torch.randn(1, 19, 15360)
+
+        # Move to same device as model
+        device = next(production_model.parameters()).device
+        window = window.to(device)
 
         # Warmup
         with torch.no_grad():
@@ -64,6 +73,10 @@ class TestInferenceLatency:
     def test_batch_inference_latency(self, production_model, batch_size, benchmark_timer):
         """Test latency scaling with batch size."""
         window = torch.randn(batch_size, 19, 15360)
+
+        # Move to same device as model
+        device = next(production_model.parameters()).device
+        window = window.to(device)
 
         # Warmup
         with torch.no_grad():
@@ -97,11 +110,14 @@ class TestInferenceLatency:
         n_windows = (total_duration - window_size) // stride + 1
         window_samples = window_size * sample_rate
 
+        # Get device
+        device = next(production_model.parameters()).device
+
         latencies = []
 
         with torch.no_grad():
             for i in range(n_windows):
-                window = torch.randn(1, 19, window_samples)
+                window = torch.randn(1, 19, window_samples).to(device)
 
                 start = time.perf_counter()
                 _ = production_model(window)
