@@ -246,7 +246,7 @@ def train_epoch(
     print("[INIT] DATASET STATISTICS", flush=True)
     print("=" * 60, flush=True)
 
-    dataset = dataloader.dataset
+    dataset: Dataset[Any] = dataloader.dataset
     sample_size = min(1000, len(dataset))  # Sample up to 1000 windows
     sample_indices = torch.randperm(len(dataset))[:sample_size]
 
