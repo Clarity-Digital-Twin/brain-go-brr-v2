@@ -62,7 +62,9 @@
       "Bash(coverage report:*)",
       "Bash(tmux list-sessions:*)",
       "Bash(pytest:*)",
-      "Bash(export PYTHONFAULTHANDLER=1)"
+      "Bash(export PYTHONFAULTHANDLER=1)",
+      "Bash(pkill:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []
