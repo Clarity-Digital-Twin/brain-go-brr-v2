@@ -238,7 +238,7 @@ def find_threshold_for_fa_eventized(
     fa_target: float,
     total_hours: float,
     fs: int,
-    max_iters: int = 20,
+    max_iters: int = 10,
     hysteresis_delta: float = 0.08,
 ) -> float:
     """Binary search for tau_on threshold meeting FA target.
@@ -486,13 +486,14 @@ def evaluate_predictions(
         sensitivity = tp_count / max(total_ref_events, 1)
         sensitivity_results[f"sensitivity_at_{fa}fa"] = float(sensitivity)
 
-    # Generate FA curve (10 points)
+    # Generate FA curve only for manageable sizes
     fa_curve = []
-    for fa in [0.5, 1, 2.5, 5, 10, 20, 50, 100]:
-        sens = sensitivity_at_fa_rates(probs, labels, [fa], post_cfg, sampling_rate).get(
-            f"sensitivity_at_{fa}fa", 0.0
-        )
-        fa_curve.append((fa, sens))
+    if probs.numel() <= 2_000_000:
+        for fa in [0.5, 1, 2.5, 5, 10, 20, 50, 100]:
+            sens = sensitivity_at_fa_rates(probs, labels, [fa], post_cfg, sampling_rate).get(
+                f"sensitivity_at_{fa}fa", 0.0
+            )
+            fa_curve.append((fa, sens))
 
     results = {
         "taes": taes,
