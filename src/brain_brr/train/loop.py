@@ -243,66 +243,66 @@ def train_epoch(
     # But track global_step separately for proper scheduler behavior
     try:
         for batch_idx, (windows, labels) in enumerate(progress):
-        windows = windows.to(device_obj)
-        labels = labels.to(device_obj)
+            windows = windows.to(device_obj)
+            labels = labels.to(device_obj)
 
-        # Handle multi-channel labels: aggregate to any-seizure
-        if labels.dim() == 3:  # (B, C, T)
-            labels = labels.max(dim=1)[0]  # (B, T)
+            # Handle multi-channel labels: aggregate to any-seizure
+            if labels.dim() == 3:  # (B, C, T)
+                labels = labels.max(dim=1)[0]  # (B, T)
 
-        optimizer.zero_grad(set_to_none=True)
+            optimizer.zero_grad(set_to_none=True)
 
-        # Forward pass with AMP (model returns raw logits)
-        with autocast(enabled=(use_amp and device == "cuda")):
-            logits = model(windows)  # (B, T) raw logits
-            per_element_loss = criterion(logits, labels)
-            # Mean reduction since pos_weight is already in criterion
-            loss = per_element_loss.mean()
+            # Forward pass with AMP (model returns raw logits)
+            with autocast(enabled=(use_amp and device == "cuda")):
+                logits = model(windows)  # (B, T) raw logits
+                per_element_loss = criterion(logits, labels)
+                # Mean reduction since pos_weight is already in criterion
+                loss = per_element_loss.mean()
 
-        # Backward pass with proper scaler handling
-        if scaler.is_enabled():
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
-            if gradient_clip > 0:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
-            scaler.step(optimizer)
-            scaler.update()
-        else:
-            loss.backward()
-            if gradient_clip > 0:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
-            optimizer.step()
+            # Backward pass with proper scaler handling
+            if scaler.is_enabled():
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                if gradient_clip > 0:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                loss.backward()
+                if gradient_clip > 0:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+                optimizer.step()
 
-        # Increment global step counter
-        global_step += 1
+            # Increment global step counter
+            global_step += 1
 
-        # Scheduler step AFTER optimizer.step()
-        if scheduler is not None:
-            scheduler.step()
+            # Scheduler step AFTER optimizer.step()
+            if scheduler is not None:
+                scheduler.step()
 
-        total_loss += loss.item()
-        num_batches += 1
+            total_loss += loss.item()
+            num_batches += 1
 
-        if use_tqdm and hasattr(progress, "set_postfix"):
-            progress.set_postfix({"loss": f"{loss.item():.4f}"})
+            if use_tqdm and hasattr(progress, "set_postfix"):
+                progress.set_postfix({"loss": f"{loss.item():.4f}"})
 
-        # Modal progress logging - print every 100 batches for visibility
-        if batch_idx > 0 and batch_idx % 100 == 0:
-            current_lr = optimizer.param_groups[0]["lr"]
-            print(
-                f"[PROGRESS] Batch {batch_idx}/{len(dataloader)} | "
-                f"Loss: {loss.item():.4f} | LR: {current_lr:.2e}",
-                flush=True,
-            )
+            # Modal progress logging - print every 100 batches for visibility
+            if batch_idx > 0 and batch_idx % 100 == 0:
+                current_lr = optimizer.param_groups[0]["lr"]
+                print(
+                    f"[PROGRESS] Batch {batch_idx}/{len(dataloader)} | "
+                    f"Loss: {loss.item():.4f} | LR: {current_lr:.2e}",
+                    flush=True,
+                )
 
-        # Heartbeat for Modal (every 5 minutes)
-        if time.time() - last_heartbeat > heartbeat_interval:
-            print(
-                f"[HEARTBEAT] Still training... Batch {batch_idx}/{len(dataloader)} | "
-                f"Avg Loss: {total_loss / max(1, num_batches):.4f}",
-                flush=True,
-            )
-            last_heartbeat = time.time()
+            # Heartbeat for Modal (every 5 minutes)
+            if time.time() - last_heartbeat > heartbeat_interval:
+                print(
+                    f"[HEARTBEAT] Still training... Batch {batch_idx}/{len(dataloader)} | "
+                    f"Avg Loss: {total_loss / max(1, num_batches):.4f}",
+                    flush=True,
+                )
+                last_heartbeat = time.time()
 
     except Exception as e:
         # Clean up tqdm if it exists
