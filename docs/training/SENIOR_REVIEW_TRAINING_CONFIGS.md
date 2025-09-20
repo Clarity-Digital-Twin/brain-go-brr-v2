@@ -152,9 +152,8 @@ if checkpoint_path and os.path.exists(checkpoint_path):
 python -m src train configs/tusz_train_wsl2.yaml
 
 # Modal deployment (after review approval)
-cd deploy/modal
-modal deploy app.py
-modal run app.py --config configs/tusz_train_a100.yaml
+modal deploy deploy/modal/app.py
+modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml
 ```
 
 ## Senior Sign-off Checklist

@@ -288,14 +288,14 @@ def evaluate_predictions(
   - Last epoch: `results/checkpoints/last.pt`
   - Resume capability with full state restoration
 
-## 🖥️ CLI & Commands
-- Validate config: `python -m src.cli validate configs/local.yaml`
-- Train (local/dev): `python -m src.experiment.pipeline --config configs/local.yaml`
-- Train (production): `python -m src.experiment.pipeline --config configs/production.yaml`
-- Resume training: `python -m src.experiment.pipeline --config configs/local.yaml --resume results/checkpoints/last.pt`
+## 🖥️ CLI & Commands (Updated)
+- Validate config: `python -m src validate configs/local.yaml`
+- Train (local/dev): `python -m src train configs/local.yaml`
+- Train (WSL2 long-run): `python -m src train configs/tusz_train_wsl2.yaml`
+- Modal A100 (cloud): `modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml`
+- Resume training: `python -m src train configs/local.yaml --resume`
 - Makefile shortcuts:
-  - `make train-local` → local config
-  - `make train-prod` → production config
+  - `make train-local` → local smoke/dev
 
 ## 🧪 TDD Plan (Tests First)
 

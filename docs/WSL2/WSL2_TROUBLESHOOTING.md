@@ -64,7 +64,7 @@ export PYTHONUNBUFFERED=1      # Force unbuffered output
 export PYTHONFAULTHANDLER=1    # Dump tracebacks on deadlock
 ```
 
-These are automatically set in `run_gpu.sh`.
+Consider exporting these in your shell profile or a small wrapper script when needed.
 
 ## Mamba-SSM Installation Issues
 
@@ -72,12 +72,8 @@ These are automatically set in `run_gpu.sh`.
 mamba-ssm requires specific CUDA setup and fails to build.
 
 ### Solution
-1. Use pre-configured `run_gpu.sh` script:
-```bash
-./run_gpu.sh configs/smoke_test.yaml
-```
-
-2. Script automatically handles:
+1. Ensure correct environment and install order (PyTorch → numpy → mamba-ssm).
+2. When troubleshooting, set:
    - Dynamic LD_LIBRARY_PATH detection
    - CUDA library paths
    - Architecture-specific settings
@@ -121,7 +117,7 @@ training:
 3. Use environment variable to limit files:
 ```bash
 export BGB_LIMIT_FILES=100
-./run_gpu.sh configs/smoke_test.yaml
+python -m src train configs/smoke_test.yaml
 ```
 
 ## Thread Contention
@@ -200,14 +196,14 @@ export UV_LINK_MODE=copy        # WSL2 filesystem compatibility
    - Ensure `num_workers: 0` in all configs
 
 4. **Training**:
-   ```bash
-   # Always use run_gpu.sh wrapper
-   ./run_gpu.sh configs/smoke_test.yaml
+```bash
+# Smoke test
+python -m src train configs/smoke_test.yaml
 
-   # Or in tmux for long runs
-   tmux new -s train
-   ./run_gpu.sh configs/tusz_train.yaml
-   ```
+# In tmux for long runs (WSL2-safe)
+tmux new -s train
+python -m src train configs/tusz_train_wsl2.yaml
+```
 
 5. **Monitoring**:
    ```bash

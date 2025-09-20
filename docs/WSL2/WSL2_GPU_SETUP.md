@@ -91,10 +91,10 @@ If `is_available` is False:
 
 ```bash
 # Full GPU path (Mamba-SSM kernels if available)
-python -m src.experiment.pipeline --config configs/local.yaml
+python -m src train configs/local.yaml
 
 # If you need to force CPU fallback for Mamba (debug/dev)
-SEIZURE_MAMBA_FORCE_FALLBACK=1 python -m src.experiment.pipeline --config configs/local.yaml
+SEIZURE_MAMBA_FORCE_FALLBACK=1 python -m src train configs/local.yaml
 ```
 
 ---
@@ -175,7 +175,7 @@ pip install --index-url https://download.pytorch.org/whl/cu124 torch torchvision
 pip install -e .[gpu] tensorboard
 ln -s /mnt/c/Users/JJ/Desktop/Clarity-Digital-Twin/brain-go-brr-v2/data data
 python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available())"
-python -m src.experiment.pipeline --config configs/local.yaml
+python -m src train configs/local.yaml
 ```
 
 ---
