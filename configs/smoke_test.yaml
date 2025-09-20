@@ -78,6 +78,11 @@ experiment:
   cache_dir: cache/smoke
   log_level: INFO
   save_model: false
+  wandb:
+    enabled: true    # W&B secret now configured!
+    project: seizure-detection-smoke
+    entity: jj-vcmcswaggins-novamindnyc  # Your W&B team name
+    tags: ["smoke-test", "modal", "a100"]
 
 logging:
   log_every_n_steps: 10

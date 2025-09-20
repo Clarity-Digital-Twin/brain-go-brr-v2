@@ -90,8 +90,10 @@ experiment:
   save_model: true
   save_best_only: true
   wandb:
-    enabled: false                     # Enable if W&B secret configured
+    enabled: true                      # W&B secret configured!
     project: seizure-detection-a100
+    entity: jj-vcmcswaggins-novamindnyc  # Your W&B team name
+    tags: ["production", "a100", "tuh-seizure"]
 
 logging:
   log_every_n_steps: 25                # More frequent on fast GPU
