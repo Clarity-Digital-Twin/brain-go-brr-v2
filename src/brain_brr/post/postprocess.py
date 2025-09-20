@@ -111,6 +111,7 @@ def apply_hysteresis(
             onset = int(on_starts[on_ptr])
             if onset < ze:
                 mask_np[onset:ze] = True
+                on_ptr += 1  # advance to avoid reusing same onset in later zones
 
         masks[b] = torch.from_numpy(mask_np).to(device)
 
