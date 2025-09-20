@@ -12,13 +12,11 @@ Status: Planning document for rigorous, publishable benchmarking of a Bi‑Mamba
 
 ## Datasets & Splits
 
-### Optimal Strategy: Maximum Rigor + Performance
+### Primary Strategy: Clean Baseline First
 
-**Training Set (Natural Sampling - Gold Standard):**
-- TUSZ train: 100% of all training data
-- Siena Scalp: 100% of all 14 subjects
-- **Sampling**: Natural frequency (no artificial weighting)
-- **Rationale**: Reflects real-world data distribution, most rigorous for claims
+**Training Set:**
+- TUSZ train only (no mixing)
+- **Rationale**: Establishes strongest baseline, optimizes for primary benchmark
 
 **Validation Set:**
 - TUSZ dev only (threshold tuning, early stopping, hyperparameter selection)
@@ -35,7 +33,7 @@ Status: Planning document for rigorous, publishable benchmarking of a Bi‑Mamba
 |---------|-----------------|---------------------|------|----------|
 | TUSZ | ✅ YES | ~600 train, 50 dev, 50 eval | Primary train/test | Gold standard, proper splits |
 | CHB-MIT | ✅ YES | 23 patients | Zero-shot test only | Cross-site generalization |
-| Siena | ❌ NO | 14 subjects (PN00-PN13) | Train augmentation | Protocol diversity |
+| Siena | ❌ NO | 14 subjects (PN00-PN13) | Future ablation only | Not used in primary experiments |
 
 ### Paths
 - TUSZ: `data_ext4/tusz/edf/{train,dev,eval}/`
@@ -45,7 +43,7 @@ Status: Planning document for rigorous, publishable benchmarking of a Bi‑Mamba
 ### Critical Notes
 - Channel synonyms enforced (T7→T3, T8→T4, P7→T5, P8→T6)
 - Canonical 10-20 order preserved (see `src/brain_brr/constants.py`)
-- Siena never appears in test claims (not patient-disjoint)
+- Siena reserved for future ablation studies after baseline established
 - Document exact dataset versions and any repairs applied
 
 ## Metrics (Event‑Level + Operating Curves)
@@ -108,32 +106,24 @@ Baseline and variants trained/evaluated with identical preprocessing and post‑
 
 ## Training Protocol
 
-### Dataset Mixing Strategy - DEFINITIVE CHOICE
+### Training Strategy: TUSZ-Only Baseline
 
-**Best for Our Use Case: Two-Stage Training**
+**Primary Training (Clean Baseline):**
+- Train exclusively on TUSZ train
+- No dataset mixing or complex sampling
+- Optimize purely for TUSZ dev performance
+- Most defensible and standard approach
 
-**Stage 1: TUSZ-Only Training (Epochs 1-30)**
-- Train on 100% TUSZ train only
-- Optimize for NEDC/TAES benchmark performance
-- Save checkpoint at best TUSZ dev performance
+**Why this is optimal for initial work:**
+1. **Maximizes TUSZ eval scores** (primary benchmark everyone compares)
+2. **Cleanest methodology** (no sampling decisions to defend)
+3. **Establishes strong baseline** (required before exploring variations)
+4. **Standard practice** (what most papers do)
 
-**Stage 2: Mixed Fine-tuning (Epochs 31-40)**
-- Continue from Stage 1 checkpoint
-- 50/50 sampling from TUSZ + Siena
-- Improves robustness without destroying TUSZ performance
-- Early stop if TUSZ dev degrades >2%
-
-**Why this is optimal:**
-1. **Maximizes TUSZ eval scores** (primary benchmark)
-2. **Still improves CHB-MIT transfer** (via fine-tuning)
-3. **Best of both worlds** - strong primary metrics + generalization
-4. **Defensible strategy** - similar to domain adaptation literature
-
-**Implementation:**
-- Stage 1: Natural TUSZ sampling (standard training)
-- Stage 2: Balanced TUSZ/Siena (robustness fine-tuning)
-- Monitor TUSZ dev throughout to prevent catastrophic forgetting
-- Report both Stage 1 and Stage 2 results in paper
+**Future Ablations (After Baseline):**
+- If CHB-MIT transfer is weak → experiment with Siena augmentation
+- If TUSZ performance plateaus → try mixed training strategies
+- Report as "supplementary experiments" if improvements found
 
 - Hardware profiles
   - Local WSL2 (WSL‑safe): `configs/tusz_train_wsl2.yaml` (num_workers=0)
@@ -218,10 +208,11 @@ Baseline and variants trained/evaluated with identical preprocessing and post‑
 5. Week 8: Draft report; artifact release (configs, checkpoints, events, metrics)
 
 ### Training Runs Priority
-1. A3 Bi-Mamba on TUSZ+Siena → eval TUSZ & CHB-MIT
-2. A0 CNN-only baseline (same data mix)
-3. A2 Uni-Mamba ablation (bidirectionality impact)
-4. A1 Transformer if compute allows (completeness)
+1. A3 Bi-Mamba on TUSZ-only → eval TUSZ & CHB-MIT (primary result)
+2. A0 CNN-only on TUSZ-only (baseline comparison)
+3. A2 Uni-Mamba on TUSZ-only (bidirectionality ablation)
+4. A1 Transformer on TUSZ-only if compute allows
+5. (Optional) A3 with Siena augmentation if time permits
 
 ## Risks & Mitigations
 
@@ -243,11 +234,10 @@ Baseline and variants trained/evaluated with identical preprocessing and post‑
 
 ## Command Cookbook
 
-### Enhanced Training Commands
-- TUSZ+Siena mixed training:
+### Primary Training Commands
+- TUSZ-only training (main experiments):
   ```bash
-  python -m src train configs/tusz_siena_mixed_a100.yaml \
-    --tusz-weight 0.8 --siena-weight 0.2
+  python -m src train configs/tusz_only_a100.yaml
   ```
 
 ### Zero-Shot Evaluation
@@ -271,9 +261,9 @@ This document is a planning SSOT for benchmarking work. Claims remain pending un
 
 ## Why This Strategy?
 
-1. **Maximum Rigor**: TUSZ eval and CHB-MIT never seen during training
-2. **Best Performance**: Siena augmentation improves robustness
-3. **Strongest Claims**: Zero-shot CHB-MIT shows true generalization
-4. **Publication Impact**: Cross-dataset zero-shot is rare and valuable
-5. **Clinical Relevance**: Different sites/protocols = real-world deployment
+1. **Maximum Rigor**: Clean TUSZ-only baseline is unquestionable
+2. **Optimized Performance**: Focused training on primary benchmark
+3. **Strong Generalization Claims**: TUSZ→CHB-MIT zero-shot transfer
+4. **Publication Ready**: Standard approach with novel architecture
+5. **Future Work Clear**: Siena experiments become natural follow-up
 
