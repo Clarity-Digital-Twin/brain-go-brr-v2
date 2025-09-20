@@ -581,6 +581,9 @@ def calculate_taes_metrics(
     metrics = evaluate_predictions(
         predictions, labels, fa_rates=[fa_rate_target], post_cfg=cfg, sampling_rate=sample_rate
     )
+    # Back-compat alias for tests expecting 'auc'
+    if "auc" not in metrics and "auroc" in metrics:
+        metrics["auc"] = metrics["auroc"]
     # Add common classification metrics at sample level
     preds_bin = (predictions.detach().cpu().numpy().ravel() >= 0.5).astype(int)
     labs = labels.detach().cpu().numpy().ravel().astype(int)
