@@ -40,7 +40,9 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git pull:*)",
-      "Bash(tmux attach:*)"
+      "Bash(tmux attach:*)",
+      "Bash(git tag:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []
