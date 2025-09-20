@@ -42,75 +42,77 @@ def apply_hysteresis(
     batch_size, seq_len = probs.shape
     device = probs.device
 
-    # Vectorized implementation for better performance
-    if min_onset_samples == 1 and min_offset_samples == 1:
-        # Fast path: no stability windows needed
-        masks = torch.zeros_like(probs, dtype=torch.bool, device=device)
+    # Vectorized implementation using run-length processing
+    masks = torch.zeros_like(probs, dtype=torch.bool, device=device)
 
-        # Process all batches in parallel
-        above_on = probs >= tau_on
-        below_off = probs < tau_off
+    for b in range(batch_size):
+        x = probs[b].detach().cpu().numpy()
 
-        for b in range(batch_size):
-            mask = torch.zeros(seq_len, dtype=torch.bool, device=device)
-            state = False
+        high = x >= tau_on
+        low_ok = x >= tau_off
+        below_off = ~low_ok
 
-            for i in range(seq_len):
-                if not state:
-                    if above_on[b, i]:
-                        state = True
-                        mask[i] = True
-                else:
-                    if below_off[b, i]:
-                        state = False
-                    else:
-                        mask[i] = True
+        if seq_len == 0:
+            continue
 
-            masks[b] = mask
-    else:
-        # Full implementation with stability windows
-        masks = torch.zeros_like(probs, dtype=torch.bool, device=device)
+        # Run-length encode boolean array: returns starts and lengths of True runs
+        def rle_runs(a: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+            if a.size == 0:
+                return np.empty(0, dtype=np.int64), np.empty(0, dtype=np.int64)
+            pad = np.empty(a.size + 2, dtype=np.bool_)
+            pad[0] = False
+            pad[-1] = False
+            pad[1:-1] = a
+            diff = np.diff(pad.view(np.int8))
+            starts = np.flatnonzero(diff == 1)
+            ends = np.flatnonzero(diff == -1)
+            lengths = ends - starts
+            return starts.astype(np.int64), lengths.astype(np.int64)
 
-        for b in range(batch_size):
-            prob_seq = probs[b].cpu().numpy()
-            mask_np = np.zeros(seq_len, dtype=bool)
+        # Firm OFF runs: consecutive samples below tau_off with length >= min_offset_samples
+        off_starts, off_lens = rle_runs(below_off)
+        if off_starts.size:
+            mask_firm = off_lens >= min_offset_samples
+            off_starts = off_starts[mask_firm]
+            off_lens = off_lens[mask_firm]
+        else:
+            off_lens = off_lens  # keep dtype
 
-            in_event = False
-            onset_counter = 0
-            offset_counter = 0
-            onset_start = -1
+        # Candidate ON runs: consecutive samples >= tau_on with length >= min_onset_samples
+        on_starts, on_lens = rle_runs(high)
+        if on_starts.size:
+            mask_on = on_lens >= min_onset_samples
+            on_starts = on_starts[mask_on]
+        # Zone boundaries are between firm OFF runs
+        zones: list[tuple[int, int]] = []
+        prev_end = 0
+        for s, length in zip(off_starts, off_lens, strict=False):
+            if s > prev_end:
+                zones.append((prev_end, s))
+            prev_end = s + int(length)
+        if prev_end < seq_len:
+            zones.append((prev_end, seq_len))
 
-            for i in range(seq_len):
-                if not in_event:
-                    # Check for onset (>= to include equality)
-                    if prob_seq[i] >= tau_on:
-                        onset_counter += 1
-                        if onset_counter == 1:
-                            onset_start = i
-                        if onset_counter >= min_onset_samples:
-                            # Retroactively mark onset
-                            mask_np[onset_start : i + 1] = True
-                            in_event = True
-                            onset_counter = 0
-                    else:
-                        onset_counter = 0
-                        onset_start = -1
-                else:
-                    # In event, check for offset or continue
-                    if prob_seq[i] < tau_off:
-                        offset_counter += 1
-                        # Still mark as True until we confirm offset
-                        if offset_counter < min_offset_samples:
-                            mask_np[i] = True
-                        if offset_counter >= min_offset_samples:
-                            # Exit event (don't mark the final offset samples)
-                            in_event = False
-                            offset_counter = 0
-                    else:
-                        offset_counter = 0
-                        mask_np[i] = True
+        mask_np = np.zeros(seq_len, dtype=np.bool_)
 
+        if on_starts.size == 0 or len(zones) == 0:
             masks[b] = torch.from_numpy(mask_np).to(device)
+            continue
+
+        # For each zone, find the first qualifying onset and fill until zone end
+        # on_starts is sorted; use pointer to scan once
+        on_ptr = 0
+        n_on = int(on_starts.size)
+        for zs, ze in zones:
+            while on_ptr < n_on and on_starts[on_ptr] < zs:
+                on_ptr += 1
+            if on_ptr >= n_on:
+                break
+            onset = int(on_starts[on_ptr])
+            if onset < ze:
+                mask_np[onset:ze] = True
+
+        masks[b] = torch.from_numpy(mask_np).to(device)
 
     return masks
 
@@ -120,6 +122,7 @@ def apply_morphology(
     opening_kernel: int = 11,
     closing_kernel: int = 31,
     use_gpu: bool = False,
+    kernel_size: int | None = None,
 ) -> torch.Tensor:
     """Apply morphological operations (opening then closing).
 
@@ -134,6 +137,10 @@ def apply_morphology(
     Returns:
         Cleaned binary masks (B, T) as bool
     """
+    if kernel_size is not None:
+        opening_kernel = kernel_size
+        closing_kernel = kernel_size
+
     if opening_kernel % 2 == 0 or closing_kernel % 2 == 0:
         raise ValueError("Kernel sizes must be odd")
 

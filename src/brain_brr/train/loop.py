@@ -185,10 +185,16 @@ def train_epoch(
     Returns:
         Average training loss (default) or tuple of (loss, global_step) if return_step=True
     """
+    import time
+
     model.train()
     device_obj = torch.device(device)
     # Only construct GradScaler when actually using CUDA AMP
     scaler = GradScaler(enabled=(use_amp and device == "cuda"))
+
+    # Heartbeat timer for Modal visibility
+    last_heartbeat = time.time()
+    heartbeat_interval = 300  # 5 minutes
 
     # Calculate class weights from first batch (approximation)
     first_batch = next(iter(dataloader))
@@ -209,7 +215,7 @@ def train_epoch(
 
     # Use enumerate for batch indexing (satisfies ruff SIM113)
     # But track global_step separately for proper scheduler behavior
-    for _, (windows, labels) in enumerate(progress):
+    for batch_idx, (windows, labels) in enumerate(progress):
         windows = windows.to(device_obj)
         labels = labels.to(device_obj)
 
@@ -252,6 +258,24 @@ def train_epoch(
 
         if use_tqdm and hasattr(progress, "set_postfix"):
             progress.set_postfix({"loss": f"{loss.item():.4f}"})
+
+        # Modal progress logging - print every 100 batches for visibility
+        if batch_idx > 0 and batch_idx % 100 == 0:
+            current_lr = optimizer.param_groups[0]["lr"]
+            print(
+                f"[PROGRESS] Batch {batch_idx}/{len(dataloader)} | "
+                f"Loss: {loss.item():.4f} | LR: {current_lr:.2e}",
+                flush=True,
+            )
+
+        # Heartbeat for Modal (every 5 minutes)
+        if time.time() - last_heartbeat > heartbeat_interval:
+            print(
+                f"[HEARTBEAT] Still training... Batch {batch_idx}/{len(dataloader)} | "
+                f"Avg Loss: {total_loss / max(1, num_batches):.4f}",
+                flush=True,
+            )
+            last_heartbeat = time.time()
 
     avg_loss = total_loss / max(1, num_batches)
     return (avg_loss, global_step) if return_step else avg_loss
@@ -507,14 +531,14 @@ def train(
     last_checkpoint = checkpoint_dir / "last.pt"
     if last_checkpoint.exists() and config.training.resume:
         start_epoch, best_metric = load_checkpoint(last_checkpoint, model, optimizer, scheduler)
-        print(f"Resumed from epoch {start_epoch}")
+        print(f"Resumed from epoch {start_epoch}", flush=True)
 
     # Training loop
     best_metrics: dict[str, Any] = {"best_epoch": 0}
     global_step = 0  # Track global step across epochs for scheduler
 
     for epoch in range(start_epoch, config.training.epochs):
-        print(f"\nEpoch {epoch + 1}/{config.training.epochs}")
+        print(f"\nEpoch {epoch + 1}/{config.training.epochs}", flush=True)
 
         # Train
         result = train_epoch(
@@ -553,24 +577,24 @@ def train(
             if key in val_metrics and writer is not None:
                 writer.add_scalar(f"Metrics/{key}", val_metrics[key], epoch)
 
-        # Print metrics
-        print(f"  Train Loss: {train_loss:.4f}")
-        print(f"  Val Loss: {val_metrics['val_loss']:.4f}")
-        print(f"  TAES: {val_metrics['taes']:.4f}")
-        print(f"  AUROC: {val_metrics['auroc']:.4f}")
+        # Print metrics with flush for Modal visibility
+        print(f"  Train Loss: {train_loss:.4f}", flush=True)
+        print(f"  Val Loss: {val_metrics['val_loss']:.4f}", flush=True)
+        print(f"  TAES: {val_metrics['taes']:.4f}", flush=True)
+        print(f"  AUROC: {val_metrics['auroc']:.4f}", flush=True)
 
         # Print sensitivity at FA rates
         for fa_rate in config.evaluation.fa_rates:
             key = f"sensitivity_at_{fa_rate}fa"
             if key in val_metrics:
-                print(f"  Sensitivity@{fa_rate}FA/24h: {val_metrics[key]:.4f}")
+                print(f"  Sensitivity@{fa_rate}FA/24h: {val_metrics[key]:.4f}", flush=True)
 
         # Track best model
         metric_name = config.training.early_stopping.metric
         current_metric = val_metrics.get(metric_name, 0.0)
 
         if early_stopping(current_metric, epoch):
-            print(f"Early stopping at epoch {epoch + 1}")
+            print(f"Early stopping at epoch {epoch + 1}", flush=True)
             break
 
         # Save best model
@@ -590,7 +614,7 @@ def train(
                 "best_auroc": val_metrics["auroc"],
                 f"best_{metric_name}": current_metric,
             }
-            print(f"  New best {metric_name}: {current_metric:.4f}")
+            print(f"  New best {metric_name}: {current_metric:.4f}", flush=True)
 
         # Save last checkpoint
         save_checkpoint(
@@ -605,7 +629,7 @@ def train(
 
     if writer is not None:
         writer.close()
-    print(f"\nTraining complete. Best epoch: {best_metrics['best_epoch']}")
+    print(f"\nTraining complete. Best epoch: {best_metrics['best_epoch']}", flush=True)
 
     return best_metrics
 
