@@ -197,6 +197,7 @@ class TestInferenceLatency:
         assert speedup > 1.2, f"Compilation speedup only {speedup:.1f}x (expected >1.2x)"
 
 
+@pytest.mark.serial
 class TestThroughput:
     """Test throughput for batch processing scenarios."""
 
@@ -258,6 +259,7 @@ class TestThroughput:
         )
 
 
+@pytest.mark.serial
 class TestLatencyUnderLoad:
     """Test latency stability under various load conditions."""
 
