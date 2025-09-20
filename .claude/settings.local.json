@@ -30,7 +30,10 @@
       "Bash(tmux new-session:*)",
       "Bash(tmux capture-pane:*)",
       "Bash(tmux send-keys:*)",
-      "Bash(modal run:*)"
+      "Bash(modal run:*)",
+      "Bash(tmux ls:*)",
+      "Bash(for f in configs/*.yaml)",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []
