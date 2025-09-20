@@ -87,7 +87,8 @@
       "Bash(.venv/bin/pytest --collect-only -q)",
       "Bash(.venv/bin/pytest --markers)",
       "Bash(.venv/bin/pytest --collect-only -q -m performance)",
-      "Bash(.venv/bin/pytest --collect-only -q -m serial)"
+      "Bash(.venv/bin/pytest --collect-only -q -m serial)",
+      "Bash(.venv/bin/pytest --cov=src --cov-report=term-missing:skip-covered -n auto -m \"not performance\" -q)"
     ],
     "deny": [],
     "ask": []

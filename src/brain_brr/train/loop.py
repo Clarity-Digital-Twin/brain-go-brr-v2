@@ -24,6 +24,7 @@ from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.utils.tensorboard import SummaryWriter
+import sys
 from tqdm import tqdm  # type: ignore[import-untyped]
 
 from src.brain_brr.config.schemas import (
@@ -212,12 +213,23 @@ def train_epoch(
 
     # Robust tqdm handling for Modal/non-TTY environments
     use_tqdm = not os.getenv("BGB_DISABLE_TQDM")
+    progress_bar = None  # Initialize to None for cleanup
+
     if use_tqdm:
         try:
-            # Try to create tqdm, but catch if it returns None or fails
-            progress_bar = tqdm(dataloader, desc="Training", leave=False)
-            if progress_bar is None:
-                print("[WARNING] tqdm returned None, falling back to plain iteration", flush=True)
+            # Force tqdm to use simple ASCII output for subprocess compatibility
+            # Disable dynamic ncols to prevent terminal detection issues
+            progress_bar = tqdm(
+                dataloader,
+                desc="Training",
+                leave=False,
+                file=sys.stderr,  # Explicitly use stderr
+                ascii=True,  # Use ASCII characters only
+                ncols=80,  # Fixed width to avoid terminal detection
+                disable=None,  # Let tqdm auto-detect if it should disable
+            )
+            if progress_bar is None or not hasattr(progress_bar, '__iter__'):
+                print("[WARNING] tqdm initialization failed, using plain iteration", flush=True)
                 progress = dataloader
             else:
                 progress = progress_bar
@@ -229,7 +241,8 @@ def train_epoch(
 
     # Use enumerate for batch indexing (satisfies ruff SIM113)
     # But track global_step separately for proper scheduler behavior
-    for batch_idx, (windows, labels) in enumerate(progress):
+    try:
+        for batch_idx, (windows, labels) in enumerate(progress):
         windows = windows.to(device_obj)
         labels = labels.to(device_obj)
 
@@ -291,6 +304,24 @@ def train_epoch(
             )
             last_heartbeat = time.time()
 
+    except Exception as e:
+        # Clean up tqdm if it exists
+        if progress_bar is not None and hasattr(progress_bar, 'close'):
+            try:
+                progress_bar.close()
+            except:
+                pass
+        # Re-raise the actual error with context
+        print(f"[ERROR] Training loop failed at batch {num_batches}: {e}", flush=True)
+        raise
+    finally:
+        # Always clean up tqdm progress bar
+        if progress_bar is not None and hasattr(progress_bar, 'close'):
+            try:
+                progress_bar.close()
+            except:
+                pass
+
     avg_loss = total_loss / max(1, num_batches)
     return (avg_loss, global_step) if return_step else avg_loss
 
@@ -333,13 +364,24 @@ def validate_epoch(
 
     # Robust tqdm handling for Modal/non-TTY environments
     use_tqdm = not os.getenv("BGB_DISABLE_TQDM")
+    progress_bar = None  # Initialize for cleanup
+
     with torch.no_grad():
         if use_tqdm:
             try:
-                progress_bar = tqdm(dataloader, desc="Validating", leave=False)
-                if progress_bar is None:
+                # Use same safe tqdm settings as training
+                progress_bar = tqdm(
+                    dataloader,
+                    desc="Validating",
+                    leave=False,
+                    file=sys.stderr,
+                    ascii=True,
+                    ncols=80,
+                    disable=None,
+                )
+                if progress_bar is None or not hasattr(progress_bar, '__iter__'):
                     print(
-                        "[WARNING] tqdm returned None in validation, using plain iteration",
+                        "[WARNING] tqdm initialization failed in validation, using plain iteration",
                         flush=True,
                     )
                     iterator = dataloader
@@ -352,7 +394,9 @@ def validate_epoch(
                 iterator = dataloader
         else:
             iterator = dataloader
-        for windows, labels in iterator:
+
+        try:
+            for windows, labels in iterator:
             windows = windows.to(device_obj)
             labels = labels.to(device_obj)
 
@@ -368,8 +412,15 @@ def validate_epoch(
             all_probs.append(probs.cpu())
             all_labels.append(labels.cpu())
 
-            total_loss += loss.item()
-            num_batches += 1
+                total_loss += loss.item()
+                num_batches += 1
+        finally:
+            # Clean up tqdm progress bar
+            if progress_bar is not None and hasattr(progress_bar, 'close'):
+                try:
+                    progress_bar.close()
+                except:
+                    pass
 
     # Concatenate all batches
     all_probs_tensor = torch.cat(all_probs, dim=0)
