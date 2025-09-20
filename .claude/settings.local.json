@@ -15,7 +15,8 @@
       "Bash(tmux kill-session:*)",
       "Bash(kill:*)",
       "Bash(python:*)",
-      "Bash(make:*)"
+      "Bash(make:*)",
+      "Bash(.venv/bin/ruff check src/ tests/ --fix --unsafe-fixes)"
     ],
     "deny": [],
     "ask": []
