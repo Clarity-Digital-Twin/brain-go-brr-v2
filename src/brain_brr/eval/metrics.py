@@ -7,7 +7,11 @@ from typing import Any
 
 import numpy as np
 import torch
-from sklearn.metrics import average_precision_score, roc_auc_score, roc_curve  # type: ignore[import-untyped]
+from sklearn.metrics import (  # type: ignore[import-untyped]
+    average_precision_score,
+    roc_auc_score,
+    roc_curve,
+)
 
 from src.brain_brr.config.schemas import PostprocessingConfig
 from src.brain_brr.events import batch_mask_to_events

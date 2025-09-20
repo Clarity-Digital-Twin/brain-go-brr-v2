@@ -65,7 +65,8 @@
       "Bash(export PYTHONFAULTHANDLER=1)",
       "Bash(pkill:*)",
       "Bash(grep:*)",
-      "Bash(export BGB_LIMIT_FILES=2 PYTHONFAULTHANDLER=1)"
+      "Bash(export BGB_LIMIT_FILES=2 PYTHONFAULTHANDLER=1)",
+      "Bash(ruff check:*)"
     ],
     "deny": [],
     "ask": []

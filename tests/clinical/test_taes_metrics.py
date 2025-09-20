@@ -18,7 +18,7 @@ class TestTAESMetrics:
 
     @pytest.mark.clinical
     @pytest.mark.parametrize(
-        "fa_rate,expected_sens",
+        ("fa_rate", "expected_sens"),
         [
             (10, 0.95),  # >95% sensitivity at 10 FA/24h
             (5, 0.90),  # >90% sensitivity at 5 FA/24h
@@ -209,11 +209,13 @@ class TestROCAnalysis:
         predictions = torch.tensor([0.0, 0.0, 1.0, 1.0])
         labels = torch.tensor([0, 0, 1, 1])
 
-        fpr, tpr, thresholds, auc = compute_roc_curve(predictions, labels)
+        fpr, tpr, _thresholds, auc = compute_roc_curve(predictions, labels)
 
         assert auc == 1.0
-        assert tpr[0] == 0 and tpr[-1] == 1
-        assert fpr[0] == 0 and fpr[-1] == 1
+        assert tpr[0] == 0
+        assert tpr[-1] == 1
+        assert fpr[0] == 0
+        assert fpr[-1] == 1
 
     def test_roc_curve_random_classifier(self):
         """Test ROC curve for random classifier."""
@@ -221,7 +223,7 @@ class TestROCAnalysis:
         predictions = torch.rand(1000)
         labels = torch.randint(0, 2, (1000,))
 
-        fpr, tpr, thresholds, auc = compute_roc_curve(predictions, labels)
+        _fpr, _tpr, _thresholds, auc = compute_roc_curve(predictions, labels)
 
         # Random classifier should have AUC around 0.5
         assert 0.4 <= auc <= 0.6
@@ -231,7 +233,7 @@ class TestROCAnalysis:
         predictions = torch.rand(100)
         labels = torch.ones(100)
 
-        fpr, tpr, thresholds, auc = compute_roc_curve(predictions, labels)
+        fpr, tpr, _thresholds, _auc = compute_roc_curve(predictions, labels)
 
         # With no negatives, FPR is undefined
         assert len(fpr) > 0
@@ -242,7 +244,7 @@ class TestROCAnalysis:
         predictions = torch.rand(100)
         labels = torch.zeros(100)
 
-        fpr, tpr, thresholds, auc = compute_roc_curve(predictions, labels)
+        fpr, tpr, _thresholds, _auc = compute_roc_curve(predictions, labels)
 
         # With no positives, TPR is undefined
         assert len(fpr) > 0
@@ -268,18 +270,24 @@ class TestClinicalEventDetection:
 
     def test_event_merging_close_events(self):
         """Test merging of close seizure events."""
+        from src.brain_brr.events import merge_events
+
         binary = torch.zeros(1, 10000)
 
         # Add two close events that should merge
         binary[0, 100:200] = 1
-        binary[0, 210:300] = 1  # Only 10 samples gap
+        binary[0, 210:300] = 1  # Only 10 samples gap (~0.039s at 256Hz)
 
         # Add distant event that shouldn't merge
         binary[0, 5000:5100] = 1
 
-        events = self._extract_events(binary[0], sample_rate=256, merge_gap_s=0.1)
+        # Extract events without merging
+        events = self._extract_events(binary[0], sample_rate=256)
+        assert len(events) == 3  # Should have 3 events before merging
 
-        assert len(events) == 2  # First two should merge
+        # Now merge with 0.1s threshold (which should merge the first two)
+        merged_events = merge_events(events, tau_merge=0.1)
+        assert len(merged_events) == 2  # First two should merge
 
     def test_event_duration_filtering(self):
         """Test filtering events by duration."""

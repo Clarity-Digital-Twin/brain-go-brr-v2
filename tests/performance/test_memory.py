@@ -172,12 +172,12 @@ class TestMemoryUsage:
 
         # Forward pass without gradients
         gc.collect()
-        baseline_ram, baseline_gpu = self.get_memory_usage()
+        _baseline_ram, _baseline_gpu = self.get_memory_usage()
 
         with torch.no_grad():
             output_no_grad = minimal_model(window)
 
-        no_grad_ram, no_grad_gpu = self.get_memory_usage()
+        no_grad_ram, _no_grad_gpu = self.get_memory_usage()
 
         del output_no_grad
         gc.collect()
@@ -187,12 +187,12 @@ class TestMemoryUsage:
         output = minimal_model(window)
         loss = torch.nn.functional.mse_loss(output, labels)
 
-        before_backward_ram, before_backward_gpu = self.get_memory_usage()
+        before_backward_ram, _before_backward_gpu = self.get_memory_usage()
 
         # Backward pass
         loss.backward()
 
-        after_backward_ram, after_backward_gpu = self.get_memory_usage()
+        after_backward_ram, _after_backward_gpu = self.get_memory_usage()
 
         # Calculate memory overhead
         forward_overhead = (before_backward_ram - no_grad_ram) / no_grad_ram
@@ -250,7 +250,7 @@ class TestMemoryUsage:
         buffer = torch.zeros(1, 19, buffer_size)
 
         gc.collect()
-        initial_ram, initial_gpu = self.get_memory_usage()
+        initial_ram, _initial_gpu = self.get_memory_usage()
 
         memory_readings = []
 
@@ -268,7 +268,7 @@ class TestMemoryUsage:
 
                 # Track memory
                 if i % 10 == 0:
-                    current_ram, current_gpu = self.get_memory_usage()
+                    current_ram, _current_gpu = self.get_memory_usage()
                     memory_readings.append(current_ram - initial_ram)
 
                 del output, new_data, window
@@ -317,7 +317,7 @@ class TestMemoryUsage:
         # Run inference
         batch = torch.randn(4, 19, 15360)
         with torch.no_grad():
-            output = minimal_model(batch)
+            minimal_model(batch)
 
         # Take second snapshot
         snapshot2 = tracemalloc.take_snapshot()
@@ -352,7 +352,7 @@ class TestMemoryUsage:
 
                 if i % 100 == 0:
                     gc.collect()
-                    ram, gpu = self.get_memory_usage()
+                    ram, _gpu = self.get_memory_usage()
                     memory_checkpoints.append(ram)
 
         # Check for memory growth trend
