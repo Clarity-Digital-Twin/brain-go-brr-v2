@@ -8,7 +8,8 @@
       "Bash(grep:*)",
       "Bash(git fetch:*)",
       "Bash(git push:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
