@@ -58,8 +58,8 @@ app = modal.App(
     "brain-go-brr-v2",
     image=image,
     secrets=[
-        # Uncomment if using W&B:
-        # modal.Secret.from_name("wandb-secret"),
+        # W&B tracking (optional - create "wandb-secret" in Modal dashboard):
+        modal.Secret.from_name("wandb-secret", required=False),
     ],
 )
 
