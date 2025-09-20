@@ -104,7 +104,13 @@ def minimal_model():
         decoder=DecoderConfig(stages=4, kernel_size=4),
     )
 
-    return SeizureDetector.from_config(config)
+    model = SeizureDetector.from_config(config)
+
+    # Move to CUDA if available for performance testing
+    if torch.cuda.is_available():
+        model = model.cuda()
+
+    return model
 
 
 @pytest.fixture

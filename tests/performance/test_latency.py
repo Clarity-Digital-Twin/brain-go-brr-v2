@@ -224,11 +224,14 @@ class TestThroughput:
         n_windows = 354
         window_size = 15360  # 60s at 256Hz
 
+        # Get device
+        device = next(minimal_model.parameters()).device
+
         start_time = time.perf_counter()
 
         with torch.no_grad():
             for i in range(n_windows):
-                window = torch.randn(1, 19, window_size)
+                window = torch.randn(1, 19, window_size).to(device)
                 _ = minimal_model(window)
 
                 # Garbage collect periodically
