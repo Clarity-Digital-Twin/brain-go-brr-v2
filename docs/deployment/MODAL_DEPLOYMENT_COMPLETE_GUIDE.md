@@ -60,8 +60,8 @@ grep "brain-go-brr-eeg-data" deploy/modal/app.py
 ### 1. Smoke Test (ALWAYS DO FIRST!)
 
 ```bash
-# Run 1-epoch test (~15 minutes, ~$1.40)
-modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml
+# Run 1-epoch test (~15 minutes, ~$1.40) - ALWAYS use --detach!
+modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml --detach
 
 # Monitor at the URL provided, e.g.:
 # https://modal.com/apps/clarity-digital-twin/main/ap-xxxxx
@@ -88,8 +88,8 @@ modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.ya
 ### 3. Resume Training (If Interrupted)
 
 ```bash
-# Resumes from last.pt checkpoint
-modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --resume true
+# Resumes from last.pt checkpoint - ALWAYS use --detach!
+modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --resume true --detach
 ```
 
 ## 🛠️ Management Commands
