@@ -233,16 +233,18 @@ def train_epoch(
 
     model.eval()
     try:
-        with torch.no_grad():
-            with autocast(enabled=(use_amp and device == "cuda")):
-                test_logits = model(test_windows)  # (B, T) raw logits
-                test_loss = criterion(test_logits, test_labels)
-                if test_loss is None:
-                    raise ValueError("Loss computation returned None")
-                print(f"[PREFLIGHT] ✓ Model forward pass OK, loss shape: {test_loss.shape}", flush=True)
+        with torch.no_grad(), autocast(enabled=(use_amp and device == "cuda")):
+            test_logits = model(test_windows)  # (B, T) raw logits
+            test_loss = criterion(test_logits, test_labels)
+            if test_loss is None:
+                raise ValueError("Loss computation returned None")
+            print(
+                f"[PREFLIGHT] ✓ Model forward pass OK, loss shape: {test_loss.shape}",
+                flush=True,
+            )
     except Exception as e:
         print(f"[PREFLIGHT] ✗ Failed on test batch: {e}", flush=True)
-        print(f"[PREFLIGHT] Debug info:", flush=True)
+        print("[PREFLIGHT] Debug info:", flush=True)
         print(f"  - Model type: {type(model)}", flush=True)
         print(f"  - Input shape: {test_windows.shape}", flush=True)
         print(f"  - Labels shape: {test_labels.shape}", flush=True)
@@ -305,9 +307,11 @@ def train_epoch(
                         raise ValueError(f"Model returned None for input shape {windows.shape}")
                     per_element_loss = criterion(logits, labels)
                     if per_element_loss is None:
-                        raise ValueError(f"Loss computation returned None")
+                        raise ValueError("Loss computation returned None")
                 except Exception as e:
-                    print(f"[ERROR] Forward/loss computation failed at batch {batch_idx}:", flush=True)
+                    print(
+                        f"[ERROR] Forward/loss computation failed at batch {batch_idx}:", flush=True
+                    )
                     print(f"  - Error: {e}", flush=True)
                     print(f"  - Model: {type(model)}", flush=True)
                     print(f"  - Windows shape: {windows.shape}", flush=True)
