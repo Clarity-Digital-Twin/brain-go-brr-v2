@@ -197,7 +197,8 @@ class TestInferenceLatency:
         if not hasattr(torch, "compile"):
             pytest.skip("torch.compile not available")
 
-        window = torch.randn(1, 19, 15360)
+        device = next(production_model.parameters()).device
+        window = torch.randn(1, 19, 15360, device=device)
 
         # Baseline timing
         baseline_times = []
