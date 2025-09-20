@@ -13,6 +13,7 @@ data:
   validation_split: 0.2
   max_samples: 1000  # Limit for quick testing
   cache_dir: cache
+  use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling
 
 preprocessing:
   montage: "10-20"
@@ -59,6 +60,9 @@ postprocessing:
 training:
   epochs: 5  # Quick dev runs
   batch_size: 8  # WSL2-safe default
+  loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
+  focal_alpha: 0.5                     # Neutral alpha; rely on pos_weight from dataset sample
+  focal_gamma: 2.0                     # Focusing parameter (higher = more focus on hard examples)
   learning_rate: 3e-4
   weight_decay: 0.05
   optimizer: adamw

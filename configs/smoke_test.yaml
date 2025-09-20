@@ -15,6 +15,7 @@ data:
   persistent_workers: false     # WSL2-safe: critical for stability
   prefetch_factor: 2            # ignored when num_workers=0
   validation_split: 0.2
+  use_balanced_sampling: true   # CRITICAL: Use positive-aware sampling
 
 preprocessing:
   montage: "10-20"
@@ -60,6 +61,9 @@ postprocessing:
 training:
   epochs: 1                    # Just 1 epoch for smoke test
   batch_size: 8                # Small batch for memory
+  loss: focal                  # USE FOCAL LOSS FOR EXTREME IMBALANCE!
+  focal_alpha: 0.5             # Neutral alpha; rely on pos_weight to handle imbalance
+  focal_gamma: 2.0             # Focusing parameter (higher = more focus on hard examples)
   learning_rate: 3e-4
   weight_decay: 0.05
   optimizer: adamw
@@ -75,13 +79,15 @@ evaluation:
 
 experiment:
   name: smoke_test_$(date +%Y%m%d_%H%M%S)
-  description: "Quick smoke test on development branch"
+  description: "Quick smoke test with balanced sampling and collapse detection"
   seed: 42
   device: cuda  # Explicit GPU required (auto incorrectly defaults to CPU)
   output_dir: results/smoke
   cache_dir: cache/smoke
   log_level: INFO
   save_model: false
+  # IMPORTANT: Set BGB_LIMIT_FILES=50 or more for smoke tests!
+  # With only 2 files, validation will likely have no seizures → AUROC=0.5
   wandb:
     enabled: true    # W&B secret now configured!
     project: seizure-detection-smoke

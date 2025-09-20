@@ -10,6 +10,7 @@ data:
   stride: 10
   num_workers: 4
   validation_split: 0.0  # No split - use entire dev set
+  use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling
 
 preprocessing:
   montage: "10-20"

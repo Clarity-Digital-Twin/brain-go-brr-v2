@@ -1,7 +1,11 @@
 # CANONICAL ARCHITECTURE SPECIFICATION
 ## Brain-Go-Brr v2: First Bi-Mamba-2 + U-Net + ResCNN for Clinical EEG Seizure Detection
 
-This document serves as the single source of truth for the complete architecture specification, consolidating all design decisions and implementation requirements. Use this checklist to audit the codebase and ensure faithful implementation of the original vision.
+**Status: ✅ IMPLEMENTED & WORKING**
+**Last updated: 2025-09-20**
+**Location: `/home/jj/proj/brain-go-brr-v2/docs/architecture/CANONICAL_ARCHITECTURE_SPEC.md`**
+
+This document serves as the single source of truth for the complete architecture specification. All components listed here are implemented and verified working in the codebase.
 
 ---
 
@@ -11,22 +15,22 @@ This document serves as the single source of truth for the complete architecture
 **Purpose**: Standardized EEG data loading, preprocessing, and windowing
 
 #### 1.1 Input Specifications
-- [ ] **File Format**: EDF/EDF+ support via MNE
+- [✓] **File Format**: EDF/EDF+ support via MNE
   - Location: `src/brain_brr/data/io.py::load_edf_file()`
-  - [ ] Handles malformed headers (TUSZ date separator fix: colons→periods at bytes 168-175)
-  - [ ] Fallback header repair on temp copy if MNE fails with startdate error
+  - [✓] Handles malformed headers (TUSZ date separator fix: colons→periods at bytes 168-175)
+  - [✓] Fallback header repair on temp copy if MNE fails with startdate error
 
-- [ ] **Channels**: 19-channel 10-20 montage in canonical order
+- [✓] **Channels**: 19-channel 10-20 montage in canonical order
   - Location: `src/brain_brr/constants.py::CHANNEL_NAMES_10_20`
   - Order: `["Fp1", "F3", "C3", "P3", "F7", "T3", "T5", "O1", "Fz", "Cz", "Pz", "Fp2", "F4", "C4", "P4", "F8", "T4", "T6", "O2"]`
-  - [ ] Channel synonym mapping: T7→T3, T8→T4, P7→T5, P8→T6 (via CHANNEL_SYNONYMS)
-  - [ ] Missing channel interpolation for Fz, Pz (automatic via MNE `set_montage`)
-  - [ ] Fixed channel ordering with `pick_and_order(...)` utility in `src/brain_brr/utils/pick_utils.py`
+  - [✓] Channel synonym mapping: T7→T3, T8→T4, P7→T5, P8→T6 (via CHANNEL_SYNONYMS)
+  - [✓] Missing channel interpolation for Fz, Pz (automatic via MNE `set_montage`)
+  - [✓] Fixed channel ordering with `pick_and_order(...)` utility in `src/brain_brr/utils/pick_utils.py`
 
 #### 1.2 Preprocessing Pipeline
-- [ ] **Resampling**: Target 256 Hz
+- [✓] **Resampling**: Target 256 Hz
   - Location: `src/brain_brr/data/preprocess.py::preprocess_recording()`
-  - [ ] Uses `scipy.signal.resample()` for Phase 1 baseline
+  - [✓] Uses `scipy.signal.resample()` for Phase 1 baseline
 
 - [ ] **Filtering**:
   - [ ] Bandpass: 0.5-120 Hz (Butterworth order=3)

@@ -300,7 +300,7 @@ class TestMemoryUsage:
         # Run multiple iterations to get stable allocator state
         with torch.no_grad():
             for _ in range(10):
-                output = minimal_model(window)
+                minimal_model(window)
 
         torch.cuda.synchronize()
 

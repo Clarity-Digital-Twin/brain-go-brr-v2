@@ -19,6 +19,7 @@ data:
   persistent_workers: false              # WSL2-critical: for stability
   prefetch_factor: 2                     # ignored when num_workers=0
   validation_split: 0.2
+  use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling
 
 preprocessing:
   montage: "10-20"
@@ -65,6 +66,9 @@ postprocessing:
 training:
   epochs: 100                          # full training - will early stop if converged
   batch_size: 8                        # WSL2-safe: reduced from 16 to prevent OOM
+  loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
+  focal_alpha: 0.5                     # Neutral alpha; rely on pos_weight from dataset sample
+  focal_gamma: 2.0                     # Focusing parameter (higher = more focus on hard examples)
   learning_rate: 3e-4
   weight_decay: 0.05
   optimizer: adamw
