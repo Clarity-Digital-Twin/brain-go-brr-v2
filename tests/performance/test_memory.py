@@ -18,6 +18,7 @@ from src.brain_brr.config.schemas import (
 from src.brain_brr.models import SeizureDetector
 
 
+@pytest.mark.serial
 class TestMemoryUsage:
     """Profile memory consumption across different scenarios."""
 

@@ -13,6 +13,7 @@ from src.brain_brr.eval.metrics import (
 from src.brain_brr.events import SeizureEvent
 
 
+@pytest.mark.serial
 class TestTAESMetrics:
     """Validate Time-Aligned Event Scoring metrics for clinical targets."""
 
@@ -350,6 +351,7 @@ class TestClinicalEventDetection:
 
 
 @pytest.mark.clinical
+@pytest.mark.serial
 class TestClinicalValidation:
     """End-to-end clinical validation tests."""
 
