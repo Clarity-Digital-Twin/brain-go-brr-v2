@@ -3,7 +3,9 @@
     "allow": [
       "Bash(.venv/bin/pytest tests/performance/test_latency.py::TestInferenceLatency::test_model_compilation_speedup -xvs -n 0)",
       "Bash(.venv/bin/pytest tests/performance/test_latency.py::TestLatencyUnderLoad::test_latency_stability tests/performance/test_memory.py::TestMemoryUsage::test_peak_memory_tracking tests/performance/test_memory.py::TestMemoryUsage::test_memory_profiling_detailed -xvs -n 0)",
-      "Bash(.venv/bin/pytest tests/performance/test_latency.py::TestLatencyUnderLoad::test_latency_stability -xvs -n 0)"
+      "Bash(.venv/bin/pytest tests/performance/test_latency.py::TestLatencyUnderLoad::test_latency_stability -xvs -n 0)",
+      "Bash(unzip:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []
