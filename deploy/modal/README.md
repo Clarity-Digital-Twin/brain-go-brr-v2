@@ -50,9 +50,9 @@ modal secret create wandb-secret WANDB_API_KEY=<your-key>
 modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml
 ```
 
-**Full Training** (production run):
+**Full Training** (A100-optimized):
 ```bash
-modal run deploy/modal/app.py --action train --config configs/production.yaml --detach
+modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --detach
 ```
 
 ### Evaluation

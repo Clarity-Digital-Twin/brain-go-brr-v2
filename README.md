@@ -84,7 +84,7 @@ modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.ya
 modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml
 ```
 
-→ Full guide: [`docs/deployment/MODAL_DEPLOYMENT_GUIDE.md`](docs/deployment/MODAL_DEPLOYMENT_GUIDE.md)
+→ Full guide: [`docs/deployment/MODAL_DEPLOYMENT_COMPLETE_GUIDE.md`](docs/deployment/MODAL_DEPLOYMENT_COMPLETE_GUIDE.md)
 
 ## 📊 Performance Targets
 
@@ -135,8 +135,10 @@ brain-go-brr-v2/
 │   ├── deployment/           # Cloud guides
 │   ├── implementation/       # Setup notes
 │   └── phases/              # Development plans
-├── tests/                    # Test suite (151 tests)
-├── modal_train.py           # Modal deployment
+├── tests/                    # Test suite
+├── deploy/
+│   └── modal/
+│       └── app.py           # Modal deployment entrypoint
 └── Makefile                 # Automation commands
 ```
 

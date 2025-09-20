@@ -3,8 +3,7 @@
 ## ⚡ Quick Start (If Everything is Set Up)
 
 ```bash
-cd deploy/modal
-modal run app.py --action train --config configs/smoke_test.yaml
+modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml
 ```
 
 ## 🎯 First-Time Setup (MANDATORY - DO IN ORDER!)
@@ -56,10 +55,8 @@ grep "brain-go-brr-eeg-data" deploy/modal/app.py
 ### 1. Smoke Test (ALWAYS DO FIRST!)
 
 ```bash
-cd deploy/modal
-
 # Run 1-epoch test (~15 minutes, ~$1.40)
-modal run app.py --action train --config configs/smoke_test.yaml
+modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml
 
 # Monitor at the URL provided, e.g.:
 # https://modal.com/apps/clarity-digital-twin/main/ap-xxxxx
@@ -77,7 +74,7 @@ Running: python -m src train /tmp/tmp_xxx.yaml
 
 ```bash
 # Full 100-epoch training (detached mode)
-modal run app.py --action train --config configs/tusz_train_a100.yaml --detach
+modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --detach
 
 # Get the app ID from output, monitor at:
 # https://modal.com/apps/clarity-digital-twin/main/<app-id>
@@ -87,7 +84,7 @@ modal run app.py --action train --config configs/tusz_train_a100.yaml --detach
 
 ```bash
 # Resumes from last.pt checkpoint
-modal run app.py --action train --config configs/tusz_train_a100.yaml --resume true
+modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --resume true
 ```
 
 ## 🛠️ Management Commands

@@ -144,13 +144,13 @@ modal setup  # Login to Modal
 
 # Quick smoke test (do this first!)
 cd deploy/modal
-modal run app.py --action train --config configs/smoke_test.yaml
+modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml
 
 # Full A100 training (after smoke test succeeds)
-modal run app.py --action train --config configs/tusz_train_a100.yaml --detach
+modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --detach
 
 # Resume from checkpoint
-modal run app.py --action train --resume true
+modal run deploy/modal/app.py --action train --resume true
 
 # Check Modal credits
 modal status

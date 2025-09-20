@@ -1,5 +1,21 @@
 # Modal.com Deployment Guide for Brain-Go-Brr v2
 
+> IMPORTANT: This page is archived and contains legacy examples (modal_train.py, L40S/H100 multi-GPU flows).
+> For the current, supported deployment, use `deploy/modal/app.py` and follow
+> `docs/deployment/MODAL_DEPLOYMENT_COMPLETE_GUIDE.md`.
+
+Canonical commands:
+```
+# Smoke
+modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml
+
+# Full A100 training
+modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --detach
+
+# Evaluate (checkpoint on Modal volume)
+modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.ckpt
+```
+
 ## 🚀 Quick Start
 
 This guide covers deploying Brain-Go-Brr v2's EEG seizure detection training to Modal.com's GPU cloud infrastructure.

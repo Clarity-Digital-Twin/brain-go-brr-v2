@@ -310,14 +310,15 @@ This document serves as the single source of truth for the complete architecture
 - [ ] **Pydantic Models**:
   - [ ] ModelConfig (encoder, mamba, rescnn, decoder)
   - [ ] TrainingConfig (optimizer, scheduler, early_stopping)
-  - [ ] DataConfig (paths, batch_size, num_workers)
+  - [ ] DataConfig (paths, num_workers)
   - [ ] PostprocessingConfig (hysteresis, morphology, duration)
   - [ ] ExperimentConfig (root config)
 
 - [ ] **YAML Configs**:
-  - [ ] configs/local.yaml (development)
-  - [ ] configs/production.yaml (full training)
-  - [ ] configs/smoke_test.yaml (CI testing)
+  - [ ] configs/local.yaml (development, WSL2-safe)
+  - [ ] configs/tusz_train_wsl2.yaml (local long-run, WSL2-safe)
+  - [ ] configs/tusz_train_a100.yaml (Modal A100-optimized)
+  - [ ] configs/smoke_test.yaml (CI/testing)
 
 #### 6.2 CLI Interface
 - Location: `src/brain_brr/cli/cli.py`

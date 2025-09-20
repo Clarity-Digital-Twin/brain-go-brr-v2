@@ -19,7 +19,7 @@ make train-local
 tmux new -s tusz-full
 source .venv/bin/activate
 unset BGB_LIMIT_FILES
-.venv/bin/python -m src train configs/tusz_train.yaml 2>&1 | tee tusz_full_training.log
+.venv/bin/python -m src train configs/tusz_train_wsl2.yaml 2>&1 | tee tusz_full_training.log
 # Ctrl+B, D to detach
 
 # Monitor
@@ -69,11 +69,10 @@ modal secret create aws-s3-secret \
 
 ```bash
 # Deploy to Modal
-cd deploy/modal
-modal deploy app.py
+modal deploy deploy/modal/app.py
 
 # Run training (A100-80GB, ~3x faster than RTX 4090)
-modal run app.py --action train --config configs/production.yaml --detach
+modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --detach
 
 # Monitor at https://modal.com/apps
 ```
