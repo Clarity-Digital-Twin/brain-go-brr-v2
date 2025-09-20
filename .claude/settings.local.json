@@ -16,7 +16,11 @@
       "Bash(kill:*)",
       "Bash(python:*)",
       "Bash(make:*)",
-      "Bash(.venv/bin/ruff check src/ tests/ --fix --unsafe-fixes)"
+      "Bash(.venv/bin/ruff check src/ tests/ --fix --unsafe-fixes)",
+      "Bash(export BGB_LIMIT_FILES=50)",
+      "Bash(.venv/bin/pytest tests/unit/train/test_loop.py::TestTrainingSmoke::test_balanced_sampling -xvs)",
+      "Bash(export BGB_LIMIT_FILES=20)",
+      "Bash(timeout 30 python:*)"
     ],
     "deny": [],
     "ask": []

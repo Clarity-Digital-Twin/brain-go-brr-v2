@@ -25,7 +25,7 @@ import torch.nn as nn
 from torch.cuda.amp import GradScaler, autocast
 from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
-from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm  # type: ignore[import-untyped]
 
@@ -246,9 +246,10 @@ def train_epoch(
     print("[INIT] DATASET STATISTICS", flush=True)
     print("=" * 60, flush=True)
 
-    dataset: Dataset[Any] = dataloader.dataset
-    sample_size = min(1000, len(dataset))  # Sample up to 1000 windows
-    sample_indices = torch.randperm(len(dataset))[:sample_size]
+    dataset = dataloader.dataset
+    dataset_len = len(dataset)  # type: ignore[arg-type]
+    sample_size = min(1000, dataset_len)  # Sample up to 1000 windows
+    sample_indices = torch.randperm(dataset_len)[:sample_size]
 
     pos_count = 0
     total_samples = 0
