@@ -51,6 +51,7 @@ class TestTrainingSmoke:
 
         return train_loader, val_loader
 
+    @pytest.mark.serial
     def test_single_epoch(
         self, model: SeizureDetector, synthetic_data: tuple[DataLoader, DataLoader]
     ) -> None:
