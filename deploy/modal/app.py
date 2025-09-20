@@ -246,17 +246,20 @@ def main(
 ):
     """Modal deployment entrypoint.
 
-    ⚠️ IMPORTANT: Always use --detach flag for training to prevent disconnection from stopping your job!
+    ⚠️ CRITICAL: Modal's --detach flag MUST go BEFORE the script name!
+
+    CORRECT:  modal run --detach deploy/modal/app.py -- --action train ...
+    WRONG:    modal run deploy/modal/app.py --action train ... --detach
 
     Examples:
-        # Quick smoke test (ALWAYS use --detach)
-        modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml --detach
+        # Quick smoke test (Modal's --detach prevents disconnection)
+        modal run --detach deploy/modal/app.py -- --action train --config configs/smoke_test.yaml
 
-        # Full A100 training (ALWAYS use --detach)
-        modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --detach
+        # Full A100 training (Modal's --detach prevents disconnection)
+        modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml
 
-        # Resume training from last.pt in output_dir (ALWAYS use --detach)
-        modal run deploy/modal/app.py --action train --resume true --detach
+        # Resume training from last.pt in output_dir
+        modal run --detach deploy/modal/app.py -- --action train --resume true
 
         # Evaluate checkpoint
         modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.ckpt
