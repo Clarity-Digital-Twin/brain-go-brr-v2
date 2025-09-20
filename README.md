@@ -13,7 +13,7 @@
 - No published results yet — benchmarks and clinical metrics will be added once validated.
 - For local runs use `configs/tusz_train_wsl2.yaml`; for Modal A100 use `configs/tusz_train_a100.yaml`.
 - Data split discipline: train for training; dev for tuning; eval for final one‑shot testing.
-- Last updated: 2025‑09‑19.
+- Last updated: 2025‑09‑20.
 
 </details>
 
@@ -21,7 +21,7 @@
 
 We are investigating whether combining bidirectional state space models (Bi‑Mamba‑2) with multi‑scale CNNs (U‑Net + ResCNN) can reduce false alarms while maintaining sensitivity on long clinical EEG. Current systems often trigger **>10 false alarms per day**, and while transformers perform well, their O(N²) cost hinders real‑time use on long recordings. This project explores an O(N) alternative; benchmarking is pending.
 
-Note (literature, 2024‑10): we are not aware of a published evaluation of this exact architecture (U‑Net + ResCNN + bidirectional Mamba‑2 for clinical seizure detection). Related work uses Mamba variants for EEG, but with different model compositions or scopes.
+Note (literature, 2025‑09): we are not aware of a published evaluation of this exact architecture (U‑Net + ResCNN + bidirectional Mamba‑2 for clinical seizure detection). While recent work includes SeizureTransformer (U-Net + ResCNN + Transformer) and EEGMamba (bidirectional Mamba for EEG tasks), none combine all three components in our specific configuration.
 
 **Our approach**: A novel architecture combining bidirectional Mamba-2 SSMs with U-Net CNNs and residual convolutions, achieving **O(N) complexity** with a research goal of reducing false alarms to clinically acceptable rates.
 
