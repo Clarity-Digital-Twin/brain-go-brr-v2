@@ -6,7 +6,9 @@
       "Bash(.venv/bin/pytest tests/performance/test_latency.py::TestLatencyUnderLoad::test_latency_stability -xvs -n 0)",
       "Bash(unzip:*)",
       "Bash(grep:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(git push:*)",
+      "Bash(git branch:*)"
     ],
     "deny": [],
     "ask": []
