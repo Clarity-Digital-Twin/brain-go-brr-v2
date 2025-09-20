@@ -58,6 +58,9 @@ class TestInferenceLatency:
         with benchmark_timer, torch.no_grad():
             for _ in range(100):
                 _ = production_model(window)
+                # Sync for accurate GPU timing
+                if device.type == "cuda":
+                    torch.cuda.synchronize()
 
         p95_latency_ms = benchmark_timer.p95 * 1000 / 100  # Convert to ms per inference
         median_latency_ms = benchmark_timer.median * 1000 / 100
@@ -89,6 +92,9 @@ class TestInferenceLatency:
             for _ in range(20):
                 start = time.perf_counter()
                 _ = production_model(window)
+                # Sync for accurate GPU timing
+                if device.type == "cuda":
+                    torch.cuda.synchronize()
                 times.append(time.perf_counter() - start)
 
         avg_time_per_sample = np.mean(times) * 1000 / batch_size  # ms per sample
