@@ -65,6 +65,19 @@ test-cpu: ## Run CPU tests in parallel
 	@echo "${CYAN}Running CPU tests (parallel)...${NC}"
 	$(PYTEST) -n 4 --dist=loadfile -k "not (mamba or cuda)" -q
 
+test-edge: ## Run edge case tests for data robustness
+	@echo "${CYAN}Running edge case tests...${NC}"
+	$(PYTEST) tests/unit/data/test_io_edge_cases.py tests/unit/post/test_hysteresis_edge.py -v
+
+test-clinical: ## Run clinical validation suite
+	@echo "${CYAN}Running clinical validation...${NC}"
+	$(PYTEST) tests/clinical/ -v
+
+test-all: ## Run ALL tests including performance (comprehensive)
+	@echo "${CYAN}Running ALL tests comprehensively...${NC}"
+	$(PYTEST) -n auto -m "not serial" --cov=src --cov-append
+	$(PYTEST) -n 0 -m serial --cov=src --cov-append --cov-report=term-missing --cov-report=html
+
 # Detect available tools (professional pattern)
 RUFF := $(if $(wildcard .venv/bin/ruff),.venv/bin/ruff,uv run ruff)
 MYPY := $(if $(wildcard .venv/bin/mypy),.venv/bin/mypy,uv run mypy)
