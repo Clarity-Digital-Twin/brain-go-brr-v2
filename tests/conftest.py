@@ -61,18 +61,18 @@ def trained_model(tmp_path):
         EncoderConfig,
         MambaConfig,
         ModelConfig,
-        ResidualCNNConfig,
+        ResCNNConfig,
     )
     from src.brain_brr.models import SeizureDetector
 
     config = ModelConfig(
         encoder=EncoderConfig(channels=[64, 128, 256, 512], stages=4),
-        rescnn=ResidualCNNConfig(n_blocks=3, kernel_sizes=[3, 5, 7]),
-        mamba=MambaConfig(n_layers=6, d_model=512, d_state=16, d_conv=5),
+        rescnn=ResCNNConfig(n_blocks=3, kernel_sizes=[3, 5, 7]),
+        mamba=MambaConfig(n_layers=6, d_model=512, d_state=16, conv_kernel=5),
         decoder=DecoderConfig(stages=4, kernel_size=4),
     )
 
-    model = SeizureDetector(config)
+    model = SeizureDetector.from_config(config)
 
     # Initialize with known weights for reproducibility
     torch.manual_seed(42)
@@ -91,14 +91,14 @@ def minimal_model():
         EncoderConfig,
         MambaConfig,
         ModelConfig,
-        ResidualCNNConfig,
+        ResCNNConfig,
     )
     from src.brain_brr.models import SeizureDetector
 
     config = ModelConfig(
         encoder=EncoderConfig(channels=[32, 64, 128, 256], stages=4),
-        rescnn=ResidualCNNConfig(n_blocks=1, kernel_sizes=[3]),
-        mamba=MambaConfig(n_layers=1, d_model=256, d_state=8, d_conv=5),
+        rescnn=ResCNNConfig(n_blocks=1, kernel_sizes=[3]),
+        mamba=MambaConfig(n_layers=1, d_model=256, d_state=8, conv_kernel=5),
         decoder=DecoderConfig(stages=4, kernel_size=4),
     )
 
@@ -134,7 +134,7 @@ def valid_config_yaml(tmp_path: Path) -> Path:
         "model": {
             "encoder": {"channels": [64, 128, 256, 512], "stages": 4},
             "rescnn": {"n_blocks": 3, "kernel_sizes": [3, 5, 7]},
-            "mamba": {"n_layers": 6, "d_model": 512, "d_state": 16, "d_conv": 5},
+            "mamba": {"n_layers": 6, "d_model": 512, "d_state": 16, "conv_kernel": 5},
             "decoder": {"stages": 4, "kernel_size": 4},
         },
         "training": {
