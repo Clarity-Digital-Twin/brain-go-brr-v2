@@ -311,7 +311,9 @@ class TestMemoryUsage:
         reserved_peak_mb = stats["reserved_bytes.all.peak"] / 1024 / 1024
 
         # Peak should be reasonable
-        assert reserved_peak_mb < 2000, f"Peak GPU memory {reserved_peak_mb:.1f}MB exceeds 2GB limit"
+        assert reserved_peak_mb < 2000, (
+            f"Peak GPU memory {reserved_peak_mb:.1f}MB exceeds 2GB limit"
+        )
 
         # Efficiency: how much of reserved memory is actually used
         # CUDA allocator typically reserves extra for performance

@@ -51,6 +51,7 @@ class TestInferenceLatency:
 
         # Debug output
         import os
+
         print(f"\n[DEBUG] Model device: {device}")
         print(f"[DEBUG] Window device: {window.device}")
         print(f"[DEBUG] CUDA available: {torch.cuda.is_available()}")
