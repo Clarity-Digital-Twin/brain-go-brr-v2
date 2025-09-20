@@ -43,6 +43,7 @@ image = (
         "tqdm>=4.64.0",
         "pandas>=2.0.0",  # For eval extras
         "tensorboard>=2.10.0",  # For training metrics
+        "wandb",  # Weights & Biases for cloud tracking
     )
     # Set working directory before adding local files
     .workdir("/app")
