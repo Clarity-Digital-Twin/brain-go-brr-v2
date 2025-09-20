@@ -171,8 +171,11 @@ def train(
     print(f"Data loading from S3 may take 10-20 minutes for large datasets", flush=True)
 
     # Use Popen for real-time output instead of capture_output
-    import sys
-    process = subprocess.Popen(cmd, env=env, stdout=sys.stdout, stderr=sys.stderr, text=True)
+    process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+
+    # Stream output in real-time
+    for line in process.stdout:
+        print(line, end='', flush=True)
 
     # Wait for process to complete
     returncode = process.wait()
