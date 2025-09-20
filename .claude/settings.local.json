@@ -91,7 +91,9 @@
       "Bash(.venv/bin/pytest --cov=src --cov-report=term-missing:skip-covered -n auto -m \"not performance\" -q)",
       "Bash(nvidia-smi:*)",
       "Bash(kill:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(.venv/bin/pytest tests/performance/test_latency.py::TestInferenceLatency::test_single_window_latency -xvs)",
+      "Bash(SEIZURE_MAMBA_FORCE_FALLBACK=0 .venv/bin/python -c \"\nimport torch\nimport os\nos.environ[''CUDA_VISIBLE_DEVICES''] = ''0''\n\nfrom src.brain_brr.config.schemas import ModelConfig, EncoderConfig, ResCNNConfig, MambaConfig, DecoderConfig\nfrom src.brain_brr.models import SeizureDetector\nimport time\n\nconfig = ModelConfig(\n    encoder=EncoderConfig(channels=[64, 128, 256, 512], stages=4),\n    rescnn=ResCNNConfig(n_blocks=3, kernel_sizes=[3, 5, 7]),\n    mamba=MambaConfig(n_layers=6, d_model=512, d_state=16, conv_kernel=5),\n    decoder=DecoderConfig(stages=4, kernel_size=4),\n)\n\nmodel = SeizureDetector.from_config(config)\nmodel = model.cuda()\nmodel.eval()\n\n# Test input\nx = torch.randn(1, 19, 15360).cuda()\n\n# Warmup\nwith torch.no_grad():\n    for _ in range(5):\n        _ = model(x)\n        torch.cuda.synchronize()\n\n# Timing\ntimes = []\nwith torch.no_grad():\n    for _ in range(10):\n        start = time.perf_counter()\n        _ = model(x)\n        torch.cuda.synchronize()\n        times.append(time.perf_counter() - start)\n\nprint(f''Average latency: {sum(times)/len(times)*1000:.1f}ms'')\nprint(f''Min latency: {min(times)*1000:.1f}ms'')\nprint(f''Max latency: {max(times)*1000:.1f}ms'')\n\")"
     ],
     "deny": [],
     "ask": []

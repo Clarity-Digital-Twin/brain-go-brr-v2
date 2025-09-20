@@ -233,9 +233,12 @@ def mock_dataloader(sample_windows):
 
 
 @pytest.fixture(autouse=True)
-def setup_test_env(monkeypatch):
+def setup_test_env(monkeypatch, request):
     """Set up test environment variables."""
-    monkeypatch.setenv("SEIZURE_MAMBA_FORCE_FALLBACK", "1")
+    # Don't force fallback for performance tests
+    if "performance" not in request.keywords:
+        monkeypatch.setenv("SEIZURE_MAMBA_FORCE_FALLBACK", "1")
+
     monkeypatch.setenv("BGB_LIMIT_FILES", "2")
     monkeypatch.setenv("PYTHONFAULTHANDLER", "1")
 
