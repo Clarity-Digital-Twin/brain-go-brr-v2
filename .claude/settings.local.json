@@ -61,7 +61,8 @@
       "Bash(git pull:*)",
       "Bash(coverage report:*)",
       "Bash(tmux list-sessions:*)",
-      "Bash(pytest:*)"
+      "Bash(pytest:*)",
+      "Bash(export PYTHONFAULTHANDLER=1)"
     ],
     "deny": [],
     "ask": []

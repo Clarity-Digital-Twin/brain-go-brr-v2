@@ -24,7 +24,7 @@ from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.utils.tensorboard import SummaryWriter
-from tqdm import tqdm  # type: ignore[import-untyped]
+from tqdm.auto import tqdm  # type: ignore[import-untyped]
 
 from src.brain_brr.config.schemas import (
     Config,
@@ -250,7 +250,7 @@ def train_epoch(
         total_loss += loss.item()
         num_batches += 1
 
-        if use_tqdm and isinstance(progress, tqdm):
+        if use_tqdm and hasattr(progress, "set_postfix"):
             progress.set_postfix({"loss": f"{loss.item():.4f}"})
 
     avg_loss = total_loss / max(1, num_batches)
