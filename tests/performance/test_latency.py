@@ -257,11 +257,14 @@ class TestThroughput:
         total_windows = hours_per_day * windows_per_hour
         n_batches = total_windows // batch_size
 
+        # Get device
+        device = next(minimal_model.parameters()).device
+
         start_time = time.perf_counter()
 
         with torch.no_grad():
             for i in range(min(n_batches, 100)):  # Test subset for speed
-                batch = torch.randn(batch_size, 19, 15360)
+                batch = torch.randn(batch_size, 19, 15360).to(device)
                 _ = minimal_model(batch)
 
                 if i % 10 == 0:
@@ -285,7 +288,9 @@ class TestLatencyUnderLoad:
     @pytest.mark.performance
     def test_latency_stability(self, minimal_model):
         """Test latency remains stable over extended operation."""
-        window = torch.randn(1, 19, 15360)
+        # Get device
+        device = next(minimal_model.parameters()).device
+        window = torch.randn(1, 19, 15360).to(device)
         latencies = []
 
         with torch.no_grad():
@@ -319,7 +324,9 @@ class TestLatencyUnderLoad:
         import queue
         import threading
 
-        window = torch.randn(1, 19, 15360)
+        # Get device
+        device = next(minimal_model.parameters()).device
+        window = torch.randn(1, 19, 15360).to(device)
         n_threads = 4
         n_requests_per_thread = 25
         latency_queue = queue.Queue()
