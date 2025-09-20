@@ -59,7 +59,8 @@
       "Bash(timeout:*)",
       "Bash(env)",
       "Bash(git pull:*)",
-      "Bash(coverage report:*)"
+      "Bash(coverage report:*)",
+      "Bash(tmux list-sessions:*)"
     ],
     "deny": [],
     "ask": []

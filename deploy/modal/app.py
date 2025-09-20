@@ -23,8 +23,8 @@ image = (
         index_url="https://download.pytorch.org/whl/cu121",
     )
     # Install mamba-ssm with CUDA kernels (nvcc now available)
-    # Install packaging first, ninja is already installed via apt
-    .pip_install("packaging")
+    # Install build dependencies first
+    .pip_install("packaging", "wheel", "setuptools")
     # Critical: Use CC and CXX env vars to specify compiler, install with verbose output
     .run_commands(
         "export CC=gcc CXX=g++ && pip install -v --no-build-isolation 'mamba-ssm>=2.0.0'"
