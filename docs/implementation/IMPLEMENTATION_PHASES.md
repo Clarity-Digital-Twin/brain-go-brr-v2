@@ -1,5 +1,9 @@
 # IMPLEMENTATION_PHASES.md - Logical Build Order for Brain-Go-Brr v2
 
+Note: This document reflects earlier planning and uses legacy paths (e.g., `src/experiment/*`).
+The current implementation lives under `src/brain_brr/*`. For canonical commands/configs,
+see `DOCS_SSOT.md`.
+
 ## 🎯 Mission
 Build the world's first Bi-Mamba-2 + U-Net + ResCNN architecture for O(N) clinical EEG seizure detection.
 

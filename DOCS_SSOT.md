@@ -1,6 +1,6 @@
 # Documentation SSOT (Single Source of Truth)
 
-Date: 2025-09-20
+Date: 2025-09-19
 
 This file lists the canonical, up-to-date entry points and guides. Older docs may remain for historical context; when in doubt, follow these.
 
