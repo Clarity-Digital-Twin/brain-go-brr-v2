@@ -1,9 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(.venv/bin/pytest --co tests/performance/test_latency.py)",
-      "Bash(CUDA_VISIBLE_DEVICES=0 .venv/bin/pytest tests/performance/test_latency.py::TestInferenceLatency::test_single_window_latency -xvs)",
-      "Bash(.venv/bin/pytest -c \"import torch; print(f''''CUDA in pytest: {torch.cuda.is_available()}'''')\")"
+      "Bash(.venv/bin/pytest --collect-only tests/performance/test_latency.py::TestInferenceLatency::test_single_window_latency -q)",
+      "Bash(.venv/bin/pytest tests/performance/test_latency.py::TestInferenceLatency::test_single_window_latency -xvs -n 0)"
     ],
     "deny": [],
     "ask": []

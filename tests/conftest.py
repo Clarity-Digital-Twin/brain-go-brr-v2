@@ -12,6 +12,19 @@ import torch
 import yaml
 from click.testing import CliRunner
 
+# Fix CUDA detection in pytest-xdist multiprocessing
+# CUDA cannot be re-initialized in forked subprocess
+import multiprocessing
+import os
+
+if torch.cuda.is_available():
+    # Only set spawn if not already set and CUDA is available
+    try:
+        multiprocessing.set_start_method("spawn", force=False)
+    except RuntimeError:
+        # Already set, that's fine
+        pass
+
 
 @pytest.fixture(scope="session")
 def sample_edf_data():
