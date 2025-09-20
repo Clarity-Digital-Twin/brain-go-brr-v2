@@ -1,5 +1,17 @@
 # Modal Training Visibility Improvements
 
+**Status: PENDING IMPLEMENTATION**
+*Last updated: 2025-09-20*
+*Location: /home/jj/proj/brain-go-brr-v2/docs/deployment/MODAL_LOGGING_TODO.md*
+
+## Current Status
+- ✅ Modal training working (smoke test runs successfully)
+- ✅ PYTHONUNBUFFERED=1 set in app.py
+- ⚠️ Basic print statements exist but need flush=True
+- ❌ No batch-level progress logging
+- ❌ No W&B integration yet
+- ❌ No heartbeat logging
+
 ## Problem
 Modal web UI and CLI don't show real-time training progress. Currently we get:
 - No batch-level progress
@@ -189,3 +201,8 @@ env["PYTHONUNBUFFERED"] = "1"
 ---
 
 **CRITICAL**: Without these changes, you're flying blind on Modal for hours. Implement AT LEAST the flush=True fixes before next training run!
+
+## Related Files
+- `/home/jj/proj/brain-go-brr-v2/src/brain_brr/train/loop.py` - Main training loop
+- `/home/jj/proj/brain-go-brr-v2/deploy/modal/app.py` - Modal deployment config
+- `/home/jj/proj/brain-go-brr-v2/configs/smoke_test.yaml` - Quick test config
