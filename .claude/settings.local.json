@@ -69,7 +69,11 @@
       "Bash(ruff check:*)",
       "Bash(.venv/bin/pytest tests/unit/cli/test_cli_commands.py::TestCLIEvaluateCommand::test_evaluate_with_json_output -xvs)",
       "Bash(.venv/bin/pytest tests/clinical/test_channel_order.py::TestChannelOrdering::test_channel_synonyms_mapping -xvs)",
-      "Bash(.venv/bin/pytest -n auto -m \"not serial\" -q)"
+      "Bash(.venv/bin/pytest -n auto -m \"not serial\" -q)",
+      "Bash(.venv/bin/pytest tests/unit/models/test_mamba.py::TestBiMamba2::test_gradient_flow -xvs)",
+      "Bash(for file in tests/unit/models/test_decoder.py tests/unit/models/test_mamba.py tests/unit/models/test_rescnn.py tests/unit/models/test_unet.py tests/integration/test_model_assembly.py)",
+      "Bash(do)",
+      "Bash(.venv/bin/pytest -n auto -m \"not serial\" --co -q)"
     ],
     "deny": [],
     "ask": []

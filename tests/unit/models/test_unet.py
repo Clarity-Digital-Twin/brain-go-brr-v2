@@ -66,6 +66,7 @@ class TestUNetEncoder:
             assert not torch.isnan(skip).any(), f"Skip {i} contains NaN"
             assert not torch.isinf(skip).any(), f"Skip {i} contains Inf"
 
+    @pytest.mark.serial
     def test_gradient_flow(self, encoder, sample_input):
         """Test that gradients flow back through the encoder."""
         sample_input.requires_grad = True
@@ -97,6 +98,7 @@ class TestUNetEncoder:
         assert sample_input.grad is not None, "No gradient from skip connections"
         assert sample_input.grad.abs().mean() > 0, "Gradient is effectively zero"
 
+    @pytest.mark.serial
     def test_different_batch_sizes(self, encoder):
         """Test encoder works with various batch sizes."""
         for batch_size in [1, 4, 8, 16]:

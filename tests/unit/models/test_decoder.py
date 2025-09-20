@@ -123,6 +123,7 @@ class TestUNetDecoder:
         assert output.shape == (1, 19, 15360)
         assert not torch.allclose(output, torch.zeros_like(output))
 
+    @pytest.mark.serial
     def test_gradient_flow(
         self, decoder: UNetDecoder, encoder: UNetEncoder, sample_input: torch.Tensor
     ) -> None:
@@ -218,6 +219,7 @@ class TestUNetDecoder:
 
         assert torch.allclose(out1, out2, atol=1e-6)
 
+    @pytest.mark.serial
     def test_different_batch_sizes(self, decoder: UNetDecoder) -> None:
         """Test decoder handles various batch sizes."""
         for batch_size in [1, 2, 4, 8]:

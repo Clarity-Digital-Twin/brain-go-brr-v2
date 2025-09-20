@@ -48,6 +48,7 @@ class TestBiMamba2Layer:
         correlation = torch.cosine_similarity(sample_input.flatten(), output.flatten(), dim=0)
         assert correlation > 0.3  # Moderate correlation preserved
 
+    @pytest.mark.serial
     def test_gradient_flow(self, layer: BiMamba2Layer, sample_input: torch.Tensor) -> None:
         """Test gradients flow through layer."""
         sample_input.requires_grad = True
@@ -126,6 +127,7 @@ class TestBiMamba2:
         assert len(model.layers) == 6
         assert all(isinstance(layer, BiMamba2Layer) for layer in model.layers)
 
+    @pytest.mark.serial
     def test_gradient_flow(self, model: BiMamba2, sample_input: torch.Tensor) -> None:
         """Test gradients flow through all layers."""
         sample_input.requires_grad = True
@@ -231,6 +233,7 @@ class TestIntegrationPipeline:
         assert not torch.isnan(mamba_out).any()
         assert not torch.isinf(mamba_out).any()
 
+    @pytest.mark.serial
     def test_gradient_flow_pipeline(self) -> None:
         """Test gradients flow through entire pipeline."""
         from src.brain_brr.models import BiMamba2, ResCNNStack, UNetEncoder

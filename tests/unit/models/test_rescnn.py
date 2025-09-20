@@ -76,6 +76,7 @@ class TestResCNNBlock:
             f"Branch 2 should have 172 channels, got {channel_counts[2]}"
         )
 
+    @pytest.mark.serial
     def test_gradient_flow_through_block(self, block, sample_input):
         """Test gradient flows properly through residual connection."""
         sample_input.requires_grad = True
@@ -142,6 +143,7 @@ class TestResCNNStack:
         output = stack(sample_input)
         assert output.shape == sample_input.shape
 
+    @pytest.mark.serial
     def test_gradient_flow(self, stack, sample_input):
         """Test gradients flow through entire stack."""
         sample_input.requires_grad = True

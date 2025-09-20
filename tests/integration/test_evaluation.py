@@ -220,6 +220,7 @@ class TestEvaluatePredictions:
             min_duration=1.0,
         )
 
+    @pytest.mark.serial
     def test_evaluate_output_keys(self, post_cfg: PostprocessingConfig) -> None:
         """Test that evaluate returns expected keys."""
         probs = torch.rand(2, 15360)
@@ -240,6 +241,7 @@ class TestEvaluatePredictions:
         }
         assert set(results.keys()) >= expected_keys
 
+    @pytest.mark.serial
     def test_evaluate_value_ranges(self, post_cfg: PostprocessingConfig) -> None:
         """Test that metrics are in valid ranges."""
         probs = torch.rand(2, 15360)

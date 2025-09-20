@@ -32,6 +32,7 @@ class TestSeizureDetector:
         # Logits can be any real value, just check they're finite
         assert torch.all(torch.isfinite(output))
 
+    @pytest.mark.serial
     def test_gradient_flow(self, model: SeizureDetector, sample_input: torch.Tensor) -> None:
         sample_input.requires_grad = True
         output = model(sample_input)
@@ -67,6 +68,7 @@ class TestSeizureDetector:
         assert mem_info["model_size_mb"] < 200
         assert mem_info["total_size_mb"] < 4000
 
+    @pytest.mark.serial
     def test_different_batch_sizes(self, model: SeizureDetector) -> None:
         for batch_size in [1, 8, 16, 32]:
             x = torch.randn(batch_size, 19, 15360)
