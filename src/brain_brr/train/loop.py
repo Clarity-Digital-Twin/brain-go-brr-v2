@@ -299,8 +299,21 @@ def train_epoch(
 
             # Forward pass with AMP (model returns raw logits)
             with autocast(enabled=(use_amp and device == "cuda")):
-                logits = model(windows)  # (B, T) raw logits
-                per_element_loss = criterion(logits, labels)
+                try:
+                    logits = model(windows)  # (B, T) raw logits
+                    if logits is None:
+                        raise ValueError(f"Model returned None for input shape {windows.shape}")
+                    per_element_loss = criterion(logits, labels)
+                    if per_element_loss is None:
+                        raise ValueError(f"Loss computation returned None")
+                except Exception as e:
+                    print(f"[ERROR] Forward/loss computation failed at batch {batch_idx}:", flush=True)
+                    print(f"  - Error: {e}", flush=True)
+                    print(f"  - Model: {type(model)}", flush=True)
+                    print(f"  - Windows shape: {windows.shape}", flush=True)
+                    print(f"  - Labels shape: {labels.shape}", flush=True)
+                    print(f"  - Device: {windows.device}", flush=True)
+                    raise
                 # Mean reduction since pos_weight is already in criterion
                 loss = per_element_loss.mean()
 
