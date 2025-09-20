@@ -115,7 +115,7 @@ def train(
     env["PYTHONPATH"] = "/app"
     env["PYTHONUNBUFFERED"] = "1"  # CRITICAL: Force unbuffered output for real-time logs
     env["PYTHONFAULTHANDLER"] = "1"  # Enable Python fault handler for better error traces
-    env["SEIZURE_MAMBA_FORCE_FALLBACK"] = "0"  # Use CUDA kernels
+    env["SEIZURE_MAMBA_FORCE_FALLBACK"] = "1"  # FORCE FALLBACK - CUDA kernels failing on Modal!
     env["PYTHONTRACEMALLOC"] = "1"  # Track memory allocations for debugging
     # Only limit files for smoke tests
     if "smoke" in config_path.lower():
