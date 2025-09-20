@@ -13,13 +13,38 @@ import torch
 from scipy import ndimage  # type: ignore[import-untyped]
 
 
-@dataclass
+@dataclass(init=False)
 class SeizureEvent:
-    """Represents a single seizure event."""
+    """Represents a single seizure event.
+
+    Accepts both start_s/end_s and legacy start_time/end_time keyword aliases.
+    Exposes convenience properties start_time/end_time for compatibility.
+    """
 
     start_s: float
     end_s: float
     confidence: float = 1.0
+
+    def __init__(
+        self,
+        start_s: float | None = None,
+        end_s: float | None = None,
+        confidence: float = 1.0,
+        *,
+        start_time: float | None = None,
+        end_time: float | None = None,
+    ) -> None:
+        if start_s is None:
+            if start_time is None:
+                raise ValueError("SeizureEvent requires start_s or start_time")
+            start_s = float(start_time)
+        if end_s is None:
+            if end_time is None:
+                raise ValueError("SeizureEvent requires end_s or end_time")
+            end_s = float(end_time)
+        self.start_s = float(start_s)
+        self.end_s = float(end_s)
+        self.confidence = float(confidence)
 
     @property
     def duration(self) -> float:
@@ -37,6 +62,15 @@ class SeizureEvent:
             end_s=max(self.end_s, other.end_s),
             confidence=max(self.confidence, other.confidence),
         )
+
+    # Compatibility aliases
+    @property
+    def start_time(self) -> float:
+        return self.start_s
+
+    @property
+    def end_time(self) -> float:
+        return self.end_s
 
 
 def mask_to_events(
