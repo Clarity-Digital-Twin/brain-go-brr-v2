@@ -42,7 +42,10 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         self._has_labels = label_files is not None
 
         # Pre-compute or load window counts for each file
+        print(f"[DATA] Building dataset index for {len(self.edf_files)} files...", flush=True)
         for i, edf_path in enumerate(self.edf_files):
+            if i % 10 == 0:
+                print(f"[DATA] Processing file {i+1}/{len(self.edf_files)}: {edf_path.name}", flush=True)
             cache_path = None
             if self.cache_dir is not None:
                 cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"
@@ -61,6 +64,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
                             np.savez_compressed(cache_path, windows=windows_arr)
             else:
                 # Process file to create cache (but don't keep in memory)
+                print(f"[DATA] Building cache for {edf_path.name}...", flush=True)
                 windows_arr, labels_arr = self._process_file(edf_path, i)
                 n_windows = windows_arr.shape[0]
                 if cache_path is not None:
@@ -73,6 +77,8 @@ class EEGWindowDataset(torch.utils.data.Dataset):
             self._file_window_counts.append(n_windows)
             for w_idx in range(n_windows):
                 self._index_map.append((i, w_idx))
+
+        print(f"[DATA] Dataset ready! Total windows: {len(self._index_map)}", flush=True)
 
     def _process_file(
         self, edf_path: Path, file_idx: int

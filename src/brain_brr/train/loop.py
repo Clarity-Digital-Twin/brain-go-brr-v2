@@ -331,9 +331,22 @@ def validate_epoch(
     total_loss = 0.0
     num_batches = 0
 
+    # Robust tqdm handling for Modal/non-TTY environments
     use_tqdm = not os.getenv("BGB_DISABLE_TQDM")
     with torch.no_grad():
-        iterator = tqdm(dataloader, desc="Validating", leave=False) if use_tqdm else dataloader
+        if use_tqdm:
+            try:
+                progress_bar = tqdm(dataloader, desc="Validating", leave=False)
+                if progress_bar is None:
+                    print("[WARNING] tqdm returned None in validation, using plain iteration", flush=True)
+                    iterator = dataloader
+                else:
+                    iterator = progress_bar
+            except Exception as e:
+                print(f"[WARNING] tqdm failed in validation ({e}), using plain iteration", flush=True)
+                iterator = dataloader
+        else:
+            iterator = dataloader
         for windows, labels in iterator:
             windows = windows.to(device_obj)
             labels = labels.to(device_obj)
