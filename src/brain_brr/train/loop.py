@@ -199,10 +199,14 @@ def train_epoch(
     heartbeat_interval = 300  # 5 minutes
 
     # Calculate class weights from first batch (approximation)
+    # Create a fresh iterator to peek at first batch without consuming from main dataloader
     first_batch = next(iter(dataloader))
     _, first_labels = first_batch
     pos_ratio = float((first_labels > 0).float().mean())
     pos_weight_val = (1 - pos_ratio) / max(pos_ratio, 1e-8) if pos_ratio > 0 else 1.0
+
+    # IMPORTANT: We consumed one batch, so we need to account for this
+    # We'll save it for later use
 
     # AMP-safe, numerically stable loss on logits
     # (We keep model outputs as probabilities elsewhere for tests/inference)
@@ -282,8 +286,19 @@ def train_epoch(
 
     # Use enumerate for batch indexing (satisfies ruff SIM113)
     # But track global_step separately for proper scheduler behavior
+    # Process first batch separately if we used it for preflight
+    first_batch_processed = False
+
     try:
-        for batch_idx, (windows, labels) in enumerate(progress):
+        for batch_idx, batch_data in enumerate(progress):
+            # Check if this is the first batch and we already consumed it
+            if batch_idx == 0 and not first_batch_processed:
+                # Use the saved first batch from preflight
+                windows, labels = first_batch
+                first_batch_processed = True
+            else:
+                windows, labels = batch_data
+
             windows = windows.to(device_obj)
             labels = labels.to(device_obj)
 
