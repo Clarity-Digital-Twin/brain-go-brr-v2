@@ -1,5 +1,9 @@
 """Root test configuration and shared fixtures for Brain-Go-Brr v2."""
 
+# Fix CUDA detection in pytest-xdist multiprocessing
+# CUDA cannot be re-initialized in forked subprocess
+import multiprocessing
+import os
 import tempfile
 import time
 from collections.abc import Generator
@@ -11,11 +15,6 @@ import pytest
 import torch
 import yaml
 from click.testing import CliRunner
-
-# Fix CUDA detection in pytest-xdist multiprocessing
-# CUDA cannot be re-initialized in forked subprocess
-import multiprocessing
-import os
 
 # Force single GPU visibility for tests to avoid Triton device issues
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"

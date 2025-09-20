@@ -10,6 +10,7 @@ SOLID principles applied:
 
 from __future__ import annotations
 
+import math
 import os
 import random
 import sys
@@ -69,32 +70,68 @@ def worker_init_fn(worker_id: int) -> None:
 # ============================================================================
 
 
-def create_balanced_sampler(labels: torch.Tensor) -> WeightedRandomSampler:
-    """Create balanced sampler for imbalanced datasets.
+def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRandomSampler | None:
+    """Create positive-aware balanced sampler for imbalanced datasets.
 
     Args:
-        labels: (N, T) binary labels tensor
+        dataset: EEGWindowDataset instance
+        sample_size: Number of windows to sample for statistics
 
     Returns:
-        WeightedRandomSampler for balanced mini-batches
+        WeightedRandomSampler for balanced mini-batches or None if no seizures found
     """
-    # Aggregate to window-level: has seizure or not
-    window_has_seizure = (labels.max(dim=1).values > 0).float()
-    pos_ratio = float(window_has_seizure.mean().item())
+    print("[SAMPLER] Creating positive-aware balanced sampler...", flush=True)
 
-    # Avoid division by zero
-    if pos_ratio < 1e-8:
-        pos_ratio = 1e-8
+    # Sample dataset to find which windows have seizures
+    sample_size = min(sample_size, len(dataset))
+    sample_indices = torch.randperm(len(dataset))[:sample_size]
 
-    # Weight calculation: oversample minority class
-    pos_weight = (1 - pos_ratio) / pos_ratio
-    sample_weights = torch.where(window_has_seizure > 0, pos_weight, 1.0)
+    # Track which windows actually have seizures
+    window_has_seizure = torch.zeros(len(dataset), dtype=torch.float32)
+    sampled_seizure_count = 0
+
+    for idx in sample_indices:
+        _, label = dataset[idx.item()]
+        if (label > 0).any():
+            window_has_seizure[idx] = 1.0
+            sampled_seizure_count += 1
+
+    # Estimate seizure ratio
+    seizure_ratio = sampled_seizure_count / sample_size
+
+    if seizure_ratio < 1e-8:
+        print("[SAMPLER] WARNING: No seizures found in sample! Using uniform sampling.", flush=True)
+        return None
+
+    # Calculate weight for positive samples (sqrt to prevent explosion)
+    pos_weight = math.sqrt((1 - seizure_ratio) / seizure_ratio)
+
+    # Extrapolate to full dataset
+    # For unsampled indices, assign weight probabilistically
+    weights = torch.ones(len(dataset), dtype=torch.float32)
+
+    # Known seizure windows get high weight
+    weights[window_has_seizure > 0] = pos_weight
+
+    # Estimate weights for unsampled windows
+    unsampled_mask = torch.ones(len(dataset), dtype=torch.bool)
+    unsampled_mask[sample_indices] = False
+    n_unsampled_seizures = int(unsampled_mask.sum() * seizure_ratio)
+
+    if n_unsampled_seizures > 0:
+        unsampled_indices = torch.where(unsampled_mask)[0]
+        random_seizure_indices = unsampled_indices[torch.randperm(len(unsampled_indices))[:n_unsampled_seizures]]
+        weights[random_seizure_indices] = pos_weight
+
+    print(f"[SAMPLER] Seizure ratio: {seizure_ratio:.2%}", flush=True)
+    print(f"[SAMPLER] Positive weight: {pos_weight:.2f}", flush=True)
+    print(f"[SAMPLER] Estimated seizure windows: {(weights > 1).sum().item()}/{len(dataset)}", flush=True)
 
     return WeightedRandomSampler(
-        weights=sample_weights.tolist(),  # Convert to list for type checking
-        num_samples=len(sample_weights),
+        weights=weights.tolist(),
+        num_samples=len(weights),
         replacement=True,
-        generator=torch.Generator().manual_seed(42),  # Deterministic
+        generator=torch.Generator().manual_seed(42),
     )
 
 
@@ -198,15 +235,52 @@ def train_epoch(
     last_heartbeat = time.time()
     heartbeat_interval = 300  # 5 minutes
 
-    # Calculate class weights from first batch (approximation)
-    # Create a fresh iterator to peek at first batch without consuming from main dataloader
-    first_batch = next(iter(dataloader))
-    _, first_labels = first_batch
-    pos_ratio = float((first_labels > 0).float().mean())
-    pos_weight_val = (1 - pos_ratio) / max(pos_ratio, 1e-8) if pos_ratio > 0 else 1.0
+    # Calculate class weights from dataset sample (not just first batch!)
+    # Sample a significant portion to get accurate statistics
+    print("\n" + "=" * 60, flush=True)
+    print("[INIT] DATASET STATISTICS", flush=True)
+    print("=" * 60, flush=True)
 
-    # IMPORTANT: We consumed one batch, so we need to account for this
-    # We'll save it for later use
+    dataset = dataloader.dataset
+    sample_size = min(1000, len(dataset))  # Sample up to 1000 windows
+    sample_indices = torch.randperm(len(dataset))[:sample_size]
+
+    pos_count = 0
+    total_samples = 0
+
+    for idx in sample_indices:
+        _, label = dataset[idx.item()]
+        if (label > 0).any():
+            pos_count += 1
+        total_samples += 1
+
+    pos_ratio = pos_count / total_samples if total_samples > 0 else 1e-8
+
+    # Use sqrt scaling for extreme imbalance (prevents explosion)
+    if pos_ratio > 0 and pos_ratio < 0.5:
+        pos_weight_val = math.sqrt((1 - pos_ratio) / pos_ratio)
+    else:
+        pos_weight_val = 1.0
+
+    print(f"[DATASET] Sampled {sample_size} windows", flush=True)
+    print(
+        f"[DATASET] Windows with seizures: {pos_count}/{sample_size} ({100 * pos_ratio:.2f}%)",
+        flush=True,
+    )
+    print(f"[DATASET] Using pos_weight: {pos_weight_val:.2f} (sqrt scaling)", flush=True)
+    print("=" * 60 + "\n", flush=True)
+
+    # Validate dataset has seizures
+    if pos_ratio < 0.001:  # Less than 0.1% seizures
+        print("\n" + "!" * 60, flush=True)
+        print(f"[CRITICAL] Dataset has only {100 * pos_ratio:.4f}% seizures!", flush=True)
+        print("[CRITICAL] Model will likely collapse to all-negative predictions.", flush=True)
+        print("[CRITICAL] Increase BGB_LIMIT_FILES or use different data split.", flush=True)
+        print("!" * 60 + "\n", flush=True)
+
+    # Get first batch for preflight check
+    first_batch = next(iter(dataloader))
+    _, _first_labels = first_batch
 
     # AMP-safe, numerically stable loss on logits
     # (We keep model outputs as probabilities elsewhere for tests/inference)
@@ -708,6 +782,20 @@ def train(
             fa_rates=config.evaluation.fa_rates,
         )
 
+        # COLLAPSE DETECTION: Stop if model outputs all-negative
+        if val_metrics["auroc"] < 0.55 and epoch > 2:
+            print(f"\n⚠️ MODEL COLLAPSE DETECTED! AUROC={val_metrics['auroc']:.3f}", flush=True)
+            print("Model is predicting all-negative. Stopping training.", flush=True)
+            print("Potential causes:", flush=True)
+            print("  1. Dataset has too few seizures (<1%)", flush=True)
+            print("  2. Class weighting is insufficient", flush=True)
+            print("  3. Learning rate too high/low", flush=True)
+            print("\nRecommendations:", flush=True)
+            print("  - Increase BGB_LIMIT_FILES to include more seizure files", flush=True)
+            print("  - Use focal loss or stronger class weighting", flush=True)
+            print("  - Check dataset statistics logged at start", flush=True)
+            break
+
         # Log metrics
         if writer is not None:
             writer.add_scalar("Loss/train", train_loss, epoch)
@@ -846,31 +934,12 @@ def main() -> None:
         cache_dir=Path(config.data.cache_dir) / "val",
     )
 
-    # Create data loaders
+    # Create positive-aware balanced sampler
     train_sampler = None
     if config.data.use_balanced_sampling and len(train_dataset) > 0:
-        # Memory-optimized: sample subset to estimate class balance
-        sample_size = min(500, len(train_dataset))
-        sample_indices = torch.randperm(len(train_dataset))[:sample_size]
-
-        seizure_count = 0
-        for idx in sample_indices:
-            _, label = train_dataset[idx.item()]
-            if label.max().item() > 0.5:
-                seizure_count += 1
-
-        if seizure_count > 0:
-            # Create approximate balanced sampler
-            seizure_ratio = seizure_count / sample_size
-            weights = torch.ones(len(train_dataset))
-
-            # Randomly assign higher weights based on estimated ratio
-            pos_weight = (1 - seizure_ratio) / max(seizure_ratio, 1e-8)
-            n_seizure_est = int(len(train_dataset) * seizure_ratio)
-            seizure_indices = torch.randperm(len(train_dataset))[:n_seizure_est]
-            weights[seizure_indices] = pos_weight
-
-            train_sampler = WeightedRandomSampler(weights.tolist(), len(weights), replacement=True)
+        train_sampler = create_balanced_sampler(train_dataset, sample_size=500)
+        if train_sampler is None:
+            print("[WARNING] Failed to create balanced sampler, using uniform sampling", flush=True)
 
     train_loader_kwargs: dict[str, Any] = {
         "batch_size": config.training.batch_size,

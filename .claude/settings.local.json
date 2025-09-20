@@ -9,7 +9,13 @@
       "Bash(git fetch:*)",
       "Bash(git push:*)",
       "Bash(git branch:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(modal app:*)",
+      "Bash(python3:*)",
+      "Bash(tmux kill-session:*)",
+      "Bash(kill:*)",
+      "Bash(python:*)",
+      "Bash(make:*)"
     ],
     "deny": [],
     "ask": []
