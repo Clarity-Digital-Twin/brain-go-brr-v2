@@ -275,22 +275,20 @@ def main(
     """Modal deployment entrypoint.
 
     ⚠️ CRITICAL: Modal's --detach flag MUST go BEFORE the script name!
-
-    CORRECT:  modal run --detach deploy/modal/app.py -- --action train ...
-    WRONG:    modal run deploy/modal/app.py --action train ... --detach
+    ⚠️ NO DOUBLE DASH (--) separator needed anymore in Modal CLI!
 
     Examples:
         # Quick smoke test (Modal's --detach prevents disconnection)
-        modal run --detach deploy/modal/app.py -- --action train --config configs/smoke_test.yaml
+        modal run --detach deploy/modal/app.py --action train --config configs/smoke_test.yaml
 
         # Full A100 training (Modal's --detach prevents disconnection)
-        modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml
+        modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml
 
         # Resume training from last.pt in output_dir
-        modal run --detach deploy/modal/app.py -- --action train --resume true
+        modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --resume true
 
         # Evaluate checkpoint
-        modal run deploy/modal/app.py -- --action evaluate --config /results/checkpoints/best.ckpt
+        modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.pt
     """
     print("🚀 Brain-Go-Brr v2 Modal Deployment")
     print("=" * 50)
