@@ -240,9 +240,8 @@ def evaluate(
 @app.local_entrypoint()
 def main(
     action: str = "train",
-    config: str = "configs/tusz_train_a100.yaml",  # Default to A100-optimized
+    config: str = "configs/smoke_test.yaml",  # Default to smoke test for safety
     resume: bool = False,  # Resume training from last.pt
-    detach: bool = False,
 ):
     """Modal deployment entrypoint.
 
@@ -268,13 +267,9 @@ def main(
     print("=" * 50)
 
     if action == "train":
-        if detach:
-            handle = train.spawn(config_path=config, resume=resume)
-            print(f"Training started (detached). Run ID: {handle.object_id}")
-            print(f"Monitor at: https://modal.com/apps/{handle.object_id}")
-        else:
-            result = train.remote(config_path=config, resume=resume)
-            print(f"✓ Training complete. Checkpoint: {result}")
+        # Always use train.remote() - Modal's --detach flag controls app lifecycle
+        result = train.remote(config_path=config, resume=resume)
+        print(f"✓ Training complete. Checkpoint: {result}")
 
     elif action == "evaluate":
         # For evaluate, config arg is actually checkpoint path

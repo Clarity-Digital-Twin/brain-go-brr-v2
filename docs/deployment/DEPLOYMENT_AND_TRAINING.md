@@ -73,8 +73,8 @@ modal secret create aws-s3-secret \
 # Deploy to Modal
 modal deploy deploy/modal/app.py
 
-# Run training (A100-80GB, ~3x faster than RTX 4090)
-modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --detach
+# Run training (A100-80GB, ~3x faster than RTX 4090) - Modal's --detach BEFORE script!
+modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml
 
 # Monitor at https://modal.com/apps
 ```
@@ -125,4 +125,4 @@ modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.ya
 1. ✅ ~~Get AWS credentials~~ DONE
 2. ⏳ Wait for S3 upload to complete (~30 min)
 3. Deploy to Modal: `modal deploy deploy/modal/app.py`
-4. Run on A100s: `modal run deploy/modal/app.py --detach`
+4. Run on A100s: `modal run --detach deploy/modal/app.py`
