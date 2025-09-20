@@ -286,19 +286,8 @@ def train_epoch(
 
     # Use enumerate for batch indexing (satisfies ruff SIM113)
     # But track global_step separately for proper scheduler behavior
-    # Process first batch separately if we used it for preflight
-    first_batch_processed = False
-
     try:
-        for batch_idx, batch_data in enumerate(progress):
-            # Check if this is the first batch and we already consumed it
-            if batch_idx == 0 and not first_batch_processed:
-                # Use the saved first batch from preflight
-                windows, labels = first_batch
-                first_batch_processed = True
-            else:
-                windows, labels = batch_data
-
+        for batch_idx, (windows, labels) in enumerate(progress):
             windows = windows.to(device_obj)
             labels = labels.to(device_obj)
 
