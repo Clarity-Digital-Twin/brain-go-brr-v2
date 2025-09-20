@@ -6,11 +6,10 @@ Establish a clinically grounded, reproducible evaluation pipeline that turns per
 Success means: a deterministic, well‑tested evaluation stack with clear CLI, CI integration, and artifacts suitable for epilepsybenchmarks.com submission.
 
 ## 🔭 Scope & Status ✅ COMPLETE
-- ✅ Full implementation in `src/experiment/evaluate.py` with all target APIs
-- ✅ Complete test suite in `tests/test_evaluate.py` (19 tests passing)
-- ✅ Phase 4 APIs fully integrated (hysteresis, morphology, stitching)
-- ✅ Export functionality in `src/experiment/export.py` (CSV_BI, JSON)
-- ✅ CLI evaluation command in `src/brain_brr/cli/cli.py` (and runnable via `python -m src`) with export options
+- ✅ Implementation lives under `src/brain_brr/` (older `src/experiment/*` names are historical)
+- ✅ Phase 4 APIs integrated (hysteresis, morphology, stitching)
+- ✅ Export functionality in `src/brain_brr/events/export.py` (CSV_BI, JSON)
+- ✅ CLI evaluation command in `src/brain_brr/cli/cli.py` (runnable via `python -m src`) with export options
 - ✅ Evaluation is CPU‑safe and does not require CUDA
 
 All target APIs defined in this document have been implemented and tested.
@@ -116,11 +115,13 @@ Outputs enhancement:
 
 ## 🧵 CLI & Make Targets
 
-CLI (suggested):
-- `python -m src evaluate --config configs/production.yaml --split dev --out results/metrics/dev.json`
+CLI examples:
+- Evaluate (dev tuning):
+  `python -m src evaluate /path/to/checkpoint.pt data_ext4/tusz/edf/dev --config configs/tusz_dev_tuning.yaml --output-json results/dev_metrics.json`
+- Final eval:
+  `python -m src evaluate /path/to/checkpoint.pt data_ext4/tusz/edf/eval --config configs/tusz_eval_final.yaml --output-json results/final_metrics.json`
 
-Exports: use library functions in `src/experiment/export.py` (CSV_BI/JSON).
-If desired, a dedicated CLI subcommand can be added later.
+Exports: use library functions in `src/brain_brr/events/export.py` (CSV_BI/JSON).
 
 Make (optional additions):
 - `make eval-dev` → run evaluation on validation split; write metrics JSON + plots.
