@@ -22,10 +22,12 @@ class TestSeizureDetector:
     def sample_input(self) -> torch.Tensor:
         return torch.randn(4, 19, 15360)
 
+    @pytest.mark.serial
     def test_forward_shape(self, model: SeizureDetector, sample_input: torch.Tensor) -> None:
         output = model(sample_input)
         assert output.shape == (4, 15360)
 
+    @pytest.mark.serial
     def test_output_range(self, model: SeizureDetector, sample_input: torch.Tensor) -> None:
         """Test that model outputs raw logits (can be any real value)."""
         output = model(sample_input)

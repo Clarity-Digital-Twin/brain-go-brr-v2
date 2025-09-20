@@ -68,6 +68,7 @@ class TestTrainingSmoke:
         assert train_loss < 10  # Reasonable range
         assert not torch.isnan(torch.tensor(train_loss))
 
+    @pytest.mark.serial
     def test_validation(
         self, model: SeizureDetector, synthetic_data: tuple[DataLoader, DataLoader]
     ) -> None:

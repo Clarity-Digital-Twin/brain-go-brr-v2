@@ -185,6 +185,7 @@ class TestResCNNStack:
         ).mean()
         assert correlation > 0, "Output should maintain some correlation with input"
 
+    @pytest.mark.serial
     def test_different_num_blocks(self):
         """Test stack with different numbers of blocks."""
         for num_blocks in [1, 2, 3, 5]:
