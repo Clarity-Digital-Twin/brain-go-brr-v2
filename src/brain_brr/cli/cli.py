@@ -38,6 +38,18 @@ def validate(config_path: Path, phase: str | None) -> None:
             yaml_content = f.read()
             data = yaml.safe_load(yaml_content)
 
+        # Enforce presence of core sections to catch under-specified configs
+        if not isinstance(data, dict):
+            console.print("[red]❌ Invalid YAML structure (expected mapping)[/red]")
+            sys.exit(1)
+        required_sections = ["data", "model", "training", "postprocessing"]
+        missing_sections = [k for k in required_sections if k not in data]
+        if missing_sections:
+            console.print(
+                f"[red]❌ Missing required sections:[/red] {', '.join(missing_sections)}"
+            )
+            sys.exit(1)
+
         # Validate against schema
         config = Config(**data)
 
