@@ -62,7 +62,7 @@ training:
   epochs: 1                    # Just 1 epoch for smoke test
   batch_size: 8                # Small batch for memory
   loss: focal                  # USE FOCAL LOSS FOR EXTREME IMBALANCE!
-  # focal_alpha: disabled - using pos_weight instead (no double-counting!)
+  focal_alpha: 0.5             # Neutral alpha; rely on pos_weight to handle imbalance
   focal_gamma: 2.0             # Focusing parameter (higher = more focus on hard examples)
   learning_rate: 3e-4
   weight_decay: 0.05

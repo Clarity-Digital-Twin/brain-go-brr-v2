@@ -33,7 +33,9 @@
       "Bash(modal run:*)",
       "Bash(tmux ls:*)",
       "Bash(for f in configs/*.yaml)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(awk:*)",
+      "Bash(xargs -r kill -9)"
     ],
     "deny": [],
     "ask": []

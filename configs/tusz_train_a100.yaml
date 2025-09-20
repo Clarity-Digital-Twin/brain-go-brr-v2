@@ -61,7 +61,7 @@ training:
   epochs: 100                          # full training - will early stop if converged
   batch_size: 64                       # A100 80GB can handle 4x larger batches
   loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
-  focal_alpha: 0.25                    # Balance factor (0.25 = 75% weight on negatives)
+  focal_alpha: 0.5                     # Neutral alpha; rely on pos_weight from dataset sample
   focal_gamma: 2.0                     # Focusing parameter (higher = more focus on hard examples)
   learning_rate: 3e-4
   weight_decay: 0.05

@@ -342,11 +342,28 @@ def train_epoch(
     if use_focal:
         focal = FocalLoss(alpha=focal_alpha, gamma=focal_gamma)
 
+        # Avoid double-counting class priors: if alpha != 0.5 (class-balanced),
+        # do NOT pass pos_weight to BCE term. Alpha<0.5 down-weights positives.
+        alpha_diff = abs(float(focal_alpha) - 0.5)
+        pass_pos_weight = alpha_diff < 1e-6
+        if not pass_pos_weight:
+            if focal_alpha < 0.5:
+                print(
+                    "[WARNING] focal_alpha < 0.5 down-weights positives; ensure this is intended",
+                    flush=True,
+                )
+            print(
+                "[INIT] FOCAL: alpha != 0.5 → disabling pos_weight to avoid double-counting",
+                flush=True,
+            )
+
         def compute_loss(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-            return cast(torch.Tensor, focal(x, y, pos_weight=pos_weight_t))
+            pw = pos_weight_t if pass_pos_weight else None
+            return cast(torch.Tensor, focal(x, y, pos_weight=pw))
 
         print(
-            f"[INIT] Using FOCAL loss (alpha={focal_alpha}, gamma={focal_gamma})",
+            f"[INIT] Using FOCAL loss (alpha={focal_alpha}, gamma={focal_gamma}, "
+            f"pos_weight={'on' if pass_pos_weight else 'off'})",
             flush=True,
         )
     else:

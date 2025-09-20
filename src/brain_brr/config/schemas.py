@@ -270,7 +270,7 @@ class TrainingConfig(BaseModel):
         default="bce", description="Loss function: 'bce' or 'focal'"
     )
     focal_alpha: float = Field(
-        default=0.25, ge=0.0, le=1.0, description="Focal loss alpha (class balance)"
+        default=0.5, ge=0.0, le=1.0, description="Focal loss alpha (0.5 = no class reweight)"
     )
     focal_gamma: float = Field(
         default=2.0, ge=0.0, description="Focal loss gamma (hard sample focusing)"
