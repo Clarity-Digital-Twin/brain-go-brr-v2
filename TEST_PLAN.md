@@ -1,181 +1,232 @@
-# 🧪 Brain-Go-Brr v2 Test Plan
+# 🧪 Brain-Go-Brr v2 Test Plan - REAL TESTS ONLY
 
-## 📊 Current Coverage Analysis
+## 📊 Current Coverage Reality Check
 
-### ✅ What We Have (Strong Coverage)
-- **Models**: Mamba (84%), ResCNN (98%), UNet (95%), Detector (98%)
-- **Core Pipeline**: Streaming (97%), Events (86%), Metrics (93%)
-- **Integration**: Smoke tests, model assembly, streaming tests
-- **Performance**: Latency benchmarks, memory profiling
-- **Clinical**: Channel ordering, TAES metrics validation
+### ✅ What We Have (Actually Good Tests)
+- **Models**: REAL GPU tests with actual tensors (84-98% coverage)
+- **Performance**: REAL latency benchmarks on CUDA (test_latency.py)
+- **Integration**: REAL model forward passes, no mocking
+- **Clinical**: REAL TAES metrics with actual predictions
 
-### 🚨 Critical Gaps (0% Coverage)
-1. **WandB Integration** (`train/wandb_integration.py` - 0%)
-2. **Modal Deployment** (No tests for distributed training)
-3. **S3 Data Loading** (No tests for cloud data paths)
+### 🚨 Critical Missing Tests (REAL IMPLEMENTATION NEEDED)
+1. **Corrupted EDF Recovery** - REAL malformed files from TUSZ
+2. **Extreme Class Imbalance** - REAL 99.9% negative batches
+3. **GPU Memory Pressure** - REAL OOM scenarios with batch scaling
+4. **Multi-GPU Training** - REAL distributed data parallel tests
 
-### ⚠️ Moderate Gaps (60-70% Coverage)
+### ⚠️ Coverage Gaps That Matter
 1. **Data IO** (`data/io.py` - 71%)
-   - Missing: Corrupted EDF handling
-   - Missing: Channel missing scenarios
-   - Missing: Multi-file batch loading
+   - Need: REAL corrupted TUSZ files that crash MNE
+   - Need: REAL missing channel scenarios from clinical data
+   - Need: REAL parallel loading stress tests
 
-2. **Dataset Loading** (`data/datasets.py` - 62%)
-   - Missing: Cache invalidation
-   - Missing: Parallel worker edge cases
-   - Missing: Memory-mapped loading
+2. **Training Loop** (`train/loop.py` - 60-70%)
+   - Need: REAL gradient explosion with extreme LR
+   - Need: REAL focal loss collapse detection
+   - Need: REAL checkpoint corruption recovery
 
-3. **CLI Commands** (`cli/cli.py` - 69%)
-   - Missing: Modal submission paths
-   - Missing: Error recovery
-   - Missing: Config validation edge cases
+3. **Post-processing** (`post/postprocess.py` - 89%)
+   - Need: REAL rapid oscillation sequences
+   - Need: REAL boundary condition stress tests
 
-## 🎯 Priority Test Additions
+## 🎯 REAL Tests We Need NOW
 
-### Priority 1: Data Robustness 🔴
+### Priority 1: Data Corruption (REAL FILES) 🔴
 ```python
 # tests/unit/data/test_io_edge_cases.py
-- test_corrupted_edf_header_recovery()
-- test_missing_critical_channels()
-- test_channel_interpolation_limits()
-- test_extreme_sampling_rates()
-- test_malformed_annotations()
-- test_unicode_channel_names()
-- test_zero_duration_files()
+def test_real_corrupted_tusz_files():
+    """Test ACTUAL corrupted TUSZ files that crash in production"""
+    # Use REAL problematic files from TUSZ that have:
+    # - Malformed headers
+    # - Missing channels (no Fz, Pz)
+    # - Unicode channel names (T7→T3 synonyms)
+    # - Zero duration segments
+
+def test_extreme_class_imbalance_real_data():
+    """Load REAL TUSZ files with 99.9% background"""
+    # Not synthetic - REAL seizure-free recordings
+    # Assert balanced sampler actually finds the 0.1% seizure windows
+
+def test_parallel_loading_stress():
+    """Stress test with num_workers=8 on REAL data"""
+    # Load 100GB of EDF files in parallel
+    # Assert no deadlocks, no corruption
 ```
 
-### Priority 2: Training Stability 🟠
+### Priority 2: Training Explosions (REAL GPU) 🟠
 ```python
 # tests/integration/test_training_edge_cases.py
-- test_nan_gradient_recovery()
-- test_loss_explosion_handling()
-- test_checkpoint_corruption_recovery()
-- test_mixed_precision_stability()
-- test_class_imbalance_extreme()  # 99.9% negative
-- test_empty_batch_handling()
-- test_oom_recovery()
+def test_focal_loss_collapse_real_imbalance():
+    """Train 5 epochs on REAL 99.9% negative data"""
+    # Use REAL focal loss with alpha=0.999
+    # Assert AUROC doesn't collapse to 0.5
+    # Assert positive class gets non-zero gradients
+
+def test_gradient_explosion_extreme_lr():
+    """REAL training with LR=10.0 for 10 steps"""
+    # No mocking - let it explode
+    # Assert gradient clipping prevents NaN
+
+def test_cuda_oom_recovery():
+    """Progressively increase batch size until OOM"""
+    # Start at batch_size=32, double each epoch
+    # Assert graceful batch reduction on OOM
 ```
 
-### Priority 3: Production Deployment 🟡
+### Priority 3: GPU Memory & Performance (REAL CUDA) 🟡
 ```python
-# tests/integration/test_modal_deployment.py
-- test_modal_volume_mounting()
-- test_distributed_data_loading()
-- test_multi_gpu_synchronization()
-- test_s3_data_streaming()
-- test_checkpoint_s3_sync()
-- test_wandb_logging_integration()
+# tests/performance/test_memory_pressure.py
+def test_memory_leak_1000_epochs():
+    """Train 1000 mini-epochs, monitor GPU memory"""
+    # REAL training loop, REAL GPU memory tracking
+    # Assert memory usage stable (no leak)
+
+def test_multi_gpu_data_parallel():
+    """REAL multi-GPU training if available"""
+    # Use torch.nn.DataParallel on 2+ GPUs
+    # Assert gradients synchronized correctly
+
+def test_mixed_precision_numerical_stability():
+    """Train with AMP on REAL data"""
+    # Assert no NaN/Inf in 100 epochs
+    # Assert final loss within 1% of FP32
 ```
 
-### Priority 4: Post-Processing Edge Cases 🟢
+### Priority 4: Post-Processing Stress (REAL PREDICTIONS) 🟢
 ```python
 # tests/unit/post/test_hysteresis_edge.py
-- test_rapid_oscillations()
-- test_boundary_conditions()
-- test_single_sample_spike()
-- test_morphology_extremes()
-- test_duration_filter_edge()
+def test_rapid_oscillations_stress():
+    """Generate 1M samples oscillating at Nyquist frequency"""
+    # Probability flips every sample between 0.1 and 0.9
+    # Assert hysteresis doesn't crash or leak memory
+
+def test_morphology_extreme_kernels():
+    """Test with kernel_size=1001 on REAL predictions"""
+    # Assert doesn't crash, produces valid output
+
+def test_stitching_100_overlapping_windows():
+    """Stitch 100 windows with 90% overlap"""
+    # REAL detector output, not synthetic
+    # Assert final prediction smooth and valid
 ```
 
-### Priority 5: Error Recovery 🔵
+### Priority 5: Production Scenarios (REAL DEPLOYMENT) 🔵
 ```python
-# tests/integration/test_error_recovery.py
-- test_cuda_oom_batch_reduction()
-- test_data_loading_retry_logic()
-- test_checkpoint_partial_save()
-- test_wandb_offline_fallback()
-- test_config_validation_errors()
+# tests/integration/test_production_scenarios.py
+def test_24_hour_continuous_inference():
+    """Run inference on 24 hours of REAL EEG"""
+    # Load actual 24-hour recording
+    # Assert <10 FA/24h at tau_on=0.86
+    # Assert memory usage stable
+
+def test_checkpoint_recovery_mid_epoch():
+    """Kill training at step 500, resume"""
+    # REAL checkpoint save/load
+    # Assert continues from exact step
+    # Assert metrics identical post-resume
 ```
 
-## 🏗️ Test Infrastructure Improvements
+## 🏗️ NO MOCKS - REAL TEST INFRASTRUCTURE
 
-### 1. Fixture Enhancements
+### 1. REAL Data Fixtures
 ```python
 # tests/conftest.py additions
 @pytest.fixture
-def corrupted_edf_path():
-    """Generate corrupted EDF for testing."""
+def real_corrupted_edf():
+    """Return ACTUAL corrupted EDF from TUSZ that crashes MNE"""
+    # data_ext4/tusz/edf/train/01_tcp_ar/002/00000258/*.edf
+    # These files have known issues we need to handle
 
 @pytest.fixture
-def extreme_class_imbalance_data():
-    """99.9% negative, 0.1% positive."""
+def real_imbalanced_dataset():
+    """REAL dataset with 99.9% background from TUSZ"""
+    # Use actual seizure-free recordings
+    # Not synthetic bullshit
 
 @pytest.fixture
-def modal_mock_environment():
-    """Mock Modal cloud environment."""
+def gpu_memory_tracker():
+    """Track REAL GPU memory usage during tests"""
+    return torch.cuda.memory_stats()
 ```
 
-### 2. Performance Regression Guards
+### 2. REAL Performance Benchmarks
 ```python
-# tests/performance/test_regression.py
-- test_inference_latency_regression()  # <100ms/window
-- test_memory_leak_detection()  # Stable over 1000 iterations
-- test_throughput_regression()  # >1000 windows/sec
+# tests/performance/test_real_performance.py
+def test_latency_under_load():
+    """100ms latency with 8 concurrent streams"""
+    # REAL concurrent inference threads
+    # REAL GPU contention
+
+def test_memory_stability_24h():
+    """No leaks over 24 hour simulation"""
+    # REAL 24 hours of windows
+    # REAL memory tracking
+
+def test_throughput_saturation():
+    """Find actual throughput limit on GPU"""
+    # Keep increasing batch size until GPU saturates
+    # Report actual windows/sec
 ```
 
-### 3. Clinical Validation Suite
+### 3. REAL Clinical Validation
 ```python
-# tests/clinical/test_clinical_validation.py
-- test_seizure_onset_latency()  # <2s detection
-- test_seizure_offset_accuracy()  # ±5s tolerance
-- test_minimum_seizure_duration()  # Detect 5s seizures
-- test_maximum_false_alarm_rate()  # <10 FA/24h
+# tests/clinical/test_real_clinical.py
+def test_tusz_test_set():
+    """Run on ENTIRE TUSZ test set"""
+    # REAL test files, not cherry-picked
+    # Assert TAES metrics match paper claims
+
+def test_chb_mit_cross_validation():
+    """Full CHB-MIT dataset validation"""
+    # All 24 patients
+    # Assert generalization across patients
 ```
 
-## 📈 Coverage Targets
+## 📈 REAL Coverage Targets
 
-| Module | Current | Target | Priority |
-|--------|---------|--------|----------|
-| data/io.py | 71% | 95% | HIGH |
-| data/datasets.py | 62% | 90% | HIGH |
-| cli/cli.py | 69% | 85% | MEDIUM |
-| train/loop.py | 86% | 95% | MEDIUM |
-| wandb_integration.py | 0% | 80% | LOW* |
-| post/postprocess.py | 89% | 98% | HIGH |
+| Module | Current | Target | Method |
+|--------|---------|--------|--------|
+| data/io.py | 71% | 95% | Test REAL corrupted TUSZ files |
+| data/datasets.py | 62% | 90% | Test REAL parallel loading |
+| train/loop.py | 60% | 90% | Test REAL training explosions |
+| post/postprocess.py | 89% | 98% | Test REAL edge predictions |
 
-*Low only if not using WandB in production
+## 🔧 Implementation NOW
 
-## 🔧 Implementation Strategy
+### TODAY - Do These First
+1. **test_io_edge_cases.py** - REAL corrupted file handling
+2. **test_training_edge_cases.py** - REAL gradient explosions
+3. **test_hysteresis_edge.py** - REAL oscillation stress
 
-### Phase 1 (Immediate)
-1. Data robustness tests (prevent training crashes)
-2. Hysteresis edge cases (clinical accuracy)
-3. Error recovery tests (production stability)
+### TOMORROW - GPU Stress
+1. **test_memory_pressure.py** - REAL memory leak detection
+2. **test_multi_gpu.py** - REAL DataParallel if 2+ GPUs
+3. **test_mixed_precision.py** - REAL AMP stability
 
-### Phase 2 (This Week)
-1. Modal deployment tests
-2. Performance regression suite
-3. Clinical validation expansion
-
-### Phase 3 (Nice to Have)
-1. WandB integration (if using)
-2. Comprehensive CLI testing
-3. Stress testing suite
-
-## 🚀 Execution Commands
+## 🚀 Run Commands
 
 ```bash
-# Run new edge case tests
-make test-edge
+# Run REAL edge cases on GPU
+CUDA_VISIBLE_DEVICES=0 pytest tests/unit/data/test_io_edge_cases.py -xvs
 
-# Run performance regression
-make test-perf
+# Run REAL performance tests
+pytest tests/performance/ -m performance -xvs
 
-# Run clinical validation
-make test-clinical
+# Run REAL clinical validation
+pytest tests/clinical/ -m clinical -xvs
 
-# Full test suite with coverage
+# FULL test suite with GPU
 make test-all
 ```
 
-## 📝 Notes
+## 📝 CRITICAL RULES
 
-- Focus on **data corruption** first - most common production failure
-- **Class imbalance** tests critical - real data is 99%+ negative
-- Modal tests can use mocks initially, then integration tests
-- Performance tests should run nightly, not on every commit
-- Clinical tests need real EDF samples from TUSZ
+- **NO MOCKS** - Use real data, real models, real GPU
+- **NO SKIPPING** - If it needs GPU, it gets GPU
+- **NO SYNTHETIC** - Use actual TUSZ/CHB-MIT files
+- **STRESS TEST** - Push to actual failure points
+- **MEASURE REAL** - Actual latency, actual memory, actual throughput
 
 ---
 
-**Mission**: Bulletproof the pipeline for production deployment 🛡️
+**Mission**: REAL tests that break REAL things so we can fix them 🔥

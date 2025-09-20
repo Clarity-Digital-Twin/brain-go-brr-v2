@@ -52,7 +52,8 @@
       "Bash(then coverage report --show-missing)",
       "Bash(else echo \"No coverage file - running quick coverage check\")",
       "Bash(.venv/bin/pytest tests/unit/models/test_mamba.py --cov=src/brain_brr --cov-report=term-missing --no-header -q)",
-      "Bash(fi)"
+      "Bash(fi)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
