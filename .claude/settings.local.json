@@ -86,7 +86,8 @@
       "Bash(lsof:*)",
       "Bash(.venv/bin/pytest --collect-only -q)",
       "Bash(.venv/bin/pytest --markers)",
-      "Bash(.venv/bin/pytest --collect-only -q -m performance)"
+      "Bash(.venv/bin/pytest --collect-only -q -m performance)",
+      "Bash(.venv/bin/pytest --collect-only -q -m serial)"
     ],
     "deny": [],
     "ask": []
