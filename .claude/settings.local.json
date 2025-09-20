@@ -1,18 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(.venv/bin/pytest --collect-only tests/performance/test_latency.py::TestInferenceLatency::test_single_window_latency -q)",
-      "Bash(.venv/bin/pytest tests/performance/test_latency.py::TestInferenceLatency::test_single_window_latency -xvs -n 0)",
-      "Bash(grep:*)",
-      "Read(///**)",
-      "Bash(sed:*)",
-      "WebSearch",
-      "Bash(pip show:*)",
-      "Bash(python:*)",
-      "Bash(pip uninstall:*)",
-      "Bash(pip install:*)",
-      "Bash(make:*)",
-      "Bash(CUDA_VISIBLE_DEVICES=0 python -c \"\nimport torch\nfrom src.brain_brr.config.schemas import *\nfrom src.brain_brr.models import SeizureDetector\n\n# Ensure we''re on device 0\ntorch.cuda.set_device(0)\n\nconfig = ModelConfig(\n    encoder=EncoderConfig(channels=[64, 128, 256, 512], stages=4),\n    rescnn=ResCNNConfig(n_blocks=3, kernel_sizes=[3, 5, 7]),\n    mamba=MambaConfig(n_layers=1, d_model=512, d_state=16, conv_kernel=5),\n    decoder=DecoderConfig(stages=4, kernel_size=4),\n)\n\nmodel = SeizureDetector.from_config(config).cuda()\nx = torch.randn(1, 19, 15360).cuda()\n\nwith torch.no_grad():\n    output = model(x)\n    print(f''✓ Model works! Output shape: {output.shape}'')\n\")"
+      "Bash(.venv/bin/pytest tests/performance/test_latency.py::TestInferenceLatency::test_model_compilation_speedup -xvs -n 0)"
     ],
     "deny": [],
     "ask": []
