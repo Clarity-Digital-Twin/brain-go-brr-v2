@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 try:
     import wandb
+
     WANDB_AVAILABLE = True
 except ImportError:
     WANDB_AVAILABLE = False
@@ -20,7 +21,7 @@ class WandBLogger:
         self.run = None
 
         # Check if W&B is enabled in config
-        if not hasattr(config.experiment, 'wandb') or not config.experiment.wandb.enabled:
+        if not hasattr(config.experiment, "wandb") or not config.experiment.wandb.enabled:
             return
 
         # Check if W&B is installed
@@ -45,12 +46,16 @@ class WandBLogger:
                     "batch_size": config.training.batch_size,
                     "model": "Bi-Mamba-2 + U-Net + ResCNN",
                     "optimizer": config.training.optimizer,
-                    "scheduler": config.training.scheduler.type if config.training.scheduler else None,
+                    "scheduler": config.training.scheduler.type
+                    if config.training.scheduler
+                    else None,
                     "seed": config.experiment.seed,
                     "mixed_precision": config.training.mixed_precision,
                     "gradient_clip": config.training.gradient_clip,
                     "weight_decay": config.training.weight_decay,
-                    "warmup_ratio": config.training.scheduler.warmup_ratio if config.training.scheduler else None,
+                    "warmup_ratio": config.training.scheduler.warmup_ratio
+                    if config.training.scheduler
+                    else None,
                     "early_stopping_patience": config.training.early_stopping.patience,
                     "early_stopping_metric": config.training.early_stopping.metric,
                     # Model config

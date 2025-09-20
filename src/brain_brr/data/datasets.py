@@ -45,7 +45,10 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         print(f"[DATA] Building dataset index for {len(self.edf_files)} files...", flush=True)
         for i, edf_path in enumerate(self.edf_files):
             if i % 10 == 0:
-                print(f"[DATA] Processing file {i+1}/{len(self.edf_files)}: {edf_path.name}", flush=True)
+                print(
+                    f"[DATA] Processing file {i + 1}/{len(self.edf_files)}: {edf_path.name}",
+                    flush=True,
+                )
             cache_path = None
             if self.cache_dir is not None:
                 cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"

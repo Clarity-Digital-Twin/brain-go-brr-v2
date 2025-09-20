@@ -338,12 +338,17 @@ def validate_epoch(
             try:
                 progress_bar = tqdm(dataloader, desc="Validating", leave=False)
                 if progress_bar is None:
-                    print("[WARNING] tqdm returned None in validation, using plain iteration", flush=True)
+                    print(
+                        "[WARNING] tqdm returned None in validation, using plain iteration",
+                        flush=True,
+                    )
                     iterator = dataloader
                 else:
                     iterator = progress_bar
             except Exception as e:
-                print(f"[WARNING] tqdm failed in validation ({e}), using plain iteration", flush=True)
+                print(
+                    f"[WARNING] tqdm failed in validation ({e}), using plain iteration", flush=True
+                )
                 iterator = dataloader
         else:
             iterator = dataloader
