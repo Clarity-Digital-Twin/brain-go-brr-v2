@@ -114,10 +114,16 @@ def train(
     env["CUDA_VISIBLE_DEVICES"] = "0"
     env["PYTHONPATH"] = "/app"
     env["PYTHONUNBUFFERED"] = "1"  # CRITICAL: Force unbuffered output for real-time logs
+    env["PYTHONFAULTHANDLER"] = "1"  # Enable Python fault handler for better error traces
     env["SEIZURE_MAMBA_FORCE_FALLBACK"] = "0"  # Use CUDA kernels
+    env["PYTHONTRACEMALLOC"] = "1"  # Track memory allocations for debugging
     # Only limit files for smoke tests
     if "smoke" in config_path.lower():
         env.setdefault("BGB_LIMIT_FILES", "50")
+
+    # Optionally disable tqdm if it causes issues in subprocess
+    # Uncomment this line if tqdm still fails after fixes:
+    # env["BGB_DISABLE_TQDM"] = "1"
     # For production, use full dataset (no limit)
 
     # Prepare a temp config to ensure data/output point to persistent volumes
@@ -171,12 +177,23 @@ def train(
     print("Starting training process with real-time logging...")
     print(f"Data loading from S3 may take 10-20 minutes for large datasets", flush=True)
 
-    # Use Popen for real-time output instead of capture_output
-    process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    # Use Popen for real-time output with proper buffering
+    # bufsize=1 enables line buffering which is better for tqdm
+    process = subprocess.Popen(
+        cmd,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,  # Line buffering for better tqdm compatibility
+    )
 
-    # Stream output in real-time
-    for line in process.stdout:
-        print(line, end='', flush=True)
+    # Stream output in real-time with error handling
+    try:
+        for line in process.stdout:
+            print(line, end='', flush=True)
+    except Exception as e:
+        print(f"[ERROR] Output streaming failed: {e}", flush=True)
 
     # Wait for process to complete
     returncode = process.wait()

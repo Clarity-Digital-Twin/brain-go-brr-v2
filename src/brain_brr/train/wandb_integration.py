@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 try:
     import wandb
@@ -82,7 +82,7 @@ class WandBLogger:
         except Exception as e:
             print(f"Failed to initialize W&B: {e}", flush=True)
 
-    def log(self, metrics: dict[str, Any], step: Optional[int] = None):
+    def log(self, metrics: dict[str, Any], step: int | None = None):
         """Log metrics to W&B."""
         if self.enabled and self.run:
             try:
