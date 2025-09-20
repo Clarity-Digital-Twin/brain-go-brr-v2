@@ -54,16 +54,19 @@ class TestInferenceLatency:
             for _ in range(10):
                 _ = production_model(window)
 
-        # Benchmark
-        with benchmark_timer, torch.no_grad():
+        # Benchmark - measure individual inference times
+        times = []
+        with torch.no_grad():
             for _ in range(100):
+                start = time.perf_counter()
                 _ = production_model(window)
                 # Sync for accurate GPU timing
                 if device.type == "cuda":
                     torch.cuda.synchronize()
+                times.append(time.perf_counter() - start)
 
-        p95_latency_ms = benchmark_timer.p95 * 1000 / 100  # Convert to ms per inference
-        median_latency_ms = benchmark_timer.median * 1000 / 100
+        p95_latency_ms = np.percentile(times, 95) * 1000  # Convert to ms
+        median_latency_ms = np.median(times) * 1000
 
         # Requirements: <100ms for real-time processing
         assert p95_latency_ms < 100, f"P95 latency {p95_latency_ms:.1f}ms exceeds 100ms target"
