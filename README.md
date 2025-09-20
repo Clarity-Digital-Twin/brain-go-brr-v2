@@ -19,7 +19,9 @@
 
 ## 🎯 Mission
 
-We're solving the critical gap in clinical seizure detection: current systems have **>10 false alarms per day**, making them clinically unusable. While transformers show promise, their O(N²) complexity prevents real-time deployment on long EEG recordings.
+We are investigating whether combining bidirectional state space models (Bi‑Mamba‑2) with multi‑scale CNNs (U‑Net + ResCNN) can reduce false alarms while maintaining sensitivity on long clinical EEG. Current systems often trigger **>10 false alarms per day**, and while transformers perform well, their O(N²) cost hinders real‑time use on long recordings. This project explores an O(N) alternative; benchmarking is pending.
+
+Note (literature, 2024‑10): we are not aware of a published evaluation of this exact architecture (U‑Net + ResCNN + bidirectional Mamba‑2 for clinical seizure detection). Related work uses Mamba variants for EEG, but with different model compositions or scopes.
 
 **Our approach**: A novel architecture combining bidirectional Mamba-2 SSMs with U-Net CNNs and residual convolutions, achieving **O(N) complexity** with a research goal of reducing false alarms to clinically acceptable rates.
 
