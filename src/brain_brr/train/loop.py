@@ -209,6 +209,46 @@ def train_epoch(
     pos_weight_t = torch.as_tensor(pos_weight_val, device=device_obj, dtype=torch.float32)
     criterion = nn.BCEWithLogitsLoss(reduction="none", pos_weight=pos_weight_t)
 
+    # GUARDRAILS: Validate critical components before training
+    if criterion is None or not callable(criterion):
+        raise TypeError(f"criterion must be callable, got {criterion!r}")
+    if scheduler is not None and not hasattr(scheduler, "step"):
+        raise TypeError(f"scheduler must have 'step' method, got {type(scheduler)}")
+    if use_amp and not hasattr(scaler, "scale"):
+        raise TypeError(f"GradScaler expected for AMP, got {type(scaler)}")
+
+    # PREFLIGHT CHECK: Test one batch to catch errors early
+    print("[PREFLIGHT] Testing one batch before training...", flush=True)
+    test_windows, test_labels = first_batch
+    test_windows = test_windows.to(device_obj)
+    test_labels = test_labels.to(device_obj)
+
+    # Handle multi-channel labels for test
+    if test_labels.dim() == 3:  # (B, C, T)
+        test_labels = test_labels.max(dim=1)[0]  # (B, T)
+
+    model.eval()
+    try:
+        with torch.no_grad():
+            with autocast(enabled=(use_amp and device == "cuda")):
+                test_logits = model(test_windows)  # (B, T) raw logits
+                test_loss = criterion(test_logits, test_labels)
+                if test_loss is None:
+                    raise ValueError("Loss computation returned None")
+                print(f"[PREFLIGHT] ✓ Model forward pass OK, loss shape: {test_loss.shape}", flush=True)
+    except Exception as e:
+        print(f"[PREFLIGHT] ✗ Failed on test batch: {e}", flush=True)
+        print(f"[PREFLIGHT] Debug info:", flush=True)
+        print(f"  - Model type: {type(model)}", flush=True)
+        print(f"  - Input shape: {test_windows.shape}", flush=True)
+        print(f"  - Labels shape: {test_labels.shape}", flush=True)
+        print(f"  - Criterion: {criterion}", flush=True)
+        print(f"  - Device: {device_obj}", flush=True)
+        raise
+    finally:
+        model.train()
+
+    print(f"[TRAIN] Starting epoch with {len(dataloader)} batches", flush=True)
     total_loss = 0.0
     num_batches = 0
 
