@@ -49,6 +49,14 @@ class TestInferenceLatency:
         device = next(production_model.parameters()).device
         window = window.to(device)
 
+        # Debug output
+        import os
+        print(f"\n[DEBUG] Model device: {device}")
+        print(f"[DEBUG] Window device: {window.device}")
+        print(f"[DEBUG] CUDA available: {torch.cuda.is_available()}")
+        print(f"[DEBUG] Model on CUDA: {next(production_model.parameters()).is_cuda}")
+        print(f"[DEBUG] MAMBA fallback env: {os.getenv('SEIZURE_MAMBA_FORCE_FALLBACK', 'not set')}")
+
         # Warmup
         with torch.no_grad():
             for _ in range(10):
