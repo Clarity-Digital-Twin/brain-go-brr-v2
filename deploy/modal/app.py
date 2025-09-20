@@ -112,6 +112,7 @@ def train(
     env = os.environ.copy()
     env["CUDA_VISIBLE_DEVICES"] = "0"
     env["PYTHONPATH"] = "/app"
+    env["PYTHONUNBUFFERED"] = "1"  # CRITICAL: Force unbuffered output for real-time logs
     env["SEIZURE_MAMBA_FORCE_FALLBACK"] = "0"  # Use CUDA kernels
     # Only limit files for smoke tests
     if "smoke" in config_path.lower():
