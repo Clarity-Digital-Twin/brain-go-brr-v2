@@ -296,20 +296,29 @@ class TestMemoryUsage:
         # Reset peak memory stats
         torch.cuda.reset_peak_memory_stats()
 
+        # Run multiple iterations to get stable allocator state
         with torch.no_grad():
-            output = minimal_model(window)
+            for _ in range(10):
+                output = minimal_model(window)
 
-        # Get peak memory
-        peak_memory_mb = torch.cuda.max_memory_allocated() / 1024 / 1024
+        torch.cuda.synchronize()
+
+        # Get memory statistics
+        # active_bytes = memory actually used by tensors
+        # reserved_bytes = memory held by CUDA allocator (includes cache)
+        stats = torch.cuda.memory_stats()
+        active_peak_mb = stats["active_bytes.all.peak"] / 1024 / 1024
+        reserved_peak_mb = stats["reserved_bytes.all.peak"] / 1024 / 1024
 
         # Peak should be reasonable
-        assert peak_memory_mb < 2000, f"Peak GPU memory {peak_memory_mb:.1f}MB exceeds 2GB limit"
+        assert reserved_peak_mb < 2000, f"Peak GPU memory {reserved_peak_mb:.1f}MB exceeds 2GB limit"
 
-        # Calculate efficiency
-        output_size_mb = output.numel() * 4 / 1024 / 1024
-        efficiency = output_size_mb / peak_memory_mb
+        # Efficiency: how much of reserved memory is actually used
+        # CUDA allocator typically reserves extra for performance
+        efficiency = active_peak_mb / reserved_peak_mb if reserved_peak_mb > 0 else 0
 
-        assert efficiency > 0.01, f"Memory efficiency {efficiency:.3f} is too low"
+        # 30-60% efficiency is typical for CUDA allocator with caching
+        assert efficiency > 0.30, f"Memory efficiency {efficiency:.3f} is too low (active/reserved)"
 
     @pytest.mark.performance
     def test_memory_profiling_detailed(self, minimal_model):
