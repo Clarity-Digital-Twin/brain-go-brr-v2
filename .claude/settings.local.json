@@ -37,7 +37,8 @@
       "Bash(awk:*)",
       "Bash(xargs -r kill -9)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": []
