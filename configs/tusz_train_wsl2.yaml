@@ -1,5 +1,11 @@
 # TUSZ training configuration - WSL2-safe version
 # Prevents OOM and multiprocessing issues on local WSL2 systems
+#
+# IMPORTANT GPU REQUIREMENTS:
+# - Minimum: NVIDIA RTX 4090 or equivalent (24GB VRAM)
+# - CPU-only training is impractical (~40s/batch vs ~0.5s/batch on 4090)
+# - Estimated training time for 100 epochs on RTX 4090: ~16-20 hours
+# - Estimated training time on CPU: ~4 years (NOT RECOMMENDED)
 
 data:
   dataset: tuh_eeg
@@ -82,7 +88,7 @@ experiment:
   name: tusz_wsl2_100ep
   description: "WSL2-safe TUSZ training 100 epochs with early stopping"
   seed: 42
-  device: cuda
+  device: cuda  # REQUIRED: Must use CUDA (auto defaults to CPU incorrectly)
   output_dir: results/tusz_wsl2_100ep
   cache_dir: cache/tusz
   log_level: INFO

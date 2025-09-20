@@ -48,6 +48,8 @@ EEG Input (19ch, 256Hz, 60s windows)
 **Key Specifications:**
 - **Input**: 19-channel 10-20 montage @ 256 Hz
 - **Model**: ~25M parameters (varies by config)
+- **GPU Requirements**: NVIDIA RTX 4090 (24GB VRAM) minimum for practical training
+- **Training Time**: ~16-20 hours for 100 epochs on RTX 4090 (CPU training not recommended: ~4 years)
 - **Complexity**: O(N) vs Transformer's O(N²)
 - **Window**: 60s with 10s stride (83% overlap)
 

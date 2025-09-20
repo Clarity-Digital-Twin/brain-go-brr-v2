@@ -1,4 +1,8 @@
 # Quick smoke test config - 1 epoch, small batch
+#
+# GPU REQUIREMENTS:
+# - Minimum: NVIDIA GPU with 16GB+ VRAM (e.g., A100, RTX 4090)
+# - CPU-only training is impractical (40s/batch vs 0.5s/batch on GPU)
 data:
   dataset: tuh_eeg
   data_dir: data_ext4/tusz/edf/train  # Use TRAIN for smoke tests (limit files via env)
@@ -73,7 +77,7 @@ experiment:
   name: smoke_test_$(date +%Y%m%d_%H%M%S)
   description: "Quick smoke test on development branch"
   seed: 42
-  device: auto
+  device: cuda  # Explicit GPU required (auto incorrectly defaults to CPU)
   output_dir: results/smoke
   cache_dir: cache/smoke
   log_level: INFO
