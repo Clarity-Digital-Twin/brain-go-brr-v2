@@ -70,9 +70,7 @@ def worker_init_fn(worker_id: int) -> None:
 # ============================================================================
 
 
-def create_balanced_sampler(
-    dataset: Dataset[Any], sample_size: int = 500
-) -> WeightedRandomSampler | None:
+def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRandomSampler | None:
     """Create positive-aware balanced sampler for imbalanced datasets.
 
     Args:
