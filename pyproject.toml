@@ -145,6 +145,8 @@ markers = [
     "unit: marks tests as unit tests",
     "serial: run this test alone to avoid resource contention",
     "clinical: marks tests for clinical validation metrics",
+    "performance: marks tests as performance benchmarks",
+    "gpu: marks tests that can use GPU acceleration",
 ]
 
 [tool.coverage.run]
