@@ -81,7 +81,8 @@
       "Bash(while read file)",
       "Read(//tmp/**)",
       "Bash(.venv/bin/pytest -xvs tests/integration/test_model_assembly.py::TestSeizureDetector::test_output_range)",
-      "Bash(.venv/bin/pytest --co -q -m serial tests/integration/test_model_assembly.py)"
+      "Bash(.venv/bin/pytest --co -q -m serial tests/integration/test_model_assembly.py)",
+      "Bash(.venv/bin/pytest --co -q -m \"not serial\" tests/integration/test_model_assembly.py)"
     ],
     "deny": [],
     "ask": []
