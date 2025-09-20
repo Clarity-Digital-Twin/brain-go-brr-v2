@@ -87,8 +87,10 @@ def apply_hysteresis(
         zones: list[tuple[int, int]] = []
         prev_end = 0
         for s, length in zip(off_starts, off_lens, strict=False):
-            if s > prev_end:
-                zones.append((prev_end, s))
+            # Include the initial (min_offset_samples-1) below_off samples inside the zone
+            ze = int(s + max(0, min_offset_samples - 1))
+            if ze > prev_end:
+                zones.append((prev_end, min(ze, seq_len)))
             prev_end = s + int(length)
         if prev_end < seq_len:
             zones.append((prev_end, seq_len))
