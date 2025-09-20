@@ -9,6 +9,7 @@ data:
   stride: 10
   num_workers: 4
   validation_split: 0.2
+  use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling
 
 preprocessing:
   montage: "10-20"
@@ -55,6 +56,9 @@ postprocessing:
 training:
   epochs: 100          # full training - will early stop if converged
   batch_size: 16
+  loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
+  focal_alpha: 0.25                    # Balance factor (0.25 = 75% weight on negatives)
+  focal_gamma: 2.0                     # Focusing parameter (higher = more focus on hard examples)
   learning_rate: 3e-4
   weight_decay: 0.05
   optimizer: adamw
