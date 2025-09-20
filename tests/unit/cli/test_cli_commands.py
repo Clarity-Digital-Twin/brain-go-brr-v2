@@ -1,13 +1,9 @@
 """Comprehensive CLI command testing for Brain-Go-Brr v2."""
 
-import json
-import pytest
 from pathlib import Path
+from unittest.mock import patch
+
 from click.testing import CliRunner
-from unittest.mock import patch, Mock, MagicMock
-import yaml
-import torch
-import numpy as np
 
 from src.brain_brr.cli.cli import cli
 
@@ -43,11 +39,14 @@ class TestCLIValidateCommand:
     def test_validate_missing_required_fields(self, cli_runner: CliRunner, tmp_path: Path):
         """Test validation with missing required fields."""
         incomplete_yaml = tmp_path / "incomplete.yaml"
-        incomplete_yaml.write_text("""
+        incomplete_yaml.write_text(
+            """
         experiment:
           name: test
         # Missing data, model, training sections
-        """, encoding="utf-8")
+        """,
+            encoding="utf-8",
+        )
 
         result = cli_runner.invoke(cli, ["validate", str(incomplete_yaml)])
         assert result.exit_code != 0
@@ -55,7 +54,8 @@ class TestCLIValidateCommand:
     def test_validate_invalid_values(self, cli_runner: CliRunner, tmp_path: Path):
         """Test validation with invalid values."""
         invalid_yaml = tmp_path / "invalid.yaml"
-        invalid_yaml.write_text("""
+        invalid_yaml.write_text(
+            """
         experiment:
           name: test
           seed: -1  # Invalid negative seed
@@ -79,7 +79,9 @@ class TestCLIValidateCommand:
           optimizer: adamw
         postprocessing:
           hysteresis: {tau_on: 0.86, tau_off: 0.78}
-        """, encoding="utf-8")
+        """,
+            encoding="utf-8",
+        )
 
         result = cli_runner.invoke(cli, ["validate", str(invalid_yaml)])
         assert result.exit_code != 0
@@ -88,7 +90,7 @@ class TestCLIValidateCommand:
 class TestCLITrainCommand:
     """Test the train command."""
 
-    @patch('src.brain_brr.train.loop.main')
+    @patch("src.brain_brr.train.loop.main")
     def test_train_basic(self, mock_train_main, cli_runner: CliRunner, valid_config_yaml: Path):
         """Test basic training invocation."""
         mock_train_main.return_value = None
@@ -97,8 +99,10 @@ class TestCLITrainCommand:
         assert result.exit_code == 0
         mock_train_main.assert_called_once()
 
-    @patch('src.brain_brr.train.loop.main')
-    def test_train_with_resume(self, mock_train_main, cli_runner: CliRunner, valid_config_yaml: Path):
+    @patch("src.brain_brr.train.loop.main")
+    def test_train_with_resume(
+        self, mock_train_main, cli_runner: CliRunner, valid_config_yaml: Path
+    ):
         """Test training with resume flag."""
         mock_train_main.return_value = None
 
@@ -106,8 +110,10 @@ class TestCLITrainCommand:
         assert result.exit_code == 0
         mock_train_main.assert_called_once()
 
-    @patch('src.brain_brr.train.loop.main')
-    def test_train_with_device_selection(self, mock_train_main, cli_runner: CliRunner, valid_config_yaml: Path):
+    @patch("src.brain_brr.train.loop.main")
+    def test_train_with_device_selection(
+        self, mock_train_main, cli_runner: CliRunner, valid_config_yaml: Path
+    ):
         """Test training with device selection."""
         mock_train_main.return_value = None
 
@@ -128,8 +134,10 @@ class TestCLITrainCommand:
         result = cli_runner.invoke(cli, ["train", "nonexistent.yaml"])
         assert result.exit_code != 0
 
-    @patch('src.brain_brr.train.loop.main')
-    def test_train_exception_handling(self, mock_train_main, cli_runner: CliRunner, valid_config_yaml: Path):
+    @patch("src.brain_brr.train.loop.main")
+    def test_train_exception_handling(
+        self, mock_train_main, cli_runner: CliRunner, valid_config_yaml: Path
+    ):
         """Test training exception handling."""
         mock_train_main.side_effect = RuntimeError("Training failed")
 
@@ -140,15 +148,13 @@ class TestCLITrainCommand:
 class TestCLIEvaluateCommand:
     """Test the evaluate command."""
 
-    @patch('src.brain_brr.eval.evaluate.evaluate_checkpoint')
-    def test_evaluate_basic(self, mock_evaluate, cli_runner: CliRunner, temp_checkpoint: Path, tmp_path: Path):
+    @patch("src.brain_brr.eval.evaluate.evaluate_checkpoint")
+    def test_evaluate_basic(
+        self, mock_evaluate, cli_runner: CliRunner, temp_checkpoint: Path, tmp_path: Path
+    ):
         """Test basic evaluation."""
         # Mock the evaluate function
-        mock_evaluate.return_value = {
-            'sensitivity': 0.95,
-            'specificity': 0.92,
-            'auc': 0.93
-        }
+        mock_evaluate.return_value = {"sensitivity": 0.95, "specificity": 0.92, "auc": 0.93}
 
         data_dir = tmp_path / "data"
         data_dir.mkdir()
@@ -156,72 +162,70 @@ class TestCLIEvaluateCommand:
         result = cli_runner.invoke(cli, ["evaluate", str(temp_checkpoint), str(data_dir)])
         assert result.exit_code == 0
 
-    @patch('src.brain_brr.eval.evaluate.evaluate_checkpoint')
-    def test_evaluate_with_json_output(self, mock_evaluate, cli_runner: CliRunner,
-                                      temp_checkpoint: Path, tmp_path: Path):
+    @patch("src.brain_brr.eval.evaluate.evaluate_checkpoint")
+    def test_evaluate_with_json_output(
+        self, mock_evaluate, cli_runner: CliRunner, temp_checkpoint: Path, tmp_path: Path
+    ):
         """Test evaluation with JSON output."""
-        mock_evaluate.return_value = {
-            'sensitivity': 0.95,
-            'specificity': 0.92,
-            'auc': 0.93
-        }
+        mock_evaluate.return_value = {"sensitivity": 0.95, "specificity": 0.92, "auc": 0.93}
 
         data_dir = tmp_path / "data"
         data_dir.mkdir()
         output_json = tmp_path / "metrics.json"
 
-        result = cli_runner.invoke(cli, [
-            "evaluate",
-            str(temp_checkpoint),
-            str(data_dir),
-            "--output-json", str(output_json)
-        ])
+        result = cli_runner.invoke(
+            cli,
+            ["evaluate", str(temp_checkpoint), str(data_dir), "--output-json", str(output_json)],
+        )
 
         assert result.exit_code == 0
         assert output_json.exists()
 
-    @patch('src.brain_brr.eval.evaluate.evaluate_checkpoint')
-    def test_evaluate_with_csv_export(self, mock_evaluate, cli_runner: CliRunner,
-                                     temp_checkpoint: Path, tmp_path: Path):
+    @patch("src.brain_brr.eval.evaluate.evaluate_checkpoint")
+    def test_evaluate_with_csv_export(
+        self, mock_evaluate, cli_runner: CliRunner, temp_checkpoint: Path, tmp_path: Path
+    ):
         """Test evaluation with CSV-BI export."""
         from src.brain_brr.events import SeizureEvent
 
         # Mock evaluation to return events
         mock_evaluate.return_value = {
-            'events': [[SeizureEvent(1.0, 2.5, 0.9), SeizureEvent(10.0, 15.0, 0.85)]],
-            'patient_ids': ['P001'],
-            'recording_ids': ['R001'],
-            'durations': [60.0]
+            "events": [[SeizureEvent(1.0, 2.5, 0.9), SeizureEvent(10.0, 15.0, 0.85)]],
+            "patient_ids": ["P001"],
+            "recording_ids": ["R001"],
+            "durations": [60.0],
         }
 
         data_dir = tmp_path / "data"
         data_dir.mkdir()
         output_csv = tmp_path / "events.csv"
 
-        result = cli_runner.invoke(cli, [
-            "evaluate",
-            str(temp_checkpoint),
-            str(data_dir),
-            "--output-csv-bi", str(output_csv)
-        ])
+        result = cli_runner.invoke(
+            cli,
+            ["evaluate", str(temp_checkpoint), str(data_dir), "--output-csv-bi", str(output_csv)],
+        )
 
         assert result.exit_code == 0
 
-    @patch('src.brain_brr.eval.evaluate.evaluate_checkpoint')
-    def test_evaluate_with_config_override(self, mock_evaluate, cli_runner: CliRunner,
-                                          temp_checkpoint: Path, tmp_path: Path, valid_config_yaml: Path):
+    @patch("src.brain_brr.eval.evaluate.evaluate_checkpoint")
+    def test_evaluate_with_config_override(
+        self,
+        mock_evaluate,
+        cli_runner: CliRunner,
+        temp_checkpoint: Path,
+        tmp_path: Path,
+        valid_config_yaml: Path,
+    ):
         """Test evaluation with config override."""
-        mock_evaluate.return_value = {'auc': 0.95}
+        mock_evaluate.return_value = {"auc": 0.95}
 
         data_dir = tmp_path / "data"
         data_dir.mkdir()
 
-        result = cli_runner.invoke(cli, [
-            "evaluate",
-            str(temp_checkpoint),
-            str(data_dir),
-            "--config", str(valid_config_yaml)
-        ])
+        result = cli_runner.invoke(
+            cli,
+            ["evaluate", str(temp_checkpoint), str(data_dir), "--config", str(valid_config_yaml)],
+        )
 
         assert result.exit_code == 0
 
@@ -238,31 +242,26 @@ class TestCLIEvaluateCommand:
         result = cli_runner.invoke(cli, ["evaluate", str(temp_checkpoint), "/nonexistent/data"])
         assert result.exit_code != 0
 
-    @patch('src.brain_brr.eval.evaluate.evaluate_checkpoint')
-    def test_evaluate_device_selection(self, mock_evaluate, cli_runner: CliRunner,
-                                      temp_checkpoint: Path, tmp_path: Path):
+    @patch("src.brain_brr.eval.evaluate.evaluate_checkpoint")
+    def test_evaluate_device_selection(
+        self, mock_evaluate, cli_runner: CliRunner, temp_checkpoint: Path, tmp_path: Path
+    ):
         """Test evaluation with different devices."""
-        mock_evaluate.return_value = {'auc': 0.95}
+        mock_evaluate.return_value = {"auc": 0.95}
 
         data_dir = tmp_path / "data"
         data_dir.mkdir()
 
         # Test CPU
-        result = cli_runner.invoke(cli, [
-            "evaluate",
-            str(temp_checkpoint),
-            str(data_dir),
-            "--device", "cpu"
-        ])
+        result = cli_runner.invoke(
+            cli, ["evaluate", str(temp_checkpoint), str(data_dir), "--device", "cpu"]
+        )
         assert result.exit_code == 0
 
         # Test auto
-        result = cli_runner.invoke(cli, [
-            "evaluate",
-            str(temp_checkpoint),
-            str(data_dir),
-            "--device", "auto"
-        ])
+        result = cli_runner.invoke(
+            cli, ["evaluate", str(temp_checkpoint), str(data_dir), "--device", "auto"]
+        )
         assert result.exit_code == 0
 
 
@@ -337,9 +336,11 @@ class TestCLIErrorHandling:
         result = cli_runner.invoke(cli, ["train", str(valid_config_yaml), "--device", "invalid"])
         assert result.exit_code != 0
 
-    @patch('src.brain_brr.cli.cli.sys.exit')
-    def test_keyboard_interrupt_handling(self, mock_exit, cli_runner: CliRunner, valid_config_yaml: Path):
+    @patch("src.brain_brr.cli.cli.sys.exit")
+    def test_keyboard_interrupt_handling(
+        self, mock_exit, cli_runner: CliRunner, valid_config_yaml: Path
+    ):
         """Test keyboard interrupt handling."""
-        with patch('src.brain_brr.train.loop.main', side_effect=KeyboardInterrupt):
+        with patch("src.brain_brr.train.loop.main", side_effect=KeyboardInterrupt):
             result = cli_runner.invoke(cli, ["train", str(valid_config_yaml)])
             # Should handle gracefully

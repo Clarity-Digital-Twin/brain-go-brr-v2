@@ -1,15 +1,16 @@
 """Root test configuration and shared fixtures for Brain-Go-Brr v2."""
 
-import pytest
-from pathlib import Path
-import torch
-import numpy as np
-from click.testing import CliRunner
 import tempfile
-import yaml
-from typing import Generator, Any
-from unittest.mock import Mock, MagicMock
 import time
+from collections.abc import Generator
+from pathlib import Path
+from unittest.mock import Mock
+
+import numpy as np
+import pytest
+import torch
+import yaml
+from click.testing import CliRunner
 
 
 @pytest.fixture(scope="session")
@@ -27,14 +28,14 @@ def sample_edf_data():
         # Add realistic frequency components
         t = np.arange(n_samples) / fs
         data[i] += 10 * np.sin(2 * np.pi * 10 * t)  # Alpha
-        data[i] += 5 * np.sin(2 * np.pi * 20 * t)   # Beta
-        data[i] += 2 * np.sin(2 * np.pi * 40 * t)   # Gamma
+        data[i] += 5 * np.sin(2 * np.pi * 20 * t)  # Beta
+        data[i] += 2 * np.sin(2 * np.pi * 40 * t)  # Gamma
 
     return {
-        'data': data.astype(np.float32),
-        'channels': CHANNEL_NAMES_10_20,
-        'fs': fs,
-        'duration': duration
+        "data": data.astype(np.float32),
+        "channels": CHANNEL_NAMES_10_20,
+        "fs": fs,
+        "duration": duration,
     }
 
 
@@ -42,27 +43,33 @@ def sample_edf_data():
 def mock_raw_edf(sample_edf_data):
     """Mock MNE Raw object for EDF testing."""
     raw = Mock()
-    raw.ch_names = list(sample_edf_data['channels'])
-    raw.info = {'sfreq': sample_edf_data['fs']}
-    raw.get_data = Mock(return_value=sample_edf_data['data'])
+    raw.ch_names = list(sample_edf_data["channels"])
+    raw.info = {"sfreq": sample_edf_data["fs"]}
+    raw.get_data = Mock(return_value=sample_edf_data["data"])
     raw.reorder_channels = Mock()
     raw.pick_channels = Mock()
-    raw.n_times = sample_edf_data['data'].shape[1]
-    raw.times = np.arange(raw.n_times) / sample_edf_data['fs']
+    raw.n_times = sample_edf_data["data"].shape[1]
+    raw.times = np.arange(raw.n_times) / sample_edf_data["fs"]
     return raw
 
 
 @pytest.fixture
 def trained_model(tmp_path):
     """Lightweight pre-trained model for testing."""
+    from src.brain_brr.config.schemas import (
+        DecoderConfig,
+        EncoderConfig,
+        MambaConfig,
+        ModelConfig,
+        ResidualCNNConfig,
+    )
     from src.brain_brr.models import SeizureDetector
-    from src.brain_brr.config.schemas import ModelConfig, EncoderConfig, MambaConfig, ResidualCNNConfig, DecoderConfig
 
     config = ModelConfig(
         encoder=EncoderConfig(channels=[64, 128, 256, 512], stages=4),
         rescnn=ResidualCNNConfig(n_blocks=3, kernel_sizes=[3, 5, 7]),
         mamba=MambaConfig(n_layers=6, d_model=512, d_state=16, d_conv=5),
-        decoder=DecoderConfig(stages=4, kernel_size=4)
+        decoder=DecoderConfig(stages=4, kernel_size=4),
     )
 
     model = SeizureDetector(config)
@@ -79,14 +86,20 @@ def trained_model(tmp_path):
 @pytest.fixture
 def minimal_model():
     """Minimal model for fast testing."""
+    from src.brain_brr.config.schemas import (
+        DecoderConfig,
+        EncoderConfig,
+        MambaConfig,
+        ModelConfig,
+        ResidualCNNConfig,
+    )
     from src.brain_brr.models import SeizureDetector
-    from src.brain_brr.config.schemas import ModelConfig, EncoderConfig, MambaConfig, ResidualCNNConfig, DecoderConfig
 
     config = ModelConfig(
         encoder=EncoderConfig(channels=[32, 64, 128, 256], stages=4),
         rescnn=ResidualCNNConfig(n_blocks=1, kernel_sizes=[3]),
         mamba=MambaConfig(n_layers=1, d_model=256, d_state=8, d_conv=5),
-        decoder=DecoderConfig(stages=4, kernel_size=4)
+        decoder=DecoderConfig(stages=4, kernel_size=4),
     )
 
     return SeizureDetector(config)
@@ -107,7 +120,7 @@ def valid_config_yaml(tmp_path: Path) -> Path:
             "name": "test",
             "seed": 42,
             "output_dir": str(tmp_path / "output"),
-            "cache_dir": str(tmp_path / "cache")
+            "cache_dir": str(tmp_path / "cache"),
         },
         "data": {
             "dataset": "tuh_eeg",
@@ -116,13 +129,13 @@ def valid_config_yaml(tmp_path: Path) -> Path:
             "n_channels": 19,
             "window_size": 60,
             "stride": 10,
-            "num_workers": 0
+            "num_workers": 0,
         },
         "model": {
             "encoder": {"channels": [64, 128, 256, 512], "stages": 4},
             "rescnn": {"n_blocks": 3, "kernel_sizes": [3, 5, 7]},
             "mamba": {"n_layers": 6, "d_model": 512, "d_state": 16, "d_conv": 5},
-            "decoder": {"stages": 4, "kernel_size": 4}
+            "decoder": {"stages": 4, "kernel_size": 4},
         },
         "training": {
             "epochs": 1,
@@ -130,20 +143,17 @@ def valid_config_yaml(tmp_path: Path) -> Path:
             "learning_rate": 1e-3,
             "optimizer": "adamw",
             "gradient_clip": 1.0,
-            "validation_split": 0.2
+            "validation_split": 0.2,
         },
         "postprocessing": {
             "hysteresis": {"tau_on": 0.86, "tau_off": 0.78},
             "morphology": {"kernel_size": 5},
-            "duration": {"min_duration_s": 1.0, "max_duration_s": 300.0}
+            "duration": {"min_duration_s": 1.0, "max_duration_s": 300.0},
         },
-        "evaluation": {
-            "fa_rates": [10, 5, 1],
-            "overlap_threshold": 0.5
-        }
+        "evaluation": {"fa_rates": [10, 5, 1], "overlap_threshold": 0.5},
     }
 
-    with open(config_path, 'w') as f:
+    with open(config_path, "w") as f:
         yaml.dump(config_data, f)
 
     return config_path
@@ -185,10 +195,10 @@ def temp_checkpoint(tmp_path: Path, minimal_model) -> Path:
     checkpoint_path = tmp_path / "test_checkpoint.pt"
 
     state = {
-        'model_state_dict': minimal_model.state_dict(),
-        'epoch': 10,
-        'best_metric': 0.85,
-        'config': None
+        "model_state_dict": minimal_model.state_dict(),
+        "epoch": 10,
+        "best_metric": 0.85,
+        "config": None,
     }
 
     torch.save(state, checkpoint_path)
@@ -198,6 +208,7 @@ def temp_checkpoint(tmp_path: Path, minimal_model) -> Path:
 @pytest.fixture
 def mock_dataloader(sample_windows):
     """Mock DataLoader for testing."""
+
     class MockDataLoader:
         def __init__(self, data):
             self.data = data
@@ -224,6 +235,7 @@ def setup_test_env(monkeypatch):
 @pytest.fixture
 def benchmark_timer():
     """Simple timer for performance testing."""
+
     class Timer:
         def __init__(self):
             self.times = []
@@ -260,20 +272,18 @@ def pytest_configure(config):
 # Utility functions for tests
 def create_temp_config(**overrides) -> Generator[Path, None, None]:
     """Create temporary config file with overrides."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         base_config = {
-            'experiment': {'name': 'test', 'seed': 42},
-            'data': {'dataset': 'tuh_eeg', 'data_dir': 'tests/fixtures/data'},
-            'model': {
-                'encoder': {'channels': [64, 128, 256, 512], 'stages': 4},
-                'rescnn': {'n_blocks': 3, 'kernel_sizes': [3, 5, 7]},
-                'mamba': {'n_layers': 6, 'd_model': 512, 'd_state': 16},
-                'decoder': {'stages': 4, 'kernel_size': 4}
+            "experiment": {"name": "test", "seed": 42},
+            "data": {"dataset": "tuh_eeg", "data_dir": "tests/fixtures/data"},
+            "model": {
+                "encoder": {"channels": [64, 128, 256, 512], "stages": 4},
+                "rescnn": {"n_blocks": 3, "kernel_sizes": [3, 5, 7]},
+                "mamba": {"n_layers": 6, "d_model": 512, "d_state": 16},
+                "decoder": {"stages": 4, "kernel_size": 4},
             },
-            'training': {'epochs': 1, 'batch_size': 2},
-            'postprocessing': {
-                'hysteresis': {'tau_on': 0.86, 'tau_off': 0.78}
-            }
+            "training": {"epochs": 1, "batch_size": 2},
+            "postprocessing": {"hysteresis": {"tau_on": 0.86, "tau_off": 0.78}},
         }
 
         # Deep merge overrides

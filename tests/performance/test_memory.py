@@ -1,15 +1,21 @@
 """Memory profiling tests for Brain-Go-Brr v2."""
 
+import gc
+import os
+import tracemalloc
+
+import psutil
 import pytest
 import torch
-import gc
-import tracemalloc
-import psutil
-import os
-from typing import Tuple
 
+from src.brain_brr.config.schemas import (
+    DecoderConfig,
+    EncoderConfig,
+    MambaConfig,
+    ModelConfig,
+    ResidualCNNConfig,
+)
 from src.brain_brr.models import SeizureDetector
-from src.brain_brr.config.schemas import ModelConfig, EncoderConfig, MambaConfig, ResidualCNNConfig, DecoderConfig
 
 
 class TestMemoryUsage:
@@ -26,7 +32,7 @@ class TestMemoryUsage:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-    def get_memory_usage(self) -> Tuple[float, float]:
+    def get_memory_usage(self) -> tuple[float, float]:
         """Get current memory usage in MB."""
         process = psutil.Process(os.getpid())
         ram_mb = process.memory_info().rss / 1024 / 1024
@@ -65,13 +71,15 @@ class TestMemoryUsage:
         gpu_per_sample = gpu_used / batch_size if gpu_used > 0 else 0
 
         # Should use <500MB RAM per sample
-        assert ram_per_sample < 500, \
+        assert ram_per_sample < 500, (
             f"RAM usage {ram_per_sample:.1f}MB per sample exceeds 500MB limit"
+        )
 
         # GPU memory should be reasonable if available
         if gpu_used > 0:
-            assert gpu_per_sample < 200, \
+            assert gpu_per_sample < 200, (
                 f"GPU usage {gpu_per_sample:.1f}MB per sample exceeds 200MB limit"
+            )
 
         # Clean up
         del batch, output
@@ -80,18 +88,24 @@ class TestMemoryUsage:
     def test_model_memory_footprint(self):
         """Test model memory footprint for different configurations."""
         configs = [
-            ("minimal", ModelConfig(
-                encoder=EncoderConfig(channels=[32, 64, 128, 256], stages=4),
-                rescnn=ResidualCNNConfig(n_blocks=1, kernel_sizes=[3]),
-                mamba=MambaConfig(n_layers=1, d_model=256, d_state=8, d_conv=5),
-                decoder=DecoderConfig(stages=4, kernel_size=4)
-            )),
-            ("standard", ModelConfig(
-                encoder=EncoderConfig(channels=[64, 128, 256, 512], stages=4),
-                rescnn=ResidualCNNConfig(n_blocks=3, kernel_sizes=[3, 5, 7]),
-                mamba=MambaConfig(n_layers=6, d_model=512, d_state=16, d_conv=5),
-                decoder=DecoderConfig(stages=4, kernel_size=4)
-            )),
+            (
+                "minimal",
+                ModelConfig(
+                    encoder=EncoderConfig(channels=[32, 64, 128, 256], stages=4),
+                    rescnn=ResidualCNNConfig(n_blocks=1, kernel_sizes=[3]),
+                    mamba=MambaConfig(n_layers=1, d_model=256, d_state=8, d_conv=5),
+                    decoder=DecoderConfig(stages=4, kernel_size=4),
+                ),
+            ),
+            (
+                "standard",
+                ModelConfig(
+                    encoder=EncoderConfig(channels=[64, 128, 256, 512], stages=4),
+                    rescnn=ResidualCNNConfig(n_blocks=3, kernel_sizes=[3, 5, 7]),
+                    mamba=MambaConfig(n_layers=6, d_model=512, d_state=16, d_conv=5),
+                    decoder=DecoderConfig(stages=4, kernel_size=4),
+                ),
+            ),
         ]
 
         for name, config in configs:
@@ -108,8 +122,9 @@ class TestMemoryUsage:
             expected_mb = n_params * 4 / 1024 / 1024  # 4 bytes per float32
 
             # Model footprint should be close to parameter size
-            assert footprint < expected_mb * 3, \
+            assert footprint < expected_mb * 3, (
                 f"{name} model uses {footprint:.1f}MB (expected ~{expected_mb:.1f}MB)"
+            )
 
             del model
             gc.collect()
@@ -184,15 +199,16 @@ class TestMemoryUsage:
         backward_overhead = (after_backward_ram - before_backward_ram) / no_grad_ram
 
         # Gradient memory should be reasonable
-        assert forward_overhead < 2.0, \
-            f"Forward pass with gradients uses {forward_overhead*100:.0f}% more memory"
-        assert backward_overhead < 3.0, \
-            f"Backward pass uses {backward_overhead*100:.0f}% additional memory"
+        assert forward_overhead < 2.0, (
+            f"Forward pass with gradients uses {forward_overhead * 100:.0f}% more memory"
+        )
+        assert backward_overhead < 3.0, (
+            f"Backward pass uses {backward_overhead * 100:.0f}% additional memory"
+        )
 
     @pytest.mark.performance
     def test_cache_memory_usage(self, tmp_path):
         """Test memory usage of caching mechanisms."""
-        from src.brain_brr.data.datasets import CachedDataset
 
         # Create mock dataset with caching
         cache_dir = tmp_path / "cache"
@@ -219,8 +235,9 @@ class TestMemoryUsage:
 
                 # Each window should use ~1.2MB (19*15360*4 bytes)
                 expected_per_window = 19 * window_size * 4 / 1024 / 1024
-                assert per_window < expected_per_window * 2, \
+                assert per_window < expected_per_window * 2, (
                     f"Cache using {per_window:.1f}MB per window (expected ~{expected_per_window:.1f}MB)"
+                )
 
     @pytest.mark.performance
     def test_streaming_memory_stability(self, minimal_model):
@@ -259,8 +276,7 @@ class TestMemoryUsage:
 
         # Memory should be stable (not growing)
         memory_growth = max(memory_readings) - min(memory_readings)
-        assert memory_growth < 20, \
-            f"Memory varied by {memory_growth:.1f}MB during streaming"
+        assert memory_growth < 20, f"Memory varied by {memory_growth:.1f}MB during streaming"
 
     @pytest.mark.performance
     def test_peak_memory_tracking(self, minimal_model):
@@ -282,15 +298,13 @@ class TestMemoryUsage:
         peak_memory_mb = torch.cuda.max_memory_allocated() / 1024 / 1024
 
         # Peak should be reasonable
-        assert peak_memory_mb < 2000, \
-            f"Peak GPU memory {peak_memory_mb:.1f}MB exceeds 2GB limit"
+        assert peak_memory_mb < 2000, f"Peak GPU memory {peak_memory_mb:.1f}MB exceeds 2GB limit"
 
         # Calculate efficiency
         output_size_mb = output.numel() * 4 / 1024 / 1024
         efficiency = output_size_mb / peak_memory_mb
 
-        assert efficiency > 0.01, \
-            f"Memory efficiency {efficiency:.3f} is too low"
+        assert efficiency > 0.01, f"Memory efficiency {efficiency:.3f} is too low"
 
     @pytest.mark.performance
     def test_memory_profiling_detailed(self, minimal_model):
@@ -309,7 +323,7 @@ class TestMemoryUsage:
         snapshot2 = tracemalloc.take_snapshot()
 
         # Calculate differences
-        top_stats = snapshot2.compare_to(snapshot1, 'lineno')
+        top_stats = snapshot2.compare_to(snapshot1, "lineno")
 
         # Find total allocated
         total_mb = sum(stat.size_diff for stat in top_stats) / 1024 / 1024
@@ -318,8 +332,9 @@ class TestMemoryUsage:
         top_10_mb = sum(stat.size_diff for stat in top_stats[:10]) / 1024 / 1024
 
         assert total_mb < 500, f"Total allocation {total_mb:.1f}MB exceeds 500MB"
-        assert top_10_mb / total_mb > 0.8, \
+        assert top_10_mb / total_mb > 0.8, (
             "Memory allocation too fragmented (top 10 lines < 80% of total)"
+        )
 
         tracemalloc.stop()
 
@@ -346,5 +361,4 @@ class TestMemoryUsage:
 
         growth_rate = (second_half - first_half) / first_half
 
-        assert abs(growth_rate) < 0.05, \
-            f"Memory grew by {growth_rate*100:.1f}% over long run"
+        assert abs(growth_rate) < 0.05, f"Memory grew by {growth_rate * 100:.1f}% over long run"

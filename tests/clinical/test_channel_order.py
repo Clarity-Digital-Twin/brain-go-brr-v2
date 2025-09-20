@@ -1,12 +1,12 @@
 """Clinical validation tests for EEG channel ordering and montage consistency."""
 
-import pytest
+from unittest.mock import Mock
+
 import numpy as np
-from unittest.mock import Mock, MagicMock
-from typing import List, Dict
+import pytest
 
 from src.brain_brr.constants import CHANNEL_NAMES_10_20, CHANNEL_SYNONYMS
-from src.brain_brr.utils.pick_utils import pick_and_order, handle_channel_synonyms
+from src.brain_brr.utils.pick_utils import handle_channel_synonyms, pick_and_order
 
 
 class TestChannelOrdering:
@@ -15,12 +15,28 @@ class TestChannelOrdering:
     def test_canonical_channel_order(self):
         """Verify canonical channel order is maintained."""
         expected_order = [
-            "Fp1", "F3", "C3", "P3", "F7", "T3", "T5", "O1",
-            "Fz", "Cz", "Pz",
-            "Fp2", "F4", "C4", "P4", "F8", "T4", "T6", "O2"
+            "Fp1",
+            "F3",
+            "C3",
+            "P3",
+            "F7",
+            "T3",
+            "T5",
+            "O1",
+            "Fz",
+            "Cz",
+            "Pz",
+            "Fp2",
+            "F4",
+            "C4",
+            "P4",
+            "F8",
+            "T4",
+            "T6",
+            "O2",
         ]
 
-        assert CHANNEL_NAMES_10_20 == expected_order
+        assert expected_order == CHANNEL_NAMES_10_20
         assert len(CHANNEL_NAMES_10_20) == 19
 
     def test_channel_synonyms_mapping(self):
@@ -56,9 +72,25 @@ class TestChannelOrdering:
         raw = Mock()
         # Use modern naming (T7/T8 instead of T3/T4)
         raw.ch_names = [
-            "Fp1", "F3", "C3", "P3", "F7", "T7", "P7", "O1",  # T7->T3, P7->T5
-            "Fz", "Cz", "Pz",
-            "Fp2", "F4", "C4", "P4", "F8", "T8", "P8", "O2"   # T8->T4, P8->T6
+            "Fp1",
+            "F3",
+            "C3",
+            "P3",
+            "F7",
+            "T7",
+            "P7",
+            "O1",  # T7->T3, P7->T5
+            "Fz",
+            "Cz",
+            "Pz",
+            "Fp2",
+            "F4",
+            "C4",
+            "P4",
+            "F8",
+            "T8",
+            "P8",
+            "O2",  # T8->T4, P8->T6
         ]
         raw.reorder_channels = Mock()
         raw.pick_channels = Mock()
@@ -81,9 +113,7 @@ class TestChannelOrdering:
 
         ordered_raw, missing = pick_and_order(raw, CHANNEL_NAMES_10_20)
 
-        expected_missing = [
-            "F7", "T3", "T5", "O1", "Fp2", "F4", "C4", "P4", "F8", "T4", "T6", "O2"
-        ]
+        expected_missing = ["F7", "T3", "T5", "O1", "Fp2", "F4", "C4", "P4", "F8", "T4", "T6", "O2"]
         assert set(missing) == set(expected_missing)
 
     def test_pick_and_order_extra_channels(self):
@@ -106,9 +136,27 @@ class TestChannelOrdering:
         """Test channel picking is case-insensitive."""
         raw = Mock()
         # Mixed case channel names
-        raw.ch_names = ["fp1", "F3", "c3", "P3", "f7", "t3", "T5", "o1",
-                        "FZ", "Cz", "pz",
-                        "FP2", "f4", "C4", "p4", "F8", "T4", "t6", "O2"]
+        raw.ch_names = [
+            "fp1",
+            "F3",
+            "c3",
+            "P3",
+            "f7",
+            "t3",
+            "T5",
+            "o1",
+            "FZ",
+            "Cz",
+            "pz",
+            "FP2",
+            "f4",
+            "C4",
+            "p4",
+            "F8",
+            "T4",
+            "t6",
+            "O2",
+        ]
         raw.reorder_channels = Mock()
         raw.pick_channels = Mock()
 
@@ -145,10 +193,7 @@ class TestChannelDataIntegrity:
         for i, ch in enumerate(original_order):
             original_idx = original_order.index(ch)
             shuffled_idx = shuffled_order.index(ch)
-            np.testing.assert_array_equal(
-                original_data[original_idx],
-                reordered_data[original_idx]
-            )
+            np.testing.assert_array_equal(original_data[original_idx], reordered_data[original_idx])
 
     def test_channel_picking_subset(self):
         """Test picking subset of channels maintains correct data."""
@@ -209,10 +254,25 @@ class TestMontageConsistency:
         """Test compatibility with TUH EEG dataset montage."""
         # TUH commonly uses these channels
         tuh_common_channels = [
-            "FP1", "FP2", "F7", "F3", "FZ", "F4", "F8",
-            "T3", "C3", "CZ", "C4", "T4",
-            "T5", "P3", "PZ", "P4", "T6",
-            "O1", "O2"
+            "FP1",
+            "FP2",
+            "F7",
+            "F3",
+            "FZ",
+            "F4",
+            "F8",
+            "T3",
+            "C3",
+            "CZ",
+            "C4",
+            "T4",
+            "T5",
+            "P3",
+            "PZ",
+            "P4",
+            "T6",
+            "O1",
+            "O2",
         ]
 
         # Apply synonym handling
@@ -220,17 +280,32 @@ class TestMontageConsistency:
 
         # Check all can be mapped to canonical
         for ch in normalized:
-            assert ch in CHANNEL_NAMES_10_20 or ch.upper() in [c.upper() for c in CHANNEL_NAMES_10_20]
+            assert ch in CHANNEL_NAMES_10_20 or ch.upper() in [
+                c.upper() for c in CHANNEL_NAMES_10_20
+            ]
 
     def test_chb_mit_montage_compatibility(self):
         """Test compatibility with CHB-MIT dataset montage."""
         # CHB-MIT uses modern naming
         chb_channels = [
-            "FP1-F7", "F7-T7", "T7-P7", "P7-O1",
-            "FP1-F3", "F3-C3", "C3-P3", "P3-O1",
-            "FP2-F4", "F4-C4", "C4-P4", "P4-O2",
-            "FP2-F8", "F8-T8", "T8-P8", "P8-O2",
-            "FZ-CZ", "CZ-PZ"
+            "FP1-F7",
+            "F7-T7",
+            "T7-P7",
+            "P7-O1",
+            "FP1-F3",
+            "F3-C3",
+            "C3-P3",
+            "P3-O1",
+            "FP2-F4",
+            "F4-C4",
+            "C4-P4",
+            "P4-O2",
+            "FP2-F8",
+            "F8-T8",
+            "T8-P8",
+            "P8-O2",
+            "FZ-CZ",
+            "CZ-PZ",
         ]
 
         # Extract individual channels from bipolar montage
@@ -327,8 +402,8 @@ class TestClinicalChannelRequirements:
         # Minimum viable channel sets for detection
         minimum_sets = [
             ["Fp1", "Fp2", "T3", "T4", "O1", "O2"],  # Frontal + Temporal + Occipital
-            ["F3", "F4", "C3", "C4", "P3", "P4"],     # Lateral chain
-            ["Fz", "Cz", "Pz", "T3", "T4"],           # Midline + Temporal
+            ["F3", "F4", "C3", "C4", "P3", "P4"],  # Lateral chain
+            ["Fz", "Cz", "Pz", "T3", "T4"],  # Midline + Temporal
         ]
 
         for channel_set in minimum_sets:

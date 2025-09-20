@@ -1,29 +1,31 @@
 """Clinical validation tests for TAES (Time-Aligned Event Scoring) metrics."""
 
+
+import numpy as np
 import pytest
 import torch
-import numpy as np
-from typing import List, Tuple
-from unittest.mock import Mock, patch
 
-from src.brain_brr.events import SeizureEvent
 from src.brain_brr.eval.metrics import (
-    calculate_taes_metrics,
     calculate_sensitivity_at_fa,
+    calculate_taes_metrics,
     compute_roc_curve,
-    select_threshold_for_fa_rate
+    select_threshold_for_fa_rate,
 )
+from src.brain_brr.events import SeizureEvent
 
 
 class TestTAESMetrics:
     """Validate Time-Aligned Event Scoring metrics for clinical targets."""
 
     @pytest.mark.clinical
-    @pytest.mark.parametrize("fa_rate,expected_sens", [
-        (10, 0.95),  # >95% sensitivity at 10 FA/24h
-        (5, 0.90),   # >90% sensitivity at 5 FA/24h
-        (1, 0.75),   # >75% sensitivity at 1 FA/24h
-    ])
+    @pytest.mark.parametrize(
+        "fa_rate,expected_sens",
+        [
+            (10, 0.95),  # >95% sensitivity at 10 FA/24h
+            (5, 0.90),  # >90% sensitivity at 5 FA/24h
+            (1, 0.75),  # >75% sensitivity at 1 FA/24h
+        ],
+    )
     def test_clinical_sensitivity_targets(self, fa_rate: int, expected_sens: float):
         """Verify clinical performance targets are achievable."""
         # Create synthetic data that meets clinical targets
@@ -54,15 +56,13 @@ class TestTAESMetrics:
 
         # Calculate metrics
         metrics = calculate_taes_metrics(
-            predictions=predictions,
-            labels=labels,
-            fa_rate_target=fa_rate,
-            sample_rate=256
+            predictions=predictions, labels=labels, fa_rate_target=fa_rate, sample_rate=256
         )
 
         # For synthetic data, we expect to meet targets
-        assert metrics['sensitivity'] >= expected_sens * 0.8, \
+        assert metrics["sensitivity"] >= expected_sens * 0.8, (
             f"Sensitivity {metrics['sensitivity']:.2%} below target {expected_sens:.0%} at {fa_rate} FA/24h"
+        )
 
     def test_taes_perfect_predictions(self):
         """Test TAES metrics with perfect predictions."""
@@ -73,19 +73,16 @@ class TestTAESMetrics:
         # Add perfectly predicted seizures
         seizure_starts = [1000, 5000, 10000]
         for start in seizure_starts:
-            labels[0, start:start+1000] = 1
-            predictions[0, start:start+1000] = 1
+            labels[0, start : start + 1000] = 1
+            predictions[0, start : start + 1000] = 1
 
         metrics = calculate_taes_metrics(
-            predictions=predictions,
-            labels=labels,
-            fa_rate_target=10,
-            sample_rate=256
+            predictions=predictions, labels=labels, fa_rate_target=10, sample_rate=256
         )
 
-        assert metrics['sensitivity'] == 1.0
-        assert metrics['specificity'] == 1.0
-        assert metrics['precision'] == 1.0
+        assert metrics["sensitivity"] == 1.0
+        assert metrics["specificity"] == 1.0
+        assert metrics["precision"] == 1.0
 
     def test_taes_no_seizures(self):
         """Test TAES metrics when no seizures are present."""
@@ -97,15 +94,12 @@ class TestTAESMetrics:
         predictions[0, 1000:1500] = 0.8
 
         metrics = calculate_taes_metrics(
-            predictions=predictions,
-            labels=labels,
-            fa_rate_target=10,
-            sample_rate=256
+            predictions=predictions, labels=labels, fa_rate_target=10, sample_rate=256
         )
 
         # With no true positives, sensitivity is undefined (should be 0 or NaN)
-        assert metrics['sensitivity'] == 0 or np.isnan(metrics['sensitivity'])
-        assert metrics['precision'] == 0
+        assert metrics["sensitivity"] == 0 or np.isnan(metrics["sensitivity"])
+        assert metrics["precision"] == 0
 
     def test_taes_all_seizure(self):
         """Test TAES metrics when entire recording is seizure."""
@@ -114,14 +108,11 @@ class TestTAESMetrics:
         labels = torch.ones(1, n_samples)
 
         metrics = calculate_taes_metrics(
-            predictions=predictions,
-            labels=labels,
-            fa_rate_target=10,
-            sample_rate=256
+            predictions=predictions, labels=labels, fa_rate_target=10, sample_rate=256
         )
 
-        assert metrics['sensitivity'] == 1.0
-        assert metrics['specificity'] == 1.0  # No true negatives to test
+        assert metrics["sensitivity"] == 1.0
+        assert metrics["specificity"] == 1.0  # No true negatives to test
 
     @pytest.mark.parametrize("overlap_threshold", [0.1, 0.5, 0.9])
     def test_taes_overlap_thresholds(self, overlap_threshold: float):
@@ -142,14 +133,14 @@ class TestTAESMetrics:
             labels=labels,
             fa_rate_target=10,
             sample_rate=256,
-            overlap_threshold=overlap_threshold
+            overlap_threshold=overlap_threshold,
         )
 
         # With 50% overlap, should detect if threshold <= 0.5
         if overlap_threshold <= 0.5:
-            assert metrics['sensitivity'] > 0
+            assert metrics["sensitivity"] > 0
         else:
-            assert metrics['sensitivity'] == 0
+            assert metrics["sensitivity"] == 0
 
     def test_sensitivity_at_fa_calculation(self):
         """Test sensitivity calculation at specific FA rates."""
@@ -163,10 +154,7 @@ class TestTAESMetrics:
         duration_hours = 1
 
         sensitivity = calculate_sensitivity_at_fa(
-            tpr=tpr,
-            fpr=fpr,
-            target_fa_per_24h=fa_24h,
-            duration_hours=duration_hours
+            tpr=tpr, fpr=fpr, target_fa_per_24h=fa_24h, duration_hours=duration_hours
         )
 
         assert 0 <= sensitivity <= 1
@@ -180,13 +168,10 @@ class TestTAESMetrics:
         # Add some true seizures
         for i in range(5):
             start = i * (n_samples // 5)
-            labels[0, start:start+1000] = 1
+            labels[0, start : start + 1000] = 1
 
         threshold = select_threshold_for_fa_rate(
-            predictions=predictions,
-            labels=labels,
-            target_fa_per_24h=10,
-            sample_rate=256
+            predictions=predictions, labels=labels, target_fa_per_24h=10, sample_rate=256
         )
 
         assert 0 <= threshold <= 1
@@ -209,15 +194,12 @@ class TestTAESMetrics:
         processed = apply_morphology(processed, kernel_size=5)
 
         metrics = calculate_taes_metrics(
-            predictions=processed,
-            labels=labels,
-            fa_rate_target=10,
-            sample_rate=256
+            predictions=processed, labels=labels, fa_rate_target=10, sample_rate=256
         )
 
         # Post-processing should maintain reasonable performance
-        assert 0 <= metrics['sensitivity'] <= 1
-        assert 0 <= metrics['specificity'] <= 1
+        assert 0 <= metrics["sensitivity"] <= 1
+        assert 0 <= metrics["specificity"] <= 1
 
 
 class TestROCAnalysis:
@@ -276,7 +258,7 @@ class TestClinicalEventDetection:
         binary = torch.zeros(1, 10000)
 
         # Add distinct seizure regions
-        binary[0, 100:500] = 1    # 400 samples
+        binary[0, 100:500] = 1  # 400 samples
         binary[0, 1000:1200] = 1  # 200 samples
         binary[0, 2000:2100] = 1  # 100 samples
 
@@ -305,15 +287,12 @@ class TestClinicalEventDetection:
         binary = torch.zeros(1, 10000)
 
         # Add events of different durations
-        binary[0, 100:150] = 1    # Very short
+        binary[0, 100:150] = 1  # Very short
         binary[0, 1000:1500] = 1  # Medium
         binary[0, 2000:5000] = 1  # Long
 
         events = self._extract_events(
-            binary[0],
-            sample_rate=256,
-            min_duration_s=1.0,
-            max_duration_s=10.0
+            binary[0], sample_rate=256, min_duration_s=1.0, max_duration_s=10.0
         )
 
         # Only medium event should pass duration filter
@@ -322,10 +301,13 @@ class TestClinicalEventDetection:
             assert 1.0 <= event.duration <= 10.0
 
     @staticmethod
-    def _extract_events(binary: torch.Tensor, sample_rate: int = 256,
-                       merge_gap_s: float = 0.0,
-                       min_duration_s: float = 0.0,
-                       max_duration_s: float = float('inf')) -> List[SeizureEvent]:
+    def _extract_events(
+        binary: torch.Tensor,
+        sample_rate: int = 256,
+        merge_gap_s: float = 0.0,
+        min_duration_s: float = 0.0,
+        max_duration_s: float = float("inf"),
+    ) -> list[SeizureEvent]:
         """Helper to extract events from binary tensor."""
         events = []
         in_event = False
@@ -338,22 +320,24 @@ class TestClinicalEventDetection:
             elif val == 0 and in_event:
                 duration = (i - start) / sample_rate
                 if min_duration_s <= duration <= max_duration_s:
-                    events.append(SeizureEvent(
-                        start_time=start / sample_rate,
-                        end_time=i / sample_rate,
-                        confidence=1.0
-                    ))
+                    events.append(
+                        SeizureEvent(
+                            start_time=start / sample_rate, end_time=i / sample_rate, confidence=1.0
+                        )
+                    )
                 in_event = False
 
         # Handle event at end
         if in_event:
             duration = (len(binary) - start) / sample_rate
             if min_duration_s <= duration <= max_duration_s:
-                events.append(SeizureEvent(
-                    start_time=start / sample_rate,
-                    end_time=len(binary) / sample_rate,
-                    confidence=1.0
-                ))
+                events.append(
+                    SeizureEvent(
+                        start_time=start / sample_rate,
+                        end_time=len(binary) / sample_rate,
+                        confidence=1.0,
+                    )
+                )
 
         return events
 
@@ -376,7 +360,7 @@ class TestClinicalValidation:
         labels = torch.zeros(1, n_samples)
         seizure_times = [(100, 130), (500, 550), (1000, 1060), (2000, 2030)]
         for start_s, end_s in seizure_times:
-            labels[0, start_s*sample_rate:end_s*sample_rate] = 1
+            labels[0, start_s * sample_rate : end_s * sample_rate] = 1
 
         # Run through model
         with torch.no_grad():
@@ -386,7 +370,7 @@ class TestClinicalValidation:
             predictions = []
 
             for start in range(0, n_samples - window_size + 1, stride):
-                window = test_data[:, :, start:start+window_size]
+                window = test_data[:, :, start : start + window_size]
                 pred = trained_model(window)
                 predictions.append(pred)
 
@@ -399,18 +383,16 @@ class TestClinicalValidation:
 
         # Apply post-processing
         from src.brain_brr.post.postprocess import apply_hysteresis, apply_morphology
+
         processed = apply_hysteresis(full_predictions, tau_on=0.86, tau_off=0.78)
         processed = apply_morphology(processed, kernel_size=5)
 
         # Calculate clinical metrics
         metrics = calculate_taes_metrics(
-            predictions=processed,
-            labels=labels,
-            fa_rate_target=10,
-            sample_rate=sample_rate
+            predictions=processed, labels=labels, fa_rate_target=10, sample_rate=sample_rate
         )
 
         # Check we can achieve reasonable performance
-        assert metrics['sensitivity'] >= 0  # Just check it runs
-        assert metrics['specificity'] >= 0
-        assert 'auc' in metrics
+        assert metrics["sensitivity"] >= 0  # Just check it runs
+        assert metrics["specificity"] >= 0
+        assert "auc" in metrics

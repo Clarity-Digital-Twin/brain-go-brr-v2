@@ -1,14 +1,20 @@
 """Performance tests for inference latency and real-time processing capability."""
 
+import gc
+import time
+
+import numpy as np
 import pytest
 import torch
-import time
-import numpy as np
-from typing import List
-import gc
 
+from src.brain_brr.config.schemas import (
+    DecoderConfig,
+    EncoderConfig,
+    MambaConfig,
+    ModelConfig,
+    ResidualCNNConfig,
+)
 from src.brain_brr.models import SeizureDetector
-from src.brain_brr.config.schemas import ModelConfig, EncoderConfig, MambaConfig, ResidualCNNConfig, DecoderConfig
 
 
 class TestInferenceLatency:
@@ -21,7 +27,7 @@ class TestInferenceLatency:
             encoder=EncoderConfig(channels=[64, 128, 256, 512], stages=4),
             rescnn=ResidualCNNConfig(n_blocks=3, kernel_sizes=[3, 5, 7]),
             mamba=MambaConfig(n_layers=6, d_model=512, d_state=16, d_conv=5),
-            decoder=DecoderConfig(stages=4, kernel_size=4)
+            decoder=DecoderConfig(stages=4, kernel_size=4),
         )
         model = SeizureDetector(config)
         model.eval()
@@ -39,17 +45,18 @@ class TestInferenceLatency:
                 _ = production_model(window)
 
         # Benchmark
-        with benchmark_timer:
-            with torch.no_grad():
-                for _ in range(100):
-                    _ = production_model(window)
+        with benchmark_timer, torch.no_grad():
+            for _ in range(100):
+                _ = production_model(window)
 
         p95_latency_ms = benchmark_timer.p95 * 1000 / 100  # Convert to ms per inference
         median_latency_ms = benchmark_timer.median * 1000 / 100
 
         # Requirements: <100ms for real-time processing
         assert p95_latency_ms < 100, f"P95 latency {p95_latency_ms:.1f}ms exceeds 100ms target"
-        assert median_latency_ms < 50, f"Median latency {median_latency_ms:.1f}ms exceeds 50ms target"
+        assert median_latency_ms < 50, (
+            f"Median latency {median_latency_ms:.1f}ms exceeds 50ms target"
+        )
 
     @pytest.mark.performance
     @pytest.mark.parametrize("batch_size", [1, 2, 4, 8])
@@ -73,7 +80,9 @@ class TestInferenceLatency:
         avg_time_per_sample = np.mean(times) * 1000 / batch_size  # ms per sample
 
         # Should have sub-linear scaling
-        assert avg_time_per_sample < 100, f"Batch {batch_size}: {avg_time_per_sample:.1f}ms per sample"
+        assert avg_time_per_sample < 100, (
+            f"Batch {batch_size}: {avg_time_per_sample:.1f}ms per sample"
+        )
 
     @pytest.mark.performance
     def test_streaming_latency(self, production_model):
@@ -151,7 +160,7 @@ class TestInferenceLatency:
     @pytest.mark.performance
     def test_model_compilation_speedup(self, production_model):
         """Test torch.compile optimization provides speedup."""
-        if not hasattr(torch, 'compile'):
+        if not hasattr(torch, "compile"):
             pytest.skip("torch.compile not available")
 
         window = torch.randn(1, 19, 15360)
@@ -243,8 +252,9 @@ class TestThroughput:
         estimated_full_time = subset_time * (n_batches / min(n_batches, 100))
 
         # Should process 24 hours in less than 1 hour
-        assert estimated_full_time < 3600, \
-            f"Processing 24 hours estimated at {estimated_full_time/3600:.1f} hours"
+        assert estimated_full_time < 3600, (
+            f"Processing 24 hours estimated at {estimated_full_time / 3600:.1f} hours"
+        )
 
 
 class TestLatencyUnderLoad:
@@ -279,14 +289,13 @@ class TestLatencyUnderLoad:
         late = np.mean(latencies[-100:])
         degradation = (late - early) / early
 
-        assert abs(degradation) < 0.1, \
-            f"Latency degraded by {degradation*100:.1f}% over time"
+        assert abs(degradation) < 0.1, f"Latency degraded by {degradation * 100:.1f}% over time"
 
     @pytest.mark.performance
     def test_concurrent_inference(self, minimal_model):
         """Test latency with concurrent inference requests."""
-        import threading
         import queue
+        import threading
 
         window = torch.randn(1, 19, 15360)
         n_threads = 4
@@ -332,5 +341,6 @@ class TestLatencyUnderLoad:
         # Check throughput improvement
         sequential_time = median_latency * n_threads * n_requests_per_thread
         speedup = sequential_time / total_time
-        assert speedup > n_threads * 0.5, \
+        assert speedup > n_threads * 0.5, (
             f"Concurrent speedup only {speedup:.1f}x with {n_threads} threads"
+        )

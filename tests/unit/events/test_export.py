@@ -1,18 +1,16 @@
 """Comprehensive export functionality tests for Brain-Go-Brr v2."""
 
-import json
 import csv
-import pytest
+import json
 from pathlib import Path
-import tempfile
-from typing import List
-import numpy as np
+
+import pytest
 
 from src.brain_brr.events import SeizureEvent
 from src.brain_brr.events.export import (
+    export_batch_csv_bi,
     export_csv_bi,
     export_json,
-    export_batch_csv_bi,
     validate_csv_bi,
 )
 
@@ -30,13 +28,13 @@ class TestCSVBIExport:
             output_file=output_file,
             patient_id="P001",
             recording_id="R001",
-            duration_s=60.0
+            duration_s=60.0,
         )
 
         assert output_file.exists()
 
         # Verify content
-        with open(output_file, 'r') as f:
+        with open(output_file) as f:
             lines = f.readlines()
             # Should have header and data lines
             assert len(lines) >= 2
@@ -56,13 +54,13 @@ class TestCSVBIExport:
             output_file=output_file,
             patient_id="P002",
             recording_id="R002",
-            duration_s=120.0
+            duration_s=120.0,
         )
 
         assert output_file.exists()
 
         # Parse and verify
-        with open(output_file, 'r') as f:
+        with open(output_file) as f:
             reader = csv.reader(f)
             rows = list(reader)
             # Header + 3 events
@@ -78,12 +76,12 @@ class TestCSVBIExport:
             output_file=output_file,
             patient_id="P003",
             recording_id="R003",
-            duration_s=60.0
+            duration_s=60.0,
         )
 
         assert output_file.exists()
 
-        with open(output_file, 'r') as f:
+        with open(output_file) as f:
             lines = f.readlines()
             # Should have at least header
             assert len(lines) >= 1
@@ -98,7 +96,7 @@ class TestCSVBIExport:
             output_file=output_file,
             patient_id="P004",
             recording_id="R004",
-            duration_s=60.0
+            duration_s=60.0,
         )
 
         assert output_file.exists()
@@ -114,7 +112,7 @@ class TestCSVBIExport:
             output_file=output_file,
             patient_id="P001",
             recording_id="R001",
-            duration_s=60.0
+            duration_s=60.0,
         )
 
         is_valid, errors = validate_csv_bi(output_file)
@@ -145,22 +143,15 @@ class TestJSONExport:
 
     def test_export_json_basic(self, tmp_path: Path):
         """Test basic JSON export."""
-        events = [
-            SeizureEvent(0.0, 1.0, 0.5),
-            SeizureEvent(2.0, 3.0, 0.8)
-        ]
+        events = [SeizureEvent(0.0, 1.0, 0.5), SeizureEvent(2.0, 3.0, 0.8)]
         output_file = tmp_path / "events.json"
 
-        export_json(
-            events=events,
-            output_file=output_file,
-            metadata={"source": "unit_test"}
-        )
+        export_json(events=events, output_file=output_file, metadata={"source": "unit_test"})
 
         assert output_file.exists()
 
         # Verify JSON structure
-        with open(output_file, 'r') as f:
+        with open(output_file) as f:
             data = json.load(f)
             assert "events" in data
             assert "num_events" in data
@@ -176,17 +167,14 @@ class TestJSONExport:
             "patient_id": "P005",
             "recording_id": "R005",
             "model_version": "v2.0",
-            "processing_params": {
-                "tau_on": 0.86,
-                "tau_off": 0.78
-            }
+            "processing_params": {"tau_on": 0.86, "tau_off": 0.78},
         }
 
         export_json(events=events, output_file=output_file, metadata=metadata)
 
         assert output_file.exists()
 
-        with open(output_file, 'r') as f:
+        with open(output_file) as f:
             data = json.load(f)
             assert "metadata" in data
             assert data["metadata"]["patient_id"] == "P005"
@@ -201,7 +189,7 @@ class TestJSONExport:
 
         assert output_file.exists()
 
-        with open(output_file, 'r') as f:
+        with open(output_file) as f:
             data = json.load(f)
             assert data["num_events"] == 0
             assert len(data["events"]) == 0
@@ -213,7 +201,7 @@ class TestJSONExport:
 
         export_json(events=[event], output_file=output_file)
 
-        with open(output_file, 'r') as f:
+        with open(output_file) as f:
             data = json.load(f)
             event_data = data["events"][0]
             assert abs(event_data["start_time"] - 12.345) < 0.001
@@ -225,26 +213,24 @@ class TestJSONExport:
         original_events = [
             SeizureEvent(0.0, 1.0, 0.9),
             SeizureEvent(5.0, 8.5, 0.75),
-            SeizureEvent(20.0, 25.0, 0.85)
+            SeizureEvent(20.0, 25.0, 0.85),
         ]
         output_file = tmp_path / "roundtrip.json"
 
         export_json(events=original_events, output_file=output_file)
 
         # Re-load and verify
-        with open(output_file, 'r') as f:
+        with open(output_file) as f:
             data = json.load(f)
             loaded_events = [
                 SeizureEvent(
-                    start_time=e["start_time"],
-                    end_time=e["end_time"],
-                    confidence=e["confidence"]
+                    start_time=e["start_time"], end_time=e["end_time"], confidence=e["confidence"]
                 )
                 for e in data["events"]
             ]
 
         assert len(loaded_events) == len(original_events)
-        for orig, loaded in zip(original_events, loaded_events):
+        for orig, loaded in zip(original_events, loaded_events, strict=False):
             assert abs(orig.start_time - loaded.start_time) < 0.001
             assert abs(orig.end_time - loaded.end_time) < 0.001
             assert abs(orig.confidence - loaded.confidence) < 0.001
@@ -258,7 +244,7 @@ class TestBatchExport:
         batch_events = [
             [SeizureEvent(0.0, 0.5, 0.7)],
             [SeizureEvent(1.0, 1.5, 0.9), SeizureEvent(2.0, 3.0, 0.8)],
-            []  # Empty for third recording
+            [],  # Empty for third recording
         ]
         patient_ids = ["P1", "P2", "P3"]
         recording_ids = ["R1", "R2", "R3"]
@@ -269,11 +255,11 @@ class TestBatchExport:
             output_dir=tmp_path,
             patient_ids=patient_ids,
             recording_ids=recording_ids,
-            durations=durations
+            durations=durations,
         )
 
         # Check all files created
-        for p, r in zip(patient_ids, recording_ids):
+        for p, r in zip(patient_ids, recording_ids, strict=False):
             expected_file = tmp_path / f"{p}_{r}.csv"
             assert expected_file.exists()
 
@@ -290,7 +276,7 @@ class TestBatchExport:
                 output_dir=tmp_path,
                 patient_ids=patient_ids,
                 recording_ids=recording_ids,
-                durations=durations
+                durations=durations,
             )
 
     def test_batch_csv_bi_creates_output_dir(self, tmp_path: Path):
@@ -306,7 +292,7 @@ class TestBatchExport:
             output_dir=output_dir,
             patient_ids=patient_ids,
             recording_ids=recording_ids,
-            durations=durations
+            durations=durations,
         )
 
         assert output_dir.exists()
@@ -315,7 +301,7 @@ class TestBatchExport:
     def test_batch_csv_bi_large_batch(self, tmp_path: Path):
         """Test batch export with many recordings."""
         n_recordings = 100
-        batch_events = [[SeizureEvent(i, i+1, 0.5+i*0.001)] for i in range(n_recordings)]
+        batch_events = [[SeizureEvent(i, i + 1, 0.5 + i * 0.001)] for i in range(n_recordings)]
         patient_ids = [f"P{i:03d}" for i in range(n_recordings)]
         recording_ids = [f"R{i:03d}" for i in range(n_recordings)]
         durations = [60.0] * n_recordings
@@ -325,7 +311,7 @@ class TestBatchExport:
             output_dir=tmp_path,
             patient_ids=patient_ids,
             recording_ids=recording_ids,
-            durations=durations
+            durations=durations,
         )
 
         # Verify all files created
@@ -334,10 +320,7 @@ class TestBatchExport:
 
     def test_batch_csv_bi_validation(self, tmp_path: Path):
         """Test that batch exported files are valid CSV-BI."""
-        batch_events = [
-            [SeizureEvent(0.5, 2.0, 0.95)],
-            [SeizureEvent(10.0, 15.0, 0.88)]
-        ]
+        batch_events = [[SeizureEvent(0.5, 2.0, 0.95)], [SeizureEvent(10.0, 15.0, 0.88)]]
         patient_ids = ["P1", "P2"]
         recording_ids = ["R1", "R2"]
         durations = [30.0, 30.0]
@@ -347,11 +330,11 @@ class TestBatchExport:
             output_dir=tmp_path,
             patient_ids=patient_ids,
             recording_ids=recording_ids,
-            durations=durations
+            durations=durations,
         )
 
         # Validate each exported file
-        for p, r in zip(patient_ids, recording_ids):
+        for p, r in zip(patient_ids, recording_ids, strict=False):
             file_path = tmp_path / f"{p}_{r}.csv"
             is_valid, errors = validate_csv_bi(file_path)
             assert is_valid, f"File {file_path} is not valid: {errors}"
@@ -371,7 +354,7 @@ class TestExportEdgeCases:
             output_file=output_file,
             patient_id="P_LONG",
             recording_id="R_LONG",
-            duration_s=600.0
+            duration_s=600.0,
         )
 
         assert output_file.exists()
@@ -382,7 +365,7 @@ class TestExportEdgeCases:
         events = [
             SeizureEvent(10.0, 20.0, 0.8),
             SeizureEvent(15.0, 25.0, 0.9),
-            SeizureEvent(18.0, 30.0, 0.85)
+            SeizureEvent(18.0, 30.0, 0.85),
         ]
         output_file = tmp_path / "overlap.json"
 
@@ -390,22 +373,20 @@ class TestExportEdgeCases:
         assert output_file.exists()
 
         # Verify all events are exported
-        with open(output_file, 'r') as f:
+        with open(output_file) as f:
             data = json.load(f)
             assert len(data["events"]) == 3
 
     def test_export_high_precision_times(self, tmp_path: Path):
         """Test exporting events with high precision timestamps."""
         event = SeizureEvent(
-            start_time=12.3456789012345,
-            end_time=98.7654321098765,
-            confidence=0.123456789
+            start_time=12.3456789012345, end_time=98.7654321098765, confidence=0.123456789
         )
         output_file = tmp_path / "precision.json"
 
         export_json(events=[event], output_file=output_file)
 
-        with open(output_file, 'r') as f:
+        with open(output_file) as f:
             data = json.load(f)
             e = data["events"][0]
             # Check precision is maintained (at least to microseconds)
@@ -422,7 +403,7 @@ class TestExportEdgeCases:
             output_file=output_file,
             patient_id="患者_001",
             recording_id="録音_001",
-            duration_s=60.0
+            duration_s=60.0,
         )
 
         assert output_file.exists()
@@ -441,7 +422,7 @@ class TestExportEdgeCases:
             output_file=output_file,
             patient_id="P001",
             recording_id="R001",
-            duration_s=60.0
+            duration_s=60.0,
         )
 
         assert output_file.exists()
