@@ -221,30 +221,28 @@ def filter_duration(
     filtered_masks = torch.zeros_like(masks)
 
     for b in range(batch_size):
-        mask_np = masks[b].cpu().numpy()
+        arr = masks[b].detach().cpu().numpy().astype(np.bool_)
 
-        # Find connected components (events)
-        labeled, num_features = ndimage.label(mask_np)
+        if arr.size == 0:
+            continue
 
-        for i in range(1, num_features + 1):
-            indices = np.where(labeled == i)[0]
-            if len(indices) == 0:
+        pad = np.empty(arr.size + 2, dtype=np.bool_)
+        pad[0] = False
+        pad[-1] = False
+        pad[1:-1] = arr
+        diff = np.diff(pad.view(np.int8))
+        starts = np.flatnonzero(diff == 1)
+        ends = np.flatnonzero(diff == -1)
+
+        for s, e in zip(starts, ends, strict=False):
+            length = int(e - s)
+            if length < min_duration_samples:
                 continue
-
-            duration = len(indices)
-            start_idx = indices[0]
-
-            # Filter by duration
-            if duration < min_duration_samples:
-                continue  # Too short, skip
-
-            if duration <= max_duration_samples:
-                # Keep as-is
-                filtered_masks[b, indices] = True
+            if length <= max_duration_samples:
+                filtered_masks[b, s:e] = True
             else:
-                # Segment long event into chunks
-                for chunk_start in range(start_idx, start_idx + duration, max_duration_samples):
-                    chunk_end = min(chunk_start + max_duration_samples, start_idx + duration)
+                for chunk_start in range(s, s + length, max_duration_samples):
+                    chunk_end = min(chunk_start + max_duration_samples, s + length)
                     filtered_masks[b, chunk_start:chunk_end] = True
 
     return filtered_masks
