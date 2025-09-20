@@ -1,5 +1,8 @@
 # PHASE4_POSTPROCESSING.md — Clinical-Grade Post-Processing Pipeline
 
+Note (2025-09-19): This doc may reference `src/experiment/*`; current implementation is
+under `src/brain_brr/*`. See `DOCS_SSOT.md` for canonical commands/configs.
+
 ## 🎯 Phase 4 Goal
 Convert raw per‑timestep probabilities into clinically actionable seizure events using dual‑tau hysteresis with temporal stability, morphology, duration constraints, window stitching, and event merging, targeting sensitivity at specific FA/24h operating points.
 

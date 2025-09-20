@@ -1,5 +1,7 @@
 # 🚀 Modal Deployment Complete Guide for Brain-Go-Brr v2
 
+Last updated: 2025-09-19
+
 ## ⚡ Quick Start (If Everything is Set Up)
 
 ```bash

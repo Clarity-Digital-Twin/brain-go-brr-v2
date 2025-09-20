@@ -1,5 +1,8 @@
 # PHASE2.4_DECODER.md - U-Net Decoder with Skip Connections
 
+Note (2025-09-19): Uses legacy `src/experiment/*` imports. Current modules are under
+`src/brain_brr/*`. See `DOCS_SSOT.md` for canonical usage.
+
 ## 🎯 Phase 2.4 Goal
 Build U-Net decoder that upsamples from bottleneck back to input resolution, fusing skip connections from encoder.
 

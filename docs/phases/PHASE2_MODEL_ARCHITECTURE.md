@@ -1,5 +1,9 @@
 # PHASE2_MODEL_ARCHITECTURE.md - Bi-Mamba-2 + U-Net + ResCNN Implementation
 
+Note (2025-09-19): This phase document uses legacy import paths (e.g., `src/experiment/*`).
+The current implementation lives under `src/brain_brr/*`. For canonical commands/configs,
+see `DOCS_SSOT.md`.
+
 ## 🎯 Phase 2 Goal
 Build the complete neural architecture combining U-Net spatial processing, ResCNN feature extraction, and bidirectional Mamba-2 temporal modeling for O(N) seizure detection.
 

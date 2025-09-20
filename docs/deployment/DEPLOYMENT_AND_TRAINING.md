@@ -1,5 +1,7 @@
 # Deployment & Training Guide
 
+Last updated: 2025-09-19
+
 ## Current Status
 - **Local Training**: Running 100-epoch TUSZ training
 - **Modal Deployment**: Configured with S3 CloudBucketMount

@@ -1,5 +1,8 @@
 # PHASE2.3_BIMAMBA.md - Bidirectional Mamba-2 Implementation
 
+Note (2025-09-19): Uses legacy `src/experiment/*` imports. Current modules are under
+`src/brain_brr/*`. See `DOCS_SSOT.md` for canonical usage.
+
 ## 🎯 Phase 2.3 Goal
 Implement bidirectional Mamba-2 for O(N) temporal modeling, with CPU fallback for testing without GPU.
 

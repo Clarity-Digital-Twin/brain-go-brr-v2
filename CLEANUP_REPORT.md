@@ -31,12 +31,13 @@ Notable caveats (non‑blocking)
 - `configs/seizure_local.yaml` is explicitly marked deprecated; safe to keep for now or archive.
 - `.gitignore` lists `uv.lock`, but the file is tracked. Intentional for reproducible env; no action taken.
 
-Runbook
+Runbook (Updated 2025-09-19)
 - Quality: `make q`
 - Fast tests: `make t`
-- Train (full): `python -m src train configs/tusz_train.yaml`
-- Dev tuning (no training): `python -m src evaluate --config configs/tusz_dev_tuning.yaml --checkpoint <best.pt> --output-json results/dev_metrics.json`
-- Final eval (no training): `python -m src evaluate --config configs/tusz_eval_final.yaml --checkpoint <best.pt> --output-json results/final_metrics.json --output-csv-bi results/final_events.csv`
+- Train (local, WSL2-safe): `python -m src train configs/tusz_train_wsl2.yaml`
+- Train (Modal A100): `modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --detach`
+- Dev tuning (no training): `python -m src evaluate <best.pt> data_ext4/tusz/edf/dev --config configs/tusz_dev_tuning.yaml --output-json results/dev_metrics.json`
+- Final eval (no training): `python -m src evaluate <best.pt> data_ext4/tusz/edf/eval --config configs/tusz_eval_final.yaml --output-json results/final_metrics.json --output-csv-bi results/final_events.csv`
 
 Conclusion
 - Codebase is ready to train. The two config corrections and the evaluate export fix remove the only training‑critical inconsistencies found.

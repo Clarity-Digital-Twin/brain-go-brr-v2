@@ -1,11 +1,14 @@
 # Documentation Structure
 
+Last updated: 2025-09-19
+
 ## 📚 Documentation Organization
 
 ### Core Documentation (Root)
 - `AGENTS.md` - AI assistant operating rules (single source of truth)
 - `CLAUDE.md` - Claude-specific configuration
 - `README.md` - Project overview and quickstart
+- `DOCS_SSOT.md` - Canonical commands/configs and current deployment/CLI pointers
 - `LICENSE` - Apache 2.0 License
 
 ### `/docs/phases/` - Implementation Phases

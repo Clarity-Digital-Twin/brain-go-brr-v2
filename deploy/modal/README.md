@@ -1,5 +1,7 @@
 # Modal Cloud Deployment
 
+Last updated: 2025-09-19
+
 Deploy Brain-Go-Brr v2 training to Modal's GPU infrastructure.
 
 > **Important**: This deployment uses NVIDIA CUDA development images for mamba-ssm compilation.

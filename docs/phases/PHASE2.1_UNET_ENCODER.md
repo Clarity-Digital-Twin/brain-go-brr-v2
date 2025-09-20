@@ -1,5 +1,8 @@
 # PHASE2.1_UNET_ENCODER.md - U-Net Encoder Implementation
 
+Note (2025-09-19): Uses legacy `src/experiment/*` imports. Current modules are under
+`src/brain_brr/*`. See `DOCS_SSOT.md` for canonical usage.
+
 ## 🎯 Phase 2.1 Goal
 Build and test the U-Net encoder with 4-stage progressive downsampling and skip connections for spatial feature extraction.
 

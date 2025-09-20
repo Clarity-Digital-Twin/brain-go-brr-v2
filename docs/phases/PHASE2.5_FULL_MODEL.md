@@ -1,5 +1,8 @@
 # PHASE2.5_FULL_MODEL.md - Complete Model Assembly
 
+Note (2025-09-19): Uses legacy `src/experiment/*` imports. Current modules are under
+`src/brain_brr/*`. See `DOCS_SSOT.md` for canonical usage.
+
 ## 🎯 Phase 2.5 Goal
 Assemble all components (Encoder, ResCNN, Bi-Mamba, Decoder) into the complete SeizureDetector model with detection head.
 

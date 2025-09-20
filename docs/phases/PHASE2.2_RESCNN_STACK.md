@@ -1,5 +1,8 @@
 # PHASE2.2_RESCNN_STACK.md - Residual CNN Stack Implementation
 
+Note (2025-09-19): Uses legacy `src/experiment/*` imports. Current modules are under
+`src/brain_brr/*`. See `DOCS_SSOT.md` for canonical usage.
+
 ## 🎯 Phase 2.2 Goal
 Build multi-scale ResCNN blocks for feature extraction at the bottleneck, processing the encoded representation with kernels [3, 5, 7].
 

@@ -1,6 +1,8 @@
 # Modal.com Deployment Guide for Brain-Go-Brr v2
 
-> IMPORTANT: This page is archived and contains legacy examples (modal_train.py, L40S/H100 multi-GPU flows).
+Last updated: 2025-09-19
+
+> IMPORTANT: Archived — contains legacy examples (modal_train.py, L40S/H100 multi-GPU flows).
 > For the current, supported deployment, use `deploy/modal/app.py` and follow
 > `docs/deployment/MODAL_DEPLOYMENT_COMPLETE_GUIDE.md`.
 

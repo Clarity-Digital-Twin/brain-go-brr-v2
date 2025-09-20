@@ -13,17 +13,17 @@ data_ext4/tusz/edf/
 
 ## 🔧 Config Audit Results (2025-09-19)
 
-**Issues Found & Fixed:**
+**Issues Found & Fixed (2025-09-19):**
 - ❌ `smoke_test.yaml` was using dev/ → ✅ Fixed to use train/
 - ❌ `local.yaml` was using dev/ → ✅ Fixed to use train/
-- ✅ `tusz_train.yaml` correctly uses train/
+- ✅ Training configs use train/ (e.g., `tusz_train_wsl2.yaml`, `tusz_train_a100.yaml`)
 - ✅ Created `tusz_dev_tuning.yaml` for hyperparameter tuning
 - ✅ Created `tusz_eval_final.yaml` for final one-shot evaluation
 
 ## ✅ Pre-Training Checklist
 
 ### 1. Data Split Verification
-- [ ] **Training uses ONLY `train/` directory** ✓ (configs/tusz_train.yaml: line 5)
+- [ ] **Training uses ONLY `train/` directory** ✓ (e.g., configs/tusz_train_wsl2.yaml)
 - [ ] **Validation split from `train/` set only** ✓ (validation_split: 0.2 from train)
 - [ ] **Dev set (`dev/`) reserved for hyperparameter tuning**
 - [ ] **Eval set (`eval/`) COMPLETELY ISOLATED - no peeking!**
