@@ -57,7 +57,8 @@
       "Bash(dmesg:*)",
       "Bash(awk:*)",
       "Bash(timeout:*)",
-      "Bash(env)"
+      "Bash(env)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": []
