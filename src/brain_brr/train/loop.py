@@ -70,7 +70,9 @@ def worker_init_fn(worker_id: int) -> None:
 # ============================================================================
 
 
-def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRandomSampler | None:
+def create_balanced_sampler(
+    dataset: Dataset[Any], sample_size: int = 500
+) -> WeightedRandomSampler | None:
     """Create positive-aware balanced sampler for imbalanced datasets.
 
     Args:
@@ -120,12 +122,17 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
 
     if n_unsampled_seizures > 0:
         unsampled_indices = torch.where(unsampled_mask)[0]
-        random_seizure_indices = unsampled_indices[torch.randperm(len(unsampled_indices))[:n_unsampled_seizures]]
+        random_seizure_indices = unsampled_indices[
+            torch.randperm(len(unsampled_indices))[:n_unsampled_seizures]
+        ]
         weights[random_seizure_indices] = pos_weight
 
     print(f"[SAMPLER] Seizure ratio: {seizure_ratio:.2%}", flush=True)
     print(f"[SAMPLER] Positive weight: {pos_weight:.2f}", flush=True)
-    print(f"[SAMPLER] Estimated seizure windows: {(weights > 1).sum().item()}/{len(dataset)}", flush=True)
+    print(
+        f"[SAMPLER] Estimated seizure windows: {(weights > 1).sum().item()}/{len(dataset)}",
+        flush=True,
+    )
 
     return WeightedRandomSampler(
         weights=weights.tolist(),
