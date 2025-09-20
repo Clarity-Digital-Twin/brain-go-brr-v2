@@ -24,7 +24,7 @@ from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.utils.tensorboard import SummaryWriter
-from tqdm.auto import tqdm  # type: ignore[import-untyped]
+from tqdm import tqdm  # type: ignore[import-untyped]
 
 from src.brain_brr.config.schemas import (
     Config,
@@ -210,8 +210,22 @@ def train_epoch(
     total_loss = 0.0
     num_batches = 0
 
+    # Robust tqdm handling for Modal/non-TTY environments
     use_tqdm = not os.getenv("BGB_DISABLE_TQDM")
-    progress = tqdm(dataloader, desc="Training", leave=False) if use_tqdm else dataloader
+    if use_tqdm:
+        try:
+            # Try to create tqdm, but catch if it returns None or fails
+            progress_bar = tqdm(dataloader, desc="Training", leave=False)
+            if progress_bar is None:
+                print("[WARNING] tqdm returned None, falling back to plain iteration", flush=True)
+                progress = dataloader
+            else:
+                progress = progress_bar
+        except Exception as e:
+            print(f"[WARNING] tqdm failed ({e}), using plain iteration", flush=True)
+            progress = dataloader
+    else:
+        progress = dataloader
 
     # Use enumerate for batch indexing (satisfies ruff SIM113)
     # But track global_step separately for proper scheduler behavior
