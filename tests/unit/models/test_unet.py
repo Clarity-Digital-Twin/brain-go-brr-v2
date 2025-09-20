@@ -171,6 +171,7 @@ class TestUNetEncoder:
         assert encoded.shape == (2, 512, 960)
         assert len(skips) == 4
 
+    @pytest.mark.serial
     def test_memory_efficiency(self, encoder):
         """Test that encoder doesn't leak memory in eval mode."""
         encoder.eval()
