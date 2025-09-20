@@ -245,8 +245,12 @@ def real_corrupted_edf():
     """Return ACTUAL corrupted EDF path from TUSZ that crashes MNE."""
     # These are known problematic files
     problem_files = [
-        Path("data_ext4/tusz/edf/train/01_tcp_ar/002/00000258/s002_2003_07_21/00000258_s002_t000.edf"),
-        Path("data_ext4/tusz/edf/train/01_tcp_ar/081/00008184/s001_2013_07_11/00008184_s001_t001.edf"),
+        Path(
+            "data_ext4/tusz/edf/train/01_tcp_ar/002/00000258/s002_2003_07_21/00000258_s002_t000.edf"
+        ),
+        Path(
+            "data_ext4/tusz/edf/train/01_tcp_ar/081/00008184/s001_2013_07_11/00008184_s001_t001.edf"
+        ),
     ]
 
     for f in problem_files:
@@ -368,17 +372,6 @@ def benchmark_timer():
             return np.percentile(self.times, 95) if self.times else 0
 
     return Timer()
-
-
-# Test markers
-def pytest_configure(config):
-    """Register custom pytest markers."""
-    config.addinivalue_line("markers", "unit: Unit tests")
-    config.addinivalue_line("markers", "integration: Integration tests")
-    config.addinivalue_line("markers", "performance: Performance benchmarks")
-    config.addinivalue_line("markers", "clinical: Clinical validation tests")
-    config.addinivalue_line("markers", "slow: Slow running tests")
-    config.addinivalue_line("markers", "gpu: GPU-specific tests")
 
 
 # Utility functions for tests

@@ -1,11 +1,9 @@
 """Integration tests for data IO edge cases with REAL TUSZ files."""
 
-import os
 from pathlib import Path
 
 import numpy as np
 import pytest
-import torch
 
 from src.brain_brr.data.io import load_edf_file
 
@@ -73,9 +71,9 @@ class TestRealTUSZFiles:
 
         for label_file in label_files:
             # Read TSE file and count seizure vs background time
-            with open(label_file, 'r') as f:
+            with open(label_file) as f:
                 for line in f:
-                    if line.startswith('#'):
+                    if line.startswith("#"):
                         continue
                     parts = line.strip().split()
                     if len(parts) >= 3:
@@ -84,7 +82,7 @@ class TestRealTUSZFiles:
                         label = parts[2]
                         duration = end - start
                         total_time += duration
-                        if label == 'seiz':
+                        if label == "seiz":
                             seizure_time += duration
 
         if total_time > 0:

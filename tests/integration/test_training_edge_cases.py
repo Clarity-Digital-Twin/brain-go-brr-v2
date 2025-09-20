@@ -1,9 +1,5 @@
 """REAL training edge case tests - actual gradient explosions, OOMs, and collapse detection."""
 
-import os
-import tempfile
-from pathlib import Path
-
 import numpy as np
 import pytest
 import torch
@@ -12,7 +8,7 @@ from torch.cuda.amp import GradScaler, autocast
 
 from src.brain_brr.config.schemas import Config
 from src.brain_brr.models import SeizureDetector
-from src.brain_brr.train.loop import FocalLoss, create_balanced_sampler
+from src.brain_brr.train.loop import FocalLoss
 
 
 @pytest.mark.integration
@@ -65,7 +61,7 @@ class TestTrainingExplosions:
             epoch_losses = []
             epoch_preds = []
 
-            for batch_idx in range(num_batches):
+            for _ in range(num_batches):
                 # Create batch with 99.9% negative
                 data = torch.randn(batch_size, 19, 15360, device=device)
 
@@ -88,12 +84,10 @@ class TestTrainingExplosions:
                     epoch_preds.append(pred_mean)
 
                     # Detect collapse: predictions all going to 0 or 1
-                    if epoch > 1:
-                        if pred_mean < 0.01 or pred_mean > 0.99:
-                            pytest.fail(
-                                f"Model collapsed at epoch {epoch}: "
-                                f"mean prediction = {pred_mean:.4f}"
-                            )
+                    if epoch > 1 and (pred_mean < 0.01 or pred_mean > 0.99):
+                        pytest.fail(
+                            f"Model collapsed at epoch {epoch}: mean prediction = {pred_mean:.4f}"
+                        )
 
                 loss.backward()
                 optimizer.step()
@@ -110,7 +104,9 @@ class TestTrainingExplosions:
             # Check positive class gets gradients
             if epoch > 0:
                 # Gradients should not be zero for all parameters
-                grad_norms = [p.grad.norm().item() for p in small_model.parameters() if p.grad is not None]
+                grad_norms = [
+                    p.grad.norm().item() for p in small_model.parameters() if p.grad is not None
+                ]
                 assert len(grad_norms) > 0, "No gradients computed"
                 assert max(grad_norms) > 1e-6, "All gradients near zero"
 
@@ -130,8 +126,6 @@ class TestTrainingExplosions:
         criterion = nn.BCEWithLogitsLoss()
         # Extreme learning rate that will cause explosion
         optimizer = torch.optim.SGD(small_model.parameters(), lr=10.0)
-
-        initial_params = [p.clone() for p in small_model.parameters()]
 
         for step in range(10):
             optimizer.zero_grad()
@@ -219,7 +213,9 @@ class TestTrainingExplosions:
                     # Verify we can recover with smaller batch
                     recovery_batch_size = max(1, batch_size // 2)
                     data = torch.randn(recovery_batch_size, 19, 15360, device=device)
-                    labels = torch.randint(0, 2, (recovery_batch_size, 15360), device=device).float()
+                    labels = torch.randint(
+                        0, 2, (recovery_batch_size, 15360), device=device
+                    ).float()
 
                     optimizer.zero_grad()
                     output = small_model(data)
@@ -269,10 +265,9 @@ class TestTrainingExplosions:
             # Check gradients before unscaling
             has_valid_grads = False
             for p in small_model.parameters():
-                if p.grad is not None:
-                    if not torch.isnan(p.grad).any():
-                        has_valid_grads = True
-                        break
+                if p.grad is not None and not torch.isnan(p.grad).any():
+                    has_valid_grads = True
+                    break
 
             assert has_valid_grads, f"No valid gradients at step {step}"
 
@@ -285,12 +280,11 @@ class TestTrainingExplosions:
             scaler.update()
 
             # Verify model still produces valid output
-            with torch.no_grad():
-                with autocast():
-                    test_output = small_model(data[:1])
-                    assert not torch.isnan(test_output).any(), f"NaN output at step {step}"
+            with torch.no_grad(), autocast():
+                test_output = small_model(data[:1])
+                assert not torch.isnan(test_output).any(), f"NaN output at step {step}"
 
-        print(f"Mixed precision training stable for 20 steps")
+        print("Mixed precision training stable for 20 steps")
 
     def test_empty_batch_handling(self, small_model):
         """Test with zero windows in dataset."""
@@ -320,24 +314,24 @@ class TestTrainingExplosions:
 
         # Save a valid checkpoint
         checkpoint = {
-            'model_state_dict': small_model.state_dict(),
-            'epoch': 5,
-            'loss': 0.5,
+            "model_state_dict": small_model.state_dict(),
+            "epoch": 5,
+            "loss": 0.5,
         }
         torch.save(checkpoint, checkpoint_path)
 
         # Corrupt the checkpoint file
-        with open(checkpoint_path, 'rb') as f:
+        with open(checkpoint_path, "rb") as f:
             data = f.read()
 
         # Truncate file (simulate corruption)
-        with open(checkpoint_path, 'wb') as f:
-            f.write(data[:len(data)//2])
+        with open(checkpoint_path, "wb") as f:
+            f.write(data[: len(data) // 2])
 
         # Try to load corrupted checkpoint
         try:
             checkpoint = torch.load(checkpoint_path)
-            small_model.load_state_dict(checkpoint['model_state_dict'])
+            small_model.load_state_dict(checkpoint["model_state_dict"])
             pytest.fail("Should have failed on corrupted checkpoint")
         except (EOFError, RuntimeError, KeyError) as e:
             # Should handle gracefully
@@ -367,7 +361,7 @@ class TestTrainingExplosions:
         # Inject NaN into gradients
         for p in small_model.parameters():
             if p.grad is not None:
-                p.grad[0] = float('nan')
+                p.grad[0] = float("nan")
                 break
 
         # Check for NaN gradients

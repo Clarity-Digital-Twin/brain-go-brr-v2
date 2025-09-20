@@ -1,6 +1,5 @@
 """Integration tests for post-processing edge cases."""
 
-import numpy as np
 import pytest
 import torch
 

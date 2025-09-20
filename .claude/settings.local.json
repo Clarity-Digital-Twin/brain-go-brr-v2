@@ -61,7 +61,9 @@
       "Bash(.venv/bin/pytest tests/integration/test_training_edge_cases.py::TestTrainingExplosions::test_gradient_explosion_extreme_lr -xvs --tb=short)",
       "Bash(.venv/bin/pytest tests/integration/ -m integration -q --tb=short)",
       "Bash(.venv/bin/pytest tests/integration/ -m integration -xvs)",
-      "Bash(.venv/bin/pytest tests/ -q --tb=short)"
+      "Bash(.venv/bin/pytest tests/ -q --tb=short)",
+      "Bash(.venv/bin/pytest tests/unit/ -q --tb=short)",
+      "Bash(.venv/bin/pytest:*)"
     ],
     "deny": [],
     "ask": []
