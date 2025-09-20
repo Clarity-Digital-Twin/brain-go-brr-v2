@@ -265,6 +265,16 @@ class TrainingConfig(BaseModel):
 
     epochs: int = Field(default=1, ge=1, le=200, description="Number of training epochs")
     batch_size: int = Field(default=16, ge=1, le=256, description="Batch size")
+    # Loss selection
+    loss: Literal["bce", "focal"] = Field(
+        default="bce", description="Loss function: 'bce' or 'focal'"
+    )
+    focal_alpha: float = Field(
+        default=0.25, ge=0.0, le=1.0, description="Focal loss alpha (class balance)"
+    )
+    focal_gamma: float = Field(
+        default=2.0, ge=0.0, description="Focal loss gamma (hard sample focusing)"
+    )
     learning_rate: float = Field(
         default=3e-4, ge=1e-6, le=1e-2, description="Initial learning rate"
     )

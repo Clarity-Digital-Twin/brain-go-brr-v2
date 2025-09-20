@@ -16,12 +16,13 @@ import random
 import sys
 from contextlib import suppress
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import torch
 import torch.multiprocessing as mp
 import torch.nn as nn
+import torch.nn.functional as tnf
 from torch.cuda.amp import GradScaler, autocast
 from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
@@ -141,6 +142,48 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
 
 
 # ============================================================================
+# Loss functions (Open/Closed Principle)
+# ============================================================================
+
+
+class FocalLoss(nn.Module):
+    """Binary focal loss on logits with optional pos_weight.
+
+    This wraps BCE-with-logits and applies focal modulation:
+        loss = alpha_t * (1 - p_t)^gamma * BCEWithLogitsLoss(logits, targets)
+
+    - logits: (B, T)
+    - targets: (B, T) in {0,1}
+    - pos_weight: optional scalar tensor to up-weight positives (same semantics as BCEWithLogitsLoss)
+    """
+
+    def __init__(self, alpha: float = 0.25, gamma: float = 2.0) -> None:
+        super().__init__()
+        self.alpha = float(alpha)
+        self.gamma = float(gamma)
+
+    def forward(
+        self,
+        logits: torch.Tensor,
+        targets: torch.Tensor,
+        *,
+        pos_weight: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        # Per-element BCE on logits for numerical stability
+        bce = tnf.binary_cross_entropy_with_logits(
+            logits, targets, reduction="none", pos_weight=pos_weight
+        )
+        # Probabilities
+        p = torch.sigmoid(logits)
+        p_t = p * targets + (1.0 - p) * (1.0 - targets)
+        # Class-balanced alpha
+        alpha_t = self.alpha * targets + (1.0 - self.alpha) * (1.0 - targets)
+        # Focal modulation
+        mod = (1.0 - p_t).clamp(min=0.0, max=1.0).pow(self.gamma)
+        return cast(torch.Tensor, alpha_t * mod * bce)
+
+
+# ============================================================================
 # Optimizer & Scheduler factories (Open/Closed Principle)
 # ============================================================================
 
@@ -211,6 +254,9 @@ def train_epoch(
     scheduler: LRScheduler | None = None,
     global_step: int = 0,
     *,
+    loss_mode: str = "bce",
+    focal_alpha: float = 0.25,
+    focal_gamma: float = 2.0,
     return_step: bool = False,
 ) -> float | tuple[float, int]:
     """Train for one epoch.
@@ -288,14 +334,32 @@ def train_epoch(
     first_batch = next(iter(dataloader))
     _, _first_labels = first_batch
 
-    # AMP-safe, numerically stable loss on logits
+    # AMP-safe, numerically stable loss on logits (build per-element loss fn)
     # (We keep model outputs as probabilities elsewhere for tests/inference)
     pos_weight_t = torch.as_tensor(pos_weight_val, device=device_obj, dtype=torch.float32)
-    criterion = nn.BCEWithLogitsLoss(reduction="none", pos_weight=pos_weight_t)
+    use_focal = (loss_mode or "bce").lower() == "focal"
+
+    if use_focal:
+        focal = FocalLoss(alpha=focal_alpha, gamma=focal_gamma)
+
+        def compute_loss(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+            return cast(torch.Tensor, focal(x, y, pos_weight=pos_weight_t))
+
+        print(
+            f"[INIT] Using FOCAL loss (alpha={focal_alpha}, gamma={focal_gamma})",
+            flush=True,
+        )
+    else:
+        bce = nn.BCEWithLogitsLoss(reduction="none", pos_weight=pos_weight_t)
+
+        def compute_loss(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+            return cast(torch.Tensor, bce(x, y))
+
+        print("[INIT] Using BCEWithLogits loss", flush=True)
 
     # GUARDRAILS: Validate critical components before training
-    if criterion is None or not callable(criterion):
-        raise TypeError(f"criterion must be callable, got {criterion!r}")
+    if compute_loss is None or not callable(compute_loss):
+        raise TypeError("compute_loss must be a callable")
     if scheduler is not None and not hasattr(scheduler, "step"):
         raise TypeError(f"scheduler must have 'step' method, got {type(scheduler)}")
     if use_amp and not hasattr(scaler, "scale"):
@@ -315,7 +379,7 @@ def train_epoch(
     try:
         with torch.no_grad(), autocast(enabled=(use_amp and device == "cuda")):
             test_logits = model(test_windows)  # (B, T) raw logits
-            test_loss = criterion(test_logits, test_labels)
+            test_loss = compute_loss(test_logits, test_labels)
             if test_loss is None:
                 raise ValueError("Loss computation returned None")
             print(
@@ -328,7 +392,7 @@ def train_epoch(
         print(f"  - Model type: {type(model)}", flush=True)
         print(f"  - Input shape: {test_windows.shape}", flush=True)
         print(f"  - Labels shape: {test_labels.shape}", flush=True)
-        print(f"  - Criterion: {criterion}", flush=True)
+        print(f"  - Loss mode: {loss_mode}", flush=True)
         print(f"  - Device: {device_obj}", flush=True)
         raise
     finally:
@@ -385,7 +449,7 @@ def train_epoch(
                     logits = model(windows)  # (B, T) raw logits
                     if logits is None:
                         raise ValueError(f"Model returned None for input shape {windows.shape}")
-                    per_element_loss = criterion(logits, labels)
+                    per_element_loss = compute_loss(logits, labels)
                     if per_element_loss is None:
                         raise ValueError("Loss computation returned None")
                 except Exception as e:
@@ -773,6 +837,9 @@ def train(
             gradient_clip=config.training.gradient_clip,
             scheduler=scheduler,
             global_step=global_step,
+            loss_mode=getattr(config.training, "loss", "bce"),
+            focal_alpha=getattr(config.training, "focal_alpha", 0.25),
+            focal_gamma=getattr(config.training, "focal_gamma", 2.0),
             return_step=True,
         )
         # Type narrowing for mypy

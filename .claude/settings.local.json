@@ -20,7 +20,10 @@
       "Bash(export BGB_LIMIT_FILES=50)",
       "Bash(.venv/bin/pytest tests/unit/train/test_loop.py::TestTrainingSmoke::test_balanced_sampling -xvs)",
       "Bash(export BGB_LIMIT_FILES=20)",
-      "Bash(timeout 30 python:*)"
+      "Bash(timeout 30 python:*)",
+      "Bash(export BGB_LIMIT_FILES=5)",
+      "Bash(export BGB_DISABLE_TQDM=1)",
+      "Bash(timeout 60 python:*)"
     ],
     "deny": [],
     "ask": []

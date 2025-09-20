@@ -215,6 +215,7 @@ class TestTrainingSmoke:
     def test_balanced_sampling(self) -> None:
         """Test balanced sampler creation."""
         from unittest.mock import MagicMock
+
         from src.brain_brr.train import create_balanced_sampler
 
         # Create mock dataset with imbalanced labels (90% negative, 10% positive)
