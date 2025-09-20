@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(.venv/bin/pytest --collect-only tests/performance/test_latency.py::TestInferenceLatency::test_single_window_latency -q)",
-      "Bash(.venv/bin/pytest tests/performance/test_latency.py::TestInferenceLatency::test_single_window_latency -xvs -n 0)"
+      "Bash(.venv/bin/pytest tests/performance/test_latency.py::TestInferenceLatency::test_single_window_latency -xvs -n 0)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []
