@@ -13,7 +13,7 @@ from src.brain_brr.config.schemas import (
     EncoderConfig,
     MambaConfig,
     ModelConfig,
-    ResidualCNNConfig,
+    ResCNNConfig,
 )
 from src.brain_brr.models import SeizureDetector
 
@@ -92,8 +92,8 @@ class TestMemoryUsage:
                 "minimal",
                 ModelConfig(
                     encoder=EncoderConfig(channels=[32, 64, 128, 256], stages=4),
-                    rescnn=ResidualCNNConfig(n_blocks=1, kernel_sizes=[3]),
-                    mamba=MambaConfig(n_layers=1, d_model=256, d_state=8, d_conv=5),
+                    rescnn=ResCNNConfig(n_blocks=1, kernel_sizes=[3]),
+                    mamba=MambaConfig(n_layers=1, d_model=256, d_state=8, conv_kernel=5),
                     decoder=DecoderConfig(stages=4, kernel_size=4),
                 ),
             ),
@@ -101,8 +101,8 @@ class TestMemoryUsage:
                 "standard",
                 ModelConfig(
                     encoder=EncoderConfig(channels=[64, 128, 256, 512], stages=4),
-                    rescnn=ResidualCNNConfig(n_blocks=3, kernel_sizes=[3, 5, 7]),
-                    mamba=MambaConfig(n_layers=6, d_model=512, d_state=16, d_conv=5),
+                    rescnn=ResCNNConfig(n_blocks=3, kernel_sizes=[3, 5, 7]),
+                    mamba=MambaConfig(n_layers=6, d_model=512, d_state=16, conv_kernel=5),
                     decoder=DecoderConfig(stages=4, kernel_size=4),
                 ),
             ),
@@ -112,7 +112,7 @@ class TestMemoryUsage:
             gc.collect()
             baseline_ram, _ = self.get_memory_usage()
 
-            model = SeizureDetector(config)
+            model = SeizureDetector.from_config(config)
 
             model_ram, _ = self.get_memory_usage()
             footprint = model_ram - baseline_ram
