@@ -59,7 +59,7 @@ app = modal.App(
     image=image,
     secrets=[
         # W&B tracking (optional - create "wandb-secret" in Modal dashboard):
-        modal.Secret.from_name("wandb-secret", required=False),
+        modal.Secret.from_name("wandb-secret"),
     ],
 )
 
