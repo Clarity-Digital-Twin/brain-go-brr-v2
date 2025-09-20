@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 try:
-    import wandb
+    import wandb  # type: ignore[import-not-found]
 
     WANDB_AVAILABLE = True
 except ImportError:
@@ -82,7 +82,7 @@ class WandBLogger:
         except Exception as e:
             print(f"Failed to initialize W&B: {e}", flush=True)
 
-    def log(self, metrics: dict[str, Any], step: int | None = None):
+    def log(self, metrics: dict[str, Any], step: int | None = None) -> None:
         """Log metrics to W&B."""
         if self.enabled and self.run:
             try:
@@ -90,7 +90,7 @@ class WandBLogger:
             except Exception as e:
                 print(f"W&B logging error: {e}", flush=True)
 
-    def log_model(self, checkpoint_path: Path, name: str = "model"):
+    def log_model(self, checkpoint_path: Path, name: str = "model") -> None:
         """Log model checkpoint to W&B."""
         if self.enabled and self.run:
             try:
@@ -104,7 +104,7 @@ class WandBLogger:
             except Exception as e:
                 print(f"W&B artifact logging error: {e}", flush=True)
 
-    def finish(self):
+    def finish(self) -> None:
         """Finish W&B run."""
         if self.enabled and self.run:
             try:
