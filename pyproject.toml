@@ -130,8 +130,10 @@ addopts = """
     --tb=short
     --strict-markers
     --strict-config
-    --timeout=300
+    --timeout=30
+    --timeout-method=thread
     --max-worker-restart=0
+    -v
 """
 testpaths = ["tests"]
 python_files = ["test_*.py"]

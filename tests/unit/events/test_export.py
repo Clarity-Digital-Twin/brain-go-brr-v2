@@ -325,7 +325,7 @@ class TestBatchExport:
             output_dir=tmp_path,
             patient_ids=patient_ids,
             recording_ids=recording_ids,
-            durations=durations,
+            durations_s=durations,
         )
 
         # Validate each exported file
