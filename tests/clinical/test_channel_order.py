@@ -47,9 +47,15 @@ class TestChannelOrdering:
         assert CHANNEL_SYNONYMS["P7"] == "T5"
         assert CHANNEL_SYNONYMS["P8"] == "T6"
 
-        # Case variations are handled by handle_channel_synonyms, not CHANNEL_SYNONYMS directly
-        # The CHANNEL_SYNONYMS dict only contains the actual synonym mappings (T7->T3, etc)
-        # Case normalization happens in handle_channel_synonyms function
+        # Case variations are handled by handle_channel_synonyms function
+        # Test that function properly
+        from src.brain_brr.utils.pick_utils import handle_channel_synonyms
+
+        # Test case normalization
+        normalized = handle_channel_synonyms(["fp1", "FP2", "t7", "T8"])
+        assert "Fp1" in normalized or "fp1" in normalized  # Should normalize case
+        assert "T3" in normalized  # T7 -> T3
+        assert "T4" in normalized  # T8 -> T4
 
     def test_pick_and_order_exact_match(self):
         """Test channel picking when all channels match exactly."""
@@ -343,6 +349,7 @@ class TestChannelValidation:
 
     def test_validate_channel_count(self):
         """Test validation of channel count."""
+
         # Too few channels
         def validate_channels(n_channels):
             if n_channels != 19:

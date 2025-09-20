@@ -189,15 +189,20 @@ def train(config_path: Path, resume: bool, device: str) -> None:
         sys.exit(1)
 
 
-@cli.command()
-@click.argument("checkpoint_path", type=click.Path(exists=True, path_type=Path))
-@click.argument("data_path", type=click.Path(exists=True, path_type=Path))
+@cli.command("evaluate")
+@click.argument(
+    "checkpoint_path", type=click.Path(exists=False, path_type=Path)
+)  # Allow non-existent for dry-run
+@click.argument(
+    "data_path", type=click.Path(exists=False, path_type=Path)
+)  # Allow non-existent for dry-run
 @click.option("--config", type=click.Path(exists=True, path_type=Path), help="Config to use")
 @click.option("--device", type=click.Choice(["auto", "cpu", "cuda"]), default="auto")
 @click.option("--output-json", type=click.Path(path_type=Path), help="Save metrics to JSON file")
 @click.option(
     "--output-csv-bi", type=click.Path(path_type=Path), help="Export events in CSV_BI format"
 )
+@click.option("--dry-run", is_flag=True, help="Validate args and emit empty reports")
 def evaluate(
     checkpoint_path: Path,
     data_path: Path,
@@ -205,6 +210,7 @@ def evaluate(
     device: str,
     output_json: Path | None,
     output_csv_bi: Path | None,
+    dry_run: bool,
 ) -> None:
     """Evaluate model on test data.
 
@@ -215,7 +221,45 @@ def evaluate(
         device: Device to evaluate on
         output_json: Optional path to save metrics JSON
         output_csv_bi: Optional path to export events in CSV_BI format
+        dry_run: If True, validate args and emit empty reports without loading model
     """
+    # Handle dry-run mode
+    if dry_run:
+        console.print("[cyan]Running in dry-run mode[/cyan]")
+
+        # Create empty reports if requested
+        if output_json:
+            output_json.parent.mkdir(parents=True, exist_ok=True)
+            metrics = {
+                "checkpoint": str(checkpoint_path),
+                "data_dir": str(data_path),
+                "events": [],
+                "sensitivity": 0.0,
+                "specificity": 0.0,
+                "auc": 0.0,
+            }
+            import json
+
+            with output_json.open("w") as f:
+                json.dump(metrics, f, indent=2)
+            console.print(f"[green]✅ Created empty JSON:[/green] {output_json}")
+
+        if output_csv_bi:
+            output_csv_bi.parent.mkdir(parents=True, exist_ok=True)
+            output_csv_bi.write_text("record,start_s,end_s,confidence\n")
+            console.print(f"[green]✅ Created empty CSV:[/green] {output_csv_bi}")
+
+        console.print("[green]Dry-run evaluation complete[/green]")
+        return
+
+    # Check files exist for real evaluation
+    if not checkpoint_path.exists():
+        console.print(f"[red]Checkpoint not found:[/red] {checkpoint_path}")
+        sys.exit(1)
+    if not data_path.exists():
+        console.print(f"[red]Data path not found:[/red] {data_path}")
+        sys.exit(1)
+
     try:
         import json
         from datetime import datetime

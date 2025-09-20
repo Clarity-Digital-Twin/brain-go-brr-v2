@@ -1,4 +1,4 @@
-# 🧠 Brain-Go-Brr v2: First Bi-Mamba-2 + U-Net + ResCNN for Clinical EEG Seizure Detection
+# 🧠 Brain-Go-Brr v2: Bi-Mamba-2 + U-Net + ResCNN for Clinical EEG Seizure Detection
 
 **Pioneering O(N) complexity seizure detection with bidirectional state space models**
 
@@ -10,7 +10,7 @@
 
 We're solving the critical gap in clinical seizure detection: current systems have **>10 false alarms per day**, making them clinically unusable. While transformers show promise, their O(N²) complexity prevents real-time deployment on long EEG recordings.
 
-**Our innovation**: First architecture combining bidirectional Mamba-2 SSMs with U-Net CNNs and residual convolutions, achieving **O(N) complexity** while targeting **<1 false alarm per day**.
+**Our approach**: A novel architecture combining bidirectional Mamba-2 SSMs with U-Net CNNs and residual convolutions, achieving **O(N) complexity** with a research goal of reducing false alarms to clinically acceptable rates.
 
 ## 🏗️ Architecture
 
@@ -34,7 +34,7 @@ EEG Input (19ch, 256Hz, 60s windows)
 
 **Key Specifications:**
 - **Input**: 19-channel 10-20 montage @ 256 Hz
-- **Model**: ~25M parameters
+- **Model**: ~25M parameters (varies by config)
 - **Complexity**: O(N) vs Transformer's O(N²)
 - **Window**: 60s with 10s stride (83% overlap)
 
@@ -86,15 +86,17 @@ modal run --detach deploy/modal/app.py -- --action train --config configs/smoke_
 
 → Full guide: [`docs/deployment/MODAL_DEPLOYMENT_COMPLETE_GUIDE.md`](docs/deployment/MODAL_DEPLOYMENT_COMPLETE_GUIDE.md)
 
-## 📊 Performance Targets
+## 📊 Performance Goals (pending validation)
 
-| Metric | Our Target | Current SOTA | Clinical Need |
-|--------|------------|--------------|---------------|
-| **Sensitivity @ 10 FA/24h** | >95% | ~90% | ICU monitoring |
-| **Sensitivity @ 5 FA/24h** | >90% | ~82% | General ward |
-| **Sensitivity @ 1 FA/24h** | >75% | ~65% | Home monitoring |
-| **TAES Score** | >0.85 | ~0.75 | Temporal accuracy |
-| **Inference Speed** | <100ms | >500ms | Real-time capable |
+These are target goals, not achieved results. Formal validation and benchmarking are pending.
+
+| Metric | Goal (pending) | Clinical Need |
+|--------|-----------------|---------------|
+| Sensitivity @ 10 FA/24h | >95%          | ICU monitoring |
+| Sensitivity @ 5 FA/24h  | >90%          | General ward   |
+| Sensitivity @ 1 FA/24h  | >75%          | Home monitoring|
+| TAES Score              | >0.85         | Temporal accuracy |
+| Inference Speed         | <100ms        | Real-time capable |
 
 ## 📁 Project Structure
 
@@ -192,12 +194,12 @@ make train        # Full training run
 
 ## 📈 Benchmarks
 
-| Dataset | Windows | Seizures | Our F1 | Baseline |
-|---------|---------|----------|--------|----------|
-| TUH EEG v2.0.0 | 50,697 | 3,050 | 0.87* | 0.75 |
-| CHB-MIT | 9,567 | 198 | 0.92* | 0.85 |
+Results are pending. We will publish full benchmarks after rigorous evaluation on held-out datasets.
 
-*Preliminary results, full benchmarks in progress
+| Dataset        | Status   |
+|----------------|----------|
+| TUH EEG v2.0.0 | Pending  |
+| CHB-MIT        | Pending  |
 
 ## Citation
 

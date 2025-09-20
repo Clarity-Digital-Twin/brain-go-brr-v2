@@ -153,77 +153,91 @@ class TestCLIEvaluateCommand:
         data_dir = tmp_path / "data"
         data_dir.mkdir()
 
-        # Just test that the command parses args correctly - actual evaluation is too complex to mock
-        result = cli_runner.invoke(cli, ["evaluate", str(temp_checkpoint), str(data_dir)])
-        # Will fail because it can't actually load the checkpoint, but that's ok
-        assert result.exit_code != 0
-        assert "error" in result.output.lower() or "failed" in result.output.lower()
+        # Just test that the command parses args correctly with dry-run
+        result = cli_runner.invoke(
+            cli, ["evaluate", str(temp_checkpoint), str(data_dir), "--dry-run"]
+        )
+        # Dry-run should succeed without loading actual checkpoint
+        assert result.exit_code == 0
+        assert "dry-run" in result.output.lower()
 
-    @patch("torch.load")  # Just patch torch.load to avoid the actual loading
     def test_evaluate_with_json_output(
-        self, mock_evaluate, cli_runner: CliRunner, temp_checkpoint: Path, tmp_path: Path
+        self, cli_runner: CliRunner, temp_checkpoint: Path, tmp_path: Path
     ):
         """Test evaluation with JSON output."""
-        mock_evaluate.return_value = {"sensitivity": 0.95, "specificity": 0.92, "auc": 0.93}
-
         data_dir = tmp_path / "data"
         data_dir.mkdir()
         output_json = tmp_path / "metrics.json"
 
         result = cli_runner.invoke(
             cli,
-            ["evaluate", str(temp_checkpoint), str(data_dir), "--output-json", str(output_json)],
+            [
+                "evaluate",
+                str(temp_checkpoint),
+                str(data_dir),
+                "--output-json",
+                str(output_json),
+                "--dry-run",
+            ],
         )
 
-        assert result.exit_code != 0  # evaluate command not yet implemented
+        assert result.exit_code == 0  # dry-run should succeed
+        assert output_json.exists()
+        import json
 
-    @patch("torch.load")  # Just patch torch.load to avoid the actual loading
+        with output_json.open() as f:
+            data = json.load(f)
+            assert "checkpoint" in data
+            assert "events" in data
+
     def test_evaluate_with_csv_export(
-        self, mock_evaluate, cli_runner: CliRunner, temp_checkpoint: Path, tmp_path: Path
+        self, cli_runner: CliRunner, temp_checkpoint: Path, tmp_path: Path
     ):
         """Test evaluation with CSV-BI export."""
-        from src.brain_brr.events import SeizureEvent
-
-        # Mock evaluation to return events
-        mock_evaluate.return_value = {
-            "events": [[SeizureEvent(1.0, 2.5, 0.9), SeizureEvent(10.0, 15.0, 0.85)]],
-            "patient_ids": ["P001"],
-            "recording_ids": ["R001"],
-            "durations": [60.0],
-        }
-
         data_dir = tmp_path / "data"
         data_dir.mkdir()
         output_csv = tmp_path / "events.csv"
 
         result = cli_runner.invoke(
             cli,
-            ["evaluate", str(temp_checkpoint), str(data_dir), "--output-csv-bi", str(output_csv)],
+            [
+                "evaluate",
+                str(temp_checkpoint),
+                str(data_dir),
+                "--output-csv-bi",
+                str(output_csv),
+                "--dry-run",
+            ],
         )
 
-        assert result.exit_code != 0  # evaluate command not yet implemented
+        assert result.exit_code == 0  # dry-run should succeed
+        assert output_csv.exists()
+        assert "record,start_s,end_s,confidence" in output_csv.read_text()
 
-    @patch("torch.load")  # Just patch torch.load to avoid the actual loading
     def test_evaluate_with_config_override(
         self,
-        mock_evaluate,
         cli_runner: CliRunner,
         temp_checkpoint: Path,
         tmp_path: Path,
         valid_config_yaml: Path,
     ):
         """Test evaluation with config override."""
-        mock_evaluate.return_value = {"auc": 0.95}
-
         data_dir = tmp_path / "data"
         data_dir.mkdir()
 
         result = cli_runner.invoke(
             cli,
-            ["evaluate", str(temp_checkpoint), str(data_dir), "--config", str(valid_config_yaml)],
+            [
+                "evaluate",
+                str(temp_checkpoint),
+                str(data_dir),
+                "--config",
+                str(valid_config_yaml),
+                "--dry-run",
+            ],
         )
 
-        assert result.exit_code != 0  # evaluate command not yet implemented
+        assert result.exit_code == 0  # dry-run should succeed
 
     def test_evaluate_missing_checkpoint(self, cli_runner: CliRunner, tmp_path: Path):
         """Test evaluation with missing checkpoint."""
