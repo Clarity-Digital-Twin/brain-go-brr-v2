@@ -19,7 +19,7 @@ class TestCLIValidateCommand:
 
     def test_validate_with_phase(self, cli_runner: CliRunner, valid_config_yaml: Path):
         """Test validation with specific phase."""
-        result = cli_runner.invoke(cli, ["validate", str(valid_config_yaml), "--phase", "train"])
+        result = cli_runner.invoke(cli, ["validate", str(valid_config_yaml), "--phase", "training"])
         assert result.exit_code == 0
 
     def test_validate_nonexistent_file(self, cli_runner: CliRunner):
