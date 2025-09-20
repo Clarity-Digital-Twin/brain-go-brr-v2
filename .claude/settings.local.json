@@ -39,7 +39,8 @@
       "Bash(xargs -r kill -9)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(tmux attach:*)"
     ],
     "deny": [],
     "ask": []
