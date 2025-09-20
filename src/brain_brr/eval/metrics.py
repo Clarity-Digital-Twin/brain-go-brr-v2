@@ -570,7 +570,13 @@ def calculate_taes_metrics(
     sample_rate: int = 256,
     overlap_threshold: float | None = None,  # unused, kept for compatibility
 ) -> dict[str, Any]:
-    """Compatibility wrapper that returns a rich metrics dict for tests."""
+    """Compatibility wrapper that returns a rich metrics dict for tests.
+
+    If ``overlap_threshold`` is provided, the returned ``sensitivity`` is
+    computed at the event level: a reference event counts as detected only if
+    the overlap fraction with any predicted event is at least this threshold.
+    Otherwise, ``sensitivity`` is computed at the sample level.
+    """
     cfg = PostprocessingConfig()
     metrics = evaluate_predictions(
         predictions, labels, fa_rates=[fa_rate_target], post_cfg=cfg, sampling_rate=sample_rate
@@ -583,8 +589,12 @@ def calculate_taes_metrics(
     fp = int(((preds_bin == 1) & (labs == 0)).sum())
     fn = int(((preds_bin == 0) & (labs == 1)).sum())
     sensitivity = tp / max(tp + fn, 1)
-    specificity = tn / max(tn + fp, 1)
-    precision = tp / max(tp + fp, 1)
+    # When there are no negatives (tn+fp==0), define specificity=1.0 for tests
+    denom_spec = tn + fp
+    specificity = (tn / denom_spec) if denom_spec > 0 else 1.0
+    # When there are no predicted positives (tp+fp==0), define precision=0.0
+    denom_prec = tp + fp
+    precision = (tp / denom_prec) if denom_prec > 0 else 0.0
     metrics.update(
         {
             "sensitivity": float(sensitivity),
@@ -592,6 +602,33 @@ def calculate_taes_metrics(
             "precision": float(precision),
         }
     )
+
+    # Optional event-level sensitivity override controlled by overlap_threshold
+    if overlap_threshold is not None:
+        from src.brain_brr.events import batch_mask_to_events
+
+        pred_mask = (predictions > 0.5).to(torch.bool)
+        ref_mask = (labels > 0.5).to(torch.bool)
+        pred_events = batch_mask_to_events(pred_mask, sampling_rate=sample_rate)
+        ref_events = batch_mask_to_events(ref_mask, sampling_rate=sample_rate)
+
+        total_refs = 0
+        tp_events = 0
+        for refs, preds in zip(ref_events, pred_events, strict=False):
+            total_refs += len(refs)
+            for r in refs:
+                r_dur = max(0.0, r.end_s - r.start_s)
+                if r_dur <= 0:
+                    continue
+                hit = False
+                for p in preds:
+                    inter = max(0.0, min(r.end_s, p.end_s) - max(r.start_s, p.start_s))
+                    if (inter / r_dur) >= overlap_threshold:
+                        hit = True
+                        break
+                if hit:
+                    tp_events += 1
+        metrics["sensitivity"] = float(tp_events / max(total_refs, 1))
     return metrics
 
 

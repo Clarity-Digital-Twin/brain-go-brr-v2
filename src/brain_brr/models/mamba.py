@@ -78,11 +78,12 @@ class BiMamba2Layer(nn.Module):
         # Fallback for CPU/testing (Conv1d to match docs/tests; operates on (B, C, L))
         # WARNING: This is NOT functionally equivalent to Mamba-2 SSM!
         padding = max(0, self.d_conv // 2)
+        # Depthwise conv fallback for CPU speed (preserves channel count)
         self.forward_mamba_fallback = nn.Conv1d(
-            d_model, d_model, kernel_size=self.d_conv, padding=padding
+            d_model, d_model, kernel_size=self.d_conv, padding=padding, groups=d_model
         )
         self.backward_mamba_fallback = nn.Conv1d(
-            d_model, d_model, kernel_size=self.d_conv, padding=padding
+            d_model, d_model, kernel_size=self.d_conv, padding=padding, groups=d_model
         )
 
         # Fusion and normalization
