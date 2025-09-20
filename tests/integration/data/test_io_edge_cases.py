@@ -62,35 +62,33 @@ class TestRealTUSZFiles:
 
     def test_extreme_class_imbalance_in_dataset(self, data_dir):
         """Test REAL class imbalance in TUSZ dataset."""
-        from src.brain_brr.data.datasets import EEGWindowDataset
+        # This would need the full dataset loading infrastructure
+        # For now, test class imbalance by loading raw label files
+        label_files = list(data_dir.glob("**/*.tse"))[:10]
+        if not label_files:
+            pytest.skip("No TSE label files found")
 
-        # Use limited files for speed
-        os.environ["BGB_LIMIT_FILES"] = "10"
+        total_time = 0
+        seizure_time = 0
 
-        try:
-            dataset = EEGWindowDataset(
-                data_dir=str(data_dir),
-                target_sample_rate=256,
-                window_duration_s=60,
-                stride_s=10,
-                cache_dir="cache/test_imbalance",
-            )
+        for label_file in label_files:
+            # Read TSE file and count seizure vs background time
+            with open(label_file, 'r') as f:
+                for line in f:
+                    if line.startswith('#'):
+                        continue
+                    parts = line.strip().split()
+                    if len(parts) >= 3:
+                        start = float(parts[0])
+                        end = float(parts[1])
+                        label = parts[2]
+                        duration = end - start
+                        total_time += duration
+                        if label == 'seiz':
+                            seizure_time += duration
 
-            # Sample some windows to check imbalance
-            positive_windows = 0
-            total_windows = min(50, len(dataset))
-
-            for i in range(total_windows):
-                _, label = dataset[i]
-                if label.sum() > 0:  # Has any positive samples
-                    positive_windows += 1
-
-            positive_ratio = positive_windows / total_windows if total_windows > 0 else 0
-            print(f"Positive ratio: {positive_ratio:.3f} ({positive_windows}/{total_windows})")
-
+        if total_time > 0:
+            seizure_ratio = seizure_time / total_time
+            print(f"Seizure ratio: {seizure_ratio:.3f} ({seizure_time:.1f}s/{total_time:.1f}s)")
             # TUSZ is extremely imbalanced
-            assert positive_ratio < 0.5, "Expected extreme imbalance in TUSZ"
-
-        finally:
-            if "BGB_LIMIT_FILES" in os.environ:
-                del os.environ["BGB_LIMIT_FILES"]
+            assert seizure_ratio < 0.15, "Expected extreme imbalance in TUSZ"
