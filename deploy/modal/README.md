@@ -45,23 +45,25 @@ modal secret create wandb-secret WANDB_API_KEY=<your-key>
 
 ## Usage
 
-> ⚠️ **CRITICAL**: Always use the `--detach` flag when running training jobs!
+> ⚠️ **CRITICAL**: Modal's `--detach` flag MUST go BEFORE the script name!
 >
-> Without `--detach`, Modal will kill your training if your local connection drops (e.g., closing terminal, network issues, interrupting the command).
-> With `--detach`, your training continues running in the cloud even if you disconnect.
+> **CORRECT:** `modal run --detach app.py -- --action train`
+> **WRONG:** `modal run app.py --action train --detach`
+>
+> Without Modal's `--detach`, training stops if connection drops. The double dash `--` separates Modal's arguments from app arguments.
 
 ### Training
 
 **Smoke Test** (quick validation):
 ```bash
-# ALWAYS use --detach to prevent disconnection from killing your training!
-modal run deploy/modal/app.py --action train --config configs/smoke_test.yaml --detach
+# Modal's --detach prevents disconnection from killing training
+modal run --detach deploy/modal/app.py -- --action train --config configs/smoke_test.yaml
 ```
 
 **Full Training** (A100-optimized):
 ```bash
-# ALWAYS use --detach for long-running training jobs!
-modal run deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --detach
+# Modal's --detach is critical for long-running jobs
+modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml
 ```
 
 ### Evaluation
@@ -131,7 +133,7 @@ modal volume get brain-go-brr-results /evaluations ./results/evaluations
 
 ## Tips
 
-- Use `--detach` for long runs to avoid terminal disconnects
+- Use `modal run --detach app.py` (NOT `modal run app.py --detach`) to prevent disconnects
 - Add `spot=True` to function decorators for 70% cost savings (may preempt)
 - Monitor runs at https://modal.com/apps
 - First run takes longer (~5 min) due to image building
