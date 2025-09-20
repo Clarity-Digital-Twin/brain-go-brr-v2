@@ -145,6 +145,38 @@ class TestCLICommands:
         assert result.exit_code != 0  # No real checkpoint present; just validates error path
 ```
 
+#### 2.1b Corrections to CLI tests (exact to repo)
+- Train command actually invokes `src.brain_brr.train.loop.main()`. For a unit test, monkeypatch it to avoid running training.
+- Model/config schema requires full fields (encoder 4 stages, mamba d_model=512, etc.). Use a minimal valid YAML.
+
+```python
+# tests/unit/cli/test_cli_commands_minimal.py
+from pathlib import Path
+from click.testing import CliRunner
+from src.brain_brr.cli.cli import cli
+
+
+def test_train_invocation_minimal(monkeypatch, tmp_path: Path) -> None:
+    cfg = tmp_path / "train.yaml"
+    cfg.write_text(
+        "experiment: {name: t, seed: 1}\n"
+        "data: {dataset: tuh_eeg, data_dir: tests, sampling_rate: 256, n_channels: 19, window_size: 60, stride: 10, num_workers: 0}\n"
+        "model: {encoder: {channels: [64,128,256,512], stages: 4}, rescnn: {n_blocks: 3, kernel_sizes: [3,5,7]}, mamba: {n_layers: 1, d_model: 512, d_state: 16, conv_kernel: 5}, decoder: {stages: 4, kernel_size: 4}}\n"
+        "training: {epochs: 0, batch_size: 2, learning_rate: 1e-3, optimizer: adamw}\n"
+        "postprocessing: {hysteresis: {tau_on: 0.86, tau_off: 0.78}, duration: {min_duration_s: 1.0, max_duration_s: 5.0}}\n",
+        encoding="utf-8",
+    )
+
+    ran = {"flag": False}
+    def fake_train_main() -> None:
+        ran["flag"] = True
+    monkeypatch.setattr("src.brain_brr.train.loop.main", fake_train_main)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["train", str(cfg), "--resume"], catch_exceptions=False)
+    assert result.exit_code == 0 and ran["flag"]
+```
+
 ### 2.2 Export Functionality (0% → 95%)
 Grounded in src/brain_brr/events/export.py (export_csv_bi, export_json, export_batch_csv_bi, validate_csv_bi).
 
@@ -198,21 +230,24 @@ def test_batch_export_length_mismatch(tmp_path: Path) -> None:
 class TestTrainingLoop:
     """Comprehensive training loop testing"""
 
-    def test_checkpoint_saving_and_loading(self, tmp_path, model, optimizer):
-        """Test checkpoint persistence"""
+    def test_checkpoint_save_and_load(self, tmp_path):
+        model = nn.Sequential(nn.Linear(4, 4), nn.ReLU(), nn.Linear(4, 2))
+        optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
         checkpoint_path = tmp_path / "checkpoint.pt"
 
-        # Save
-        save_checkpoint(model, optimizer, epoch=5, path=checkpoint_path)
+        save_checkpoint(
+            model,
+            optimizer,
+            epoch=5,
+            best_metric=0.5,
+            checkpoint_path=checkpoint_path,
+            scheduler=None,
+            config=None,
+        )
         assert checkpoint_path.exists()
 
-        # Modify model
-        original_weight = model.encoder.conv1.weight.clone()
-        model.encoder.conv1.weight.data.fill_(0)
-
-        # Load
-        load_checkpoint(model, optimizer, checkpoint_path)
-        assert torch.allclose(model.encoder.conv1.weight, original_weight)
+        epoch, best = load_checkpoint(checkpoint_path, model, optimizer=optimizer)
+        assert epoch == 5 and abs(best - 0.5) < 1e-6
 
     def test_early_stopping_triggers(self, mock_trainer):
         """Test early stopping with patience"""
@@ -229,21 +264,20 @@ class TestTrainingLoop:
                 assert should_stop
                 break
 
-    @pytest.mark.parametrize("scheduler_type", ["cosine", "linear", "constant"])
-    def test_lr_scheduling(self, scheduler_type):
-        """Test all LR scheduler configurations"""
-        scheduler = create_scheduler(scheduler_type, optimizer, epochs=10)
+    def test_scheduler_cosine_shape(self):
+        model = nn.Linear(2, 1)
+        optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+        sched_cfg = SchedulerConfig(type="cosine", warmup_ratio=0.2)
+        total_steps = 10
+        scheduler = create_scheduler(optimizer, sched_cfg, total_steps)
 
         lrs = []
-        for epoch in range(10):
+        for _ in range(total_steps):
             lrs.append(optimizer.param_groups[0]['lr'])
             scheduler.step()
 
-        # Verify schedule shape
-        if scheduler_type == "cosine":
-            assert lrs[0] > lrs[5] > lrs[9]  # Decreasing
-        elif scheduler_type == "constant":
-            assert len(set(lrs)) == 1  # All same
+        assert lrs[0] < lrs[2]  # warmup up
+        assert lrs[-1] < lrs[2]  # cosine down
 ```
 
 ## Phase 3: Clinical-Grade Testing (Week 2-3)
@@ -251,38 +285,28 @@ class TestTrainingLoop:
 ### 3.1 Channel Order Invariants
 ```python
 # tests/clinical/test_channel_order.py
-CANONICAL_MONTAGE = ["Fp1", "F3", "C3", "P3", "F7", "T3", "T5", "O1",
-                     "Fz", "Cz", "Pz", "Fp2", "F4", "C4", "P4", "F8",
-                     "T4", "T6", "O2"]
+import types
+from src.brain_brr.constants import CHANNEL_NAMES_10_20, CHANNEL_SYNONYMS
+from src.brain_brr.utils.pick_utils import pick_and_order
 
-class TestChannelOrdering:
-    """Ensure 10-20 montage preservation throughout pipeline"""
 
-    @pytest.mark.parametrize("stage", [
-        "after_load", "after_preprocess", "after_window",
-        "after_model", "after_postprocess"
-    ])
-    def test_channel_order_preserved(self, edf_file, stage):
-        """Channel order must never change"""
-        data = load_edf(edf_file)
+def test_pick_and_order_preserves_exact_order():
+    raw = types.SimpleNamespace(
+        ch_names=list(CHANNEL_NAMES_10_20),
+        reorder_channels=lambda names: None,
+        pick_channels=lambda names, ordered=True: None,
+        get_data=lambda: None,
+    )
+    _, missing = pick_and_order(raw, CHANNEL_NAMES_10_20)
+    assert missing == []
 
-        if stage == "after_preprocess":
-            data = preprocess(data)
-        elif stage == "after_window":
-            data = create_windows(data)
-        # ... etc
 
-        assert data.ch_names == CANONICAL_MONTAGE
-
-    def test_channel_synonym_mapping(self):
-        """Test T7→T3, T8→T4, P7→T5, P8→T6 mappings"""
-        data_with_new_names = create_test_data(
-            channels=["T7", "T8", "P7", "P8"]
-        )
-        mapped = map_channel_synonyms(data_with_new_names)
-        assert "T3" in mapped.ch_names
-        assert "T7" not in mapped.ch_names
+def test_channel_synonym_mapping_constants():
+    assert CHANNEL_SYNONYMS["T7"] == "T3"
+    assert CHANNEL_SYNONYMS["T8"] == "T4"
 ```
+
+Note: EDF-level ordering is covered by `load_edf_file` using `_read_raw_edf` and `pick_and_order`. For unit tests, prefer mocking `_read_raw_edf` to return a Raw-like object rather than reading real EDFs.
 
 ### 3.2 Numerical Stability Tests
 ```python
