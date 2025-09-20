@@ -430,17 +430,16 @@ def evaluate_predictions(
     probs_flat = probs.cpu().numpy().flatten()
     labels_flat = labels.cpu().numpy().flatten()
 
-    try:
-        auroc = float(roc_auc_score(labels_flat, probs_flat))
-    except ValueError:
-        # Handle case with single class
+    if np.unique(labels_flat).size < 2:
         auroc = 0.5
+    else:
+        auroc = float(roc_auc_score(labels_flat, probs_flat))
 
-    try:
-        pr_auc = float(average_precision_score(labels_flat, probs_flat))
-    except ValueError:
-        # Handle case with single class or no positive samples
+    # PR-AUC can be undefined with no positives; guard to avoid warnings
+    if (labels_flat == 1).sum() == 0:
         pr_auc = 0.0
+    else:
+        pr_auc = float(average_precision_score(labels_flat, probs_flat))
 
     # Expected Calibration Error (ECE) with 10 bins
     ece = calculate_ece(probs_flat, labels_flat, n_bins=10)
@@ -519,9 +518,18 @@ def compute_roc_curve(
         else np.asarray(predictions)
     )
     labs = labels.detach().cpu().numpy() if isinstance(labels, torch.Tensor) else np.asarray(labels)
-    fpr, tpr, thresh = roc_curve(labs.ravel(), preds.ravel())
+    labs_r = labs.ravel()
+    preds_r = preds.ravel()
+    # Guard degenerate cases to avoid sklearn UndefinedMetricWarning
+    if np.unique(labs_r).size < 2:
+        fpr = np.array([0.0, 1.0], dtype=float)
+        tpr = np.array([0.0, 1.0], dtype=float)
+        thresh = np.array([0.5], dtype=float)
+        auc = 0.5
+        return fpr, tpr, thresh, auc
+    fpr, tpr, thresh = roc_curve(labs_r, preds_r)
     try:
-        auc = float(roc_auc_score(labs.ravel(), preds.ravel()))
+        auc = float(roc_auc_score(labs_r, preds_r))
     except ValueError:
         auc = 0.5
     return fpr, tpr, thresh, auc

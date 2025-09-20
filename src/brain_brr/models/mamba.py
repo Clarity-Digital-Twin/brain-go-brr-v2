@@ -13,6 +13,7 @@ import torch
 import torch.nn as nn
 
 # Conditional import for GPU/CPU compatibility
+_warned_kernel_coercion = False
 try:
     from mamba_ssm import Mamba2
 
@@ -56,11 +57,14 @@ class BiMamba2Layer(nn.Module):
         _allowed = (2, 3, 4)
         self._mamba_conv_k = d_conv if d_conv in _allowed else 4
         if MAMBA_AVAILABLE and d_conv not in _allowed:
-            warnings.warn(
-                f"Mamba CUDA path coerced conv kernel from {d_conv}→{self._mamba_conv_k} "
-                "(CUDA op supports only 2-4). CPU fallback still uses configured kernel.",
-                stacklevel=1,
-            )
+            global _warned_kernel_coercion
+            if not _warned_kernel_coercion:
+                warnings.warn(
+                    f"Mamba CUDA path coerced conv kernel from {d_conv}→{self._mamba_conv_k} "
+                    "(CUDA op supports only 2-4). CPU fallback still uses configured kernel.",
+                    stacklevel=1,
+                )
+                _warned_kernel_coercion = True
 
         # Always create both paths - decide at runtime
         if MAMBA_AVAILABLE:
