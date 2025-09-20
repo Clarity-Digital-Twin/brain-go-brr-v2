@@ -49,13 +49,14 @@ class TestMemoryUsage:
     def test_inference_memory_scaling(self, minimal_model, batch_size):
         """Test memory scales linearly with batch size."""
         window_size = 15360  # 60s at 256Hz
+        device = next(minimal_model.parameters()).device
 
         # Baseline memory
         gc.collect()
         baseline_ram, baseline_gpu = self.get_memory_usage()
 
-        # Create batch
-        batch = torch.randn(batch_size, 19, window_size)
+        # Create batch on same device as model
+        batch = torch.randn(batch_size, 19, window_size, device=device)
 
         # Run inference
         with torch.no_grad():
@@ -133,7 +134,8 @@ class TestMemoryUsage:
     @pytest.mark.performance
     def test_memory_leak_detection(self, minimal_model):
         """Test for memory leaks during repeated inference."""
-        window = torch.randn(1, 19, 15360)
+        device = next(minimal_model.parameters()).device
+        window = torch.randn(1, 19, 15360, device=device)
 
         # Initial warmup
         with torch.no_grad():
@@ -168,8 +170,9 @@ class TestMemoryUsage:
     def test_gradient_memory(self, minimal_model):
         """Test memory usage during training (with gradients)."""
         batch_size = 4
-        window = torch.randn(batch_size, 19, 15360, requires_grad=False)
-        labels = torch.randn(batch_size, 15360)
+        device = next(minimal_model.parameters()).device
+        window = torch.randn(batch_size, 19, 15360, requires_grad=False, device=device)
+        labels = torch.randn(batch_size, 15360, device=device)
 
         # Forward pass without gradients
         gc.collect()
@@ -245,10 +248,11 @@ class TestMemoryUsage:
         """Test memory stability during streaming inference."""
         window_size = 15360
         stride_samples = 2560  # 10s stride
+        device = next(minimal_model.parameters()).device
 
         # Simulate streaming buffer
         buffer_size = window_size + stride_samples * 10
-        buffer = torch.zeros(1, 19, buffer_size)
+        buffer = torch.zeros(1, 19, buffer_size, device=device)
 
         gc.collect()
         initial_ram, _initial_gpu = self.get_memory_usage()
@@ -258,7 +262,7 @@ class TestMemoryUsage:
         with torch.no_grad():
             for i in range(100):
                 # Simulate new data arrival
-                new_data = torch.randn(1, 19, stride_samples)
+                new_data = torch.randn(1, 19, stride_samples, device=device)
                 buffer = torch.cat([buffer[:, :, stride_samples:], new_data], dim=2)
 
                 # Extract window
@@ -310,13 +314,14 @@ class TestMemoryUsage:
     @pytest.mark.performance
     def test_memory_profiling_detailed(self, minimal_model):
         """Detailed memory profiling with tracemalloc."""
+        device = next(minimal_model.parameters()).device
         tracemalloc.start()
 
         # Take initial snapshot
         snapshot1 = tracemalloc.take_snapshot()
 
         # Run inference
-        batch = torch.randn(4, 19, 15360)
+        batch = torch.randn(4, 19, 15360, device=device)
         with torch.no_grad():
             minimal_model(batch)
 
@@ -343,7 +348,8 @@ class TestMemoryUsage:
     @pytest.mark.slow
     def test_long_running_memory_stability(self, minimal_model):
         """Test memory stability over extended operation."""
-        window = torch.randn(1, 19, 15360)
+        device = next(minimal_model.parameters()).device
+        window = torch.randn(1, 19, 15360, device=device)
         memory_checkpoints = []
 
         with torch.no_grad():
