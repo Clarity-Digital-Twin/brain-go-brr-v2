@@ -85,7 +85,8 @@
       "Bash(.venv/bin/pytest --co -q -m \"not serial\" tests/integration/test_model_assembly.py)",
       "Bash(lsof:*)",
       "Bash(.venv/bin/pytest --collect-only -q)",
-      "Bash(.venv/bin/pytest --markers)"
+      "Bash(.venv/bin/pytest --markers)",
+      "Bash(.venv/bin/pytest --collect-only -q -m performance)"
     ],
     "deny": [],
     "ask": []
