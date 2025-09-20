@@ -5,7 +5,12 @@
       "Bash(.venv/bin/pytest tests/performance/test_latency.py::TestInferenceLatency::test_single_window_latency -xvs -n 0)",
       "Bash(grep:*)",
       "Read(///**)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "WebSearch",
+      "Bash(pip show:*)",
+      "Bash(python:*)",
+      "Bash(pip uninstall:*)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []
