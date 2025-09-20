@@ -10,7 +10,7 @@ Build a robust, reproducible training and evaluation pipeline that trains the Ph
 - [ ] Validation loop with TAES, FA@{10,5,2.5,1}
 - [ ] Checkpointing + early stopping (metric from config)
 - [ ] Logging (TensorBoard; optional Weights & Biases)
-- [ ] CLI integration (`python -m src.experiment.pipeline --config ...`)
+- [ ] CLI integration (current CLI lives at `src/brain_brr/cli/cli.py` and is invoked as `python -m src ...`)
 - [ ] TDD: unit + smoke tests, quality gates green
 
 ## 🔧 Implementation Files

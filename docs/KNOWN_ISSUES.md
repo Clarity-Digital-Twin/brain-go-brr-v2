@@ -1,5 +1,10 @@
 # Known Issues (ALL RESOLVED - ZERO REMAINING)
 
+Note: This document captures historical issues and may reference legacy module
+names (e.g., `src/experiment/*`) and configs (e.g., `configs/production.yaml`).
+The current implementation lives under `src/brain_brr/*` and uses environment-
+specific configs listed in `DOCS_SSOT.md`.
+
 **LAST UPDATED:** 2025-01-18 - ALL ISSUES RESOLVED/ARCHIVED 🎆
 
 ## 🎉 FINAL RESOLUTION STATUS 🎉
