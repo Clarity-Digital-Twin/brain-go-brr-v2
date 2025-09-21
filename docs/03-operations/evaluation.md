@@ -23,7 +23,7 @@ Code anchors
 CLI
 - Evaluate a checkpoint: `python -m src evaluate <checkpoint_path> <data_path> --output-json <out.json>`
 
-Docs
-- phases/PHASE5_EVALUATION.md
-- implementation/EVALUATION_CHECKLIST.md
-- deployment/TRAINING_AUDIT_CHECKLIST.md
+Cross-references
+- Architecture: ../02-architecture/canonical-spec.md (evaluation metrics section)
+- Post-processing: ./postprocessing.md
+- Preflight checks: ./deploy-preflight.md

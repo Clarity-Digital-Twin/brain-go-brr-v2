@@ -15,10 +15,10 @@ Code anchors
 - src/brain_brr/post/postprocess.py (hysteresis, morphology, duration)
 - src/brain_brr/events/* (event generation)
 
-Docs
-- phases/PHASE4_POSTPROCESSING.md
-- implementation/EVALUATION_CHECKLIST.md (TAES + FA/24h points)
- - ../01-data-pipeline/tusz-preflight.md (operational pitfalls)
+Cross-references
+- Architecture spec: ../02-architecture/canonical-spec.md (post-processing section)
+- Evaluation metrics: ./evaluation.md (TAES + FA/24h points)
+- Data pipeline: ../01-data-pipeline/tusz-preflight.md (operational pitfalls)
 
 Notes
 - Tune thresholds on dev set; keep eval rules consistent with TAES.

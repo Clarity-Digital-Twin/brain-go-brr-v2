@@ -30,6 +30,6 @@ Code anchors
 - src/brain_brr/cli/cli.py (train entry)
 - configs/local/{train.yaml,smoke.yaml}; configs/modal/{train_a100.yaml,smoke_a100.yaml}
 
-Docs
-- phases/PHASE3_TRAINING_PIPELINE.md
-- deployment/PREFLIGHT.md, deployment/MODAL_SSOT.md
+Cross-references
+- Architecture: ../02-architecture/canonical-spec.md (training configuration)
+- Deployment: ./deploy-preflight.md, ./deploy-modal.md
