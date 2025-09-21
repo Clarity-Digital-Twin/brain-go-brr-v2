@@ -1069,10 +1069,8 @@ def main() -> None:
         except Exception as e:
             print(f"[WARNING] Manifest build failed: {e}", flush=True)
 
-    from typing import Any as _Any
-
-    train_dataset: _Any
-
+    # Create training dataset - either balanced (from manifest) or standard
+    train_dataset: BalancedSeizureDataset | EEGWindowDataset
     if use_balanced and manifest_path.exists():
         try:
             train_dataset = BalancedSeizureDataset(train_cache_dir)
@@ -1082,9 +1080,9 @@ def main() -> None:
             )
             if len(train_dataset) == 0:
                 print("[FATAL] Balanced manifest produced 0 windows", flush=True)
-                import sys as _sys
+                import sys
 
-                _sys.exit(1)
+                sys.exit(1)
         except Exception as e:
             print(f"[WARNING] BalancedSeizureDataset failed: {e}; falling back to EEGWindowDataset")
             train_dataset = EEGWindowDataset(

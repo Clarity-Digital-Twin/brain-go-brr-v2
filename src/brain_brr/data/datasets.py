@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from pathlib import Path
 
@@ -208,39 +209,64 @@ class BalancedSeizureDataset(Dataset):
             _ = scan_existing_cache(self.cache_dir)
 
         with manifest_path.open() as f:
-            manifest = __import__("json").load(f)
+            manifest = json.load(f)
 
         partial: list[dict] = list(manifest.get("partial_seizure", []))
         full: list[dict] = list(manifest.get("full_seizure", []))
         no_seizure: list[dict] = list(manifest.get("no_seizure", []))
 
+        # Validate we have seizures to work with
+        if not partial:
+            raise ValueError(
+                f"No partial seizure windows found in manifest! "
+                f"Full: {len(full)}, No-seizure: {len(no_seizure)}"
+            )
+
         rng = np.random.default_rng(seed)
 
         indices: list[tuple[Path, int]] = []
 
+        # Add ALL partial seizure windows (most informative)
         for item in partial:
-            indices.append((Path(item["cache_file"]), int(item["window_idx"])))
+            # Resolve relative path from manifest to absolute
+            cache_file = self.cache_dir / item["cache_file"]
+            indices.append((cache_file, int(item["window_idx"])))
 
+        # Add 0.3x full seizure windows
         n_full = int(full_ratio * len(partial))
-        if full:
-            choice = rng.choice(len(full), size=min(n_full, len(full)), replace=False)
-            for i in choice.tolist():
+        if full and n_full > 0:
+            selected_indices = rng.choice(len(full), size=min(n_full, len(full)), replace=False)
+            for i in selected_indices:
                 item = full[i]
-                indices.append((Path(item["cache_file"]), int(item["window_idx"])))
+                cache_file = self.cache_dir / item["cache_file"]
+                indices.append((cache_file, int(item["window_idx"])))
 
+        # Add 2.5x no-seizure windows
         n_bg = int(background_ratio * len(partial))
-        if no_seizure:
-            choice = rng.choice(len(no_seizure), size=min(n_bg, len(no_seizure)), replace=False)
-            for i in choice.tolist():
+        if no_seizure and n_bg > 0:
+            selected_indices = rng.choice(
+                len(no_seizure), size=min(n_bg, len(no_seizure)), replace=False
+            )
+            for i in selected_indices:
                 item = no_seizure[i]
-                indices.append((Path(item["cache_file"]), int(item["window_idx"])))
+                cache_file = self.cache_dir / item["cache_file"]
+                indices.append((cache_file, int(item["window_idx"])))
 
-        import random as _py_random
+        # Shuffle using numpy's RNG for consistency
+        indices_array = np.array(indices, dtype=object)
+        rng.shuffle(indices_array)
+        self._entries: list[tuple[Path, int]] = indices_array.tolist()
 
-        _rnd = _py_random.Random(seed)
-        _rnd.shuffle(indices)
-
-        self._entries: list[tuple[Path, int]] = indices
+        # Log dataset composition
+        n_partial_used = len(partial)
+        n_full_used = min(n_full, len(full)) if full else 0
+        n_bg_used = min(n_bg, len(no_seizure)) if no_seizure else 0
+        print(
+            f"[BalancedSeizureDataset] Created with {len(self._entries)} windows:\n"
+            f"  - {n_partial_used} partial seizure (100% of available)\n"
+            f"  - {n_full_used} full seizure ({n_full_used / n_partial_used:.1%} of partial)\n"
+            f"  - {n_bg_used} no-seizure ({n_bg_used / n_partial_used:.1%} of partial)"
+        )
 
     def __len__(self) -> int:
         return len(self._entries)

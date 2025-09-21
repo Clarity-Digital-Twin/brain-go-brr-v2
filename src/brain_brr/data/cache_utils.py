@@ -72,21 +72,25 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
         try:
             with np.load(npz_path) as data:
                 if "labels" not in data:
+                    # No labels = assume all windows are no-seizure
                     n_windows = int(data["windows"].shape[0])
                     for w_idx in range(n_windows):
                         manifest["no_seizure"].append(
-                            {"cache_file": str(npz_path), "window_idx": int(w_idx)}
+                            {"cache_file": npz_path.name, "window_idx": int(w_idx)}
                         )
                     continue
                 labels = data["labels"]
-        except Exception:
+        except (OSError, ValueError) as e:
+            # Skip corrupted or inaccessible files
+            print(f"Warning: Skipping {npz_path.name}: {e}")
             continue
 
         n_windows = int(labels.shape[0])
         for w_idx in range(n_windows):
             lbl = labels[w_idx]
             ratio = float((lbl > 0).mean())
-            item = {"cache_file": str(npz_path), "window_idx": int(w_idx)}
+            # Use relative path (just filename) for portability
+            item = {"cache_file": npz_path.name, "window_idx": int(w_idx)}
             if ratio == 0.0:
                 manifest["no_seizure"].append(item)
             elif ratio >= 0.99:
@@ -95,6 +99,19 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
                 manifest["partial_seizure"].append(item)
 
     with (cache_dir / "manifest.json").open("w") as f:
-        json.dump(manifest, f)
+        json.dump(manifest, f, indent=2)
+
+    # Print summary
+    n_partial = len(manifest["partial_seizure"])
+    n_full = len(manifest["full_seizure"])
+    n_none = len(manifest["no_seizure"])
+    total = n_partial + n_full + n_none
+
+    if n_partial == 0:
+        print(f"WARNING: No partial seizure windows found in {len(npz_files)} files!")
+        print(f"  Full seizure: {n_full}, No seizure: {n_none}")
+    else:
+        print(f"Manifest created: {n_partial} partial, {n_full} full, {n_none} no-seizure")
+        print(f"  Seizure ratio: {(n_partial + n_full) / total:.1%}")
 
     return manifest
