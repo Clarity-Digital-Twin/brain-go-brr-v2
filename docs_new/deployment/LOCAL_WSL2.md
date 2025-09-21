@@ -32,3 +32,8 @@ Troubleshooting (quick)
 - 0% seizures in batches: rescan manifest; fix CSV_BI parsing; rebuild cache
 - Slow IO: avoid Windows drives; keep data/cache in WSL ext4
 
+Deep dives (WSL2)
+- GPU setup options and CUDA wheels: ../WSL2/WSL2_GPU_SETUP.md
+- CUDA performance findings and pytest multiprocessing: ../WSL2/CUDA_PERFORMANCE_FINDINGS.md
+- Full WSL2 troubleshooting (I/O, env vars, threads): ../WSL2/WSL2_TROUBLESHOOTING.md
+

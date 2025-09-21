@@ -6,6 +6,7 @@ What to read
 
 - PREFLIGHT.md — Non-negotiable checks before any run
 - LOCAL_WSL2.md — Local setup + stable training loop on WSL2/Linux
+   - Deep dives: WSL2/WSL2_GPU_SETUP.md, WSL2/CUDA_PERFORMANCE_FINDINGS.md, WSL2/WSL2_TROUBLESHOOTING.md
 - MODAL_SSOT.md — Single source of truth for Modal runs
 - TROUBLESHOOTING.md — Common failures and quick fixes
  - TRAINING_AUDIT_CHECKLIST.md — Data split integrity and evaluation protocol
