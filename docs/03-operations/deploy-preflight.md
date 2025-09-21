@@ -28,6 +28,23 @@ Quick strategy (small first)
 - WSL2: use `num_workers=0` and avoid pin_memory in configs
 - GPU (if used): ensure correct drivers/CUDA; Mamba kernels coerce `d_conv` (fallback available)
 
+## Data Split Integrity
+
+**CRITICAL**: TUSZ provides pre-defined splits that MUST be respected:
+```
+data_ext4/tusz/edf/
+├── train/   (581 patients) - TRAINING ONLY
+├── dev/     (55 patients)  - HYPERPARAMETER TUNING
+└── eval/    (45 patients)  - FINAL TEST - ONE SHOT ONLY!
+```
+
+**Never**:
+- Use eval set for threshold selection
+- Combine train/dev/eval for "more data"
+- Peek at eval metrics during training
+- Mix same patient across splits
+- Tune hyperparameters on train set performance
+
 References
 - TUSZ preflight/troubleshooting: ../01-data-pipeline/tusz-preflight.md
 - Cache+sampling details: ../01-data-pipeline/tusz-cache-sampling.md
