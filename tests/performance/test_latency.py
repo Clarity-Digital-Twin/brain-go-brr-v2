@@ -1,6 +1,7 @@
 """Performance tests for inference latency and real-time processing capability."""
 
 import gc
+import os
 import time
 
 import numpy as np
