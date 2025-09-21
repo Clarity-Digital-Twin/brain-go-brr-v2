@@ -116,7 +116,9 @@
       "Read(//tmp/**)",
       "WebFetch(domain:modal.com)",
       "Bash(curl:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(while ! tmux capture-pane -t train_full -p)",
+      "Bash(do sleep:*)"
     ],
     "deny": [],
     "ask": []

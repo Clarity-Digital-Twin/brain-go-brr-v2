@@ -15,10 +15,10 @@ data:
   n_channels: 19
   window_size: 60
   stride: 10
-  num_workers: 0                        # WSL2-critical: avoid multiprocessing hangs
-  pin_memory: false                      # WSL2-critical: prevent /dev/shm issues
-  persistent_workers: false              # WSL2-critical: for stability
-  prefetch_factor: 2                     # ignored when num_workers=0
+  num_workers: 4                        # Parallel data loading (tested OK on WSL2)
+  pin_memory: true                       # Faster GPU transfers
+  persistent_workers: true               # Reuse workers between epochs
+  prefetch_factor: 2                     # Pre-load 2 batches per worker
   validation_split: 0.2
   use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling
 
