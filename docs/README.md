@@ -34,6 +34,11 @@ Last updated: 2025-09-19
 - `EVALUATION_CHECKLIST.md` - Testing and validation checklist
 - `SETUP_NOTES.md` - Environment setup instructions
 
+### `/docs/deployment/` - Deployment
+- `MODAL_DEPLOYMENT_SSOT.md` - Modal deployment Single Source of Truth
+- `MODAL_MAMBA_DEPLOYMENT_ISSUES.md` - CUDA/Mamba deployment notes
+- `MODAL_LOGGING_TODO.md` - Logging/observability TODOs
+
 ### `/docs/testing/` - Testing Strategy
 - `TEST_PLAN.md` - Canonical testing strategy and commands
 

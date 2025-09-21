@@ -193,7 +193,7 @@ make train        # Full training run
 | Document | Description |
 |----------|-------------|
 | [`CANONICAL_ARCHITECTURE_SPEC.md`](docs/architecture/CANONICAL_ARCHITECTURE_SPEC.md) | Complete technical specification |
-| [`MODAL_DEPLOYMENT_GUIDE.md`](docs/deployment/MODAL_DEPLOYMENT_GUIDE.md) | Cloud deployment guide |
+| [`MODAL_DEPLOYMENT_SSOT.md`](docs/deployment/MODAL_DEPLOYMENT_SSOT.md) | Cloud deployment guide (Single Source of Truth) |
 | [`PHASE5_EVALUATION.md`](docs/phases/PHASE5_EVALUATION.md) | Evaluation methodology |
 | [`SETUP_NOTES.md`](docs/implementation/SETUP_NOTES.md) | Development setup |
 
