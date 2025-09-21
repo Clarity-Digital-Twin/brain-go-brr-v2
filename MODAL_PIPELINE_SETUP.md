@@ -57,6 +57,25 @@ modal run deploy/modal/app.py::train --resume
 3. **Same pipeline logic**: Auto-builds cache, manifest, uses balanced dataset
 4. **Persistent cache**: Survives between runs on Modal volumes
 
+## CACHE BEHAVIOR - PARALLEL TO LOCAL:
+
+### Modal Smoke Test (`configs/smoke_test.yaml` on Modal):
+```
+/results/cache/smoke/  (Modal persistent volume)
+→ Builds small cache (50 files via BGB_LIMIT_FILES)
+→ Uses FIXED parser from /src copy
+→ Quick throwaway test
+```
+
+### Modal Full Training (`configs/tusz_train_a100.yaml`):
+```
+/results/cache/tusz/  (Modal persistent volume)
+→ Builds FULL cache (3734 files)
+→ Uses FIXED parser from /src copy
+→ Creates manifest
+→ Uses BalancedSeizureDataset
+```
+
 ## CACHE BEHAVIOR ON MODAL:
 
 ### First run:
@@ -76,16 +95,23 @@ modal run deploy/modal/app.py::train --resume
 → BalancedSeizureDataset with seizures
 ```
 
-## MODAL vs LOCAL:
+## MODAL vs LOCAL - EXACT PARALLELS:
 
 | Aspect | Local | Modal |
 |--------|-------|-------|
-| GPU | RTX 4090 | A100-80GB |
-| Data source | `data_ext4/tusz/` | S3: `/data/` |
-| Cache location | `cache/tusz/` | `/results/cache/tusz/` |
+| **Smoke Test** | | |
+| Config | `smoke_test.yaml` | `smoke_test.yaml` |
+| Cache dir | `cache/smoke/` | `/results/cache/smoke/` |
+| Files | 50 (BGB_LIMIT_FILES) | 50 (auto-set for smoke) |
+| **Full Training** | | |
 | Config | `tusz_train_wsl2.yaml` | `tusz_train_a100.yaml` |
+| Cache dir | `cache/tusz/` | `/results/cache/tusz/` |
+| Files | 3734 | 3734 |
+| **Common** | | |
+| Data source | `data_ext4/tusz/` | S3: `/data/` |
 | Parser fixes | ✅ Applied | ✅ Applied |
 | Balanced dataset | ✅ Works | ✅ Works |
+| Cache persists | ✅ On disk | ✅ On volume |
 
 ## IMPORTANT NOTES:
 
