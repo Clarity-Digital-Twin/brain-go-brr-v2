@@ -9,7 +9,9 @@ End-to-end flow
    - Parser: `src/brain_brr/data/io.py:parse_tusz_csv`
      - Format: `channel,start_time,stop_time,label,confidence`
      - Duration parsed from `# duration = ... secs`
-     - Seizure label set: {seiz, gnsz, fnsz, cpsz, absz, spsz, tcsz, tnsz, mysz}
+     - **Seizure label set (v2.0.3)**: {seiz, gnsz, fnsz, cpsz, absz, spsz, tcsz, tnsz, mysz}
+       - **CRITICAL**: mysz (myoclonic) was missing until Sept 2025 - affected 44 annotations
+       - **NOTE**: spkz does NOT exist in TUSZ v2.0.3 despite being in older docs
      - Output: list of (start_sec, end_sec, label)
 
 2) Events → per-sample mask
@@ -58,6 +60,9 @@ End-to-end flow
 Known failure points (and fixes)
 - CSV_BI misparsed as simple CSV → all-zero masks → FIX: parse_tusz_csv handles CSV_BI
 - Missing seizure types (e.g., `cpsz`) → false background → FIX: complete seizure label set
+- **mysz missing (Sept 2025 discovery)** → 44 seizures marked as background → FIX: added mysz to set
+- **spkz in old docs but not in data** → potential confusion → FIX: removed spkz from all docs
+- **Invalid caches from before mysz fix** → wrong training data → FIX: DELETE ALL CACHES AND REBUILD
 - Broken EDF header → read failure → FIX: minimal header repair then retry
 - No manifest/guards → training proceeds with zero seizures → FIX: scan-cache + fail-fast
 
