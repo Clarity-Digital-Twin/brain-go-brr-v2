@@ -70,7 +70,7 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
 
     for npz_path in tqdm(npz_files, desc="Scanning cache", leave=False):
         try:
-            with np.load(npz_path) as data:  # type: ignore[call-arg]
+            with np.load(npz_path) as data:
                 if "labels" not in data:
                     n_windows = int(data["windows"].shape[0])
                     for w_idx in range(n_windows):

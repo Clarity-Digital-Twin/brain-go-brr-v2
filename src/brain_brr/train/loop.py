@@ -1069,6 +1069,10 @@ def main() -> None:
         except Exception as e:
             print(f"[WARNING] Manifest build failed: {e}", flush=True)
 
+    from typing import Any as _Any
+
+    train_dataset: _Any
+
     if use_balanced and manifest_path.exists():
         try:
             train_dataset = BalancedSeizureDataset(train_cache_dir)

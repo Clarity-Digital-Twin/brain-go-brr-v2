@@ -235,7 +235,10 @@ class BalancedSeizureDataset(Dataset):
                 item = no_seizure[i]
                 indices.append((Path(item["cache_file"]), int(item["window_idx"])))
 
-        rng.shuffle(indices)
+        import random as _py_random
+
+        _rnd = _py_random.Random(seed)
+        _rnd.shuffle(indices)
 
         self._entries: list[tuple[Path, int]] = indices
 
@@ -244,7 +247,7 @@ class BalancedSeizureDataset(Dataset):
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         cache_file, w_idx = self._entries[idx]
-        with np.load(cache_file) as data:  # type: ignore[call-arg]
+        with np.load(cache_file) as data:
             window = data["windows"][w_idx].astype(np.float32)
             if "labels" in data:
                 label = data["labels"][w_idx].astype(np.float32)
