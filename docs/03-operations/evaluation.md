@@ -23,6 +23,20 @@ Code anchors
 CLI
 - Evaluate a checkpoint: `python -m src evaluate <checkpoint_path> <data_path> --output-json <out.json>`
 
+## Evaluation Checklist
+
+Essential checks:
+- [ ] Seeds set (torch, numpy, python) for reproducibility
+- [ ] Post-processing config consistent with training
+- [ ] Threshold search converges for FA targets {10, 5, 2.5, 1}
+- [ ] Metrics JSON saved (TAES, AUROC, sensitivity@FA)
+- [ ] Metadata captured (commit, config hash, timestamps)
+
+Advanced metrics (optional):
+- [ ] Per-patient metric breakdown for variance analysis
+- [ ] Bootstrapped confidence intervals for TAES
+- [ ] Calibration metrics (ECE) if probability calibration matters
+
 Cross-references
 - Architecture: ../02-architecture/canonical-spec.md (evaluation metrics section)
 - Post-processing: ./postprocessing.md

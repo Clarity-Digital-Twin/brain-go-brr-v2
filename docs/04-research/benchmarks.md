@@ -46,6 +46,8 @@
 
 ## Our Multi-Scale Architecture
 
+**Total Parameters: ~13.4M** (efficient for clinical deployment)
+
 ```
 Input: 19-channel EEG @ 256Hz
          ↓
