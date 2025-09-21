@@ -76,7 +76,7 @@ experiment:
   output_dir: /results/FINAL_EVAL
   cache_dir: /results/cache/eval
   log_level: INFO
-  checkpoint_path: /results/tusz_100ep/checkpoints/best.pt  # Final model from Modal
+  checkpoint_path: /results/tusz_a100_100ep/checkpoints/best.pt  # Final model from train_a100.yaml
 
 logging:
   log_every_n_steps: 50
