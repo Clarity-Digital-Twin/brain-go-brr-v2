@@ -32,8 +32,10 @@ Last updated: 2025-09-19
 - `IMPLEMENTATION_PHASES.md` - Development roadmap
 - `PREPROCESSING_STRATEGY.md` - Data preprocessing strategy
 - `EVALUATION_CHECKLIST.md` - Testing and validation checklist
-- `REPO_RESTRUCTURE_PLAN.md` - Repository organization
 - `SETUP_NOTES.md` - Environment setup instructions
+
+### `/docs/testing/` - Testing Strategy
+- `TEST_PLAN.md` - Canonical testing strategy and commands
 
 ### `/docs/references/` - External References
 - `REFERENCE_REPOS.md` - Related projects and papers
