@@ -278,7 +278,9 @@ class BalancedSeizureDataset(Dataset):
             f"  - {n_bg_used} no-seizure ({n_bg_used / n_partial_used:.1%} of partial)"
         )
         if missing_ref_count > 0:
-            print(f"[WARNING] Skipped {missing_ref_count} manifest entries referencing missing cache files")
+            print(
+                f"[WARNING] Skipped {missing_ref_count} manifest entries referencing missing cache files"
+            )
 
     def __len__(self) -> int:
         return len(self._entries)

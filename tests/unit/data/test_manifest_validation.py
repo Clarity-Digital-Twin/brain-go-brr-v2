@@ -1,6 +1,6 @@
+import json
 from pathlib import Path
 
-import json
 import numpy as np
 
 from src.brain_brr.data.cache_utils import scan_existing_cache, validate_manifest
@@ -8,7 +8,9 @@ from src.brain_brr.data.cache_utils import scan_existing_cache, validate_manifes
 
 def _save_npz(path: Path, windows: np.ndarray, labels: np.ndarray | None = None) -> None:
     if labels is not None:
-        np.savez_compressed(path, windows=windows.astype(np.float32), labels=labels.astype(np.float32))
+        np.savez_compressed(
+            path, windows=windows.astype(np.float32), labels=labels.astype(np.float32)
+        )
     else:
         np.savez_compressed(path, windows=windows.astype(np.float32))
 
@@ -51,4 +53,3 @@ def test_validate_manifest_missing_refs_false(tmp_path: Path) -> None:
     (cache_dir / "manifest.json").write_text(json.dumps(manifest))
 
     assert validate_manifest(cache_dir, manifest) is False
-

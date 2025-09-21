@@ -1063,18 +1063,25 @@ def main() -> None:
     # Force manifest rebuild if requested or if it exists but is invalid
     if use_balanced and manifest_path.exists():
         import json
+
         force_rebuild = os.getenv("BGB_FORCE_MANIFEST_REBUILD", "").strip() == "1"
         try:
             with open(manifest_path) as f:
                 manifest_data = json.load(f)
             if force_rebuild:
-                print("[DATA] BGB_FORCE_MANIFEST_REBUILD=1 → deleting manifest for rebuild", flush=True)
+                print(
+                    "[DATA] BGB_FORCE_MANIFEST_REBUILD=1 → deleting manifest for rebuild",
+                    flush=True,
+                )
                 manifest_path.unlink()
             else:
                 from src.brain_brr.data.cache_utils import validate_manifest
 
                 if not validate_manifest(train_cache_dir, manifest_data):
-                    print("[WARNING] Invalid/stale manifest detected → deleting for rebuild", flush=True)
+                    print(
+                        "[WARNING] Invalid/stale manifest detected → deleting for rebuild",
+                        flush=True,
+                    )
                     manifest_path.unlink()
         except Exception as e:
             print(f"[WARNING] Failed to read/validate manifest: {e}, deleting...", flush=True)

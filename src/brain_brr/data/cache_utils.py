@@ -157,9 +157,6 @@ def validate_manifest(cache_dir: Path, manifest: dict[str, Any]) -> bool:
             return False
 
         # If more than 5% of entries reference missing files, treat as invalid
-        if total > 0 and (missing_refs / total) > 0.05:
-            return False
-
-        return True
+        return not (total > 0 and (missing_refs / total) > 0.05)
     except Exception:
         return False
