@@ -107,7 +107,8 @@
       "Bash(./fix_mamba_ssm.sh:*)",
       "Bash(export:*)",
       "Bash(export PATH=$CUDA_HOME/bin:$PATH)",
-      "Bash(uv pip install:*)"
+      "Bash(uv pip install:*)",
+      "Bash(uv pip:*)"
     ],
     "deny": [],
     "ask": []
