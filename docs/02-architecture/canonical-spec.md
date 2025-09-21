@@ -62,12 +62,11 @@ This document serves as the single source of truth for the complete architecture
   - [✓] Window metadata tracking: `{"start_samples": List[int]}` for reconstruction
 
 #### 1.4 Dataset & Caching
-- [ ] **PyTorch Dataset**: `EEGWindowDataset`
+- [✓] **PyTorch Dataset**: `EEGWindowDataset`
   - Location: `src/brain_brr/data/datasets.py`
-  - [ ] In-memory baseline (Phase 1)
-  - [ ] NPZ cache support with `cache_dir` parameter
-  - [ ] File ID and `start_samples` tracking for timeline reconstruction
-  - [ ] Labels: Binary per-sample mask at 256 Hz (convert from intervals if needed)
+  - [✓] Loads on-demand from NPZ cache (`cache_dir`) with optional on-demand compute
+  - [✓] File/window indexing and `start_samples` metadata for reconstruction
+  - [✓] Labels: Binary per‑sample mask at 256 Hz (CSV_BI → events_to_binary_mask)
 
 ---
 
@@ -77,87 +76,87 @@ This document serves as the single source of truth for the complete architecture
 #### 2.1 U-Net Encoder
 - Location: `src/brain_brr/models/unet.py::UNetEncoder`
 
-- [ ] **Structure**: 4 stages with progressive downsampling
-  - [ ] Channel progression: [64, 128, 256, 512]
-  - [ ] Downsample factor: ×2 per stage (total ×16)
-  - [ ] Final bottleneck: (B, 512, 960)
+- [✓] **Structure**: 4 stages with progressive downsampling
+  - [✓] Channel progression: [64, 128, 256, 512]
+  - [✓] Downsample factor: ×2 per stage (total ×16)
+  - [✓] Final bottleneck: (B, 512, 960)
 
-- [ ] **Blocks**:
-  - [ ] Initial projection: 19→64 channels (kernel=7, padding=3)
-  - [ ] Double convolution per stage: ConvBlock(kernel=5, padding=2) × 2
-  - [ ] ConvBlock = Conv1d + BatchNorm1d + ReLU
-  - [ ] Skip connections saved AFTER block, BEFORE downsample
-  - [ ] Skip shapes: [(64,15360), (128,7680), (256,3840), (512,1920)]
-  - [ ] Downsample: Conv1d(kernel=2, stride=2)
+- [✓] **Blocks**:
+  - [✓] Initial projection: 19→64 channels (kernel=7, padding=3)
+  - [✓] Double convolution per stage: ConvBlock(kernel=5, padding=2) × 2
+  - [✓] ConvBlock = Conv1d + BatchNorm1d + ReLU
+  - [✓] Skip connections saved AFTER block, BEFORE downsample
+  - [✓] Skip shapes: [(64,15360), (128,7680), (256,3840), (512,1920)]
+  - [✓] Downsample: Conv1d(kernel=2, stride=2)
 
 #### 2.2 ResCNN Stack
 - Location: `src/brain_brr/models/rescnn.py::ResCNNStack`
 
-- [ ] **Multi-scale Feature Extraction**:
-  - [ ] 3 ResidualCNN blocks
-  - [ ] Multi-kernel branches: [3, 5, 7] with proper padding (k//2)
-  - [ ] Channel split: [170, 170, 172] for 512 total
-  - [ ] Residual connections per block
+- [✓] **Multi-scale Feature Extraction**:
+  - [✓] 3 ResidualCNN blocks
+  - [✓] Multi-kernel branches: [3, 5, 7] with proper padding (k//2)
+  - [✓] Channel split: [170, 170, 172] for 512 total
+  - [✓] Residual connections per block
 
-- [ ] **Shape Preservation**:
-  - [ ] Input: (B, 512, 960)
-  - [ ] Output: (B, 512, 960)
-  - [ ] Dropout: nn.Dropout1d(0.1) - NOT Dropout2d (for 1D signals)
+- [✓] **Shape Preservation**:
+  - [✓] Input: (B, 512, 960)
+  - [✓] Output: (B, 512, 960)
+  - [✓] Dropout: nn.Dropout1d(0.1) (1D signals)
 
 #### 2.3 Bidirectional Mamba-2
 - Location: `src/brain_brr/models/mamba.py::BiMamba2`
 
-- [ ] **SSM Configuration**:
-  - [ ] 6 bidirectional layers
-  - [ ] d_model: 512
-  - [ ] d_state: 16
-  - [ ] d_conv: 5 (CUDA kernels only support {2,3,4}, internally coerced to 4)
-  - [ ] Expand factor: 2
+- [✓] **SSM Configuration**:
+  - [✓] 6 bidirectional layers
+  - [✓] d_model: 512
+  - [✓] d_state: 16
+  - [✓] d_conv: 5 (CUDA kernels only support {2,3,4}, internally coerced to 4)
+  - [✓] Expand factor: 2
 
-- [ ] **Bidirectional Processing**:
-  - [ ] Forward Mamba-2 branch
-  - [ ] Backward Mamba-2 branch (flipped sequence via `.flip(dims=[1])`)
-  - [ ] Concatenate → Project (1024→512) via Linear
-  - [ ] LayerNorm + Residual per layer
-  - [ ] Residual connection from pre-Mamba bottleneck features
+- [✓] **Bidirectional Processing**:
+  - [✓] Forward Mamba-2 branch
+  - [✓] Backward Mamba-2 branch (flipped sequence via `.flip(dims=[1])`)
+  - [✓] Concatenate → Project (1024→512) via Linear
+  - [✓] LayerNorm + Residual per layer
+  - [✓] Residual connection from pre-Mamba bottleneck features
 
-- [ ] **Fallback**: Conv1d for CPU testing
-  - [ ] Automatic detection via MAMBA_AVAILABLE flag
-  - [ ] Warning issued when using fallback
-  - [ ] Shape-compatible but NOT functionally equivalent
-  - [ ] Force fallback: set `SEIZURE_MAMBA_FORCE_FALLBACK=1`
+- [✓] **Fallback**: Conv1d for CPU testing
+  - [✓] Automatic detection via MAMBA_AVAILABLE flag
+  - [✓] Warning issued when using fallback
+  - [✓] Shape‑compatible but NOT functionally equivalent
+  - [✓] Force fallback: set `SEIZURE_MAMBA_FORCE_FALLBACK=1`
 
 #### 2.4 U-Net Decoder
 - Location: `src/brain_brr/models/unet.py::UNetDecoder`
 
-- [ ] **Structure**: 4 stages with progressive upsampling
-  - [ ] Channel progression: [512, 256, 128, 64]
-  - [ ] Upsample: ConvTranspose1d(kernel=2, stride=2) per stage (total ×16)
-  - [ ] Skip fusion at each stage (concatenation)
+- [✓] **Structure**: 4 stages with progressive upsampling
+  - [✓] Channel progression: [512, 256, 128, 64]
+  - [✓] Upsample: ConvTranspose1d(kernel=2, stride=2) per stage (total ×16)
+  - [✓] Skip fusion at each stage (concatenation)
 
-- [ ] **Skip Connection Order** (reverse from encoder):
-  - [ ] Stage 0 uses skip[3] (deepest, 512 channels)
-  - [ ] Stage 1 uses skip[2] (256 channels)
-  - [ ] Stage 2 uses skip[1] (128 channels)
-  - [ ] Stage 3 uses skip[0] (shallowest, 64 channels)
+- [✓] **Skip Connection Order** (reverse from encoder):
+  - [✓] Stage 0 uses skip[3] (deepest, 512 channels)
+  - [✓] Stage 1 uses skip[2] (256 channels)
+  - [✓] Stage 2 uses skip[1] (128 channels)
+  - [✓] Stage 3 uses skip[0] (shallowest, 64 channels)
 
-- [ ] **Output**: (B, 19, 15360) - recovers input dimensions
-- [ ] **Final projection**: Conv1d(64→19, kernel=1)
+- [✓] **Output**: (B, 19, 15360) - recovers input dimensions
+- [✓] **Final projection**: Conv1d(64→19, kernel=1)
 
 #### 2.5 Detection Head
 - Location: `src/brain_brr/models/detector.py::SeizureDetector`
 
-- [ ] **Final Layers**:
-  - [ ] Conv1d: 19→1 channel (kernel=1)
-  - [ ] Output: (B, 15360) raw logits; apply Sigmoid at inference/eval
-  - [ ] `.squeeze(1)` to remove channel dimension
+- [✓] **Final Layers**:
+  - [✓] Conv1d: 19→1 channel (kernel=1)
+  - [✓] Output: (B, 15360) raw logits; apply Sigmoid at inference/eval
+  - [✓] `.squeeze(1)` to remove channel dimension
 
 #### 2.6 Complete Model Assembly
-- [ ] **SeizureDetector** class combines all components
-- [ ] Parameter count: ~25M expected
-- [ ] Weight initialization: Xavier/He
-- [ ] Component order: Encoder → ResCNN → BiMamba → Decoder → Detection Head
-- [ ] `count_parameters()` and `get_layer_info()` methods for debugging
+- [✓] **SeizureDetector** class combines all components
+- [✓] Parameter count (defaults): ~13.4M (confirmed via model instantiation)
+- [✓] Weight initialization: Xavier/He
+- [✓] Component order: Encoder → ResCNN → BiMamba → Decoder → Detection Head
+- [✓] `count_parameters()` and `get_layer_info()` methods for debugging
 
 ---
 
@@ -179,11 +178,10 @@ This document serves as the single source of truth for the complete architecture
 #### 3.1 Data Loading
 - Location: `src/brain_brr/train/loop.py`
 
-- [ ] **Balanced Sampling**:
-  - [ ] WeightedRandomSampler at dataset level (not per-batch)
-  - [ ] 50% seizure, 50% background windows
-  - [ ] pos_weight = (1 - pos_ratio) / max(pos_ratio, 1e-8)
-  - [ ] Sample weights: positives get pos_weight, negatives get 1.0
+- [✓] **Balanced Sampling**:
+  - [✓] Manifest‑driven dataset: `BalancedSeizureDataset(cache/train)` when `use_balanced_sampling=true`.
+  - [✓] Composition: ALL partial + 0.3× full + 2.5× no‑seizure (SeizureTransformer formula).
+  - [✓] Legacy path: a safety `WeightedRandomSampler` is used only if not using the balanced dataset.
 
 - [ ] **DataLoader Config**:
   - [ ] Batch size from config (default 16)
@@ -192,11 +190,9 @@ This document serves as the single source of truth for the complete architecture
   - [ ] Deterministic seeding
 
 #### 3.2 Loss & Optimization
-- [ ] **Loss Function**: Binary Cross-Entropy with element-wise weighting
-  - [ ] BCE with `reduction='none'` for element-wise control
-  - [ ] pos_weight = (1 - pos_ratio) / max(pos_ratio, 1e-8)
-  - [ ] Applied per-timestep over 15,360 samples
-  - [ ] NO Dice loss, NO boundary tolerance - only weighted BCE
+- [✓] **Loss Function**: Binary Cross-Entropy with logits (BCEWithLogitsLoss)
+  - [✓] Per‑timestep over 15,360 samples
+  - [✓] Optional class weighting only in legacy sampler path; balanced dataset path needs no sampler weighting
 
 - [ ] **Optimizer**: AdamW
   - [ ] Learning rate: 3e-4 (from config)
@@ -388,7 +384,7 @@ This document serves as the single source of truth for the complete architecture
 - [ ] 1 FA/24h: >75% sensitivity (current SOTA: ~70%)
 
 ### Model Performance
-- [ ] Parameters: ~25M (actual: varies by config)
+- [ ] Parameters: ~13.4M (defaults)
 - [ ] Inference: <100ms per 60s window (GPU)
 - [ ] Memory: <4GB for batch size 32
 - [ ] Training: Convergence within 50 epochs

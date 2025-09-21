@@ -91,10 +91,10 @@ Input (B,19,15360) → U-Net Encoder → ResCNN → Bi-Mamba-2 → U-Net Decoder
 - **Channel progression:** [512, 256, 128, 64] → 1
 
 ### 2.5 Output Head
-- **Final layer:** Conv1d(64→1, kernel=1)
-- **Activation:** Sigmoid
-- **Output:** Per-timestep probabilities @ 256 Hz
-- **Shape:** `(B, 15360)` probability values in [0,1]
+- **Final layer:** Conv1d(64→1, kernel=1) producing logits
+- **Inference:** Apply Sigmoid to convert logits → probabilities
+- **Output:** Per‑timestep logits @ 256 Hz (probabilities after Sigmoid)
+- **Shape:** `(B, 15360)`
 
 ---
 

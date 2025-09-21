@@ -10,7 +10,7 @@ Spec
 - Final reconstruction to 19 channels before the detection head.
 
 Detection head
-- 1×1 Conv1d from 19→1 + Sigmoid to produce (B, 1, 15360) → squeeze to (B, 15360).
+- 1×1 Conv1d from 19→1 producing raw logits (B, 1, 15360) → squeeze to (B, 15360). Apply Sigmoid at inference.
 
 Shapes
 - Bottleneck (512,960) → (256,1920) → (128,3840) → (64,7680) → (64,15360) → head → (1,15360).

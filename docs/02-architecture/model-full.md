@@ -6,7 +6,7 @@ Code anchors
 Spec
 - Encoder (U‑Net) → ResCNN → Bi‑Mamba‑2 → Decoder → detection head.
 - Assumes input (B, 19, 15360) with per‑channel z‑score normalization.
-- Output: per‑timestep probabilities (B, 15360).
+- Output: per‑timestep logits (B, 15360); apply Sigmoid at inference.
 
 Shape tracking
 - Input: (B, 19, 15360)
@@ -18,4 +18,4 @@ Shape tracking
 
 Notes
 - Keep decoder output at 19 channels prior to head to preserve channelwise features.
-- If swapping to BCEWithLogitsLoss, remove Sigmoid from head and use logits.
+- Training uses BCEWithLogitsLoss on logits; do not add Sigmoid in the module.

@@ -9,7 +9,7 @@ Spec
 - Skips saved after each encoder block, before downsample.
 - Initial projection: Conv1d(k=7, pad=3) to 64 ch; blocks use k=5, pad=2.
 - Downsample: Conv1d(k=2, stride=2) per stage (×16 total reduction).
-- Activations: ELU; normalization: BatchNorm1d per block.
+- Activations: ReLU; normalization: BatchNorm1d per block.
 
 Shapes (time length shown; channels in middle)
 - Input: (B, 19, 15360)
