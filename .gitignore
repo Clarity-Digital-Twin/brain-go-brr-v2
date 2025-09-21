@@ -102,9 +102,7 @@ docs/_build/
 site/
 
 # UV package manager
-# Note: uv.lock is tracked intentionally for reproducible environments; this ignore
-# only affects untracked clones and prevents accidental local edits from showing up.
-uv.lock
+# Note: uv.lock is tracked intentionally for reproducible environments
 
 # Ruff
 .ruff_cache/
