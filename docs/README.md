@@ -44,8 +44,11 @@ Last updated: 2025-09-19
 
 ### `/docs/references/` - External References
 - `REFERENCE_REPOS.md` - Related projects and papers
+- `TUSZ_CSV_BI_PARSER.md` - Correct CSV_BI parsing + labels
+- `TUSZ_SAMPLING_STRATEGY.md` - SeizureTransformer-style balancing (manifest + dataset)
+- `TUSZ_CHANNELS.md` - Canonical 19‑ch order + synonyms
 - `TUSZ_EDF_HEADER_FIX.md` - TUH dataset header fixes
-- `TUSZ_HEADER_FIX_INTEGRATION.md` - Header fix implementation
+- `TUSZ_HEADER_FIX_INTEGRATION.md` - Header fix integration details
 
 ### `/docs/archive/` - Historical Documentation
 Contains older documentation versions for reference.
