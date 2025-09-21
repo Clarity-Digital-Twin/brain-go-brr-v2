@@ -1060,14 +1060,23 @@ def main() -> None:
     use_balanced = bool(config.data.use_balanced_sampling)
     manifest_path = train_cache_dir / "manifest.json"
     if use_balanced and not manifest_path.exists():
-        try:
-            from src.brain_brr.data.cache_utils import scan_existing_cache
+        # CRITICAL: Only build manifest if cache already has files!
+        # Bug fix: Don't build manifest from empty directory
+        train_cache_dir.mkdir(parents=True, exist_ok=True)
+        existing_cache_files = list(train_cache_dir.glob("*.npz"))
+        if existing_cache_files:
+            try:
+                from src.brain_brr.data.cache_utils import scan_existing_cache
 
-            train_cache_dir.mkdir(parents=True, exist_ok=True)
-            _ = scan_existing_cache(train_cache_dir)
-            print("[DATA] Built manifest from existing cache for balanced training", flush=True)
-        except Exception as e:
-            print(f"[WARNING] Manifest build failed: {e}", flush=True)
+                _ = scan_existing_cache(train_cache_dir)
+                print(
+                    f"[DATA] Built manifest from {len(existing_cache_files)} cached files",
+                    flush=True,
+                )
+            except Exception as e:
+                print(f"[WARNING] Manifest build failed: {e}", flush=True)
+        else:
+            print("[DATA] Skipping manifest build - cache not yet populated", flush=True)
 
     # Create training dataset - either balanced (from manifest) or standard
     train_dataset: BalancedSeizureDataset | EEGWindowDataset
@@ -1106,7 +1115,29 @@ def main() -> None:
         allow_on_demand=True,
     )
 
-    # Create positive-aware balanced sampler
+    # CRITICAL FIX: If we just built cache via EEGWindowDataset and manifest doesn't exist,
+    # build it now and switch to BalancedSeizureDataset!
+    if (
+        use_balanced
+        and not isinstance(train_dataset, BalancedSeizureDataset)
+        and not manifest_path.exists()
+    ):
+        print("[DATA] Cache built, now creating manifest for balanced sampling...", flush=True)
+        try:
+            from src.brain_brr.data.cache_utils import scan_existing_cache
+
+            _ = scan_existing_cache(train_cache_dir)
+            if manifest_path.exists():
+                # Switch to BalancedSeizureDataset now that manifest exists
+                train_dataset = BalancedSeizureDataset(train_cache_dir)
+                print(
+                    f"[DATA] Switched to BalancedSeizureDataset: {len(train_dataset)} windows",
+                    flush=True,
+                )
+        except Exception as e:
+            print(f"[WARNING] Post-cache manifest build failed: {e}", flush=True)
+
+    # Create positive-aware balanced sampler (fallback if BalancedSeizureDataset not used)
     train_sampler = None
     if (
         config.data.use_balanced_sampling
