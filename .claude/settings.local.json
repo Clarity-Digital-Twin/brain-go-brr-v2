@@ -74,7 +74,9 @@
       "Bash(modal:*)",
       "Bash(chmod:*)",
       "Bash(watch:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(xargs basename:*)",
+      "Bash(tmux new:*)"
     ],
     "deny": [],
     "ask": []
