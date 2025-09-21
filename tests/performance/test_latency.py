@@ -367,7 +367,10 @@ class TestLatencyUnderLoad:
         if cv > max_cv:
             import warnings
 
-            warnings.warn(f"High latency variance: CV={cv:.2f} (expected <{max_cv:.2f})")
+            warnings.warn(
+                f"High latency variance: CV={cv:.2f} (expected <{max_cv:.2f})",
+                stacklevel=2,
+            )
 
         # No significant degradation over time (improvement is OK)
         early = np.mean(latencies[:100])
