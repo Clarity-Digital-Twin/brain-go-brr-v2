@@ -132,6 +132,17 @@ setup: ## Initial project setup
 	uv run pre-commit install
 	@echo "${GREEN}✓ Project ready!${NC}"
 
+setup-gpu: ## Setup GPU support with mamba-ssm (requires CUDA toolkit)
+	@echo "${CYAN}Setting up GPU support...${NC}"
+	@echo "${YELLOW}Checking CUDA versions...${NC}"
+	@uv run python -c "import torch; print(f'PyTorch CUDA: {torch.version.cuda}')" || echo "${RED}PyTorch not installed${NC}"
+	@nvcc --version 2>/dev/null | grep "release" || echo "${RED}CUDA toolkit not found! See GPU_SETUP.md${NC}"
+	@echo "${CYAN}Installing GPU extras...${NC}"
+	uv sync --extra gpu
+	@echo "${CYAN}Verifying mamba-ssm...${NC}"
+	@uv run python -c "from mamba_ssm import Mamba2; print('${GREEN}✓ Mamba-SSM working!${NC}')" 2>/dev/null || \
+		(echo "${RED}⚠️  Mamba-SSM not working! See GPU_SETUP.md for fixes${NC}" && echo "${YELLOW}Hint: Your CUDA toolkit version must match PyTorch's CUDA version${NC}")
+
 hooks: ## Run pre-commit hooks on all files
 	@echo "${CYAN}Running pre-commit hooks...${NC}"
 	.venv/bin/pre-commit run --all-files || uv run pre-commit run --all-files
