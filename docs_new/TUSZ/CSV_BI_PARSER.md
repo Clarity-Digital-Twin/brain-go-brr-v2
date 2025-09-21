@@ -15,9 +15,11 @@ Parsing rules (implemented)
 - Use start_time and stop_time as seconds (float); label is string
 - Map label→binary: seizure if in the seizure set, else background
 
-Seizure label set
+Seizure label set (CRITICAL - v2.0.3 verified)
 
-- Canonical set includes TUSZ codes: {seiz, gnsz, fnsz, spsz, cpsz, absz, tnsz, tcsz, spkz}
+- **CRITICAL**: TUSZ v2.0.3 actual seizure types: {seiz, gnsz, fnsz, cpsz, absz, spsz, tcsz, tnsz, mysz}
+- **WARNING**: `spkz` does NOT exist in TUSZ v2.0.3 (empirically verified across 3734 files)
+- **mysz discovery**: Found 44 occurrences (0.1% of corpus) - was missing until Sept 2025 fix
 - Optional extension: treat any non-"bckg" as seizure (configurable knob — see TODO in code)
 
 Mask generation
