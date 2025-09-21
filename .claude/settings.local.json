@@ -85,7 +85,8 @@
       "Bash(for f in configs/local/*.yaml)",
       "Bash(while read file)",
       "Bash(do grep -v \"^#\" \"$file\")",
-      "Bash(.venv/bin/python:*)"
+      "Bash(.venv/bin/python:*)",
+      "Bash(uv lock:*)"
     ],
     "deny": [],
     "ask": []
