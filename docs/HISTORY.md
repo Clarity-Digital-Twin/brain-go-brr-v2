@@ -1,39 +1,53 @@
-# Documentation History and Archive Index
+# Documentation History and Migration Index
 
 Last updated: 2025-09-21
 
-Purpose: Single index of archived docs and where to find canonical, up-to-date replacements.
+This document tracks where documentation has moved during the 2025 reorganization.
 
-## Canonical References (use these now)
-- Sampling/balancing: `TUSZ/CACHE_AND_SAMPLING.md`
-- CSV_BI parsing: `TUSZ/CSV_BI_PARSER.md`
-- Channels (19‑ch + synonyms): `TUSZ/CHANNELS_AND_MONTAGE.md`
-- EDF header repair: `TUSZ/EDF_HEADER_REPAIR.md`
-- Evaluation checklist: `implementation/EVALUATION_CHECKLIST.md`
-- Deployment (SSOT): `deployment/MODAL_SSOT.md`
+## Current Documentation Structure
 
-## Archived — Architecture
-- `docs/archive/architecture/ARCHITECTURE_CLARIFICATION.md`
-- `docs/archive/architecture/CANONICAL_SPEC_AUDIT_RESULTS.md`
+```
+docs/
+├── 01-data-pipeline/    # TUSZ handling, preprocessing, caching
+├── 02-architecture/     # Models, specs, design decisions
+├── 03-operations/       # Training, deployment, evaluation
+├── 04-reference/        # Commands, configs, checklists
+└── 05-research/         # Future work, experiments
+```
 
-## Archived — Deployment
-- `docs/archive/deployment/LESSONS_LEARNED.md`
+## Where Did X Documentation Go?
 
-## Archived — Bugs (selected kept for institutional memory)
-- `docs/archive/bugs/CRITICAL_CACHE_FUCKUP_POSTMORTEM.md`
-- `docs/archive/bugs/P0_TRAINING_PIPELINE_INVESTIGATION.md`
-- `docs/archive/bugs/P0_CACHE_MISMATCH_ISSUE.md`
-- `docs/archive/bugs/P0_PYTORCH_HANG_INVESTIGATION.md`
-- `docs/archive/bugs/P0_MAMBA_SSM_CRITICAL.md`
-- `docs/archive/bugs/P0_TUSZ_TRAINING.md`
-- `docs/archive/bugs/BUG_POSTMORTEM_FOCAL_LOSS.md`
-- `docs/archive/bugs/CRITICAL_FOCAL_LOSS_IMBALANCE.md`
-- `docs/archive/bugs/P1_CACHE_STRATEGY_OSS_BLOCKER.md`
-- Index: `docs/archive/bugs/RESOLUTION_STATUS.md`
+### From Phase Docs → Components
+- `PHASE1_DATA_PIPELINE.md` → `01-data-pipeline/data-io.md`
+- `PHASE2.1_UNET_ENCODER.md` → `02-architecture/model-unet.md`
+- `PHASE2.2_RESCNN_STACK.md` → `02-architecture/model-rescnn.md`
+- `PHASE2.3_BIMAMBA.md` → `02-architecture/model-mamba.md`
+- `PHASE2.4_DECODER.md` → `02-architecture/model-decoder.md`
+- `PHASE3_TRAINING_PIPELINE.md` → `03-operations/training.md`
+- `PHASE4_POSTPROCESSING.md` → `03-operations/postprocessing.md`
+- `PHASE5_EVALUATION.md` → `03-operations/evaluation.md`
 
-## Historical (marked Archived in-place)
-- `docs/archive/implementation/IMPLEMENTATION_PHASES.md` — Archived; use the canonical spec + references.
-- `docs/archive/implementation/INTERPOLATION_IMPLEMENTATION_PLAN.md` — Archived; see TUSZ_CHANNELS + PREPROCESSING_STRATEGY.
-- `docs/archive/implementation/INVESTIGATION_CHANNELS_AND_MONTAGES.md` — Archived; see TUSZ_CHANNELS + PREPROCESSING_STRATEGY.
+### From TUSZ Docs → Renamed
+- `TUSZ_CSV_BI_PARSER.md` → `01-data-pipeline/tusz-csv-parser.md`
+- `TUSZ_CHANNELS.md` → `01-data-pipeline/tusz-channels.md`
+- `TUSZ_EDF_HEADER_FIX.md` → `01-data-pipeline/tusz-edf-repair.md`
+- `TUSZ_SAMPLING_STRATEGY.md` → `01-data-pipeline/tusz-cache-sampling.md`
 
-Note: If desired, we can physically move the three “Historical” files into `docs/archive/implementation/` to reduce clutter. Keeping them in place with clear banners avoids breaking deep links during transition.
+### Critical Issues (Consolidated)
+- All P0/P1 bug reports → `01-data-pipeline/CRITICAL-ISSUES-RESOLVED.md`
+- Cache disasters, focal loss bugs, WSL2 hangs all documented there
+
+### Deployment & WSL2
+- `WSL2/` subdirectory flattened → `03-operations/wsl2-*.md`
+- Modal deployment notes → `03-operations/deploy-modal.md`
+
+## What Was Added During Migration
+
+1. **Empirical seizure type frequencies** - Added to `tusz-csv-parser.md`
+2. **Cache configuration warnings** - Added to `04-reference/configs.md`
+3. **Architecture rationale** (why no pretrained weights) - Added to `canonical-spec.md`
+4. **Critical issues history** - New file `CRITICAL-ISSUES-RESOLVED.md`
+
+## Archives Status
+
+The `/docs_archive/` directory (if still present) contained 43 files of historical documentation that has been reviewed, relevant content extracted, and can be safely deleted. Everything valuable has been preserved in the current `/docs/` structure.
