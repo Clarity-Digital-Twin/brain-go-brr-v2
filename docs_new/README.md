@@ -12,6 +12,7 @@ Structure:
 - deployment/WSL2/ — Deep dives for Windows + WSL2 specifics
 - future_work/ — Plans and research directions
 - archive/ — Historical docs and postmortems
+ - phases/ — Archived Phase docs (kept in-place temporarily); see components/ for replacements
 
 Start here (TUSZ):
 
@@ -34,3 +35,4 @@ Also see:
 - DOCS_SSOT.md — canonical commands and entry points
 - HISTORY.md — archive index and replacements
  - components/README.md — migration map from Phases to Components
+ - archive/README.md — where archived docs live and how to navigate them

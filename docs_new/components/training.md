@@ -14,6 +14,11 @@ Guardrails
 - On train startup: abort if BalancedSeizureDataset length is 0.
 - Logs dataset composition (partial/full/background counts and ratios).
 
+Checkpoints & early stopping
+- Best checkpoint path: `results/checkpoints/best.pt`; last: `results/checkpoints/last.pt`.
+- Early stopping metric from config (e.g., sensitivity_at_10fa); patience configurable.
+- Resume restores model/optimizer/scheduler and config snapshot.
+
 Config notes
 - WSL2 stability: num_workers: 0, pin_memory: false, persistent_workers: false.
 - Keep smoke_test.yaml for quick verification; separate WSL2 vs A100 configs for batch sizes.

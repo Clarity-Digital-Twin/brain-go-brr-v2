@@ -12,6 +12,12 @@ What we do (order of ops)
 - Filters: Butterworth bandpass (order=3) with lfilter; iirnotch at powerline; resample via scipy.signal.resample.
 - Build per‑timestep binary label masks from CSV_BI events.
 
+Shapes, units, dtypes
+- Target shape per window: (19, 15360) → 60 s at 256 Hz.
+- Batches: (B, 19, 15360).
+- Units: microvolts (µV) after conversion from Volts.
+- dtype: float32 throughout (windows and masks).
+
 CSV_BI essentials
 - Format: channel,start_time,stop_time,label,confidence
 - Parser reads start/stop from columns 2/3 and label from column 4.

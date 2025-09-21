@@ -8,6 +8,9 @@ import psutil
 import pytest
 import torch
 
+# Mark all tests in this module as performance tests (excluded from CI)
+pytestmark = pytest.mark.performance
+
 from src.brain_brr.config.schemas import (
     DecoderConfig,
     EncoderConfig,

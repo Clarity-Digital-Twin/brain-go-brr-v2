@@ -145,7 +145,7 @@ markers = [
     "unit: marks tests as unit tests",
     "serial: run this test alone to avoid resource contention",
     "clinical: marks tests for clinical validation metrics",
-    "performance: marks tests as performance benchmarks",
+    "performance: performance/latency benchmarks (not run in CI)",
     "gpu: marks tests that can use GPU acceleration",
 ]
 
