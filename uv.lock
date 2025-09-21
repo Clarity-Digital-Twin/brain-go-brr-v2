@@ -3181,6 +3181,7 @@ wheels = [
 
 [[package]]
 name = "seizure-detection-mamba"
+version = "2.0.0a0"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -3254,7 +3255,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.64.0" },
     { name = "wandb", marker = "extra == 'monitoring'", specifier = ">=0.16.0" },
 ]
-provides-extras = ["eval", "gpu", "monitoring"]
+provides-extras = ["gpu", "eval", "monitoring"]
 
 [package.metadata.requires-dev]
 dev = [
