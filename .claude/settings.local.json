@@ -94,7 +94,15 @@
       "Bash(BGB_LIMIT_FILES=5 timeout 30 python -m src train configs/local/smoke.yaml)",
       "Bash(uv sync:*)",
       "Bash(uv run:*)",
-      "Bash(nvcc:*)"
+      "Bash(nvcc:*)",
+      "Bash(uv pip show:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:pypi.org)",
+      "Bash(uv pip uninstall:*)",
+      "Read(//usr/local/**)",
+      "Bash(wget:*)",
+      "Bash(sudo dpkg:*)",
+      "Bash(sudo apt-get:*)"
     ],
     "deny": [],
     "ask": []
