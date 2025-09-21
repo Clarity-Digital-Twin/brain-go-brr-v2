@@ -298,7 +298,7 @@ class TestMemoryUsage:
 
         # If memory is growing linearly, that's a real leak
         if slope > 1.0:  # Growing > 1MB per measurement
-            assert False, f"Memory leak detected: growing at {slope:.2f}MB per iteration"
+            pytest.fail(f"Memory leak detected: growing at {slope:.2f}MB per iteration")
 
         # Otherwise just warn if variation is high but not growing
         assert memory_growth < max_variation, f"Memory varied by {memory_growth:.1f}MB during streaming (limit: {max_variation}MB)"
