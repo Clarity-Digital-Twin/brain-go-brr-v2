@@ -37,7 +37,8 @@ from src.brain_brr.data.io import parse_tusz_csv, events_to_binary_mask
 
 csv = Path('data_ext4/tusz/edf/train/aaaaaaac/s001_2002/02_tcp_le/aaaaaaac_s001_t000.csv')
 dur, events = parse_tusz_csv(csv)
-  mask = events_to_binary_mask(events, dur, fs=256)
+mask = events_to_binary_mask(events, dur, fs=256)
 print(dur, len(events), mask.shape, float(mask.mean()))
 PY
 ```
+
