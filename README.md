@@ -232,6 +232,16 @@ Results are pending. We will publish full benchmarks after rigorous evaluation o
 
 Apache License 2.0 - See [LICENSE](LICENSE)
 
+## Future Research Direction
+
+See [FUTURE_ROADMAP_EXPERIMENTAL_STACK.md](FUTURE_ROADMAP_EXPERIMENTAL_STACK.md) for our proposed next-generation architecture:
+- **GNN** for montage-agnostic spatial reasoning
+- **TCN** for cleaner multi-scale temporal features
+- **ConvNeXt** for state-of-the-art local patterns
+- **Bi-Mamba** maintaining O(N) complexity
+
+This experimental stack aims to solve the fundamental montage-dependency problem in EEG analysis.
+
 ## Contact
 
 - **Issues**: [GitHub Issues](https://github.com/clarity-digital-twin/brain-go-brr-v2/issues)
