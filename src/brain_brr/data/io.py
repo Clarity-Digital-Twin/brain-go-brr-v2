@@ -295,8 +295,10 @@ def events_to_binary_mask(
         Binary mask of shape (n_samples,) with 1.0 for seizure, 0.0 for background
     """
     if seizure_labels is None:
-        # TUSZ seizure types: generalized, focal, simple partial, complex partial, absence, tonic, tonic-clonic, spike
-        seizure_labels = {"seiz", "gnsz", "fnsz", "spsz", "cpsz", "absz", "tnsz", "tcsz", "spkz"}
+        # TUSZ seizure types found in v2.0.3 data (ordered by frequency in corpus):
+        # gnsz=generalized non-specific, fnsz=focal non-specific, cpsz=complex partial,
+        # absz=absence, spsz=simple partial, tcsz=tonic-clonic, tnsz=tonic, mysz=myoclonic
+        seizure_labels = {"seiz", "gnsz", "fnsz", "cpsz", "absz", "spsz", "tcsz", "tnsz", "mysz"}
 
     n_samples = int(duration_sec * fs)
     mask = np.zeros(n_samples, dtype=np.float32)

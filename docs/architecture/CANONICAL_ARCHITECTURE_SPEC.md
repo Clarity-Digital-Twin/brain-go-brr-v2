@@ -440,7 +440,7 @@ This document serves as the single source of truth for the complete architecture
 - [x] Ready for production
 
 ### Notes
-Comprehensive audit completed with 95+ checklist items verified as correctly implemented. Only minor observation: test coverage percentage not audited in depth. Full audit report available in docs/CANONICAL_SPEC_AUDIT_RESULTS.md.
+Comprehensive audit completed with 95+ checklist items verified as correctly implemented. Only minor observation: test coverage percentage not audited in depth. The detailed audit report has been archived at `docs/archive/architecture/CANONICAL_SPEC_AUDIT_RESULTS.md`.
 
 ---
 

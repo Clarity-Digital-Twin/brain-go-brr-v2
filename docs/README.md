@@ -24,9 +24,11 @@ Last updated: 2025-09-19
 - `PHASE5_EVALUATION.md` - Evaluation metrics and scoring
 
 ### `/docs/architecture/` - Architecture Documentation
-- `ARCHITECTURE_CLARIFICATION.md` - Technical architecture specs
+- `CANONICAL_ARCHITECTURE_SPEC.md` - Complete technical specification
 - `ASCII_PIPELINE_PLAN.md` - Visual pipeline representation
-- `FINAL_STACK_ANALYSIS.md` - Complete stack analysis
+- `ARCHITECTURE_COMPARISON.md` - Literature/context vs our stack
+- `FINAL_STACK_ANALYSIS.md` - Full stack analysis
+- `MAMBA_KERNEL_DECISION.md` - CUDA kernel decision notes
 
 ### `/docs/implementation/` - Implementation Details
 - `IMPLEMENTATION_PHASES.md` - Development roadmap

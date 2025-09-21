@@ -98,12 +98,12 @@
 TRAINING LOOP
 ─────────────
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Balanced   │────▶│   Forward   │────▶│   Loss       │───▶│  Backprop    │
-│   Sampler    │     │   Pass       │     │   Compute    │     │  & Update    │
+│ Balanced     │────▶│   Forward   │────▶│   Loss       │───▶│  Backprop    │
+│ Dataset      │     │   Pass       │     │   Compute    │     │  & Update    │
 │              │     │              │     │              │     │              │
-│ • 50% ictal  │     │ • AMP on     │     │ • BCE+Dice   │     │ • AdamW      │
-│ • 50% bg     │     │ • Batch 16   │     │ • Boundary   │     │ • lr=3e-4    │
-│ • Hard neg   │     │              │     │   tolerance  │     │ • Clip=1.0   │
+│ • ALL partial│     │ • AMP on     │     │ • BCE (or    │     │ • AdamW      │
+│ • 0.3× full  │     │ • Batch 16   │     │   focal w/   │     │ • lr=3e-4    │
+│ • 2.5× none  │     │              │     │   alpha=0.5) │     │ • Clip=1.0   │
 └──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
                                                                        │
                                                                        ▼

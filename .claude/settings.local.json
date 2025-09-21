@@ -82,7 +82,9 @@
       "Bash(head:*)",
       "Bash(while read f)",
       "Bash(tree:*)",
-      "Bash(for f in configs/local/*.yaml)"
+      "Bash(for f in configs/local/*.yaml)",
+      "Bash(while read file)",
+      "Bash(do grep -v \"^#\" \"$file\")"
     ],
     "deny": [],
     "ask": []
