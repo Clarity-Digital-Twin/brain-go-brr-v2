@@ -1,4 +1,10 @@
 # P0: CRITICAL TRAINING PIPELINE INVESTIGATION
+Status: RESOLVED (2025-09-21)
+
+Resolution summary:
+- Stabilized training loop; balanced dataset integration; hard guards for caches and preflight diagnostics
+- Files: src/brain_brr/train/loop.py (pipeline), src/brain_brr/cli/cli.py:212 (guards), src/brain_brr/data/* (manifest + balanced)
+- Note: Config cache dir mismatches are warned (see logs); users should align data.cache_dir and experiment.cache_dir.
 **Severity**: P0 - CRITICAL SYSTEM FAILURE
 **Date**: 2025-09-20
 **Status**: ACTIVE TRAINING COMPROMISED

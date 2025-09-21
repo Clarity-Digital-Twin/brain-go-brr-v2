@@ -119,7 +119,10 @@ def train(
     env["PYTHONTRACEMALLOC"] = "1"  # Track memory allocations for debugging
     # Only limit files for smoke tests
     if "smoke" in config_path.lower():
-        env.setdefault("BGB_LIMIT_FILES", "50")
+        env["BGB_LIMIT_FILES"] = "50"
+    else:
+        # EXPLICITLY UNSET for full training to avoid inheritance
+        env.pop("BGB_LIMIT_FILES", None)
 
     # Optionally disable tqdm if it causes issues in subprocess
     # Uncomment this line if tqdm still fails after fixes:

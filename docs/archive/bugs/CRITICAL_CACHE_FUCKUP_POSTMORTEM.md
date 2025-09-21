@@ -1,5 +1,12 @@
 # CRITICAL CACHE FUCKUP POSTMORTEM
 
+Status: RESOLVED (2025-09-21)
+
+Resolution summary:
+- Fixed CSV_BI parsing and seizure label set; manifest + balanced dataset enforced; CLI guards stop zero‑seizure caches
+- Files: src/brain_brr/data/io.py:220, 294; src/brain_brr/data/cache_utils.py:52; src/brain_brr/data/datasets.py:190; src/brain_brr/cli/cli.py:212; src/brain_brr/train/loop.py:1061
+- See also: docs/archive/bugs/RESOLUTION_STATUS.md
+
 **Date**: 2025-09-21
 **Severity**: P0 - CATASTROPHIC DATA PIPELINE FAILURE
 **Impact**: 254GB useless cache, $60+ Modal credits wasted, 0% seizures in training

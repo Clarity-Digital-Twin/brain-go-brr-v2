@@ -1,5 +1,12 @@
 # P0: TUSZ SAMPLING - THE CORRECT FIX
 
+Status: RESOLVED (2025-09-21)
+
+Resolution summary:
+- Adopted manifest-based categorization and SeizureTransformer balancing (ALL partial + 0.3× full + 2.5× background)
+- Files: src/brain_brr/data/cache_utils.py:52, src/brain_brr/data/datasets.py:190, src/brain_brr/train/loop.py:1061
+- See also: docs/archive/bugs/RESOLUTION_STATUS.md
+
 **Severity**: P0 - TRAINING COMPLETELY BROKEN
 **Date**: 2025-09-20
 **Status**: IMPLEMENTED - Complete fix deployed, awaiting testing
