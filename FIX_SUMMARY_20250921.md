@@ -16,7 +16,7 @@
 **Problem**: Only looking for "seiz" label which doesn't exist in TUSZ
 **Fix**: Added all TUSZ seizure types:
 ```python
-seizure_labels = {"seiz", "gnsz", "fnsz", "spsz", "cpsz", "absz", "tnsz", "tcsz", "spkz"}
+seizure_labels = {"seiz", "gnsz", "fnsz", "cpsz", "absz", "spsz", "tcsz", "tnsz", "mysz"}
 ```
 **Impact**: Now detects ALL seizure types in TUSZ dataset
 
