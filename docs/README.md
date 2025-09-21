@@ -1,38 +1,68 @@
-Brain-Go-Brr v2 Docs (Canonical)
+# Brain-Go-Brr v2 Documentation
 
-This folder is the single source of truth for project docs going forward. It replaces scattered, historical notes with concise, developer-focused references that map 1:1 to the current codebase and CI.
+Organized documentation for the Bi-Mamba-2 + U-Net + ResCNN seizure detection pipeline.
 
-Structure:
+## Quick Navigation
 
-- TUSZ/ — Everything to ingest, cache, sample, and train with TUSZ
-- components/ — Canonical, code-aligned docs per component (replacing Phase docs)
-- deployment/ — Local (WSL2/Linux) and Modal guides
-- architecture/ — Canonical model and pipeline specs
-- implementation/ — Preprocessing, evaluation checklist, benchmarks, setup notes
-- deployment/WSL2/ — Deep dives for Windows + WSL2 specifics
-- future_work/ — Plans and research directions
-- archive/ — Historical docs and postmortems
- - archive/phases/ — Archived Phase docs (moved); see components/ for replacements
+### 01-data-pipeline/
+**TUSZ dataset handling and preprocessing**
+- `tusz-overview.md` - Dataset overview and structure
+- `tusz-csv-parser.md` - **CRITICAL**: CSV_BI label parsing (includes mysz fix)
+- `tusz-channels.md` - 19-channel canonical ordering
+- `tusz-data-flow.md` - End-to-end data pipeline
+- `tusz-mysz-crisis.md` - Postmortem on missing seizure type
 
-Start here (TUSZ):
+### 02-architecture/
+**Model components and technical specifications**
+- `canonical-spec.md` - **SOURCE OF TRUTH** for full architecture
+- `model-unet.md` - U-Net encoder/decoder (×16 downsample)
+- `model-mamba.md` - Bidirectional Mamba-2 (O(N) complexity)
+- `model-rescnn.md` - Residual CNN stack
+- `pipeline-diagram.md` - ASCII visualization
 
-- TUSZ/OVERVIEW.md
-- TUSZ/DATA_FLOW.md
-- TUSZ/CSV_BI_PARSER.md
-- TUSZ/CHANNELS_AND_MONTAGE.md
-- TUSZ/CACHE_AND_SAMPLING.md
-- TUSZ/PREFLIGHT_AND_TROUBLESHOOTING.md
-- TUSZ/EDF_HEADER_REPAIR.md
+### 03-operations/
+**Training, deployment, and evaluation**
+- `deploy-modal.md` - Cloud deployment on Modal
+- `deploy-local-wsl2.md` - Local WSL2/Linux setup
+- `training.md` - Training pipeline and strategies
+- `postprocessing.md` - Hysteresis and morphology
+- `evaluation.md` - TAES metrics and benchmarks
 
-Deployment:
+### 04-reference/
+**Commands, configs, and checklists**
+- `commands.md` - All CLI commands (train, eval, etc.)
+- `configs.md` - YAML configuration guide
+- `evaluation-checklist.md` - Pre-deployment validation
 
-- deployment/PREFLIGHT.md
-- deployment/LOCAL_WSL2.md
-- deployment/MODAL_SSOT.md
-- deployment/TROUBLESHOOTING.md
+### 05-research/
+**Future work and experiments**
+- `streaming.md` - Real-time inference plans
+- `channel-annotations.md` - Annotation integration
+- `benchmark-plans.md` - Performance targets
 
-Also see:
-- DOCS_SSOT.md — canonical commands and entry points
-- HISTORY.md — archive index and replacements
- - components/README.md — migration map from Phases to Components
- - archive/README.md — where archived docs live and how to navigate them
+## Entry Points
+
+**Getting Started:**
+1. Read `01-data-pipeline/tusz-overview.md`
+2. Review `02-architecture/canonical-spec.md`
+3. Follow `03-operations/deploy-local-wsl2.md`
+
+**Key Commands:**
+```bash
+# Training
+python -m src train configs/smoke_test.yaml
+
+# Evaluation
+python -m src evaluate <checkpoint> <data_dir> --config <config>
+
+# Quality checks
+make q  # Run after every change!
+```
+
+## Critical Notes
+
+- **TUSZ mysz seizure type**: Was missing from parser - now fixed (see `tusz-mysz-crisis.md`)
+- **Mamba CUDA**: Set `SEIZURE_MAMBA_FORCE_FALLBACK=1` for Conv1d fallback
+- **Cache rebuild**: Required after any data pipeline changes
+
+See `HISTORY.md` for archived documentation index.
