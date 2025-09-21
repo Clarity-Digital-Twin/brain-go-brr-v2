@@ -43,16 +43,16 @@ Last updated: 2025-09-19
 - `MODAL_MAMBA_DEPLOYMENT_ISSUES.md` - CUDA/Mamba deployment notes
 - `MODAL_LOGGING_TODO.md` - Logging/observability TODOs
 
-### `/docs/testing/` - Testing Strategy
-- `TEST_PLAN.md` - Canonical testing strategy and commands
+### Testing Strategy
+- See `/docs/implementation/EVALUATION_CHECKLIST.md` for the current testing and validation plan
 
-### `/docs/references/` - External References
-- `REFERENCE_REPOS.md` - Related projects and papers
-- `TUSZ_CSV_BI_PARSER.md` - Correct CSV_BI parsing + labels
-- `TUSZ_SAMPLING_STRATEGY.md` - SeizureTransformer-style balancing (manifest + dataset)
-- `TUSZ_CHANNELS.md` - Canonical 19‑ch order + synonyms
-- `TUSZ_EDF_HEADER_FIX.md` - TUH dataset header fixes
-- `TUSZ_HEADER_FIX_INTEGRATION.md` - Header fix integration details
+### TUSZ References
+- All TUSZ-specific docs live under `/docs/TUSZ/`:
+  - `TUSZ_CSV_BI_PARSER.md` — Correct CSV_BI parsing + labels
+  - `TUSZ_SAMPLING_STRATEGY.md` — SeizureTransformer-style balancing (manifest + dataset)
+  - `TUSZ_CHANNELS.md` — Canonical 19‑ch order + synonyms
+  - `TUSZ_EDF_HEADER_FIX.md` — TUH dataset header fixes
+  - `TUSZ_HEADER_FIX_INTEGRATION.md` — Header fix integration details
 
 ### `/docs/archive/` - Historical Documentation
 Contains older documentation versions for reference.
@@ -63,5 +63,6 @@ Contains older documentation versions for reference.
 - **Development Rules**: See `AGENTS.md` and `CLAUDE.md`
 - **Architecture Details**: `/docs/architecture/`
 - **Implementation Status**: `/docs/phases/`
-- **Known Issues**: `/docs/KNOWN_ISSUES.md`
+- **Cache rebuild status**: `/docs/deployment/CACHE_REBUILD_REQUIRED.md`
+- **Known Issues (historical)**: `/docs/archive/bugs/KNOWN_ISSUES.md`
 - **History/Archive Index**: `/docs/HISTORY.md`

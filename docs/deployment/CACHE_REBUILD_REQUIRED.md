@@ -1,14 +1,16 @@
-# ⚠️ CRITICAL: Cache Rebuild Required After mysz Fix
+# ⚠️ CRITICAL: Cache Rebuild Required (CSV_BI + seizure labels)
+
+STATUS: In progress — caches are currently rebuilding locally and on Modal. Do not start training until rebuilds complete and manifests show seizures (partial>0 or full>0).
 
 ## Immediate Action Required
 
-**ALL EXISTING CACHES MUST BE DELETED AND REBUILT** after the mysz seizure type fix.
+**ALL EXISTING CACHES MUST BE DELETED AND REBUILT** after fixing CSV_BI parsing and completing the seizure label set (including `mysz`).
 
 ## Why This Is Critical
 
-1. **Missing Seizure Data**: The old caches were built without detecting `mysz` (myoclonic) seizures
-2. **Wrong Manifest Classification**: Windows containing mysz seizures are incorrectly marked as "no_seizure"
-3. **Training Corruption**: Models trained on old caches are missing seizure training data
+1. CSV_BI columns were misread in prior builds, causing all-zero labels in some caches; fixed parser now reads `channel,start,stop,label,confidence`.
+2. Seizure labels expanded to include rare types like `mysz` (myoclonic); old caches missed these windows.
+3. Training correctness requires rebuilt caches with correct labels and balanced manifest.
 
 ## Affected Files
 
@@ -47,12 +49,12 @@ The cache building pipeline:
 4. **OLD**: `{"seiz", "gnsz", "fnsz", "spsz", "cpsz", "absz", "tnsz", "tcsz", "spkz"}` - MISSING mysz!
 5. **NEW**: `{"seiz", "gnsz", "fnsz", "cpsz", "absz", "spsz", "tcsz", "tnsz", "mysz"}` - COMPLETE!
 
-## Verification After Rebuild
+## Verification After Rebuild (required)
 
 After rebuilding caches, verify mysz detection:
 
 ```bash
-# Check if mysz seizures are now detected in manifest
+# Check seizure windows exist in manifest
 python -c "
 import json
 with open('cache/tusz/train/manifest.json') as f:
@@ -63,13 +65,13 @@ print(f'No seizure windows: {len(manifest[\"no_seizure\"])}')
 "
 ```
 
-The numbers should change slightly - windows previously marked as "no_seizure" that contain mysz will move to "partial_seizure" or "full_seizure".
+Expect partial>0 and/or full>0. If both are zero, stop and investigate CSV paths/parsing.
 
 ## Timeline
 
 1. **v0.1.0**: Built caches without mysz - INCORRECT
 2. **v0.2.0**: Fixed parser to include mysz - CORRECT
-3. **NOW**: Must rebuild all caches with v0.2.0+ code
+3. **NOW**: Rebuilding caches with fixed parser + labels (in progress)
 
 ## Commands to Rebuild
 
@@ -78,11 +80,14 @@ The numbers should change slightly - windows previously marked as "no_seizure" t
 # Delete old caches
 rm -rf cache/
 
-# Rebuild with smoke test first
-python -m src train configs/local/smoke.yaml
+# Build manifest on existing cache (optional)
+python -m src scan-cache --cache-dir cache/tusz/train
 
-# Then full training
-python -m src train configs/local/train.yaml
+# Smoke test (1 epoch)
+python -m src train configs/smoke_test.yaml
+
+# Full training (WSL2-safe)
+python -m src train configs/tusz_train_wsl2.yaml
 ```
 
 ### Modal rebuild:
@@ -91,7 +96,7 @@ python -m src train configs/local/train.yaml
 modal run --detach deploy/modal/app.py::delete_caches
 
 # Rebuild
-modal run --detach deploy/modal/app.py::train --config configs/modal/train_a100.yaml
+modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml
 ```
 
 ## Impact Assessment
@@ -102,4 +107,4 @@ modal run --detach deploy/modal/app.py::train --config configs/modal/train_a100.
 
 ---
 
-**DO NOT PROCEED WITH TRAINING UNTIL CACHES ARE REBUILT WITH THE mysz FIX**
+**DO NOT PROCEED WITH TRAINING UNTIL SCAN SHOWS partial>0 OR full>0 AND THE BALANCED DATASET LOADS WITHOUT ERROR**

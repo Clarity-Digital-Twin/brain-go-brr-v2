@@ -26,4 +26,9 @@ Notes on deprecated references:
 - `configs/production.yaml` — superseded by environment-specific configs above
 - `src/experiment/*` — refactored into `src/brain_brr/*`
 
+Key references:
+- TUSZ docs: `/docs/TUSZ/` (parser, sampling strategy, channels, header fixes)
+- Testing plan: `/docs/implementation/EVALUATION_CHECKLIST.md`
+ - Cache rebuild status: `/docs/deployment/CACHE_REBUILD_REQUIRED.md`
+
 If you find drift, update the target document and add a bullet here if it affects canonical usage.
