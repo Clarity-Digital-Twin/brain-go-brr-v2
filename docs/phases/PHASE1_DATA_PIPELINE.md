@@ -1,5 +1,12 @@
 # PHASE1_DATA_PIPELINE.md - EEG Data Loading & Preprocessing
 
+Note (2025-09-21): Canonical implementation references
+- CSV_BI parsing: `docs/references/TUSZ_CSV_BI_PARSER.md`
+- Channels (19‑ch + synonyms): `docs/references/TUSZ_CHANNELS.md`
+- EDF header repair: `docs/references/TUSZ_EDF_HEADER_FIX.md`
+- Balanced dataset (manifest): `docs/references/TUSZ_SAMPLING_STRATEGY.md`
+- Current modules under `src/brain_brr/*` (older `src/experiment/*` paths are historical)
+
 ## 🎯 Phase 1 Goal
 Build a bulletproof data pipeline that loads TUH/CHB-MIT/custom EEG and outputs standardized windows ready for model training.
 

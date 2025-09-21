@@ -1,5 +1,10 @@
 # PHASE3_TRAINING_PIPELINE.md — Training & Evaluation Orchestration
 
+Note (2025-09-21): Sampling is manifest-driven
+- Training uses a prebuilt manifest and BalancedSeizureDataset (ALL partial + 0.3× full + 2.5× none)
+- Reference: `docs/references/TUSZ_SAMPLING_STRATEGY.md`
+- Any WeightedRandomSampler examples are historical; prefer the manifest+dataset approach
+
 ## 🎯 Phase 3 Goal
 Build a robust, reproducible training and evaluation pipeline that trains the Phase 2 model on standardized EEG windows and reports clinically relevant metrics (TAES, FA/24h curves) with clean logging, checkpointing, and early stopping.
 
