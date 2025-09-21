@@ -1080,6 +1080,11 @@ def main() -> None:
                 f"[DATASET] BalancedSeizureDataset: {len(train_dataset)} windows from manifest",
                 flush=True,
             )
+            if len(train_dataset) == 0:
+                print("[FATAL] Balanced manifest produced 0 windows", flush=True)
+                import sys as _sys
+
+                _sys.exit(1)
         except Exception as e:
             print(f"[WARNING] BalancedSeizureDataset failed: {e}; falling back to EEGWindowDataset")
             train_dataset = EEGWindowDataset(
