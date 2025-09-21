@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -68,7 +69,10 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
             json.dump(manifest, f)
         return manifest
 
-    for npz_path in tqdm(npz_files, desc="Scanning cache", leave=False):
+    # Use tqdm unless disabled for Modal/subprocess environments
+    disable_tqdm = os.getenv("BGB_DISABLE_TQDM")
+    iterator = npz_files if disable_tqdm else tqdm(npz_files, desc="Scanning cache", leave=False)
+    for npz_path in iterator:
         try:
             with np.load(npz_path) as data:
                 if "labels" not in data:

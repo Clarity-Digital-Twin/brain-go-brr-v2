@@ -124,9 +124,8 @@ def train(
         # EXPLICITLY UNSET for full training to avoid inheritance
         env.pop("BGB_LIMIT_FILES", None)
 
-    # Optionally disable tqdm if it causes issues in subprocess
-    # Uncomment this line if tqdm still fails after fixes:
-    # env["BGB_DISABLE_TQDM"] = "1"
+    # Disable tqdm for Modal subprocess environments (causes issues with manifest generation)
+    env["BGB_DISABLE_TQDM"] = "1"
     # For production, use full dataset (no limit)
 
     # Prepare a temp config to ensure data/output point to persistent volumes

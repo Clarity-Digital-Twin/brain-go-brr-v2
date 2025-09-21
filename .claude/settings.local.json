@@ -113,7 +113,10 @@
       "Bash(do echo \"=== $f ===\")",
       "Bash(for f in configs/*/*.yaml)",
       "Bash(tmux kill-server:*)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "WebFetch(domain:modal.com)",
+      "Bash(curl:*)",
+      "Bash(xargs:*)"
     ],
     "deny": [],
     "ask": []
