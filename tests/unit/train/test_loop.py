@@ -255,6 +255,7 @@ class TestTrainingSmoke:
         config = Config()
         config.training.epochs = 2
         config.training.learning_rate = 1e-3
+        config.experiment.device = "cpu"  # Force CPU to avoid CUDA OOM in tests
 
         with tempfile.TemporaryDirectory() as tmpdir:
             config.experiment.output_dir = tmpdir

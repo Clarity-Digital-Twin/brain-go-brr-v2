@@ -1,0 +1,10 @@
+# Force LF line endings for critical files
+uv.lock text eol=lf
+*.py text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.sh text eol=lf
+Makefile text eol=lf
