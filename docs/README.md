@@ -35,6 +35,7 @@ Last updated: 2025-09-19
 - `PREPROCESSING_STRATEGY.md` - Data preprocessing strategy
 - `EVALUATION_CHECKLIST.md` - Testing and validation checklist
 - `SETUP_NOTES.md` - Environment setup instructions
+- `benchmarks.md` - Literature benchmarks
 
 ### `/docs/deployment/` - Deployment
 - `MODAL_DEPLOYMENT_SSOT.md` - Modal deployment Single Source of Truth
@@ -64,3 +65,4 @@ Contains older documentation versions for reference.
 - **Architecture Details**: `/docs/architecture/`
 - **Implementation Status**: `/docs/phases/`
 - **Known Issues**: `/docs/KNOWN_ISSUES.md`
+- **History/Archive Index**: `/docs/HISTORY.md`

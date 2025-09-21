@@ -15,7 +15,7 @@ This release fixes **P0 blockers** that prevented seizure detection in training.
 
 #### Seizure Type Detection
 - **Before**: Only looked for "seiz" label (doesn't exist in TUSZ)
-- **After**: Detects all TUSZ types: gnsz, fnsz, spsz, cpsz, absz, tnsz, tcsz, spkz
+- **After**: Detects all TUSZ types: gnsz, fnsz, cpsz, absz, spsz, tcsz, tnsz, mysz
 - **Impact**: Complete seizure coverage in training data
 
 #### Training Stability

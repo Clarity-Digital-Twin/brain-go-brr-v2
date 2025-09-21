@@ -1,4 +1,8 @@
-# 🎯 HARDCORE INTERPOLATION IMPLEMENTATION PLAN
+# [ARCHIVED] INTERPOLATION IMPLEMENTATION PLAN
+
+Status: Historical investigation. Channel handling/canonicalization is documented in:
+- docs/references/TUSZ_CHANNELS.md
+- docs/implementation/PREPROCESSING_STRATEGY.md
 
 **Goal**: Add MNE interpolation to handle 249 files missing Fz/Pz WITHOUT breaking ANYTHING
 **Constraint**: MINIMAL changes, MAXIMUM compatibility, NO insane universe creation

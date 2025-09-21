@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### 🚨 Critical P0 Blockers
 - **CSV Parser for TUSZ CSV_BI Format**: Fixed parser reading wrong columns (was [0,1,2], now correctly [1,2,3] to skip channel column), preventing 0% seizure detection
-- **All TUSZ Seizure Types**: Added complete seizure type recognition (gnsz, fnsz, spsz, cpsz, absz, tnsz, tcsz, spkz) - was only looking for "seiz" which doesn't exist
+- **All TUSZ Seizure Types**: Added complete seizure type recognition (gnsz, fnsz, cpsz, absz, spsz, tcsz, tnsz, mysz) - was only looking for "seiz" which doesn't exist
 - **BalancedSeizureDataset**: Implemented SeizureTransformer's exact balancing (ALL partial + 0.3×full + 2.5×background) to guarantee seizures in training
 - **Hard Guards**: Added CLI exit if no seizures found in manifest, preventing training collapse
 

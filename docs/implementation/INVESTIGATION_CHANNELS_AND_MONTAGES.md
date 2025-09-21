@@ -1,7 +1,7 @@
-# Investigation: TUSZ Channels and Montages
+# [ARCHIVED] Investigation: TUSZ Channels and Montages
 
 **Date**: 2025-09-18
-**Status**: 🔍 INVESTIGATING
+**Status**: Archived — see docs/references/TUSZ_CHANNELS.md and docs/implementation/PREPROCESSING_STRATEGY.md
 **Goal**: Understand the ENTIRE TUSZ dataset before implementing any solution
 
 ## Why This Investigation?

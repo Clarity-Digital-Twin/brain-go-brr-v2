@@ -1,4 +1,10 @@
-# IMPLEMENTATION_PHASES.md - Logical Build Order for Brain-Go-Brr v2
+# [ARCHIVED] IMPLEMENTATION_PHASES.md - Logical Build Order for Brain-Go-Brr v2
+
+Note: This document reflects an earlier plan (legacy `src/experiment/*`). For current, canonical docs see:
+- docs/architecture/CANONICAL_ARCHITECTURE_SPEC.md
+- docs/references/TUSZ_CSV_BI_PARSER.md
+- docs/references/TUSZ_SAMPLING_STRATEGY.md
+- docs/testing/TEST_PLAN.md
 
 Note: This document reflects earlier planning and uses legacy paths (e.g., `src/experiment/*`).
 The current implementation lives under `src/brain_brr/*`. For canonical commands/configs,
