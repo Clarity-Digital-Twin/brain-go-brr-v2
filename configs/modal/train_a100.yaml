@@ -1,0 +1,114 @@
+# TUSZ training configuration - A100 GPU optimized for Modal cloud
+# Maximizes throughput on 80GB VRAM with proper Linux environment
+
+data:
+  dataset: tuh_eeg
+  data_dir: /data/edf/train             # Modal S3 mount path
+  cache_dir: /results/cache/tusz         # Persistent cache root (train/val subdirs)
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60
+  stride: 10
+  num_workers: 8                        # A100 can handle parallel loading
+  pin_memory: true                      # Fast GPU transfer
+  persistent_workers: true               # Reuse workers between epochs
+  prefetch_factor: 4                     # Pre-load batches
+  validation_split: 0.2
+  # ⚠️ CRITICAL: Without balanced sampling, batches may have ZERO seizures! ⚠️
+  use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling
+
+preprocessing:
+  montage: "10-20"
+  bandpass: [0.5, 120]
+  notch_freq: 60
+  normalize: true
+  use_mne: true
+
+model:
+  name: seizure_detector
+  encoder:
+    stages: 4
+    channels: [64, 128, 256, 512]
+    kernel_size: 5
+    downsample_factor: 2
+  rescnn:
+    n_blocks: 3
+    kernel_sizes: [3, 5, 7]
+    dropout: 0.1
+  mamba:
+    n_layers: 6
+    d_model: 512
+    d_state: 16
+    conv_kernel: 5
+    dropout: 0.1
+  decoder:
+    stages: 4
+    kernel_size: 4
+
+postprocessing:
+  hysteresis:
+    tau_on: 0.86
+    tau_off: 0.78
+  morphology:
+    opening_kernel: 11
+    closing_kernel: 31
+  duration:
+    min_duration_s: 3.0
+    max_duration_s: 600.0
+  events:
+    tau_merge: 2.0
+    confidence_method: mean
+
+training:
+  epochs: 100                          # full training - will early stop if converged
+  batch_size: 64                       # A100 80GB can handle 4x larger batches
+  # ⚠️ CRITICAL: MUST use focal loss for 12:1 class imbalance! ⚠️
+  # Without this, model WILL collapse to AUROC=0.5 (useless)
+  loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
+  focal_alpha: 0.5                     # MUST BE 0.5! (neutral - let pos_weight handle imbalance)
+  focal_gamma: 2.0                     # Focusing parameter (higher = more focus on hard examples)
+  learning_rate: 3e-4
+  weight_decay: 0.05
+  optimizer: adamw
+  scheduler:
+    type: cosine
+    warmup_ratio: 0.03
+  gradient_clip: 1.0
+  mixed_precision: true                # A100 tensor cores for speed
+  gradient_accumulation_steps: 1       # Can increase if needed
+  early_stopping:
+    patience: 5
+    metric: sensitivity_at_10fa
+  checkpoint_interval: 5               # Save every 5 epochs
+
+evaluation:
+  metrics: [taes, sensitivity, specificity, auroc]
+  fa_rates: [10, 5, 2.5, 1]
+  save_predictions: true               # Cloud has space
+  save_plots: true                     # Generate all visualizations
+
+experiment:
+  name: tusz_a100_100ep
+  description: "A100-optimized TUSZ training 100 epochs on Modal cloud"
+  seed: 42
+  device: auto                         # Will detect A100
+  output_dir: /results/tusz_a100_100ep # Modal volume mount
+  cache_dir: /results/cache/tusz       # Persistent cache
+  log_level: INFO
+  save_model: true
+  save_best_only: true
+  wandb:
+    enabled: true                      # W&B secret configured!
+    project: seizure-detection-a100
+    entity: jj-vcmcswaggins-novamindnyc  # Your W&B team name
+    tags: ["production", "a100", "tuh-seizure"]
+
+logging:
+  log_every_n_steps: 25                # More frequent on fast GPU
+  log_gradients: false
+  log_weights: false
+
+resources:
+  max_memory_gb: 80                    # A100 has 80GB VRAM
+  distributed: false                   # Single GPU for now
+  compile_model: false                 # Torch compile if needed

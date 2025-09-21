@@ -1,0 +1,96 @@
+# Modal A100 smoke test config - 1 epoch, quick validation
+#
+# GPU: A100-80GB on Modal cloud
+data:
+  dataset: tuh_eeg
+  data_dir: /data/edf/train            # Modal S3 mount path
+  cache_dir: /results/cache/smoke      # Modal persistent volume
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60
+  stride: 10
+  num_workers: 4                       # A100 can handle workers
+  pin_memory: true                     # A100 optimized
+  persistent_workers: true              # A100 optimized
+  prefetch_factor: 4
+  validation_split: 0.2
+  use_balanced_sampling: true          # CRITICAL: Ensures seizures in batches
+
+preprocessing:
+  montage: "10-20"
+  bandpass: [0.5, 120]
+  notch_freq: 60
+  normalize: true
+
+model:
+  name: seizure_detector
+  encoder:
+    stages: 4
+    channels: [64, 128, 256, 512]
+    kernel_size: 5
+    downsample_factor: 2
+  rescnn:
+    n_blocks: 3
+    kernel_sizes: [3, 5, 7]
+    dropout: 0.1
+  mamba:
+    n_layers: 6
+    d_model: 512
+    d_state: 16
+    conv_kernel: 5
+    dropout: 0.1
+  decoder:
+    stages: 4
+    kernel_size: 4
+
+postprocessing:
+  hysteresis:
+    tau_on: 0.86
+    tau_off: 0.78
+  morphology:
+    opening_kernel: 11
+    closing_kernel: 31
+  duration:
+    min_duration_s: 3.0
+    max_duration_s: 600.0
+  events:
+    tau_merge: 2.0
+    confidence_method: mean
+
+training:
+  epochs: 1                            # Just 1 epoch for smoke test
+  batch_size: 64                       # A100 can handle 8x larger batches
+  loss: focal
+  focal_alpha: 0.5
+  focal_gamma: 2.0
+  learning_rate: 3e-4
+  weight_decay: 0.05
+  optimizer: adamw
+  scheduler:
+    type: cosine
+    warmup_ratio: 0.03
+  gradient_clip: 1.0
+  mixed_precision: true
+
+evaluation:
+  metrics: [taes, sensitivity, specificity, auroc]
+  fa_rates: [10, 5, 2.5, 1]
+
+experiment:
+  name: modal_smoke_test_$(date +%Y%m%d_%H%M%S)
+  description: "Modal A100 smoke test with balanced sampling"
+  seed: 42
+  device: cuda
+  output_dir: /results/smoke
+  cache_dir: /results/cache/smoke
+  log_level: INFO
+  save_model: false
+  # BGB_LIMIT_FILES set automatically in app.py for smoke configs
+  wandb:
+    enabled: true
+    project: seizure-detection-smoke
+    entity: jj-vcmcswaggins-novamindnyc
+    tags: ["smoke-test", "modal", "a100"]
+
+logging:
+  log_every_n_steps: 10

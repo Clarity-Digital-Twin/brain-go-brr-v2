@@ -76,7 +76,11 @@
       "Bash(watch:*)",
       "Bash(cat:*)",
       "Bash(xargs basename:*)",
-      "Bash(tmux new:*)"
+      "Bash(tmux new:*)",
+      "Bash(echo:*)",
+      "Bash(env)",
+      "Bash(head:*)",
+      "Bash(while read f)"
     ],
     "deny": [],
     "ask": []
