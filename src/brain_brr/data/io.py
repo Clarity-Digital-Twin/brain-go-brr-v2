@@ -228,14 +228,13 @@ def parse_tusz_csv(csv_path: Path) -> tuple[float, list[tuple[float, float, str]
         duration_seconds: Total recording duration
         events: List of (start_sec, end_sec, label) tuples
 
-    Example CSV format:
+    TUSZ CSV_BI format:
         ```
-        version,tse_v2.0.0
-        duration_sec,1800.0000
-        # More metadata lines...
-        0.0000,16.0000,bckg
-        16.0000,256.0000,seiz
-        256.0000,1800.0000,bckg
+        # version = csv_v1.0.0
+        # duration = 300.00 secs
+        channel, start_time, stop_time, label, confidence
+        FP1 - F7, 0.0000, 36.8868, bckg, 1.0000
+        FP1 - F7, 36.8868, 183.3055, cpsz, 1.0000
         ```
     """
     events = []
@@ -244,26 +243,35 @@ def parse_tusz_csv(csv_path: Path) -> tuple[float, list[tuple[float, float, str]
     with open(csv_path) as f:
         for line in f:
             line = line.strip()
-            if not line or line.startswith("#"):
+            if not line:
+                continue
+
+            # Parse duration from comment header
+            if line.startswith("#"):
+                if "duration" in line.lower():
+                    # Extract duration from "# duration = 300.00 secs"
+                    parts = line.split("=")
+                    if len(parts) >= 2:
+                        dur_str = parts[1].strip().replace("secs", "").replace("sec", "").strip()
+                        with contextlib.suppress(ValueError):
+                            duration_seconds = float(dur_str)
                 continue
 
             parts = line.split(",")
-            if len(parts) < 2:
+
+            # Skip header row
+            if parts[0] == "channel" or parts[0] == "Channel":
                 continue
 
-            # Extract duration from header
-            if parts[0] == "duration_sec":
-                duration_seconds = float(parts[1])
-                continue
-
-            # Parse event rows
-            if len(parts) >= 3:
+            # TUSZ CSV_BI format: channel,start_time,stop_time,label,confidence
+            if len(parts) >= 4:
                 try:
-                    start = float(parts[0])
-                    end = float(parts[1])
-                    label = parts[2].strip()
+                    # Skip channel (parts[0]), use start/stop/label
+                    start = float(parts[1])
+                    end = float(parts[2])
+                    label = parts[3].strip()
                     events.append((start, end, label))
-                except ValueError:
+                except (ValueError, IndexError):
                     continue  # Skip malformed lines
 
     return duration_seconds, events
@@ -287,7 +295,8 @@ def events_to_binary_mask(
         Binary mask of shape (n_samples,) with 1.0 for seizure, 0.0 for background
     """
     if seizure_labels is None:
-        seizure_labels = {"seiz"}
+        # TUSZ seizure types: generalized, focal, simple partial, complex partial, absence, tonic, tonic-clonic, spike
+        seizure_labels = {"seiz", "gnsz", "fnsz", "spsz", "cpsz", "absz", "tnsz", "tcsz", "spkz"}
 
     n_samples = int(duration_sec * fs)
     mask = np.zeros(n_samples, dtype=np.float32)

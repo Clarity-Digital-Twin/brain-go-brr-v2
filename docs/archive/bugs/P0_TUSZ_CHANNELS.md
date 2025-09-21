@@ -1,5 +1,12 @@
 # P0 — TUSZ Channel Name Mismatch (Resolved by Canonicalization)
 
+Status: RESOLVED (2025-09-21)
+
+Resolution summary:
+- Channel cleaning + synonym mapping + strict ordered picking now in src/brain_brr/data/io.py and utils
+- Files: src/brain_brr/data/io.py:126 (clean_tusz_name), src/brain_brr/constants.py:33 (CHANNEL_SYNONYMS), src/brain_brr/utils/pick_utils.py:30
+- See also: docs/archive/bugs/RESOLUTION_STATUS.md
+
 Status: In Progress → Fixed by robust channel canonicalization in `load_edf_file`
 Priority: P0
 Owner: Data Pipeline

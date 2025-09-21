@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-09-21
+
+### Fixed
+
+#### 🚨 Critical P0 Blockers
+- **CSV Parser for TUSZ CSV_BI Format**: Fixed parser reading wrong columns (was [0,1,2], now correctly [1,2,3] to skip channel column), preventing 0% seizure detection
+- **All TUSZ Seizure Types**: Added complete seizure type recognition (gnsz, fnsz, spsz, cpsz, absz, tnsz, tcsz, spkz) - was only looking for "seiz" which doesn't exist
+- **BalancedSeizureDataset**: Implemented SeizureTransformer's exact balancing (ALL partial + 0.3×full + 2.5×background) to guarantee seizures in training
+- **Hard Guards**: Added CLI exit if no seizures found in manifest, preventing training collapse
+
+#### 🔧 Configuration Management
+- **Config Reorganization**: Restructured from 8 confusing configs to clean `configs/local/` and `configs/modal/` directories
+- **WSL2 Fixes**: Corrected all local configs with `num_workers=0`, `pin_memory=false`, explicit `device=cuda`
+- **Modal A100 Optimization**: Fixed checkpoint paths, verified batch_size=64, workers=8 for cloud GPU
+- **Internal Consistency**: All configs now share identical model architecture, preprocessing, and postprocessing
+
+#### 🚀 Modal Pipeline
+- **BGB_LIMIT_FILES Fix**: Explicitly unset environment variable for full training (was limiting to 50 files)
+- **Cache Structure**: Documented and separated cache directories for smoke/full/dev/eval on both local and Modal
+
+### Added
+
+#### 📚 Documentation
+- Comprehensive configuration README with usage examples
+- Cache directory structure documentation
+- Modal pipeline setup guide
+- Config consistency verification reports
+- Root cause analysis for debugging
+
+### Changed
+- Moved configs to organized `local/` and `modal/` subdirectories
+- Deleted redundant configs (local.yaml, production.yaml, tusz_train.yaml)
+- Cleaned up 6.3GB of vestigial cache directories
+
 ## [0.1.0] - 2025-09-20
 
 ### Added

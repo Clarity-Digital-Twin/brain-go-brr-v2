@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from src.brain_brr.config.schemas import Config
+from src.brain_brr.data.cache_utils import check_cache_completeness, scan_existing_cache
 
 console = Console()
 
@@ -186,6 +187,91 @@ def train(config_path: Path, resume: bool, device: str) -> None:
         sys.exit(130)
     except Exception as e:
         console.print(f"[red]Training error:[/red] {e}")
+        sys.exit(1)
+
+
+@cli.command("build-cache")
+@click.option("--data-dir", type=click.Path(exists=True, path_type=Path), required=True)
+@click.option("--cache-dir", type=click.Path(path_type=Path), required=True)
+@click.option("--validation-split", type=float, default=0.2)
+@click.option("--split", type=click.Choice(["train", "val"]), default="train")
+def build_cache_cmd(data_dir: Path, cache_dir: Path, validation_split: float, split: str) -> None:
+    """Build cache for a chosen split under DATA_DIR into CACHE_DIR."""
+    try:
+        from src.brain_brr.data import EEGWindowDataset
+
+        edf_files_all = sorted(Path(data_dir).glob("**/*.edf"))
+        if not 0.0 <= float(validation_split) <= 0.5:
+            raise ValueError("validation-split must be in [0.0, 0.5]")
+        val_n = int(len(edf_files_all) * float(validation_split))
+        val_files = edf_files_all[:val_n]
+        train_files = edf_files_all[val_n:]
+        edf_files = train_files if split == "train" else val_files
+        label_files = [p.with_suffix(".csv") for p in edf_files]
+
+        console.print(
+            f"[cyan]Building cache for {split} split ({len(edf_files)} files) from[/cyan] {data_dir}"
+        )
+
+        status = check_cache_completeness(edf_files, cache_dir)
+        console.print(
+            f"[cyan]Cache status:[/cyan] {status.cached_files}/{status.total_files} present, "
+            f"missing {status.missing_files}"
+        )
+
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        _ = EEGWindowDataset(edf_files, label_files=label_files, cache_dir=cache_dir)
+        status2 = check_cache_completeness(edf_files, cache_dir)
+        if status2.missing_files == 0:
+            try:
+                manifest = scan_existing_cache(cache_dir)
+                console.print(
+                    "[green]✅ Cache build complete + manifest:[/green] "
+                    f"partial={len(manifest['partial_seizure'])}, "
+                    f"full={len(manifest['full_seizure'])}, "
+                    f"none={len(manifest['no_seizure'])}"
+                )
+                if (
+                    len(manifest.get("partial_seizure", [])) == 0
+                    and len(manifest.get("full_seizure", [])) == 0
+                ):
+                    console.print(
+                        "[red]❌ No seizures found in cache. Refusing to proceed to training.[/red]"
+                    )
+                    sys.exit(2)
+            except Exception as e:
+                console.print(f"[yellow]Built cache but manifest scan failed: {e}[/yellow]")
+        else:
+            console.print(
+                f"[yellow]⚠️ Cache incomplete: {status2.missing_files} missing after build[/yellow]"
+            )
+    except Exception as e:
+        console.print(f"[red]Cache build error:[/red] {e}")
+        sys.exit(1)
+
+
+@cli.command("scan-cache")
+@click.option("--cache-dir", type=click.Path(exists=True, path_type=Path), required=True)
+def scan_cache_cmd(cache_dir: Path) -> None:
+    """Scan NPZ cache and build a seizure-category manifest."""
+    try:
+        manifest = scan_existing_cache(cache_dir)
+        console.print(
+            "[green]✅ Manifest created:[/green] "
+            f"partial={len(manifest['partial_seizure'])}, "
+            f"full={len(manifest['full_seizure'])}, "
+            f"none={len(manifest['no_seizure'])} at {cache_dir / 'manifest.json'}"
+        )
+        if (
+            len(manifest.get("partial_seizure", [])) == 0
+            and len(manifest.get("full_seizure", [])) == 0
+        ):
+            console.print(
+                "[red]❌ No seizures detected across cache — investigate CSV parsing/paths"
+            )
+            sys.exit(2)
+    except Exception as e:
+        console.print(f"[red]Manifest scan error:[/red] {e}")
         sys.exit(1)
 
 

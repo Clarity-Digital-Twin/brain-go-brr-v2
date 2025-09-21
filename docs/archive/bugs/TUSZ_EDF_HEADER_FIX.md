@@ -1,5 +1,12 @@
 # TUSZ EDF Header Repair - Critical Information for EDF Processing
 
+Status: RESOLVED (2025-09-21)
+
+Resolution summary:
+- Implemented header repair (colon→period) fallback and retry inside loader
+- Files: src/brain_brr/data/io.py:34 (_repair_edf_header_inplace), integration at src/brain_brr/data/io.py:86
+- See also: docs/archive/bugs/RESOLUTION_STATUS.md
+
 ## Quick Summary
 
 When processing TUSZ v2.0.3 eval dataset, one file (`aaaaaaaq_s007_t000.edf`) has a malformed EDF header that will crash standard pyedflib loaders. The issue is incorrect date separators (colons instead of periods) at byte offset 168.

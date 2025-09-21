@@ -4,6 +4,7 @@
 data:
   dataset: tuh_eeg
   data_dir: /data/edf/train             # Modal S3 mount path
+  cache_dir: /results/cache/tusz         # Persistent cache root (train/val subdirs)
   sampling_rate: 256
   n_channels: 19
   window_size: 60
@@ -90,7 +91,7 @@ experiment:
   name: tusz_a100_100ep
   description: "A100-optimized TUSZ training 100 epochs on Modal cloud"
   seed: 42
-  device: auto                         # Will detect A100
+  device: cuda                         # Explicit GPU for consistency
   output_dir: /results/tusz_a100_100ep # Modal volume mount
   cache_dir: /results/cache/tusz       # Persistent cache
   log_level: INFO

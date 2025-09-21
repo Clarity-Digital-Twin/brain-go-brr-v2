@@ -91,14 +91,26 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
     window_has_seizure = torch.zeros(len(dataset), dtype=torch.float32)
     sampled_seizure_count = 0
 
-    for idx in sample_indices:
+    print(f"[SAMPLER] Checking {sample_size} windows for seizures...", flush=True)
+    for i, idx in enumerate(sample_indices):
         _, label = dataset[idx.item()]
         if (label > 0).any():
             window_has_seizure[idx] = 1.0
             sampled_seizure_count += 1
 
+        # Progress update every 1000 windows
+        if (i + 1) % 1000 == 0:
+            print(
+                f"[SAMPLER] Checked {i + 1}/{sample_size} windows, found {sampled_seizure_count} with seizures",
+                flush=True,
+            )
+
     # Estimate seizure ratio
     seizure_ratio = sampled_seizure_count / sample_size
+    print(
+        f"[SAMPLER] Final: {sampled_seizure_count}/{sample_size} windows with seizures ({seizure_ratio:.2%})",
+        flush=True,
+    )
 
     if seizure_ratio < 1e-8:
         print("[SAMPLER] WARNING: No seizures found in sample! Using uniform sampling.", flush=True)
@@ -964,7 +976,7 @@ def main() -> None:
     """CLI entry point for training."""
     import argparse
 
-    from src.brain_brr.data import EEGWindowDataset
+    from src.brain_brr.data import BalancedSeizureDataset, EEGWindowDataset
 
     parser = argparse.ArgumentParser(description="Train seizure detection model")
     parser.add_argument(
@@ -1012,24 +1024,112 @@ def main() -> None:
     train_label_files = [p.with_suffix(".csv") for p in train_files]
     val_label_files = [p.with_suffix(".csv") for p in val_files]
 
-    train_dataset = EEGWindowDataset(
-        train_files,
-        label_files=train_label_files,
-        cache_dir=Path(config.data.cache_dir) / "train",
-    )
+    # Cache directory sanity and preflight
+    data_cache_root = Path(config.data.cache_dir)
+    exp_cache_root = Path(config.experiment.cache_dir)
+    if data_cache_root.resolve() != exp_cache_root.resolve():
+        print(
+            f"[WARNING] config.data.cache_dir ({data_cache_root}) != config.experiment.cache_dir ({exp_cache_root})",
+            flush=True,
+        )
+
+    try:
+        from src.brain_brr.data.cache_utils import check_cache_completeness
+
+        train_cache = data_cache_root / "train"
+        val_cache = data_cache_root / "val"
+        st_train = check_cache_completeness(train_files, train_cache)
+        st_val = check_cache_completeness(val_files, val_cache)
+        if st_train.missing_files > 0 or st_val.missing_files > 0:
+            print(
+                "[DATA] Cache incomplete: "
+                f"train {st_train.cached_files}/{st_train.total_files}, "
+                f"val {st_val.cached_files}/{st_val.total_files}",
+                flush=True,
+            )
+            print(
+                "[HINT] Pre-build cache to avoid slow training:\n"
+                f"  python -m src build-cache --data-dir {config.data.data_dir} --cache-dir {data_cache_root / 'train'}\n"
+                f"  python -m src build-cache --data-dir {config.data.data_dir} --cache-dir {data_cache_root / 'val'}",
+                flush=True,
+            )
+    except Exception:
+        pass
+
+    train_cache_dir = data_cache_root / "train"
+    use_balanced = bool(config.data.use_balanced_sampling)
+    manifest_path = train_cache_dir / "manifest.json"
+    if use_balanced and not manifest_path.exists():
+        try:
+            from src.brain_brr.data.cache_utils import scan_existing_cache
+
+            train_cache_dir.mkdir(parents=True, exist_ok=True)
+            _ = scan_existing_cache(train_cache_dir)
+            print("[DATA] Built manifest from existing cache for balanced training", flush=True)
+        except Exception as e:
+            print(f"[WARNING] Manifest build failed: {e}", flush=True)
+
+    # Create training dataset - either balanced (from manifest) or standard
+    train_dataset: BalancedSeizureDataset | EEGWindowDataset
+    if use_balanced and manifest_path.exists():
+        try:
+            train_dataset = BalancedSeizureDataset(train_cache_dir)
+            print(
+                f"[DATASET] BalancedSeizureDataset: {len(train_dataset)} windows from manifest",
+                flush=True,
+            )
+            if len(train_dataset) == 0:
+                print("[FATAL] Balanced manifest produced 0 windows", flush=True)
+                import sys
+
+                sys.exit(1)
+        except Exception as e:
+            print(f"[WARNING] BalancedSeizureDataset failed: {e}; falling back to EEGWindowDataset")
+            train_dataset = EEGWindowDataset(
+                train_files,
+                label_files=train_label_files,
+                cache_dir=train_cache_dir,
+                allow_on_demand=True,
+            )
+    else:
+        train_dataset = EEGWindowDataset(
+            train_files,
+            label_files=train_label_files,
+            cache_dir=train_cache_dir,
+            allow_on_demand=True,
+        )
 
     val_dataset = EEGWindowDataset(
         val_files,
         label_files=val_label_files,
-        cache_dir=Path(config.data.cache_dir) / "val",
+        cache_dir=data_cache_root / "val",
+        allow_on_demand=True,
     )
 
     # Create positive-aware balanced sampler
     train_sampler = None
-    if config.data.use_balanced_sampling and len(train_dataset) > 0:
-        train_sampler = create_balanced_sampler(train_dataset, sample_size=500)
+    if (
+        config.data.use_balanced_sampling
+        and len(train_dataset) > 0
+        and not isinstance(train_dataset, BalancedSeizureDataset)
+    ):
+        # CRITICAL: TUSZ has extreme imbalance (0.1-1% seizures at window level)
+        # We MUST sample enough windows to guarantee finding seizures
+        # Math: P(0 seizures) = (1-p)^n, for p=0.001, n=20000 → P≈0.00000002
+        sample_size = min(20000, len(train_dataset))  # Sample 20k windows for safety
+        print(f"[SAMPLER] Sampling {sample_size} windows to detect seizures...", flush=True)
+        train_sampler = create_balanced_sampler(train_dataset, sample_size=sample_size)
+
         if train_sampler is None:
-            print("[WARNING] Failed to create balanced sampler, using uniform sampling", flush=True)
+            print("=" * 60, flush=True)
+            print(f"[FATAL] No seizures found in {sample_size} windows!", flush=True)
+            print("[FATAL] Training will produce a USELESS model!", flush=True)
+            print("[FATAL] Check your data or increase sample size!", flush=True)
+            print("=" * 60, flush=True)
+            # Fail fast - don't waste GPU hours on doomed training
+            import sys
+
+            sys.exit(1)
 
     train_loader_kwargs: dict[str, Any] = {
         "batch_size": config.training.batch_size,
