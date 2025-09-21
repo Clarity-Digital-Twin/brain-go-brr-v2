@@ -36,12 +36,12 @@ dev: ## Install dev dependencies and pre-commit hooks
 PYTEST := $(if $(wildcard .venv/bin/pytest),.venv/bin/pytest,uv run pytest)
 
 test: ## Run tests with coverage (excludes performance benchmarks)
-    @echo "${CYAN}Running non-serial CPU tests (xdist)...${NC}"
-    $(PYTEST) -n auto -m "not serial and not performance and not gpu" --cov=src --cov-append --cov-report=term-missing:skip-covered
-    @echo "${CYAN}Running GPU tests (serial)...${NC}"
-    $(PYTEST) -n 1 -m "gpu and not performance" --cov=src --cov-append --cov-report=term-missing:skip-covered
-    @echo "${CYAN}Running serial tests (excluding performance)...${NC}"
-    $(PYTEST) -n 0 -m "serial and not performance" --cov=src --cov-append --cov-report=term-missing:skip-covered --cov-report=html
+	@echo "${CYAN}Running non-serial CPU tests (xdist)...${NC}"
+	$(PYTEST) -n auto -m "not serial and not performance and not gpu" --cov=src --cov-append --cov-report=term-missing:skip-covered
+	@echo "${CYAN}Running GPU tests (serial)...${NC}"
+	$(PYTEST) -n 1 -m "gpu and not performance" --cov=src --cov-append --cov-report=term-missing:skip-covered
+	@echo "${CYAN}Running serial tests (excluding performance)...${NC}"
+	$(PYTEST) -n 0 -m "serial and not performance" --cov=src --cov-append --cov-report=term-missing:skip-covered --cov-report=html
 
 test-fast: ## Run tests without coverage (faster, excludes performance)
 	@echo "${CYAN}Running fast tests...${NC}"
