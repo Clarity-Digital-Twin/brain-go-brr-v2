@@ -86,7 +86,8 @@
       "Bash(while read file)",
       "Bash(do grep -v \"^#\" \"$file\")",
       "Bash(.venv/bin/python:*)",
-      "Bash(uv lock:*)"
+      "Bash(uv lock:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []
