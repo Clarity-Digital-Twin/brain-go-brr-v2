@@ -225,12 +225,16 @@ class BalancedSeizureDataset(Dataset):
         rng = np.random.default_rng(seed)
 
         indices: list[tuple[Path, int]] = []
+        missing_ref_count = 0
 
         # Add ALL partial seizure windows (most informative)
         for item in partial:
             # Resolve relative path from manifest to absolute
             cache_file = self.cache_dir / item["cache_file"]
-            indices.append((cache_file, int(item["window_idx"])))
+            if cache_file.exists():
+                indices.append((cache_file, int(item["window_idx"])))
+            else:
+                missing_ref_count += 1
 
         # Add 0.3x full seizure windows
         n_full = int(full_ratio * len(partial))
@@ -239,7 +243,10 @@ class BalancedSeizureDataset(Dataset):
             for i in selected_indices:
                 item = full[i]
                 cache_file = self.cache_dir / item["cache_file"]
-                indices.append((cache_file, int(item["window_idx"])))
+                if cache_file.exists():
+                    indices.append((cache_file, int(item["window_idx"])))
+                else:
+                    missing_ref_count += 1
 
         # Add 2.5x no-seizure windows
         n_bg = int(background_ratio * len(partial))
@@ -250,7 +257,10 @@ class BalancedSeizureDataset(Dataset):
             for i in selected_indices:
                 item = no_seizure[i]
                 cache_file = self.cache_dir / item["cache_file"]
-                indices.append((cache_file, int(item["window_idx"])))
+                if cache_file.exists():
+                    indices.append((cache_file, int(item["window_idx"])))
+                else:
+                    missing_ref_count += 1
 
         # Shuffle using numpy's RNG for consistency
         indices_array = np.array(indices, dtype=object)
@@ -267,6 +277,8 @@ class BalancedSeizureDataset(Dataset):
             f"  - {n_full_used} full seizure ({n_full_used / n_partial_used:.1%} of partial)\n"
             f"  - {n_bg_used} no-seizure ({n_bg_used / n_partial_used:.1%} of partial)"
         )
+        if missing_ref_count > 0:
+            print(f"[WARNING] Skipped {missing_ref_count} manifest entries referencing missing cache files")
 
     def __len__(self) -> int:
         return len(self._entries)

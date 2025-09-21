@@ -126,3 +126,40 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
         print(f"  Seizure ratio: {(n_partial + n_full) / total:.1%}")
 
     return manifest
+
+
+def validate_manifest(cache_dir: Path, manifest: dict[str, Any]) -> bool:
+    """Validate that a manifest matches the current cache directory.
+
+    Conditions for validity:
+    - Manifest has at least one window total across categories
+    - All referenced cache files exist in ``cache_dir`` (allowing a small
+      fraction of missing files due to partial cache updates)
+
+    Returns:
+        True if manifest appears valid for ``cache_dir``; False otherwise.
+    """
+    try:
+        cache_dir = Path(cache_dir)
+        npz_set = {p.name for p in cache_dir.glob("*.npz")}
+
+        total = 0
+        missing_refs = 0
+        for key in ("partial_seizure", "full_seizure", "no_seizure"):
+            entries = manifest.get(key, []) or []
+            total += len(entries)
+            for item in entries:
+                cf = str(item.get("cache_file", ""))
+                if cf not in npz_set:
+                    missing_refs += 1
+
+        if total == 0:
+            return False
+
+        # If more than 5% of entries reference missing files, treat as invalid
+        if total > 0 and (missing_refs / total) > 0.05:
+            return False
+
+        return True
+    except Exception:
+        return False
