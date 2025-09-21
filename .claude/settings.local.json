@@ -102,7 +102,9 @@
       "Read(//usr/local/**)",
       "Bash(wget:*)",
       "Bash(sudo dpkg:*)",
-      "Bash(sudo apt-get:*)"
+      "Bash(sudo apt-get:*)",
+      "Bash(dos2unix:*)",
+      "Bash(./fix_mamba_ssm.sh:*)"
     ],
     "deny": [],
     "ask": []
