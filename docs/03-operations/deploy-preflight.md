@@ -18,7 +18,7 @@ Deployment Preflight (Must Pass Before Any Run)
 
 Quick strategy (small first)
 - Build/scan a tiny cache subset to verify parser/labels before large builds.
-- Run a 1-epoch smoke: `python -m src train configs/smoke_test.yaml` and confirm batches show seizures > 0%.
+- Run a 1-epoch smoke: `python -m src train configs/local/smoke.yaml` and confirm batches show seizures > 0%.
 
 4) Balanced dataset check
 - `from src.brain_brr.data import BalancedSeizureDataset as B; len(B(Path('<cache_dir>')))`
