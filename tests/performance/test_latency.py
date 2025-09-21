@@ -366,6 +366,7 @@ class TestLatencyUnderLoad:
         # Warning instead of failure for high variance (common in dev environments)
         if cv > max_cv:
             import warnings
+
             warnings.warn(f"High latency variance: CV={cv:.2f} (expected <{max_cv:.2f})")
 
         # No significant degradation over time (improvement is OK)
