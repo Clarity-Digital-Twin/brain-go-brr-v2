@@ -688,7 +688,7 @@ def save_checkpoint(
     scheduler: LRScheduler | None = None,
     config: Config | None = None,
 ) -> None:
-    """Save training checkpoint.
+    """Save training checkpoint with verification.
 
     Args:
         model: Model to save
@@ -706,6 +706,7 @@ def save_checkpoint(
         "model_state_dict": model.state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
         "best_metric": best_metric,
+        "timestamp": time.time(),  # Add timestamp for tracking
     }
 
     if scheduler is not None:
@@ -714,7 +715,20 @@ def save_checkpoint(
     if config is not None:
         checkpoint["config"] = config.model_dump()
 
-    torch.save(checkpoint, checkpoint_path)
+    # Save to temp file first, then rename (atomic operation)
+    temp_path = checkpoint_path.with_suffix(".tmp")
+    torch.save(checkpoint, temp_path)
+
+    # Verify the checkpoint can be loaded
+    try:
+        test_ckpt = torch.load(temp_path, map_location="cpu")
+        if "model_state_dict" not in test_ckpt:
+            raise ValueError("Checkpoint missing model_state_dict")
+        temp_path.rename(checkpoint_path)
+    except Exception as e:
+        print(f"[ERROR] Checkpoint verification failed: {e}", flush=True)
+        temp_path.unlink(missing_ok=True)
+        raise
 
 
 def load_checkpoint(
