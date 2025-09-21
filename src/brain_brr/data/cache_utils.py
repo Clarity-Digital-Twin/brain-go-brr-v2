@@ -7,15 +7,18 @@ import os
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
-# Guard tqdm import for Modal/subprocess environments
+# Guard tqdm import for Modal/subprocess environments with typing-friendly fallbacks
+tqdm: Any | None
 try:
-    from tqdm import tqdm  # type: ignore[import-untyped]
+    import tqdm as _tqdm  # type: ignore[import-untyped]
+
+    tqdm = _tqdm.tqdm
 except Exception:  # ImportError or runtime issues
-    tqdm = None  # type: ignore[assignment]
+    tqdm = None
 
 
 @dataclass(frozen=True)
@@ -78,8 +81,11 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
     disable_tqdm = os.getenv("BGB_DISABLE_TQDM", "").strip() == "1" or tqdm is None
     print(f"[CACHE] tqdm disabled={disable_tqdm} | files={len(npz_files)}", flush=True)
 
-    iterator = npz_files if disable_tqdm else tqdm(npz_files, desc="Scanning cache", leave=False)
-    for npz_path in iterator:
+    if disable_tqdm:
+        iterable = npz_files
+    else:
+        iterable = cast(Any, tqdm)(npz_files, desc="Scanning cache", leave=False)
+    for npz_path in iterable:
         try:
             with np.load(npz_path) as data:
                 if "labels" not in data:
