@@ -504,13 +504,15 @@ def list_configs() -> None:
         console.print("[yellow]No configs directory found[/yellow]")
         return
 
-    configs = sorted(config_dir.glob("*.yaml"))
+    # Search recursively for YAML files in subdirectories
+    configs = sorted(config_dir.rglob("*.yaml"))
 
     if not configs:
         console.print("[yellow]No config files found[/yellow]")
         return
 
     table = Table(title="Available Configurations")
+    table.add_column("Environment", style="magenta")
     table.add_column("File", style="cyan")
     table.add_column("Status", style="green")
 
@@ -523,7 +525,19 @@ def list_configs() -> None:
         except Exception:
             status = "❌ Invalid"
 
-        table.add_row(cfg_path.name, status)
+        # Get relative path from configs directory
+        relative_path = cfg_path.relative_to(config_dir)
+
+        # Extract environment (local/modal) from path
+        parts = relative_path.parts
+        if len(parts) > 1:
+            environment = parts[0]
+            filename = parts[-1]
+        else:
+            environment = "root"
+            filename = parts[0]
+
+        table.add_row(environment, filename, status)
 
     console.print(table)
 
