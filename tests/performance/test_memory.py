@@ -288,11 +288,13 @@ class TestMemoryUsage:
         # Allow more variation in development/WSL2 environments
         # PyTorch's memory allocator and WSL2 can cause variation
         import os
+
         max_variation = 150 if os.getenv("WSL_DISTRO_NAME") else 100
 
         # Also check for monotonic growth (more serious issue)
         # Linear regression to detect trend
         import numpy as np
+
         x = np.arange(len(memory_readings))
         slope, _ = np.polyfit(x, memory_readings, 1)
 
@@ -301,7 +303,9 @@ class TestMemoryUsage:
             pytest.fail(f"Memory leak detected: growing at {slope:.2f}MB per iteration")
 
         # Otherwise just warn if variation is high but not growing
-        assert memory_growth < max_variation, f"Memory varied by {memory_growth:.1f}MB during streaming (limit: {max_variation}MB)"
+        assert memory_growth < max_variation, (
+            f"Memory varied by {memory_growth:.1f}MB during streaming (limit: {max_variation}MB)"
+        )
 
     @pytest.mark.performance
     def test_peak_memory_tracking(self, minimal_model):
