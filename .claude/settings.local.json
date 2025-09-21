@@ -71,7 +71,8 @@
       "Bash(sudo hdparm:*)",
       "Bash(tar:*)",
       "Bash(pip install:*)",
-      "Bash(modal:*)"
+      "Bash(modal:*)",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []
