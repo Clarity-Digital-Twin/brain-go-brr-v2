@@ -10,9 +10,9 @@ Environment setup
 - WSL tip: `export UV_LINK_MODE=copy` (Makefile sets this by default)
 
 Config tips
-- `num_workers: 0` (avoid WSL2 multiprocessing hangs)
-- `pin_memory: false` (CPU/WSL runs)
-- Use `data.cache_dir` on ext4 (e.g., `cache/tusz/train` under repo)
+- Prefer `num_workers: 4`, `pin_memory: true`, `persistent_workers: true`, `prefetch_factor: 2` (good on modern WSL2). If you hit hangs, fall back to `num_workers: 0`, `pin_memory: false`.
+- Use `data.cache_dir` on ext4 (e.g., `cache/tusz/train` under repo).
+- Balanced sampling: manifest is validated on startup; set `BGB_FORCE_MANIFEST_REBUILD=1` to force a rebuild.
 
 Preflight
 - See deploy-preflight.md and ../01-data-pipeline/tusz-preflight.md
@@ -23,6 +23,10 @@ Commands
 - Scan manifest: `python -m src scan-cache --cache-dir cache/tusz/train`
 - Smoke train: `python -m src train configs/local/smoke.yaml`
 - Full train: `python -m src train configs/local/train.yaml`
+
+Watching runs
+- Start in tmux: `tmux new -s train_full '.venv/bin/python -m src train configs/local/train.yaml'`
+- Attach: `tmux attach -t train_full` (Ctrl+B then D to detach)
 
 Mamba CUDA note
 - CUDA kernels coerce unsupported `d_conv` to 4; to force Conv1d fallback: `SEIZURE_MAMBA_FORCE_FALLBACK=1`
@@ -36,4 +40,3 @@ Cross-references
 - General troubleshooting: ./troubleshooting.md
 - Modal deployment (if moving to cloud): ./deploy-modal.md
 - Training configuration: ./training.md
-

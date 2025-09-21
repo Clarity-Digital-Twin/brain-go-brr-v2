@@ -123,3 +123,13 @@ data_ext4/tusz/edf/train/  → split 80/20 → cache/tusz/train/ (3734 files + m
 3. **Val is always random**: Reflects true distribution
 4. **Modal mirrors local**: Same structure, different path
 5. **Manifest is optional**: Only needed if `use_balanced_sampling=true`
+
+## Validation & Rebuild
+
+- Training validates the manifest against the cache directory and deletes/rebuilds it if empty or stale.
+- You can force a rebuild on startup by setting `BGB_FORCE_MANIFEST_REBUILD=1`.
+- To rebuild explicitly at any time:
+
+```
+python -m src scan-cache --cache-dir <cache/tusz/train or /results/cache/tusz/train>
+```

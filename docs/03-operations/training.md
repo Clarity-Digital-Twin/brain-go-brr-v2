@@ -22,8 +22,9 @@ Checkpoints & early stopping
 - Resume restores model/optimizer/scheduler and saved config snapshot.
 
 Config notes
-- WSL2 stability: num_workers: 0, pin_memory: false, persistent_workers: false.
+- Local (WSL2): prefer `num_workers: 4`, `pin_memory: true`, `persistent_workers: true`, `prefetch_factor: 2`. If you encounter hangs, fall back to `num_workers: 0`, `pin_memory: false`.
 - Keep configs/local/smoke.yaml for quick verification; use local/train.yaml vs modal/train_a100.yaml for full runs.
+- Balanced sampling: training validates the manifest and rebuilds if empty/stale; set `BGB_FORCE_MANIFEST_REBUILD=1` to force a fresh manifest.
 
 Code anchors
 - src/brain_brr/train/loop.py (dataset selection, fail‑fast, sampler bypass, checkpoints)

@@ -1,5 +1,18 @@
 Deployment Troubleshooting
 
+Modal vs Local divergence
+- Symptom: 15–25s/batch locally; GPU util ~10–20%.
+  - Cause: DataLoader starvation (`num_workers=0`, `pin_memory=false`).
+  - Fix: Prefer `num_workers=4`, `pin_memory=true`, `persistent_workers=true`, `prefetch_factor=2` on WSL2 ext4. Fall back to 0/false only if hangs.
+
+- Symptom: On Modal, `BalancedSeizureDataset failed: No partial seizure windows found ...` and training falls back to `EEGWindowDataset`.
+  - Cause: Stale/empty manifest in `/results/cache/...` or path mismatch.
+  - Fix: Training now auto‑validates and deletes bad manifests, then rebuilds from existing cache. To force a rebuild, set `BGB_FORCE_MANIFEST_REBUILD=1` at launch.
+
+- Symptom: Manifest shows 0 windows despite `.npz` files present.
+  - Cause: Early empty manifest persisted; tqdm issues in subprocess.
+  - Fix: On Modal we disable tqdm (`BGB_DISABLE_TQDM=1`). Rebuild manifest with `python -m src scan-cache --cache-dir <cache_dir>` or force via env variable above.
+
 Zero seizures detected (manifest)
 - Symptom: `partial=0, full=0, none=N` after scan-cache; training collapses to all-negative
 - Fixes:
@@ -39,3 +52,7 @@ Observability & logging (Modal)
   - Stream logs: `modal app logs <app-id>`
   - Stop runaway job: `modal app stop <app-id>`
 
+Manual controls (quick)
+- Force manifest rebuild on next train run: `BGB_FORCE_MANIFEST_REBUILD=1` (local or Modal env).
+- Rebuild manifest explicitly: `python -m src scan-cache --cache-dir <cache_dir>`.
+- Pre-build cache: `python -m src build-cache --data-dir <edf_root> --cache-dir <cache_dir>`.

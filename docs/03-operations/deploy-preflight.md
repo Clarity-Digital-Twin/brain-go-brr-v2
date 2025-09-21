@@ -25,7 +25,7 @@ Quick strategy (small first)
 - Required: `len(dataset) > 0`
 
 5) Hardware + runtime
-- WSL2: use `num_workers=0` and avoid pin_memory in configs
+- WSL2: prefer `num_workers=4`, `pin_memory=true`, `persistent_workers=true`; if you hit hangs, fall back to `num_workers=0`, `pin_memory=false`.
 - GPU (if used): ensure correct drivers/CUDA; Mamba kernels coerce `d_conv` (fallback available)
 
 ## Data Split Integrity
@@ -48,4 +48,3 @@ data_ext4/tusz/edf/
 References
 - TUSZ preflight/troubleshooting: ../01-data-pipeline/tusz-preflight.md
 - Cache+sampling details: ../01-data-pipeline/tusz-cache-sampling.md
-
