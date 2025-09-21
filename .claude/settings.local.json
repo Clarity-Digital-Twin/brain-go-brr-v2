@@ -108,7 +108,9 @@
       "Bash(export:*)",
       "Bash(export PATH=$CUDA_HOME/bin:$PATH)",
       "Bash(uv pip install:*)",
-      "Bash(uv pip:*)"
+      "Bash(uv pip:*)",
+      "Bash(for f in configs/local/*.yaml configs/modal/*.yaml)",
+      "Bash(do echo \"=== $f ===\")"
     ],
     "deny": [],
     "ask": []

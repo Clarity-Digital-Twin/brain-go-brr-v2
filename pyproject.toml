@@ -24,11 +24,11 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    # Core ML dependencies
-    "torch>=2.2.2,<2.3.0",  # MUST BE 2.2.2 for mamba-ssm compatibility!
-    "numpy>=1.24.0,<2.0",  # numpy 2.x breaks mamba-ssm
-    "scipy>=1.10.0",
-    "scikit-learn>=1.3.0",
+    # Core ML dependencies - EXACT VERSIONS REQUIRED
+    "torch==2.2.2",  # EXACT: PyTorch 2.2.2 with CUDA 12.1 required for mamba-ssm
+    "numpy>=1.26.0,<2.0",  # numpy 2.x breaks mamba-ssm, use 1.26.4
+    "scipy>=1.11.0,<1.14",  # Tested with 1.11.4
+    "scikit-learn>=1.3.0,<1.4",  # Tested with 1.3.2
 
     # EEG Processing
     "mne>=1.5.0",
@@ -55,9 +55,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Install with: uv sync -E gpu  (or pip install .[gpu])
+# Install with: uv sync --extra gpu  (or pip install .[gpu])
+# CRITICAL: Requires CUDA Toolkit 12.1 to match PyTorch's cu121
 gpu = [
-    "mamba-ssm>=2.0.0",
+    "mamba-ssm==2.2.4",  # EXACT: 2.2.5 has undefined symbol bug
+    "causal-conv1d==1.5.2",  # EXACT: Required by mamba-ssm
 ]
 
 # Optional extras for specific feature sets
