@@ -87,7 +87,9 @@
       "Bash(do grep -v \"^#\" \"$file\")",
       "Bash(.venv/bin/python:*)",
       "Bash(uv lock:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(.venv/bin/ruff check src/ tests/)",
+      "Bash(.venv/bin/ruff check src/ tests/ --no-fix)"
     ],
     "deny": [],
     "ask": []
