@@ -1,35 +1,56 @@
 Modal Deployment — Single Source of Truth
 
 Principles
-- Do not start training until cache manifest shows seizures (partial>0 or full>0)
-- Keep data and cache mounts explicit; avoid writing to ephemeral paths by accident
-- Kill long cache builds quickly if preflight fails
+- Gate all runs on manifest: do not start training unless `partial>0` or `full>0`.
+- Mount data (read-only) and results/cache (persistent) explicitly; avoid ephemeral paths.
+- Kill long cache builds immediately if preflight fails; fix CSV/paths first.
 
 Preflight (Modal)
-1) Verify project image builds and `make q` passes in container
-2) Mount EDF+CSV root and a persistent cache directory
-3) Build or rescan manifest on the mounted cache dir
-4) Confirm partial>0 or full>0; otherwise STOP
+1) Build image and ensure `make q` passes locally (same code goes into the image).
+2) Mount EDF+CSV root to `/data/edf/train` (read-only) and `/results` as persistent volume.
+3) Build or rescan manifest on `/results/cache/...`.
+4) Require `partial>0` or `full>0`; otherwise STOP and fix.
 
-Core commands (examples)
-- Build cache (in container):
-  - `python -m src build-cache --data-dir /mount/edf/train --cache-dir /mount/cache/train`
+Core commands (Modal CLI)
+- Smoke test (safe default via local_entrypoint):
+  - `modal run --detach deploy/modal/app.py --action train --config configs/smoke_test.yaml`
+- Full training on A100:
+  - `modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml`
+- Resume training:
+  - `modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --resume true`
+- Evaluate checkpoint:
+  - `modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.pt`
+
+Build/scan cache inside the container
+- Build cache:
+  - `python -m src build-cache --data-dir /data/edf/train --cache-dir /results/cache/tusz/train`
 - Scan manifest:
-  - `python -m src scan-cache --cache-dir /mount/cache/train`
-- Train (auto-uses balanced when manifest exists):
-  - `python -m src train configs/tusz_train_a100.yaml`
+  - `python -m src scan-cache --cache-dir /results/cache/tusz/train`
 
 Cost control
-- Prefer building cache once and reusing
-- Validate manifest before launching large GPU jobs
-- If a run shows 0 seizures: kill immediately and fix CSV/paths
+- Build cache once; reuse across runs via `/results` volume.
+- Always validate manifest before launching large GPU jobs.
+- If batches show 0% seizures early: stop run and fix CSV/paths; re-scan manifest.
+
+Observability & logging
+- Real-time logs are enabled (PYTHONUNBUFFERED=1); add `flush=True` to prints for critical steps.
+- Prefer W&B for cloud metrics; or write TensorBoard logs to `/results/runs`.
+- Modal app control:
+  - List: `modal app list`
+  - Logs: `modal app logs <app-id>`
+  - Stop: `modal app stop <app-id>`
+
+CUDA/Mamba notes
+- CUDA kernels coerce unsupported `d_conv` to 4 automatically.
+- Force Conv1d fallback if needed: `SEIZURE_MAMBA_FORCE_FALLBACK=1`.
+- The image compiles mamba-ssm from source against PyTorch 2.2.2+cu121.
 
 Code anchors
-- Modal entrypoint: `deploy/modal/app.py` (or `deploy/modal/README.md` for local CLI)
-- Data pipeline details: docs_new/TUSZ/*
+- Modal entrypoint and functions: `deploy/modal/app.py` (uses `--action` local_entrypoint).
+- Data pipeline: `docs_new/TUSZ/*` (CSV_BI parsing, channels, cache+sampling).
 
 Troubleshooting
-- 0 windows in BalancedSeizureDataset: re-scan manifest; fix CSV_BI parser; rebuild cache
-- Slow cache build: ensure EDF/CSV and cache mounts are on fast storage
-- Memory errors: reduce batch size; verify A100/L40 profile in config
+- 0 windows in BalancedSeizureDataset: re-scan manifest; fix CSV_BI parser; rebuild cache.
+- Slow cache build: ensure `/data` (read-only) and `/results` are on fast storage; avoid network latency.
+- Memory errors: reduce batch size; verify A100 profile in config; prefer mixed precision.
 

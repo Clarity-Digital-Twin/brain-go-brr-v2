@@ -26,3 +26,16 @@ Sampler used with balanced dataset
 - Symptom: WeightedRandomSampler still applied
 - Fix: training loop bypasses sampler for BalancedSeizureDataset; verify config’s balanced flag and logs
 
+Observability & logging (Modal)
+- Set unbuffered output (already set): `PYTHONUNBUFFERED=1`.
+- Add `flush=True` to key prints (epoch start/end, validation metrics, progress).
+- Periodic progress: print every N batches (e.g., every 100) with loss and lr.
+- Add a simple heartbeat (every ~5 minutes) to avoid long silent periods.
+- Metrics:
+  - TensorBoard (local and cloud): write to `/results/runs` and optionally serve.
+  - Weights & Biases: initialize `wandb.init(...)` and log `train/` and `val/` scalars.
+- Modal CLI tips:
+  - List apps: `modal app list`
+  - Stream logs: `modal app logs <app-id>`
+  - Stop runaway job: `modal app stop <app-id>`
+

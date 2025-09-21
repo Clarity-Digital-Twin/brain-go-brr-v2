@@ -16,6 +16,10 @@ Deployment Preflight (Must Pass Before Any Run)
   - `python -m src scan-cache --cache-dir <cache_dir>`
 - Required: partial > 0 or full > 0; otherwise STOP and fix CSV parsing/paths
 
+Quick strategy (small first)
+- Build/scan a tiny cache subset to verify parser/labels before large builds.
+- Run a 1-epoch smoke: `python -m src train configs/smoke_test.yaml` and confirm batches show seizures > 0%.
+
 4) Balanced dataset check
 - `from src.brain_brr.data import BalancedSeizureDataset as B; len(B(Path('<cache_dir>')))`
 - Required: `len(dataset) > 0`
