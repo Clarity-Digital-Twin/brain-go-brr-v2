@@ -18,7 +18,7 @@ Code anchors
 Docs
 - phases/PHASE4_POSTPROCESSING.md
 - implementation/EVALUATION_CHECKLIST.md (TAES + FA/24h points)
- - TUSZ/PREFLIGHT_AND_TROUBLESHOOTING.md (operational pitfalls)
+ - ../01-data-pipeline/tusz-preflight.md (operational pitfalls)
 
 Notes
 - Tune thresholds on dev set; keep eval rules consistent with TAES.

@@ -115,7 +115,7 @@ Notes (kept stable and code-aligned):
 1. **Test A100 config locally (1 batch)**
 ```bash
 export BGB_LIMIT_FILES=2
-timeout 60 python -m src train configs/tusz_train_a100.yaml
+timeout 60 python -m src train configs/modal/train_a100.yaml
 ```
 
 2. **Remove file limiting in Modal app**
@@ -159,7 +159,7 @@ modal run --detach deploy/modal/app.py --action train --config configs/modal/tra
 **Status:** ALL CRITICAL ISSUES FIXED - READY FOR SENIOR REVIEW
 
 ## Update Log
-- 2025-01-19 18:45 UTC: Fixed Modal app.py default config to use tusz_train_a100.yaml
+- 2025-01-19 18:45 UTC: Updated Modal training to use configs/modal/train_a100.yaml
 - 2025-01-19 18:45 UTC: Made BGB_LIMIT_FILES conditional (only for smoke tests)
 - 2025-01-19 18:45 UTC: Added checkpoint resumption support
 - 2025-01-19 18:45 UTC: Increased timeout from 2h to 30h for full training
