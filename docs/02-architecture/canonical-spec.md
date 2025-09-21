@@ -39,27 +39,27 @@ This document serves as the single source of truth for the complete architecture
   - Location: `src/brain_brr/data/preprocess.py::preprocess_recording()`
   - [✓] Uses `scipy.signal.resample()` for Phase 1 baseline
 
-- [ ] **Filtering**:
-  - [ ] Bandpass: 0.5-120 Hz (Butterworth order=3)
-  - [ ] Notch: 60 Hz (US) or 50 Hz (EU) powerline using `iirnotch`
-  - [ ] Uses `lfilter` (not `filtfilt`) for reproducibility consistency
+- [✓] **Filtering**:
+  - [✓] Bandpass: 0.5-120 Hz (Butterworth order=3)
+  - [✓] Notch: 60 Hz (US) or 50 Hz (EU) powerline using `iirnotch`
+  - [✓] Uses `lfilter` (not `filtfilt`) for reproducibility consistency
 
-- [ ] **Normalization**: Per-channel z-score
-  - [ ] Computed over full recording (not per-window)
-  - [ ] NaN/Inf replaced with 0 via `np.nan_to_num()`
-  - [ ] Units: Convert from Volts to microvolts (×1e6) after `raw.get_data()`
+- [✓] **Normalization**: Per-channel z-score
+  - [✓] Computed over full recording (not per-window)
+  - [✓] NaN/Inf replaced with 0 via `np.nan_to_num()`
+  - [✓] Units: Convert from Volts to microvolts (×1e6) in `io.py::load_edf_file()`
 
 #### 1.3 Window Extraction
-- [ ] **Window Parameters**:
+- [✓] **Window Parameters**:
   - Location: `src/brain_brr/constants.py`
-  - [ ] Size: 60 seconds (15,360 samples @ 256 Hz) - `WINDOW_SIZE_SEC`
-  - [ ] Stride: 10 seconds (2,560 samples) - `STRIDE_SIZE_SEC`
-  - [ ] Overlap: 50 seconds (83.3%)
+  - [✓] Size: 60 seconds (15,360 samples @ 256 Hz) - `WINDOW_SIZE_SEC`
+  - [✓] Stride: 10 seconds (2,560 samples) - `STRIDE_SIZE_SEC`
+  - [✓] Overlap: 50 seconds (83.3%)
 
-- [ ] **Output Shape**: `(B, 19, 15360)` where B = batch size
+- [✓] **Output Shape**: `(B, 19, 15360)` where B = batch size
   - Location: `src/brain_brr/data/windows.py::extract_windows()`
-  - [ ] Float32 dtype
-  - [ ] Window metadata tracking: `{"start_samples": List[int]}` for reconstruction
+  - [✓] Float32 dtype
+  - [✓] Window metadata tracking: `{"start_samples": List[int]}` for reconstruction
 
 #### 1.4 Dataset & Caching
 - [ ] **PyTorch Dataset**: `EEGWindowDataset`
