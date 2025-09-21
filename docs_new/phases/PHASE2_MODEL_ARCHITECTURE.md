@@ -1,4 +1,5 @@
-# PHASE2_MODEL_ARCHITECTURE.md - Bi-Mamba-2 + U-Net + ResCNN Implementation
+# [ARCHIVED] PHASE2_MODEL_ARCHITECTURE.md - Bi-Mamba-2 + U-Net + ResCNN Implementation
+> Archived — canonical docs under components/models/*. Do not update this file.
 
 Note (2025-09-21): Current modules live under `src/brain_brr/*` (older `src/experiment/*` are historical).
 See also: `docs/architecture/CANONICAL_ARCHITECTURE_SPEC.md` for the full technical spec.

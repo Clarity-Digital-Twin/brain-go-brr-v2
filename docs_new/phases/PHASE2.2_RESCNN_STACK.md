@@ -1,4 +1,5 @@
-# PHASE2.2_RESCNN_STACK.md - Residual CNN Stack Implementation
+# [ARCHIVED] PHASE2.2_RESCNN_STACK.md - Residual CNN Stack Implementation
+> Archived — canonical docs: components/models/rescnn.md. Do not update this file.
 
 Note (2025-09-19): Uses legacy `src/experiment/*` imports. Current modules are under
 `src/brain_brr/*`. See `DOCS_SSOT.md` for canonical usage.

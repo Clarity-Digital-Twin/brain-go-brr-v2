@@ -1,4 +1,5 @@
-# Phase 2 Architecture Audit Checklist (Docs + Schemas)
+# [ARCHIVED] Phase 2 Architecture Audit Checklist (Docs + Schemas)
+> Archived — canonical docs: components/models/* and components/training.md. Do not update this file.
 
 Goal: Verify critical alignment between Phase 2 docs, Phase 1 specs, and schemas.
 Resolve any blocking inconsistencies before implementation. Keep names consistent

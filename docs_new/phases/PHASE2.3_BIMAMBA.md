@@ -1,4 +1,5 @@
-# PHASE2.3_BIMAMBA.md - Bidirectional Mamba-2 Implementation
+# [ARCHIVED] PHASE2.3_BIMAMBA.md - Bidirectional Mamba-2 Implementation
+> Archived — canonical docs: components/models/mamba_bi.md. Do not update this file.
 
 Note (2025-09-19): Uses legacy `src/experiment/*` imports. Current modules are under
 `src/brain_brr/*`. See `DOCS_SSOT.md` for canonical usage.

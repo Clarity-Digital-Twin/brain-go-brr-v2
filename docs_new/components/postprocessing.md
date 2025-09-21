@@ -1,15 +1,24 @@
 Post-processing (Hysteresis → Morphology → Duration)
 
 Scope
-- Convert timestep probabilities to events.
+- Convert per‑timestep probabilities to discrete seizure events.
+
+Pipeline
+- Hysteresis: tau_on=0.86, tau_off=0.78 to reduce flicker and capture continuity; stability windows min_onset≈128, min_offset≈256 samples (at 256 Hz).
+- Morphology: remove spurious spikes, fill short gaps.
+- Duration filter: discard events shorter than minimal clinically relevant duration.
+- Event generation: convert masks to interval events for evaluation.
+ - Window stitching: overlap‑add to reconstruct full‑record timelines (60s windows, 10s stride).
+ - Merging: merge gaps ≤ tau_merge (e.g., 2.0s). Confidence = mean/peak/percentile within event.
 
 Code anchors
-- src/brain_brr/post/postprocess.py (tau_on=0.86, tau_off=0.78; morphology; duration)
+- src/brain_brr/post/postprocess.py (hysteresis, morphology, duration)
 - src/brain_brr/events/* (event generation)
 
 Docs
 - phases/PHASE4_POSTPROCESSING.md
 - implementation/EVALUATION_CHECKLIST.md (TAES + FA/24h points)
+ - TUSZ/PREFLIGHT_AND_TROUBLESHOOTING.md (operational pitfalls)
 
 Notes
-- Keep thresholds tuned on dev set, not eval.
+- Tune thresholds on dev set; keep eval rules consistent with TAES.

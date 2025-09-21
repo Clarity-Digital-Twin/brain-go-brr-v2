@@ -1,4 +1,5 @@
-# PHASE2.1_UNET_ENCODER.md - U-Net Encoder Implementation
+# [ARCHIVED] PHASE2.1_UNET_ENCODER.md - U-Net Encoder Implementation
+> Archived — canonical docs: components/models/unet.md. Do not update this file.
 
 Note (2025-09-19): Uses legacy `src/experiment/*` imports. Current modules are under
 `src/brain_brr/*`. See `DOCS_SSOT.md` for canonical usage.

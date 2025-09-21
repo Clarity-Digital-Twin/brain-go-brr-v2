@@ -1,4 +1,5 @@
-# PHASE2.5_FULL_MODEL.md - Complete Model Assembly
+# [ARCHIVED] PHASE2.5_FULL_MODEL.md - Complete Model Assembly
+> Archived — canonical docs: components/models/full_model.md. Do not update this file.
 
 Note (2025-09-19): Uses legacy `src/experiment/*` imports. Current modules are under
 `src/brain_brr/*`. See `DOCS_SSOT.md` for canonical usage.

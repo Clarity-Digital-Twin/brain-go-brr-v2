@@ -1,4 +1,5 @@
-# PHASE1_DATA_PIPELINE.md - EEG Data Loading & Preprocessing
+# [ARCHIVED] PHASE1_DATA_PIPELINE.md - EEG Data Loading & Preprocessing
+> Archived — canonical, code‑aligned docs live under components/ (see components/data_io.md and components/caching_and_sampling.md). Do not update this file.
 
 Note (2025-09-21): Canonical implementation references
 - CSV_BI parsing: `docs/references/TUSZ_CSV_BI_PARSER.md`

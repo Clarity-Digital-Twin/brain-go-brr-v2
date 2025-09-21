@@ -1,4 +1,5 @@
-# PHASE4_POSTPROCESSING.md — Clinical-Grade Post-Processing Pipeline
+# [ARCHIVED] PHASE4_POSTPROCESSING.md — Clinical-Grade Post-Processing Pipeline
+> Archived — canonical docs: components/postprocessing.md. Do not update this file.
 
 Note (2025-09-19): This doc may reference `src/experiment/*`; current implementation is
 under `src/brain_brr/*`. See `DOCS_SSOT.md` for canonical commands/configs.

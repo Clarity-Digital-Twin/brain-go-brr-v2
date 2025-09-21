@@ -1,18 +1,28 @@
 Training (Loop, Dataloaders, Guards)
 
 Scope
-- Train/val split handling, dataset choice, samplers, logging.
+- Train/val split handling, dataset choice, samplers, logging, guardrails.
+
+Dataset selection
+- If manifest exists and use_balanced is enabled → BalancedSeizureDataset for train.
+- Otherwise → EEGWindowDataset (classic) for train.
+- Validation/test always use EEGWindowDataset (no balancing).
+- WeightedRandomSampler is bypassed when using BalancedSeizureDataset.
+
+Guardrails
+- On scan‑cache/build‑cache: exit non‑zero if partial==0 and full==0.
+- On train startup: abort if BalancedSeizureDataset length is 0.
+- Logs dataset composition (partial/full/background counts and ratios).
+
+Config notes
+- WSL2 stability: num_workers: 0, pin_memory: false, persistent_workers: false.
+- Keep smoke_test.yaml for quick verification; separate WSL2 vs A100 configs for batch sizes.
 
 Code anchors
-- src/brain_brr/train/loop.py (dataset selection, fail-fast, sampler bypass)
+- src/brain_brr/train/loop.py (dataset selection, fail‑fast, sampler bypass)
 - src/brain_brr/cli/cli.py (train entry)
-- configs/ (tusz_train_wsl2.yaml, tusz_train_a100.yaml, smoke_test.yaml)
+- configs/* (tusz_train_wsl2.yaml, tusz_train_a100.yaml, smoke_test.yaml)
 
 Docs
 - phases/PHASE3_TRAINING_PIPELINE.md
 - deployment/PREFLIGHT.md, deployment/MODAL_SSOT.md
-
-Notes
-- BalancedSeizureDataset for train only; val/test use standard dataset.
-- Fail fast if balanced manifest yields 0 windows.
-- WSL2: num_workers=0; avoid pin_memory.

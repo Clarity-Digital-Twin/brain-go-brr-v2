@@ -1,4 +1,5 @@
-# PHASE3_TRAINING_PIPELINE.md — Training & Evaluation Orchestration
+# [ARCHIVED] PHASE3_TRAINING_PIPELINE.md — Training & Evaluation Orchestration
+> Archived — canonical docs: components/training.md and components/evaluation.md. Do not update this file.
 
 Note (2025-09-21): Sampling is manifest-driven
 - Training uses a prebuilt manifest and BalancedSeizureDataset (ALL partial + 0.3× full + 2.5× none)

@@ -1,4 +1,5 @@
-# PHASE 5 — Evaluation, Scoring, and Benchmarking (Iron‑Clad, TDD) ✅ COMPLETE
+# [ARCHIVED] PHASE 5 — Evaluation, Scoring, and Benchmarking (Iron‑Clad, TDD) ✅ COMPLETE
+> Archived — canonical docs: components/evaluation.md. Do not update this file.
 
 ## 🎯 Phase Goal
 Establish a clinically grounded, reproducible evaluation pipeline that turns per‑timestep probabilities into events and reports TAES and sensitivity at target FA/24h operating points on TUH/CHB‑MIT and external benchmarks.
