@@ -941,6 +941,7 @@ def train(
                 scheduler,
                 config,
             )
+            best_metric = current_metric  # FIX: Update best_metric when we find a new best
             best_metrics = {
                 "best_epoch": epoch + 1,
                 "best_taes": val_metrics["taes"],
@@ -949,7 +950,22 @@ def train(
             }
             print(f"  New best {metric_name}: {current_metric:.4f}", flush=True)
 
-        # Save last checkpoint
+        # Save periodic checkpoint based on checkpoint_interval
+        checkpoint_interval = getattr(config.experiment, "checkpoint_interval", 0)
+        if checkpoint_interval > 0 and (epoch + 1) % checkpoint_interval == 0:
+            checkpoint_path = checkpoint_dir / f"epoch_{epoch + 1:03d}.pt"
+            save_checkpoint(
+                model,
+                optimizer,
+                epoch,
+                best_metric,
+                checkpoint_path,
+                scheduler,
+                config,
+            )
+            print(f"  Saved periodic checkpoint: {checkpoint_path.name}", flush=True)
+
+        # Always save last checkpoint for resume capability
         save_checkpoint(
             model,
             optimizer,
