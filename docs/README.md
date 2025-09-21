@@ -38,6 +38,8 @@ Last updated: 2025-09-19
 
 ### `/docs/deployment/` - Deployment
 - `MODAL_DEPLOYMENT_SSOT.md` - Modal deployment Single Source of Truth
+- `MODAL_PIPELINE_SETUP.md` - How the Modal app is configured
+- `PREFLIGHT_STRATEGY.md` - Verify parser/balancing before long runs
 - `MODAL_MAMBA_DEPLOYMENT_ISSUES.md` - CUDA/Mamba deployment notes
 - `MODAL_LOGGING_TODO.md` - Logging/observability TODOs
 
