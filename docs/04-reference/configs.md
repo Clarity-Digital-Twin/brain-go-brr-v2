@@ -3,6 +3,12 @@ Configs & Metrics (Reference)
 Scope
 - Config structure and safe defaults for WSL2/local vs A100/Modal.
 
+⚠️ CRITICAL: Cache Directory Conflicts
+- **smoke_test.yaml**: Uses `cache/smoke` for experiment.cache_dir BUT no data.cache_dir set!
+- **local.yaml/production.yaml**: Use root `cache/` - CONFLICTS WITH EVERYTHING
+- **tusz_train_wsl2.yaml**: Uses `cache/tusz` for both data and experiment (correct)
+- **OSS Warning**: Inconsistent cache paths will waste days debugging. Always set BOTH data.cache_dir and experiment.cache_dir to same path!
+
 Guidelines
 - WSL2/local: `num_workers: 0`, `pin_memory: false`, small batch sizes; keep data on ext4.
 - A100/Modal: larger batch sizes; ensure CUDA kernels compiled/available; monitor VRAM.

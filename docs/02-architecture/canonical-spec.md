@@ -7,6 +7,13 @@
 
 This document serves as the single source of truth for the complete architecture specification. All components listed here are implemented and verified working in the codebase.
 
+### Architecture Note: Why Not SeizureTransformer Weights?
+**We CANNOT use SeizureTransformer's pretrained weights** because we're changing the core architecture:
+- SeizureTransformer: U-Net + ResCNN + **Transformer**
+- Our Model: U-Net + ResCNN + **Bi-Mamba-2** (fundamentally different)
+- **Result**: Must train from scratch on TUH/CHB-MIT data
+- **What we CAN reuse**: U-Net/ResCNN architecture design and hyperparameters as starting points
+
 ---
 
 ## 🏗️ COMPLETE ARCHITECTURE CHECKLIST

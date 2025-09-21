@@ -22,6 +22,19 @@ Seizure label set (CRITICAL - v2.0.3 verified)
 - **mysz discovery**: Found 44 occurrences (0.1% of corpus) - was missing until Sept 2025 fix
 - Optional extension: treat any non-"bckg" as seizure (configurable knob — see TODO in code)
 
+Empirical seizure type frequencies (v2.0.3 analysis):
+| Type | Name | Count | Frequency |
+|------|------|-------|-----------|
+| gnsz | Generalized Non-Specific | 23,804 | 46.5% |
+| fnsz | Focal Non-Specific | 19,000 | 37.1% |
+| cpsz | Complex Partial | 3,597 | 7.0% |
+| absz | Absence | 2,507 | 4.9% |
+| spsz | Simple Partial | 942 | 1.8% |
+| tcsz | Tonic-Clonic | 857 | 1.7% |
+| tnsz | Tonic | 410 | 0.8% |
+| mysz | Myoclonic | 44 | 0.1% |
+| **Total** | | **51,161** | **100%** |
+
 Mask generation
 
 - Sampling rate: 256 Hz (fixed in our pipeline)
