@@ -104,7 +104,10 @@
       "Bash(sudo dpkg:*)",
       "Bash(sudo apt-get:*)",
       "Bash(dos2unix:*)",
-      "Bash(./fix_mamba_ssm.sh:*)"
+      "Bash(./fix_mamba_ssm.sh:*)",
+      "Bash(export:*)",
+      "Bash(export PATH=$CUDA_HOME/bin:$PATH)",
+      "Bash(uv pip install:*)"
     ],
     "deny": [],
     "ask": []
