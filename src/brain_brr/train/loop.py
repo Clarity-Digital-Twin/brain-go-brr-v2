@@ -14,6 +14,7 @@ import math
 import os
 import random
 import sys
+import time
 from contextlib import suppress
 from pathlib import Path
 from typing import Any, cast
@@ -855,13 +856,30 @@ def train(
     # Early stopping
     early_stopping = EarlyStopping(config.training.early_stopping)
 
-    # Resume if checkpoint exists
+    # Resume from checkpoint (prioritize mid-epoch > last > best)
     start_epoch = 0
     best_metric = 0.0
-    last_checkpoint = checkpoint_dir / "last.pt"
-    if last_checkpoint.exists() and config.training.resume:
-        start_epoch, best_metric = load_checkpoint(last_checkpoint, model, optimizer, scheduler)
-        print(f"Resumed from epoch {start_epoch}", flush=True)
+
+    # Check for mid-epoch checkpoints first (for crash recovery)
+    mid_epoch_checkpoints = sorted(checkpoint_dir.glob("mid_epoch_*.pt"))
+    if mid_epoch_checkpoints and config.training.resume:
+        latest_mid = mid_epoch_checkpoints[-1]
+        print(f"[RESUME] Found mid-epoch checkpoint: {latest_mid.name}", flush=True)
+        ckpt = torch.load(latest_mid, map_location="cpu")
+        model.load_state_dict(ckpt["model_state_dict"])
+        if optimizer and "optimizer_state_dict" in ckpt:
+            optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+        if scheduler and "scheduler_state_dict" in ckpt:
+            scheduler.load_state_dict(ckpt["scheduler_state_dict"])
+        start_epoch = ckpt["epoch"]
+        best_metric = ckpt.get("best_metric", 0.0)
+        print(f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}", flush=True)
+        # Note: This resumes from start of epoch, not exact batch
+    elif (checkpoint_dir / "last.pt").exists() and config.training.resume:
+        start_epoch, best_metric = load_checkpoint(
+            checkpoint_dir / "last.pt", model, optimizer, scheduler
+        )
+        print(f"Resumed from epoch {start_epoch + 1}", flush=True)
 
     # Training loop
     best_metrics: dict[str, Any] = {"best_epoch": 0}
