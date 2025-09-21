@@ -91,14 +91,20 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
     window_has_seizure = torch.zeros(len(dataset), dtype=torch.float32)
     sampled_seizure_count = 0
 
-    for idx in sample_indices:
+    print(f"[SAMPLER] Checking {sample_size} windows for seizures...", flush=True)
+    for i, idx in enumerate(sample_indices):
         _, label = dataset[idx.item()]
         if (label > 0).any():
             window_has_seizure[idx] = 1.0
             sampled_seizure_count += 1
 
+        # Progress update every 1000 windows
+        if (i + 1) % 1000 == 0:
+            print(f"[SAMPLER] Checked {i+1}/{sample_size} windows, found {sampled_seizure_count} with seizures", flush=True)
+
     # Estimate seizure ratio
     seizure_ratio = sampled_seizure_count / sample_size
+    print(f"[SAMPLER] Final: {sampled_seizure_count}/{sample_size} windows with seizures ({seizure_ratio:.2%})", flush=True)
 
     if seizure_ratio < 1e-8:
         print("[SAMPLER] WARNING: No seizures found in sample! Using uniform sampling.", flush=True)
@@ -1061,9 +1067,22 @@ def main() -> None:
     # Create positive-aware balanced sampler
     train_sampler = None
     if config.data.use_balanced_sampling and len(train_dataset) > 0:
-        train_sampler = create_balanced_sampler(train_dataset, sample_size=500)
+        # CRITICAL: TUSZ has extreme imbalance (0.1-1% seizures at window level)
+        # We MUST sample enough windows to guarantee finding seizures
+        # Math: P(0 seizures) = (1-p)^n, for p=0.001, n=20000 → P≈0.00000002
+        sample_size = min(20000, len(train_dataset))  # Sample 20k windows for safety
+        print(f"[SAMPLER] Sampling {sample_size} windows to detect seizures...", flush=True)
+        train_sampler = create_balanced_sampler(train_dataset, sample_size=sample_size)
+
         if train_sampler is None:
-            print("[WARNING] Failed to create balanced sampler, using uniform sampling", flush=True)
+            print("="*60, flush=True)
+            print("[FATAL] No seizures found in {} windows!".format(sample_size), flush=True)
+            print("[FATAL] Training will produce a USELESS model!", flush=True)
+            print("[FATAL] Check your data or increase sample size!", flush=True)
+            print("="*60, flush=True)
+            # Fail fast - don't waste GPU hours on doomed training
+            import sys
+            sys.exit(1)
 
     train_loader_kwargs: dict[str, Any] = {
         "batch_size": config.training.batch_size,
