@@ -47,7 +47,7 @@ CUDA/Mamba notes
 
 Code anchors
 - Modal entrypoint and functions: `deploy/modal/app.py` (uses `--action` local_entrypoint).
-- Data pipeline: `docs_new/TUSZ/*` (CSV_BI parsing, channels, cache+sampling).
+- Data pipeline docs: `../TUSZ/*` (CSV_BI parsing, channels, cache+sampling).
 
 Troubleshooting
 - 0 windows in BalancedSeizureDataset: re-scan manifest; fix CSV_BI parser; rebuild cache.

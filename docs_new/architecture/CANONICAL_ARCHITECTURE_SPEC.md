@@ -3,7 +3,7 @@
 
 **Status: ✅ IMPLEMENTED & WORKING**
 **Last updated: 2025-09-20**
-**Location: `docs_new/architecture/CANONICAL_ARCHITECTURE_SPEC.md`**
+**Location: `architecture/CANONICAL_ARCHITECTURE_SPEC.md`**
 
 This document serves as the single source of truth for the complete architecture specification. All components listed here are implemented and verified working in the codebase.
 
@@ -161,8 +161,8 @@ This document serves as the single source of truth for the complete architecture
   - + 2.5× no‑seizure windows
 - Implemented via cache scan → `manifest.json` → `BalancedSeizureDataset`.
 - See also:
-  - `docs_new/components/caching_and_sampling.md`
-  - `docs_new/TUSZ/CACHE_AND_SAMPLING.md`
+  - `../components/caching_and_sampling.md`
+  - `../TUSZ/CACHE_AND_SAMPLING.md`
 
 ---
 
