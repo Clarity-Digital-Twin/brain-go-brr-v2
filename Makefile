@@ -104,7 +104,7 @@ quality: lint format type-check ## Run all code quality checks
 
 train-local: ## Train model with local config
 	@echo "${CYAN}Training with local config...${NC}"
-	uv run python -m src train configs/local.yaml
+	.venv/bin/python -m src train configs/local/train.yaml
 
 train: train-prod ## Alias: full training with production config
 
@@ -132,16 +132,18 @@ setup: ## Initial project setup
 	uv run pre-commit install
 	@echo "${GREEN}✓ Project ready!${NC}"
 
-setup-gpu: ## Setup GPU support with mamba-ssm (requires CUDA toolkit)
+setup-gpu: ## Setup GPU support with mamba-ssm (requires CUDA toolkit 12.1)
 	@echo "${CYAN}Setting up GPU support...${NC}"
 	@echo "${YELLOW}Checking CUDA versions...${NC}"
-	@uv run python -c "import torch; print(f'PyTorch CUDA: {torch.version.cuda}')" || echo "${RED}PyTorch not installed${NC}"
+	@.venv/bin/python -c "import torch; print(f'PyTorch CUDA: {torch.version.cuda}')" || echo "${RED}PyTorch not installed${NC}"
 	@nvcc --version 2>/dev/null | grep "release" || echo "${RED}CUDA toolkit not found! See GPU_SETUP.md${NC}"
-	@echo "${CYAN}Installing GPU extras...${NC}"
-	uv sync --extra gpu
+	@echo "${CYAN}Installing GPU extensions manually (UV can't build them)...${NC}"
+	@export CUDA_HOME=/usr/local/cuda-12.1 && \
+		uv pip install --no-build-isolation causal-conv1d==1.4.0 && \
+		uv pip install --no-build-isolation mamba-ssm==2.2.2
 	@echo "${CYAN}Verifying mamba-ssm...${NC}"
-	@uv run python -c "from mamba_ssm import Mamba2; print('${GREEN}✓ Mamba-SSM working!${NC}')" 2>/dev/null || \
-		(echo "${RED}⚠️  Mamba-SSM not working! See GPU_SETUP.md for fixes${NC}" && echo "${YELLOW}Hint: Your CUDA toolkit version must match PyTorch's CUDA version${NC}")
+	@.venv/bin/python -c "from mamba_ssm import Mamba2; print('${GREEN}✓ Mamba-SSM working!${NC}')" 2>/dev/null || \
+		(echo "${RED}⚠️  Mamba-SSM not working! See WORKING_SETUP.md${NC}")
 
 hooks: ## Run pre-commit hooks on all files
 	@echo "${CYAN}Running pre-commit hooks...${NC}"

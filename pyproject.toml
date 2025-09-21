@@ -55,12 +55,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Install with: uv sync --extra gpu  (or pip install .[gpu])
-# CRITICAL: Requires CUDA Toolkit 12.1 to match PyTorch's cu121
-gpu = [
-    "mamba-ssm==2.2.2",  # EXACT: Works with PyTorch 2.2.2
-    "causal-conv1d==1.4.0",  # EXACT: v1.5 requires PyTorch 2.4+
-]
+# GPU packages CANNOT be installed via UV extras!
+# They require PyTorch at build time and must use --no-build-isolation
+# Install manually with: make setup-gpu
+# Required versions:
+#   mamba-ssm==2.2.2 (2.2.5 has bugs, 2.2.4 has issues)
+#   causal-conv1d==1.4.0 (1.5+ requires PyTorch 2.4+)
 
 # Optional extras for specific feature sets
 # Install with, e.g.: uv sync -E eval
