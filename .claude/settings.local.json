@@ -90,7 +90,8 @@
       "Bash(test:*)",
       "Bash(.venv/bin/ruff check src/ tests/)",
       "Bash(.venv/bin/ruff check src/ tests/ --no-fix)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(BGB_LIMIT_FILES=5 timeout 30 python -m src train configs/local/smoke.yaml)"
     ],
     "deny": [],
     "ask": []
