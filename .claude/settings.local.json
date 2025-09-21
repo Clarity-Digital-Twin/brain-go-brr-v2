@@ -80,7 +80,8 @@
       "Bash(echo:*)",
       "Bash(env)",
       "Bash(head:*)",
-      "Bash(while read f)"
+      "Bash(while read f)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []
