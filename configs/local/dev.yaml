@@ -8,9 +8,11 @@ data:
   n_channels: 19
   window_size: 60
   stride: 10
-  num_workers: 4
-  validation_split: 0.0  # No split - use entire dev set
-  use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling
+  num_workers: 0                        # WSL2-safe: avoid multiprocessing hangs
+  pin_memory: false                      # WSL2-safe: prevent /dev/shm issues
+  persistent_workers: false              # WSL2-safe: critical for stability
+  validation_split: 0.0                  # No split - use entire dev set
+  use_balanced_sampling: true           # CRITICAL: Use positive-aware sampling
 
 preprocessing:
   montage: "10-20"
@@ -68,11 +70,11 @@ experiment:
   name: tusz_dev_tuning_$(date +%Y%m%d_%H%M%S)
   description: "Hyperparameter tuning on TUSZ dev set"
   seed: 42
-  device: auto
+  device: cuda                          # REQUIRED: Must use CUDA
   output_dir: results/tuning
   cache_dir: cache/dev_tuning
   log_level: INFO
-  checkpoint_path: results/tusz_100ep/checkpoints/best.pt  # Load trained model
+  checkpoint_path: results/tusz_wsl2_100ep/checkpoints/best.pt  # Load trained model from train.yaml output
 
 logging:
   log_every_n_steps: 50
