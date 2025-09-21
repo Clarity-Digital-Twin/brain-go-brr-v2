@@ -1012,16 +1012,50 @@ def main() -> None:
     train_label_files = [p.with_suffix(".csv") for p in train_files]
     val_label_files = [p.with_suffix(".csv") for p in val_files]
 
+    # Cache directory sanity and preflight
+    data_cache_root = Path(config.data.cache_dir)
+    exp_cache_root = Path(config.experiment.cache_dir)
+    if data_cache_root.resolve() != exp_cache_root.resolve():
+        print(
+            f"[WARNING] config.data.cache_dir ({data_cache_root}) != config.experiment.cache_dir ({exp_cache_root})",
+            flush=True,
+        )
+
+    try:
+        from src.brain_brr.data.cache_utils import check_cache_completeness
+
+        train_cache = data_cache_root / "train"
+        val_cache = data_cache_root / "val"
+        st_train = check_cache_completeness(train_files, train_cache)
+        st_val = check_cache_completeness(val_files, val_cache)
+        if st_train.missing_files > 0 or st_val.missing_files > 0:
+            print(
+                "[DATA] Cache incomplete: "
+                f"train {st_train.cached_files}/{st_train.total_files}, "
+                f"val {st_val.cached_files}/{st_val.total_files}",
+                flush=True,
+            )
+            print(
+                "[HINT] Pre-build cache to avoid slow training:\n"
+                f"  python -m src build-cache --data-dir {config.data.data_dir} --cache-dir {data_cache_root / 'train'}\n"
+                f"  python -m src build-cache --data-dir {config.data.data_dir} --cache-dir {data_cache_root / 'val'}",
+                flush=True,
+            )
+    except Exception:
+        pass
+
     train_dataset = EEGWindowDataset(
         train_files,
         label_files=train_label_files,
-        cache_dir=Path(config.data.cache_dir) / "train",
+        cache_dir=data_cache_root / "train",
+        allow_on_demand=True,
     )
 
     val_dataset = EEGWindowDataset(
         val_files,
         label_files=val_label_files,
-        cache_dir=Path(config.data.cache_dir) / "val",
+        cache_dir=data_cache_root / "val",
+        allow_on_demand=True,
     )
 
     # Create positive-aware balanced sampler

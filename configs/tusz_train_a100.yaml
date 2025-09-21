@@ -4,6 +4,7 @@
 data:
   dataset: tuh_eeg
   data_dir: /data/edf/train             # Modal S3 mount path
+  cache_dir: /results/cache/tusz         # Persistent cache root (train/val subdirs)
   sampling_rate: 256
   n_channels: 19
   window_size: 60

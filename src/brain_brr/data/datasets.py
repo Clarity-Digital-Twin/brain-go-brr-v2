@@ -27,11 +27,13 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         label_files: list[Path] | None = None,
         cache_dir: Path | None = None,
         transform: Callable[[torch.Tensor], torch.Tensor] | None = None,
+        allow_on_demand: bool = True,
     ) -> None:
         self.edf_files = edf_files
         self.label_files = label_files
         self.cache_dir = cache_dir
         self.transform = transform
+        self.allow_on_demand = bool(allow_on_demand)
 
         if self.cache_dir is not None:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -66,7 +68,6 @@ class EEGWindowDataset(torch.utils.data.Dataset):
                         else:
                             np.savez_compressed(cache_path, windows=windows_arr)
             else:
-                # Process file to create cache (but don't keep in memory)
                 print(f"[DATA] Building cache for {edf_path.name}...", flush=True)
                 windows_arr, labels_arr = self._process_file(edf_path, i)
                 n_windows = windows_arr.shape[0]
@@ -76,7 +77,6 @@ class EEGWindowDataset(torch.utils.data.Dataset):
                     else:
                         np.savez_compressed(cache_path, windows=windows_arr)
 
-            # Build index map
             self._file_window_counts.append(n_windows)
             for w_idx in range(n_windows):
                 self._index_map.append((i, w_idx))
@@ -162,7 +162,10 @@ class EEGWindowDataset(torch.utils.data.Dataset):
                 else:
                     label = None
         else:
-            # Compute on-the-fly if no cache
+            if not self.allow_on_demand:
+                raise RuntimeError(
+                    f"Cache missing for {edf_path.name} at {cache_path}; on-demand disabled"
+                )
             windows_arr, labels_arr = self._process_file(edf_path, file_idx)
             window = windows_arr[window_idx]
             label = labels_arr[window_idx] if labels_arr is not None else None
