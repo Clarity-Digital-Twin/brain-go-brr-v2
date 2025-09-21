@@ -1,0 +1,29 @@
+name: PR Title Check
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  check:
+    name: Conventional Commits
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR title
+        run: |
+          title="${{ github.event.pull_request.title }}"
+          pattern="^(feat|fix|docs|style|refactor|perf|test|chore|ci)(\(.+\))?: .+"
+          if [[ ! "$title" =~ $pattern ]]; then
+            echo "❌ PR title doesn't follow conventional commits format"
+            echo ""
+            echo "Expected format: <type>(<scope>): <description>"
+            echo ""
+            echo "Types: feat, fix, docs, style, refactor, perf, test, chore, ci"
+            echo ""
+            echo "Examples:"
+            echo "  feat: add bidirectional mamba support"
+            echo "  fix(data): correct TUSZ CSV parsing"
+            echo "  docs: update training instructions"
+            exit 1
+          fi
+          echo "✅ PR title follows conventional commits"
