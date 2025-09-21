@@ -34,17 +34,35 @@ If scan shows zero seizures
 
 WSL2 and environment tips
 
-- Use `num_workers=0` to avoid multiprocessing hangs
-- Ensure pin_memory=false for CPU-only runs on WSL2
+- Use `num_workers=0` to avoid multiprocessing hangs (PyTorch DataLoader issue)
+- Ensure `pin_memory=false` for CPU-only runs on WSL2
+- Set `UV_LINK_MODE=copy` for uv package manager (Makefile does this automatically)
+- Rationale: WSL2's filesystem boundary causes issues with symlinks and multiprocessing
 
 CUDA/Mamba SSM notes
 
-- d_conv coerced internally; set `SEIZURE_MAMBA_FORCE_FALLBACK=1` to force Conv1d fallback when needed
+- Mamba CUDA kernels only support d_conv={2,3,4}, but we configure d_conv=5
+- Automatically coerced to 4 for CUDA path (minor impact on model)
+- Set `SEIZURE_MAMBA_FORCE_FALLBACK=1` to force Conv1d fallback if CUDA issues occur
+- Fallback is slower but guarantees compatibility
 
-Cache hygiene
+Cache hygiene and invalidation
 
-- Old caches built before CSV_BI fix are invalid → delete and rebuild
+**When to rebuild caches:**
+1. Seizure detection logic changes (e.g., mysz fix)
+2. Windowing parameters change (window size, stride)
+3. Preprocessing changes (filtering, resampling rate)
+4. Channel mapping changes
+
+**Cache versioning strategy:**
+- No automatic versioning currently implemented
+- Manual deletion required when logic changes
+- Future: Consider adding version hash to cache filenames
+
+**Storage:**
 - Manifest uses relative filenames; keep it next to NPZs under the cache dir
+- Local: `cache/tusz/` for full, `cache/smoke/` for smoke tests
+- Modal: `/results/cache/tusz/` for full, `/results/cache/smoke/` for smoke
 
 Code anchors
 

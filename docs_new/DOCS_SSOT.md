@@ -16,8 +16,8 @@ Canonical files:
 Canonical commands:
 - Local smoke: `python -m src train configs/smoke_test.yaml`
 - Local full (WSL2-safe): `python -m src train configs/tusz_train_wsl2.yaml`
-- Modal smoke: `modal run --detach deploy/modal/app.py -- --action train --config configs/smoke_test.yaml`
-- Modal full (A100): `modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml`
+- Modal smoke: `modal run --detach deploy/modal/app.py --action train --config configs/smoke_test.yaml`
+- Modal full (A100): `modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml`
 - Evaluate (dev): `python -m src evaluate <checkpoint.pt> data_ext4/tusz/edf/dev --config configs/tusz_dev_tuning.yaml --output-json results/dev_metrics.json`
 - Evaluate (final): `python -m src evaluate <checkpoint.pt> data_ext4/tusz/edf/eval --config configs/tusz_eval_final.yaml --output-json results/final_metrics.json`
 

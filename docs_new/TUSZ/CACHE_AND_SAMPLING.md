@@ -35,9 +35,7 @@ Training integration
 
 Commands
 
-- Build (or rebuild) cache: `python -m src build-cache --data-dir <edf_root> --cache-dir <cache_dir>`
-- Scan manifest: `python -m src scan-cache --cache-dir <cache_dir>`
-- Train: `python -m src train <config.yaml>` (auto-uses balanced dataset when manifest exists)
+See README.md for quick command reference.
 
 Code anchors
 

@@ -5,12 +5,12 @@ Last updated: 2025-09-21
 Purpose: Single index of archived docs and where to find canonical, up-to-date replacements.
 
 ## Canonical References (use these now)
-- Sampling/balancing: `docs/references/TUSZ_SAMPLING_STRATEGY.md`
-- CSV_BI parsing: `docs/references/TUSZ_CSV_BI_PARSER.md`
-- Channels (19‑ch + synonyms): `docs/references/TUSZ_CHANNELS.md`
-- EDF header repair: `docs/references/TUSZ_EDF_HEADER_FIX.md`
-- Testing strategy: `docs/testing/TEST_PLAN.md`
-- Deployment (SSOT): `docs/deployment/MODAL_DEPLOYMENT_SSOT.md`
+- Sampling/balancing: `docs_new/TUSZ/CACHE_AND_SAMPLING.md`
+- CSV_BI parsing: `docs_new/TUSZ/CSV_BI_PARSER.md`
+- Channels (19‑ch + synonyms): `docs_new/TUSZ/CHANNELS_AND_MONTAGE.md`
+- EDF header repair: `docs_new/TUSZ/EDF_HEADER_REPAIR.md`
+- Evaluation checklist: `docs_new/implementation/EVALUATION_CHECKLIST.md`
+- Deployment (SSOT): `docs_new/deployment/MODAL_SSOT.md`
 
 ## Archived — Architecture
 - `docs/archive/architecture/ARCHITECTURE_CLARIFICATION.md`

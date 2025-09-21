@@ -67,9 +67,7 @@ Known failure points (and fixes)
 - No manifest/guards → training proceeds with zero seizures → FIX: scan-cache + fail-fast
 
 Operational commands
-- Build cache: `python -m src build-cache --data-dir <edf_root> --cache-dir <cache_dir>`
-- Scan manifest: `python -m src scan-cache --cache-dir <cache_dir>`
-- Train (balanced auto-detected): `python -m src train <config.yaml>`
+See README.md for quick command reference.
 
 See also
 - CSV_BI_PARSER.md, CHANNELS_AND_MONTAGE.md, CACHE_AND_SAMPLING.md, PREFLIGHT_AND_TROUBLESHOOTING.md, EDF_HEADER_REPAIR.md
