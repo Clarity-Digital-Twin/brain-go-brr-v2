@@ -873,7 +873,9 @@ def train(
             scheduler.load_state_dict(ckpt["scheduler_state_dict"])
         start_epoch = ckpt["epoch"]
         best_metric = ckpt.get("best_metric", 0.0)
-        print(f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}", flush=True)
+        print(
+            f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}", flush=True
+        )
         # Note: This resumes from start of epoch, not exact batch
     elif (checkpoint_dir / "last.pt").exists() and config.training.resume:
         start_epoch, best_metric = load_checkpoint(
