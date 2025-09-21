@@ -100,11 +100,17 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
 
         # Progress update every 1000 windows
         if (i + 1) % 1000 == 0:
-            print(f"[SAMPLER] Checked {i+1}/{sample_size} windows, found {sampled_seizure_count} with seizures", flush=True)
+            print(
+                f"[SAMPLER] Checked {i + 1}/{sample_size} windows, found {sampled_seizure_count} with seizures",
+                flush=True,
+            )
 
     # Estimate seizure ratio
     seizure_ratio = sampled_seizure_count / sample_size
-    print(f"[SAMPLER] Final: {sampled_seizure_count}/{sample_size} windows with seizures ({seizure_ratio:.2%})", flush=True)
+    print(
+        f"[SAMPLER] Final: {sampled_seizure_count}/{sample_size} windows with seizures ({seizure_ratio:.2%})",
+        flush=True,
+    )
 
     if seizure_ratio < 1e-8:
         print("[SAMPLER] WARNING: No seizures found in sample! Using uniform sampling.", flush=True)
@@ -970,7 +976,7 @@ def main() -> None:
     """CLI entry point for training."""
     import argparse
 
-    from src.brain_brr.data import EEGWindowDataset, BalancedSeizureDataset
+    from src.brain_brr.data import BalancedSeizureDataset, EEGWindowDataset
 
     parser = argparse.ArgumentParser(description="Train seizure detection model")
     parser.add_argument(
@@ -1108,13 +1114,14 @@ def main() -> None:
         train_sampler = create_balanced_sampler(train_dataset, sample_size=sample_size)
 
         if train_sampler is None:
-            print("="*60, flush=True)
-            print("[FATAL] No seizures found in {} windows!".format(sample_size), flush=True)
+            print("=" * 60, flush=True)
+            print(f"[FATAL] No seizures found in {sample_size} windows!", flush=True)
             print("[FATAL] Training will produce a USELESS model!", flush=True)
             print("[FATAL] Check your data or increase sample size!", flush=True)
-            print("="*60, flush=True)
+            print("=" * 60, flush=True)
             # Fail fast - don't waste GPU hours on doomed training
             import sys
+
             sys.exit(1)
 
     train_loader_kwargs: dict[str, Any] = {

@@ -252,7 +252,7 @@ def scan_cache_cmd(cache_dir: Path) -> None:
             "[green]✅ Manifest created:[/green] "
             f"partial={len(manifest['partial_seizure'])}, "
             f"full={len(manifest['full_seizure'])}, "
-            f"none={len(manifest['no_seizure'])} at {cache_dir/'manifest.json'}"
+            f"none={len(manifest['no_seizure'])} at {cache_dir / 'manifest.json'}"
         )
     except Exception as e:
         console.print(f"[red]Manifest scan error:[/red] {e}")

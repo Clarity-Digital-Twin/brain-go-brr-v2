@@ -11,10 +11,10 @@ import torch
 from torch.utils.data import Dataset
 
 from src.brain_brr import constants
+from src.brain_brr.data.cache_utils import scan_existing_cache
 from src.brain_brr.data.io import events_to_binary_mask, load_edf_file, parse_tusz_csv
 from src.brain_brr.data.preprocess import preprocess_recording
 from src.brain_brr.data.windows import extract_windows
-from src.brain_brr.data.cache_utils import scan_existing_cache
 
 
 class EEGWindowDataset(torch.utils.data.Dataset):
@@ -239,10 +239,10 @@ class BalancedSeizureDataset(Dataset):
 
         self._entries: list[tuple[Path, int]] = indices
 
-    def __len__(self) -> int:  # noqa: D401
+    def __len__(self) -> int:
         return len(self._entries)
 
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: D401
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         cache_file, w_idx = self._entries[idx]
         with np.load(cache_file) as data:  # type: ignore[call-arg]
             window = data["windows"][w_idx].astype(np.float32)
