@@ -1,68 +1,38 @@
-# Documentation Structure
+Brain-Go-Brr v2 Docs (Canonical)
 
-Last updated: 2025-09-19
+This folder is the single source of truth for project docs going forward. It replaces scattered, historical notes with concise, developer-focused references that map 1:1 to the current codebase and CI.
 
-## 📚 Documentation Organization
+Structure:
 
-### Core Documentation (Root)
-- `AGENTS.md` - AI assistant operating rules (single source of truth)
-- `CLAUDE.md` - Claude-specific configuration
-- `README.md` - Project overview and quickstart
-- `DOCS_SSOT.md` - Canonical commands/configs and current deployment/CLI pointers
-- `LICENSE` - Apache 2.0 License
+- TUSZ/ — Everything to ingest, cache, sample, and train with TUSZ
+- components/ — Canonical, code-aligned docs per component (replacing Phase docs)
+- deployment/ — Local (WSL2/Linux) and Modal guides
+- architecture/ — Canonical model and pipeline specs
+- implementation/ — Preprocessing, evaluation checklist, benchmarks, setup notes
+- deployment/WSL2/ — Deep dives for Windows + WSL2 specifics
+- future_work/ — Plans and research directions
+- archive/ — Historical docs and postmortems
+ - archive/phases/ — Archived Phase docs (moved); see components/ for replacements
 
-### `/docs/phases/` - Implementation Phases
-- `PHASE1_DATA_PIPELINE.md` - Data loading and preprocessing
-- `PHASE2_MODEL_ARCHITECTURE.md` - Overall model design
-- `PHASE2.1_UNET_ENCODER.md` - U-Net encoder details
-- `PHASE2.2_RESCNN_STACK.md` - ResCNN implementation
-- `PHASE2.3_BIMAMBA.md` - Bidirectional Mamba-2
-- `PHASE2.4_DECODER.md` - Decoder architecture
-- `PHASE2.5_FULL_MODEL.md` - Complete model integration
-- `PHASE3_TRAINING_PIPELINE.md` - Training implementation
-- `PHASE4_POSTPROCESSING.md` - Post-processing pipeline
-- `PHASE5_EVALUATION.md` - Evaluation metrics and scoring
+Start here (TUSZ):
 
-### `/docs/architecture/` - Architecture Documentation
-- `CANONICAL_ARCHITECTURE_SPEC.md` - Complete technical specification
-- `ASCII_PIPELINE_PLAN.md` - Visual pipeline representation
-- `ARCHITECTURE_COMPARISON.md` - Literature/context vs our stack
-- `FINAL_STACK_ANALYSIS.md` - Full stack analysis
-- `MAMBA_KERNEL_DECISION.md` - CUDA kernel decision notes
+- TUSZ/OVERVIEW.md
+- TUSZ/DATA_FLOW.md
+- TUSZ/CSV_BI_PARSER.md
+- TUSZ/CHANNELS_AND_MONTAGE.md
+- TUSZ/CACHE_AND_SAMPLING.md
+- TUSZ/PREFLIGHT_AND_TROUBLESHOOTING.md
+- TUSZ/EDF_HEADER_REPAIR.md
 
-### `/docs/implementation/` - Implementation Details
-- `PREPROCESSING_STRATEGY.md` - Data preprocessing strategy
-- `EVALUATION_CHECKLIST.md` - Testing and validation checklist
-- `SETUP_NOTES.md` - Environment setup instructions
-- `benchmarks.md` - Literature benchmarks
+Deployment:
 
-### `/docs/deployment/` - Deployment
-- `MODAL_DEPLOYMENT_SSOT.md` - Modal deployment Single Source of Truth
-- `MODAL_PIPELINE_SETUP.md` - How the Modal app is configured
-- `PREFLIGHT_STRATEGY.md` - Verify parser/balancing before long runs
-- `MODAL_MAMBA_DEPLOYMENT_ISSUES.md` - CUDA/Mamba deployment notes
-- `MODAL_LOGGING_TODO.md` - Logging/observability TODOs
+- deployment/PREFLIGHT.md
+- deployment/LOCAL_WSL2.md
+- deployment/MODAL_SSOT.md
+- deployment/TROUBLESHOOTING.md
 
-### Testing Strategy
-- See `/docs/implementation/EVALUATION_CHECKLIST.md` for the current testing and validation plan
-
-### TUSZ References
-- All TUSZ-specific docs live under `/docs/TUSZ/`:
-  - `TUSZ_CSV_BI_PARSER.md` — Correct CSV_BI parsing + labels
-  - `TUSZ_SAMPLING_STRATEGY.md` — SeizureTransformer-style balancing (manifest + dataset)
-  - `TUSZ_CHANNELS.md` — Canonical 19‑ch order + synonyms
-  - `TUSZ_EDF_HEADER_FIX.md` — TUH dataset header fixes
-  - `TUSZ_HEADER_FIX_INTEGRATION.md` — Header fix integration details
-
-### `/docs/archive/` - Historical Documentation
-Contains older documentation versions for reference.
-
-## 🚀 Quick Navigation
-
-- **Getting Started**: See root `README.md`
-- **Development Rules**: See `AGENTS.md` and `CLAUDE.md`
-- **Architecture Details**: `/docs/architecture/`
-- **Implementation Status**: `/docs/phases/`
-- **Cache rebuild status**: `/docs/deployment/CACHE_REBUILD_REQUIRED.md`
-- **Known Issues (historical)**: `/docs/archive/bugs/KNOWN_ISSUES.md`
-- **History/Archive Index**: `/docs/HISTORY.md`
+Also see:
+- DOCS_SSOT.md — canonical commands and entry points
+- HISTORY.md — archive index and replacements
+ - components/README.md — migration map from Phases to Components
+ - archive/README.md — where archived docs live and how to navigate them
