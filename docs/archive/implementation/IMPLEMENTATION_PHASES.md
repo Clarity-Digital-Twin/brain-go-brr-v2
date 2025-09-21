@@ -1,4 +1,5 @@
 # [ARCHIVED] IMPLEMENTATION_PHASES.md - Logical Build Order for Brain-Go-Brr v2
+Moved to docs/archive/implementation on 2025-09-21.
 
 Note: This document reflects an earlier plan (legacy `src/experiment/*`). For current, canonical docs see:
 - docs/architecture/CANONICAL_ARCHITECTURE_SPEC.md

@@ -32,9 +32,8 @@ Purpose: Single index of archived docs and where to find canonical, up-to-date r
 - Index: `docs/archive/bugs/RESOLUTION_STATUS.md`
 
 ## Historical (marked Archived in-place)
-- `docs/implementation/IMPLEMENTATION_PHASES.md` — Archived; use the canonical spec + references.
-- `docs/implementation/INTERPOLATION_IMPLEMENTATION_PLAN.md` — Archived; see TUSZ_CHANNELS + PREPROCESSING_STRATEGY.
-- `docs/implementation/INVESTIGATION_CHANNELS_AND_MONTAGES.md` — Archived; see TUSZ_CHANNELS + PREPROCESSING_STRATEGY.
+- `docs/archive/implementation/IMPLEMENTATION_PHASES.md` — Archived; use the canonical spec + references.
+- `docs/archive/implementation/INTERPOLATION_IMPLEMENTATION_PLAN.md` — Archived; see TUSZ_CHANNELS + PREPROCESSING_STRATEGY.
+- `docs/archive/implementation/INVESTIGATION_CHANNELS_AND_MONTAGES.md` — Archived; see TUSZ_CHANNELS + PREPROCESSING_STRATEGY.
 
 Note: If desired, we can physically move the three “Historical” files into `docs/archive/implementation/` to reduce clutter. Keeping them in place with clear banners avoids breaking deep links during transition.
-

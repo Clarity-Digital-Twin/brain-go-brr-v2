@@ -1,4 +1,5 @@
 # [ARCHIVED] INTERPOLATION IMPLEMENTATION PLAN
+Moved to docs/archive/implementation on 2025-09-21.
 
 Status: Historical investigation. Channel handling/canonicalization is documented in:
 - docs/references/TUSZ_CHANNELS.md

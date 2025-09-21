@@ -31,7 +31,6 @@ Last updated: 2025-09-19
 - `MAMBA_KERNEL_DECISION.md` - CUDA kernel decision notes
 
 ### `/docs/implementation/` - Implementation Details
-- `IMPLEMENTATION_PHASES.md` - Development roadmap
 - `PREPROCESSING_STRATEGY.md` - Data preprocessing strategy
 - `EVALUATION_CHECKLIST.md` - Testing and validation checklist
 - `SETUP_NOTES.md` - Environment setup instructions

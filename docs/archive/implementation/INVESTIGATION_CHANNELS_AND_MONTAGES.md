@@ -1,4 +1,5 @@
 # [ARCHIVED] Investigation: TUSZ Channels and Montages
+Moved to docs/archive/implementation on 2025-09-21.
 
 **Date**: 2025-09-18
 **Status**: Archived — see docs/references/TUSZ_CHANNELS.md and docs/implementation/PREPROCESSING_STRATEGY.md
