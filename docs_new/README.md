@@ -12,7 +12,7 @@ Structure:
 - deployment/WSL2/ — Deep dives for Windows + WSL2 specifics
 - future_work/ — Plans and research directions
 - archive/ — Historical docs and postmortems
- - phases/ — Archived Phase docs (kept in-place temporarily); see components/ for replacements
+ - archive/phases/ — Archived Phase docs (moved); see components/ for replacements
 
 Start here (TUSZ):
 

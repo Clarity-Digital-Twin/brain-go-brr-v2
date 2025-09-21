@@ -61,3 +61,7 @@ Keep d_conv=5 in configs because:
 - Changing would require updating 50+ files
 
 Just remember: **We're really using 4 on GPU anyway.**
+
+Runtime tip
+- To force the Conv1d fallback regardless of CUDA availability (e.g., CI/CPU runs), set:
+  - `SEIZURE_MAMBA_FORCE_FALLBACK=1`

@@ -3,7 +3,7 @@
 
 **Status: ✅ IMPLEMENTED & WORKING**
 **Last updated: 2025-09-20**
-**Location: `/home/jj/proj/brain-go-brr-v2/docs/architecture/CANONICAL_ARCHITECTURE_SPEC.md`**
+**Location: `docs_new/architecture/CANONICAL_ARCHITECTURE_SPEC.md`**
 
 This document serves as the single source of truth for the complete architecture specification. All components listed here are implemented and verified working in the codebase.
 
@@ -151,6 +151,18 @@ This document serves as the single source of truth for the complete architecture
 - [ ] Weight initialization: Xavier/He
 - [ ] Component order: Encoder → ResCNN → BiMamba → Decoder → Detection Head
 - [ ] `count_parameters()` and `get_layer_info()` methods for debugging
+
+---
+
+#### 2.7 Sampling Strategy (Canonical)
+- Training uses a manifest‑driven, fixed‑ratio dataset following SeizureTransformer:
+  - ALL partial‑seizure windows
+  - + 0.3× full‑seizure windows
+  - + 2.5× no‑seizure windows
+- Implemented via cache scan → `manifest.json` → `BalancedSeizureDataset`.
+- See also:
+  - `docs_new/components/caching_and_sampling.md`
+  - `docs_new/TUSZ/CACHE_AND_SAMPLING.md`
 
 ---
 
