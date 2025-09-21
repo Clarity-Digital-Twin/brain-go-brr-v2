@@ -110,7 +110,8 @@
       "Bash(uv pip install:*)",
       "Bash(uv pip:*)",
       "Bash(for f in configs/local/*.yaml configs/modal/*.yaml)",
-      "Bash(do echo \"=== $f ===\")"
+      "Bash(do echo \"=== $f ===\")",
+      "Bash(for f in configs/*/*.yaml)"
     ],
     "deny": [],
     "ask": []

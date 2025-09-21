@@ -58,8 +58,8 @@ dependencies = [
 # Install with: uv sync --extra gpu  (or pip install .[gpu])
 # CRITICAL: Requires CUDA Toolkit 12.1 to match PyTorch's cu121
 gpu = [
-    "mamba-ssm==2.2.4",  # EXACT: 2.2.5 has undefined symbol bug
-    "causal-conv1d==1.5.2",  # EXACT: Required by mamba-ssm
+    "mamba-ssm==2.2.2",  # EXACT: Works with PyTorch 2.2.2
+    "causal-conv1d==1.4.0",  # EXACT: v1.5 requires PyTorch 2.4+
 ]
 
 # Optional extras for specific feature sets
