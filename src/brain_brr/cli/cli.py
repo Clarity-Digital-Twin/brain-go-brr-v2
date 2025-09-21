@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from src.brain_brr.config.schemas import Config
-from src.brain_brr.data.cache_utils import check_cache_completeness
+from src.brain_brr.data.cache_utils import check_cache_completeness, scan_existing_cache
 
 console = Console()
 
@@ -223,13 +223,39 @@ def build_cache_cmd(data_dir: Path, cache_dir: Path, validation_split: float, sp
         _ = EEGWindowDataset(edf_files, label_files=label_files, cache_dir=cache_dir)
         status2 = check_cache_completeness(edf_files, cache_dir)
         if status2.missing_files == 0:
-            console.print("[green]✅ Cache build complete[/green]")
+            try:
+                manifest = scan_existing_cache(cache_dir)
+                console.print(
+                    "[green]✅ Cache build complete + manifest:[/green] "
+                    f"partial={len(manifest['partial_seizure'])}, "
+                    f"full={len(manifest['full_seizure'])}, "
+                    f"none={len(manifest['no_seizure'])}"
+                )
+            except Exception as e:
+                console.print(f"[yellow]Built cache but manifest scan failed: {e}[/yellow]")
         else:
             console.print(
                 f"[yellow]⚠️ Cache incomplete: {status2.missing_files} missing after build[/yellow]"
             )
     except Exception as e:
         console.print(f"[red]Cache build error:[/red] {e}")
+        sys.exit(1)
+
+
+@cli.command("scan-cache")
+@click.option("--cache-dir", type=click.Path(exists=True, path_type=Path), required=True)
+def scan_cache_cmd(cache_dir: Path) -> None:
+    """Scan NPZ cache and build a seizure-category manifest."""
+    try:
+        manifest = scan_existing_cache(cache_dir)
+        console.print(
+            "[green]✅ Manifest created:[/green] "
+            f"partial={len(manifest['partial_seizure'])}, "
+            f"full={len(manifest['full_seizure'])}, "
+            f"none={len(manifest['no_seizure'])} at {cache_dir/'manifest.json'}"
+        )
+    except Exception as e:
+        console.print(f"[red]Manifest scan error:[/red] {e}")
         sys.exit(1)
 
 

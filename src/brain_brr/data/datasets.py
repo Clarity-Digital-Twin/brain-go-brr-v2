@@ -8,11 +8,13 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 import torch
+from torch.utils.data import Dataset
 
 from src.brain_brr import constants
 from src.brain_brr.data.io import events_to_binary_mask, load_edf_file, parse_tusz_csv
 from src.brain_brr.data.preprocess import preprocess_recording
 from src.brain_brr.data.windows import extract_windows
+from src.brain_brr.data.cache_utils import scan_existing_cache
 
 
 class EEGWindowDataset(torch.utils.data.Dataset):
@@ -183,3 +185,69 @@ class EEGWindowDataset(torch.utils.data.Dataset):
             label_tensor = torch.zeros(window_tensor.shape[-1], dtype=torch.float32)
 
         return window_tensor, label_tensor
+
+
+class BalancedSeizureDataset(Dataset):
+    """Dataset implementing SeizureTransformer-style balancing using a manifest.
+
+    Uses all partial-seizure windows and adds 0.3x full-seizure and 2.5x no-seizure.
+    """
+
+    def __init__(
+        self,
+        cache_dir: Path,
+        *,
+        full_ratio: float = 0.3,
+        background_ratio: float = 2.5,
+        seed: int | None = 42,
+        ensure_manifest: bool = True,
+    ) -> None:
+        self.cache_dir = Path(cache_dir)
+        manifest_path = self.cache_dir / "manifest.json"
+        if ensure_manifest and not manifest_path.exists():
+            _ = scan_existing_cache(self.cache_dir)
+
+        with manifest_path.open() as f:
+            manifest = __import__("json").load(f)
+
+        partial: list[dict] = list(manifest.get("partial_seizure", []))
+        full: list[dict] = list(manifest.get("full_seizure", []))
+        no_seizure: list[dict] = list(manifest.get("no_seizure", []))
+
+        rng = np.random.default_rng(seed)
+
+        indices: list[tuple[Path, int]] = []
+
+        for item in partial:
+            indices.append((Path(item["cache_file"]), int(item["window_idx"])))
+
+        n_full = int(full_ratio * len(partial))
+        if full:
+            choice = rng.choice(len(full), size=min(n_full, len(full)), replace=False)
+            for i in choice.tolist():
+                item = full[i]
+                indices.append((Path(item["cache_file"]), int(item["window_idx"])))
+
+        n_bg = int(background_ratio * len(partial))
+        if no_seizure:
+            choice = rng.choice(len(no_seizure), size=min(n_bg, len(no_seizure)), replace=False)
+            for i in choice.tolist():
+                item = no_seizure[i]
+                indices.append((Path(item["cache_file"]), int(item["window_idx"])))
+
+        rng.shuffle(indices)
+
+        self._entries: list[tuple[Path, int]] = indices
+
+    def __len__(self) -> int:  # noqa: D401
+        return len(self._entries)
+
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:  # noqa: D401
+        cache_file, w_idx = self._entries[idx]
+        with np.load(cache_file) as data:  # type: ignore[call-arg]
+            window = data["windows"][w_idx].astype(np.float32)
+            if "labels" in data:
+                label = data["labels"][w_idx].astype(np.float32)
+            else:
+                label = np.zeros((window.shape[-1],), dtype=np.float32)
+        return torch.from_numpy(window), torch.from_numpy(label)

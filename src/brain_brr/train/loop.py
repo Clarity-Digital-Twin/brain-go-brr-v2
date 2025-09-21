@@ -970,7 +970,7 @@ def main() -> None:
     """CLI entry point for training."""
     import argparse
 
-    from src.brain_brr.data import EEGWindowDataset
+    from src.brain_brr.data import EEGWindowDataset, BalancedSeizureDataset
 
     parser = argparse.ArgumentParser(description="Train seizure detection model")
     parser.add_argument(
@@ -1050,12 +1050,41 @@ def main() -> None:
     except Exception:
         pass
 
-    train_dataset = EEGWindowDataset(
-        train_files,
-        label_files=train_label_files,
-        cache_dir=data_cache_root / "train",
-        allow_on_demand=True,
-    )
+    train_cache_dir = data_cache_root / "train"
+    use_balanced = bool(config.data.use_balanced_sampling)
+    manifest_path = train_cache_dir / "manifest.json"
+    if use_balanced and not manifest_path.exists():
+        try:
+            from src.brain_brr.data.cache_utils import scan_existing_cache
+
+            train_cache_dir.mkdir(parents=True, exist_ok=True)
+            _ = scan_existing_cache(train_cache_dir)
+            print("[DATA] Built manifest from existing cache for balanced training", flush=True)
+        except Exception as e:
+            print(f"[WARNING] Manifest build failed: {e}", flush=True)
+
+    if use_balanced and manifest_path.exists():
+        try:
+            train_dataset = BalancedSeizureDataset(train_cache_dir)
+            print(
+                f"[DATASET] BalancedSeizureDataset: {len(train_dataset)} windows from manifest",
+                flush=True,
+            )
+        except Exception as e:
+            print(f"[WARNING] BalancedSeizureDataset failed: {e}; falling back to EEGWindowDataset")
+            train_dataset = EEGWindowDataset(
+                train_files,
+                label_files=train_label_files,
+                cache_dir=train_cache_dir,
+                allow_on_demand=True,
+            )
+    else:
+        train_dataset = EEGWindowDataset(
+            train_files,
+            label_files=train_label_files,
+            cache_dir=train_cache_dir,
+            allow_on_demand=True,
+        )
 
     val_dataset = EEGWindowDataset(
         val_files,
@@ -1066,7 +1095,11 @@ def main() -> None:
 
     # Create positive-aware balanced sampler
     train_sampler = None
-    if config.data.use_balanced_sampling and len(train_dataset) > 0:
+    if (
+        config.data.use_balanced_sampling
+        and len(train_dataset) > 0
+        and not isinstance(train_dataset, BalancedSeizureDataset)
+    ):
         # CRITICAL: TUSZ has extreme imbalance (0.1-1% seizures at window level)
         # We MUST sample enough windows to guarantee finding seizures
         # Math: P(0 seizures) = (1-p)^n, for p=0.001, n=20000 → P≈0.00000002
