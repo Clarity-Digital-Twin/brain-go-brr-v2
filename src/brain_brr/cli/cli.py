@@ -231,9 +231,10 @@ def build_cache_cmd(data_dir: Path, cache_dir: Path, validation_split: float, sp
                     f"full={len(manifest['full_seizure'])}, "
                     f"none={len(manifest['no_seizure'])}"
                 )
-                if len(manifest.get("partial_seizure", [])) == 0 and len(
-                    manifest.get("full_seizure", [])
-                ) == 0:
+                if (
+                    len(manifest.get("partial_seizure", [])) == 0
+                    and len(manifest.get("full_seizure", [])) == 0
+                ):
                     console.print(
                         "[red]❌ No seizures found in cache. Refusing to proceed to training.[/red]"
                     )
@@ -261,9 +262,10 @@ def scan_cache_cmd(cache_dir: Path) -> None:
             f"full={len(manifest['full_seizure'])}, "
             f"none={len(manifest['no_seizure'])} at {cache_dir / 'manifest.json'}"
         )
-        if len(manifest.get("partial_seizure", [])) == 0 and len(
-            manifest.get("full_seizure", [])
-        ) == 0:
+        if (
+            len(manifest.get("partial_seizure", [])) == 0
+            and len(manifest.get("full_seizure", [])) == 0
+        ):
             console.print(
                 "[red]❌ No seizures detected across cache — investigate CSV parsing/paths"
             )

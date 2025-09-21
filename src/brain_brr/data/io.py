@@ -232,9 +232,9 @@ def parse_tusz_csv(csv_path: Path) -> tuple[float, list[tuple[float, float, str]
         ```
         # version = csv_v1.0.0
         # duration = 300.00 secs
-        channel,start_time,stop_time,label,confidence
-        FP1-F7,0.0000,36.8868,bckg,1.0000
-        FP1-F7,36.8868,183.3055,cpsz,1.0000
+        channel, start_time, stop_time, label, confidence
+        FP1 - F7, 0.0000, 36.8868, bckg, 1.0000
+        FP1 - F7, 36.8868, 183.3055, cpsz, 1.0000
         ```
     """
     events = []
@@ -253,10 +253,8 @@ def parse_tusz_csv(csv_path: Path) -> tuple[float, list[tuple[float, float, str]
                     parts = line.split("=")
                     if len(parts) >= 2:
                         dur_str = parts[1].strip().replace("secs", "").replace("sec", "").strip()
-                        try:
+                        with contextlib.suppress(ValueError):
                             duration_seconds = float(dur_str)
-                        except ValueError:
-                            pass
                 continue
 
             parts = line.split(",")
