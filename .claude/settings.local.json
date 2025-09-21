@@ -63,7 +63,15 @@
       "Bash(.venv/bin/pytest tests/integration/ -m integration -xvs)",
       "Bash(.venv/bin/pytest tests/ -q --tb=short)",
       "Bash(.venv/bin/pytest tests/unit/ -q --tb=short)",
-      "Bash(.venv/bin/pytest:*)"
+      "Bash(.venv/bin/pytest:*)",
+      "Bash(nvidia-smi:*)",
+      "Bash(source:*)",
+      "Bash(lscpu:*)",
+      "Bash(lsblk:*)",
+      "Bash(sudo hdparm:*)",
+      "Bash(tar:*)",
+      "Bash(pip install:*)",
+      "Bash(modal:*)"
     ],
     "deny": [],
     "ask": []
