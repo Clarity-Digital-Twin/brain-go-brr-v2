@@ -69,6 +69,7 @@ ENV/
 logs/
 *.out
 *.err
+training_log.txt
 
 # Temporary files
 tmp/
