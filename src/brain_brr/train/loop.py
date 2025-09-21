@@ -1059,6 +1059,25 @@ def main() -> None:
     train_cache_dir = data_cache_root / "train"
     use_balanced = bool(config.data.use_balanced_sampling)
     manifest_path = train_cache_dir / "manifest.json"
+
+    # Force manifest rebuild if it exists but is corrupt/empty
+    if use_balanced and manifest_path.exists():
+        import json
+        try:
+            with open(manifest_path) as f:
+                manifest_data = json.load(f)
+                total_windows = (
+                    len(manifest_data.get("partial_seizure", [])) +
+                    len(manifest_data.get("full_seizure", [])) +
+                    len(manifest_data.get("no_seizure", []))
+                )
+                if total_windows == 0:
+                    print(f"[WARNING] Corrupt manifest with 0 windows found, deleting...", flush=True)
+                    manifest_path.unlink()
+        except Exception as e:
+            print(f"[WARNING] Failed to read manifest: {e}, deleting...", flush=True)
+            manifest_path.unlink()
+
     if use_balanced and not manifest_path.exists():
         # CRITICAL: Only build manifest if cache already has files!
         # Bug fix: Don't build manifest from empty directory
