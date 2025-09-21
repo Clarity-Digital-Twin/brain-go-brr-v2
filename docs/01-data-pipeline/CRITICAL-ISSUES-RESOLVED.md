@@ -9,31 +9,29 @@ This document captures critical bugs and pain points from project history that h
 **Impact:** 254GB useless cache, $60+ Modal credits burned, model learned nothing
 **Root Cause:** CSV parser was reading wrong columns - expected simple format but TUSZ uses CSV_BI format with channel-specific annotations
 **Resolution:**
-- Fixed CSV_BI parser in `src/brain_brr/data/io.py:220,294`
-- Added guards to fail builds with zero seizures `cli.py:212`
-- Implemented BalancedSeizureDataset with manifest validation
+- Fixed CSV_BI parser (`parse_tusz_csv`) and mask builder (`events_to_binary_mask`) in `src/brain_brr/data/io.py`
+- Added manifest scan guards to CLI (`build-cache`, `scan-cache`) to stop when no seizures
+- Implemented `BalancedSeizureDataset` with manifest validation
 **Lesson:** Always validate cache has seizures before training!
 
 ### 2. TUSZ Channel Naming Mismatch
 **Impact:** Training crashes with "Missing required channels"
 **Root Cause:** TUSZ files have `'EEG FP1-LE'` but code expects `'Fp1'`
 **Resolution:**
-- Robust channel cleaning in `io.py:126` (clean_tusz_name)
-- Channel synonym mapping in `constants.py:33`
-- Ordered channel picking in `pick_utils.py:30`
+- Robust channel cleaning (`clean_tusz_name`) in `src/brain_brr/data/io.py`
+- Channel synonym mapping in `src/brain_brr/constants.py`
+- Ordered channel picking via `pick_and_order` in `src/brain_brr/utils/pick_utils.py`
 
 ### 3. Dataset Label Duration Bug
 **Impact:** Labels wrong length (3.9M samples instead of 15360)
 **Root Cause:** Passing `n_samples` instead of `duration_sec` to events_to_binary_mask
-**Resolution:** Fixed calculation to use `n_samples / 256` for duration in seconds
+**Resolution:** Ensure `events_to_binary_mask` is called with true `duration_sec`; mask then trimmed/padded to `n_samples` during window extraction
 
 ### 4. Focal Loss Double-Counting
 **Impact:** Training instability with extreme class imbalance
 **Root Cause:** Using both focal_alpha and pos_weight caused double-counting
 **Resolution:**
-- Set focal_alpha=0.5 (neutral)
-- Use pos_weight OR focal loss, never both
-- Defaulted in all configs
+- Set safe defaults in configs; avoid combining `pos_weight` with focal `alpha` that double-counts imbalance
 
 ### 5. PyTorch Multiprocessing Hangs on WSL2
 **Impact:** Training hangs after validation, DataLoader stuck
@@ -56,8 +54,7 @@ This document captures critical bugs and pain points from project history that h
 ### 2. EDF Header Malformation
 **Impact:** Some TUSZ files have corrupt headers
 **Resolution:**
-- Header repair function in `io.py:34` (_repair_edf_header_inplace)
-- Automatic retry on failure
+- Header repair helper `_repair_edf_header_inplace` in `src/brain_brr/data/io.py` and retry logic on read failure
 **Risk:** May miss edge cases in header corruption
 
 ## Lessons Learned

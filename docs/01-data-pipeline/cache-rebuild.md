@@ -77,16 +77,20 @@ Expect partial>0 and/or full>0. If both are zero, stop and investigate CSV paths
 
 ### Local rebuild:
 ```bash
-# Delete old caches
+# 1) Delete old caches
 rm -rf cache/
 
-# Build manifest on existing cache (optional)
+# 2) Rebuild caches (train/val) and auto-create manifest
+python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz/train --split train
+python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz/val --split val
+
+# 3) Verify manifest shows seizures (must be > 0)
 python -m src scan-cache --cache-dir cache/tusz/train
 
-# Smoke test (1 epoch)
+# 4) Smoke test (1 epoch)
 python -m src train configs/smoke_test.yaml
 
-# Full training (WSL2-safe)
+# 5) Full training (WSL2-safe)
 python -m src train configs/tusz_train_wsl2.yaml
 ```
 

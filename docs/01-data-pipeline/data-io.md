@@ -5,8 +5,8 @@ Scope
 
 What we do (order of ops)
 - Read EDF with MNE; repair rare headers when needed (see TUSZ/EDF_HEADER_REPAIR.md).
-- Apply bandpass 0.5–120 Hz and 60 Hz notch.
 - Resample to 256 Hz.
+- Apply bandpass 0.5–120 Hz and 60 Hz notch.
 - Map channels to canonical 19‑ch order; handle synonyms (T7→T3, T8→T4, P7→T5, P8→T6).
 - Window into 60s segments with 10s stride; per‑channel z‑score normalization.
 - Filters: Butterworth bandpass (order=3) with lfilter; iirnotch at powerline; resample via scipy.signal.resample.

@@ -18,7 +18,9 @@ Missing channels
 Interpolation policy
 
 - Per-channel z-score normalization first (consistent scaling)
-- Simple spatial interpolation across nearest anatomical neighbors for rare missing channels
+- Only midline channels Fz and Pz are interpolated (when missing) using MNE's
+  montage-based interpolate_bads after inserting zero channels and applying a
+  standard_1020 montage (best-effort). Other missing channels raise an error.
 - Strict logging when interpolation occurs
 
 Montage notes

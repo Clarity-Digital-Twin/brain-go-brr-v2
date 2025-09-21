@@ -39,7 +39,9 @@ Mask generation
 
 - Sampling rate: 256 Hz (fixed in our pipeline)
 - For each event in seizure set: set mask[start:end] = 1
-- Handle boundary rounding deterministically (floor start, ceil end)
+- Boundary indexing: deterministic integer indices for both ends
+  - start_idx = int(start_sec * fs)  (floor)
+  - end_idx   = int(end_sec * fs)    (floor)
 
 Common pitfalls (we hit these)
 
