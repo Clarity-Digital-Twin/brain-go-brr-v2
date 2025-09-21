@@ -10,6 +10,7 @@ Preflight (must pass before any training)
 3) Create/scan manifest
    - `python -m src scan-cache --cache-dir <cache_dir>`
    - Expect partial > 0 or full > 0; otherwise STOP
+   - See also: `cache-rebuild.md` for when and how to rebuild caches
 4) Instantiate BalancedSeizureDataset
    - `from src.brain_brr.data import BalancedSeizureDataset; len(BalancedSeizureDataset(Path('<cache_dir>')))`
    - Expect len > 0

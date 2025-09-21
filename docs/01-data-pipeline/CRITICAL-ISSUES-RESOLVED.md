@@ -14,6 +14,15 @@ This document captures critical bugs and pain points from project history that h
 - Implemented `BalancedSeizureDataset` with manifest validation
 **Lesson:** Always validate cache has seizures before training!
 
+### 1b. Balanced Manifest Order Bug (empty manifest built first)
+**Impact:** BalancedSeizureDataset created with 0 windows; fell back to random sampling
+**Root Cause:** Manifest was generated before any NPZ cache files were present
+**Resolution:**
+- Training loop now validates existing manifest and deletes/rebuilds if empty/stale
+- Only builds manifest from a populated cache directory
+- Added env toggle `BGB_FORCE_MANIFEST_REBUILD=1` for manual rebuilds on startup
+**Lesson:** Generate manifests after cache population; validate at startup
+
 ### 2. TUSZ Channel Naming Mismatch
 **Impact:** Training crashes with "Missing required channels"
 **Root Cause:** TUSZ files have `'EEG FP1-LE'` but code expects `'Fp1'`
@@ -22,18 +31,27 @@ This document captures critical bugs and pain points from project history that h
 - Channel synonym mapping in `src/brain_brr/constants.py`
 - Ordered channel picking via `pick_and_order` in `src/brain_brr/utils/pick_utils.py`
 
-### 3. Dataset Label Duration Bug
+### 3. Myoclonic (mysz) Seizure Type Missing
+**Impact:** 44 mysz events mislabeled as background; missed during training
+**Root Cause:** Seizure label set omitted `mysz` and mistakenly included non-existent `spkz`
+**Resolution:**
+- Updated seizure label set to `{seiz, gnsz, fnsz, cpsz, absz, spsz, tcsz, tnsz, mysz}`
+- Rebuilt all caches (local and Modal) and restarted training
+- Added tests and documentation of empirical type counts for v2.0.3
+**Lesson:** Verify label sets empirically against the corpus version
+
+### 4. Dataset Label Duration Bug
 **Impact:** Labels wrong length (3.9M samples instead of 15360)
 **Root Cause:** Passing `n_samples` instead of `duration_sec` to events_to_binary_mask
 **Resolution:** Ensure `events_to_binary_mask` is called with true `duration_sec`; mask then trimmed/padded to `n_samples` during window extraction
 
-### 4. Focal Loss Double-Counting
+### 5. Focal Loss Double-Counting
 **Impact:** Training instability with extreme class imbalance
 **Root Cause:** Using both focal_alpha and pos_weight caused double-counting
 **Resolution:**
 - Set safe defaults in configs; avoid combining `pos_weight` with focal `alpha` that double-counts imbalance
 
-### 5. PyTorch Multiprocessing Hangs on WSL2
+### 6. PyTorch Multiprocessing Hangs on WSL2
 **Impact:** Training hangs after validation, DataLoader stuck
 **Resolution:**
 - WSL-safe defaults: `num_workers=0`, `pin_memory=false`

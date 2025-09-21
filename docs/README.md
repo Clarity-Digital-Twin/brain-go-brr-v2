@@ -10,11 +10,10 @@
 - [tusz-overview.md](01-data-pipeline/tusz-overview.md) - Dataset structure
 - [tusz-data-flow.md](01-data-pipeline/tusz-data-flow.md) - Processing pipeline
 - [CACHE_MANIFEST_ARCHITECTURE.md](01-data-pipeline/CACHE_MANIFEST_ARCHITECTURE.md) - Cache strategy
-- [PIPELINE_VALIDATION.md](01-data-pipeline/PIPELINE_VALIDATION.md) - Pipeline testing
-- [P0_BLOCKERS.md](01-data-pipeline/P0_BLOCKERS.md) - Critical fixes
+- [cache-rebuild.md](01-data-pipeline/cache-rebuild.md) - Cache rebuild playbook
 - [tusz-csv-parser.md](01-data-pipeline/tusz-csv-parser.md) - Label parsing
 - [tusz-channels.md](01-data-pipeline/tusz-channels.md) - 10-20 montage
-- [tusz-mysz-crisis.md](01-data-pipeline/tusz-mysz-crisis.md) - Seizure type fix
+ 
 
 ## 02 - Architecture
 **Model components and specifications**
