@@ -18,7 +18,10 @@ Threshold search (event‑level)
 
 Code anchors
 - src/brain_brr/eval/* (if present)
-- configs/tusz_dev_tuning.yaml, configs/tusz_eval_final.yaml (if present)
+- configs/local/{dev.yaml,eval.yaml}
+
+CLI
+- Evaluate a checkpoint: `python -m src evaluate <checkpoint_path> <data_path> --output-json <out.json>`
 
 Docs
 - phases/PHASE5_EVALUATION.md

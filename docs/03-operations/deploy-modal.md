@@ -13,11 +13,11 @@ Preflight (Modal)
 
 Core commands (Modal CLI)
 - Smoke test (safe default via local_entrypoint):
-  - `modal run --detach deploy/modal/app.py --action train --config configs/smoke_test.yaml`
+  - `modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_a100.yaml`
 - Full training on A100:
-  - `modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml`
+  - `modal run --detach deploy/modal/app.py --action train --config configs/modal/train_a100.yaml`
 - Resume training:
-  - `modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --resume true`
+  - `modal run --detach deploy/modal/app.py --action train --config configs/modal/train_a100.yaml --resume true`
 - Evaluate checkpoint:
   - `modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.pt`
 

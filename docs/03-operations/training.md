@@ -15,18 +15,20 @@ Guardrails
 - Logs dataset composition (partial/full/background counts and ratios).
 
 Checkpoints & early stopping
-- Best checkpoint path: `results/checkpoints/best.pt`; last: `results/checkpoints/last.pt`.
-- Early stopping metric from config (e.g., sensitivity_at_10fa); patience configurable.
-- Resume restores model/optimizer/scheduler and config snapshot.
+- Checkpoints live under `<config.experiment.output_dir>/checkpoints/`:
+  - `best.pt` (best by early_stopping.metric)
+  - `last.pt` (last epoch)
+- Early stopping config: `training.early_stopping.{metric,mode,patience}`
+- Resume restores model/optimizer/scheduler and saved config snapshot.
 
 Config notes
 - WSL2 stability: num_workers: 0, pin_memory: false, persistent_workers: false.
-- Keep smoke_test.yaml for quick verification; separate WSL2 vs A100 configs for batch sizes.
+- Keep configs/local/smoke.yaml for quick verification; use local/train.yaml vs modal/train_a100.yaml for full runs.
 
 Code anchors
-- src/brain_brr/train/loop.py (dataset selection, fail‑fast, sampler bypass)
+- src/brain_brr/train/loop.py (dataset selection, fail‑fast, sampler bypass, checkpoints)
 - src/brain_brr/cli/cli.py (train entry)
-- configs/* (tusz_train_wsl2.yaml, tusz_train_a100.yaml, smoke_test.yaml)
+- configs/local/{train.yaml,smoke.yaml}; configs/modal/{train_a100.yaml,smoke_a100.yaml}
 
 Docs
 - phases/PHASE3_TRAINING_PIPELINE.md

@@ -227,7 +227,7 @@ All morphology kernel sizes are specified in samples unless otherwise stated.
 - **Window duration:** 60 seconds
 - **Stride:** 10 seconds
 - **Bottleneck compression:** ×16
-- **Total parameters:** ~20-30M
+- **Total parameters:** ~13.4M (confirmed via model instantiation)
 
 ### Post-processing Parameters
 - **τ_on:** 0.86

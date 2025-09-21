@@ -17,7 +17,7 @@ CUDA/Mamba kernel mismatch
 
 EDF read failure
 - Symptom: MNE ValueError/OSError on EDF header
-- Fix: header repair path; see TUSZ/EDF_HEADER_REPAIR.md
+- Fix: header repair path; see ../01-data-pipeline/tusz-edf-repair.md
 
 Slow IO on Modal or WSL
 - Fix: mount datasets on fast storage; avoid network-mounted paths for cache writes; keep local caches on ext4

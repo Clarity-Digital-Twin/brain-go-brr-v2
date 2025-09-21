@@ -15,14 +15,14 @@ Config tips
 - Use `data.cache_dir` on ext4 (e.g., `cache/tusz/train` under repo)
 
 Preflight
-- See PREFLIGHT.md and TUSZ/PREFLIGHT_AND_TROUBLESHOOTING.md
+- See deploy-preflight.md and ../01-data-pipeline/tusz-preflight.md
 - Ensure manifest shows seizures; do not proceed otherwise
 
 Commands
 - Build cache: `python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz/train`
 - Scan manifest: `python -m src scan-cache --cache-dir cache/tusz/train`
-- Smoke train: `python -m src train configs/smoke_test.yaml`
-- Full train: `python -m src train configs/tusz_train_wsl2.yaml`
+- Smoke train: `python -m src train configs/local/smoke.yaml`
+- Full train: `python -m src train configs/local/train.yaml`
 
 Mamba CUDA note
 - CUDA kernels coerce unsupported `d_conv` to 4; to force Conv1d fallback: `SEIZURE_MAMBA_FORCE_FALLBACK=1`

@@ -29,6 +29,6 @@ Quick strategy (small first)
 - GPU (if used): ensure correct drivers/CUDA; Mamba kernels coerce `d_conv` (fallback available)
 
 References
-- TUSZ preflight/troubleshooting: ../TUSZ/PREFLIGHT_AND_TROUBLESHOOTING.md
-- Cache+sampling details: ../TUSZ/CACHE_AND_SAMPLING.md
+- TUSZ preflight/troubleshooting: ../01-data-pipeline/tusz-preflight.md
+- Cache+sampling details: ../01-data-pipeline/tusz-cache-sampling.md
 

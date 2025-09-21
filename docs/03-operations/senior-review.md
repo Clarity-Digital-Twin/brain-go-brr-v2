@@ -22,7 +22,7 @@ Cause: DataLoader worker exited unexpectedly - OOM kill
 
 ## Configuration Changes
 
-### 1. Created: `configs/tusz_train_wsl2.yaml`
+### 1. Created: `configs/local/train.yaml`
 **Purpose:** WSL2-safe local training
 ```yaml
 Key changes from tusz_train.yaml:
@@ -33,7 +33,7 @@ Key changes from tusz_train.yaml:
 - Added checkpoint_interval: 5
 ```
 
-### 2. Created: `configs/tusz_train_a100.yaml`
+### 2. Created: `configs/modal/train_a100.yaml`
 **Purpose:** A100 cloud optimization
 ```yaml
 Key changes from tusz_train.yaml:
@@ -45,8 +45,8 @@ Key changes from tusz_train.yaml:
 - Added compile_model option for torch.compile
 ```
 
-### 3. Deleted: `configs/seizure_local.yaml`
-**Reason:** Deprecated, marked as "DO NOT USE" in header
+### 3. Smoke configs
+`configs/local/smoke.yaml` and `configs/modal/smoke_a100.yaml` for quick verification.
 
 ## Configuration Comparison Matrix
 
@@ -65,32 +65,17 @@ Key changes from tusz_train.yaml:
 ## Modal Deployment Strategy
 
 ### Current `deploy/modal/app.py` Status
-- Default config: `smoke_test.yaml` ✅ (safe for testing)
+- Default examples use smoke configs (safe for testing)
 - Image: NVIDIA CUDA 12.1 devel ✅ (required for Mamba compilation)
 - GPU: A100-80GB ✅
 - Memory: 32GB RAM ✅
 - Volumes: S3 mount + persistent results ✅
 
 ### ✅ FIXED: Changes Applied for Production Training
-```python
-# Line 86 in deploy/modal/app.py
-# ✅ FIXED: Default config now uses A100-optimized version
-config_path: str = "configs/tusz_train_a100.yaml"
-
-# Line 112-114 - Conditional file limiting:
-# ✅ FIXED: Only limits files for smoke tests
-if "smoke" in config_path.lower():
-    env.setdefault("BGB_LIMIT_FILES", "50")
-
-# Line 77 - Extended timeout:
-# ✅ FIXED: Increased from 2 hours to 30 hours
-timeout=108000,  # 30 hours (100 epochs @ ~15 min/epoch)
-
-# Line 156-158 - Checkpoint resumption:
-# ✅ FIXED: Added checkpoint resumption support
-if checkpoint_path and os.path.exists(checkpoint_path):
-    cmd.extend(["--checkpoint", checkpoint_path])
-```
+Notes (kept stable and code-aligned):
+- Conditional file limiting for smoke runs via `BGB_LIMIT_FILES`
+- Long timeout for full training
+- Resume support via `--resume true` and presence of `last.pt` in output_dir
 
 ## Cost Analysis
 
@@ -149,12 +134,12 @@ if checkpoint_path and os.path.exists(checkpoint_path):
 
 ```bash
 # Local WSL2 training (safe)
-python -m src train configs/tusz_train_wsl2.yaml
+python -m src train configs/local/train.yaml
 
 # Modal deployment (after review approval)
 modal deploy deploy/modal/app.py
-# Modal's --detach must go BEFORE the script; use `--` to separate app args
-modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml
+# Modal's --detach must go BEFORE the script
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_a100.yaml
 ```
 
 ## Senior Sign-off Checklist
