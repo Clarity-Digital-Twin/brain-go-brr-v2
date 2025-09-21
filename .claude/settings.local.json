@@ -73,7 +73,8 @@
       "Bash(pip install:*)",
       "Bash(modal:*)",
       "Bash(chmod:*)",
-      "Bash(watch:*)"
+      "Bash(watch:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
