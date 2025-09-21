@@ -6,6 +6,7 @@
 data:
   dataset: tuh_eeg
   data_dir: data_ext4/tusz/edf/train  # Use TRAIN for smoke tests (limit files via env)
+  cache_dir: cache/smoke              # Separate cache for smoke tests
   sampling_rate: 256
   n_channels: 19
   window_size: 60
