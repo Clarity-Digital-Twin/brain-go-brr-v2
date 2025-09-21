@@ -10,7 +10,12 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from tqdm import tqdm  # type: ignore[import-untyped]
+
+# Guard tqdm import for Modal/subprocess environments
+try:
+    from tqdm import tqdm  # type: ignore[import-untyped]
+except Exception:  # ImportError or runtime issues
+    tqdm = None  # type: ignore[assignment]
 
 
 @dataclass(frozen=True)
@@ -69,8 +74,10 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
             json.dump(manifest, f)
         return manifest
 
-    # Use tqdm unless disabled for Modal/subprocess environments
-    disable_tqdm = os.getenv("BGB_DISABLE_TQDM")
+    # Centralized iterator choice (handles tqdm=None + env flag)
+    disable_tqdm = os.getenv("BGB_DISABLE_TQDM", "").strip() == "1" or tqdm is None
+    print(f"[CACHE] tqdm disabled={disable_tqdm} | files={len(npz_files)}", flush=True)
+
     iterator = npz_files if disable_tqdm else tqdm(npz_files, desc="Scanning cache", leave=False)
     for npz_path in iterator:
         try:

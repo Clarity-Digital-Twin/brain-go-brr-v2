@@ -126,6 +126,7 @@ def train(
 
     # Disable tqdm for Modal subprocess environments (causes issues with manifest generation)
     env["BGB_DISABLE_TQDM"] = "1"
+    print(f"[ENV] BGB_DISABLE_TQDM={env.get('BGB_DISABLE_TQDM')}", flush=True)
     # For production, use full dataset (no limit)
 
     # Prepare a temp config to ensure data/output point to persistent volumes
