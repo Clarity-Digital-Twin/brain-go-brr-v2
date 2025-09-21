@@ -81,7 +81,8 @@
       "Bash(env)",
       "Bash(head:*)",
       "Bash(while read f)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(for f in configs/local/*.yaml)"
     ],
     "deny": [],
     "ask": []
