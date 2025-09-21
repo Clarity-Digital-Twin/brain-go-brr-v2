@@ -72,7 +72,8 @@
       "Bash(tar:*)",
       "Bash(pip install:*)",
       "Bash(modal:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(watch:*)"
     ],
     "deny": [],
     "ask": []
