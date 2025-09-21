@@ -330,3 +330,4 @@ class TestBiMamba2:
 **Estimated Time**: 1 day
 **Depends on**: PHASE2.2 completion
 **Next**: PHASE2.4_DECODER.md
+> Note: This Phase doc is being replaced by component‑oriented docs. See components/models/mamba_bi.md for the canonical, code‑aligned reference.

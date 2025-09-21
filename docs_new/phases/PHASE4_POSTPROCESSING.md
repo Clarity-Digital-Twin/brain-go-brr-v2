@@ -386,3 +386,4 @@ Integration tests:
 3) Implement core functions one by one
 4) Integrate with evaluation adapters
 5) Benchmark and tune kernels/thresholds on validation set
+> Note: This Phase doc is being replaced by component‑oriented docs. See components/postprocessing.md for the canonical, code‑aligned reference.

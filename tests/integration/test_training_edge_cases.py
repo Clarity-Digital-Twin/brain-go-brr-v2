@@ -40,6 +40,8 @@ class TestTrainingExplosions:
             model = model.cuda()
         return model
 
+    @pytest.mark.gpu
+    @pytest.mark.timeout(60)  # 60 second timeout
     def test_focal_loss_collapse_real_imbalance(self, small_model):
         """Train 5 epochs on REAL 99.9% negative data."""
         # Create extremely imbalanced data
@@ -117,6 +119,7 @@ class TestTrainingExplosions:
         # Loss should decrease or stabilize, not explode
         assert all_losses[-1] < all_losses[0] * 10, "Loss exploded during training"
 
+    @pytest.mark.gpu
     def test_gradient_explosion_extreme_lr(self, small_model):
         """REAL training with LR=10.0 for 10 steps."""
         device = next(small_model.parameters()).device

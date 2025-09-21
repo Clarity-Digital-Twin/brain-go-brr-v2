@@ -157,3 +157,4 @@ Make (optional additions):
 - NEDC TAES specifications and scoring methodology.
 - epilepsybenchmarks.com submission formats.
 - Internal Phase docs: PHASE2.* (model), PHASE3_TRAINING_PIPELINE.md, PHASE4_POSTPROCESSING.md.
+> Note: This Phase doc is being replaced by component‑oriented docs. See components/evaluation.md for the canonical, code‑aligned reference.

@@ -62,3 +62,4 @@ Recommended decisions
 - Constructor: implement `SeizureDetector.from_config(model_cfg: ModelConfig) -> SeizureDetector` to avoid name drift. [DECIDE]
 - Keep CPU fallback conv=5 to mirror Mamba conv span. [DONE]
 
+> Note: This Phase doc is being replaced by component‑oriented docs. See components/models/* and components/training.md for current audit points.

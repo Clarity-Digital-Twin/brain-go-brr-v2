@@ -261,3 +261,4 @@ class TestResCNNStack:
 **Estimated Time**: 0.5 day
 **Depends on**: PHASE2.1 completion
 **Next**: PHASE2.3_BIMAMBA.md
+> Note: This Phase doc is being replaced by component‑oriented docs. See components/models/rescnn.md for the canonical, code‑aligned reference.

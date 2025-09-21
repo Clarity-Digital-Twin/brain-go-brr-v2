@@ -398,3 +398,4 @@ Quality gates:
 Status: Ready for implementation (TDD-first) ✅
 Estimated Time: 2–3 days
 Owners: Training duo (eng + reviewer) 🔬🚀
+> Note: This Phase doc is being replaced by component‑oriented docs. See components/training.md for the canonical, code‑aligned reference.

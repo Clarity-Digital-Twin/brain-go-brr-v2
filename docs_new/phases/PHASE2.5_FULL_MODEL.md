@@ -454,3 +454,4 @@ if __name__ == "__main__":
 **Estimated Time**: 0.5 day
 **Depends on**: PHASE2.1-2.4 all complete
 **Next**: PHASE3_TRAINING_PIPELINE.md
+> Note: This Phase doc is being replaced by component‑oriented docs. See components/models/full_model.md for the canonical, code‑aligned reference.

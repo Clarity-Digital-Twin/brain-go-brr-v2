@@ -251,3 +251,4 @@ Baseline performance targets (CPU, single file)
 Status: Ready for implementation (TDD-first) ✅
 Estimated Time: 2–3 days
 Owners: Data pipeline duo (eng + reviewer) 🧪
+> Note: This Phase doc is being replaced by component‑oriented docs. See components/data_io.md and components/caching_and_sampling.md for the canonical, code‑aligned references.

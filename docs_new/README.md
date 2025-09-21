@@ -9,7 +9,7 @@ Structure:
 - deployment/ — Local (WSL2/Linux) and Modal guides
 - architecture/ — Canonical model and pipeline specs
 - implementation/ — Preprocessing, evaluation checklist, benchmarks, setup notes
-- WSL2/ — Deep dives for Windows + WSL2 specifics (linked from deployment)
+- deployment/WSL2/ — Deep dives for Windows + WSL2 specifics
 - future_work/ — Plans and research directions
 - archive/ — Historical docs and postmortems
 

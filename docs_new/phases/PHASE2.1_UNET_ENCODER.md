@@ -213,3 +213,4 @@ class TestUNetEncoder:
 **Status**: Ready for implementation
 **Estimated Time**: 0.5 day
 **Next**: PHASE2.2_RESCNN_STACK.md
+> Note: This Phase doc is being replaced by component‑oriented docs. See components/models/unet.md for the canonical, code‑aligned reference.

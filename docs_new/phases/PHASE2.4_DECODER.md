@@ -294,3 +294,4 @@ class TestUNetDecoder:
 **Estimated Time**: 0.5 day
 **Depends on**: PHASE2.1 (for skip shapes)
 **Next**: PHASE2.5_FULL_MODEL.md
+> Note: This Phase doc is being replaced by component‑oriented docs. See components/models/decoder.md for the canonical, code‑aligned reference.
