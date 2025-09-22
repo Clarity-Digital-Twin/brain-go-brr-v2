@@ -11,13 +11,14 @@ import torch.nn as nn
 
 # Try to import pytorch-tcn (optional dependency)
 try:
-    from pytorch_tcn import TCN as TemporalConvNet
+    from pytorch_tcn import TCN
     HAS_PYTORCH_TCN = True
 except ImportError:
     HAS_PYTORCH_TCN = False
     warnings.warn(
         "pytorch-tcn not installed. Install with: uv sync --extra tcn\n"
-        "Falling back to minimal TCN implementation."
+        "Falling back to minimal TCN implementation.",
+        stacklevel=2,
     )
 
 
