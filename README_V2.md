@@ -122,8 +122,9 @@ brain-go-brr-v2/
 │   └── brain_brr/           # Core modules
 │       ├── models/           # Neural networks
 │       │   ├── detector.py  # Main SeizureDetector
-│       │   ├── unet.py      # U-Net encoder/decoder
-│       │   ├── rescnn.py    # Residual CNN blocks
+│       │   ├── tcn.py       # TCN encoder/decoder (ACTIVE)
+│       │   ├── unet.py      # U-Net encoder/decoder (legacy)
+│       │   ├── rescnn.py    # Residual CNN blocks (legacy)
 │       │   ├── mamba.py     # Bidirectional Mamba-2
 │       │   └── layers.py    # Shared components
 │       ├── data/             # Data pipeline
