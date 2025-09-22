@@ -978,6 +978,22 @@ def train(
             focal_alpha=getattr(config.training, "focal_alpha", 0.25),
             focal_gamma=getattr(config.training, "focal_gamma", 2.0),
             return_step=True,
+            checkpoint_dir=checkpoint_dir,
+            epoch_index=epoch,
+            mid_epoch_minutes=(
+                float(os.getenv("BGB_MID_EPOCH_MINUTES", "0"))
+                if config.training.resume and os.getenv("BGB_MID_EPOCH_MINUTES")
+                else (
+                    getattr(
+                        config.experiment,
+                        "mid_epoch_checkpoint_minutes",
+                        10.0 if config.training.resume else None,
+                    )
+                )
+            ),
+            mid_epoch_keep=int(
+                os.getenv("BGB_MID_EPOCH_KEEP", str(getattr(config.experiment, "mid_epoch_keep", 3)))
+            ),
         )
 
         # Type narrowing for mypy
