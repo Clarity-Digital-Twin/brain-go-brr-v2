@@ -314,7 +314,7 @@ def train(
     gpu="A100",  # A100 for evaluation
     timeout=3600,  # 1 hour
     volumes={
-        "/data": data_volume,
+        "/data": data_mount,   # Use S3 mount for eval datasets
         "/results": results_volume,
     },
 )
