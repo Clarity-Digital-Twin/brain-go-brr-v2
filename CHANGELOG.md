@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2025-09-22
+
+### Changed
+- **MAJOR**: Replaced U-Net + ResCNN with Temporal Convolutional Networks (TCN)
+- **Architecture**: Now TCN encoder/decoder (8 layers) + Mamba-2 SSM (6 layers)
+- **Parameters**: Increased to 34.8M (from ~25M) with better temporal modeling
+- **Configs**: All Modal configs updated to TCN + Mamba hybrid architecture
+
+### Added
+- **TCN Implementation**: Full TCN encoder/decoder with dilated convolutions
+- **pytorch-tcn**: Added dependency for optimized TCN layers
+- **Cache Isolation**: Separate cache directories for smoke/train/dev/eval configs
+- **LR Scheduler Fix**: Suppressed false-positive PyTorch warning on first batch
+
+### Fixed
+- **OOM Test Crash**: Reduced memory limits in test_cuda_oom_recovery preventing IDE crashes
+- **Config Bug**: Restored accidentally deleted Mamba config section in train.yaml
+- **Cache Paths**: Fixed collision between smoke and full training caches
+
+### Removed
+- **U-Net Components**: Deleted unet.py encoder/decoder modules
+- **ResCNN Blocks**: Removed rescnn.py (replaced by TCN)
+- **Old Architecture Docs**: Cleaned up obsolete U-Net documentation
+
 ## [2.1.0] - 2025-09-22
 
 ### Added

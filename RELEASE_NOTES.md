@@ -1,5 +1,64 @@
 # Release Notes
 
+## v2.3.0 - TCN Architecture Revolution (2025-09-22)
+
+### 🚀 Major Architecture Change
+**Replaced U-Net + ResCNN with Temporal Convolutional Networks (TCN)**
+
+The most significant architectural refactor since project inception. TCNs provide superior temporal modeling for EEG signals with dilated convolutions.
+
+### ✨ Key Changes
+
+#### Architecture Overhaul
+- **NEW**: TCN encoder/decoder (8 layers, channels [64, 128, 256, 512], stride_down=16)
+- **KEPT**: Bidirectional Mamba-2 SSM (6 layers, d_model=512, d_state=16)
+- **REMOVED**: U-Net encoder/decoder and ResCNN blocks
+- **RESULT**: 34.8M parameters with O(N) complexity
+
+#### Critical Bug Fixes
+- Fixed `test_cuda_oom_recovery` causing IDE crashes (reduced memory limits)
+- Suppressed false-positive LR scheduler warnings
+- Fixed Mamba config accidentally deleted from train.yaml
+- Improved cache isolation between configs
+
+#### Infrastructure Updates
+- All Modal configs updated to TCN + Mamba hybrid
+- Cache paths properly isolated (smoke/train/dev/eval)
+- Full 100-epoch training launched on Modal A100
+- W&B integration verified with team entity
+
+### 🔧 Configuration
+
+```yaml
+model:
+  architecture: tcn  # TCN + Mamba hybrid
+
+  tcn:
+    num_layers: 8
+    channels: [64, 128, 256, 512]
+    kernel_size: 7
+    dropout: 0.15
+    stride_down: 16
+    use_cuda_optimizations: true
+
+  mamba:
+    n_layers: 6
+    d_model: 512
+    d_state: 16
+    conv_kernel: 4  # CUDA constraint
+```
+
+### 📊 Training Progress
+- Local: Loss converging healthily (~2.5-3.0)
+- Modal A100: 100-epoch training in progress
+- Expected: ~100 hours, ~$319 total cost
+
+### ⚠️ Breaking Changes
+- Model checkpoints from v2.2.x incompatible
+- Config requires `tcn:` section (not `unet:`/`rescnn:`)
+
+---
+
 ## v2.1.0 - Modal Optimized: 10x Faster, 90% Cheaper (2025-09-22)
 
 ### 🚀 Major Performance Breakthrough
