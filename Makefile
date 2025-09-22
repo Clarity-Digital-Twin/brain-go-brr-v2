@@ -129,6 +129,7 @@ clean: ## Clean all artifacts
 	rm -rf .pytest_cache/
 	rm -rf .mypy_cache/
 	rm -rf htmlcov/
+	rm -f .coverage .coverage.*
 	rm -rf results/models/*
 	rm -rf results/metrics/*
 	rm -rf results/plots/*
