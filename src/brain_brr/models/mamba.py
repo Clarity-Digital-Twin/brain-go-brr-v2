@@ -42,39 +42,26 @@ class BiMamba2Layer(nn.Module):
         self,
         d_model: int = 512,
         d_state: int = 16,
-        d_conv: int = 5,
+        d_conv: int = 4,
         expand: int = 2,
         dropout: float = 0.1,
     ):
         super().__init__()
         self.d_model = d_model
-        self.d_conv = d_conv  # Public/configured kernel (docs/schemas default=5)
+        self.d_conv = d_conv  # Now always 4 or less, no coercion needed
 
         # Optional override to force fallback even if CUDA/Mamba are available
         self._force_fallback = os.getenv("SEIZURE_MAMBA_FORCE_FALLBACK", "0") == "1"
-
-        # Mamba CUDA kernel supports width in {2, 3, 4}; coerce if needed (GPU path only)
-        _allowed = (2, 3, 4)
-        self._mamba_conv_k = d_conv if d_conv in _allowed else 4
-        if MAMBA_AVAILABLE and d_conv not in _allowed:
-            global _warned_kernel_coercion
-            if not _warned_kernel_coercion:
-                warnings.warn(
-                    f"Mamba CUDA path coerced conv kernel from {d_conv}→{self._mamba_conv_k} "
-                    "(CUDA op supports only 2-4). CPU fallback still uses configured kernel.",
-                    stacklevel=1,
-                )
-                _warned_kernel_coercion = True
 
         # Always create both paths - decide at runtime
         if MAMBA_AVAILABLE:
             # Real Mamba-2 for GPU
             try:
                 self.forward_mamba_real = Mamba2(
-                    d_model=d_model, d_state=d_state, d_conv=self._mamba_conv_k, expand=expand
+                    d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand
                 )
                 self.backward_mamba_real = Mamba2(
-                    d_model=d_model, d_state=d_state, d_conv=self._mamba_conv_k, expand=expand
+                    d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand
                 )
                 print("[MAMBA] Successfully created Mamba2 layers", flush=True)
             except Exception as e:
@@ -220,7 +207,7 @@ class BiMamba2(nn.Module):
         self,
         d_model: int = 512,
         d_state: int = 16,
-        d_conv: int = 5,
+        d_conv: int = 4,
         num_layers: int = 6,
         dropout: float = 0.1,
     ):
