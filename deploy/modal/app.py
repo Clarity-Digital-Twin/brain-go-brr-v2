@@ -14,7 +14,7 @@ image = (
     modal.Image.from_registry("nvidia/cuda:12.1.0-devel-ubuntu22.04", add_python="3.11")
     .entrypoint([])  # Clear entrypoint from CUDA image
     # Install build tools required for compiling CUDA extensions
-    .apt_install("build-essential", "ninja-build")
+    .apt_install("build-essential", "ninja-build", "git")
     # Install PyTorch 2.2.2 with CUDA 12.1
     .pip_install(
         "torch==2.2.2",
@@ -22,12 +22,17 @@ image = (
         "numpy<2.0",  # mamba-ssm constraint
         index_url="https://download.pytorch.org/whl/cu121",
     )
-    # Install mamba-ssm with CUDA kernels (nvcc now available)
+    # Install mamba-ssm dependencies and CUDA kernels
     # Install build dependencies first
     .pip_install("packaging", "wheel", "setuptools")
-    # Critical: Use CC and CXX env vars to specify compiler, install with verbose output
+    # CRITICAL FIX: Install causal-conv1d FIRST with forced CUDA build
+    # This is the actual CUDA kernel that Mamba2 calls!
     .run_commands(
-        "export CC=gcc CXX=g++ && pip install -v --no-build-isolation 'mamba-ssm>=2.0.0'"
+        "CAUSAL_CONV1D_FORCE_BUILD=TRUE pip install -v causal-conv1d>=1.2.0"
+    )
+    # Now install mamba-ssm with forced rebuild to ensure it finds causal-conv1d
+    .run_commands(
+        "MAMBA_FORCE_BUILD=TRUE pip install -v --no-build-isolation 'mamba-ssm>=2.0.0'"
     )
     # Core dependencies
     .pip_install(
@@ -75,6 +80,58 @@ data_mount = modal.CloudBucketMount(
 # Persistent volumes for results
 data_volume = modal.Volume.from_name("brain-go-brr-data", create_if_missing=True)
 results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missing=True)
+
+
+@app.function(gpu="A100", timeout=300)  # 5 min test
+def test_mamba_cuda():
+    """Test that Mamba CUDA kernels work properly."""
+    import torch
+    print(f"CUDA available: {torch.cuda.is_available()}", flush=True)
+    print(f"CUDA device: {torch.cuda.get_device_name()}", flush=True)
+
+    # Test mamba-ssm import
+    try:
+        import mamba_ssm
+        print(f"✓ mamba-ssm version: {mamba_ssm.__version__}", flush=True)
+    except ImportError as e:
+        print(f"✗ mamba-ssm import failed: {e}", flush=True)
+        return False
+
+    # Test causal_conv1d import (the actual CUDA kernels)
+    try:
+        import causal_conv1d
+        print(f"✓ causal-conv1d imported", flush=True)
+    except ImportError as e:
+        print(f"✗ causal-conv1d import failed: {e}", flush=True)
+        return False
+
+    # Test Mamba2 creation and forward pass
+    try:
+        from mamba_ssm import Mamba2
+
+        # Create a simple Mamba2 layer
+        model = Mamba2(d_model=512, d_state=16, d_conv=4, expand=2).cuda()
+        print("✓ Mamba2 model created", flush=True)
+
+        # Test forward pass
+        x = torch.randn(2, 100, 512).cuda()  # (batch, seq_len, d_model)
+        with torch.no_grad():
+            out = model(x)
+
+        print(f"✓ Forward pass successful! Output shape: {out.shape}", flush=True)
+
+        # Test backward pass
+        loss = out.sum()
+        loss.backward()
+        print("✓ Backward pass successful!", flush=True)
+
+        return True
+
+    except Exception as e:
+        print(f"✗ Mamba2 test failed: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return False
 
 
 @app.function(
@@ -281,6 +338,9 @@ def main(
     ⚠️ NO DOUBLE DASH (--) separator needed anymore in Modal CLI!
 
     Examples:
+        # Test Mamba CUDA kernels
+        modal run deploy/modal/app.py --action test-mamba
+
         # Quick smoke test (Modal's --detach prevents disconnection)
         modal run --detach deploy/modal/app.py --action train --config configs/smoke_test.yaml
 
@@ -296,7 +356,17 @@ def main(
     print("🚀 Brain-Go-Brr v2 Modal Deployment")
     print("=" * 50)
 
-    if action == "train":
+    if action == "test-mamba":
+        # Test Mamba CUDA kernels
+        print("Testing Mamba CUDA kernels...")
+        success = test_mamba_cuda.remote()
+        if success:
+            print("✅ Mamba CUDA test PASSED! Ready for training.")
+        else:
+            print("❌ Mamba CUDA test FAILED! Fix required before training.")
+            raise RuntimeError("Mamba CUDA kernels not working")
+
+    elif action == "train":
         # Always use train.remote() - Modal's --detach flag controls app lifecycle
         result = train.remote(config_path=config, resume=resume)
         print(f"✓ Training complete. Checkpoint: {result}")
@@ -308,7 +378,7 @@ def main(
 
     else:
         print(f"Unknown action: {action}")
-        print("Available actions: train, evaluate")
+        print("Available actions: test-mamba, train, evaluate")
 
 
 if __name__ == "__main__":
