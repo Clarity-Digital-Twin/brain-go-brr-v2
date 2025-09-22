@@ -1,5 +1,12 @@
 # 🔥 EVOBRAIN IMPLEMENTATION EXTRACTION
 
+Status: reference-only. This document extracts patterns from the EvoBrain open-source code for future integration. Nothing here is implemented yet in `src/` and some items require PyTorch Geometric.
+
+Primary differences vs our stack:
+- EvoBrain evaluates early seizure prediction as well as detection; we focus on detection (per‑timestep logits), so keep graph as a feature refiner (no graph classification pooling required).
+- EvoBrain default uses FFT/STFT features (`use_fft=True`); our pipeline can add STFT as a separate incremental change.
+- EvoBrain Mamba uses `d_conv=4`; our CUDA path already coerces 5→4, so align configs.
+
 ## Critical Code Patterns for Brain-Go-Brr Integration
 
 ### 1. DUAL-STREAM MAMBA ARCHITECTURE
@@ -146,7 +153,7 @@ class GNNx2(Model):
 
 ### 5. ADJACENCY MATRIX GENERATION
 
-**File**: `data/data_utils.py` (lines 19-20)
+**Files**: `data/data_utils.py`, `data/dataloader_prediction.py`
 
 ```python
 def comp_xcorr(x, y, fs, w, n_bands=1):
@@ -155,7 +162,7 @@ def comp_xcorr(x, y, fs, w, n_bands=1):
     # Top-k edges kept based on correlation strength
 
 def keep_topk(adj, top_k=3):
-    """Keep only top-k edges per node"""
+    """Keep only top-k edges per node (default k=3)"""
     # Sparsification strategy
 ```
 
@@ -272,6 +279,9 @@ class DualStreamMamba(nn.Module):
 | Edge pruning | \|weight\| > 0.0001 | Sparsification threshold |
 | Activation | Tanh (GNN), Softplus (edges) | Different per component |
 | Aggregation | Mean pooling over nodes | For final classification |
+| Graph type | dynamic/individual/combined | Default dynamic with dual_random_walk filter |
+| Top‑k | 3 | For correlation graphs |
+| Input features | FFT/STFT | `use_fft=True` by default |
 
 ---
 

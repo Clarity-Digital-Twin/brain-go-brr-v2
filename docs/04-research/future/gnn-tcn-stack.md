@@ -50,6 +50,7 @@ Detection head → per‑timestep probabilities
 - Fits EvoBrain’s “time‑then‑graph” result (temporal first, graph second)
 - Our codebase already uses Bi‑Mamba‑2; reuse as the time encoder
 - Optional: dual‑stream node/edge Mamba later (EvoBrain’s two‑stream idea)
+- CUDA note: our CUDA path coerces `d_conv=5→4`; EvoBrain uses `d_conv=4`. Recommend `conv_kernel=4` for parity.
 
 ### 2. Dynamic Graph Neural Network (GNN) — Spatial Reasoning
 **Problem Solved**: Montage dependency
@@ -60,6 +61,11 @@ Detection head → per‑timestep probabilities
   - Optional GAT variant for attention over electrodes
 - Input: Per‑channel temporal embeddings from Bi‑Mamba‑2
 - Output: Spatially aware features per time step
+
+Adjacency strategies (from EvoBrain):
+- Individual (correlation): cross‑correlation per time slice; keep top‑k (default k=3) neighbors; filter: dual_random_walk.
+- Combined (distance): distance graph; filter: Laplacian.
+- Dynamic: recompute per step; sparsify with top‑k and small threshold (|w|>1e‑4).
 
 ### 3. ConvNeXt — Local Pattern Enhancement
 **Problem Solved**: Outdated ResNet blocks
@@ -89,6 +95,7 @@ Keep total latency within real‑time bounds (<100 ms per hop).
 - [ ] Build adjacency A_t from temporal features (cosine or learned MLP)
 - [ ] Gate by config; add unit tests for shapes and identity init
 - [ ] Compare TAES + AUROC vs baseline
+ - [ ] Start with top_k=3 and threshold=1e‑4 for edge pruning (EvoBrain defaults)
 
 ### Phase 3: ConvNeXt Integration (Months 3–4)
 - [ ] Replace ResCNN with ConvNeXt blocks (7×1, 9×1, 11×1)
@@ -98,6 +105,25 @@ Keep total latency within real‑time bounds (<100 ms per hop).
 - [ ] Prototype node‑stream and edge‑stream Mamba (EvoBrain style)
 - [ ] Edge stream supervises/builds A_t; node stream feeds GCN
 - [ ] Test montage generalization and robustness
+
+---
+
+## Implementation Hooks (Codebase)
+- Insert graph stage after temporal encoder:
+  - File: `src/brain_brr/models/detector.py:104` (after `temporal = self.mamba(features)`)
+  - Shape contract there is `(B, 512, 960)`; preserve channel order from `src/brain_brr/constants.py:12`.
+- New module for graph ops (planned):
+  - File: `src/brain_brr/models/gnn.py` (GraphChannelMixer: GCN+LPE)
+  - Optional adjacency builder helper: `src/brain_brr/models/graph_builder.py`
+- Config flags (planned):
+  - Schema: `src/brain_brr/config/schemas.py` → `experiment.graph.enabled`, `graph.k_eigs`, `graph.similarity`.
+- Note: PyTorch Geometric will be required for LPE/GCN variants; not yet in dependencies.
+
+Param guidance (EvoBrain‑informed):
+- Mamba: `d_state=16, d_conv=4, expand≈2`
+- LPE: `k_eigs=16` (for 19 nodes; ensure K≤N‑1)
+- GNN: 2 layers (e.g., SSGConv or GCNConv) with residual skip
+- Sparsity: `top_k=3`, edge threshold `1e‑4`
 
 ### Phase 5: Full Stack Optimization (Months 6-7)
 - [ ] Joint training of all components

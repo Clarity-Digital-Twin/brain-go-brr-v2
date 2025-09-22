@@ -49,9 +49,11 @@ Detection Head
 - Build time‑varying adjacency A_t from temporal features (cosine or learned)
 - Input: per‑channel embeddings from Bi‑Mamba‑2
 - Output: spatially aware features per time step
+ - Adjacency: start with per‑step correlation (cross‑corr), `top_k=3`, threshold `1e‑4`; consider Laplacian vs dual_random_walk filters per EvoBrain.
 
 ### 2. Bi‑Mamba‑2 — Temporal Encoder
 Already present in v2; becomes the first stage in time‑then‑graph pipeline per EvoBrain.
+ - CUDA: set `conv_kernel=4` for exact parity with EvoBrain and our CUDA kernel.
 
 ### 3. ConvNeXt - Local Pattern Enhancement
 **Problem Solved**: Outdated ResNet blocks
@@ -173,6 +175,18 @@ EEG → GNN → TCN → [ConvNeXt + Bi-Mamba parallel] → Fusion
 3. Current stack + GNN postprocessing (minimal change)
 
 ---
+
+## Implementation Hooks (Where to Wire In)
+- Graph encoder insertion point:
+  - `src/brain_brr/models/detector.py:104` (between Mamba and Decoder)
+- New graph module (planned):
+  - `src/brain_brr/models/gnn.py` with `GraphChannelMixer`
+- Channel ordering contract:
+  - `src/brain_brr/constants.py:12` must be respected when building adjacency.
+- Dependency note:
+  - PyTorch Geometric for LPE/GCN is not yet added; to be introduced with v2.5 PR.
+
+Param guidance (EvoBrain): `d_state=16`, `conv_kernel=4`, `k_eigs=16`, `top_k=3`.
 
 ## Key Innovations
 

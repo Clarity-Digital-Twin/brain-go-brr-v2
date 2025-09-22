@@ -39,6 +39,7 @@ EEG → U-Net → ResCNN → Bi-Mamba-2 → GNN → Detection Head
                                     ADD THIS!
 ```
 **Changes**: Add Graph Neural Network after Mamba
+**Status**: Planned (not implemented)
 **Implementation Details** (from EvoBrain):
 - Use SSGConv (Simple Spectral Graph) or GCNConv
 - Edge weights from correlation matrix
@@ -53,6 +54,7 @@ EEG → U-Net → ResCNN → Bi-Mamba-2 → GNN → Detection Head
 EEG → U-Net → ResCNN → Bi-Mamba-2 → [LPE + Dynamic GNN] → Detection Head
 ```
 **Changes**: GNN with time-evolving adjacency + Laplacian Positional Encoding
+**Status**: Planned (not implemented)
 **Implementation Details** (from EvoBrain):
 - PyG's `AddLaplacianEigenvectorPE(k=16)`
 - Adjacency matrix per timestep: `adj[timestep, batch, nodes, nodes]`
@@ -78,6 +80,17 @@ EEG → TCN → ResCNN → Bi-Mamba-2 → GNN → Detection Head
 **Expected**: Faster training, comparable performance
 **Timeline**: 2 weeks
 **Training**: Full retrain required
+
+---
+
+## Implementation Hooks
+- Wire graph stage after Mamba:
+  - `src/brain_brr/models/detector.py:104`
+- New GNN module (planned):
+  - `src/brain_brr/models/gnn.py` (GraphChannelMixer)
+- Channel ordering source of truth:
+  - `src/brain_brr/constants.py:12`
+- Dependency: PyTorch Geometric required for LPE/GCN (to be added later)
 
 ### v3.1 - Replace ResCNN with ConvNeXt 🎯
 ```
@@ -162,7 +175,7 @@ EEG → STFT → [TCN-Nodes + TCN-Edges] → GCN+LPE → Detection Head
 ✅ **Laplacian Positional Encoding** (k=16 eigenvectors optimal)
 ✅ **Dual-stream temporal** (separate node/edge Mamba streams)
 ✅ **SSGConv performs best** for EEG graphs
-✅ **Our TCN → GNN ordering is CORRECT!**
+✅ **Our Mamba (time) → GNN (graph) ordering is CORRECT!**
 
 ### Concrete Implementation Params from EvoBrain:
 - Mamba: `d_state=16, d_conv=4, expand=2`
