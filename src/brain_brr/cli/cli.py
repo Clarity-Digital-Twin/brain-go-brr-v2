@@ -177,8 +177,6 @@ def train(config_path: Path, resume: bool, device: str) -> None:
         console.print("[green]Starting training...[/green]")
 
         # Mock sys.argv for pipeline.main()
-        import sys
-
         old_argv = sys.argv
         sys.argv = ["train", str(config_path)]  # Positional argument now
         if resume:
