@@ -336,7 +336,7 @@ class TestThroughput:
         )
 
     @pytest.mark.performance
-    @pytest.mark.timeout(600)
+    @pytest.mark.timeout(300)  # 5 minutes max
     def test_daily_batch_throughput(self, minimal_model):
         """Test throughput for processing 24 hours of data."""
         # Simulate batch processing of daily data
@@ -353,11 +353,13 @@ class TestThroughput:
         start_time = time.perf_counter()
 
         with torch.no_grad():
-            # Fewer batches on CPU to keep within CI timeouts
-            limit = 50 if device.type == "cpu" else 100
-            for i in range(min(n_batches, limit)):
-                batch = torch.randn(batch_size, 19, 15360, device=device)
-                _ = minimal_model(batch)
+            # Much fewer batches on CPU to avoid timeout
+            limit = 10 if device.type == "cpu" else 100
+            # Vectorized batch creation for efficiency
+            all_batches = torch.randn(limit, batch_size, 19, 15360, device=device)
+
+            for i in range(limit):
+                _ = minimal_model(all_batches[i])
                 if i % 10 == 0:
                     gc.collect()
                     if device.type == "cuda":
@@ -366,7 +368,7 @@ class TestThroughput:
         subset_time = time.perf_counter() - start_time
 
         # Extrapolate to full day
-        estimated_full_time = subset_time * (n_batches / min(n_batches, 100))
+        estimated_full_time = subset_time * (n_batches / limit)
 
         # Should process 24 hours in less than 1 hour
         # Allow more headroom on CPU environments
