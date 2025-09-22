@@ -29,6 +29,12 @@ if torch.cuda.is_available():
     # Ensure device 0 is set as default for Triton
     torch.cuda.set_device(0)
 
+    # Limit allocator to a safe fraction to avoid OOM when the environment is busy
+    with suppress(Exception):
+        frac = float(os.environ.get("BGB_TEST_GPU_FRACTION", "0.85"))
+        if 0.1 <= frac <= 1.0:
+            torch.cuda.set_per_process_memory_fraction(frac, device=0)
+
 
 # Register custom markers
 def pytest_configure(config):
@@ -49,6 +55,17 @@ def pytest_configure(config):
         "ignore:.*autograd.function.Function.*should not be instantiated:DeprecationWarning",
     )
     config.addinivalue_line("filterwarnings", "ignore:TensorFloat32 tensor cores.*:UserWarning")
+
+
+def pytest_collection_modifyitems(config, items):
+    """Enforce execution policy: GPU-marked tests also run serially.
+
+    This prevents accidental parallel GPU allocations when running with xdist.
+    """
+    for item in items:
+        # Any test explicitly marked as GPU should not run in parallel
+        if item.get_closest_marker("gpu") is not None:
+            item.add_marker(pytest.mark.serial)
 
 
 @pytest.fixture(autouse=True)

@@ -139,6 +139,7 @@ class TestStreamingPostProcessor:
             new_processor.state.total_samples_processed == processor.state.total_samples_processed
         )
 
+    @pytest.mark.gpu
     def test_gpu_processing(self, processor: StreamingPostProcessor) -> None:
         """Test GPU processing if available."""
         if not torch.cuda.is_available():
