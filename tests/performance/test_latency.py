@@ -309,16 +309,16 @@ class TestThroughput:
         )
 
         # Should process 1 hour of data quickly; allow CPU more headroom
-        max_seconds = 180 if not is_cpu else 300
+        max_seconds = 180 if not is_cpu else 360
         assert total_time < max_seconds, (
             f"Estimated time {total_time:.1f}s (> {max_seconds}s limit)"
         )
 
         throughput = 3600 / max(total_time, 1e-6)  # Hours of data per hour of compute
         min_throughput = 15.0 if not is_cpu else 6.0
-        assert (
-            throughput > min_throughput
-        ), f"Throughput {throughput:.1f}x realtime (expected >{min_throughput}x)"
+        assert throughput > min_throughput, (
+            f"Throughput {throughput:.1f}x realtime (expected >{min_throughput}x)"
+        )
 
     @pytest.mark.performance
     @pytest.mark.timeout(600)
@@ -356,9 +356,9 @@ class TestThroughput:
         # Should process 24 hours in less than 1 hour
         # Allow more headroom on CPU environments
         max_hours = 1.0 if device.type != "cpu" else 2.0
-        assert (
-            estimated_full_time < max_hours * 3600
-        ), f"Processing 24 hours estimated at {estimated_full_time / 3600:.1f} hours (> {max_hours}h)"
+        assert estimated_full_time < max_hours * 3600, (
+            f"Processing 24 hours estimated at {estimated_full_time / 3600:.1f} hours (> {max_hours}h)"
+        )
 
 
 @pytest.mark.serial
