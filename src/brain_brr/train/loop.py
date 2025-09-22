@@ -280,6 +280,10 @@ def train_epoch(
     focal_alpha: float = 0.25,
     focal_gamma: float = 2.0,
     return_step: bool = False,
+    checkpoint_dir: Path | None = None,
+    epoch_index: int | None = None,
+    mid_epoch_minutes: float | None = None,
+    mid_epoch_keep: int = 3,
 ) -> float | tuple[float, int]:
     """Train for one epoch.
 
@@ -307,6 +311,8 @@ def train_epoch(
     # Heartbeat timer for Modal visibility
     last_heartbeat = time.time()
     heartbeat_interval = 300  # 5 minutes
+    last_mid_save = time.time()
+    mid_interval_s = None if mid_epoch_minutes is None else float(max(0.0, mid_epoch_minutes)) * 60.0
 
     # Calculate class weights from dataset sample (not just first batch!)
     # Sample a significant portion to get accurate statistics
@@ -576,6 +582,36 @@ def train_epoch(
                 )
                 last_heartbeat = time.time()
 
+            if (
+                checkpoint_dir is not None
+                and epoch_index is not None
+                and mid_interval_s is not None
+                and (time.time() - last_mid_save) >= mid_interval_s
+            ):
+                mid_path = checkpoint_dir / f"mid_epoch_{epoch_index + 1:03d}_{batch_idx:06d}.pt"
+                try:
+                    save_checkpoint(
+                        model,
+                        optimizer,
+                        epoch_index,
+                        0.0,
+                        mid_path,
+                        scheduler,
+                        None,
+                        extra={"batch_idx": batch_idx, "kind": "mid_epoch"},
+                    )
+                    print(f"[CHECKPOINT] Saved mid-epoch snapshot: {mid_path.name}", flush=True)
+                    last_mid_save = time.time()
+                    mids = sorted(
+                        checkpoint_dir.glob("mid_epoch_*.pt"), key=lambda p: p.stat().st_mtime
+                    )
+                    if len(mids) > int(max(0, mid_epoch_keep)):
+                        for old in mids[: len(mids) - int(mid_epoch_keep)]:
+                            with suppress(Exception):
+                                old.unlink()
+                except Exception as e:
+                    print(f"[WARNING] Failed to save mid-epoch checkpoint: {e}", flush=True)
+
     except Exception as e:
         # Clean up tqdm if it exists
         if progress_bar is not None and hasattr(progress_bar, "close"):
@@ -720,6 +756,7 @@ def save_checkpoint(
     checkpoint_path: Path,
     scheduler: LRScheduler | None = None,
     config: Config | None = None,
+    extra: dict[str, Any] | None = None,
 ) -> None:
     """Save training checkpoint with verification.
 
@@ -747,6 +784,8 @@ def save_checkpoint(
 
     if config is not None:
         checkpoint["config"] = config.model_dump()
+    if extra:
+        checkpoint.update(extra)
 
     # Save to temp file first, then rename (atomic operation)
     temp_path = checkpoint_path.with_suffix(".tmp")
