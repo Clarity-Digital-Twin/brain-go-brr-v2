@@ -52,7 +52,7 @@ class TestTCNFullPipeline:
 
     def test_tcn_training_step(self):
         """TCN should work with training pipeline."""
-        from src.brain_brr.train.loss import FocalLoss
+        import torch.nn.functional as F
 
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
@@ -64,7 +64,6 @@ class TestTCNFullPipeline:
 
         detector = SeizureDetector.from_config(model_config)
         optimizer = torch.optim.Adam(detector.parameters(), lr=1e-4)
-        loss_fn = FocalLoss(alpha=0.25, gamma=2.0)
 
         # Training step
         x = torch.randn(2, 19, 15360)
@@ -72,7 +71,7 @@ class TestTCNFullPipeline:
 
         # Forward
         logits = detector(x)
-        loss = loss_fn(logits, labels)
+        loss = F.binary_cross_entropy_with_logits(logits, labels)
 
         # Backward
         loss.backward()
@@ -163,8 +162,8 @@ class TestTCNPerformance:
         unet_config = ModelConfig(architecture="unet")
         tcn_config = ModelConfig(architecture="tcn")
 
-        unet_model = SeizureDetector(unet_config)
-        tcn_model = SeizureDetector(tcn_config)
+        unet_model = SeizureDetector.from_config(unet_config)
+        tcn_model = SeizureDetector.from_config(tcn_config)
 
         x = torch.randn(4, 19, 15360)
 
