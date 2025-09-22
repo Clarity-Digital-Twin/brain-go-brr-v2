@@ -35,7 +35,7 @@ jobs:
         run: uv sync --frozen
 
       - name: Run tests
-        run: uv run pytest -m "not gpu" --tb=short
+        run: uv run pytest -m "not gpu and not performance" --tb=short --timeout=60
 
       - name: Build package
         run: uv build

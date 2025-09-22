@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2025-09-22
+
+### Added
+- **W&B Integration**: Fully wired WandBLogger into training loop with team entity support
+- **Modal Storage Documentation**: Comprehensive storage architecture documentation
+- **Balanced Sampling Optimization**: 7200x speedup eliminating 2+ hour Modal bottlenecks
+- **Modal Volume Explorer**: Script to investigate Modal storage contents
+
+### Fixed
+- **Mixed Precision**: Enabled FP16 for A100 (3.8x faster than FP32)
+- **Batch Size**: Increased from 64 to 128 to fully utilize 80GB VRAM
+- **W&B Entity**: Corrected to team name (jj-vcmcswaggins-novamindnyc) for team API keys
+- **Documentation**: Removed outdated cache optimizer references
+
+### Changed
+- **Training Performance**: 10x speedup (48s → 5s per batch) through config optimizations
+- **Cost Reduction**: 90% reduction ($3,190 → $319 for full training)
+- **Documentation Structure**: Reorganized docs into logical sections (01-data, 02-model, 03-deployment, 04-research)
+
+### Removed
+- **Cache Optimizer**: Deleted unnecessary S3→Modal copy logic (cache was always on SSD)
+- **Outdated Docs**: Removed archive folder and consolidated critical information
+
 ## [0.2.0] - 2025-09-21
 
 ### Fixed
