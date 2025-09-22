@@ -6,10 +6,10 @@
 - ✅ Changed `device: auto` → `cuda` (explicit GPU for consistency)
 
 ### 2. dev.yaml
-- ✅ Fixed checkpoint path: `/results/tusz_a100_100ep/checkpoints/best.pt`
+- ✅ Fixed checkpoint path: `/results/tcn_full_100ep/checkpoints/best.pt`
 
 ### 3. eval.yaml
-- ✅ Fixed checkpoint path: `/results/tusz_a100_100ep/checkpoints/best.pt`
+- ✅ Fixed checkpoint path: `/results/tcn_full_100ep/checkpoints/best.pt`
 
 ## A100-OPTIMIZED SETTINGS (ALL CONFIGS)
 
