@@ -6,7 +6,7 @@ Modal A100 training appeared slow (~48s/batch) but the root cause was **NOT** da
 1. **Mixed Precision Disabled**: Using FP32 instead of FP16 (A100's strength)
 2. **Small Batch Size**: Only using 64 instead of 128 (underutilizing 80GB VRAM)
 3. **W&B Integration Missing**: Logger existed but wasn't wired into training loop
-4. **W&B Entity Misconfigured**: Using team name instead of personal account
+4. **W&B Entity Misconfigured**: Entity/API key mismatch (used personal entity with a team API key)
 
 ## Critical Realization: Cache Was NEVER on S3!
 

@@ -41,6 +41,8 @@
 ### 03-deployment/ - Deployment & Operations
 - **modal/** - Modal.com cloud deployment
   - [`deploy.md`](03-deployment/modal/deploy.md) - Modal deployment guide
+  - [`storage.md`](03-deployment/modal/storage.md) - Storage architecture (S3 mount + Modal SSD)
+  - [`PERFORMANCE_OPTIMIZATION.md`](03-deployment/modal/PERFORMANCE_OPTIMIZATION.md) - A100 performance tuning
   - [`preflight.md`](03-deployment/modal/preflight.md) - Pre-deployment checks
 - **local/** - Local development setup
   - [`wsl2.md`](03-deployment/local/wsl2.md) - WSL2-specific setup

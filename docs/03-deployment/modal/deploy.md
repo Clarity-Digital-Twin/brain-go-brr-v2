@@ -20,7 +20,7 @@ Core commands (Modal CLI)
 - Resume training:
   - `modal run --detach deploy/modal/app.py --action train --config configs/modal/train_a100.yaml --resume true`
 - Evaluate checkpoint:
-  - `modal run deploy/modal/app.py::evaluate --checkpoint-path /results/tusz_a100_100ep/checkpoints/best.pt`
+  - `modal run deploy/modal/app.py --action evaluate --config /results/tusz_a100_100ep/checkpoints/best.pt`
 
 Build/scan cache inside the container
 - Build cache:
