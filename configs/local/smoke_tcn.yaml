@@ -49,10 +49,9 @@ training:
   gradient_clip_val: 1.0
   mixed_precision: false  # Disabled for smoke test
 
-  loss:
-    type: focal
-    focal_alpha: 0.25
-    focal_gamma: 2.0
+  loss: focal
+  focal_alpha: 0.25
+  focal_gamma: 2.0
 
   scheduler:
     type: cosine
