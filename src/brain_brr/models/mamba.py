@@ -33,7 +33,7 @@ class BiMamba2Layer(nn.Module):
     Args:
         d_model: Feature dimension (matches encoder bottleneck)
         d_state: SSM state dimension
-        d_conv: Conv kernel size (default 5 to match schemas/configs)
+        d_conv: Conv kernel size (default 4; CUDA supports 2-4)
         expand: Expansion factor in Mamba component
         dropout: Dropout probability
     """
@@ -198,7 +198,7 @@ class BiMamba2(nn.Module):
     Args:
         d_model: Model dimension (512 for encoder bottleneck)
         d_state: SSM state dimension (16 default)
-        d_conv: Temporal conv kernel (5 default)
+        d_conv: Temporal conv kernel (4 default)
         num_layers: Number of bidirectional layers (6 default)
         dropout: Dropout probability
     """
