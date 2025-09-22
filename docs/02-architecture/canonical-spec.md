@@ -464,7 +464,7 @@ This document serves as the single source of truth for the complete architecture
 - Modal deployment requirements documented (PyTorch version critical)
 - ConvBlock uses ReLU (not ELU) in actual implementation
 - Balanced sampling via BalancedSeizureDataset now implemented
-- Detailed audit reports: CANONICAL-SPEC-AUDIT.md and AUDIT-SUMMARY.md
+- Detailed audit reports: canonical-spec-audit.md and audit-summary.md
 
 ---
 
