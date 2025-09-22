@@ -72,7 +72,7 @@ experiment:
   seed: 42
   device: cuda
   output_dir: /results/FINAL_EVAL
-  cache_dir: /results/cache/eval
+  cache_dir: /results/cache        # Fixed to match data cache_dir
   log_level: INFO
   checkpoint_path: /results/tcn_full_100ep/checkpoints/best.pt  # Final TCN model
 
