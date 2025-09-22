@@ -122,7 +122,8 @@
       "Bash(tee:*)",
       "Bash(for:*)",
       "Bash(git clone:*)",
-      "Bash(pip search:*)"
+      "Bash(pip search:*)",
+      "Read(//home/jj/**)"
     ],
     "deny": [],
     "ask": []

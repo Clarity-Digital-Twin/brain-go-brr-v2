@@ -140,7 +140,42 @@ Receptive field = 1 + 2 * (kernel_size - 1) * sum(dilations)
 
 ---
 
-## Migration Plan
+## EXHAUSTIVE TDD MIGRATION PLAN
+
+### Phase 0: Pre-Implementation Testing & Verification
+
+**CRITICAL**: Write tests BEFORE implementation!
+
+```python
+# tests/unit/models/test_tcn.py
+import pytest
+import torch
+from src.brain_brr.models.tcn import TCNEncoder
+
+class TestTCNShapes:
+    """Test TCN maintains exact shape compatibility."""
+
+    def test_tcn_output_shape(self):
+        """TCN MUST output (B, 512, 960) for Mamba."""
+        tcn = TCNEncoder()
+        x = torch.randn(2, 19, 15360)  # Batch=2, Channels=19, Time=15360
+        out = tcn(x)
+        assert out.shape == (2, 512, 960), f"Expected (2, 512, 960), got {out.shape}"
+
+    def test_tcn_replaces_unet_resnet_completely(self):
+        """Ensure NO UNet or ResNet imports remain."""
+        from src.brain_brr.models import detector
+        detector_source = inspect.getsource(detector)
+        assert 'UNetEncoder' not in detector_source
+        assert 'UNetDecoder' not in detector_source
+        assert 'ResCNN' not in detector_source
+
+    def test_memory_reduction(self):
+        """TCN must use 50% less memory than UNet+ResNet."""
+        tcn = TCNEncoder()
+        tcn_params = sum(p.numel() for p in tcn.parameters())
+        assert tcn_params < 10_000_000, f"TCN too large: {tcn_params/1e6:.1f}M params"
+```
 
 ### Phase 1: Install Package & Create Wrapper (Day 1)
 
@@ -167,49 +202,156 @@ Receptive field = 1 + 2 * (kernel_size - 1) * sum(dilations)
    Output: (B, 512, 960)   # For Mamba
    ```
 
-### Phase 2: Integration (Day 2-3)
+### Phase 2: COMPLETE REPLACEMENT & DELETION (Day 2)
 
-1. **Modify** `src/brain_brr/models/detector.py`:
-   ```python
-   # OLD
-   self.encoder = UNetEncoder(...)
-   self.rescnn = ResCNN(...)
-   self.decoder = UNetDecoder(...)
+**CRITICAL**: This is NOT a parallel implementation. We're DELETING the old shit!
 
-   # NEW
-   self.tcn_encoder = TCNEncoder(
-       in_channels=19,
-       out_channels=512,
-       downsample_factor=16  # 15360 → 960
-   )
+1. **BACKUP FIRST** (in case we fuck up):
+   ```bash
+   # Create backup branch with current U-Net state
+   git checkout -b backup/v2.0-unet-final
+   git push origin backup/v2.0-unet-final
+
+   # Return to TCN branch
+   git checkout feature/v2.3-tcn-architecture
    ```
 
-2. **Update forward pass**:
+2. **MODIFY** `src/brain_brr/models/detector.py`:
    ```python
-   # OLD (5 steps)
-   encoded, skips = self.encoder(x)
-   features = self.rescnn(encoded)
-   temporal = self.mamba(features)
-   decoded = self.decoder(temporal, skips)
-   output = self.detection_head(decoded)
+   # STEP 1: Comment out old shit (for testing)
+   # self.encoder = UNetEncoder(...)  # DEPRECATED
+   # self.rescnn = ResCNN(...)        # DEPRECATED
+   # self.decoder = UNetDecoder(...)  # DEPRECATED
 
-   # NEW (3 steps - much cleaner!)
-   features = self.tcn_encoder(x)  # All feature extraction
-   temporal = self.mamba(features)  # Unchanged
-   output = self.detection_head(temporal)  # Direct output
+   # STEP 2: Add TCN
+   self.tcn_encoder = TCNEncoder()  # That's it!
+
+   # STEP 3: DELETE THE FOLLOWING IMPORTS (after tests pass):
+   # from src.brain_brr.models.unet import UNetEncoder, UNetDecoder  # DELETE
+   # from src.brain_brr.models.rescnn import ResCNN                  # DELETE
    ```
 
-### Phase 3: Config & Training (Day 3-4)
+2. **REPLACE forward pass COMPLETELY**:
+   ```python
+   def forward(self, x: torch.Tensor) -> torch.Tensor:
+       # DELETE THIS OLD SHIT:
+       # encoded, skips = self.encoder(x)      # DELETE
+       # features = self.rescnn(encoded)       # DELETE
+       # temporal = self.mamba(features)       # KEEP
+       # decoded = self.decoder(temporal, skips) # DELETE
+       # output = self.detection_head(decoded)  # MODIFY
 
-1. **Add config flag** in `configs/modal/train_tcn.yaml`:
+       # NEW CLEAN IMPLEMENTATION:
+       features = self.tcn_encoder(x)         # TCN does EVERYTHING
+       temporal = self.mamba(features)        # Mamba unchanged
+       output = self.detection_head(temporal) # Direct, no decoder!
+       return output
+   ```
+
+3. **DELETE old files (after tests pass)**:
+   ```bash
+   # These files become OBSOLETE:
+   rm src/brain_brr/models/unet.py     # 500+ lines DELETED
+   rm src/brain_brr/models/rescnn.py   # 200+ lines DELETED
+   rm tests/unit/models/test_unet.py   # Tests DELETED
+   rm tests/unit/models/test_rescnn.py # Tests DELETED
+
+   # Git remove them properly
+   git rm src/brain_brr/models/unet.py
+   git rm src/brain_brr/models/rescnn.py
+   git rm tests/unit/models/test_unet.py
+   git rm tests/unit/models/test_rescnn.py
+   ```
+
+### Phase 3: Config Updates & GPU Considerations (Day 3)
+
+#### GPU-SPECIFIC CONFIGURATION
+
+**CRITICAL GPU MEMORY OPTIMIZATIONS**:
+```python
+# src/brain_brr/models/tcn.py
+class TCNEncoder(nn.Module):
+    def __init__(self, use_cuda_optimizations: bool = True):
+        super().__init__()
+
+        # CUDA-specific optimizations
+        if torch.cuda.is_available() and use_cuda_optimizations:
+            # Enable TF32 for A100
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
+
+            # TCN with CUDA optimizations
+            self.tcn = TCN(
+                input_size=19,
+                output_size=512,
+                num_channels=[64, 128, 256, 512] * 2,
+                kernel_size=7,
+                dropout=0.15,
+                causal=True,
+                use_norm='weight_norm',
+                activation='relu',
+                dilation_reset=16,
+                # CUDA-specific
+                use_cuda=True,  # Enable CUDA kernels if available
+            )
+
+            # Optimize conv1d for CUDA
+            self.downsample = nn.Conv1d(
+                512, 512, kernel_size=16, stride=16
+            ).to(memory_format=torch.channels_last)  # Memory optimization
+        else:
+            # CPU fallback
+            warnings.warn("Running TCN without CUDA optimizations")
+```
+
+#### CONFIG SCHEMA UPDATES
+
+1. **UPDATE Config Schema** in `src/brain_brr/config/schemas.py`:
+   ```python
+   class ModelConfig(BaseModel):
+       # DELETE these old fields:
+       # unet_encoder_channels: List[int] = Field(...)  # DELETE
+       # unet_decoder_channels: List[int] = Field(...)  # DELETE
+       # rescnn_blocks: int = Field(...)                # DELETE
+
+       # ADD new TCN config
+       architecture: Literal['tcn', 'unet']  # For A/B testing
+       tcn: TCNConfig = Field(default_factory=TCNConfig)
+
+   class TCNConfig(BaseModel):
+       """TCN-specific configuration."""
+       kernel_size: int = 7
+       num_layers: int = 8
+       channels: List[int] = [64, 128, 256, 512]
+       dropout: float = 0.15
+       dilation_reset: int = 16
+       use_cuda_optimizations: bool = True
+       gradient_checkpointing: bool = False  # For memory-limited GPUs
+   ```
+
+2. **Create NEW config** `configs/modal/train_tcn.yaml`:
    ```yaml
    model:
-     architecture: tcn  # Switch from 'unet'
+     architecture: tcn  # NOT 'unet' anymore!
+
+     # DELETE all UNet/ResNet configs:
+     # unet_encoder_channels: [64, 128, 256, 512]  # DELETE
+     # rescnn_blocks: 3                            # DELETE
+
+     # NEW TCN config
      tcn:
-       kernel_size: 5
-       dilations: [1, 2, 4, 8, 16, 32, 64, 128]
+       kernel_size: 7  # From paper
+       num_layers: 8
        channels: [64, 128, 256, 512]
        dropout: 0.15
+       dilation_reset: 16
+       use_cuda_optimizations: true
+       gradient_checkpointing: false  # Enable if OOM
+
+   training:
+     # TCN-specific optimizations
+     gradient_clip_val: 0.5  # From paper
+     mixed_precision: true   # CRITICAL for A100
    ```
 
 2. **Training strategy**:
@@ -219,29 +361,96 @@ Receptive field = 1 + 2 * (kernel_size - 1) * sum(dilations)
 
 ---
 
-## Key Implementation Files
+## COMPLETE FILE MODIFICATION CHECKLIST
 
 ### Files to CREATE:
-- `src/brain_brr/models/tcn.py` - Complete TCN implementation
+✅ `src/brain_brr/models/tcn.py` - TCN wrapper around pytorch-tcn
+✅ `tests/unit/models/test_tcn.py` - COMPREHENSIVE TCN tests
+✅ `tests/integration/test_tcn_integration.py` - End-to-end tests
+✅ `configs/modal/train_tcn.yaml` - Production training config
+✅ `configs/local/test_tcn.yaml` - Local testing config
 
-### Files to MODIFY:
-- `src/brain_brr/models/detector.py` - Replace U-Net/ResNet with TCN
-- `src/brain_brr/config/schemas.py` - Add TCN config schema
-- `configs/modal/train_tcn.yaml` - New training config
+### Files to MODIFY (NOT parallel, REPLACE):
+✅ `src/brain_brr/models/detector.py`:
+  - DELETE: UNetEncoder, UNetDecoder, ResCNN imports
+  - DELETE: self.encoder, self.decoder, self.rescnn
+  - ADD: self.tcn_encoder
+  - SIMPLIFY: forward() to 3 lines
 
-### Files to DELETE (eventually):
-- `src/brain_brr/models/unet.py` - After TCN proven
-- `src/brain_brr/models/rescnn.py` - Redundant with TCN
+✅ `src/brain_brr/config/schemas.py`:
+  - DELETE: UNet/ResNet config classes
+  - ADD: TCNConfig class
+  - UPDATE: ModelConfig with architecture flag
+
+✅ `pyproject.toml`:
+  - ADD: pytorch-tcn==1.2.3 dependency
+  - REMOVE: Any UNet-specific dependencies
+
+### Files to DELETE (NO MERCY):
+🗑️ `src/brain_brr/models/unet.py` - 500+ lines GONE
+🗑️ `src/brain_brr/models/rescnn.py` - 200+ lines GONE
+🗑️ `tests/unit/models/test_unet.py` - OBSOLETE
+🗑️ `tests/unit/models/test_rescnn.py` - OBSOLETE
+🗑️ Any notebook referencing UNet/ResNet - UPDATE or DELETE
 
 ---
 
-## Validation Strategy
+## EXHAUSTIVE TEST SUITE MODIFICATIONS
 
-1. **Shape tests**: Ensure (B, 19, 15360) → (B, 512, 960)
-2. **Parameter count**: Should be ~10M (vs 47M current)
-3. **Memory usage**: Should drop by 50%
-4. **Training speed**: Should improve by 30%
-5. **TAES metrics**: Target same or better than U-Net baseline
+### NEW Tests to Write (TDD):
+
+```python
+# tests/unit/models/test_tcn.py
+class TestTCNUnit:
+    def test_tcn_shape_compatibility(self):
+        """Must maintain exact Mamba input shape."""
+
+    def test_tcn_parameter_count(self):
+        """Must be <10M params (vs 47M old)."""
+
+    def test_tcn_memory_usage(self):
+        """Must use 50% less GPU memory."""
+
+    def test_tcn_gradient_flow(self):
+        """Gradients must flow without vanishing."""
+
+    def test_tcn_cuda_optimization(self):
+        """CUDA kernels must be used on GPU."""
+
+# tests/integration/test_tcn_integration.py
+class TestTCNIntegration:
+    def test_full_pipeline_with_tcn(self):
+        """End-to-end: EEG → TCN → Mamba → Output."""
+
+    def test_tcn_faster_than_unet(self):
+        """TCN must be 30% faster per batch."""
+
+    def test_no_unet_imports_remain(self):
+        """Grep codebase for UNet/ResNet - must be 0."""
+```
+
+### Tests to DELETE:
+```bash
+# These become OBSOLETE:
+rm tests/unit/models/test_unet.py
+rm tests/unit/models/test_rescnn.py
+rm tests/integration/test_unet_integration.py
+```
+
+### Tests to MODIFY:
+```python
+# tests/unit/models/test_detector.py
+class TestDetector:
+    def test_detector_forward_pass(self):
+        # OLD assertion:
+        # assert hasattr(detector, 'encoder')  # DELETE
+        # assert hasattr(detector, 'decoder')  # DELETE
+
+        # NEW assertion:
+        assert hasattr(detector, 'tcn_encoder')
+        assert not hasattr(detector, 'encoder')
+        assert not hasattr(detector, 'decoder')
+```
 
 ---
 
@@ -284,40 +493,117 @@ Receptive field = 1 + 2 * (kernel_size - 1) * sum(dilations)
 
 ---
 
-## Commands for Implementation
+## EXACT COMMAND SEQUENCE (NO FUCKING AROUND)
 
 ```bash
-# Current branch
+# 1. SETUP BRANCH & BACKUP
+git checkout -b backup/v2.0-unet-final  # Backup current state
+git push origin backup/v2.0-unet-final
 git checkout feature/v2.3-tcn-architecture
 
-# Install pytorch-tcn package
+# 2. INSTALL PACKAGE
 uv add pytorch-tcn==1.2.3
+uv sync -U  # Update lock file
 
-# Create TCN wrapper
-touch src/brain_brr/models/tcn.py
-
-# Create unit tests
+# 3. WRITE TESTS FIRST (TDD!)
 touch tests/unit/models/test_tcn.py
+touch tests/integration/test_tcn_integration.py
+# Write all test cases BEFORE implementation
 
-# Run tests after implementation
+# 4. CREATE TCN IMPLEMENTATION
+touch src/brain_brr/models/tcn.py
+# Implement TCNEncoder class
+
+# 5. RUN TESTS (will fail initially)
 pytest tests/unit/models/test_tcn.py -xvs
 
-# Verify shapes
-python -c "from pytorch_tcn import TCN; print(TCN.__version__)"
+# 6. VERIFY NO OLD IMPORTS
+grep -r "UNetEncoder\|UNetDecoder\|ResCNN" src/ --include="*.py"
+# Should return NOTHING after cleanup
 
-# Train with new architecture
-python -m src train configs/modal/train_tcn.yaml
+# 7. MEMORY PROFILING
+python -c "
+import torch
+from pytorch_tcn import TCN
+from src.brain_brr.models.tcn import TCNEncoder
+
+# Test memory usage
+tcn = TCNEncoder().cuda()
+x = torch.randn(4, 19, 15360).cuda()
+
+with torch.cuda.amp.autocast():  # Mixed precision
+    out = tcn(x)
+    print(f'Output shape: {out.shape}')
+    print(f'Memory allocated: {torch.cuda.max_memory_allocated()/1e9:.2f} GB')
+"
+
+# 8. DELETE OLD FILES (after tests pass)
+git rm src/brain_brr/models/unet.py
+git rm src/brain_brr/models/rescnn.py
+git rm tests/unit/models/test_unet.py
+git rm tests/unit/models/test_rescnn.py
+
+# 9. COMMIT THE MASSACRE
+git add -A
+git commit -m "feat: REPLACE U-Net+ResNet with TCN - 700+ lines deleted"
+
+# 10. LOCAL VALIDATION
+python -m src train configs/local/test_tcn.yaml --fast_dev_run
+
+# 11. MODAL TRAINING
+modal run src.train --config configs/modal/train_tcn.yaml
+
+# 12. VERIFY IMPROVEMENTS
+python scripts/compare_architectures.py --old unet --new tcn
 ```
 
 ---
 
-## Success Criteria
+## IRON-CLAD SUCCESS CRITERIA
 
-1. **Shapes match**: Maintains compatibility with Mamba
-2. **Memory drops**: 50% reduction in VRAM usage
-3. **Training accelerates**: 30% fewer steps to convergence
-4. **Metrics maintained**: TAES @ 10 FA/24h >= baseline
-5. **Code simplified**: Net reduction of 500+ lines
+### MANDATORY Success Metrics:
+
+1. **Shape Compatibility** ✅
+   ```python
+   assert tcn_output.shape == (B, 512, 960)  # EXACT match for Mamba
+   ```
+
+2. **Memory Reduction** ✅
+   ```python
+   assert tcn_memory < 0.5 * unet_memory  # 50% reduction MINIMUM
+   ```
+
+3. **Speed Improvement** ✅
+   ```python
+   assert tcn_time < 0.7 * unet_time  # 30% faster MINIMUM
+   ```
+
+4. **Code Deletion** ✅
+   ```bash
+   # MUST delete AT LEAST:
+   # - 500 lines from unet.py
+   # - 200 lines from rescnn.py
+   # - 100 lines from detector.py (simplified)
+   # = 800+ lines GONE
+   ```
+
+5. **Zero UNet/ResNet References** ✅
+   ```bash
+   grep -r "UNet\|ResNet" src/ | wc -l  # MUST return 0
+   ```
+
+6. **TAES Performance** ✅
+   ```python
+   assert tcn_taes_10fa >= unet_taes_10fa  # No regression allowed
+   ```
+
+### FAILURE CONDITIONS (Automatic rollback):
+
+- ❌ If TCN uses MORE memory than UNet
+- ❌ If TCN is SLOWER than UNet
+- ❌ If ANY UNet/ResNet imports remain
+- ❌ If shape compatibility breaks
+- ❌ If TAES metrics degrade >5%
 
 ---
 
@@ -349,4 +635,16 @@ Total: **3-4 days** to completely replace U-Net + ResNet (1 day saved by using p
 
 **Last Updated**: 2025-09-22
 
-**Next Step**: Create `src/brain_brr/models/tcn.py` with the implementation above
+**Next Steps IN ORDER**:
+1. Write comprehensive tests FIRST (TDD)
+2. Install pytorch-tcn package
+3. Implement TCNEncoder wrapper
+4. MODIFY detector.py (not parallel implementation!)
+5. DELETE all UNet/ResNet code
+6. Run full test suite
+7. Verify memory/speed improvements
+8. Deploy to Modal
+
+**NO PARALLEL UNIVERSE** - We're REPLACING, not adding!
+**NO HALF MEASURES** - Delete the old shit completely!
+**NO MERCY** - 800+ lines must die!
