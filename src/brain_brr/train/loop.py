@@ -879,13 +879,11 @@ def train(
     optimizer = create_optimizer(model, config.training)
 
     total_steps = config.training.epochs * len(train_loader)
-
-    # Initialize scheduler to None first
-    scheduler = None
-
-    # Will create scheduler after first optimizer step to avoid warning
-    should_create_scheduler = config.training.scheduler is not None
-    scheduler_config = config.training.scheduler if should_create_scheduler else None
+    scheduler = (
+        create_scheduler(optimizer, config.training.scheduler, total_steps)
+        if config.training.scheduler
+        else None
+    )
 
     # Setup logging
     output_dir = Path(config.experiment.output_dir)
@@ -932,17 +930,9 @@ def train(
     # Training loop
     best_metrics: dict[str, Any] = {"best_epoch": 0}
     global_step = 0  # Track global step across epochs for scheduler
-    scheduler_created = False  # Track if scheduler has been created
 
     for epoch in range(start_epoch, config.training.epochs):
         print(f"\nEpoch {epoch + 1}/{config.training.epochs}", flush=True)
-
-        # Create scheduler after first optimizer step (avoids PyTorch warning)
-        if should_create_scheduler and not scheduler_created and epoch == start_epoch:
-            # Pass scheduler=None for first epoch, create it after
-            temp_scheduler = None
-        else:
-            temp_scheduler = scheduler
 
         # Train
         result = train_epoch(
@@ -952,7 +942,7 @@ def train(
             device=device,
             use_amp=config.training.mixed_precision,
             gradient_clip=config.training.gradient_clip,
-            scheduler=temp_scheduler,
+            scheduler=scheduler,
             global_step=global_step,
             loss_mode=getattr(config.training, "loss", "bce"),
             focal_alpha=getattr(config.training, "focal_alpha", 0.25),
