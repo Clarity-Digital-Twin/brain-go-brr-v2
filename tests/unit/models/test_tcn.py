@@ -1,6 +1,5 @@
 """Test TCN encoder module - WRITTEN BEFORE IMPLEMENTATION (TDD)."""
 
-
 import pytest
 import torch
 
@@ -28,7 +27,7 @@ class TestTCNEncoder:
             num_layers=8,
             kernel_size=7,
             dropout=0.15,
-            causal=False  # Non-causal for offline training
+            causal=False,  # Non-causal for offline training
         )
 
         x = torch.randn(*batch_shape)
@@ -42,12 +41,7 @@ class TestTCNEncoder:
         """Ensure gradients flow through TCN without vanishing."""
         from src.brain_brr.models.tcn import TCNEncoder
 
-        model = TCNEncoder(
-            input_channels=19,
-            output_channels=512,
-            num_layers=8,
-            kernel_size=7
-        )
+        model = TCNEncoder(input_channels=19, output_channels=512, num_layers=8, kernel_size=7)
 
         x = torch.randn(*batch_shape, requires_grad=True)
         output = model(x)
@@ -62,29 +56,20 @@ class TestTCNEncoder:
         """TCN must have fewer parameters than U-Net+ResCNN (~47M)."""
         from src.brain_brr.models.tcn import TCNEncoder
 
-        model = TCNEncoder(
-            input_channels=19,
-            output_channels=512,
-            num_layers=8,
-            kernel_size=7
-        )
+        model = TCNEncoder(input_channels=19, output_channels=512, num_layers=8, kernel_size=7)
 
         total_params = sum(p.numel() for p in model.parameters())
 
         # Should be much less than 47M (U-Net + ResCNN)
         assert total_params < 10_000_000, (
-            f"TCN has {total_params/1e6:.1f}M params, should be <10M"
+            f"TCN has {total_params / 1e6:.1f}M params, should be <10M"
         )
 
     def test_tcn_handles_variable_batch_size(self):
         """TCN should handle different batch sizes."""
         from src.brain_brr.models.tcn import TCNEncoder
 
-        model = TCNEncoder(
-            input_channels=19,
-            output_channels=512,
-            num_layers=8
-        )
+        model = TCNEncoder(input_channels=19, output_channels=512, num_layers=8)
 
         # Test different batch sizes
         for batch_size in [1, 4, 16, 32]:
@@ -98,9 +83,7 @@ class TestTCNEncoder:
         from src.brain_brr.models.tcn import TCNEncoder
 
         model = TCNEncoder(
-            input_channels=19,
-            output_channels=512,
-            use_cuda_optimizations=True
+            input_channels=19, output_channels=512, use_cuda_optimizations=True
         ).cuda()
 
         x = torch.randn(4, 19, 15360).cuda()
@@ -119,11 +102,7 @@ class TestTCNProjectionHead:
         """Projection head must restore full temporal resolution."""
         from src.brain_brr.models.tcn import ProjectionHead
 
-        head = ProjectionHead(
-            input_channels=512,
-            output_channels=19,
-            upsample_factor=16
-        )
+        head = ProjectionHead(input_channels=512, output_channels=19, upsample_factor=16)
 
         # Input from Mamba: (B, 512, 960)
         x = torch.randn(4, 512, 960)
@@ -163,24 +142,24 @@ class TestTCNIntegration:
                 "num_layers": 8,
                 "kernel_size": 7,
                 "dropout": 0.15,
-                "channels": [64, 128, 256, 512]
+                "channels": [64, 128, 256, 512],
             },
             mamba={
                 "conv_kernel": 4  # Avoid coercion warning
-            }
+            },
         )
 
         detector = SeizureDetector.from_config(config)
 
         # Should have TCN components
-        assert hasattr(detector, 'tcn_encoder')
-        assert hasattr(detector, 'proj_512_to_19')
-        assert hasattr(detector, 'upsample')
+        assert hasattr(detector, "tcn_encoder")
+        assert hasattr(detector, "proj_512_to_19")
+        assert hasattr(detector, "upsample")
 
         # Should NOT have U-Net components
-        assert not hasattr(detector, 'encoder')
-        assert not hasattr(detector, 'decoder')
-        assert not hasattr(detector, 'rescnn')
+        assert not hasattr(detector, "encoder")
+        assert not hasattr(detector, "decoder")
+        assert not hasattr(detector, "rescnn")
 
     def test_detector_with_unet_flag(self):
         """Detector should use U-Net when architecture='unet' (backwards compat)."""
@@ -194,12 +173,12 @@ class TestTCNIntegration:
         detector = SeizureDetector.from_config(config)
 
         # Should have U-Net components
-        assert hasattr(detector, 'encoder')
-        assert hasattr(detector, 'decoder')
-        assert hasattr(detector, 'rescnn')
+        assert hasattr(detector, "encoder")
+        assert hasattr(detector, "decoder")
+        assert hasattr(detector, "rescnn")
 
         # Should NOT have TCN components
-        assert not hasattr(detector, 'tcn_encoder')
+        assert not hasattr(detector, "tcn_encoder")
 
     def test_detector_forward_with_tcn(self):
         """Full forward pass with TCN should produce correct output shape."""
@@ -211,8 +190,8 @@ class TestTCNIntegration:
             tcn={
                 "num_layers": 4,  # Smaller for testing
                 "kernel_size": 3,
-                "dropout": 0.1
-            }
+                "dropout": 0.1,
+            },
         )
 
         detector = SeizureDetector.from_config(config)
@@ -221,9 +200,7 @@ class TestTCNIntegration:
         output = detector(x)
 
         # Must maintain per-sample output at 256Hz
-        assert output.shape == (2, 15360), (
-            f"Detector output {output.shape} != expected (2, 15360)"
-        )
+        assert output.shape == (2, 15360), f"Detector output {output.shape} != expected (2, 15360)"
 
     def test_loss_compatibility_with_tcn(self):
         """TCN path must produce outputs compatible with existing loss."""

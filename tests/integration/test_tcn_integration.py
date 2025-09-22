@@ -23,16 +23,16 @@ class TestTCNFullPipeline:
                 "kernel_size": 7,
                 "dropout": 0.15,
                 "channels": [64, 128, 256, 512],
-                "causal": False
+                "causal": False,
             },
             mamba={
                 "conv_kernel": 4,  # Avoid CUDA coercion
                 "d_model": 512,
-                "n_layers": 6
-            }
+                "n_layers": 6,
+            },
         )
 
-        detector = SeizureDetector(config)
+        detector = SeizureDetector.from_config(config)
         detector.eval()
 
         # Simulate batch of EEG data
@@ -47,7 +47,8 @@ class TestTCNFullPipeline:
 
         # Check output is valid probabilities after sigmoid
         probs = torch.sigmoid(output)
-        assert (probs >= 0).all() and (probs <= 1).all()
+        assert (probs >= 0).all()
+        assert (probs <= 1).all()
 
     def test_tcn_training_step(self):
         """TCN should work with training pipeline."""
@@ -58,10 +59,10 @@ class TestTCNFullPipeline:
 
         model_config = ModelConfig(
             architecture="tcn",
-            tcn={"num_layers": 4, "kernel_size": 3}  # Small for testing
+            tcn={"num_layers": 4, "kernel_size": 3},  # Small for testing
         )
 
-        detector = SeizureDetector(model_config)
+        detector = SeizureDetector.from_config(model_config)
         optimizer = torch.optim.Adam(detector.parameters(), lr=1e-4)
         loss_fn = FocalLoss(alpha=0.25, gamma=2.0)
 
@@ -86,12 +87,9 @@ class TestTCNFullPipeline:
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
-        config = ModelConfig(
-            architecture="tcn",
-            tcn={"num_layers": 4}
-        )
+        config = ModelConfig(architecture="tcn", tcn={"num_layers": 4})
 
-        detector = SeizureDetector(config)
+        detector = SeizureDetector.from_config(config)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             checkpoint_path = Path(tmpdir) / "model.pth"
@@ -100,7 +98,7 @@ class TestTCNFullPipeline:
             torch.save(detector.state_dict(), checkpoint_path)
 
             # Load into new model
-            detector2 = SeizureDetector(config)
+            detector2 = SeizureDetector.from_config(config)
             detector2.load_state_dict(torch.load(checkpoint_path))
 
             # Test both produce same output
@@ -120,12 +118,9 @@ class TestTCNFullPipeline:
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
-        config = ModelConfig(
-            architecture="tcn",
-            tcn={"num_layers": 4}
-        )
+        config = ModelConfig(architecture="tcn", tcn={"num_layers": 4})
 
-        detector = SeizureDetector(config).cuda()
+        detector = SeizureDetector.from_config(config).cuda()
         x = torch.randn(2, 19, 15360).cuda()
 
         with torch.cuda.amp.autocast():
@@ -140,18 +135,16 @@ class TestTCNFullPipeline:
         from src.brain_brr.models.detector import SeizureDetector
 
         # Old config without architecture field
-        config_dict = {
-            "mamba": {"d_model": 512, "n_layers": 6}
-        }
+        config_dict = {"mamba": {"d_model": 512, "n_layers": 6}}
 
         config = ModelConfig(**config_dict)
 
         # Should default to U-Net
         assert config.architecture == "unet"
 
-        detector = SeizureDetector(config)
-        assert hasattr(detector, 'encoder')  # U-Net encoder
-        assert not hasattr(detector, 'tcn_encoder')
+        detector = SeizureDetector.from_config(config)
+        assert hasattr(detector, "encoder")  # U-Net encoder
+        assert not hasattr(detector, "tcn_encoder")
 
 
 @pytest.mark.integration
@@ -245,12 +238,10 @@ class TestCodeCleanliness:
         result = subprocess.run(
             ["grep", "-r", "UNetEncoder\\|UNetDecoder\\|ResCNN", "src/"],
             capture_output=True,
-            text=True
+            text=True,
         )
 
-        assert result.returncode == 1, (
-            f"Found U-Net/ResNet references:\n{result.stdout}"
-        )
+        assert result.returncode == 1, f"Found U-Net/ResNet references:\n{result.stdout}"
 
     @pytest.mark.skip(reason="Run after full migration")
     def test_files_deleted(self):
@@ -261,7 +252,7 @@ class TestCodeCleanliness:
             "src/brain_brr/models/unet.py",
             "src/brain_brr/models/rescnn.py",
             "tests/unit/models/test_unet.py",
-            "tests/unit/models/test_rescnn.py"
+            "tests/unit/models/test_rescnn.py",
         ]
 
         for filepath in files_should_not_exist:

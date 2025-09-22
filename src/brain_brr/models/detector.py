@@ -38,6 +38,9 @@ class SeizureDetector(nn.Module):
           -> 1x1 Conv -> (B, 15360) [Per-sample logits]
     """
 
+    # Explicit architecture selector to satisfy type-checkers when swapping paths
+    architecture: str | None = None
+
     def __init__(
         self,
         *,
@@ -126,13 +129,13 @@ class SeizureDetector(nn.Module):
             (B, 15360) per-sample seizure logits (raw scores).
         """
         # Check if using TCN path
-        if hasattr(self, 'architecture') and self.architecture == "tcn":
+        if hasattr(self, "architecture") and self.architecture == "tcn":
             # TCN path
-            features = self.tcn_encoder(x)           # (B, 512, 960)
-            temporal = self.mamba(features)          # (B, 512, 960)
-            chan19 = self.proj_512_to_19(temporal)   # (B, 19, 960)
-            decoded = self.upsample(chan19)          # (B, 19, 15360)
-            output = self.detection_head(decoded)    # (B, 1, 15360)
+            features = self.tcn_encoder(x)  # (B, 512, 960)
+            temporal = self.mamba(features)  # (B, 512, 960)
+            chan19 = self.proj_512_to_19(temporal)  # (B, 19, 960)
+            decoded = self.upsample(chan19)  # (B, 19, 15360)
+            output = self.detection_head(decoded)  # (B, 1, 15360)
             return cast(torch.Tensor, output.squeeze(1))  # (B, 15360)
         else:
             # Original U-Net path
@@ -150,7 +153,7 @@ class SeizureDetector(nn.Module):
         Note: `in_channels` fixed at 19 for the 10-20 montage in this project.
         """
         # Check architecture flag for TCN vs U-Net path
-        if hasattr(cfg, 'architecture') and cfg.architecture == "tcn":
+        if hasattr(cfg, "architecture") and cfg.architecture == "tcn":
             # TCN path - create instance with TCN components
             instance = cls.__new__(cls)
             nn.Module.__init__(instance)
@@ -174,7 +177,7 @@ class SeizureDetector(nn.Module):
                 dropout=cfg.mamba.dropout,
             )
             instance.proj_512_to_19 = nn.Conv1d(512, 19, kernel_size=1)
-            instance.upsample = nn.Upsample(scale_factor=16, mode='nearest')
+            instance.upsample = nn.Upsample(scale_factor=16, mode="nearest")
             instance.detection_head = nn.Conv1d(19, 1, kernel_size=1)
 
             # Store config for debugging

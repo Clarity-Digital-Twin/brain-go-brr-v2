@@ -5,13 +5,15 @@ Uses pytorch-tcn if available, falls back to minimal implementation.
 """
 
 import warnings
+from typing import cast
 
 import torch
 import torch.nn as nn
 
 # Try to import pytorch-tcn (optional dependency)
 try:
-    from pytorch_tcn import TCN
+    from pytorch_tcn import TCN  # type: ignore[import-untyped]
+
     HAS_PYTORCH_TCN = True
 except ImportError:
     HAS_PYTORCH_TCN = False
@@ -37,22 +39,22 @@ class MinimalTCN(nn.Module):
         super().__init__()
         self.causal = causal
 
-        layers = []
+        layers: list[nn.Module] = []
         num_levels = len(num_channels)
 
         for i in range(num_levels):
-            dilation_size = 2 ** i
-            in_channels = input_size if i == 0 else num_channels[i-1]
+            dilation_size = 2**i
+            in_channels = input_size if i == 0 else num_channels[i - 1]
             out_channels = num_channels[i]
 
             # Dilated convolution
-            padding = (kernel_size - 1) * dilation_size if causal else (kernel_size - 1) * dilation_size // 2
+            padding = (
+                (kernel_size - 1) * dilation_size
+                if causal
+                else (kernel_size - 1) * dilation_size // 2
+            )
             conv = nn.Conv1d(
-                in_channels,
-                out_channels,
-                kernel_size,
-                padding=padding,
-                dilation=dilation_size
+                in_channels, out_channels, kernel_size, padding=padding, dilation=dilation_size
             )
 
             # Weight normalization
@@ -76,11 +78,11 @@ class MinimalTCN(nn.Module):
         Returns:
             Output tensor (B, output_size, L)
         """
-        out = self.network(x)
+        out = cast(torch.Tensor, self.network(x))
 
         if self.causal:
             # Trim the output for causal convolution
-            out = out[:, :, :x.size(2)]
+            out = out[:, :, : x.size(2)]
 
         return self.projection(out)
 
@@ -132,8 +134,8 @@ class TCNEncoder(nn.Module):
                 kernel_size=kernel_size,
                 dropout=dropout,
                 causal=causal,
-                use_norm='weight_norm',
-                activation='relu',
+                use_norm="weight_norm",
+                activation="relu",
             )
             tcn_out_channels = num_channels[-1]
         else:
@@ -144,7 +146,7 @@ class TCNEncoder(nn.Module):
                 num_channels=num_channels,
                 kernel_size=kernel_size,
                 dropout=dropout,
-                causal=causal
+                causal=causal,
             )
             tcn_out_channels = num_channels[-1]
 
@@ -154,10 +156,7 @@ class TCNEncoder(nn.Module):
         # Downsampling to match Mamba input size
         # 15360 / 16 = 960
         self.downsample = nn.Conv1d(
-            output_channels,
-            output_channels,
-            kernel_size=stride_down,
-            stride=stride_down
+            output_channels, output_channels, kernel_size=stride_down, stride=stride_down
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -170,9 +169,9 @@ class TCNEncoder(nn.Module):
             Encoded features (B, 512, 960)
         """
         # Check input shape
-        _b, c, l = x.shape
+        _b, c, length = x.shape
         assert self.input_channels == c, f"Expected {self.input_channels} channels, got {c}"
-        assert l == 15360, f"Expected 15360 samples, got {l}"
+        assert length == 15360, f"Expected 15360 samples, got {length}"
 
         # TCN processing
         x = self.tcn(x)  # (B, tcn_channels, 15360)
@@ -208,7 +207,7 @@ class ProjectionHead(nn.Module):
         self.proj = nn.Conv1d(input_channels, output_channels, kernel_size=1)
 
         # Upsample to restore temporal resolution
-        self.upsample = nn.Upsample(scale_factor=upsample_factor, mode='nearest')
+        self.upsample = nn.Upsample(scale_factor=upsample_factor, mode="nearest")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass through projection head.
@@ -219,8 +218,8 @@ class ProjectionHead(nn.Module):
         Returns:
             Restored resolution (B, 19, 15360)
         """
-        x = self.proj(x)     # (B, 19, 960)
-        x = self.upsample(x) # (B, 19, 15360)
+        x = self.proj(x)  # (B, 19, 960)
+        x = self.upsample(x)  # (B, 19, 15360)
         return x
 
 
@@ -238,10 +237,10 @@ if __name__ == "__main__":
     x = torch.randn(2, 19, 15360)
     out = tcn(x)
     print(f"TCN output shape: {out.shape}")
-    print(f"TCN parameters: {count_parameters(tcn)/1e6:.2f}M")
+    print(f"TCN parameters: {count_parameters(tcn) / 1e6:.2f}M")
 
     # Test projection head
     head = ProjectionHead()
     restored = head(out)
     print(f"Projection head output: {restored.shape}")
-    print(f"Total parameters: {(count_parameters(tcn) + count_parameters(head))/1e6:.2f}M")
+    print(f"Total parameters: {(count_parameters(tcn) + count_parameters(head)) / 1e6:.2f}M")

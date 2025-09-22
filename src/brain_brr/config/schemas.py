@@ -146,7 +146,9 @@ class TCNConfig(BaseModel):
     )
     kernel_size: int = Field(default=7, ge=3, le=11, description="Temporal kernel size")
     dropout: float = Field(default=0.15, ge=0.0, le=0.5, description="Dropout rate")
-    causal: bool = Field(default=False, description="Causal (True) or non-causal (False) convolutions")
+    causal: bool = Field(
+        default=False, description="Causal (True) or non-causal (False) convolutions"
+    )
     stride_down: int = Field(default=16, description="Downsampling factor (15360 → 960)")
     use_cuda_optimizations: bool = Field(default=True, description="Enable CUDA optimizations")
 
