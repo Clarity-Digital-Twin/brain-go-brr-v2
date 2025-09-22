@@ -22,6 +22,14 @@ Constraints to honor:
 - Output contract: logits at 256 Hz with exact length 15360 preserved.
 ```
 
+Evidence anchors (code and refs):
+- TCN insertion site in detector: after `self.mamba(features)` at `src/brain_brr/models/detector.py:131`, before projection `self.proj_512_to_19(...)` at `src/brain_brr/models/detector.py:132`.
+- Canonical channel order (19-ch 10–20): `src/brain_brr/constants.py:14`.
+- EvoBrain SSGConv with alpha=0.05: `reference_repos/EvoBrain-FBC5/model/EvoBrain.py:332`.
+- EvoBrain Laplacian PE k (AddLaplacianEigenvectorPE): `reference_repos/EvoBrain-FBC5/model/EvoBrain.py:858`.
+- EvoBrain Softplus edge transform (edge→weight): `reference_repos/EvoBrain-FBC5/model/EvoBrain.py:869`.
+- EvoBrain top‑k sparsification helper: `reference_repos/EvoBrain-FBC5/data/data_utils.py:174`.
+
 ---
 
 ## 📦 PHASE 1: PURE-TORCH MVP (NO DEPENDENCIES)
@@ -150,7 +158,8 @@ class GraphChannelMixer(nn.Module):
         self.n_layers = n_layers
         self.use_residual = use_residual
 
-        # Edge weight transform (EvoBrain lines 869-870)
+        # Edge weight transform (cf. EvoBrain edge→weight Softplus, see
+        # reference_repos/EvoBrain-FBC5/model/EvoBrain.py:869)
         self.edge_transform = nn.Linear(1, 1)
         self.edge_activate = nn.Softplus()
 
@@ -260,7 +269,7 @@ if instance.use_gnn:
     instance.proj_from_electrodes = nn.Conv1d(19 * 64, 512, kernel_size=1)
 ```
 
-2) In `SeizureDetector.forward` TCN path, insert after Bi‑Mamba and before `proj_512_to_19`:
+2) In `SeizureDetector.forward` TCN path, insert after Bi‑Mamba and before `proj_512_to_19` (see `src/brain_brr/models/detector.py:131` and `src/brain_brr/models/detector.py:132`):
 
 ```python
 features = self.tcn_encoder(x)               # (B, 512, 960)
@@ -735,7 +744,7 @@ threshold = 1e-4    # Edge weight cutoff
 
 1. **Graph must be symmetric** - EEG is undirected
 2. **Normalize adjacency row-wise** - Prevents gradient explosion
-3. **Top-k BEFORE threshold** - Order matters!
+3. **Top‑k THEN threshold** - Apply top‑k sparsification before pruning tiny edges (cf. `reference_repos/EvoBrain-FBC5/data/data_utils.py:174`).
 4. **Guard PyG imports** - Keep CI green
 5. **Start with small batches** - GNN adds memory overhead
 6. **Keep graph disabled by default** - Backward compatibility
@@ -768,7 +777,7 @@ This plan gives you EVERYTHING needed to implement Dynamic GNN + LPE:
 1. **Exact code** from EvoBrain with proven parameters
 2. **TDD tests** following your test patterns
 3. **Phased approach** - pure torch first, PyG later
-4. **Integration points** clearly marked (line 135)
+4. **Integration points** clearly marked at `src/brain_brr/models/detector.py:131` → `:132`
 5. **Config ready** with all EvoBrain defaults
 
 **NEXT ACTION**: Start with Phase 1 - create `graph_builder.py` and `gnn.py` using the code above.
