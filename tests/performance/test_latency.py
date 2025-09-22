@@ -495,8 +495,13 @@ class TestLatencyUnderLoad:
         median_latency = np.median(all_latencies)
 
         # Should maintain reasonable latency even under concurrent load
-        assert p95_latency < 0.5, f"P95 latency {p95_latency:.2f}s under concurrent load"
-        assert median_latency < 0.2, f"Median latency {median_latency:.2f}s under concurrent load"
+        # More relaxed thresholds for CPU environments
+        device = next(minimal_model.parameters()).device
+        p95_limit = 1.5 if device.type == "cpu" else 0.5
+        median_limit = 0.5 if device.type == "cpu" else 0.2
+
+        assert p95_latency < p95_limit, f"P95 latency {p95_latency:.2f}s under concurrent load (limit: {p95_limit}s)"
+        assert median_latency < median_limit, f"Median latency {median_latency:.2f}s under concurrent load (limit: {median_limit}s)"
 
         # Check throughput improvement
         sequential_time = median_latency * n_threads * n_requests_per_thread

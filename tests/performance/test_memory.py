@@ -135,6 +135,7 @@ class TestMemoryUsage:
             gc.collect()
 
     @pytest.mark.performance
+    @pytest.mark.timeout(300)
     def test_memory_leak_detection(self, minimal_model):
         """Test for memory leaks during repeated inference."""
         device = next(minimal_model.parameters()).device
@@ -148,14 +149,17 @@ class TestMemoryUsage:
         gc.collect()
         initial_ram, initial_gpu = self.get_memory_usage()
 
-        # Run many iterations
+        # Run many iterations (fewer on CPU to avoid timeout)
+        iterations = 50 if device.type == "cpu" else 100
         with torch.no_grad():
-            for i in range(100):
+            for i in range(iterations):
                 output = minimal_model(window)
                 del output  # Explicit cleanup
 
                 if i % 20 == 0:
                     gc.collect()
+                    if device.type == "cuda":
+                        torch.cuda.synchronize()
 
         gc.collect()
         final_ram, final_gpu = self.get_memory_usage()
@@ -347,6 +351,7 @@ class TestMemoryUsage:
         assert efficiency > 0.30, f"Memory efficiency {efficiency:.3f} is too low (active/reserved)"
 
     @pytest.mark.performance
+    @pytest.mark.timeout(300)
     def test_memory_profiling_detailed(self, minimal_model):
         """Detailed memory profiling with tracemalloc."""
         device = next(minimal_model.parameters()).device
