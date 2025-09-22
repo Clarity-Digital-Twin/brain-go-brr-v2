@@ -311,10 +311,11 @@ def train_epoch(
     # CRITICAL FIX: BalancedSeizureDataset already knows its exact seizure ratio!
     # No need to sample 1000 windows (which takes 2+ hours on Modal)
     from src.brain_brr.data.datasets import BalancedSeizureDataset
+
     if isinstance(dataset, BalancedSeizureDataset):
         # Use the pre-computed ratio from manifest statistics
         pos_ratio = dataset.seizure_ratio
-        print(f"[DATASET] Using BalancedSeizureDataset known distribution", flush=True)
+        print("[DATASET] Using BalancedSeizureDataset known distribution", flush=True)
         print(f"[DATASET] Seizure ratio: {100 * pos_ratio:.1f}% (from manifest)", flush=True)
     else:
         # Fallback: sample windows for regular datasets

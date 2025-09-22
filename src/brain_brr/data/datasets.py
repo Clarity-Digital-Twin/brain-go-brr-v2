@@ -275,7 +275,9 @@ class BalancedSeizureDataset(Dataset):
         # Store seizure statistics for fast access (avoid sampling 1000 windows!)
         self._n_seizure_windows = n_partial_used + n_full_used
         self._n_total_windows = len(self._entries)
-        self._seizure_ratio = self._n_seizure_windows / self._n_total_windows if self._n_total_windows > 0 else 0.0
+        self._seizure_ratio = (
+            self._n_seizure_windows / self._n_total_windows if self._n_total_windows > 0 else 0.0
+        )
 
         print(
             f"[BalancedSeizureDataset] Created with {len(self._entries)} windows:\n"
