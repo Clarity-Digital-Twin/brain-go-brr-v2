@@ -307,19 +307,36 @@ def train_epoch(
 
     dataset = dataloader.dataset
     dataset_len = len(dataset)  # type: ignore[arg-type]
-    sample_size = min(1000, dataset_len)  # Sample up to 1000 windows
-    sample_indices = torch.randperm(dataset_len)[:sample_size]
 
-    pos_count = 0
-    total_samples = 0
+    # CRITICAL FIX: BalancedSeizureDataset already knows its exact seizure ratio!
+    # No need to sample 1000 windows (which takes 2+ hours on Modal)
+    from src.brain_brr.data.datasets import BalancedSeizureDataset
+    if isinstance(dataset, BalancedSeizureDataset):
+        # Use the pre-computed ratio from manifest statistics
+        pos_ratio = dataset.seizure_ratio
+        print(f"[DATASET] Using BalancedSeizureDataset known distribution", flush=True)
+        print(f"[DATASET] Seizure ratio: {100 * pos_ratio:.1f}% (from manifest)", flush=True)
+    else:
+        # Fallback: sample windows for regular datasets
+        sample_size = min(100, dataset_len)  # Reduced from 1000 for speed
+        sample_indices = torch.randperm(dataset_len)[:sample_size]
 
-    for idx in sample_indices:
-        _, label = dataset[idx.item()]
-        if (label > 0).any():
-            pos_count += 1
-        total_samples += 1
+        pos_count = 0
+        total_samples = 0
 
-    pos_ratio = pos_count / total_samples if total_samples > 0 else 1e-8
+        print(f"[DATASET] Sampling {sample_size} windows to estimate distribution...", flush=True)
+        for idx in sample_indices:
+            _, label = dataset[idx.item()]
+            if (label > 0).any():
+                pos_count += 1
+            total_samples += 1
+
+        pos_ratio = pos_count / total_samples if total_samples > 0 else 1e-8
+        print(f"[DATASET] Sampled {sample_size} windows", flush=True)
+        print(
+            f"[DATASET] Windows with seizures: {pos_count}/{sample_size} ({100 * pos_ratio:.2f}%)",
+            flush=True,
+        )
 
     # Use sqrt scaling for extreme imbalance (prevents explosion)
     if pos_ratio > 0 and pos_ratio < 0.5:
@@ -327,11 +344,6 @@ def train_epoch(
     else:
         pos_weight_val = 1.0
 
-    print(f"[DATASET] Sampled {sample_size} windows", flush=True)
-    print(
-        f"[DATASET] Windows with seizures: {pos_count}/{sample_size} ({100 * pos_ratio:.2f}%)",
-        flush=True,
-    )
     print(f"[DATASET] Using pos_weight: {pos_weight_val:.2f} (sqrt scaling)", flush=True)
     print("=" * 60 + "\n", flush=True)
 

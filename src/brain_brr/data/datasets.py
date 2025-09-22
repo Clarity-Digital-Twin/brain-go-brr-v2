@@ -271,6 +271,12 @@ class BalancedSeizureDataset(Dataset):
         n_partial_used = len(partial)
         n_full_used = min(n_full, len(full)) if full else 0
         n_bg_used = min(n_bg, len(no_seizure)) if no_seizure else 0
+
+        # Store seizure statistics for fast access (avoid sampling 1000 windows!)
+        self._n_seizure_windows = n_partial_used + n_full_used
+        self._n_total_windows = len(self._entries)
+        self._seizure_ratio = self._n_seizure_windows / self._n_total_windows if self._n_total_windows > 0 else 0.0
+
         print(
             f"[BalancedSeizureDataset] Created with {len(self._entries)} windows:\n"
             f"  - {n_partial_used} partial seizure (100% of available)\n"
@@ -284,6 +290,14 @@ class BalancedSeizureDataset(Dataset):
 
     def __len__(self) -> int:
         return len(self._entries)
+
+    @property
+    def seizure_ratio(self) -> float:
+        """Return the proportion of windows containing seizures.
+
+        This avoids needing to sample 1000 windows to calculate class weights!
+        """
+        return self._seizure_ratio
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         cache_file, w_idx = self._entries[idx]
