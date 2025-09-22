@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "seizure-detection-mamba"
-version = "2.1.0"
-description = "Seizure detection using U-Net + ResCNN + Bi-Mamba-2 for O(N) EEG processing"
+version = "2.3.0"
+description = "Seizure detection using TCN + Bi-Mamba-2 for O(N) EEG processing"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
