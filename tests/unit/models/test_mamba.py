@@ -185,70 +185,73 @@ class TestBiMamba2:
         assert total_params > 1_000_000  # At least 1M params
         assert total_params < 50_000_000  # Less than 50M params
 
-    def test_integration_with_rescnn(self) -> None:
-        """Test integration with ResCNN output."""
-        from src.brain_brr.models import ResCNNStack
+    def test_integration_with_tcn(self) -> None:
+        """Test integration with TCN output."""
+        from src.brain_brr.models.tcn import TCNEncoder
 
-        # Create ResCNN and BiMamba2
-        rescnn = ResCNNStack(channels=512)
+        # Create TCN and BiMamba2
+        tcn = TCNEncoder()
         bimamba = BiMamba2(d_model=512)
 
-        # Create input matching encoder output
-        x = torch.randn(2, 512, 960)  # (B, C, L)
+        # Create input
+        x = torch.randn(2, 19, 15360)  # Full EEG input
 
-        # Pass through ResCNN then BiMamba2
-        rescnn_out = rescnn(x)
-        mamba_out = bimamba(rescnn_out)
+        # Pass through TCN then BiMamba2
+        tcn_out = tcn(x)
+        assert tcn_out.shape == (2, 512, 960)
 
-        assert mamba_out.shape == x.shape
+        mamba_out = bimamba(tcn_out)
+        assert mamba_out.shape == (2, 512, 960)
         assert not torch.isnan(mamba_out).any()
 
 
 class TestIntegrationPipeline:
-    """Test full encoder → ResCNN → BiMamba2 pipeline."""
+    """Test full TCN → BiMamba2 → Projection pipeline."""
 
     def test_full_pipeline(self) -> None:
-        """Test complete Phase 2 pipeline integration."""
-        from src.brain_brr.models import BiMamba2, ResCNNStack, UNetEncoder
+        """Test complete TCN pipeline integration."""
+        from src.brain_brr.models import BiMamba2
+        from src.brain_brr.models.tcn import TCNEncoder, ProjectionHead
 
         # Create full pipeline
-        encoder = UNetEncoder(in_channels=19, base_channels=64, depth=4)
-        rescnn = ResCNNStack(channels=512)
+        tcn = TCNEncoder()
         bimamba = BiMamba2(d_model=512)
+        proj = ProjectionHead()
 
         # Create input
         x = torch.randn(2, 19, 15360)  # Full 60s window
 
         # Forward pass through pipeline
-        encoded, _ = encoder(x)
+        encoded = tcn(x)
         assert encoded.shape == (2, 512, 960)
 
-        rescnn_out = rescnn(encoded)
-        assert rescnn_out.shape == (2, 512, 960)
-
-        mamba_out = bimamba(rescnn_out)
+        mamba_out = bimamba(encoded)
         assert mamba_out.shape == (2, 512, 960)
 
+        output = proj(mamba_out)
+        assert output.shape == (2, 19, 15360)
+
         # Check no NaN/Inf
-        assert not torch.isnan(mamba_out).any()
-        assert not torch.isinf(mamba_out).any()
+        assert not torch.isnan(output).any()
+        assert not torch.isinf(output).any()
 
     @pytest.mark.serial
     def test_gradient_flow_pipeline(self) -> None:
         """Test gradients flow through entire pipeline."""
-        from src.brain_brr.models import BiMamba2, ResCNNStack, UNetEncoder
+        from src.brain_brr.models import BiMamba2
+        from src.brain_brr.models.tcn import TCNEncoder, ProjectionHead
 
-        encoder = UNetEncoder(in_channels=19, base_channels=64, depth=4)
-        rescnn = ResCNNStack(channels=512)
+        tcn = TCNEncoder()
         bimamba = BiMamba2(d_model=512)
+        proj = ProjectionHead()
 
         x = torch.randn(2, 19, 15360, requires_grad=True)
 
-        encoded, _ = encoder(x)
-        rescnn_out = rescnn(encoded)
-        mamba_out = bimamba(rescnn_out)
+        encoded = tcn(x)
+        mamba_out = bimamba(encoded)
+        output = proj(mamba_out)
 
-        loss = mamba_out.mean()
+        loss = output.mean()
         loss.backward()
 
         assert x.grad is not None
