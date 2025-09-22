@@ -39,17 +39,26 @@ EEG → U-Net → ResCNN → Bi-Mamba-2 → GNN → Detection Head
                                     ADD THIS!
 ```
 **Changes**: Add Graph Neural Network after Mamba
+**Implementation Details** (from EvoBrain):
+- Use SSGConv (Simple Spectral Graph) or GCNConv
+- Edge weights from correlation matrix
+- Skip connections around GNN
 **Why**: Learn electrode relationships, montage-agnostic
 **Expected**: 10-15% cross-dataset transfer improvement
 **Timeline**: 1 week
 **Training**: Same data, spatial awareness added
 
-### v2.6 - Dynamic Graphs 🔄
+### v2.6 - Dynamic Graphs + Laplacian PE 🔄
 ```
-EEG → U-Net → ResCNN → Bi-Mamba-2 → Dynamic GNN → Detection Head
+EEG → U-Net → ResCNN → Bi-Mamba-2 → [LPE + Dynamic GNN] → Detection Head
 ```
-**Changes**: GNN with time-evolving adjacency matrices
-**Why**: EvoBrain proves dynamic > static graphs; add Laplacian Positional Encoding (LPE)
+**Changes**: GNN with time-evolving adjacency + Laplacian Positional Encoding
+**Implementation Details** (from EvoBrain):
+- PyG's `AddLaplacianEigenvectorPE(k=16)`
+- Adjacency matrix per timestep: `adj[timestep, batch, nodes, nodes]`
+- Concatenate PE to node features before GNN
+- Edge pruning: keep only |weight| > 0.0001
+**Why**: EvoBrain proves dynamic > static graphs; LPE stabilizes
 **Expected**: Additional 5-10% improvement
 **Timeline**: 1 week
 **Training**: Graph structure evolves per snapshot
@@ -89,6 +98,10 @@ EEG → TCN → ConvNeXt → [Node-Mamba + Edge-Mamba] → GNN → Detection Hea
                           DUAL STREAM
 ```
 **Changes**: Separate Mamba for nodes and edges (EvoBrain style)
+**Implementation Details** (from EvoBrain):
+- Node-Mamba: `Mamba(d_model=512, d_state=16, d_conv=4, expand=2)`
+- Edge-Mamba: Same config, processes edge features
+- Both outputs fed to GNN
 **Why**: Model channel features and relationships separately
 **Expected**: 10-15% improvement
 **Timeline**: 2 weeks
@@ -146,9 +159,16 @@ EEG → STFT → [TCN-Nodes + TCN-Edges] → GCN+LPE → Detection Head
 ✅ **Time-then-graph > Graph-then-time** (mathematically proven)
 ✅ **Dynamic graphs > Static graphs** (explicit modeling wins)
 ✅ **Frequency domain helps** (STFT preprocessing)
-✅ **Laplacian Positional Encoding** stabilizes graph grounding
-✅ **Dual-stream temporal** (separate node/edge evolution)
+✅ **Laplacian Positional Encoding** (k=16 eigenvectors optimal)
+✅ **Dual-stream temporal** (separate node/edge Mamba streams)
+✅ **SSGConv performs best** for EEG graphs
 ✅ **Our TCN → GNN ordering is CORRECT!**
+
+### Concrete Implementation Params from EvoBrain:
+- Mamba: `d_state=16, d_conv=4, expand=2`
+- GNN: 2-layer SSGConv with skip connections
+- LPE: 16 eigenvectors
+- Activation: Tanh for GNN, Softplus for edge weights
 
 ---
 
