@@ -4,8 +4,8 @@
 
 Moving beyond the current U-Net + ResCNN + Bi-Mamba-2 architecture to address fundamental limitations in EEG seizure detection, particularly the montage-dependency problem and multi-scale temporal modeling.
 
-**Proposed Stack v3.0**: TCN → GNN → ConvNeXt → Bi-Mamba
-**NEW: EvoBrain Validation** (Sep 2025): Time-then-graph proven superior! 🎯
+**Proposed Stack v3.0 (EvoBrain‑aligned)**: Mamba (time) → Dynamic GNN (graph) → ConvNeXt (local) → optional TCN (multi‑scale)
+**NEW: EvoBrain Validation** (Sep 2025): Time‑then‑graph with explicit dynamic graphs is superior. 🎯
 
 ---
 
@@ -25,53 +25,43 @@ EEG (19ch, 256Hz) → U-Net → ResCNN → Bi-Mamba-2 → Detection Head
 
 ## Proposed Experimental Stack (v3)
 
-### UPDATED AFTER EVOBRAIN PAPER (2025-09-22)
+### UPDATED AFTER EVOBRAIN PAPER (2025‑09‑22)
 
 ```
-EEG Input (19ch, 256Hz, 60s windows)
-         ↓
-[STFT Transform]     → Frequency domain representation (EvoBrain insight!)
-         ↓
-[TCN - Temporal]     → Multi-scale temporal feature extraction FIRST
-         ↓
-[GNN - Spatial]      → Dynamic electrode relationships on temporal features
-         ↓
-[ConvNeXt - Local]   → State-of-the-art local pattern refinement
-         ↓
-[Bi-Mamba - Global]  → O(N) long-range sequence modeling
-         ↓
-[Detection Head]     → Per-timestep probabilities
+EEG (19ch, 256 Hz, 60 s)
+  ↓
+STFT (optional) → frequency features (helps seizures per EvoBrain)
+  ↓
+Bi‑Mamba‑2 (time encoder) → per‑channel temporal embeddings (time‑first)
+  ↓
+Dynamic GCN + Laplacian PE (graph encoder) → explicit time‑varying adjacency A_t
+  ↓
+ConvNeXt (local refinement) → longer kernels for morphology
+  ↓
+Detection head → per‑timestep probabilities
 ```
 
 ---
 
 ## Component Rationale
 
-### 1. Temporal Convolutional Network (TCN) - Multi-Scale Features [MOVED TO FIRST]
-**Problem Solved**: Cleaner multi-scale extraction than U-Net
-- **Current issue**: U-Net designed for 2D images, not 1D temporal data
-- **TCN solution**: Dilated convolutions with exponential receptive field growth
-- **Architecture**:
-  - Layer 1: 1ms patterns (dilation=1)
-  - Layer 2: 10ms patterns (dilation=10)
-  - Layer 3: 100ms patterns (dilation=100)
-  - Layer 4: 1s patterns (dilation=1000)
-- **Advantages**: Simpler than U-Net, native temporal design
-- **EvoBrain validation**: Time-first processing proven more expressive!
+### 1. Bi‑Mamba‑2 (time‑first) — Temporal Encoder
+**Problem Solved**: Long‑range temporal context with O(N) complexity
+- Fits EvoBrain’s “time‑then‑graph” result (temporal first, graph second)
+- Our codebase already uses Bi‑Mamba‑2; reuse as the time encoder
+- Optional: dual‑stream node/edge Mamba later (EvoBrain’s two‑stream idea)
 
-### 2. Graph Neural Network (GNN) - Spatial Reasoning [MOVED TO SECOND]
+### 2. Dynamic Graph Neural Network (GNN) — Spatial Reasoning
 **Problem Solved**: Montage dependency
-- **Current issue**: Fixed electrode positions assume specific montage
-- **GNN solution**: Learn electrode relationships dynamically
-- **Architecture Options**:
-  - GCN with Laplacian PE (EvoBrain approach, 16 eigenvectors)
-  - GAT with 2-hop attention
-  - Dynamic adjacency based on cross-correlation
-- **Key insight from EvoBrain**: Explicit dynamic graphs > static graphs
-- **Input**: Temporally-encoded features from TCN
-- **Output**: Spatially-aware feature representation
+- Fixed adjacency is insufficient; edges must evolve with state (explicit dynamics)
+- Architecture:
+  - GCN with Laplacian Positional Encoding (LPE; top‑K eigenvectors, e.g., K=8–16)
+  - Time‑varying adjacency A_t built from Mamba features (learned similarity or corr)
+  - Optional GAT variant for attention over electrodes
+- Input: Per‑channel temporal embeddings from Bi‑Mamba‑2
+- Output: Spatially aware features per time step
 
-### 3. ConvNeXt - Local Pattern Enhancement
+### 3. ConvNeXt — Local Pattern Enhancement
 **Problem Solved**: Outdated ResNet blocks
 - **Current issue**: ResNet from 2015, surpassed by modern designs
 - **ConvNeXt solution**:
@@ -81,10 +71,9 @@ EEG Input (19ch, 256Hz, 60s windows)
   - Inverted bottleneck design
 - **Performance**: Matches Vision Transformers with pure convolution
 
-### 4. Bi-Mamba-2 - Long-Range Dependencies
-**Keep from v2**: Already optimal for this role
-- **Maintains**: O(N) complexity advantage
-- **Enhancement**: Now operates on richer, spatially-aware features
+### 4. Optional TCN — Multi‑Scale Temporal Add‑on
+If extra multi‑scale temporal detail is needed post‑graph, add a lightweight TCN block.
+Keep total latency within real‑time bounds (<100 ms per hop).
 
 ---
 
@@ -95,28 +84,20 @@ EEG Input (19ch, 256Hz, 60s windows)
 - [ ] Document baseline metrics (TAES at 10/5/1 FA/24h)
 - [ ] Profile computational requirements
 
-### Phase 2: TCN Replacement (Months 2-3)
-- [ ] Replace U-Net with TCN
-- [ ] Architecture: 6-layer TCN with exponential dilation
-- [ ] Compare: Parameters, FLOPs, performance
-- [ ] Expected: Simpler model, comparable or better performance
+### Phase 2: Add Dynamic GNN after Bi‑Mamba (Months 2–3)
+- [ ] Implement GraphChannelMixer (GCN+LPE) after Bi‑Mamba‑2
+- [ ] Build adjacency A_t from temporal features (cosine or learned MLP)
+- [ ] Gate by config; add unit tests for shapes and identity init
+- [ ] Compare TAES + AUROC vs baseline
 
-### Phase 3: ConvNeXt Integration (Months 3-4)
-- [ ] Replace ResCNN with ConvNeXt blocks
-- [ ] Tune: Kernel sizes (7×1, 9×1, 11×1)
-- [ ] Compare: Local pattern detection quality
-- [ ] Expected: 5-10% performance improvement
+### Phase 3: ConvNeXt Integration (Months 3–4)
+- [ ] Replace ResCNN with ConvNeXt blocks (7×1, 9×1, 11×1)
+- [ ] Evaluate interaction with graph features
 
-### Phase 4: GNN Spatial Reasoning (Months 4-6)
-- [ ] Add GNN as first component
-- [ ] Architecture options:
-  - GAT with 2-hop attention
-  - GCN with learnable adjacency
-  - GraphSAGE with electrode embedding
-- [ ] Test montage generalization:
-  - Train on referential, test on bipolar
-  - Train on 19ch, test on 10-20 system variations
-- [ ] Expected: Major improvement in cross-dataset transfer
+### Phase 4: Dual‑Stream Temporal (Months 4–6)
+- [ ] Prototype node‑stream and edge‑stream Mamba (EvoBrain style)
+- [ ] Edge stream supervises/builds A_t; node stream feeds GCN
+- [ ] Test montage generalization and robustness
 
 ### Phase 5: Full Stack Optimization (Months 6-7)
 - [ ] Joint training of all components
