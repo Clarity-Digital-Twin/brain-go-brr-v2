@@ -211,7 +211,7 @@ class TestIntegrationPipeline:
     def test_full_pipeline(self) -> None:
         """Test complete TCN pipeline integration."""
         from src.brain_brr.models import BiMamba2
-        from src.brain_brr.models.tcn import TCNEncoder, ProjectionHead
+        from src.brain_brr.models.tcn import ProjectionHead, TCNEncoder
 
         # Create full pipeline
         tcn = TCNEncoder()
@@ -239,7 +239,7 @@ class TestIntegrationPipeline:
     def test_gradient_flow_pipeline(self) -> None:
         """Test gradients flow through entire pipeline."""
         from src.brain_brr.models import BiMamba2
-        from src.brain_brr.models.tcn import TCNEncoder, ProjectionHead
+        from src.brain_brr.models.tcn import ProjectionHead, TCNEncoder
 
         tcn = TCNEncoder()
         bimamba = BiMamba2(d_model=512)

@@ -172,29 +172,8 @@ class TestTCNIntegration:
         assert hasattr(detector, "proj_512_to_19")
         assert hasattr(detector, "upsample")
 
-        # Should NOT have U-Net components
-        assert not hasattr(detector, "encoder")
-        assert not hasattr(detector, "decoder")
-        assert not hasattr(detector, "rescnn")
-
-    def test_detector_with_unet_flag(self):
-        """Detector should use U-Net when architecture='unet' (backwards compat)."""
-        from src.brain_brr.config.schemas import ModelConfig
-        from src.brain_brr.models.detector import SeizureDetector
-
-        config = ModelConfig(
-            architecture="unet"  # Old path
-        )
-
-        detector = SeizureDetector.from_config(config)
-
-        # Should have U-Net components
-        assert hasattr(detector, "encoder")
-        assert hasattr(detector, "decoder")
-        assert hasattr(detector, "rescnn")
-
-        # Should NOT have TCN components
-        assert not hasattr(detector, "tcn_encoder")
+    # Legacy 'unet' path removed in v2.3+; skipping old-compat tests
+    # def test_detector_with_unet_flag(self): ...
 
     def test_detector_forward_with_tcn(self):
         """Full forward pass with TCN should produce correct output shape."""
@@ -239,14 +218,12 @@ class TestTCNIntegration:
         assert not torch.isnan(loss)
 
     def test_config_gating_works(self):
-        """Switching architecture flag should change detector behavior."""
+        """TCN path must instantiate and run forward."""
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
-        # Test both paths work
-        for arch in ["tcn", "unet"]:
-            config = ModelConfig(architecture=arch)
-            detector = SeizureDetector.from_config(config)
-            x = torch.randn(1, 19, 15360)
-            output = detector(x)
-            assert output.shape == (1, 15360), f"Failed for architecture={arch}"
+        config = ModelConfig(architecture="tcn")
+        detector = SeizureDetector.from_config(config)
+        x = torch.randn(1, 19, 15360)
+        output = detector(x)
+        assert output.shape == (1, 15360)

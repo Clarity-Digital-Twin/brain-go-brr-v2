@@ -26,9 +26,10 @@ class TestTrainingExplosions:
     @pytest.fixture
     def small_model(self):
         """Create a small model for testing."""
+        # Use legacy-compatible ctor; args are accepted but ignored for TCN
         model = SeizureDetector(
             in_channels=19,
-            base_channels=32,  # Smaller for faster tests
+            base_channels=32,
             encoder_depth=4,
             rescnn_blocks=2,
             rescnn_kernels=[3, 5],
