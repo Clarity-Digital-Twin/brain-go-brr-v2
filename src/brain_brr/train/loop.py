@@ -15,7 +15,6 @@ import os
 import random
 import sys
 import time
-import warnings
 from contextlib import suppress
 from pathlib import Path
 from typing import Any, cast
@@ -42,16 +41,6 @@ from src.brain_brr.config.schemas import (
 from src.brain_brr.eval.metrics import evaluate_predictions
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.wandb_integration import WandBLogger
-
-# Suppress known PyTorch scheduler warning that occurs when scheduler is created
-# with last_epoch=-1 and stepped for the first time. This is a false positive -
-# we ARE calling optimizer.step() before scheduler.step() as required.
-warnings.filterwarnings(
-    "ignore",
-    message="Detected call of `lr_scheduler.step()` before `optimizer.step()`",
-    category=UserWarning,
-    module="torch.optim.lr_scheduler",
-)
 
 # WSL2-safe multiprocessing defaults (must be before any DataLoader creation)
 if mp.get_start_method(allow_none=True) != "spawn":
@@ -557,9 +546,11 @@ def train_epoch(
             # Increment global step counter
             global_step += 1
 
-            # Scheduler step AFTER optimizer.step()
+            # Scheduler step ONLY after a real optimizer step
             if scheduler is not None:
-                scheduler.step()
+                step_count = getattr(optimizer, "_step_count", 0)
+                if isinstance(step_count, int) and step_count > 0:
+                    scheduler.step()
 
             total_loss += loss.item()
             num_batches += 1
