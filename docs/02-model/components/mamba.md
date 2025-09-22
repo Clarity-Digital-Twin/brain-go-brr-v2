@@ -7,7 +7,7 @@ Spec
 - 6 layers on (B, L, D) with D=512, d_state=16.
 - Bidirectional: run Mamba forward on x and on time‑reversed x, then flip back and fuse.
 - Output projection from concat([fwd, bwd], dim=-1) to D; LayerNorm + Dropout + residual.
-- d_conv default 5 (CUDA kernels only support {2,3,4}; CUDA path coerces to 4; Conv1d fallback available).
+- d_conv default 4 (CUDA kernels support {2,3,4}; Conv1d fallback available for CPU).
 
 Runtime notes
 - Force Conv1d fallback: `SEIZURE_MAMBA_FORCE_FALLBACK=1`.

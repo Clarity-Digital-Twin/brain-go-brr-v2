@@ -110,7 +110,7 @@ This document serves as the single source of truth for the complete architecture
   - [✓] 6 bidirectional layers
   - [✓] d_model: 512
   - [✓] d_state: 16
-  - [✓] d_conv: 5 (CUDA kernels only support {2,3,4}, internally coerced to 4)
+  - [✓] d_conv: 4 (CUDA kernels only support {2,3,4}, internally coerced to 4)
   - [✓] Expand factor: 2
   - [✓] CUDA compilation: Requires PyTorch 2.2.2+cu121, mamba-ssm==2.2.2, causal-conv1d==1.4.0
 
@@ -436,7 +436,7 @@ This document serves as the single source of truth for the complete architecture
 
 ## ⚠️ KNOWN ISSUES & DEVIATIONS
 
-1. **Mamba Conv Kernel**: d_conv=5 specified, but CUDA kernels only support {2,3,4}, internally coerced to 4
+1. **Mamba Conv Kernel**: d_conv=4 specified, but CUDA kernels only support {2,3,4}, internally coerced to 4
 2. **Modal Deployment**: Requires exact PyTorch 2.2.2+cu121 (NOT 2.8.0 from Modal mirror), mamba-ssm==2.2.2, causal-conv1d==1.4.0
 3. **Parameter Count**: Actual ~13.4M (not ~25M as initially estimated) verified via torchinfo
 2. **Channel Interpolation**: Automatic for Fz, Pz via MNE `set_montage` when missing

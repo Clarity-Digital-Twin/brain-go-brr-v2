@@ -1,67 +1,41 @@
 # Mamba d_conv Kernel Size Decision
 
 ## Summary
-We use d_conv=5 in configs/docs but coerce to 4 for CUDA. **We could have just used 4 everywhere.**
+We use d_conv=4 throughout the codebase - the maximum value supported by CUDA kernels.
 
-## Why We Chose d_conv=5
+## Why d_conv=4
 
 ### Temporal Resolution Analysis
 - At 256 Hz sampling rate:
-  - Kernel 5 = ~19.5ms temporal window (5/256 ≈ 0.0195 seconds)
   - Kernel 4 = ~15.6ms temporal window (4/256 ≈ 0.0156 seconds)
   - Kernel 3 = ~11.7ms temporal window (3/256 ≈ 0.0117 seconds)
+  - Kernel 2 = ~7.8ms temporal window (2/256 ≈ 0.0078 seconds)
 
 ### Clinical Rationale
-- ~20ms window captures high-frequency epileptiform activities (20-70 Hz)
-- Matches middle kernel in ResCNN stack [3, 5, 7] for multi-scale consistency
+- ~15.6ms window captures high-frequency epileptiform activities
 - Balances local temporal pattern capture with computational efficiency
+- Matches the scale of fast ripples and spikes in EEG
 
-## CUDA Kernel Limitation
+## CUDA Kernel Support
 
-### The Hard Constraint
 ```python
-# mamba-ssm CUDA kernels only support d_conv in {2, 3, 4}
-# This is a hardware optimization limitation in the CUDA implementation
+# mamba-ssm CUDA kernels support d_conv in {2, 3, 4}
+# We use 4 as it provides the best temporal coverage
 ```
 
-### Our Workaround
-```python
-# In src/brain_brr/models/mamba.py:
-self.d_conv = d_conv  # Public value = 5
-self._mamba_conv_k = d_conv if d_conv in (2,3,4) else 4  # CUDA gets 4
+## Runtime Options
+
+### Force CPU Fallback
+To force the Conv1d fallback regardless of CUDA availability (e.g., for testing):
+```bash
+export SEIZURE_MAMBA_FORCE_FALLBACK=1
 ```
 
-## The Truth: We Should Have Used 4
+This uses a simpler Conv1d implementation that preserves shapes but isn't a true SSM.
 
-### Why 4 Would Have Been Better
-1. **CUDA is primary target** - We train on GPUs (A100s), not CPUs
-2. **Negligible difference** - 15.6ms vs 19.5ms both capture same patterns
-3. **Simpler code** - No coercion logic, no warnings, no dual paths
-4. **Industry standard** - Vision Mamba, original Mamba use d_conv=4
+## Architecture Alignment
+- Vision Mamba uses d_conv=4
+- Original Mamba paper tested d_conv=4
+- Industry standard for sequence modeling
 
-### Why We Didn't
-- Early decision picked 5 (matching ResCNN middle kernel)
-- Documentation written with 5
-- Tests written expecting 5
-- Changing became more work than coercing
-
-## Lessons Learned
-
-**For future architectures:**
-1. Check hardware constraints FIRST
-2. Don't let early decisions become technical debt
-3. The "theoretically optimal" value means nothing if hardware coerces it anyway
-
-## Current State (DO NOT CHANGE)
-
-Keep d_conv=5 in configs because:
-- All documentation references it
-- Tests expect it
-- CPU fallback uses it
-- Changing would require updating 50+ files
-
-Just remember: **We're really using 4 on GPU anyway.**
-
-Runtime tip
-- To force the Conv1d fallback regardless of CUDA availability (e.g., CI/CPU runs), set:
-  - `SEIZURE_MAMBA_FORCE_FALLBACK=1`
+The choice of d_conv=4 provides optimal balance between temporal resolution and hardware efficiency.

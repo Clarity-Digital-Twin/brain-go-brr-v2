@@ -50,7 +50,7 @@ Detection head → per‑timestep probabilities
 - Fits EvoBrain’s “time‑then‑graph” result (temporal first, graph second)
 - Our codebase already uses Bi‑Mamba‑2; reuse as the time encoder
 - Optional: dual‑stream node/edge Mamba later (EvoBrain’s two‑stream idea)
-- CUDA note: our CUDA path coerces `d_conv=5→4`; EvoBrain uses `d_conv=4`. Recommend `conv_kernel=4` for parity.
+- CUDA note: our CUDA path coerces `d_conv=4→4`; EvoBrain uses `d_conv=4`. Recommend `conv_kernel=4` for parity.
 
 ### 2. Dynamic Graph Neural Network (GNN) — Spatial Reasoning
 **Problem Solved**: Montage dependency

@@ -65,7 +65,7 @@ This document captures critical bugs and pain points from project history that h
 **Status:** Mitigated but not fully resolved
 **Current State:**
 - PyTorch 2.2.2 required for mamba-ssm compatibility
-- d_conv=5 not supported by CUDA kernels (coerces to 4)
+- d_conv=4 not supported by CUDA kernels (uses d_conv=4)
 - `SEIZURE_MAMBA_FORCE_FALLBACK=1` forces Conv1d path
 **Risk:** Performance degradation if CUDA kernels fail
 

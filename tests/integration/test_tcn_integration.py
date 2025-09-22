@@ -153,6 +153,8 @@ class TestTCNPerformance:
     @pytest.mark.slow
     def test_tcn_faster_than_unet(self):
         """TCN should be faster than U-Net+ResCNN per batch."""
+        if not torch.cuda.is_available():
+            pytest.skip("CUDA required for reliable perf comparison")
         import time
 
         from src.brain_brr.config.schemas import ModelConfig
@@ -162,10 +164,10 @@ class TestTCNPerformance:
         unet_config = ModelConfig(architecture="unet")
         tcn_config = ModelConfig(architecture="tcn")
 
-        unet_model = SeizureDetector.from_config(unet_config)
-        tcn_model = SeizureDetector.from_config(tcn_config)
+        unet_model = SeizureDetector.from_config(unet_config).cuda()
+        tcn_model = SeizureDetector.from_config(tcn_config).cuda()
 
-        x = torch.randn(4, 19, 15360)
+        x = torch.randn(4, 19, 15360).cuda()
 
         # Warmup
         for _ in range(3):

@@ -32,7 +32,7 @@ CUDA_SUPPORTED = {2, 3, 4}  # Hardware optimization limitation
 actual_d_conv = 4 if using_cuda else 5
 ```
 
-### Why We Use d_conv=5 (But Get 4)
+### Why We Use d_conv=4 (But Get 4)
 1. **Original Design**: 5 matches middle ResCNN kernel for multi-scale consistency
 2. **CUDA Reality**: Kernels only support {2,3,4}, auto-coerces to 4
 3. **Impact**: 15.6ms vs 19.5ms window - negligible difference
@@ -201,6 +201,6 @@ modal run --detach deploy/modal/app.py \
 4. **Multi-GPU**: Data parallel training on 8×A100
 
 ### Not Worth It
-1. **d_conv=5 Support**: Would require custom CUDA kernel
+1. **d_conv=4 Support**: Would require custom CUDA kernel
 2. **FP8 Training**: Insufficient precision for medical
 3. **Graph Compilation**: Dynamic shapes prevent optimization

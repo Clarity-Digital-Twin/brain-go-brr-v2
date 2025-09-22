@@ -69,7 +69,7 @@ Input (B,19,15360) → U-Net Encoder → ResCNN → Bi-Mamba-2 → U-Net Decoder
 - **Model dimensions:**
   - d_model: 512
   - d_state: 16
-  - conv_kernel: 5
+  - conv_kernel: 4
 - **Bidirectional processing:**
   1. Forward pass: process sequence left-to-right
   2. Backward pass: process sequence right-to-left

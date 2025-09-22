@@ -4,6 +4,7 @@ Replaces U-Net encoder/decoder + ResCNN with a modern TCN architecture.
 Uses pytorch-tcn if available, falls back to minimal implementation.
 """
 
+import os
 import warnings
 from typing import cast
 
@@ -125,8 +126,14 @@ class TCNEncoder(nn.Module):
             torch.backends.cuda.matmul.allow_tf32 = True
             torch.backends.cudnn.allow_tf32 = True
 
+        # Choose backend: prefer external TCN only when CUDA is available (faster),
+        # else use the lightweight in-repo fallback to keep CPU tests fast.
+        use_external = HAS_PYTORCH_TCN and (
+            torch.cuda.is_available() or os.getenv("BGB_FORCE_TCN_EXT", "0") == "1"
+        )
+
         # TCN backbone
-        if HAS_PYTORCH_TCN:
+        if use_external:
             # Use pytorch-tcn package
             self.tcn = TCN(
                 num_inputs=input_channels,

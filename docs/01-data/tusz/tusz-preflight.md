@@ -42,8 +42,8 @@ WSL2 and environment tips
 
 CUDA/Mamba SSM notes
 
-- Mamba CUDA kernels only support d_conv={2,3,4}, but we configure d_conv=5
-- Automatically coerced to 4 for CUDA path (minor impact on model)
+- Mamba CUDA kernels only support d_conv={2,3,4}, but we configure d_conv=4
+- Automatically set to 4 for CUDA path (minor impact on model)
 - Set `SEIZURE_MAMBA_FORCE_FALLBACK=1` to force Conv1d fallback if CUDA issues occur
 - Fallback is slower but guarantees compatibility
 
