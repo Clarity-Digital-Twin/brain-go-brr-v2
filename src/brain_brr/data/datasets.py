@@ -225,6 +225,9 @@ class BalancedSeizureDataset(Dataset):
         rng = np.random.default_rng(seed)
 
         indices: list[tuple[Path, int]] = []
+        n_partial_kept = 0
+        n_full_kept = 0
+        n_bg_kept = 0
         missing_ref_count = 0
 
         # Add ALL partial seizure windows (most informative)
@@ -233,6 +236,7 @@ class BalancedSeizureDataset(Dataset):
             cache_file = self.cache_dir / item["cache_file"]
             if cache_file.exists():
                 indices.append((cache_file, int(item["window_idx"])))
+                n_partial_kept += 1
             else:
                 missing_ref_count += 1
 
@@ -245,6 +249,7 @@ class BalancedSeizureDataset(Dataset):
                 cache_file = self.cache_dir / item["cache_file"]
                 if cache_file.exists():
                     indices.append((cache_file, int(item["window_idx"])))
+                    n_full_kept += 1
                 else:
                     missing_ref_count += 1
 
@@ -259,6 +264,7 @@ class BalancedSeizureDataset(Dataset):
                 cache_file = self.cache_dir / item["cache_file"]
                 if cache_file.exists():
                     indices.append((cache_file, int(item["window_idx"])))
+                    n_bg_kept += 1
                 else:
                     missing_ref_count += 1
 
@@ -267,12 +273,12 @@ class BalancedSeizureDataset(Dataset):
         rng.shuffle(indices_array)
         self._entries: list[tuple[Path, int]] = indices_array.tolist()
 
-        # Log dataset composition
-        n_partial_used = len(partial)
-        n_full_used = min(n_full, len(full)) if full else 0
-        n_bg_used = min(n_bg, len(no_seizure)) if no_seizure else 0
+        # Log dataset composition based on actual kept entries
+        n_partial_used = n_partial_kept
+        n_full_used = n_full_kept
+        n_bg_used = n_bg_kept
 
-        # Store seizure statistics for fast access (avoid sampling 1000 windows!)
+        # Store seizure statistics for fast access
         self._n_seizure_windows = n_partial_used + n_full_used
         self._n_total_windows = len(self._entries)
         self._seizure_ratio = (
