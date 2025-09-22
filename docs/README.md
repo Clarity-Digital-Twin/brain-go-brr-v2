@@ -62,7 +62,7 @@
   - [`direction.md`](04-research/future/direction.md) - Overall future plans
   - [`roadmap.md`](04-research/future/roadmap.md) - Experimental stack roadmap
   - [`gnn-tcn-stack.md`](04-research/future/gnn-tcn-stack.md) - GNN-TCN architecture exploration
-  - [`v2_6_dynamic_gnn_lpe_plan.md`](04-research/future/v2_6_dynamic_gnn_lpe_plan.md) - Implementation plan for Dynamic GNN + LPE
+  - [`v2_6_dynamic_gnn_lpe_plan.md`](../v2_6_dynamic_gnn_lpe_plan.md) - Implementation plan for Dynamic GNN + LPE (temporarily living at repo root during revisions)
 - **benchmarks/** - Performance benchmarking
   - [`plans.md`](04-research/benchmarks/plans.md) - Benchmark planning
   - [`results.md`](04-research/benchmarks/results.md) - Benchmark results
