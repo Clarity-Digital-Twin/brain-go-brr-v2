@@ -1,21 +1,20 @@
 """Test TCN encoder module - WRITTEN BEFORE IMPLEMENTATION (TDD)."""
 
+
 import pytest
 import torch
-import torch.nn as nn
-from typing import Tuple
 
 
 class TestTCNEncoder:
     """Test TCN encoder shape contracts and integration."""
 
     @pytest.fixture
-    def batch_shape(self) -> Tuple[int, int, int]:
+    def batch_shape(self) -> tuple[int, int, int]:
         """Standard batch shape for testing."""
         return (4, 19, 15360)  # (batch, channels, time @ 256Hz)
 
     @pytest.fixture
-    def expected_output_shape(self) -> Tuple[int, int, int]:
+    def expected_output_shape(self) -> tuple[int, int, int]:
         """Expected TCN output shape for Mamba compatibility."""
         return (4, 512, 960)  # (batch, features, time/16)
 
@@ -154,8 +153,8 @@ class TestTCNIntegration:
 
     def test_detector_with_tcn_flag(self):
         """Detector should use TCN when architecture='tcn'."""
-        from src.brain_brr.models.detector import SeizureDetector
         from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.models.detector import SeizureDetector
 
         # Create config with TCN architecture
         config = ModelConfig(
@@ -185,8 +184,8 @@ class TestTCNIntegration:
 
     def test_detector_with_unet_flag(self):
         """Detector should use U-Net when architecture='unet' (backwards compat)."""
-        from src.brain_brr.models.detector import SeizureDetector
         from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.models.detector import SeizureDetector
 
         config = ModelConfig(
             architecture="unet"  # Old path
@@ -204,8 +203,8 @@ class TestTCNIntegration:
 
     def test_detector_forward_with_tcn(self):
         """Full forward pass with TCN should produce correct output shape."""
-        from src.brain_brr.models.detector import SeizureDetector
         from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.models.detector import SeizureDetector
 
         config = ModelConfig(
             architecture="tcn",
@@ -228,9 +227,10 @@ class TestTCNIntegration:
 
     def test_loss_compatibility_with_tcn(self):
         """TCN path must produce outputs compatible with existing loss."""
-        from src.brain_brr.models.detector import SeizureDetector
-        from src.brain_brr.config.schemas import ModelConfig
         import torch.nn.functional as F
+
+        from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.models.detector import SeizureDetector
 
         config = ModelConfig(architecture="tcn")
         detector = SeizureDetector.from_config(config)
@@ -247,8 +247,8 @@ class TestTCNIntegration:
 
     def test_config_gating_works(self):
         """Switching architecture flag should change detector behavior."""
-        from src.brain_brr.models.detector import SeizureDetector
         from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.models.detector import SeizureDetector
 
         # Test both paths work
         for arch in ["tcn", "unet"]:

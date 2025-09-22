@@ -1,9 +1,10 @@
 """Integration tests for TCN replacement - WRITTEN BEFORE IMPLEMENTATION (TDD)."""
 
-import pytest
-import torch
 import tempfile
 from pathlib import Path
+
+import pytest
+import torch
 
 
 @pytest.mark.integration
@@ -12,8 +13,8 @@ class TestTCNFullPipeline:
 
     def test_full_pipeline_with_tcn(self):
         """TCN path should work end-to-end: EEG → TCN → Mamba → Output."""
-        from src.brain_brr.models.detector import SeizureDetector
         from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.models.detector import SeizureDetector
 
         config = ModelConfig(
             architecture="tcn",
@@ -50,9 +51,10 @@ class TestTCNFullPipeline:
 
     def test_tcn_training_step(self):
         """TCN should work with training pipeline."""
-        from src.brain_brr.models.detector import SeizureDetector
-        from src.brain_brr.config.schemas import ModelConfig, TrainingConfig
         from src.brain_brr.train.loss import FocalLoss
+
+        from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.models.detector import SeizureDetector
 
         model_config = ModelConfig(
             architecture="tcn",
@@ -81,8 +83,8 @@ class TestTCNFullPipeline:
 
     def test_tcn_checkpoint_save_load(self):
         """TCN model should save and load correctly."""
-        from src.brain_brr.models.detector import SeizureDetector
         from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.models.detector import SeizureDetector
 
         config = ModelConfig(
             architecture="tcn",
@@ -115,8 +117,8 @@ class TestTCNFullPipeline:
     @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
     def test_tcn_mixed_precision(self):
         """TCN should work with mixed precision training."""
-        from src.brain_brr.models.detector import SeizureDetector
         from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.models.detector import SeizureDetector
 
         config = ModelConfig(
             architecture="tcn",
@@ -134,8 +136,8 @@ class TestTCNFullPipeline:
 
     def test_config_backward_compatibility(self):
         """Old configs without 'architecture' field should default to U-Net."""
-        from src.brain_brr.models.detector import SeizureDetector
         from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.models.detector import SeizureDetector
 
         # Old config without architecture field
         config_dict = {
@@ -160,8 +162,9 @@ class TestTCNPerformance:
     def test_tcn_faster_than_unet(self):
         """TCN should be faster than U-Net+ResCNN per batch."""
         import time
-        from src.brain_brr.models.detector import SeizureDetector
+
         from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.models.detector import SeizureDetector
 
         # Create both models
         unet_config = ModelConfig(architecture="unet")
@@ -200,8 +203,8 @@ class TestTCNPerformance:
     @pytest.mark.slow
     def test_tcn_memory_usage(self):
         """TCN should use less memory than U-Net+ResCNN."""
-        from src.brain_brr.models.detector import SeizureDetector
         from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.models.detector import SeizureDetector
 
         if not torch.cuda.is_available():
             pytest.skip("CUDA required for memory profiling")

@@ -5,11 +5,9 @@ Uses pytorch-tcn if available, falls back to minimal implementation.
 """
 
 import warnings
-from typing import Optional
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 # Try to import pytorch-tcn (optional dependency)
 try:
@@ -172,7 +170,7 @@ class TCNEncoder(nn.Module):
         """
         # Check input shape
         B, C, L = x.shape
-        assert C == self.input_channels, f"Expected {self.input_channels} channels, got {C}"
+        assert self.input_channels == C, f"Expected {self.input_channels} channels, got {C}"
         assert L == 15360, f"Expected 15360 samples, got {L}"
 
         # TCN processing
