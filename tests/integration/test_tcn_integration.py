@@ -52,7 +52,7 @@ class TestTCNFullPipeline:
 
     def test_tcn_training_step(self):
         """TCN should work with training pipeline."""
-        import torch.nn.functional as F
+        import torch.nn.functional as functional
 
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
@@ -71,7 +71,7 @@ class TestTCNFullPipeline:
 
         # Forward
         logits = detector(x)
-        loss = F.binary_cross_entropy_with_logits(logits, labels)
+        loss = functional.binary_cross_entropy_with_logits(logits, labels)
 
         # Backward
         loss.backward()
