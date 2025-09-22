@@ -1083,6 +1083,15 @@ def main() -> None:
     config = Config.from_yaml(Path(args.config))
     config.training.resume = args.resume
 
+    # Check if we're in smoke test mode
+    is_smoke_test = os.environ.get("BGB_SMOKE_TEST", "0") == "1"
+    if is_smoke_test:
+        print("\n" + "=" * 60)
+        print("SMOKE TEST MODE ACTIVE")
+        print("Pipeline validation only - model will NOT learn meaningful patterns")
+        print("DO NOT use this for real training!")
+        print("=" * 60 + "\n", flush=True)
+
     # Create datasets (discover EDF files and paired CSV_BI annotations if present)
     data_root = Path(config.data.data_dir)
     edf_files = sorted(data_root.glob("**/*.edf"))
@@ -1203,10 +1212,15 @@ def main() -> None:
                 flush=True,
             )
             if len(train_dataset) == 0:
-                print("[FATAL] Balanced manifest produced 0 windows", flush=True)
-                import sys
+                is_smoke_test = os.environ.get("BGB_SMOKE_TEST", "0") == "1"
+                if is_smoke_test:
+                    print("[SMOKE TEST MODE] Balanced manifest empty - will fallback to EEGWindowDataset", flush=True)
+                    raise Exception("Empty manifest in smoke test - triggering fallback")
+                else:
+                    print("[FATAL] Balanced manifest produced 0 windows", flush=True)
+                    import sys
 
-                sys.exit(1)
+                    sys.exit(1)
         except Exception as e:
             print(f"[WARNING] BalancedSeizureDataset failed: {e}; falling back to EEGWindowDataset")
             train_dataset = EEGWindowDataset(
@@ -1267,15 +1281,26 @@ def main() -> None:
         train_sampler = create_balanced_sampler(train_dataset, sample_size=sample_size)
 
         if train_sampler is None:
-            print("=" * 60, flush=True)
-            print(f"[FATAL] No seizures found in {sample_size} windows!", flush=True)
-            print("[FATAL] Training will produce a USELESS model!", flush=True)
-            print("[FATAL] Check your data or increase sample size!", flush=True)
-            print("=" * 60, flush=True)
-            # Fail fast - don't waste GPU hours on doomed training
-            import sys
+            # Check if we're in smoke test mode
+            is_smoke_test = os.environ.get("BGB_SMOKE_TEST", "0") == "1"
 
-            sys.exit(1)
+            if is_smoke_test:
+                print("=" * 60, flush=True)
+                print("[SMOKE TEST MODE] No seizures found - continuing anyway", flush=True)
+                print("[SMOKE TEST MODE] Using uniform sampling for pipeline validation", flush=True)
+                print("[SMOKE TEST MODE] This model will NOT learn - testing only!", flush=True)
+                print("=" * 60, flush=True)
+                # Continue with default sampler for smoke testing
+            else:
+                print("=" * 60, flush=True)
+                print(f"[FATAL] No seizures found in {sample_size} windows!", flush=True)
+                print("[FATAL] Training will produce a USELESS model!", flush=True)
+                print("[FATAL] Check your data or increase sample size!", flush=True)
+                print("=" * 60, flush=True)
+                # Fail fast - don't waste GPU hours on doomed training
+                import sys
+
+                sys.exit(1)
 
     train_loader_kwargs: dict[str, Any] = {
         "batch_size": config.training.batch_size,
