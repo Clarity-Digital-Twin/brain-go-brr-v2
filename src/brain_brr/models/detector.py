@@ -34,69 +34,64 @@ class SeizureDetector(nn.Module):
           -> 1x1 Conv -> (B, 15360) [Per-sample logits]
     """
 
-    # Explicit architecture selector to satisfy type-checkers when swapping paths
-    architecture: str | None = None
-
     def __init__(
         self,
         *,
-        in_channels: int = 19,
-        base_channels: int = 64,
-        encoder_depth: int = 4,
+        # TCN params
+        tcn_layers: int = 8,
+        tcn_kernel_size: int = 7,
+        tcn_dropout: float = 0.15,
+        tcn_stride_down: int = 16,
         # Mamba params
         mamba_layers: int = 6,
         mamba_d_state: int = 16,
         mamba_d_conv: int = 4,
-        # ResCNN params
-        rescnn_blocks: int = 3,
-        rescnn_kernels: list[int] | None = None,
-        # Regularization
-        dropout: float = 0.1,
+        mamba_dropout: float = 0.1,
     ) -> None:
         super().__init__()
 
-        if rescnn_kernels is None:
-            rescnn_kernels = [3, 5, 7]
-
-        # Persist minimal config snapshot for debugging/reporting
+        # Persist config for debugging
         self.config: dict[str, object] = {
-            "in_channels": in_channels,
-            "base_channels": base_channels,
-            "encoder_depth": encoder_depth,
+            "architecture": "tcn",
+            "tcn_layers": tcn_layers,
+            "tcn_kernel_size": tcn_kernel_size,
+            "tcn_dropout": tcn_dropout,
+            "tcn_stride_down": tcn_stride_down,
             "mamba_layers": mamba_layers,
             "mamba_d_state": mamba_d_state,
             "mamba_d_conv": mamba_d_conv,
-            "rescnn_blocks": rescnn_blocks,
-            "rescnn_kernels": rescnn_kernels,
-            "dropout": dropout,
+            "mamba_dropout": mamba_dropout,
         }
 
-        bottleneck_channels = base_channels * (2 ** (encoder_depth - 1))  # 512 for defaults
+        # TCN encoder: 19 channels -> 512 channels, 15360 -> 960 samples
+        self.tcn_encoder = TCNEncoder(
+            input_channels=19,
+            output_channels=512,
+            num_layers=tcn_layers,
+            kernel_size=tcn_kernel_size,
+            dropout=tcn_dropout,
+            causal=False,
+            stride_down=tcn_stride_down,
+        )
 
-        # Components
-        self.encoder = UNetEncoder(
-            in_channels=in_channels, base_channels=base_channels, depth=encoder_depth
-        )
-        self.rescnn = ResCNNStack(
-            channels=bottleneck_channels,
-            num_blocks=rescnn_blocks,
-            kernel_sizes=rescnn_kernels,
-            dropout=dropout,
-        )
+        # Bi-Mamba for temporal modeling
         self.mamba = BiMamba2(
-            d_model=bottleneck_channels,
+            d_model=512,
             d_state=mamba_d_state,
             d_conv=mamba_d_conv,
             num_layers=mamba_layers,
-            dropout=dropout,
-        )
-        self.decoder = UNetDecoder(
-            out_channels=in_channels, base_channels=base_channels, depth=encoder_depth
+            dropout=mamba_dropout,
         )
 
-        # Detection head: fuse 19 channels to 1 logit channel
-        # Note: outputs raw logits; apply sigmoid at inference for probabilities
-        self.detection_head = nn.Conv1d(in_channels, 1, kernel_size=1)
+        # Projection head: 512 -> 19 channels, 960 -> 15360 samples
+        self.proj_head = ProjectionHead(
+            input_channels=512,
+            output_channels=19,
+            upsample_factor=tcn_stride_down,
+        )
+
+        # Detection head: 19 channels to 1 probability channel
+        self.detection_head = nn.Conv1d(19, 1, kernel_size=1)
 
         self._initialize_weights()
 
@@ -116,7 +111,7 @@ class SeizureDetector(nn.Module):
                     nn.init.constant_(m.bias, 0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass through complete architecture.
+        """Forward pass through TCN + Bi-Mamba architecture.
 
         Args:
             x: (B, 19, 15360) EEG window tensor
@@ -124,79 +119,36 @@ class SeizureDetector(nn.Module):
         Returns:
             (B, 15360) per-sample seizure logits (raw scores).
         """
-        # Check if using TCN path
-        if hasattr(self, "architecture") and self.architecture == "tcn":
-            # TCN path
-            features = self.tcn_encoder(x)  # (B, 512, 960)
-            temporal = self.mamba(features)  # (B, 512, 960)
-            chan19 = self.proj_512_to_19(temporal)  # (B, 19, 960)
-            decoded = self.upsample(chan19)  # (B, 19, 15360)
-            output = self.detection_head(decoded)  # (B, 1, 15360)
-            return cast(torch.Tensor, output.squeeze(1))  # (B, 15360)
-        else:
-            # Original U-Net path
-            encoded, skips = self.encoder(x)  # (B, 512, 960) + 4 skips
-            features = self.rescnn(encoded)  # (B, 512, 960)
-            temporal = self.mamba(features)  # (B, 512, 960)
-            decoded = self.decoder(temporal, skips)  # (B, 19, 15360)
-            output = self.detection_head(decoded)  # (B, 1, 15360)
-            return cast(torch.Tensor, output.squeeze(1))  # (B, 15360)
+        # TCN encoder: extract multi-scale temporal features
+        features = self.tcn_encoder(x)  # (B, 512, 960)
+
+        # Bi-Mamba: capture long-range dependencies
+        temporal = self.mamba(features)  # (B, 512, 960)
+
+        # Project back to 19 channels and upsample to original resolution
+        decoded = self.proj_head(temporal)  # (B, 19, 15360)
+
+        # Detection head: produce per-sample logits
+        output = self.detection_head(decoded)  # (B, 1, 15360)
+
+        return cast(torch.Tensor, output.squeeze(1))  # (B, 15360)
 
     @classmethod
     def from_config(cls, cfg: "_ModelConfig") -> "SeizureDetector":
-        """Instantiate from validated schema config (prevents name drift).
+        """Instantiate from validated schema config.
 
-        Note: `in_channels` fixed at 19 for the 10-20 montage in this project.
+        Note: Only TCN architecture is supported.
         """
-        # Check architecture flag for TCN vs U-Net path
-        if hasattr(cfg, "architecture") and cfg.architecture == "tcn":
-            # TCN path - create instance with TCN components
-            instance = cls.__new__(cls)
-            nn.Module.__init__(instance)
-
-            # Initialize TCN components
-            instance.tcn_encoder = TCNEncoder(
-                input_channels=19,
-                output_channels=512,
-                num_layers=cfg.tcn.num_layers,
-                kernel_size=cfg.tcn.kernel_size,
-                dropout=cfg.tcn.dropout,
-                causal=cfg.tcn.causal,
-                stride_down=cfg.tcn.stride_down,
-                use_cuda_optimizations=cfg.tcn.use_cuda_optimizations,
-            )
-            instance.mamba = BiMamba2(
-                d_model=512,
-                d_state=cfg.mamba.d_state,
-                d_conv=cfg.mamba.conv_kernel,
-                num_layers=cfg.mamba.n_layers,
-                dropout=cfg.mamba.dropout,
-            )
-            instance.proj_512_to_19 = nn.Conv1d(512, 19, kernel_size=1)
-            instance.upsample = nn.Upsample(scale_factor=16, mode="nearest")
-            instance.detection_head = nn.Conv1d(19, 1, kernel_size=1)
-
-            # Store config for debugging
-            instance.config = {"architecture": "tcn"}
-            instance.architecture = "tcn"
-
-            # Initialize weights
-            instance._initialize_weights()
-
-            return instance
-        else:
-            # Original U-Net path (default)
-            return cls(
-                in_channels=19,
-                base_channels=cfg.encoder.channels[0],
-                encoder_depth=cfg.encoder.stages,
-                mamba_layers=cfg.mamba.n_layers,
-                mamba_d_state=cfg.mamba.d_state,
-                mamba_d_conv=cfg.mamba.conv_kernel,
-                rescnn_blocks=cfg.rescnn.n_blocks,
-                rescnn_kernels=cfg.rescnn.kernel_sizes,
-                dropout=cfg.mamba.dropout,
-            )
+        return cls(
+            tcn_layers=cfg.tcn.num_layers,
+            tcn_kernel_size=cfg.tcn.kernel_size,
+            tcn_dropout=cfg.tcn.dropout,
+            tcn_stride_down=cfg.tcn.stride_down,
+            mamba_layers=cfg.mamba.n_layers,
+            mamba_d_state=cfg.mamba.d_state,
+            mamba_d_conv=cfg.mamba.conv_kernel,
+            mamba_dropout=cfg.mamba.dropout,
+        )
 
     def count_parameters(self) -> int:
         """Count total trainable parameters."""
