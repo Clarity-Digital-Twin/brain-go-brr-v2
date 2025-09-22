@@ -949,6 +949,12 @@ def train(
             scheduler.load_state_dict(ckpt["scheduler_state_dict"])
         start_epoch = ckpt["epoch"]
         best_metric = ckpt.get("best_metric", 0.0)
+        if best_metric == 0.0 and (checkpoint_dir / "last.pt").exists():
+            try:
+                _last = torch.load(checkpoint_dir / "last.pt", map_location="cpu")
+                best_metric = _last.get("best_metric", 0.0)
+            except Exception:
+                pass
         print(
             f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}", flush=True
         )
