@@ -179,6 +179,34 @@ def train(
     except ImportError as e:
         print(f"⚠️ Mamba-SSM import failed: {e}")
 
+    # CRITICAL: Optimize cache for Modal S3 performance
+    # S3 CloudBucketMount has terrible random access performance
+    # Copy NPZ files to local persistent volume for 10-100x speedup
+    print("\n" + "=" * 60, flush=True)
+    print("[CACHE] Checking cache optimization for Modal...", flush=True)
+    print("=" * 60, flush=True)
+
+    try:
+        import sys
+        sys.path.insert(0, "/app/deploy/modal")
+        from cache_optimizer import should_optimize_cache, optimize_cache_for_modal
+
+        paths = should_optimize_cache()
+        if paths:
+            s3_path, local_path = paths
+            print(f"[CACHE] S3 cache detected, optimizing for local access...", flush=True)
+            print(f"[CACHE] This one-time copy will speed up training by 10-100x", flush=True)
+            success = optimize_cache_for_modal(s3_path, local_path, verbose=True)
+            if not success:
+                print("[WARNING] Cache optimization failed, training will be SLOW!", flush=True)
+        else:
+            print("[CACHE] Cache already optimized or not on Modal", flush=True)
+    except Exception as e:
+        print(f"[WARNING] Cache optimization failed: {e}", flush=True)
+        print("[WARNING] Training will proceed but may be VERY SLOW!", flush=True)
+
+    print("=" * 60 + "\n", flush=True)
+
     # Set environment
     env = os.environ.copy()
     env["CUDA_VISIBLE_DEVICES"] = "0"
