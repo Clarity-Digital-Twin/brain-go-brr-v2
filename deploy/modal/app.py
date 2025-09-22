@@ -200,7 +200,8 @@ def train(
             if not success:
                 print("[WARNING] Cache optimization failed, training will be SLOW!", flush=True)
         else:
-            print("[CACHE] Cache already optimized or not on Modal", flush=True)
+            # should_optimize_cache already printed detailed reason
+            print("[CACHE] No optimization needed (see details above)", flush=True)
     except Exception as e:
         print(f"[WARNING] Cache optimization failed: {e}", flush=True)
         print("[WARNING] Training will proceed but may be VERY SLOW!", flush=True)
