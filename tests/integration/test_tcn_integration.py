@@ -148,7 +148,9 @@ class TestTCNPerformance:
     """TCN architecture performance tests."""
 
     @pytest.mark.slow
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU required for performance testing")
+    @pytest.mark.skipif(
+        not torch.cuda.is_available(), reason="GPU required for performance testing"
+    )
     def test_tcn_inference_speed(self):
         """TCN should have fast inference on GPU."""
         import time
