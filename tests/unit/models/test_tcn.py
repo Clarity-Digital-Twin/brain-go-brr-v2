@@ -171,7 +171,7 @@ class TestTCNIntegration:
             }
         )
 
-        detector = SeizureDetector(config)
+        detector = SeizureDetector.from_config(config)
 
         # Should have TCN components
         assert hasattr(detector, 'tcn_encoder')
@@ -192,7 +192,7 @@ class TestTCNIntegration:
             architecture="unet"  # Old path
         )
 
-        detector = SeizureDetector(config)
+        detector = SeizureDetector.from_config(config)
 
         # Should have U-Net components
         assert hasattr(detector, 'encoder')
@@ -216,7 +216,7 @@ class TestTCNIntegration:
             }
         )
 
-        detector = SeizureDetector(config)
+        detector = SeizureDetector.from_config(config)
         x = torch.randn(2, 19, 15360)
 
         output = detector(x)
@@ -233,7 +233,7 @@ class TestTCNIntegration:
         import torch.nn.functional as F
 
         config = ModelConfig(architecture="tcn")
-        detector = SeizureDetector(config)
+        detector = SeizureDetector.from_config(config)
 
         x = torch.randn(2, 19, 15360)
         labels = torch.randint(0, 2, (2, 15360)).float()
@@ -253,7 +253,7 @@ class TestTCNIntegration:
         # Test both paths work
         for arch in ["tcn", "unet"]:
             config = ModelConfig(architecture=arch)
-            detector = SeizureDetector(config)
+            detector = SeizureDetector.from_config(config)
             x = torch.randn(1, 19, 15360)
             output = detector(x)
             assert output.shape == (1, 15360), f"Failed for architecture={arch}"
