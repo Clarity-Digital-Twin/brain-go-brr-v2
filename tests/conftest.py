@@ -106,7 +106,7 @@ def trained_model(tmp_path):
         encoder=EncoderConfig(channels=[64, 128, 256, 512], stages=4),
         rescnn=ResCNNConfig(n_blocks=3, kernel_sizes=[3, 5, 7]),
         # Use fewer Mamba layers to keep clinical pipeline test under CI timeout
-        mamba=MambaConfig(n_layers=1, d_model=512, d_state=16, conv_kernel=5),
+        mamba=MambaConfig(n_layers=1, d_model=512, d_state=16, conv_kernel=4),
         decoder=DecoderConfig(stages=4, kernel_size=4),
     )
 
@@ -137,7 +137,7 @@ def minimal_model():
     config = ModelConfig(
         encoder=EncoderConfig(channels=[64, 128, 256, 512], stages=4),
         rescnn=ResCNNConfig(n_blocks=3, kernel_sizes=[3, 5, 7]),
-        mamba=MambaConfig(n_layers=1, d_model=512, d_state=16, conv_kernel=5),
+        mamba=MambaConfig(n_layers=1, d_model=512, d_state=16, conv_kernel=4),
         decoder=DecoderConfig(stages=4, kernel_size=4),
     )
 

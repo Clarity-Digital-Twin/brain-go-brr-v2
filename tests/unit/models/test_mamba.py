@@ -13,7 +13,7 @@ class TestBiMamba2Layer:
     @pytest.fixture
     def layer(self) -> BiMamba2Layer:
         """Create layer instance."""
-        return BiMamba2Layer(d_model=512, d_state=16, d_conv=5)
+        return BiMamba2Layer(d_model=512, d_state=16, d_conv=4)
 
     @pytest.fixture
     def sample_input(self) -> torch.Tensor:
@@ -109,7 +109,7 @@ class TestBiMamba2:
     @pytest.fixture
     def model(self) -> BiMamba2:
         """Create model instance."""
-        return BiMamba2(d_model=512, num_layers=6, d_state=16, d_conv=5)
+        return BiMamba2(d_model=512, num_layers=6, d_state=16, d_conv=4)
 
     @pytest.fixture
     def sample_input(self) -> torch.Tensor:
