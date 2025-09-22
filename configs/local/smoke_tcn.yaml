@@ -29,18 +29,26 @@ model:
 
 data:
   dataset: tuh_eeg
-  data_dir: data/tuh_eeg_seizure/v2.0.4/edf
-  cache_dir: cache/data
+  data_dir: data_ext4/tusz/edf/train  # Use TRAIN for smoke tests
+  cache_dir: cache/smoke_tcn
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60
+  stride: 10
   use_balanced_sampling: true
   num_workers: 0
   pin_memory: false
+  persistent_workers: false
+  prefetch_factor: 2
+  validation_split: 0.2
   max_samples: 20  # Small for smoke test
 
 preprocessing:
-  montage: 10-20
+  montage: "10-20"
   bandpass: [0.5, 120.0]
   notch_freq: 60
   normalize: true
+  use_mne: true
 
 training:
   batch_size: 4
