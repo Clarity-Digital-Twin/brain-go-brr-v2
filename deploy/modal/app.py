@@ -187,7 +187,24 @@ def train(
 
     try:
         from pathlib import Path
-        cache_path = Path("/results/cache/tusz/train")
+        # Load config to get the actual cache path
+        cfg_abs = config_path
+        if not config_path.startswith("/"):
+            cfg_abs = str(Path("/app") / config_path)
+
+        import yaml
+        with open(cfg_abs, "r") as f:
+            config_data = yaml.safe_load(f)
+
+        # Get cache path from config, with fallback
+        cache_dir = config_data.get("data", {}).get("cache_dir") or \
+                   config_data.get("experiment", {}).get("cache_dir", "/results/cache/tusz/train")
+
+        # For smoke tests, ensure we use a separate cache directory
+        if "smoke" in config_path.lower() and "smoke" not in cache_dir:
+            cache_dir = cache_dir.replace("/train", "/smoke").replace("/tusz", "/smoke")
+
+        cache_path = Path(cache_dir) / "train" if "train" not in str(cache_dir) else Path(cache_dir)
 
         if cache_path.exists():
             npz_files = list(cache_path.glob("*.npz"))
