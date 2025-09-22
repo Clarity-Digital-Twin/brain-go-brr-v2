@@ -60,6 +60,7 @@ image = (
         "pandas>=2.0.0",  # For eval extras
         "tensorboard>=2.10.0",  # For training metrics
         "wandb",  # Weights & Biases for cloud tracking
+        "pytorch-tcn",  # TCN implementation for optimal performance
     )
     # Set working directory before adding local files
     .workdir("/app")
