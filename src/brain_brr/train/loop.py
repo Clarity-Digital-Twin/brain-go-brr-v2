@@ -85,6 +85,11 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
     """
     print("[SAMPLER] Creating positive-aware balanced sampler...", flush=True)
 
+    # Skip expensive sampling in smoke test mode
+    if os.environ.get("BGB_SMOKE_TEST", "0") == "1":
+        print("[SMOKE TEST MODE] Skipping sampler window checking - returning None for uniform sampling", flush=True)
+        return None
+
     # Sample dataset to find which windows have seizures
     sample_size = min(sample_size, len(dataset))
     sample_indices = torch.randperm(len(dataset))[:sample_size]
