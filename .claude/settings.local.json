@@ -118,7 +118,9 @@
       "Bash(curl:*)",
       "Bash(xargs:*)",
       "Bash(while ! tmux capture-pane -t train_full -p)",
-      "Bash(do sleep:*)"
+      "Bash(do sleep:*)",
+      "Bash(tee:*)",
+      "Bash(for:*)"
     ],
     "deny": [],
     "ask": []

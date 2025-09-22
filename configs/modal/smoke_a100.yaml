@@ -59,7 +59,7 @@ postprocessing:
 
 training:
   epochs: 1                            # Just 1 epoch for smoke test
-  batch_size: 64                       # A100 can handle 8x larger batches
+  batch_size: 128                      # OPTIMIZED: Using full A100 80GB VRAM
   loss: focal
   focal_alpha: 0.5
   focal_gamma: 2.0
@@ -89,7 +89,7 @@ experiment:
   wandb:
     enabled: true
     project: seizure-detection-smoke
-    entity: jj-vcmcswaggins-novamindnyc
+    entity: jj-vcmcswaggins-novamindnyc  # Your W&B TEAM (matches API key)
     tags: ["smoke-test", "modal", "a100"]
 
 logging:

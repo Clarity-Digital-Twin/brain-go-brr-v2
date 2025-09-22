@@ -1,45 +1,73 @@
 # Documentation Index
 
+## 📁 Documentation Structure
+
+### 01-data/ - Data Pipeline & Processing
+- **pipeline/** - Core data pipeline architecture
+  - [`architecture.md`](01-data/pipeline/architecture.md) - Complete EDF → Training pipeline with optimizations
+  - [`flow-diagram.md`](01-data/pipeline/flow-diagram.md) - Mermaid visualization of data flow
+  - [`cache-rebuild.md`](01-data/pipeline/cache-rebuild.md) - Quick cache rebuild guide
+- **tusz/** - TUSZ dataset specifics
+  - [`overview.md`](01-data/tusz/overview.md) - Dataset structure
+  - [`channels.md`](01-data/tusz/channels.md) - 10-20 montage mapping
+  - [`csv-parser.md`](01-data/tusz/csv-parser.md) - CSV_BI label parsing
+  - [`edf-repair.md`](01-data/tusz/edf-repair.md) - Header repair
+  - [`data-flow.md`](01-data/tusz/data-flow.md) - Processing pipeline
+  - [`cache-sampling.md`](01-data/tusz/cache-sampling.md) - Balanced sampling
+  - [`preflight.md`](01-data/tusz/preflight.md) - Pre-training checks
+- **issues/** - Historical issues and resolutions
+  - [`critical-resolved.md`](01-data/issues/critical-resolved.md) - Resolved bugs and lessons learned
+  - [`data-io.md`](01-data/issues/data-io.md) - I/O implementation details
+
+### 02-model/ - Model Architecture
+- **architecture/** - Core model specifications
+  - [`canonical-spec.md`](02-model/architecture/canonical-spec.md) - **SOURCE OF TRUTH**
+  - [`full-model.md`](02-model/architecture/full-model.md) - Complete model architecture
+  - [`pipeline-diagram.md`](02-model/architecture/pipeline-diagram.md) - Model pipeline visualization
+- **components/** - Individual model components
+  - [`unet.md`](02-model/components/unet.md) - U-Net encoder/decoder
+  - [`rescnn.md`](02-model/components/rescnn.md) - Residual CNN blocks
+  - [`mamba.md`](02-model/components/mamba.md) - Bi-Mamba-2 (O(N))
+  - [`decoder.md`](02-model/components/decoder.md) - Output decoder
+- **deployment/** - Deployment-specific architecture
+  - [`architecture.md`](02-model/deployment/architecture.md) - CUDA/Modal deployment details
+  - [`mamba-kernels.md`](02-model/deployment/mamba-kernels.md) - d_conv kernel decisions
+- **analysis/** - Architecture analysis and audits
+  - [`comparison.md`](02-model/analysis/comparison.md) - Architecture comparisons
+  - [`stack-analysis.md`](02-model/analysis/stack-analysis.md) - Stack breakdown
+  - [`audit-summary.md`](02-model/analysis/audit-summary.md) - Audit results
+  - [`spec-audit.md`](02-model/analysis/spec-audit.md) - Specification audit
+
+### 03-deployment/ - Deployment & Operations
+- **modal/** - Modal.com cloud deployment
+  - [`deploy.md`](03-deployment/modal/deploy.md) - Modal deployment guide
+  - [`preflight.md`](03-deployment/modal/preflight.md) - Pre-deployment checks
+- **local/** - Local development setup
+  - [`wsl2.md`](03-deployment/local/wsl2.md) - WSL2-specific setup
+  - [`setup.md`](03-deployment/local/setup.md) - General setup guide
+- **operations/** - Training and evaluation
+  - [`training.md`](03-deployment/operations/training.md) - Training procedures
+  - [`evaluation.md`](03-deployment/operations/evaluation.md) - TAES metrics
+  - [`postprocessing.md`](03-deployment/operations/postprocessing.md) - Post-processing pipeline
+- [`troubleshooting.md`](03-deployment/troubleshooting.md) - Comprehensive troubleshooting guide
+
+### 04-research/ - Research & Future Work
+- **future/** - Future directions
+  - [`direction.md`](04-research/future/direction.md) - Overall future plans
+  - [`roadmap.md`](04-research/future/roadmap.md) - Experimental stack roadmap
+  - [`gnn-tcn-stack.md`](04-research/future/gnn-tcn-stack.md) - GNN-TCN architecture exploration
+- **benchmarks/** - Performance benchmarking
+  - [`plans.md`](04-research/benchmarks/plans.md) - Benchmark planning
+  - [`results.md`](04-research/benchmarks/results.md) - Benchmark results
+- **experiments/** - Experimental features
+  - [`channel-annotations.md`](04-research/experiments/channel-annotations.md) - Channel-specific analysis
+  - [`streaming.md`](04-research/experiments/streaming.md) - Real-time streaming plans
+
 ## 🚀 Quick Start
-1. **[Setup Guide](03-operations/setup-guide.md)** - Complete installation instructions
-2. **[Root SETUP.md](../SETUP.md)** - Quick reference for what works
-3. **[Training](03-operations/training.md)** - How to train models
 
-## 01 - Data Pipeline
-**TUSZ dataset handling and preprocessing**
-- [tusz-overview.md](01-data-pipeline/tusz-overview.md) - Dataset structure
-- [tusz-data-flow.md](01-data-pipeline/tusz-data-flow.md) - Processing pipeline
-- [CACHE_MANIFEST_ARCHITECTURE.md](01-data-pipeline/CACHE_MANIFEST_ARCHITECTURE.md) - Cache strategy
-- [cache-rebuild.md](01-data-pipeline/cache-rebuild.md) - Cache rebuild playbook
-- [tusz-csv-parser.md](01-data-pipeline/tusz-csv-parser.md) - Label parsing
-- [tusz-channels.md](01-data-pipeline/tusz-channels.md) - 10-20 montage
- 
-
-## 02 - Architecture
-**Model components and specifications**
-- [canonical-spec.md](02-architecture/canonical-spec.md) - **SOURCE OF TRUTH**
-- [model-full.md](02-architecture/model-full.md) - Complete architecture
-- [model-unet.md](02-architecture/model-unet.md) - U-Net encoder/decoder
-- [model-mamba.md](02-architecture/model-mamba.md) - Bi-Mamba-2 (O(N))
-- [model-rescnn.md](02-architecture/model-rescnn.md) - Residual CNN
-- [pipeline-diagram.md](02-architecture/pipeline-diagram.md) - Visual overview
-
-## 03 - Operations
-**Training, deployment, evaluation**
-- **[setup-guide.md](03-operations/setup-guide.md)** - Complete setup instructions
-- [training.md](03-operations/training.md) - Training configurations
-- [evaluation.md](03-operations/evaluation.md) - TAES metrics
-- [postprocessing.md](03-operations/postprocessing.md) - Hysteresis
-- [deploy-local-wsl2.md](03-operations/deploy-local-wsl2.md) - WSL2 setup
-- [deploy-modal.md](03-operations/deploy-modal.md) - Cloud deployment
-- [troubleshooting.md](03-operations/troubleshooting.md) - Common issues
-
-## 04 - Research
-**Future work and experiments**
-- [FUTURE_DIRECTION.md](04-research/FUTURE_DIRECTION.md) - Roadmap
-- [benchmarks.md](04-research/benchmarks.md) - Performance targets
-- [streaming.md](04-research/streaming.md) - Real-time inference
-- [FUTURE_STACK_GNN_TCN.md](04-research/FUTURE_STACK_GNN_TCN.md) - Experimental
+1. **[Setup Guide](03-deployment/local/setup.md)** - Complete installation instructions
+2. **[Architecture Overview](02-model/architecture/canonical-spec.md)** - Model specification
+3. **[Training](03-deployment/operations/training.md)** - How to train models
 
 ## ⚡ Critical Information
 

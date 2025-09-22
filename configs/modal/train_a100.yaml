@@ -61,7 +61,7 @@ postprocessing:
 
 training:
   epochs: 100                          # full training - will early stop if converged
-  batch_size: 64                       # A100 80GB can handle 4x larger batches
+  batch_size: 128                      # OPTIMIZED: Using full A100 80GB VRAM
   # ⚠️ CRITICAL: MUST use focal loss for 12:1 class imbalance! ⚠️
   # Without this, model WILL collapse to AUROC=0.5 (useless)
   loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
@@ -100,7 +100,7 @@ experiment:
   wandb:
     enabled: true                      # W&B secret configured!
     project: seizure-detection-a100
-    entity: jj-vcmcswaggins-novamindnyc  # Your W&B team name
+    entity: jj-vcmcswaggins-novamindnyc  # Your W&B TEAM (matches API key)
     tags: ["production", "a100", "tuh-seizure"]
 
 logging:

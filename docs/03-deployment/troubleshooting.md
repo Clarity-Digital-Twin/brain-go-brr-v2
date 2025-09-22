@@ -24,20 +24,48 @@ Hangs or deadlocks (WSL2)
 - Cause: multiprocessing DataLoader
 - Fix: `num_workers=0`; avoid pin_memory; keep cache/data on WSL ext4
 
-CUDA/Mamba kernel mismatch
+CUDA/Mamba kernel issues
 - Symptom: errors about d_conv sizes
 - Fix: kernels coerce unsupported d_conv to 4; or set `SEIZURE_MAMBA_FORCE_FALLBACK=1`
+
+Mamba CUDA kernels failing on Modal (CRITICAL)
+- Symptom: `'NoneType' object is not callable` when calling Mamba2 layers
+- Cause: causal-conv1d CUDA kernels not compiled/installed properly
+- Root issues:
+  1. Modal's PyPI mirror serves wrong PyTorch version (2.8.0 vs required 2.2.2)
+  2. mamba-ssm requires causal-conv1d package with compiled CUDA kernels
+  3. Build isolation prevents access to installed PyTorch during compilation
+- Fix in deploy/modal/app.py:
+  1. Force exact PyTorch version: `pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cu121`
+  2. Set CUDA env vars BEFORE installs: CUDA_HOME, PATH, LD_LIBRARY_PATH
+  3. Install with --no-build-isolation: `pip install --no-build-isolation causal-conv1d==1.4.0`
+  4. Same for mamba-ssm: `pip install --no-build-isolation mamba-ssm==2.2.2`
+  5. Add verification test in image build to ensure kernels work
+- Verification: Run `modal run deploy/modal/app.py --action test-mamba` before training
 
 EDF read failure
 - Symptom: MNE ValueError/OSError on EDF header
 - Fix: header repair path; see ../01-data-pipeline/tusz-edf-repair.md
 
-Slow IO on Modal or WSL
-- Fix: mount datasets on fast storage; avoid network-mounted paths for cache writes; keep local caches on ext4
+Slow training on Modal (48s per batch)
+- Root cause: A100 is 4x slower at FP32 than RTX 4090; small batch size
+- Fix 1: Set `mixed_precision: true` (A100 is 3.8x faster at FP16)
+- Fix 2: Set `batch_size: 128` (utilize full 80GB VRAM)
+- Verify: Cache is already on Modal SSD at `/results/cache/tusz/`
+- Impact: 10x speedup (48s → 5s per batch)
+
+Slow IO on WSL
+- Fix: keep local caches on ext4; avoid network-mounted paths
+
+W&B not logging
+- Symptom: 404 error on W&B dashboard, no runs showing
+- Cause: WandBLogger not instantiated or wrong entity name
+- Fix: Entity must match the account tied to `WANDB_API_KEY`. If using a team API key, set the team entity (e.g., `jj-vcmcswaggins-novamindnyc`). If using a personal key, set your username.
+- Verify: WANDB_API_KEY in Modal secrets, `wandb.enabled: true` in config
 
 Sampler used with balanced dataset
 - Symptom: WeightedRandomSampler still applied
-- Fix: training loop bypasses sampler for BalancedSeizureDataset; verify config’s balanced flag and logs
+- Fix: training loop bypasses sampler for BalancedSeizureDataset; verify config's balanced flag and logs
 
 Observability & logging (Modal)
 - Set unbuffered output (already set): `PYTHONUNBUFFERED=1`.

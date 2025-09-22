@@ -40,6 +40,7 @@ from src.brain_brr.config.schemas import (
 )
 from src.brain_brr.eval.metrics import evaluate_predictions
 from src.brain_brr.models import SeizureDetector
+from src.brain_brr.train.wandb_integration import WandBLogger
 
 # WSL2-safe multiprocessing defaults (must be before any DataLoader creation)
 if mp.get_start_method(allow_none=True) != "spawn":
@@ -866,6 +867,9 @@ def train(
     if not os.getenv("BGB_DISABLE_TB"):
         writer = SummaryWriter(output_dir / "tensorboard")
 
+    # Initialize W&B logging
+    wandb_logger = WandBLogger(config)
+
     # Early stopping
     early_stopping = EarlyStopping(config.training.early_stopping)
 
@@ -957,6 +961,19 @@ def train(
             if key in val_metrics and writer is not None:
                 writer.add_scalar(f"Metrics/{key}", val_metrics[key], epoch)
 
+        # Log to W&B
+        wandb_metrics = {
+            "train_loss": train_loss,
+            "val_loss": val_metrics["val_loss"],
+            "taes": val_metrics["taes"],
+            "auroc": val_metrics["auroc"],
+        }
+        for fa_rate in config.evaluation.fa_rates:
+            key = f"sensitivity_at_{fa_rate}fa"
+            if key in val_metrics:
+                wandb_metrics[key] = val_metrics[key]
+        wandb_logger.log(wandb_metrics, step=epoch)
+
         # Print metrics with flush for Modal visibility
         print(f"  Train Loss: {train_loss:.4f}", flush=True)
         print(f"  Val Loss: {val_metrics['val_loss']:.4f}", flush=True)
@@ -997,6 +1014,9 @@ def train(
             }
             print(f"  New best {metric_name}: {current_metric:.4f}", flush=True)
 
+            # Log best model to W&B
+            wandb_logger.log_model(checkpoint_dir / "best.pt", name=f"best-{metric_name}")
+
         # Save periodic checkpoint based on checkpoint_interval
         checkpoint_interval = getattr(config.experiment, "checkpoint_interval", 0)
         if checkpoint_interval > 0 and (epoch + 1) % checkpoint_interval == 0:
@@ -1025,6 +1045,10 @@ def train(
 
     if writer is not None:
         writer.close()
+
+    # Finish W&B run
+    wandb_logger.finish()
+
     print(f"\nTraining complete. Best epoch: {best_metrics['best_epoch']}", flush=True)
 
     return best_metrics

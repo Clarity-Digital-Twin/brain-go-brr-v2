@@ -8,26 +8,42 @@ from typing import Optional
 import modal
 
 # Build the Modal image with CUDA development tools for mamba-ssm compilation
-# Use lazy evaluation - only build when Modal needs it
+# CRITICAL: Must match EXACT versions from local setup (docs/03-operations/setup-guide.md)
 image = (
     # Use NVIDIA CUDA devel image for nvcc compiler (required by mamba-ssm)
     modal.Image.from_registry("nvidia/cuda:12.1.0-devel-ubuntu22.04", add_python="3.11")
     .entrypoint([])  # Clear entrypoint from CUDA image
     # Install build tools required for compiling CUDA extensions
-    .apt_install("build-essential", "ninja-build")
-    # Install PyTorch 2.2.2 with CUDA 12.1
-    .pip_install(
-        "torch==2.2.2",
-        "torchvision==0.17.2",
-        "numpy<2.0",  # mamba-ssm constraint
-        index_url="https://download.pytorch.org/whl/cu121",
-    )
-    # Install mamba-ssm with CUDA kernels (nvcc now available)
-    # Install build dependencies first
-    .pip_install("packaging", "wheel", "setuptools")
-    # Critical: Use CC and CXX env vars to specify compiler, install with verbose output
+    .apt_install("build-essential", "ninja-build", "git")
+    # Set CUDA environment variables BEFORE any pip installs
+    .env({
+        "CUDA_HOME": "/usr/local/cuda-12.1",
+        "PATH": "/usr/local/cuda-12.1/bin:$PATH",
+        "LD_LIBRARY_PATH": "/usr/local/cuda-12.1/lib64:$LD_LIBRARY_PATH",
+        "TORCH_CUDA_ARCH_LIST": "8.0;8.6;8.9;9.0",  # A100 is 8.0
+    })
+    # CRITICAL: Install EXACT PyTorch version from specific index
+    # Modal's mirror can have wrong versions, so we force PyTorch index
     .run_commands(
-        "export CC=gcc CXX=g++ && pip install -v --no-build-isolation 'mamba-ssm>=2.0.0'"
+        "pip install torch==2.2.2 torchvision==0.17.2 'numpy<2.0' --index-url https://download.pytorch.org/whl/cu121"
+    )
+    # Verify PyTorch is correct version (CUDA check happens at runtime, not build time)
+    .run_commands(
+        "python -c 'import torch; assert torch.__version__.startswith(\"2.2.2\"), f\"Wrong torch: {torch.__version__}\"'"
+    )
+    # Install build dependencies
+    .pip_install("packaging", "wheel", "setuptools")
+    # CRITICAL: Install EXACT versions with forced compilation
+    # These MUST match local setup exactly (see setup-guide.md)
+    .run_commands(
+        "pip install --no-build-isolation --no-cache-dir causal-conv1d==1.4.0"
+    )
+    .run_commands(
+        "pip install --no-build-isolation --no-cache-dir mamba-ssm==2.2.2"
+    )
+    # Verify mamba-ssm imports correctly (CUDA test happens at runtime)
+    .run_commands(
+        "python -c 'from mamba_ssm import Mamba2; print(\"✅ Mamba2 imports successfully\")'"
     )
     # Core dependencies
     .pip_install(
@@ -51,6 +67,7 @@ image = (
     # Use Path to resolve relative to script location
     .add_local_dir(str(Path(__file__).parent.parent.parent / "src"), "/app/src")
     .add_local_dir(str(Path(__file__).parent.parent.parent / "configs"), "/app/configs")
+    .add_local_dir(str(Path(__file__).parent), "/app/deploy/modal")  # Add deploy scripts
 )
 
 # Modal app configuration
@@ -72,9 +89,62 @@ data_mount = modal.CloudBucketMount(
     read_only=True,  # EEG data is read-only
 )
 
-# Persistent volumes for results
-data_volume = modal.Volume.from_name("brain-go-brr-data", create_if_missing=True)
+# Persistent volume for results and cache (310GB currently)
 results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missing=True)
+# NOTE: brain-go-brr-data volume deleted - it was empty and unused
+
+
+@app.function(gpu="A100", timeout=300)  # 5 min test
+def test_mamba_cuda():
+    """Test that Mamba CUDA kernels work properly."""
+    import torch
+    print(f"CUDA available: {torch.cuda.is_available()}", flush=True)
+    print(f"CUDA device: {torch.cuda.get_device_name()}", flush=True)
+
+    # Test mamba-ssm import
+    try:
+        import mamba_ssm
+        print(f"✓ mamba-ssm version: {mamba_ssm.__version__}", flush=True)
+    except ImportError as e:
+        print(f"✗ mamba-ssm import failed: {e}", flush=True)
+        return False
+
+    # Test causal_conv1d import (the actual CUDA kernels)
+    try:
+        import causal_conv1d
+        print(f"✓ causal-conv1d imported", flush=True)
+    except ImportError as e:
+        print(f"✗ causal-conv1d import failed: {e}", flush=True)
+        return False
+
+    # Test Mamba2 creation and forward pass
+    try:
+        from mamba_ssm import Mamba2
+
+        # Create a simple Mamba2 layer
+        model = Mamba2(d_model=512, d_state=16, d_conv=4, expand=2).cuda()
+        print("✓ Mamba2 model created", flush=True)
+
+        # Test forward pass (no grad for speed)
+        x = torch.randn(2, 100, 512).cuda()  # (batch, seq_len, d_model)
+        with torch.no_grad():
+            out = model(x)
+        print(f"✓ Forward pass successful! Output shape: {out.shape}", flush=True)
+
+        # Test backward pass (needs grad enabled)
+        x_grad = torch.randn(2, 100, 512, requires_grad=True).cuda()
+        out_grad = model(x_grad)
+        loss = out_grad.sum()
+        loss.backward()
+        print("✓ Backward pass successful!", flush=True)
+
+        return True
+
+    except Exception as e:
+        print(f"✗ Mamba2 test failed: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return False
 
 
 @app.function(
@@ -88,7 +158,7 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
     cpu=8,
 )
 def train(
-    config_path: str = "configs/tusz_train_a100.yaml",  # A100-optimized config
+    config_path: str = "configs/modal/smoke_a100.yaml",  # Default to smoke test for safety
     resume: bool = False,  # Resume training from last.pt in output_dir
 ):
     """Run training on Modal GPU.
@@ -108,6 +178,31 @@ def train(
         print(f"✓ Mamba-SSM imported successfully: {mamba_ssm.__version__}")
     except ImportError as e:
         print(f"⚠️ Mamba-SSM import failed: {e}")
+
+    # Check if cache exists on Modal persistent volume
+    print("\n" + "=" * 60, flush=True)
+    print("[CACHE] Verifying cache location on Modal...", flush=True)
+    print("=" * 60, flush=True)
+
+    try:
+        from pathlib import Path
+        cache_path = Path("/results/cache/tusz/train")
+
+        if cache_path.exists():
+            npz_files = list(cache_path.glob("*.npz"))
+            manifest = cache_path / "manifest.json"
+            print(f"[CACHE] ✅ Using Modal SSD cache: {len(npz_files)} NPZ files", flush=True)
+            if manifest.exists():
+                print(f"[CACHE] ✅ Manifest found at {manifest}", flush=True)
+            print(f"[CACHE] Cache location: {cache_path}", flush=True)
+            print(f"[CACHE] This is optimal - using fast local SSD storage", flush=True)
+        else:
+            print(f"[CACHE] Cache will be built at: {cache_path}", flush=True)
+            print(f"[CACHE] First epoch will be slower while building cache", flush=True)
+    except Exception as e:
+        print(f"[WARNING] Could not verify cache: {e}", flush=True)
+
+    print("=" * 60 + "\n", flush=True)
 
     # Set environment
     env = os.environ.copy()
@@ -215,7 +310,7 @@ def train(
     gpu="A100",  # A100 for evaluation
     timeout=3600,  # 1 hour
     volumes={
-        "/data": data_volume,
+        "/data": data_mount,   # Use S3 mount for eval datasets
         "/results": results_volume,
     },
 )
@@ -272,7 +367,7 @@ def evaluate(
 @app.local_entrypoint()
 def main(
     action: str = "train",
-    config: str = "configs/smoke_test.yaml",  # Default to smoke test for safety
+    config: str = "configs/modal/smoke_a100.yaml",  # Default to smoke test for safety
     resume: bool = False,  # Resume training from last.pt
 ):
     """Modal deployment entrypoint.
@@ -281,14 +376,17 @@ def main(
     ⚠️ NO DOUBLE DASH (--) separator needed anymore in Modal CLI!
 
     Examples:
+        # Test Mamba CUDA kernels
+        modal run deploy/modal/app.py --action test-mamba
+
         # Quick smoke test (Modal's --detach prevents disconnection)
-        modal run --detach deploy/modal/app.py --action train --config configs/smoke_test.yaml
+        modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_a100.yaml
 
         # Full A100 training (Modal's --detach prevents disconnection)
-        modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml
+        modal run --detach deploy/modal/app.py --action train --config configs/modal/train_a100.yaml
 
         # Resume training from last.pt in output_dir
-        modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --resume true
+        modal run --detach deploy/modal/app.py --action train --config configs/modal/train_a100.yaml --resume true
 
         # Evaluate checkpoint
         modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.pt
@@ -296,7 +394,17 @@ def main(
     print("🚀 Brain-Go-Brr v2 Modal Deployment")
     print("=" * 50)
 
-    if action == "train":
+    if action == "test-mamba":
+        # Test Mamba CUDA kernels
+        print("Testing Mamba CUDA kernels...")
+        success = test_mamba_cuda.remote()
+        if success:
+            print("✅ Mamba CUDA test PASSED! Ready for training.")
+        else:
+            print("❌ Mamba CUDA test FAILED! Fix required before training.")
+            raise RuntimeError("Mamba CUDA kernels not working")
+
+    elif action == "train":
         # Always use train.remote() - Modal's --detach flag controls app lifecycle
         result = train.remote(config_path=config, resume=resume)
         print(f"✓ Training complete. Checkpoint: {result}")
@@ -308,7 +416,7 @@ def main(
 
     else:
         print(f"Unknown action: {action}")
-        print("Available actions: train, evaluate")
+        print("Available actions: test-mamba, train, evaluate")
 
 
 if __name__ == "__main__":
