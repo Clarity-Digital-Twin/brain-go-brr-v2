@@ -20,6 +20,7 @@ import torch.nn as nn
 from .mamba import BiMamba2
 from .rescnn import ResCNNStack
 from .unet import UNetDecoder, UNetEncoder
+from .tcn import TCNEncoder, ProjectionHead
 
 if TYPE_CHECKING:  # Only for type checkers; avoids runtime import cycle
     from src.brain_brr.config.schemas import ModelConfig as _ModelConfig

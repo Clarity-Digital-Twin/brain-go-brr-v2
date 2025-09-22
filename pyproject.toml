@@ -71,6 +71,9 @@ eval = [
 monitoring = [
     "wandb>=0.16.0",
 ]
+tcn = [
+    "pytorch-tcn==1.2.3",  # Temporal Convolutional Networks
+]
 
 [tool.uv]
 managed = true
