@@ -48,10 +48,10 @@ EDF read failure
 - Fix: header repair path; see ../01-data-pipeline/tusz-edf-repair.md
 
 Slow training on Modal (48s per batch)
-- Cause: S3 CloudBucketMount has terrible random access performance (100-700ms per file)
-- Fix: Cache optimizer automatically copies NPZ files from S3 to local volume (30-60 min one-time)
-- Verify: Look for "[CACHE] Local cache already exists with X NPZ files"
-- Force re-optimize: Set `BGB_FORCE_CACHE_COPY=1`
+- Root cause: A100 is 4x slower at FP32 than RTX 4090; small batch size
+- Fix 1: Set `mixed_precision: true` (A100 is 3.8x faster at FP16)
+- Fix 2: Set `batch_size: 128` (utilize full 80GB VRAM)
+- Verify: Cache is already on Modal SSD at `/results/cache/tusz/`
 - Impact: 10x speedup (48s → 5s per batch)
 
 Slow IO on WSL

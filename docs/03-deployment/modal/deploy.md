@@ -68,17 +68,16 @@ Code anchors
 - Modal entrypoint and functions: `deploy/modal/app.py` (uses `--action` local_entrypoint).
 - Data pipeline docs: `../01-data-pipeline/*` (CSV_BI parsing, channels, cache+sampling).
 
-Cache Optimization (CRITICAL for Performance)
-- **First run**: Cache optimizer copies NPZ files from S3 to local volume (30-60 min, one-time)
-- **Why needed**: S3 CloudBucketMount has terrible random access (100-700ms per file)
-- **Impact**: 10x speedup (48s → 5s per batch) after optimization
-- **Force re-optimization**: Set `BGB_FORCE_CACHE_COPY=1`
-- **Check status**: Look for "[CACHE] Local cache already exists with X NPZ files"
+Cache Location (Already Optimized)
+- **Cache location**: `/results/cache/tusz/` on Modal persistent SSD
+- **Built on first run**: Cache is created directly on Modal volume, NOT S3
+- **No optimization needed**: Cache is already on fast local storage
+- **Check status**: Look for "[CACHE] Using Modal SSD cache: X NPZ files"
 
 Performance Settings (A100 Optimized)
 - **Batch size**: 128 (uses full 80GB VRAM)
 - **Mixed precision**: true (leverages FP16 tensor cores)
-- **W&B entity**: Must be username, not team (e.g., `jj-vcmcswaggins`)
+- **W&B entity**: Team name if using team API key (e.g., `jj-vcmcswaggins-novamindnyc`)
 
 Troubleshooting
 - 0 windows in BalancedSeizureDataset: re-scan manifest; fix CSV_BI parser; rebuild cache.
