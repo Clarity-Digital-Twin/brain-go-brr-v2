@@ -51,6 +51,17 @@ def pytest_configure(config):
     config.addinivalue_line("filterwarnings", "ignore:TensorFloat32 tensor cores.*:UserWarning")
 
 
+@pytest.fixture(autouse=True)
+def cuda_cleanup():
+    """Automatically clean up CUDA memory after each test."""
+    yield
+    # Cleanup after test
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+
+
 @pytest.fixture(scope="session")
 def sample_edf_data():
     """Generate valid 19-channel EDF test data."""
