@@ -26,7 +26,7 @@ We're investigating whether **Temporal Convolutional Networks (TCN)** combined w
 - Mamba-2 captures long-range dependencies with O(N) efficiency
 - Together: Local patterns (TCN) + Global context (Mamba) = Optimal detection
 
-**Our approach**: TCN encoder (8 layers, 16× downsample) → Bidirectional Mamba-2 (6 layers) → TCN decoder, achieving **34.8M parameters** with clinically-focused post-processing.
+**Our approach**: TCN encoder (8 layers, 16× downsample) → Bidirectional Mamba‑2 (6 layers) → Projection (512→19) + Upsample (960→15360), achieving ~35M parameters with clinically‑focused post‑processing.
 
 ## 🏗️ Architecture
 
@@ -37,7 +37,7 @@ EEG Input (19ch, 256Hz, 60s windows)
          ↓           Channels: [64, 128, 256, 512]
 [Bi-Mamba-2 SSM]    → Long-range dependencies (6 layers, d_model=512)
          ↓           O(N) complexity, d_state=16
-[TCN Decoder]       → Upsampling to original resolution
+[Projection + Upsample] → Restore original resolution (512→19, 960→15360)
          ↓
 [Detection Head]    → Per-timestep seizure probabilities
          ↓
@@ -54,7 +54,8 @@ EEG Input (19ch, 256Hz, 60s windows)
 - **Complexity**: O(N) vs Transformer's O(N²)
 - **Window**: 60s with 10s stride (83% overlap)
 
-→ Full architecture details: [`docs/architecture/CANONICAL_ARCHITECTURE_SPEC.md`](docs/architecture/CANONICAL_ARCHITECTURE_SPEC.md)
+→ Full architecture details: `docs/02-model/architecture/canonical-spec.md`
+→ Current runtime path: `docs/02-model/architecture/current-state.md`
 
 ## ⚡ Quick Start
 
@@ -69,8 +70,8 @@ git clone https://github.com/clarity-digital-twin/brain-go-brr-v2.git
 cd brain-go-brr-v2
 make setup
 
-# Optional: GPU support for Mamba-SSM CUDA kernels
-uv sync -E gpu
+# Optional: GPU support for Mamba‑SSM CUDA kernels (requires CUDA 12.1)
+make setup-gpu
 ```
 
 ### Training
@@ -100,7 +101,7 @@ modal run --detach deploy/modal/app.py --action train --config configs/modal/tra
 modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
 ```
 
-→ Full guide: [`docs/deployment/MODAL_DEPLOYMENT_COMPLETE_GUIDE.md`](docs/deployment/MODAL_DEPLOYMENT_COMPLETE_GUIDE.md)
+→ Full guide: `docs/03-deployment/modal/deploy.md` (see also `docs/03-deployment/README.md`)
 
 ## 📊 Performance Goals (pending validation)
 
@@ -116,49 +117,7 @@ These are target goals, not achieved results. Formal validation and benchmarking
 
 ## 📁 Project Structure
 
-```
-brain-go-brr-v2/
-├── src/
-│   └── brain_brr/           # Core modules
-│       ├── models/           # Neural networks
-│       │   ├── detector.py  # Main SeizureDetector
-│       │   ├── unet.py      # U-Net encoder/decoder
-│       │   ├── rescnn.py    # Residual CNN blocks
-│       │   ├── mamba.py     # Bidirectional Mamba-2
-│       │   └── layers.py    # Shared components
-│       ├── data/             # Data pipeline
-│       │   ├── io.py        # EDF/MNE loading
-│       │   ├── datasets.py  # PyTorch datasets
-│       │   ├── preprocess.py # Filtering/normalization
-│       │   └── windows.py   # Window extraction
-│       ├── train/            # Training loop
-│       │   └── loop.py      # Training/validation
-│       ├── post/             # Post-processing
-│       │   └── postprocess.py # Hysteresis/morphology
-│       ├── events/           # Event handling
-│       │   ├── events.py    # Event generation
-│       │   └── export.py    # CSV_BI export
-│       ├── eval/             # Evaluation
-│       │   └── metrics.py   # TAES, FA curves
-│       ├── streaming/        # Real-time inference
-│       │   └── streaming.py # Online processing
-│       ├── config/           # Configuration
-│       │   └── schemas.py   # Pydantic schemas
-│       ├── cli/              # CLI interface
-│       │   └── cli.py       # Main entry point
-│       └── constants.py      # Global constants
-├── configs/                  # YAML configurations
-├── docs/                     # Documentation
-│   ├── architecture/         # Technical specs
-│   ├── deployment/           # Cloud guides
-│   ├── implementation/       # Setup notes
-│   └── phases/              # Development plans
-├── tests/                    # Test suite
-├── deploy/
-│   └── modal/
-│       └── app.py           # Modal deployment entrypoint
-└── Makefile                 # Automation commands
-```
+See `docs/README.md` for the full documentation index. Core code lives under `src/brain_brr/` (models, data, train, post, eval, config).
 
 ## 🛠️ Development
 
@@ -193,16 +152,18 @@ make train        # Full training run
 
 | Document | Description |
 |----------|-------------|
-| [`CANONICAL_ARCHITECTURE_SPEC.md`](docs/architecture/CANONICAL_ARCHITECTURE_SPEC.md) | Complete technical specification |
-| [`MODAL_DEPLOYMENT_SSOT.md`](docs/deployment/MODAL_DEPLOYMENT_SSOT.md) | Cloud deployment guide (Single Source of Truth) |
-| [`PHASE5_EVALUATION.md`](docs/phases/PHASE5_EVALUATION.md) | Evaluation methodology |
-| [`SETUP_NOTES.md`](docs/implementation/SETUP_NOTES.md) | Development setup |
+| `docs/02-model/architecture/canonical-spec.md` | Canonical technical specification |
+| `docs/03-deployment/README.md` | Deployment guides (Modal/local, ops) |
+| `docs/03-deployment/operations/evaluation.md` | Evaluation methodology (TAES, FA curves) |
+| `docs/03-deployment/local/setup.md` | Local development setup |
+| `docs/03-deployment/operations/training.md` | Training procedures and LR scheduling notes |
+| `../v2_6_dynamic_gnn_lpe_plan.md` | v2.6 Dynamic GNN + LPE implementation plan (root, in revision) |
 
 ## 🔧 Requirements
 
 - **Python**: 3.11+ (3.12 supported)
-- **PyTorch**: 2.2.2 (required for mamba-ssm)
-- **CUDA**: 11.8+ (optional, for GPU acceleration)
+- **PyTorch**: 2.2.2 (required for mamba‑ssm 2.2.2)
+- **CUDA**: 12.1 (for GPU acceleration and mamba‑ssm build)
 - **RAM**: 16GB minimum, 32GB recommended
 - **GPU**: 24GB+ VRAM for full training
 
@@ -235,13 +196,7 @@ Apache License 2.0 - See [LICENSE](LICENSE)
 
 ## Future Research Direction
 
-See [FUTURE_ROADMAP_EXPERIMENTAL_STACK.md](FUTURE_ROADMAP_EXPERIMENTAL_STACK.md) for our proposed next-generation architecture:
-- **GNN** for montage-agnostic spatial reasoning
-- **TCN** for cleaner multi-scale temporal features
-- **ConvNeXt** for state-of-the-art local patterns
-- **Bi-Mamba** maintaining O(N) complexity
-
-This experimental stack aims to solve the fundamental montage-dependency problem in EEG analysis.
+See `docs/04-research/future/CANONICAL-ROADMAP.md` for the roadmap and `../v2_6_dynamic_gnn_lpe_plan.md` for the next step (Dynamic GNN + Laplacian PE after Mamba in the TCN path). ConvNeXt is optional as a local refiner only if metrics indicate a gap; it does not replace the active TCN path.
 
 ## Contact
 
