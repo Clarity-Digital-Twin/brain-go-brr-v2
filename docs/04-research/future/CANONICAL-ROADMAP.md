@@ -1,12 +1,14 @@
 # 🎯 CANONICAL ARCHITECTURE ROADMAP
 
-## WHERE WE ARE NOW (v2.0 - BASELINE)
+## ⚠️ UPDATE: WE'RE ALREADY AT v3.0! (TCN IS LIVE!)
+
+## WHERE WE ARE NOW (v2.3 - CURRENT REALITY)
 ```
-EEG (19ch, 256Hz) → U-Net → ResCNN → Bi-Mamba-2 → Detection Head
+EEG (19ch, 256Hz) → TCN Encoder → Bi-Mamba-2 → TCN Decoder → Detection Head
 ```
-**Status**: SHIPPED & TRAINING on Modal
-**Performance**: TBD (currently training)
-**Cost**: ~$0.80/epoch on Modal
+**Status**: TCN ALREADY REPLACED U-Net + ResCNN! Training on Modal NOW!
+**Architecture**: Using `architecture: tcn` in all Modal configs
+**Old Path**: U-Net + ResCNN still in codebase but NOT USED at runtime
 
 ---
 
@@ -34,14 +36,14 @@ EEG → STFT → U-Net → ResCNN → Bi-Mamba-2 → Detection Head
 
 ### ~~v2.5~~ SKIP STRAIGHT TO v2.6! 🚀
 
-### v2.6 - FULL Dynamic GNN + Laplacian PE 🧠🔥
+### v2.6 - NEXT: Dynamic GNN + Laplacian PE 🧠🔥
 ```
-EEG → U-Net → ResCNN → Bi-Mamba-2 → [Dynamic GNN + LPE] → Detection Head
+EEG → TCN Encoder → Bi-Mamba-2 → [Dynamic GNN + LPE] → TCN Decoder → Detection Head
                                           ↑
-                                    FULL EVOBRAIN STYLE!
+                                  INSERT GNN HERE!
 ```
-**Changes**: FULL dynamic graph with time-evolving adjacency + Laplacian Positional Encoding
-**Status**: NEXT IMMEDIATE PRIORITY after v2.0 training
+**Changes**: Add dynamic graph with time-evolving adjacency + Laplacian Positional Encoding
+**Status**: THIS IS THE IMMEDIATE NEXT STEP!
 **Implementation Details** (from EvoBrain):
 - PyG's `AddLaplacianEigenvectorPE(k=16)` for positional awareness
 - Dynamic adjacency per timestep: `adj[timestep, batch, nodes, nodes]`
@@ -58,17 +60,13 @@ EEG → U-Net → ResCNN → Bi-Mamba-2 → [Dynamic GNN + LPE] → Detection He
 
 ## MAJOR REPLACEMENTS (One at a Time)
 
-### v3.0 - Replace U-Net with TCN 🚀
+### ✅ v3.0 - ALREADY DONE! TCN Replaced U-Net + ResCNN
 ```
-EEG → TCN → ResCNN → Bi-Mamba-2 → GNN → Detection Head
-       ↑
-  REPLACE U-Net
+EEG → TCN Encoder → Bi-Mamba-2 → TCN Decoder → Detection Head
 ```
-**Changes**: Temporal Convolutional Network replaces U-Net
-**Why**: Simpler, native 1D design, proven superior for sequences
-**Expected**: Faster training, comparable performance
-**Timeline**: 2 weeks
-**Training**: Full retrain required
+**Changes**: TCN replaced BOTH U-Net AND ResCNN
+**Status**: COMPLETE - This is what's training on Modal RIGHT NOW
+**Note**: ResCNN was removed from the path entirely (TCN handles local patterns)
 
 ---
 
@@ -81,17 +79,13 @@ EEG → TCN → ResCNN → Bi-Mamba-2 → GNN → Detection Head
   - `src/brain_brr/constants.py:12`
 - Dependency: PyTorch Geometric required for LPE/GCN (to be added later)
 
-### v3.1 - Replace ResCNN with ConvNeXt 🎯
+### ~~v3.1 - Replace ResCNN with ConvNeXt~~ NOT APPLICABLE
 ```
-EEG → TCN → ConvNeXt → Bi-Mamba-2 → GNN → Detection Head
-              ↑
-         REPLACE ResCNN
+ResCNN already removed when we switched to TCN!
 ```
-**Changes**: Modern ConvNeXt blocks
-**Why**: 2022 architecture > 2015 ResNet
-**Expected**: 5-10% performance gain
-**Timeline**: 1 week
-**Training**: Retrain from v3.0
+**Status**: SKIPPED - TCN handles both encoding AND local patterns
+**Note**: ConvNeXt would only be relevant for the OLD U-Net path
+**Alternative**: Could add ConvNeXt as optional local refiner AFTER GNN if needed
 
 ### v3.2 - Dual-Stream Mamba 🌊
 ```
