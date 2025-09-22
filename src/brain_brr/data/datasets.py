@@ -46,6 +46,37 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         self._file_window_counts: list[int] = []
         self._has_labels = label_files is not None
 
+        # Try to load cached index for fast startup
+        index_cache_path = None
+        if self.cache_dir is not None:
+            index_cache_path = self.cache_dir / "_dataset_index.json"
+            if index_cache_path.exists():
+                import json
+
+                try:
+                    with open(index_cache_path) as f:
+                        cached_index = json.load(f)
+                    # Verify same files
+                    cached_files = [Path(p).name for p in cached_index["files"]]
+                    current_files = [p.name for p in self.edf_files]
+                    if cached_files == current_files:
+                        self._file_window_counts = cached_index["window_counts"]
+                        print(
+                            f"[DATA] Loaded cached index: {len(self.edf_files)} files, {sum(self._file_window_counts)} windows",
+                            flush=True,
+                        )
+                        # Build index map from counts
+                        for file_idx, n_windows in enumerate(self._file_window_counts):
+                            for w_idx in range(n_windows):
+                                self._index_map.append((file_idx, w_idx))
+                        print(
+                            f"[DATA] Dataset ready! Total windows: {len(self._index_map)}",
+                            flush=True,
+                        )
+                        return  # Skip the slow loading!
+                except Exception as e:
+                    print(f"[DATA] Could not load cached index: {e}", flush=True)
+
         # Pre-compute or load window counts for each file
         print(f"[DATA] Building dataset index for {len(self.edf_files)} files...", flush=True)
         for i, edf_path in enumerate(self.edf_files):
@@ -83,6 +114,21 @@ class EEGWindowDataset(torch.utils.data.Dataset):
             self._file_window_counts.append(n_windows)
             for w_idx in range(n_windows):
                 self._index_map.append((i, w_idx))
+
+        # Save the index cache for next time
+        if index_cache_path is not None:
+            import json
+
+            try:
+                cache_data = {
+                    "files": [str(p) for p in self.edf_files],
+                    "window_counts": self._file_window_counts,
+                }
+                with open(index_cache_path, "w") as f:
+                    json.dump(cache_data, f)
+                print(f"[DATA] Saved index cache to {index_cache_path}", flush=True)
+            except Exception as e:
+                print(f"[DATA] Could not save index cache: {e}", flush=True)
 
         print(f"[DATA] Dataset ready! Total windows: {len(self._index_map)}", flush=True)
 
