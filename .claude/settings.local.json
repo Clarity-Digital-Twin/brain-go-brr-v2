@@ -130,7 +130,8 @@
       "Bash(rm:*)",
       "Bash(mv:*)",
       "Bash(do echo \"=== $dir ===\")",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(while ! tmux capture-pane -t perf_tests -p)"
     ],
     "deny": [],
     "ask": []
