@@ -128,11 +128,13 @@ class TCNEncoder(nn.Module):
         if HAS_PYTORCH_TCN:
             # Use pytorch-tcn package
             self.tcn = TemporalConvNet(
-                input_channels=input_channels,
-                hidden_channels=num_channels,
+                num_inputs=input_channels,
+                num_channels=num_channels,
                 kernel_size=kernel_size,
                 dropout=dropout,
-                causal=causal
+                causal=causal,
+                use_norm='weight_norm',
+                activation='relu'
             )
             tcn_out_channels = num_channels[-1]
         else:
