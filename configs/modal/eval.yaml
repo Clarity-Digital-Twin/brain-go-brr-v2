@@ -4,7 +4,7 @@
 data:
   dataset: tuh_eeg
   data_dir: /data/edf/eval             # Modal S3 mount - EVAL SET - 45 patients
-  cache_dir: /results/cache/eval        # Modal persistent volume
+  cache_dir: /results/cache        # Fixed: code will append /eval
   sampling_rate: 256
   n_channels: 19
   window_size: 60
