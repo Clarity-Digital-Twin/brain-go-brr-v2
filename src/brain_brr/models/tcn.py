@@ -84,7 +84,7 @@ class MinimalTCN(nn.Module):
             # Trim the output for causal convolution
             out = out[:, :, : x.size(2)]
 
-        return self.projection(out)
+        return cast(torch.Tensor, self.projection(out))
 
 
 class TCNEncoder(nn.Module):
