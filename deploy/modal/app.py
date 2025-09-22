@@ -67,6 +67,7 @@ image = (
     # Use Path to resolve relative to script location
     .add_local_dir(str(Path(__file__).parent.parent.parent / "src"), "/app/src")
     .add_local_dir(str(Path(__file__).parent.parent.parent / "configs"), "/app/configs")
+    .add_local_dir(str(Path(__file__).parent), "/app/deploy/modal")  # Add deploy scripts
 )
 
 # Modal app configuration
