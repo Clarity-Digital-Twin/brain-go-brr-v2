@@ -68,16 +68,20 @@ Code anchors
 - Modal entrypoint and functions: `deploy/modal/app.py` (uses `--action` local_entrypoint).
 - Data pipeline docs: `../01-data-pipeline/*` (CSV_BI parsing, channels, cache+sampling).
 
-Cache Location (Already Optimized)
-- **Cache location**: `/results/cache/tusz/` on Modal persistent SSD
-- **Built on first run**: Cache is created directly on Modal volume, NOT S3
-- **No optimization needed**: Cache is already on fast local storage
-- **Check status**: Look for "[CACHE] Using Modal SSD cache: X NPZ files"
+Storage Architecture
+- **S3 Bucket**: `brain-go-brr-eeg-data-20250919` - Raw EDF files only
+- **S3 Mount**: `/data/edf/train/` - CloudBucketMount for reading raw data
+- **Modal Volume**: `brain-go-brr-results` (310GB) at `/results/`
+  - `/results/cache/tusz/train/` - 3734 NPZ files on SSD (built on first run)
+  - `/results/checkpoints/` - Model checkpoints
+  - `/results/wandb/` - W&B logs
+- **Key fact**: Cache is built directly to Modal SSD, never touches S3
 
 Performance Settings (A100 Optimized)
 - **Batch size**: 128 (uses full 80GB VRAM)
-- **Mixed precision**: true (leverages FP16 tensor cores)
+- **Mixed precision**: true (A100 is 3.8x faster at FP16 than FP32)
 - **W&B entity**: Team name if using team API key (e.g., `jj-vcmcswaggins-novamindnyc`)
+- **Expected performance**: ~5s/batch, ~1hr/epoch, ~100hrs total (~$319)
 
 Troubleshooting
 - 0 windows in BalancedSeizureDataset: re-scan manifest; fix CSV_BI parser; rebuild cache.
