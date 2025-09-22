@@ -126,14 +126,14 @@ class TCNEncoder(nn.Module):
         # TCN backbone
         if HAS_PYTORCH_TCN:
             # Use pytorch-tcn package
-            self.tcn = TemporalConvNet(
+            self.tcn = TCN(
                 num_inputs=input_channels,
                 num_channels=num_channels,
                 kernel_size=kernel_size,
                 dropout=dropout,
                 causal=causal,
                 use_norm='weight_norm',
-                activation='relu'
+                activation='relu',
             )
             tcn_out_channels = num_channels[-1]
         else:
@@ -170,9 +170,9 @@ class TCNEncoder(nn.Module):
             Encoded features (B, 512, 960)
         """
         # Check input shape
-        B, C, L = x.shape
-        assert self.input_channels == C, f"Expected {self.input_channels} channels, got {C}"
-        assert L == 15360, f"Expected 15360 samples, got {L}"
+        _b, c, l = x.shape
+        assert self.input_channels == c, f"Expected {self.input_channels} channels, got {c}"
+        assert l == 15360, f"Expected 15360 samples, got {l}"
 
         # TCN processing
         x = self.tcn(x)  # (B, tcn_channels, 15360)
