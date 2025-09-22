@@ -128,89 +128,65 @@ class TestTCNFullPipeline:
         assert output.dtype == torch.float16  # Should be FP16 in autocast
         assert output.shape == (2, 15360)
 
-    def test_config_backward_compatibility(self):
-        """Old configs without 'architecture' field should default to U-Net."""
+    def test_config_defaults_to_tcn(self):
+        """Config should default to TCN architecture."""
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
-        # Old config without architecture field
-        config_dict = {"mamba": {"d_model": 512, "n_layers": 6}}
+        # Config should default to TCN
+        config = ModelConfig()
+        assert config.architecture == "tcn"
 
-        config = ModelConfig(**config_dict)
-
-        # Should default to U-Net
-        assert config.architecture == "unet"
-
+        # Should create TCN model
         detector = SeizureDetector.from_config(config)
-        assert hasattr(detector, "encoder")  # U-Net encoder
-        assert not hasattr(detector, "tcn_encoder")
+        assert hasattr(detector, "tcn_encoder")
+        assert hasattr(detector, "proj_head")
 
 
 @pytest.mark.integration
-@pytest.mark.skip(reason="Performance tests need A100 GPU for accurate comparison")
 class TestTCNPerformance:
-    """Performance comparison tests (run locally on A100 GPUs, not in CI/WSL)."""
+    """TCN architecture performance tests."""
 
     @pytest.mark.slow
-    @pytest.mark.skipif(not torch.cuda.is_available(), reason="TCN is only faster on GPU")
-    def test_tcn_faster_than_unet(self):
-        """TCN should be faster than U-Net+ResCNN per batch on GPU."""
+    @pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU required for performance testing")
+    def test_tcn_inference_speed(self):
+        """TCN should have fast inference on GPU."""
         import time
 
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
-        # Create both models
-        unet_config = ModelConfig(architecture="unet")
+        # Create TCN model
         tcn_config = ModelConfig(architecture="tcn")
-
-        unet_model = SeizureDetector.from_config(unet_config).cuda()
         tcn_model = SeizureDetector.from_config(tcn_config).cuda()
 
         x = torch.randn(4, 19, 15360).cuda()
 
         # Warmup
         for _ in range(3):
-            _ = unet_model(x)
             _ = tcn_model(x)
-
-        # Time U-Net
-        torch.cuda.synchronize() if torch.cuda.is_available() else None
-        t0 = time.perf_counter()
-        for _ in range(10):
-            _ = unet_model(x)
-        torch.cuda.synchronize() if torch.cuda.is_available() else None
-        unet_time = time.perf_counter() - t0
 
         # Time TCN
-        torch.cuda.synchronize() if torch.cuda.is_available() else None
+        torch.cuda.synchronize()
         t0 = time.perf_counter()
         for _ in range(10):
             _ = tcn_model(x)
-        torch.cuda.synchronize() if torch.cuda.is_available() else None
+        torch.cuda.synchronize()
         tcn_time = time.perf_counter() - t0
 
-        print(f"U-Net: {unet_time:.3f}s, TCN: {tcn_time:.3f}s")
-        # TCN should be at least 20% faster
-        assert tcn_time < 0.8 * unet_time
+        print(f"TCN: {tcn_time:.3f}s for 10 batches")
+        # TCN should be fast (< 0.5s for 10 batches on GPU)
+        assert tcn_time < 0.5
 
     @pytest.mark.slow
     @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required for memory profiling")
-    def test_tcn_memory_usage(self):
-        """TCN should use less memory than U-Net+ResCNN."""
+    def test_tcn_memory_efficient(self):
+        """TCN should be memory efficient."""
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
-        # Create models
-        unet_config = ModelConfig(architecture="unet")
+        # Create TCN model
         tcn_config = ModelConfig(architecture="tcn")
-
-        # Measure U-Net memory
-        torch.cuda.reset_peak_memory_stats()
-        unet_model = SeizureDetector.from_config(unet_config).cuda()
-        x = torch.randn(4, 19, 15360).cuda()
-        _ = unet_model(x)
-        unet_memory = torch.cuda.max_memory_allocated() / 1e9
 
         # Measure TCN memory
         torch.cuda.reset_peak_memory_stats()
@@ -219,9 +195,9 @@ class TestTCNPerformance:
         _ = tcn_model(x)
         tcn_memory = torch.cuda.max_memory_allocated() / 1e9
 
-        print(f"U-Net: {unet_memory:.2f}GB, TCN: {tcn_memory:.2f}GB")
-        # TCN should use at least 30% less memory
-        assert tcn_memory < 0.7 * unet_memory
+        print(f"TCN: {tcn_memory:.2f}GB")
+        # TCN should use less than 2GB for batch size 4
+        assert tcn_memory < 2.0
 
 
 @pytest.mark.integration
