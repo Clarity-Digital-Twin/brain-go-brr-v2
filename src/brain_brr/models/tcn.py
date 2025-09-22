@@ -216,6 +216,17 @@ class ProjectionHead(nn.Module):
         # Upsample to restore temporal resolution
         self.upsample = nn.Upsample(scale_factor=upsample_factor, mode="nearest")
 
+        # Initialize weights properly
+        self._initialize_weights()
+
+    def _initialize_weights(self) -> None:
+        """Initialize weights using Xavier initialization for stable gradients."""
+        for module in self.modules():
+            if isinstance(module, nn.Conv1d):
+                nn.init.xavier_uniform_(module.weight)
+                if module.bias is not None:
+                    nn.init.zeros_(module.bias)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass through projection head.
 

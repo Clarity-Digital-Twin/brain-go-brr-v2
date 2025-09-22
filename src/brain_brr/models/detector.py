@@ -117,7 +117,15 @@ class SeizureDetector(nn.Module):
 
     def _initialize_weights(self) -> None:
         """Initialize model weights (He/Xavier) for conv/linear/bn layers."""
+        # Special init for detection head to prevent output explosion
+        nn.init.xavier_uniform_(self.detection_head.weight, gain=0.1)
+        if self.detection_head.bias is not None:
+            nn.init.constant_(self.detection_head.bias, 0)
+
+        # Standard init for other layers
         for m in self.modules():
+            if m is self.detection_head:
+                continue  # Already initialized above
             if isinstance(m, (nn.Conv1d, nn.ConvTranspose1d)):
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
                 if m.bias is not None:

@@ -169,8 +169,7 @@ class TestTCNIntegration:
 
         # Should have TCN components
         assert hasattr(detector, "tcn_encoder")
-        assert hasattr(detector, "proj_512_to_19")
-        assert hasattr(detector, "upsample")
+        assert hasattr(detector, "proj_head")  # Unified projection head now
 
     # Legacy 'unet' path removed in v2.3+; skipping old-compat tests
     # def test_detector_with_unet_flag(self): ...
