@@ -124,15 +124,16 @@ def test_mamba_cuda():
         model = Mamba2(d_model=512, d_state=16, d_conv=4, expand=2).cuda()
         print("✓ Mamba2 model created", flush=True)
 
-        # Test forward pass
+        # Test forward pass (no grad for speed)
         x = torch.randn(2, 100, 512).cuda()  # (batch, seq_len, d_model)
         with torch.no_grad():
             out = model(x)
-
         print(f"✓ Forward pass successful! Output shape: {out.shape}", flush=True)
 
-        # Test backward pass
-        loss = out.sum()
+        # Test backward pass (needs grad enabled)
+        x_grad = torch.randn(2, 100, 512, requires_grad=True).cuda()
+        out_grad = model(x_grad)
+        loss = out_grad.sum()
         loss.backward()
         print("✓ Backward pass successful!", flush=True)
 
