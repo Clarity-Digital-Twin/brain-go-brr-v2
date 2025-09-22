@@ -159,6 +159,8 @@ source = ["src"]
 omit = [
     "*/tests/*",
     "*/test_*",
+    "*/unet.py",
+    "*/rescnn.py",
 ]
 
 [tool.ruff]
