@@ -324,35 +324,35 @@ def train_epoch(
             pos_ratio = dataset.seizure_ratio
             print("[DATASET] Using BalancedSeizureDataset known distribution", flush=True)
             print(f"[DATASET] Seizure ratio: {100 * pos_ratio:.1f}% (from manifest)", flush=True)
-    else:
-        # Fallback: sample windows for regular datasets
-        sample_size = min(100, dataset_len)  # Reduced from 1000 for speed
-        sample_indices = torch.randperm(dataset_len)[:sample_size]
+        else:
+            # Fallback: sample windows for regular datasets
+            sample_size = min(100, dataset_len)  # Reduced from 1000 for speed
+            sample_indices = torch.randperm(dataset_len)[:sample_size]
 
-        pos_count = 0
-        total_samples = 0
+            pos_count = 0
+            total_samples = 0
 
-        print(f"[DATASET] Sampling {sample_size} windows to estimate distribution...", flush=True)
-        for idx in sample_indices:
-            _, label = dataset[idx.item()]
-            if (label > 0).any():
-                pos_count += 1
-            total_samples += 1
+            print(f"[DATASET] Sampling {sample_size} windows to estimate distribution...", flush=True)
+            for idx in sample_indices:
+                _, label = dataset[idx.item()]
+                if (label > 0).any():
+                    pos_count += 1
+                total_samples += 1
 
-        pos_ratio = pos_count / total_samples if total_samples > 0 else 1e-8
-        print(f"[DATASET] Sampled {sample_size} windows", flush=True)
-        print(
-            f"[DATASET] Windows with seizures: {pos_count}/{sample_size} ({100 * pos_ratio:.2f}%)",
-            flush=True,
-        )
+            pos_ratio = pos_count / total_samples if total_samples > 0 else 1e-8
+            print(f"[DATASET] Sampled {sample_size} windows", flush=True)
+            print(
+                f"[DATASET] Windows with seizures: {pos_count}/{sample_size} ({100 * pos_ratio:.2f}%)",
+                flush=True,
+            )
 
-    # Use sqrt scaling for extreme imbalance (prevents explosion)
-    if pos_ratio > 0 and pos_ratio < 0.5:
-        pos_weight_val = math.sqrt((1 - pos_ratio) / pos_ratio)
-    else:
-        pos_weight_val = 1.0
+        # Use sqrt scaling for extreme imbalance (prevents explosion)
+        if pos_ratio > 0 and pos_ratio < 0.5:
+            pos_weight_val = math.sqrt((1 - pos_ratio) / pos_ratio)
+        else:
+            pos_weight_val = 1.0
 
-    print(f"[DATASET] Using pos_weight: {pos_weight_val:.2f} (sqrt scaling)", flush=True)
+        print(f"[DATASET] Using pos_weight: {pos_weight_val:.2f} (sqrt scaling)", flush=True)
     print("=" * 60 + "\n", flush=True)
 
     # Validate dataset has seizures
