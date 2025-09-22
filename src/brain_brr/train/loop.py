@@ -10,18 +10,8 @@ SOLID principles applied:
 
 from __future__ import annotations
 
-# Suppress known PyTorch scheduler warning that occurs when scheduler is created
-# with last_epoch=-1 and stepped for the first time. This is a false positive -
-# we ARE calling optimizer.step() before scheduler.step() as required.
-import warnings
-warnings.filterwarnings(
-    "ignore",
-    message="Detected call of `lr_scheduler.step()` before `optimizer.step()`",
-    category=UserWarning,
-    module="torch.optim.lr_scheduler"
-)
-
 import math
+import warnings
 import os
 import random
 import sys
@@ -52,6 +42,16 @@ from src.brain_brr.config.schemas import (
 from src.brain_brr.eval.metrics import evaluate_predictions
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.wandb_integration import WandBLogger
+
+# Suppress known PyTorch scheduler warning that occurs when scheduler is created
+# with last_epoch=-1 and stepped for the first time. This is a false positive -
+# we ARE calling optimizer.step() before scheduler.step() as required.
+warnings.filterwarnings(
+    "ignore",
+    message="Detected call of `lr_scheduler.step()` before `optimizer.step()`",
+    category=UserWarning,
+    module="torch.optim.lr_scheduler"
+)
 
 # WSL2-safe multiprocessing defaults (must be before any DataLoader creation)
 if mp.get_start_method(allow_none=True) != "spawn":
