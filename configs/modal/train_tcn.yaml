@@ -1,0 +1,80 @@
+# TCN full training config for Modal
+# Usage: modal run src.train --config configs/modal/train_tcn.yaml
+
+experiment:
+  name: tcn_full_100ep
+  seed: 42
+  output_dir: /results/tcn_full_100ep
+  save_checkpoint: true
+  save_every_n_epochs: 10
+  wandb_project: seizure-tcn
+
+model:
+  architecture: tcn  # Use TCN instead of U-Net + ResCNN
+
+  tcn:
+    num_layers: 8
+    channels: [64, 128, 256, 512]
+    kernel_size: 7
+    dropout: 0.15
+    causal: false  # Non-causal for offline training
+    stride_down: 16
+    use_cuda_optimizations: true
+
+  mamba:
+    n_layers: 6
+    d_model: 512
+    d_state: 16
+    conv_kernel: 4  # Set to 4 to avoid CUDA coercion warning
+    dropout: 0.1
+
+data:
+  dataset: tuh_eeg
+  data_dir: /data/tuh_eeg_seizure/v2.0.4/edf
+  cache_dir: /cache/data
+  use_balanced_sampling: true
+  num_workers: 4
+  pin_memory: true
+  prefetch_factor: 4
+  persistent_workers: true
+
+preprocessing:
+  montage: 10-20
+  bandpass: [0.5, 120.0]
+  notch_freq: 60
+  normalize: true
+
+training:
+  batch_size: 128  # Larger batch for TCN (more efficient)
+  learning_rate: 1.0e-4
+  num_epochs: 100
+  gradient_clip_val: 0.5  # TCN paper recommendation
+  mixed_precision: true  # CRITICAL for A100
+
+  loss:
+    type: focal
+    focal_alpha: 0.25
+    focal_gamma: 2.0
+
+  scheduler:
+    type: cosine
+    warmup_ratio: 0.1
+
+  optimizer:
+    weight_decay: 1.0e-5
+
+postprocessing:
+  hysteresis:
+    tau_on: 0.86
+    tau_off: 0.78
+  morphology:
+    opening_kernel: 11
+    closing_kernel: 31
+  duration:
+    min_duration_s: 3.0
+    max_duration_s: 600.0
+
+evaluation:
+  compute_taes: true
+  taes_fa_targets: [1, 5, 10, 20]
+  save_predictions: true

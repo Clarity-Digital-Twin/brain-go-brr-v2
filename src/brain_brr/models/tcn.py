@@ -13,12 +13,12 @@ import torch.nn.functional as F
 
 # Try to import pytorch-tcn (optional dependency)
 try:
-    from TCN import TemporalConvNet
+    from pytorch_tcn import TCN as TemporalConvNet
     HAS_PYTORCH_TCN = True
 except ImportError:
     HAS_PYTORCH_TCN = False
     warnings.warn(
-        "pytorch-tcn not installed. Install with: uv sync -E tcn\n"
+        "pytorch-tcn not installed. Install with: uv sync --extra tcn\n"
         "Falling back to minimal TCN implementation."
     )
 
@@ -128,13 +128,11 @@ class TCNEncoder(nn.Module):
         if HAS_PYTORCH_TCN:
             # Use pytorch-tcn package
             self.tcn = TemporalConvNet(
-                num_inputs=input_channels,
-                num_channels=num_channels,
+                input_channels=input_channels,
+                hidden_channels=num_channels,
                 kernel_size=kernel_size,
                 dropout=dropout,
-                causal=causal,
-                use_norm='weight_norm',
-                activation='relu'
+                causal=causal
             )
             tcn_out_channels = num_channels[-1]
         else:

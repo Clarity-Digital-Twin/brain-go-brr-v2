@@ -125,12 +125,23 @@ class SeizureDetector(nn.Module):
         Returns:
             (B, 15360) per-sample seizure logits (raw scores).
         """
-        encoded, skips = self.encoder(x)  # (B, 512, 960) + 4 skips
-        features = self.rescnn(encoded)  # (B, 512, 960)
-        temporal = self.mamba(features)  # (B, 512, 960)
-        decoded = self.decoder(temporal, skips)  # (B, 19, 15360)
-        output = self.detection_head(decoded)  # (B, 1, 15360)
-        return cast(torch.Tensor, output.squeeze(1))  # (B, 15360)
+        # Check if using TCN path
+        if hasattr(self, 'architecture') and self.architecture == "tcn":
+            # TCN path
+            features = self.tcn_encoder(x)           # (B, 512, 960)
+            temporal = self.mamba(features)          # (B, 512, 960)
+            chan19 = self.proj_512_to_19(temporal)   # (B, 19, 960)
+            decoded = self.upsample(chan19)          # (B, 19, 15360)
+            output = self.detection_head(decoded)    # (B, 1, 15360)
+            return cast(torch.Tensor, output.squeeze(1))  # (B, 15360)
+        else:
+            # Original U-Net path
+            encoded, skips = self.encoder(x)  # (B, 512, 960) + 4 skips
+            features = self.rescnn(encoded)  # (B, 512, 960)
+            temporal = self.mamba(features)  # (B, 512, 960)
+            decoded = self.decoder(temporal, skips)  # (B, 19, 15360)
+            output = self.detection_head(decoded)  # (B, 1, 15360)
+            return cast(torch.Tensor, output.squeeze(1))  # (B, 15360)
 
     @classmethod
     def from_config(cls, cfg: "_ModelConfig") -> "SeizureDetector":
@@ -138,17 +149,55 @@ class SeizureDetector(nn.Module):
 
         Note: `in_channels` fixed at 19 for the 10-20 montage in this project.
         """
-        return cls(
-            in_channels=19,
-            base_channels=cfg.encoder.channels[0],
-            encoder_depth=cfg.encoder.stages,
-            mamba_layers=cfg.mamba.n_layers,
-            mamba_d_state=cfg.mamba.d_state,
-            mamba_d_conv=cfg.mamba.conv_kernel,
-            rescnn_blocks=cfg.rescnn.n_blocks,
-            rescnn_kernels=cfg.rescnn.kernel_sizes,
-            dropout=cfg.mamba.dropout,
-        )
+        # Check architecture flag for TCN vs U-Net path
+        if hasattr(cfg, 'architecture') and cfg.architecture == "tcn":
+            # TCN path - create instance with TCN components
+            instance = cls.__new__(cls)
+            nn.Module.__init__(instance)
+
+            # Initialize TCN components
+            instance.tcn_encoder = TCNEncoder(
+                input_channels=19,
+                output_channels=512,
+                num_layers=cfg.tcn.num_layers,
+                kernel_size=cfg.tcn.kernel_size,
+                dropout=cfg.tcn.dropout,
+                causal=cfg.tcn.causal,
+                stride_down=cfg.tcn.stride_down,
+                use_cuda_optimizations=cfg.tcn.use_cuda_optimizations,
+            )
+            instance.mamba = BiMamba2(
+                d_model=512,
+                d_state=cfg.mamba.d_state,
+                d_conv=cfg.mamba.conv_kernel,
+                num_layers=cfg.mamba.n_layers,
+                dropout=cfg.mamba.dropout,
+            )
+            instance.proj_512_to_19 = nn.Conv1d(512, 19, kernel_size=1)
+            instance.upsample = nn.Upsample(scale_factor=16, mode='nearest')
+            instance.detection_head = nn.Conv1d(19, 1, kernel_size=1)
+
+            # Store config for debugging
+            instance.config = {"architecture": "tcn"}
+            instance.architecture = "tcn"
+
+            # Initialize weights
+            instance._initialize_weights()
+
+            return instance
+        else:
+            # Original U-Net path (default)
+            return cls(
+                in_channels=19,
+                base_channels=cfg.encoder.channels[0],
+                encoder_depth=cfg.encoder.stages,
+                mamba_layers=cfg.mamba.n_layers,
+                mamba_d_state=cfg.mamba.d_state,
+                mamba_d_conv=cfg.mamba.conv_kernel,
+                rescnn_blocks=cfg.rescnn.n_blocks,
+                rescnn_kernels=cfg.rescnn.kernel_sizes,
+                dropout=cfg.mamba.dropout,
+            )
 
     def count_parameters(self) -> int:
         """Count total trainable parameters."""

@@ -1,0 +1,70 @@
+# TCN smoke test config - 1 epoch quick validation
+# Usage: python -m src train configs/local/smoke_tcn.yaml
+
+experiment:
+  name: tcn_smoke
+  seed: 42
+  output_dir: results/tcn_smoke
+  save_checkpoint: true
+  save_every_n_epochs: 1
+
+model:
+  architecture: tcn  # NEW: Use TCN instead of U-Net
+
+  tcn:
+    num_layers: 8
+    channels: [64, 128, 256, 512]
+    kernel_size: 7
+    dropout: 0.15
+    causal: false  # Non-causal for offline training
+    stride_down: 16
+    use_cuda_optimizations: true
+
+  mamba:
+    n_layers: 6
+    d_model: 512
+    d_state: 16
+    conv_kernel: 4  # IMPORTANT: Set to 4 to avoid CUDA coercion warning
+    dropout: 0.1
+
+data:
+  dataset: tuh_eeg
+  data_dir: data/tuh_eeg_seizure/v2.0.4/edf
+  cache_dir: cache/data
+  use_balanced_sampling: true
+  num_workers: 0
+  pin_memory: false
+  max_samples: 20  # Small for smoke test
+
+preprocessing:
+  montage: 10-20
+  bandpass: [0.5, 120.0]
+  notch_freq: 60
+  normalize: true
+
+training:
+  batch_size: 4
+  learning_rate: 1.0e-4
+  num_epochs: 1
+  gradient_clip_val: 1.0
+  mixed_precision: false  # Disabled for smoke test
+
+  loss:
+    type: focal
+    focal_alpha: 0.25
+    focal_gamma: 2.0
+
+  scheduler:
+    type: cosine
+    warmup_ratio: 0.1
+
+postprocessing:
+  hysteresis:
+    tau_on: 0.86
+    tau_off: 0.78
+  morphology:
+    opening_kernel: 11
+    closing_kernel: 31
+  duration:
+    min_duration_s: 3.0
+    max_duration_s: 600.0
