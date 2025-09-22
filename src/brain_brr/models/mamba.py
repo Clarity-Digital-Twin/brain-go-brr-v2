@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 
 # Conditional import for GPU/CPU compatibility
-_warned_kernel_coercion = False
+# No longer needed - we use d_conv=4 everywhere now
 try:
     from mamba_ssm import Mamba2
 
