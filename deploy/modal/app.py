@@ -27,9 +27,9 @@ image = (
     .run_commands(
         "pip install torch==2.2.2 torchvision==0.17.2 'numpy<2.0' --index-url https://download.pytorch.org/whl/cu121"
     )
-    # Verify PyTorch is correct version and CUDA-enabled
+    # Verify PyTorch is correct version (CUDA check happens at runtime, not build time)
     .run_commands(
-        "python -c 'import torch; assert torch.__version__.startswith(\"2.2.2\"), f\"Wrong torch: {torch.__version__}\"; assert torch.cuda.is_available(), \"No CUDA\"'"
+        "python -c 'import torch; assert torch.__version__.startswith(\"2.2.2\"), f\"Wrong torch: {torch.__version__}\"'"
     )
     # Install build dependencies
     .pip_install("packaging", "wheel", "setuptools")
@@ -41,9 +41,9 @@ image = (
     .run_commands(
         "pip install --no-build-isolation --no-cache-dir mamba-ssm==2.2.2"
     )
-    # Verify mamba-ssm works with CUDA kernels
+    # Verify mamba-ssm imports correctly (CUDA test happens at runtime)
     .run_commands(
-        "python -c 'from mamba_ssm import Mamba2; import torch; m = Mamba2(d_model=512, d_state=16, d_conv=4, expand=2).cuda(); x = torch.randn(1, 100, 512).cuda(); out = m(x); print(f\"✅ Mamba CUDA test passed: {out.shape}\")'"
+        "python -c 'from mamba_ssm import Mamba2; print(\"✅ Mamba2 imports successfully\")'"
     )
     # Core dependencies
     .pip_install(
