@@ -91,8 +91,8 @@ class MinimalTCN(nn.Module):
 class TCNEncoder(nn.Module):
     """TCN encoder that produces features for Bi-Mamba.
 
-    Input:  (B, 19, 15360) - 60s of 19-channel EEG @ 256Hz
-    Output: (B, 512, 960)   - Downsampled by 16x for Mamba
+    Input:  (B, 19, L) where L is divisible by stride_down (default 16)
+    Output: (B, 512, L/16)   - Downsampled by 16x for Mamba
     """
 
     def __init__(
@@ -171,15 +171,18 @@ class TCNEncoder(nn.Module):
         """Forward pass through TCN encoder.
 
         Args:
-            x: Input EEG tensor (B, 19, 15360)
+            x: Input EEG tensor (B, 19, L)
 
         Returns:
-            Encoded features (B, 512, 960)
+            Encoded features (B, 512, L/stride_down)
         """
         # Check input shape
         _b, c, length = x.shape
         assert self.input_channels == c, f"Expected {self.input_channels} channels, got {c}"
-        assert length == 15360, f"Expected 15360 samples, got {length}"
+        if length % self.stride_down != 0:
+            raise AssertionError(
+                f"Input length {length} must be divisible by stride_down {self.stride_down}"
+            )
 
         # TCN processing
         x = self.tcn(x)  # (B, tcn_channels, 15360)
