@@ -68,16 +68,30 @@ class TestTCNEncoder:
 
     @pytest.mark.skip(reason="pytorch-tcn hangs on large batches, needs investigation")
     def test_tcn_handles_variable_batch_size(self):
-        """TCN should handle different batch sizes."""
+        """TCN should handle different batch sizes on CPU deterministically.
+
+        Force the lightweight fallback backend to avoid potential hangs with
+        the external pytorch-tcn on large CPU batches.
+        """
+        import os
+
         from src.brain_brr.models.tcn import TCNEncoder
 
-        model = TCNEncoder(input_channels=19, output_channels=512, num_layers=8)
+        prev = os.environ.get("BGB_FORCE_TCN_EXT")
+        try:
+            os.environ["BGB_FORCE_TCN_EXT"] = "0"
+            model = TCNEncoder(input_channels=19, output_channels=512, num_layers=8)
 
-        # Test different batch sizes
-        for batch_size in [1, 4, 16, 32]:
-            x = torch.randn(batch_size, 19, 15360)
-            output = model(x)
-            assert output.shape == (batch_size, 512, 960)
+            # Test different batch sizes
+            for batch_size in [1, 4, 16, 32]:
+                x = torch.randn(batch_size, 19, 15360)
+                output = model(x)
+                assert output.shape == (batch_size, 512, 960)
+        finally:
+            if prev is None:
+                os.environ.pop("BGB_FORCE_TCN_EXT", None)
+            else:
+                os.environ["BGB_FORCE_TCN_EXT"] = prev
 
     @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
     def test_tcn_cuda_optimization(self):

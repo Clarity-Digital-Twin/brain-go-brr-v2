@@ -208,13 +208,32 @@ class SeizureDetector(nn.Module):
 
     def get_layer_info(self) -> dict[str, object]:
         """Get per-component and total parameter counts plus config snapshot."""
-        encoder_params = sum(p.numel() for p in self.encoder.parameters())
-        rescnn_params = sum(p.numel() for p in self.rescnn.parameters())
-        mamba_params = sum(p.numel() for p in self.mamba.parameters())
-        decoder_params = sum(p.numel() for p in self.decoder.parameters())
-        head_params = sum(p.numel() for p in self.detection_head.parameters())
 
-        total_params = encoder_params + rescnn_params + mamba_params + decoder_params + head_params
+        # Compute component parameter counts defensively to support both
+        # UNet and TCN architectures.
+        def count(mod: nn.Module | None) -> int:
+            return sum(p.numel() for p in mod.parameters()) if mod is not None else 0
+
+        enc = getattr(self, "encoder", None)
+        res = getattr(self, "rescnn", None)
+        dec = getattr(self, "decoder", None)
+        tcn = getattr(self, "tcn_encoder", None)
+
+        encoder_params = count(enc)
+        rescnn_params = count(res)
+        decoder_params = count(dec)
+        tcn_params = count(tcn)
+        mamba_params = count(self.mamba)
+        head_params = count(self.detection_head)
+
+        total_params = (
+            encoder_params
+            + rescnn_params
+            + decoder_params
+            + tcn_params
+            + mamba_params
+            + head_params
+        )
 
         info: dict[str, object] = {
             "encoder_params": encoder_params,
@@ -222,6 +241,7 @@ class SeizureDetector(nn.Module):
             "mamba_params": mamba_params,
             "decoder_params": decoder_params,
             "head_params": head_params,
+            "tcn_params": tcn_params,
             "total_params": total_params,
             "config": self.config,
         }

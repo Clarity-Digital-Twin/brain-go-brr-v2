@@ -103,11 +103,21 @@ def _print_config_summary(config: Config) -> None:
     table.add_row("Data", data_summary)
 
     # Model settings
-    model_summary = (
-        f"Encoder: {config.model.encoder.stages} stages {config.model.encoder.channels}\n"
-        f"ResCNN: {config.model.rescnn.n_blocks} blocks, kernels {config.model.rescnn.kernel_sizes}\n"
-        f"Mamba: {config.model.mamba.n_layers} layers, d_model={config.model.mamba.d_model}"
-    )
+    if config.model.architecture == "tcn":
+        model_summary = (
+            f"Architecture: TCN -> Bi-Mamba -> Head\n"
+            f"TCN: layers={config.model.tcn.num_layers}, channels={config.model.tcn.channels}, "
+            f"k={config.model.tcn.kernel_size}, stride_down={config.model.tcn.stride_down}\n"
+            f"Mamba: layers={config.model.mamba.n_layers}, d_model={config.model.mamba.d_model}, "
+            f"d_state={config.model.mamba.d_state}, conv_kernel={config.model.mamba.conv_kernel}"
+        )
+    else:
+        model_summary = (
+            f"Architecture: U-Net + ResCNN -> Bi-Mamba -> Head\n"
+            f"Encoder: {config.model.encoder.stages} stages {config.model.encoder.channels}\n"
+            f"ResCNN: {config.model.rescnn.n_blocks} blocks, kernels {config.model.rescnn.kernel_sizes}\n"
+            f"Mamba: {config.model.mamba.n_layers} layers, d_model={config.model.mamba.d_model}"
+        )
     table.add_row("Model", model_summary)
 
     # Training settings
