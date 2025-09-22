@@ -111,6 +111,7 @@ class TestTCNFullPipeline:
 
             assert torch.allclose(out1, out2)
 
+    @pytest.mark.gpu
     @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
     def test_tcn_mixed_precision(self):
         """TCN should work with mixed precision training."""
@@ -147,6 +148,7 @@ class TestTCNFullPipeline:
 class TestTCNPerformance:
     """TCN architecture performance tests."""
 
+    @pytest.mark.gpu
     @pytest.mark.slow
     @pytest.mark.skipif(
         not torch.cuda.is_available(), reason="GPU required for performance testing"
@@ -180,6 +182,7 @@ class TestTCNPerformance:
         # TCN should be fast (< 0.5s for 10 batches on GPU)
         assert tcn_time < 0.5
 
+    @pytest.mark.gpu
     @pytest.mark.slow
     @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required for memory profiling")
     def test_tcn_memory_efficient(self):
