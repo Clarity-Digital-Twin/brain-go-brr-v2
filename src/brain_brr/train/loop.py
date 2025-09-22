@@ -314,6 +314,7 @@ def train_epoch(
     if is_smoke_test:
         print("[SMOKE TEST MODE] Skipping dataset sampling - using default pos_weight=1.0", flush=True)
         pos_weight_val = 1.0
+        pos_ratio = 0.5  # Assume balanced for smoke test
 
     # CRITICAL FIX: BalancedSeizureDataset already knows its exact seizure ratio!
     # No need to sample 1000 windows (which takes 2+ hours on Modal)
