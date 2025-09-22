@@ -151,10 +151,9 @@ class TestTCNPerformance:
     """Performance comparison tests (run locally, not in CI)."""
 
     @pytest.mark.slow
+    @pytest.mark.skipif(not torch.cuda.is_available(), reason="TCN is only faster on GPU")
     def test_tcn_faster_than_unet(self):
-        """TCN should be faster than U-Net+ResCNN per batch."""
-        if not torch.cuda.is_available():
-            pytest.skip("CUDA required for reliable perf comparison")
+        """TCN should be faster than U-Net+ResCNN per batch on GPU."""
         import time
 
         from src.brain_brr.config.schemas import ModelConfig
