@@ -24,9 +24,24 @@ Hangs or deadlocks (WSL2)
 - Cause: multiprocessing DataLoader
 - Fix: `num_workers=0`; avoid pin_memory; keep cache/data on WSL ext4
 
-CUDA/Mamba kernel mismatch
+CUDA/Mamba kernel issues
 - Symptom: errors about d_conv sizes
 - Fix: kernels coerce unsupported d_conv to 4; or set `SEIZURE_MAMBA_FORCE_FALLBACK=1`
+
+Mamba CUDA kernels failing on Modal (CRITICAL)
+- Symptom: `'NoneType' object is not callable` when calling Mamba2 layers
+- Cause: causal-conv1d CUDA kernels not compiled/installed properly
+- Root issues:
+  1. Modal's PyPI mirror serves wrong PyTorch version (2.8.0 vs required 2.2.2)
+  2. mamba-ssm requires causal-conv1d package with compiled CUDA kernels
+  3. Build isolation prevents access to installed PyTorch during compilation
+- Fix in deploy/modal/app.py:
+  1. Force exact PyTorch version: `pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cu121`
+  2. Set CUDA env vars BEFORE installs: CUDA_HOME, PATH, LD_LIBRARY_PATH
+  3. Install with --no-build-isolation: `pip install --no-build-isolation causal-conv1d==1.4.0`
+  4. Same for mamba-ssm: `pip install --no-build-isolation mamba-ssm==2.2.2`
+  5. Add verification test in image build to ensure kernels work
+- Verification: Run `modal run deploy/modal/app.py --action test-mamba` before training
 
 EDF read failure
 - Symptom: MNE ValueError/OSError on EDF header

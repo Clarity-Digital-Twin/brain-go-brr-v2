@@ -44,10 +44,17 @@ Observability & logging
   - Stop: `modal app stop <app-id>`
  - Training emits manifest checks: look for `[CACHE]`, `[DATA] Built manifest ...`, and `[DATASET] BalancedSeizureDataset ...` lines
 
-CUDA/Mamba notes
+CUDA/Mamba notes (CRITICAL - Must Match Local Setup)
 - CUDA kernels coerce unsupported `d_conv` to 4 automatically.
 - Force Conv1d fallback if needed: `SEIZURE_MAMBA_FORCE_FALLBACK=1`.
-- The image compiles mamba-ssm from source against PyTorch 2.2.2+cu121.
+- The image MUST compile mamba-ssm from source against PyTorch 2.2.2+cu121.
+- Required exact versions (from setup-guide.md):
+  - PyTorch 2.2.2+cu121 (NOT 2.8.0 from Modal mirror!)
+  - mamba-ssm==2.2.2 (NOT 2.2.4/2.2.5 which have bugs)
+  - causal-conv1d==1.4.0 (1.5+ requires PyTorch 2.4+)
+  - numpy<2.0 (2.x breaks mamba-ssm)
+- Test before training: `modal run deploy/modal/app.py --action test-mamba`
+- If Mamba fails with `'NoneType' object is not callable`, see troubleshooting.md
 
 Code anchors
 - Modal entrypoint and functions: `deploy/modal/app.py` (uses `--action` local_entrypoint).
