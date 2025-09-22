@@ -127,7 +127,7 @@ Baseline and variants trained/evaluated with identical preprocessing and post‑
 
 - Hardware profiles
   - Local WSL2 (WSL‑safe): `configs/tusz_train_wsl2.yaml` (num_workers=0)
-  - Modal A100‑80GB: `configs/tusz_train_a100.yaml`
+  - Modal A100‑80GB: `configs/modal/train.yaml`
 - Optimizer/schedule
   - AdamW, cosine decay with warmup; gradient clipping
 - Regularization
@@ -251,7 +251,7 @@ Baseline and variants trained/evaluated with identical preprocessing and post‑
 - Local smoke: `python -m src train configs/smoke_test.yaml`
 - Local full (WSL2‑safe): `python -m src train configs/tusz_train_wsl2.yaml`
 - Modal smoke: `modal run --detach deploy/modal/app.py -- --action train --config configs/smoke_test.yaml`
-- Modal A100: `modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml`
+- Modal A100: `modal run --detach deploy/modal/app.py -- --action train --config configs/modal/train.yaml`
 - Dev tuning (no training): `python -m src evaluate <best.pt> data_ext4/tusz/edf/dev --config configs/tusz_dev_tuning.yaml --output-json results/dev_metrics.json`
 - Final eval (one‑shot): `python -m src evaluate <best.pt> data_ext4/tusz/edf/eval --config configs/tusz_eval_final.yaml --output-json results/final_metrics.json --output-csv-bi results/final_events.csv`
 
@@ -266,4 +266,3 @@ This document is a planning SSOT for benchmarking work. Claims remain pending un
 3. **Strong Generalization Claims**: TUSZ→CHB-MIT zero-shot transfer
 4. **Publication Ready**: Standard approach with novel architecture
 5. **Future Work Clear**: Siena experiments become natural follow-up
-

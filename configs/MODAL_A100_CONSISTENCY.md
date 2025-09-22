@@ -2,13 +2,13 @@
 
 ## FIXES APPLIED
 
-### 1. train_a100.yaml
+### 1. train.yaml
 - ✅ Changed `device: auto` → `cuda` (explicit GPU for consistency)
 
-### 2. dev_a100.yaml
+### 2. dev.yaml
 - ✅ Fixed checkpoint path: `/results/tusz_a100_100ep/checkpoints/best.pt`
 
-### 3. eval_a100.yaml
+### 3. eval.yaml
 - ✅ Fixed checkpoint path: `/results/tusz_a100_100ep/checkpoints/best.pt`
 
 ## A100-OPTIMIZED SETTINGS (ALL CONFIGS)
@@ -24,10 +24,10 @@ prefetch_factor: 4          # Pre-load batches
 ### A100 80GB VRAM Batch Sizes:
 | Config | Batch Size | Purpose |
 |--------|------------|---------|
-| train_a100.yaml | 64 | Training (8x larger than local) |
-| smoke_a100.yaml | 64 | Quick test |
-| dev_a100.yaml | 128 | Inference (2x training) |
-| eval_a100.yaml | 128 | Inference (2x training) |
+| train.yaml | 64 | Training (8x larger than local) |
+| smoke.yaml | 64 | Quick test |
+| dev.yaml | 128 | Inference (2x training) |
+| eval.yaml | 128 | Inference (2x training) |
 
 ### Model & Architecture (IDENTICAL across all):
 ```yaml
@@ -51,9 +51,9 @@ experiment:
 
 ## CHECKPOINT FLOW (MODAL)
 
-1. **train_a100.yaml** → Creates `/results/tusz_a100_100ep/checkpoints/best.pt`
-2. **dev_a100.yaml** → Loads from `/results/tusz_a100_100ep/checkpoints/best.pt`
-3. **eval_a100.yaml** → Loads from `/results/tusz_a100_100ep/checkpoints/best.pt`
+1. **train.yaml** → Creates `/results/tcn_full_100ep/checkpoints/best.pt`
+2. **dev.yaml** → Loads from `/results/tcn_full_100ep/checkpoints/best.pt`
+3. **eval.yaml** → Loads from `/results/tcn_full_100ep/checkpoints/best.pt`
 
 ## KEY DIFFERENCES FROM LOCAL
 

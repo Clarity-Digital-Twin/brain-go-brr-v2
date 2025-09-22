@@ -82,8 +82,8 @@ deploy/modal/
 └── requirements.txt # Pinned versions
 
 configs/modal/
-├── smoke_a100.yaml  # 1 epoch test
-└── train_a100.yaml  # Full 100 epochs
+├── smoke.yaml  # 1 epoch test
+└── train.yaml  # Full 100 epochs
 ```
 
 ## Performance Characteristics

@@ -11,7 +11,7 @@ Quick commands
 modal run --detach deploy/modal/app.py -- --action train --config configs/smoke_test.yaml
 
 # Full A100 training
-modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml
+modal run --detach deploy/modal/app.py -- --action train --config configs/modal/train.yaml
 
 # Evaluate checkpoint
 modal run deploy/modal/app.py -- --action evaluate --config /results/checkpoints/best.pt
