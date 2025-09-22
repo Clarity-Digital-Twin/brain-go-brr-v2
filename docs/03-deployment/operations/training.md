@@ -4,7 +4,7 @@ Scope
 - Train/val split handling, dataset choice, samplers, logging, guardrails.
 
 LR scheduling
-- The training loop steps the LR scheduler once per optimizer update and does so after the optimizer step. See `src/brain_brr/train/loop.py:555`.
+- The training loop steps the LR scheduler once per optimizer update and does so after the optimizer step. See `src/brain_brr/train/loop.py`.
 - A PyTorch warning may appear on the first batch: `Detected call of lr_scheduler.step() before optimizer.step()`.
   - In this codebase, the order is correct: `optimizer.step()` (or `scaler.step(optimizer)` when AMP is enabled) happens before `scheduler.step()`.
   - Why the warning can still show:
@@ -42,5 +42,5 @@ Code anchors
 - configs/local/{train.yaml,smoke.yaml}; configs/modal/{train.yaml,smoke.yaml}
 
 Cross-references
-- Architecture: ../02-architecture/canonical-spec.md (training configuration)
-- Deployment: ./deploy-preflight.md, ./deploy-modal.md
+- Architecture: ../../02-model/architecture/canonical-spec.md (training configuration)
+- Deployment: ../modal/preflight.md, ../modal/deploy.md

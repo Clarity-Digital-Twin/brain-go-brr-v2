@@ -38,6 +38,6 @@ Advanced metrics (optional):
 - [ ] Calibration metrics (ECE) if probability calibration matters
 
 Cross-references
-- Architecture: ../02-architecture/canonical-spec.md (evaluation metrics section)
+- Architecture: ../../02-model/architecture/canonical-spec.md (evaluation metrics section)
 - Post-processing: ./postprocessing.md
-- Preflight checks: ./deploy-preflight.md
+- Preflight checks: ../modal/preflight.md

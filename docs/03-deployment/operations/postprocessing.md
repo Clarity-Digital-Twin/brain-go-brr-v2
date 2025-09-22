@@ -16,9 +16,9 @@ Code anchors
 - src/brain_brr/events/* (event generation)
 
 Cross-references
-- Architecture spec: ../02-architecture/canonical-spec.md (post-processing section)
+- Architecture spec: ../../02-model/architecture/canonical-spec.md (post-processing section)
 - Evaluation metrics: ./evaluation.md (TAES + FA/24h points)
-- Data pipeline: ../01-data-pipeline/tusz-preflight.md (operational pitfalls)
+- Data pipeline: ../../01-data/tusz/tusz-preflight.md (operational pitfalls)
 
 Notes
 - Tune thresholds on dev set; keep eval rules consistent with TAES.
