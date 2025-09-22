@@ -126,7 +126,7 @@ class MambaConfig(BaseModel):
     n_layers: int = Field(default=6, ge=1, le=12, description="Number of Mamba layers")
     d_model: Literal[512] = Field(default=512, description="Model dimension")
     d_state: Literal[16] = Field(default=16, description="SSM state dimension")
-    conv_kernel: int = Field(default=5, ge=3, le=9, description="Mamba convolution kernel")
+    conv_kernel: int = Field(default=4, ge=2, le=4, description="Mamba convolution kernel (CUDA supports 2-4)")
     dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout rate")
 
 

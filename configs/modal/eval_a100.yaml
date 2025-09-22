@@ -37,7 +37,7 @@ model:
     n_layers: 6
     d_model: 512
     d_state: 16
-    conv_kernel: 5
+    conv_kernel: 4
     dropout: 0.1
   decoder:
     stages: 4
