@@ -15,6 +15,11 @@ EEG (19ch, 256Hz) → TCN Encoder → Bi-Mamba → Projection → Upsample → D
 EEG → TCN Encoder → Bi‑Mamba → [Dynamic GNN + LPE] → Projection → Upsample → Detection
                                         ↑
                           Insert after Bi‑Mamba, before proj_512_to_19
+
+Constraints to honor:
+- Channel order: keep the canonical 19‑channel 10–20 montage from `src/brain_brr/constants.py` when constructing graphs.
+- CUDA Mamba kernel: set `conv_kernel: 4` (CUDA supports {2,3,4}).
+- Output contract: logits at 256 Hz with exact length 15360 preserved.
 ```
 
 ---
