@@ -8,31 +8,42 @@ from typing import Optional
 import modal
 
 # Build the Modal image with CUDA development tools for mamba-ssm compilation
-# Use lazy evaluation - only build when Modal needs it
+# CRITICAL: Must match EXACT versions from local setup (docs/03-operations/setup-guide.md)
 image = (
     # Use NVIDIA CUDA devel image for nvcc compiler (required by mamba-ssm)
     modal.Image.from_registry("nvidia/cuda:12.1.0-devel-ubuntu22.04", add_python="3.11")
     .entrypoint([])  # Clear entrypoint from CUDA image
     # Install build tools required for compiling CUDA extensions
     .apt_install("build-essential", "ninja-build", "git")
-    # Install PyTorch 2.2.2 with CUDA 12.1
-    .pip_install(
-        "torch==2.2.2",
-        "torchvision==0.17.2",
-        "numpy<2.0",  # mamba-ssm constraint
-        index_url="https://download.pytorch.org/whl/cu121",
+    # Set CUDA environment variables BEFORE any pip installs
+    .env({
+        "CUDA_HOME": "/usr/local/cuda-12.1",
+        "PATH": "/usr/local/cuda-12.1/bin:$PATH",
+        "LD_LIBRARY_PATH": "/usr/local/cuda-12.1/lib64:$LD_LIBRARY_PATH",
+        "TORCH_CUDA_ARCH_LIST": "8.0;8.6;8.9;9.0",  # A100 is 8.0
+    })
+    # CRITICAL: Install EXACT PyTorch version from specific index
+    # Modal's mirror can have wrong versions, so we force PyTorch index
+    .run_commands(
+        "pip install torch==2.2.2 torchvision==0.17.2 'numpy<2.0' --index-url https://download.pytorch.org/whl/cu121"
     )
-    # Install mamba-ssm dependencies and CUDA kernels
-    # Install build dependencies first
+    # Verify PyTorch is correct version and CUDA-enabled
+    .run_commands(
+        "python -c 'import torch; assert torch.__version__.startswith(\"2.2.2\"), f\"Wrong torch: {torch.__version__}\"; assert torch.cuda.is_available(), \"No CUDA\"'"
+    )
+    # Install build dependencies
     .pip_install("packaging", "wheel", "setuptools")
-    # CRITICAL FIX: Install causal-conv1d FIRST with forced CUDA build
-    # This is the actual CUDA kernel that Mamba2 calls!
+    # CRITICAL: Install EXACT versions with forced compilation
+    # These MUST match local setup exactly (see setup-guide.md)
     .run_commands(
-        "CAUSAL_CONV1D_FORCE_BUILD=TRUE pip install -v causal-conv1d>=1.2.0"
+        "pip install --no-build-isolation --no-cache-dir causal-conv1d==1.4.0"
     )
-    # Now install mamba-ssm with forced rebuild to ensure it finds causal-conv1d
     .run_commands(
-        "MAMBA_FORCE_BUILD=TRUE pip install -v --no-build-isolation 'mamba-ssm>=2.0.0'"
+        "pip install --no-build-isolation --no-cache-dir mamba-ssm==2.2.2"
+    )
+    # Verify mamba-ssm works with CUDA kernels
+    .run_commands(
+        "python -c 'from mamba_ssm import Mamba2; import torch; m = Mamba2(d_model=512, d_state=16, d_conv=4, expand=2).cuda(); x = torch.randn(1, 100, 512).cuda(); out = m(x); print(f\"✅ Mamba CUDA test passed: {out.shape}\")'"
     )
     # Core dependencies
     .pip_install(
