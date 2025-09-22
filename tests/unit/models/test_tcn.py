@@ -19,6 +19,11 @@ class TestTCNEncoder:
 
     def test_tcn_encoder_shape_contract(self, batch_shape, expected_output_shape):
         """TCN must produce exact shape for Mamba input."""
+        import os
+
+        # Force lightweight TCN to avoid pytorch-tcn hanging
+        os.environ["BGB_FORCE_TCN_EXT"] = "0"
+
         from src.brain_brr.models.tcn import TCNEncoder
 
         model = TCNEncoder(
@@ -39,6 +44,11 @@ class TestTCNEncoder:
 
     def test_tcn_encoder_gradient_flow(self, batch_shape):
         """Ensure gradients flow through TCN without vanishing."""
+        import os
+
+        # Force lightweight TCN to avoid pytorch-tcn hanging
+        os.environ["BGB_FORCE_TCN_EXT"] = "0"
+
         from src.brain_brr.models.tcn import TCNEncoder
 
         model = TCNEncoder(input_channels=19, output_channels=512, num_layers=8, kernel_size=7)
