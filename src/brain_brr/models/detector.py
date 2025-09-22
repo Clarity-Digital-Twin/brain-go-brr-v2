@@ -60,8 +60,18 @@ class SeizureDetector(nn.Module):
     ) -> None:
         super().__init__()
 
-        # Persist config snapshot
+        # Use legacy dropout if mamba_dropout not specified
+        if mamba_dropout is None:
+            mamba_dropout = dropout
+
+        # Persist config snapshot (include legacy keys for tests)
         self.config: dict[str, object] = {
+            "in_channels": in_channels,
+            "base_channels": base_channels,
+            "encoder_depth": encoder_depth,
+            "rescnn_blocks": rescnn_blocks,
+            "rescnn_kernels": rescnn_kernels,
+            "dropout": dropout,
             "tcn_layers": tcn_layers,
             "tcn_kernel_size": tcn_kernel_size,
             "tcn_dropout": tcn_dropout,
