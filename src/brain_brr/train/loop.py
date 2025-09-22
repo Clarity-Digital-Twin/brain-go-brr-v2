@@ -87,7 +87,10 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
 
     # Skip expensive sampling in smoke test mode
     if os.environ.get("BGB_SMOKE_TEST", "0") == "1":
-        print("[SMOKE TEST MODE] Skipping sampler window checking - returning None for uniform sampling", flush=True)
+        print(
+            "[SMOKE TEST MODE] Skipping sampler window checking - returning None for uniform sampling",
+            flush=True,
+        )
         return None
 
     # Sample dataset to find which windows have seizures
@@ -317,7 +320,9 @@ def train_epoch(
     # Skip expensive sampling in smoke test mode
     is_smoke_test = os.environ.get("BGB_SMOKE_TEST", "0") == "1"
     if is_smoke_test:
-        print("[SMOKE TEST MODE] Skipping dataset sampling - using default pos_weight=1.0", flush=True)
+        print(
+            "[SMOKE TEST MODE] Skipping dataset sampling - using default pos_weight=1.0", flush=True
+        )
         pos_weight_val = 1.0
         pos_ratio = 0.5  # Assume balanced for smoke test
 
@@ -325,6 +330,7 @@ def train_epoch(
     # No need to sample 1000 windows (which takes 2+ hours on Modal)
     else:
         from src.brain_brr.data.datasets import BalancedSeizureDataset
+
         if isinstance(dataset, BalancedSeizureDataset):
             # Use the pre-computed ratio from manifest statistics
             pos_ratio = dataset.seizure_ratio
@@ -338,7 +344,9 @@ def train_epoch(
             pos_count = 0
             total_samples = 0
 
-            print(f"[DATASET] Sampling {sample_size} windows to estimate distribution...", flush=True)
+            print(
+                f"[DATASET] Sampling {sample_size} windows to estimate distribution...", flush=True
+            )
             for idx in sample_indices:
                 _, label = dataset[idx.item()]
                 if (label > 0).any():
@@ -1226,7 +1234,10 @@ def main() -> None:
             if len(train_dataset) == 0:
                 is_smoke_test = os.environ.get("BGB_SMOKE_TEST", "0") == "1"
                 if is_smoke_test:
-                    print("[SMOKE TEST MODE] Balanced manifest empty - will fallback to EEGWindowDataset", flush=True)
+                    print(
+                        "[SMOKE TEST MODE] Balanced manifest empty - will fallback to EEGWindowDataset",
+                        flush=True,
+                    )
                     raise Exception("Empty manifest in smoke test - triggering fallback")
                 else:
                     print("[FATAL] Balanced manifest produced 0 windows", flush=True)
@@ -1299,7 +1310,9 @@ def main() -> None:
             if is_smoke_test:
                 print("=" * 60, flush=True)
                 print("[SMOKE TEST MODE] No seizures found - continuing anyway", flush=True)
-                print("[SMOKE TEST MODE] Using uniform sampling for pipeline validation", flush=True)
+                print(
+                    "[SMOKE TEST MODE] Using uniform sampling for pipeline validation", flush=True
+                )
                 print("[SMOKE TEST MODE] This model will NOT learn - testing only!", flush=True)
                 print("=" * 60, flush=True)
                 # Continue with default sampler for smoke testing

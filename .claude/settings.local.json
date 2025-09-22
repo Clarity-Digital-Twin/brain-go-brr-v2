@@ -124,7 +124,9 @@
       "Bash(git clone:*)",
       "Bash(pip search:*)",
       "Read(//home/jj/**)",
-      "Bash(do)"
+      "Bash(do)",
+      "Bash(journalctl:*)",
+      "Bash(dmesg:*)"
     ],
     "deny": [],
     "ask": []

@@ -128,7 +128,7 @@ class BiMamba2Layer(nn.Module):
             MAMBA_AVAILABLE
             and x.is_cuda  # check tensor first to avoid noisy CUDA init on CPU
             and torch.cuda.is_available()
-            and self._mamba_conv_k in (2, 3, 4)  # causal_conv1d constraint
+            and self.d_conv in (2, 3, 4)  # CUDA causal_conv1d constraint
             and not self._force_fallback
         )
 
