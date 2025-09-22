@@ -93,6 +93,7 @@ class TestTCNEncoder:
             else:
                 os.environ["BGB_FORCE_TCN_EXT"] = prev
 
+    @pytest.mark.gpu
     @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
     def test_tcn_cuda_optimization(self):
         """TCN should use CUDA efficiently when available."""
