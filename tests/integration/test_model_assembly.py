@@ -72,6 +72,7 @@ class TestSeizureDetector:
         assert mem_info["total_size_mb"] < 4000
 
     @pytest.mark.serial
+    @pytest.mark.gpu  # Large batch sizes need GPU memory
     def test_different_batch_sizes(self, model: SeizureDetector) -> None:
         for batch_size in [1, 8, 16, 32]:
             x = torch.randn(batch_size, 19, 15360)
