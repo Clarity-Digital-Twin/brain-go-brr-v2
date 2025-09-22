@@ -13,7 +13,7 @@ import torch.nn as nn
 
 # Try to import pytorch-tcn (optional dependency)
 try:
-    from pytorch_tcn import TCN  # type: ignore[import-untyped]
+    from pytorch_tcn import TCN  # type: ignore[import-not-found, import-untyped]
 
     HAS_PYTORCH_TCN = True
 except ImportError:
