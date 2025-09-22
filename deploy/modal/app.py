@@ -179,32 +179,28 @@ def train(
     except ImportError as e:
         print(f"⚠️ Mamba-SSM import failed: {e}")
 
-    # CRITICAL: Optimize cache for Modal S3 performance
-    # S3 CloudBucketMount has terrible random access performance
-    # Copy NPZ files to local persistent volume for 10-100x speedup
+    # Check if cache exists on Modal persistent volume
     print("\n" + "=" * 60, flush=True)
-    print("[CACHE] Checking cache optimization for Modal...", flush=True)
+    print("[CACHE] Verifying cache location on Modal...", flush=True)
     print("=" * 60, flush=True)
 
     try:
-        import sys
-        sys.path.insert(0, "/app/deploy/modal")
-        from cache_optimizer import should_optimize_cache, optimize_cache_for_modal
+        from pathlib import Path
+        cache_path = Path("/results/cache/tusz/train")
 
-        paths = should_optimize_cache()
-        if paths:
-            s3_path, local_path = paths
-            print(f"[CACHE] S3 cache detected, optimizing for local access...", flush=True)
-            print(f"[CACHE] This one-time copy will speed up training by 10-100x", flush=True)
-            success = optimize_cache_for_modal(s3_path, local_path, verbose=True)
-            if not success:
-                print("[WARNING] Cache optimization failed, training will be SLOW!", flush=True)
+        if cache_path.exists():
+            npz_files = list(cache_path.glob("*.npz"))
+            manifest = cache_path / "manifest.json"
+            print(f"[CACHE] ✅ Using Modal SSD cache: {len(npz_files)} NPZ files", flush=True)
+            if manifest.exists():
+                print(f"[CACHE] ✅ Manifest found at {manifest}", flush=True)
+            print(f"[CACHE] Cache location: {cache_path}", flush=True)
+            print(f"[CACHE] This is optimal - using fast local SSD storage", flush=True)
         else:
-            # should_optimize_cache already printed detailed reason
-            print("[CACHE] No optimization needed (see details above)", flush=True)
+            print(f"[CACHE] Cache will be built at: {cache_path}", flush=True)
+            print(f"[CACHE] First epoch will be slower while building cache", flush=True)
     except Exception as e:
-        print(f"[WARNING] Cache optimization failed: {e}", flush=True)
-        print("[WARNING] Training will proceed but may be VERY SLOW!", flush=True)
+        print(f"[WARNING] Could not verify cache: {e}", flush=True)
 
     print("=" * 60 + "\n", flush=True)
 
