@@ -156,7 +156,7 @@ def test_mamba_cuda():
     cpu=8,
 )
 def train(
-    config_path: str = "configs/tusz_train_a100.yaml",  # A100-optimized config
+    config_path: str = "configs/modal/smoke_a100.yaml",  # Default to smoke test for safety
     resume: bool = False,  # Resume training from last.pt in output_dir
 ):
     """Run training on Modal GPU.
@@ -340,7 +340,7 @@ def evaluate(
 @app.local_entrypoint()
 def main(
     action: str = "train",
-    config: str = "configs/smoke_test.yaml",  # Default to smoke test for safety
+    config: str = "configs/modal/smoke_a100.yaml",  # Default to smoke test for safety
     resume: bool = False,  # Resume training from last.pt
 ):
     """Modal deployment entrypoint.
@@ -353,13 +353,13 @@ def main(
         modal run deploy/modal/app.py --action test-mamba
 
         # Quick smoke test (Modal's --detach prevents disconnection)
-        modal run --detach deploy/modal/app.py --action train --config configs/smoke_test.yaml
+        modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_a100.yaml
 
         # Full A100 training (Modal's --detach prevents disconnection)
-        modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml
+        modal run --detach deploy/modal/app.py --action train --config configs/modal/train_a100.yaml
 
         # Resume training from last.pt in output_dir
-        modal run --detach deploy/modal/app.py --action train --config configs/tusz_train_a100.yaml --resume true
+        modal run --detach deploy/modal/app.py --action train --config configs/modal/train_a100.yaml --resume true
 
         # Evaluate checkpoint
         modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.pt

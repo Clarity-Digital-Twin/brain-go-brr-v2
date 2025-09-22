@@ -14,11 +14,11 @@ Preflight (Modal)
 
 Core commands (Modal CLI)
 - Smoke test (detached):
-  - `modal run --detach deploy/modal/app.py::train --config-path configs/modal/smoke_a100.yaml`
+  - `modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_a100.yaml`
 - Full training on A100 (detached):
-  - `modal run --detach deploy/modal/app.py::train --config-path configs/modal/train_a100.yaml`
+  - `modal run --detach deploy/modal/app.py --action train --config configs/modal/train_a100.yaml`
 - Resume training:
-  - `modal run --detach deploy/modal/app.py::train --config-path configs/modal/train_a100.yaml --resume true`
+  - `modal run --detach deploy/modal/app.py --action train --config configs/modal/train_a100.yaml --resume true`
 - Evaluate checkpoint:
   - `modal run deploy/modal/app.py::evaluate --checkpoint-path /results/tusz_a100_100ep/checkpoints/best.pt`
 
@@ -48,6 +48,12 @@ CUDA/Mamba notes (CRITICAL - Must Match Local Setup)
 - CUDA kernels coerce unsupported `d_conv` to 4 automatically.
 - Force Conv1d fallback if needed: `SEIZURE_MAMBA_FORCE_FALLBACK=1`.
 - The image MUST compile mamba-ssm from source against PyTorch 2.2.2+cu121.
+- CRITICAL VERSION REQUIREMENTS:
+  - torch==2.2.2+cu121 (NOT 2.8.0 from Modal's mirror!)
+  - causal-conv1d==1.4.0 (provides CUDA kernels for Mamba)
+  - mamba-ssm==2.2.2 (must compile against exact torch version)
+- Test Mamba CUDA before training: `modal run deploy/modal/app.py --action test-mamba`
+- If you see "'NoneType' object is not callable" errors, the CUDA kernels failed to compile
 - Required exact versions (from setup-guide.md):
   - PyTorch 2.2.2+cu121 (NOT 2.8.0 from Modal mirror!)
   - mamba-ssm==2.2.2 (NOT 2.2.4/2.2.5 which have bugs)
