@@ -181,9 +181,11 @@ class SeizureDetector(nn.Module):
 
         total_params = tcn_params + mamba_params + proj_params + head_params
 
-        # Provide parameter info
+        # Provide parameter info with legacy keys for tests
         info: dict[str, object] = {
-            "tcn_params": tcn_params,
+            "encoder_params": tcn_params,  # Legacy key
+            "rescnn_params": 0,  # No ResCNN in TCN-only arch
+            "decoder_params": proj_params,  # Legacy key
             "mamba_params": mamba_params,
             "head_params": head_params,
             # Also expose detailed keys
