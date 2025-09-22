@@ -1,5 +1,7 @@
 Full Model (Detector Wiring)
 
+Note: The current runtime path uses the TCN front‑end instead of U‑Net + ResCNN. See `docs/02-model/architecture/tcn-replacement.md` for the architecture that is training on Modal now. The U‑Net path below remains documented for ablations and historical reference.
+
 Code anchors
 - src/brain_brr/models/detector.py (SeizureDetector)
 

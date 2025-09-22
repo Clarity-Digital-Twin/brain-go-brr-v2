@@ -1,7 +1,9 @@
 # Deployment Architecture & CUDA Implementation
 
 ## Overview
-This document consolidates all deployment-specific architecture decisions and CUDA kernel implementation details discovered during Modal deployment.
+This document consolidates deployment-specific architecture decisions and CUDA kernel implementation details.
+
+Current runtime path: the TCN architecture is active (`architecture: tcn`). The U‑Net path remains documented for reference/ablations.
 
 ## Critical Version Requirements
 
@@ -158,7 +160,7 @@ modal run --detach deploy/modal/app.py \
 4. **Sampling**: Manifest-driven balanced dataset
 
 ### What Stayed the Same
-1. **Core Architecture**: U-Net + ResCNN + Bi-Mamba
+1. **Core Contracts**: Input/output shapes, logits at 256 Hz, post-processing pipeline
 2. **Window Parameters**: 60s @ 256Hz with 10s stride
 3. **Channel Order**: Canonical 10-20 montage
 4. **O(N) Complexity**: Linear sequence modeling

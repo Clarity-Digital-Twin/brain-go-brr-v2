@@ -22,7 +22,9 @@
 ### 02-model/ - Model Architecture
 - **architecture/** - Core model specifications
   - [`canonical-spec.md`](02-model/architecture/canonical-spec.md) - **SOURCE OF TRUTH**
-  - [`full-model.md`](02-model/architecture/full-model.md) - Complete model architecture
+  - [`current-state.md`](02-model/architecture/current-state.md) - Current runtime architecture (TCN path)
+  - [`tcn-replacement.md`](02-model/architecture/tcn-replacement.md) - TCN replacement details and rationale
+  - [`full-model.md`](02-model/architecture/full-model.md) - Legacy U‑Net path (for ablations)
   - [`pipeline-diagram.md`](02-model/architecture/pipeline-diagram.md) - Model pipeline visualization
 - **components/** - Individual model components
   - [`unet.md`](02-model/components/unet.md) - U-Net encoder/decoder
@@ -49,15 +51,18 @@
   - [`setup.md`](03-deployment/local/setup.md) - General setup guide
 - **operations/** - Training and evaluation
   - [`training.md`](03-deployment/operations/training.md) - Training procedures
+  - [`smoke-tests.md`](03-deployment/operations/smoke-tests.md) - Fast pipeline and unit smoke tests
   - [`evaluation.md`](03-deployment/operations/evaluation.md) - TAES metrics
   - [`postprocessing.md`](03-deployment/operations/postprocessing.md) - Post-processing pipeline
 - [`troubleshooting.md`](03-deployment/troubleshooting.md) - Comprehensive troubleshooting guide
 
 ### 04-research/ - Research & Future Work
 - **future/** - Future directions
+  - [`CANONICAL-ROADMAP.md`](04-research/future/CANONICAL-ROADMAP.md) - Canonical roadmap and status
   - [`direction.md`](04-research/future/direction.md) - Overall future plans
   - [`roadmap.md`](04-research/future/roadmap.md) - Experimental stack roadmap
   - [`gnn-tcn-stack.md`](04-research/future/gnn-tcn-stack.md) - GNN-TCN architecture exploration
+  - [`v2_6_dynamic_gnn_lpe_plan.md`](04-research/future/v2_6_dynamic_gnn_lpe_plan.md) - Implementation plan for Dynamic GNN + LPE
 - **benchmarks/** - Performance benchmarking
   - [`plans.md`](04-research/benchmarks/plans.md) - Benchmark planning
   - [`results.md`](04-research/benchmarks/results.md) - Benchmark results

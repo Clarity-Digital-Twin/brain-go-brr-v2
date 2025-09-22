@@ -84,3 +84,6 @@ Manual controls (quick)
 - Force manifest rebuild on next train run: `BGB_FORCE_MANIFEST_REBUILD=1` (local or Modal env).
 - Rebuild manifest explicitly: `python -m src scan-cache --cache-dir <cache_dir>`.
 - Pre-build cache: `python -m src build-cache --data-dir <edf_root> --cache-dir <cache_dir>`.
+- Smoke tests and LR scheduler warning
+  - See `operations/smoke-tests.md` for fast pipeline validation without sampler cost.
+  - Training LR scheduler order is correct (optimizer → scheduler); a one-time first-batch warning may appear and is benign/suppressed. Details: `operations/training.md`.

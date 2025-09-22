@@ -51,6 +51,7 @@ modal app logs <app-id>
 - **[modal/PERFORMANCE_OPTIMIZATION.md](modal/PERFORMANCE_OPTIMIZATION.md)**: A100 optimization details
 - **[modal/deploy.md](modal/deploy.md)**: Modal deployment guide
 - **[troubleshooting.md](troubleshooting.md)**: Common issues and fixes
+- **[operations/smoke-tests.md](operations/smoke-tests.md)**: Fast pipeline and unit smoke tests
 
 ## Performance Summary
 
