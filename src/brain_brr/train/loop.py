@@ -549,15 +549,7 @@ def train_epoch(
 
             # Scheduler step AFTER optimizer.step()
             if scheduler is not None:
-                # Suppress false positive warning on first batch - we ARE calling in correct order
-                if global_step == 1:
-                    with warnings.catch_warnings():
-                        warnings.filterwarnings(
-                            "ignore", message="Detected call of `lr_scheduler.step()`"
-                        )
-                        scheduler.step()
-                else:
-                    scheduler.step()
+                scheduler.step()
 
             total_loss += loss.item()
             num_batches += 1
