@@ -18,6 +18,7 @@ class TestTAESMetrics:
     """Validate Time-Aligned Event Scoring metrics for clinical targets."""
 
     @pytest.mark.clinical
+    @pytest.mark.gpu  # 24 hours of 256Hz data needs GPU memory
     @pytest.mark.parametrize(
         ("fa_rate", "expected_sens"),
         [
