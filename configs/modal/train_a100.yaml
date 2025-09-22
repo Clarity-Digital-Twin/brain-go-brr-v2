@@ -100,7 +100,7 @@ experiment:
   wandb:
     enabled: true                      # W&B secret configured!
     project: seizure-detection-a100
-    entity: jj-vcmcswaggins-novamindnyc  # Your W&B team name
+    entity: jj-vcmcswaggins  # Your W&B username (not team)
     tags: ["production", "a100", "tuh-seizure"]
 
 logging:
