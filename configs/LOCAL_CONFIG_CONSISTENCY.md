@@ -10,14 +10,14 @@
 - ✅ Added `pin_memory: false` (WSL2-safe)
 - ✅ Added `persistent_workers: false` (WSL2-safe)
 - ✅ Changed `device: auto` → `cuda` (explicit GPU)
-- ✅ Updated checkpoint path to match train.yaml output: `results/tusz_wsl2_100ep/checkpoints/best.pt`
+- ✅ Updated checkpoint path to match train.yaml output: `results/tcn_full_100ep/checkpoints/best.pt`
 
 ### 3. eval.yaml
 - ✅ Changed `num_workers: 4` → `0` (WSL2-safe)
 - ✅ Added `pin_memory: false` (WSL2-safe)
 - ✅ Added `persistent_workers: false` (WSL2-safe)
 - ✅ Changed `device: auto` → `cuda` (explicit GPU)
-- ✅ Updated checkpoint path to match train.yaml output: `results/tusz_wsl2_100ep/checkpoints/best.pt`
+- ✅ Updated checkpoint path to match train.yaml output: `results/tcn_full_100ep/checkpoints/best.pt`
 
 ## INTERNALLY CONSISTENT PARAMETERS
 
@@ -32,25 +32,19 @@ device: cuda                  # Explicit GPU (auto defaults wrong)
 ### Model Architecture (IDENTICAL across all):
 ```yaml
 model:
-  name: seizure_detector
-  encoder:
-    stages: 4
+  architecture: tcn
+  tcn:
+    num_layers: 8
     channels: [64, 128, 256, 512]
-    kernel_size: 5
-    downsample_factor: 2
-  rescnn:
-    n_blocks: 3
-    kernel_sizes: [3, 5, 7]
-    dropout: 0.1
+    kernel_size: 7
+    dropout: 0.15
+    stride_down: 16
   mamba:
     n_layers: 6
     d_model: 512
     d_state: 16
-    conv_kernel: 5
+    conv_kernel: 4
     dropout: 0.1
-  decoder:
-    stages: 4
-    kernel_size: 4
 ```
 
 ### Preprocessing (IDENTICAL across all):
@@ -102,9 +96,9 @@ data:
 
 ## CHECKPOINT FLOW
 
-1. **train.yaml** → Creates `results/tusz_wsl2_100ep/checkpoints/best.pt`
-2. **dev.yaml** → Loads from `results/tusz_wsl2_100ep/checkpoints/best.pt`
-3. **eval.yaml** → Loads from `results/tusz_wsl2_100ep/checkpoints/best.pt`
+1. **train.yaml** → Creates `results/tcn_full_100ep/checkpoints/best.pt`
+2. **dev.yaml** → Loads from `results/tcn_full_100ep/checkpoints/best.pt`
+3. **eval.yaml** → Loads from `results/tcn_full_100ep/checkpoints/best.pt`
 
 ## VALIDATION
 

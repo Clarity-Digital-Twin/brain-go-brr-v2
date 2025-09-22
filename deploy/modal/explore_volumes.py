@@ -44,25 +44,25 @@ def explore_volumes():
     print("\n[2] brain-go-brr-results volume (/results):")
     print("-"*40)
 
-    # Check cache specifically
-    cache_dir = Path("/results/cache/tusz/train")
-    if cache_dir.exists():
-        npz_files = list(cache_dir.glob("*.npz"))
-        manifest = cache_dir / "manifest.json"
-        print(f"\n  📁 /results/cache/tusz/train/")
-        print(f"     ✅ {len(npz_files)} NPZ files found")
-        if manifest.exists():
-            print(f"     ✅ manifest.json exists ({manifest.stat().st_size / 1024:.1f} KB)")
-        if npz_files:
-            # Show sample NPZ files
-            for npz in npz_files[:3]:
-                size_mb = npz.stat().st_size / (1024 * 1024)
-                print(f"     📄 {npz.name} ({size_mb:.2f} MB)")
-            if len(npz_files) > 3:
-                print(f"     ... and {len(npz_files) - 3} more NPZ files")
+    # Check cache roots
+    for cache_dir in [Path("/results/cache/tusz/train"), Path("/results/cache/smoke")]:
+        if cache_dir.exists():
+            npz_files = list(cache_dir.glob("*.npz"))
+            manifest = cache_dir / "manifest.json"
+            print(f"\n  📁 {cache_dir}")
+            print(f"     ✅ {len(npz_files)} NPZ files found")
+            if manifest.exists():
+                print(f"     ✅ manifest.json exists ({manifest.stat().st_size / 1024:.1f} KB)")
+            if npz_files:
+                # Show sample NPZ files
+                for npz in npz_files[:3]:
+                    size_mb = npz.stat().st_size / (1024 * 1024)
+                    print(f"     📄 {npz.name} ({size_mb:.2f} MB)")
+                if len(npz_files) > 3:
+                    print(f"     ... and {len(npz_files) - 3} more NPZ files")
 
     # Check other directories
-    for subdir in ["/results/smoke", "/results/tusz_a100_100ep", "/results/cache"]:
+    for subdir in ["/results/smoke", "/results/tcn_full_100ep", "/results/cache"]:
         if os.path.exists(subdir):
             items = list(Path(subdir).iterdir())
             print(f"\n  📁 {subdir}/")
