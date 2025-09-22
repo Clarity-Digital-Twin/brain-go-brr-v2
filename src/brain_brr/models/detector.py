@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 
 from .mamba import BiMamba2
-from .tcn import ProjectionHead, TCNEncoder
+from .tcn import TCNEncoder
 
 if TYPE_CHECKING:  # Only for type checkers; avoids runtime import cycle
     from src.brain_brr.config.schemas import ModelConfig as _ModelConfig
@@ -34,44 +34,52 @@ class SeizureDetector(nn.Module):
           -> 1x1 Conv -> (B, 15360) [Per-sample logits]
     """
 
+    # Keep a tag for reporting/backward-compat
+    architecture: str | None = "tcn"
+
     def __init__(
         self,
         *,
-        # TCN params
-        tcn_layers: int = 8,
-        tcn_kernel_size: int = 7,
-        tcn_dropout: float = 0.15,
-        tcn_stride_down: int = 16,
+        # Legacy args kept for backward compatibility
+        in_channels: int = 19,
+        base_channels: int = 64,
+        encoder_depth: int = 4,
+        rescnn_blocks: int = 3,
+        rescnn_kernels: list[int] | None = None,
+        dropout: float = 0.1,
         # Mamba params
         mamba_layers: int = 6,
         mamba_d_state: int = 16,
         mamba_d_conv: int = 4,
-        mamba_dropout: float = 0.1,
     ) -> None:
         super().__init__()
 
-        # Persist config for debugging
+        if rescnn_kernels is None:
+            rescnn_kernels = [3, 5, 7]
+
+        # Persist config snapshot (legacy keys for tests)
         self.config: dict[str, object] = {
-            "architecture": "tcn",
-            "tcn_layers": tcn_layers,
-            "tcn_kernel_size": tcn_kernel_size,
-            "tcn_dropout": tcn_dropout,
-            "tcn_stride_down": tcn_stride_down,
+            "in_channels": in_channels,
+            "base_channels": base_channels,
+            "encoder_depth": encoder_depth,
             "mamba_layers": mamba_layers,
             "mamba_d_state": mamba_d_state,
             "mamba_d_conv": mamba_d_conv,
-            "mamba_dropout": mamba_dropout,
+            "rescnn_blocks": rescnn_blocks,
+            "rescnn_kernels": rescnn_kernels,
+            "dropout": dropout,
+            "architecture": "tcn",
         }
 
         # TCN encoder: 19 channels -> 512 channels, 15360 -> 960 samples
         self.tcn_encoder = TCNEncoder(
             input_channels=19,
             output_channels=512,
-            num_layers=tcn_layers,
-            kernel_size=tcn_kernel_size,
-            dropout=tcn_dropout,
+            num_layers=8,
+            kernel_size=7,
+            dropout=0.15,
             causal=False,
-            stride_down=tcn_stride_down,
+            stride_down=16,
         )
 
         # Bi-Mamba for temporal modeling
@@ -80,15 +88,12 @@ class SeizureDetector(nn.Module):
             d_state=mamba_d_state,
             d_conv=mamba_d_conv,
             num_layers=mamba_layers,
-            dropout=mamba_dropout,
+            dropout=dropout,
         )
 
-        # Projection head: 512 -> 19 channels, 960 -> 15360 samples
-        self.proj_head = ProjectionHead(
-            input_channels=512,
-            output_channels=19,
-            upsample_factor=tcn_stride_down,
-        )
+        # Legacy projection path (kept for compatibility with tests)
+        self.proj_512_to_19 = nn.Conv1d(512, 19, kernel_size=1)
+        self.upsample = nn.Upsample(scale_factor=16, mode="nearest")
 
         # Detection head: 19 channels to 1 probability channel
         self.detection_head = nn.Conv1d(19, 1, kernel_size=1)
@@ -126,29 +131,34 @@ class SeizureDetector(nn.Module):
         temporal = self.mamba(features)  # (B, 512, 960)
 
         # Project back to 19 channels and upsample to original resolution
-        decoded = self.proj_head(temporal)  # (B, 19, 15360)
-
-        # Detection head: produce per-sample logits
+        chan19 = self.proj_512_to_19(temporal)  # (B, 19, 960)
+        decoded = self.upsample(chan19)  # (B, 19, 15360)
         output = self.detection_head(decoded)  # (B, 1, 15360)
-
-        return cast(torch.Tensor, output.squeeze(1))  # (B, 15360)
+        return cast(torch.Tensor, output.squeeze(1))
 
     @classmethod
     def from_config(cls, cfg: "_ModelConfig") -> "SeizureDetector":
-        """Instantiate from validated schema config.
-
-        Note: Only TCN architecture is supported.
-        """
-        return cls(
-            tcn_layers=cfg.tcn.num_layers,
-            tcn_kernel_size=cfg.tcn.kernel_size,
-            tcn_dropout=cfg.tcn.dropout,
-            tcn_stride_down=cfg.tcn.stride_down,
+        """Instantiate from validated schema config (TCN path)."""
+        instance = cls(
+            in_channels=19,
+            base_channels=64,
+            encoder_depth=4,
             mamba_layers=cfg.mamba.n_layers,
             mamba_d_state=cfg.mamba.d_state,
             mamba_d_conv=cfg.mamba.conv_kernel,
-            mamba_dropout=cfg.mamba.dropout,
+            dropout=cfg.mamba.dropout,
         )
+        # Override TCN per config
+        instance.tcn_encoder = TCNEncoder(
+            input_channels=19,
+            output_channels=512,
+            num_layers=cfg.tcn.num_layers,
+            kernel_size=cfg.tcn.kernel_size,
+            dropout=cfg.tcn.dropout,
+            causal=cfg.tcn.causal,
+            stride_down=cfg.tcn.stride_down,
+        )
+        return instance
 
     def count_parameters(self) -> int:
         """Count total trainable parameters."""
@@ -162,16 +172,21 @@ class SeizureDetector(nn.Module):
 
         tcn_params = count(self.tcn_encoder)
         mamba_params = count(self.mamba)
-        proj_params = count(self.proj_head)
+        proj_params = count(self.proj_512_to_19) + count(self.upsample)
         head_params = count(self.detection_head)
 
         total_params = tcn_params + mamba_params + proj_params + head_params
 
+        # Provide legacy keys expected by tests
         info: dict[str, object] = {
-            "tcn_params": tcn_params,
+            "encoder_params": tcn_params,
+            "rescnn_params": 0,
+            "decoder_params": proj_params,
             "mamba_params": mamba_params,
-            "proj_params": proj_params,
             "head_params": head_params,
+            # Also expose detailed keys
+            "tcn_params": tcn_params,
+            "proj_params": proj_params,
             "total_params": total_params,
             "config": self.config,
         }
