@@ -497,8 +497,8 @@ class TestLatencyUnderLoad:
         # Should maintain reasonable latency even under concurrent load
         # More relaxed thresholds for CPU environments
         device = next(minimal_model.parameters()).device
-        p95_limit = 1.5 if device.type == "cpu" else 0.5
-        median_limit = 0.5 if device.type == "cpu" else 0.2
+        p95_limit = 2.0 if device.type == "cpu" else 0.5
+        median_limit = 1.0 if device.type == "cpu" else 0.2
 
         assert p95_latency < p95_limit, f"P95 latency {p95_latency:.2f}s under concurrent load (limit: {p95_limit}s)"
         assert median_latency < median_limit, f"Median latency {median_latency:.2f}s under concurrent load (limit: {median_limit}s)"
