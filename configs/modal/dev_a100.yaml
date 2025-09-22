@@ -23,25 +23,23 @@ preprocessing:
   use_mne: true
 
 model:
-  name: seizure_detector
-  encoder:
-    stages: 4
+  architecture: tcn  # Use TCN instead of U-Net
+
+  tcn:
+    num_layers: 8
     channels: [64, 128, 256, 512]
-    kernel_size: 5
-    downsample_factor: 2
-  rescnn:
-    n_blocks: 3
-    kernel_sizes: [3, 5, 7]
-    dropout: 0.1
+    kernel_size: 7
+    dropout: 0.15
+    causal: false
+    stride_down: 16
+    use_cuda_optimizations: true
+
   mamba:
     n_layers: 6
     d_model: 512
     d_state: 16
-    conv_kernel: 4
+    conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
-  decoder:
-    stages: 4
-    kernel_size: 4
 
 postprocessing:
   hysteresis:
@@ -75,7 +73,7 @@ experiment:
   output_dir: /results/tuning
   cache_dir: /results/cache/dev
   log_level: INFO
-  checkpoint_path: /results/tusz_a100_100ep/checkpoints/best.pt  # Load trained model from train_a100.yaml
+  checkpoint_path: /results/tcn_full_100ep/checkpoints/best.pt  # Load trained TCN model
 
 logging:
   log_every_n_steps: 50

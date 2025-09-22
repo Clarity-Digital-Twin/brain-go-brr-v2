@@ -25,25 +25,23 @@ preprocessing:
   use_mne: true
 
 model:
-  name: seizure_detector
-  encoder:
-    stages: 4
+  architecture: tcn  # Use TCN instead of U-Net
+
+  tcn:
+    num_layers: 8
     channels: [64, 128, 256, 512]
-    kernel_size: 5
-    downsample_factor: 2
-  rescnn:
-    n_blocks: 3
-    kernel_sizes: [3, 5, 7]
-    dropout: 0.1
+    kernel_size: 7
+    dropout: 0.15
+    causal: false
+    stride_down: 16
+    use_cuda_optimizations: true
+
   mamba:
     n_layers: 6
     d_model: 512
     d_state: 16
-    conv_kernel: 4
+    conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
-  decoder:
-    stages: 4
-    kernel_size: 4
 
 postprocessing:
   hysteresis:
@@ -88,11 +86,11 @@ evaluation:
   save_plots: true                     # Generate all visualizations
 
 experiment:
-  name: tusz_a100_100ep
-  description: "A100-optimized TUSZ training 100 epochs on Modal cloud"
+  name: tcn_full_100ep
+  description: "TCN architecture full training 100 epochs on Modal A100"
   seed: 42
   device: cuda                         # Explicit GPU for consistency
-  output_dir: /results/tusz_a100_100ep # Modal volume mount
+  output_dir: /results/tcn_full_100ep # Modal volume mount
   cache_dir: /results/cache/tusz       # Persistent cache
   log_level: INFO
   save_model: true
