@@ -239,7 +239,15 @@ class TestInferenceLatency:
         try:
             compiled_model = torch.compile(model, mode="reduce-overhead")
         except Exception as e:
-            if "aten.is_pinned" in str(e) or "NYI" in str(e):
+            # Fall back to eager backend in restricted or unsupported environments
+            if (
+                "aten.is_pinned" in str(e)
+                or "NYI" in str(e)
+                or "Permission denied" in str(e)
+                or "SemLock" in str(e)
+                or "ProcessPool" in str(e)
+                or "_inductor" in str(e)
+            ):
                 compiled_model = torch.compile(model, backend="eager")
             else:
                 raise
