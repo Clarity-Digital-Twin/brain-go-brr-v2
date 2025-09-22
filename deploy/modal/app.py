@@ -280,6 +280,11 @@ def train(
     exp["cache_dir"] = cache_dir
     data.setdefault("data", {})["cache_dir"] = cache_dir
 
+    print(f"[CONFIG] Using cache directory: {cache_dir}", flush=True)
+    print(f"[CONFIG] Output directory: {exp['output_dir']}", flush=True)
+    if "smoke" in config_path.lower():
+        print(f"[CONFIG] BGB_LIMIT_FILES={env.get('BGB_LIMIT_FILES', 'not set')}", flush=True)
+
     Path(exp["output_dir"]).mkdir(parents=True, exist_ok=True)
     (Path(exp["output_dir"]) / "checkpoints").mkdir(parents=True, exist_ok=True)
 
