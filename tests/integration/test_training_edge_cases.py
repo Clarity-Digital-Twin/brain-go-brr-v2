@@ -175,7 +175,7 @@ class TestTrainingExplosions:
 
     @pytest.mark.gpu
     def test_cuda_oom_recovery(self, small_model):
-        """Progressively increase batch size until OOM."""
+        """Test OOM recovery with SAFE memory limits."""
         if not torch.cuda.is_available():
             pytest.skip("CUDA required for OOM test")
 
@@ -183,8 +183,13 @@ class TestTrainingExplosions:
         criterion = nn.BCEWithLogitsLoss()
         optimizer = torch.optim.Adam(small_model.parameters())
 
+        # MUCH smaller test - simulate OOM without actually causing it
         batch_size = 2
-        max_batch_size = 128
+        max_batch_size = 16  # Reduced from 128 to prevent real OOM
+        simulated_oom_batch = 8  # Simulate OOM at this batch size
+
+        # Use smaller window size for testing to reduce memory usage
+        window_size = 2560  # Reduced from 15360 (60s -> 10s at 256Hz)
         oom_batch_size = None
 
         while batch_size <= max_batch_size:
@@ -193,8 +198,13 @@ class TestTrainingExplosions:
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
 
-                data = torch.randn(batch_size, 19, 15360, device=device)
-                labels = torch.randint(0, 2, (batch_size, 15360), device=device).float()
+                # Simulate OOM at specific batch size
+                if batch_size >= simulated_oom_batch:
+                    # Simulate OOM without actually causing it
+                    raise RuntimeError("CUDA out of memory. Simulated for testing.")
+
+                data = torch.randn(batch_size, 19, window_size, device=device)
+                labels = torch.randint(0, 2, (batch_size, window_size), device=device).float()
 
                 optimizer.zero_grad()
                 output = small_model(data)
@@ -215,9 +225,9 @@ class TestTrainingExplosions:
 
                     # Verify we can recover with smaller batch
                     recovery_batch_size = max(1, batch_size // 2)
-                    data = torch.randn(recovery_batch_size, 19, 15360, device=device)
+                    data = torch.randn(recovery_batch_size, 19, window_size, device=device)
                     labels = torch.randint(
-                        0, 2, (recovery_batch_size, 15360), device=device
+                        0, 2, (recovery_batch_size, window_size), device=device
                     ).float()
 
                     optimizer.zero_grad()

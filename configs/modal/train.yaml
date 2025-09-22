@@ -4,7 +4,7 @@
 data:
   dataset: tuh_eeg
   data_dir: /data/edf/train             # Modal S3 mount path
-  cache_dir: /results/cache/tusz         # Persistent cache root (train/val subdirs)
+  cache_dir: /results/cache/tusz/train   # Persistent cache for full training
   sampling_rate: 256
   n_channels: 19
   window_size: 60
@@ -91,7 +91,7 @@ experiment:
   seed: 42
   device: cuda                         # Explicit GPU for consistency
   output_dir: /results/tcn_full_100ep # Modal volume mount
-  cache_dir: /results/cache/tusz       # Persistent cache
+  cache_dir: /results/cache/tusz/train # Match data cache_dir
   log_level: INFO
   save_model: true
   save_best_only: true
