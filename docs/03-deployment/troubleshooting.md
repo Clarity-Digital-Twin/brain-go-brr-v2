@@ -47,12 +47,25 @@ EDF read failure
 - Symptom: MNE ValueError/OSError on EDF header
 - Fix: header repair path; see ../01-data-pipeline/tusz-edf-repair.md
 
-Slow IO on Modal or WSL
-- Fix: mount datasets on fast storage; avoid network-mounted paths for cache writes; keep local caches on ext4
+Slow training on Modal (48s per batch)
+- Cause: S3 CloudBucketMount has terrible random access performance (100-700ms per file)
+- Fix: Cache optimizer automatically copies NPZ files from S3 to local volume (30-60 min one-time)
+- Verify: Look for "[CACHE] Local cache already exists with X NPZ files"
+- Force re-optimize: Set `BGB_FORCE_CACHE_COPY=1`
+- Impact: 10x speedup (48s → 5s per batch)
+
+Slow IO on WSL
+- Fix: keep local caches on ext4; avoid network-mounted paths
+
+W&B not logging
+- Symptom: 404 error on W&B dashboard, no runs showing
+- Cause: WandBLogger not instantiated or wrong entity name
+- Fix: Entity must be username (e.g., `jj-vcmcswaggins`), not team name
+- Verify: WANDB_API_KEY in Modal secrets, `wandb.enabled: true` in config
 
 Sampler used with balanced dataset
 - Symptom: WeightedRandomSampler still applied
-- Fix: training loop bypasses sampler for BalancedSeizureDataset; verify config’s balanced flag and logs
+- Fix: training loop bypasses sampler for BalancedSeizureDataset; verify config's balanced flag and logs
 
 Observability & logging (Modal)
 - Set unbuffered output (already set): `PYTHONUNBUFFERED=1`.
