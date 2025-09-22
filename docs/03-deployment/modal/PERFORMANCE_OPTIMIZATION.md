@@ -13,7 +13,7 @@ Modal A100 training appeared slow (~48s/batch) but the root cause was **NOT** da
 ### What We Thought
 - Cache was on S3 CloudBucketMount
 - S3 random access was causing 48s/batch
-- Needed to copy cache from S3 to Modal volume
+ - Needed to copy cache from S3 to Modal volume (incorrect assumption)
 
 ### The Reality
 - Cache was ALWAYS on Modal SSD (`/results/cache/tusz/train/`)

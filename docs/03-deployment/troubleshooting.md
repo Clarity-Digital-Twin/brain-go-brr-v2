@@ -60,7 +60,7 @@ Slow IO on WSL
 W&B not logging
 - Symptom: 404 error on W&B dashboard, no runs showing
 - Cause: WandBLogger not instantiated or wrong entity name
-- Fix: Entity must be username (e.g., `jj-vcmcswaggins`), not team name
+- Fix: Entity must match the account tied to `WANDB_API_KEY`. If using a team API key, set the team entity (e.g., `jj-vcmcswaggins-novamindnyc`). If using a personal key, set your username.
 - Verify: WANDB_API_KEY in Modal secrets, `wandb.enabled: true` in config
 
 Sampler used with balanced dataset

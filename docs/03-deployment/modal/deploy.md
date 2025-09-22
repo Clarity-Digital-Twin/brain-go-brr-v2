@@ -31,11 +31,11 @@ Build/scan cache inside the container
    - Set env `BGB_FORCE_MANIFEST_REBUILD=1` when launching training
 
 Cost control
-- Build cache once; reuse across runs via `/results` volume.
-- **CRITICAL**: Optimize cache to local volume (saves 90% compute cost!)
+- Build cache once to `/results/cache/...` and reuse across runs (Modal volume is persistent).
+- Enable mixed precision and use batch_size=128 on A100 for 4–6x throughput.
 - Always validate manifest before launching large GPU jobs.
 - If batches show 0% seizures early: stop run and fix CSV/paths; re-scan manifest.
-- **With optimizations**: ~100 hours ($319) instead of ~1000 hours ($3,190)
+- With these settings: ~100 hours (~$319) instead of ~1000 hours (~$3,190)
 
 Observability & logging
 - Real-time logs are enabled (PYTHONUNBUFFERED=1); add `flush=True` to prints for critical steps.
@@ -85,7 +85,7 @@ Performance Settings (A100 Optimized)
 
 Troubleshooting
 - 0 windows in BalancedSeizureDataset: re-scan manifest; fix CSV_BI parser; rebuild cache.
-- **Slow training (48s/batch)**: Cache not optimized! Check `/results/cache/tusz/train` exists
+- **Slow training (~48s/batch)**: Usually FP32 and/or small batch. Set `mixed_precision: true` and `batch_size: 128`. Verify cache exists at `/results/cache/tusz/train` (it is built on first run and reused).
 - Memory errors: reduce batch size; verify A100 profile in config; prefer mixed precision.
 - Empty/stale manifest on `/results`: training now validates/deletes bad manifests and rebuilds from existing cache automatically. To force a rebuild regardless, set `BGB_FORCE_MANIFEST_REBUILD=1`.
 - **W&B not logging**: Check entity name in config and WANDB_API_KEY in secrets
