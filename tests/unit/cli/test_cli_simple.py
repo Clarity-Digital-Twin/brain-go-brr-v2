@@ -73,7 +73,7 @@ model:
     n_layers: 6
     d_model: 512
     d_state: 16
-    conv_kernel: 5
+    conv_kernel: 4
   decoder:
     stages: 4
     kernel_size: 4

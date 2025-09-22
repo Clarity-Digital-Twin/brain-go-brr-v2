@@ -337,8 +337,8 @@ This document serves as the single source of truth for the complete architecture
 - [ ] **YAML Configs**:
   - [ ] configs/local.yaml (development, WSL2-safe)
   - [ ] configs/tusz_train_wsl2.yaml (local long-run, WSL2-safe)
-  - [✓] configs/modal/train_a100.yaml (Modal A100-optimized, batch_size=64, 100 epochs)
-  - [✓] configs/modal/smoke_a100.yaml (Modal smoke test, 1 epoch)
+  - [✓] configs/modal/train.yaml (Modal A100-optimized, batch_size=64, 100 epochs)
+  - [✓] configs/modal/smoke.yaml (Modal smoke test, 1 epoch)
   - [✓] configs/local/smoke.yaml (Local testing, batch_size=16)
 
 #### 6.2 CLI Interface

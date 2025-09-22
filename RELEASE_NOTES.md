@@ -43,7 +43,7 @@ git checkout v2.1.0
 # Launch optimized training
 modal run --detach deploy/modal/app.py \
   --action train \
-  --config configs/modal/train_a100.yaml
+  --config configs/modal/train.yaml
 ```
 
 ### Performance Metrics

@@ -36,7 +36,7 @@ Modal A100 training appeared slow (~48s/batch) but the root cause was **NOT** da
 
 ### The Fix
 ```yaml
-# configs/modal/train_a100.yaml
+# configs/modal/train.yaml
 training:
   batch_size: 128          # Was 64
   mixed_precision: true    # Was false
@@ -109,7 +109,7 @@ Mamba CUDA kernels don't support torch.compile:
 ```bash
 modal run --detach deploy/modal/app.py \
   --action train \
-  --config configs/modal/train_a100.yaml
+  --config configs/modal/train.yaml
 ```
 
 ### Monitor Progress

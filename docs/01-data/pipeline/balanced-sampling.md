@@ -99,7 +99,7 @@ Look for these log lines to confirm optimization is active:
 If manifest seems stale:
 ```bash
 export BGB_FORCE_MANIFEST_REBUILD=1
-python -m src train configs/modal/train_a100.yaml
+python -m src train configs/modal/train.yaml
 ```
 
 This forces a rebuild of the manifest from cache files.

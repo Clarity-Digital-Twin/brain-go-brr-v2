@@ -95,7 +95,7 @@ configs/modal/
 
 ### A100 Optimizations
 ```yaml
-# configs/modal/train_a100.yaml
+# configs/modal/train.yaml
 batch_size: 64        # Larger than local (16)
 num_workers: 4        # Parallel data loading
 pin_memory: true      # Faster GPU transfer
@@ -119,14 +119,14 @@ modal run deploy/modal/app.py --action test-mamba
 ```bash
 modal run --detach deploy/modal/app.py \
   --action train \
-  --config configs/modal/smoke_a100.yaml
+  --config configs/modal/smoke.yaml
 ```
 
 ### Full Training (100 epochs)
 ```bash
 modal run --detach deploy/modal/app.py \
   --action train \
-  --config configs/modal/train_a100.yaml
+  --config configs/modal/train.yaml
 ```
 
 ## Troubleshooting Decision Tree

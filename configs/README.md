@@ -11,10 +11,10 @@ configs/
 │   └── eval.yaml            # Final evaluation (45 patients) - ONE SHOT ONLY!
 │
 └── modal/                    # Modal cloud GPU configs (A100-80GB optimized)
-    ├── smoke_a100.yaml      # Quick cloud test (1 epoch)
-    ├── train_a100.yaml      # Full cloud training (3734 files, 100 epochs)
-    ├── dev_a100.yaml        # Cloud hyperparameter tuning
-    └── eval_a100.yaml       # Cloud final evaluation - ONE SHOT ONLY!
+    ├── smoke.yaml           # Quick cloud test (1 epoch)
+    ├── train.yaml           # Full cloud training (3734 files, 100 epochs)
+    ├── dev.yaml             # Cloud hyperparameter tuning
+    └── eval.yaml            # Cloud final evaluation - ONE SHOT ONLY!
 ```
 
 ## 🚀 Usage Examples
@@ -37,16 +37,16 @@ python -m src evaluate configs/local/eval.yaml --checkpoint results/run/best.pt
 ### Modal Cloud Training
 ```bash
 # Smoke test
-modal run deploy/modal/app.py::train --config-path configs/modal/smoke_a100.yaml
+modal run deploy/modal/app.py::train --config-path configs/modal/smoke.yaml
 
 # Full training (detached)
-modal run --detach deploy/modal/app.py::train --config-path configs/modal/train_a100.yaml
+modal run --detach deploy/modal/app.py::train --config-path configs/modal/train.yaml
 
 # Dev set tuning
-modal run deploy/modal/app.py::evaluate --config-path configs/modal/dev_a100.yaml
+modal run deploy/modal/app.py::evaluate --config-path configs/modal/dev.yaml
 
 # Final evaluation
-modal run deploy/modal/app.py::evaluate --config-path configs/modal/eval_a100.yaml
+modal run deploy/modal/app.py::evaluate --config-path configs/modal/eval.yaml
 ```
 
 ## 🔑 Key Differences
@@ -68,7 +68,7 @@ modal run deploy/modal/app.py::evaluate --config-path configs/modal/eval_a100.ya
 
 ## 🏗️ Architecture (All Configs)
 
-- **Model**: Bi-Mamba-2 (6 layers) + U-Net + ResCNN
+- **Model**: TCN front-end → Bi-Mamba-2 (6 layers)
 - **Input**: 19-channel EEG @ 256 Hz
 - **Window**: 60s with 10s stride
 - **Loss**: Focal loss (for 12:1 class imbalance)
@@ -89,7 +89,7 @@ Previous messy structure with 8 configs:
 - `tusz_train_wsl2.yaml` → `local/train.yaml`
 - `tusz_dev_tuning.yaml` → `local/dev.yaml`
 - `tusz_eval_final.yaml` → `local/eval.yaml`
-- `tusz_train_a100.yaml` → `modal/train_a100.yaml`
-- **NEW**: `modal/smoke_a100.yaml`, `modal/dev_a100.yaml`, `modal/eval_a100.yaml`
+- `tusz_train_a100.yaml` → `modal/train.yaml`
+- **NEW (now canonical)**: `modal/smoke.yaml`, `modal/dev.yaml`, `modal/eval.yaml`
 
 All old configs backed up in `configs/archive/` for reference.

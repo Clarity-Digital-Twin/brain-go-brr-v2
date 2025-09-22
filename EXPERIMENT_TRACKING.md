@@ -6,7 +6,7 @@
 - **Branch**: `development`
 - **Tag**: `v2.0-unet-baseline-training`
 - **Architecture**: U-Net + ResNet + Bi-Mamba-2
-- **Config**: `configs/modal/train_a100.yaml`
+- **Config**: `configs/modal/train.yaml`
 - **Status**: Training on Modal A100
 - **W&B Project**: seizure-detection-a100
 - **Expected Completion**: ~15 epochs with early stopping
