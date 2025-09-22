@@ -1,7 +1,11 @@
-U-Net (Encoder/Decoder)
+U‑Net (Encoder/Decoder) — Legacy (pre‑v2.3)
+
+Note: This document describes the legacy U‑Net encoder/decoder used before the TCN front‑end
+replacement. The active runtime path uses TCN → Bi‑Mamba → Projection+Upsample → Detection.
+See: `docs/02-model/architecture/current-state.md`.
 
 Code anchors
-- src/brain_brr/models/unet.py
+- (legacy) `src/brain_brr/models/unet.py`
 
 Spec
 - Encoder: 4 stages; channel progression [64, 128, 256, 512].

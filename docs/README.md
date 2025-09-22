@@ -21,16 +21,17 @@
 
 ### 02-model/ - Model Architecture
 - **architecture/** - Core model specifications
-  - [`canonical-spec.md`](02-model/architecture/canonical-spec.md) - **SOURCE OF TRUTH**
+  - [`canonical-spec.md`](02-model/architecture/canonical-spec.md) - Legacy (pre‑v2.3); see Current State
   - [`current-state.md`](02-model/architecture/current-state.md) - Current runtime architecture (TCN path)
   - [`tcn-replacement.md`](02-model/architecture/tcn-replacement.md) - TCN replacement details and rationale
   - [`full-model.md`](02-model/architecture/full-model.md) - Legacy U‑Net path (for ablations)
   - [`pipeline-diagram.md`](02-model/architecture/pipeline-diagram.md) - Model pipeline visualization
 - **components/** - Individual model components
-  - [`unet.md`](02-model/components/unet.md) - U-Net encoder/decoder
-  - [`rescnn.md`](02-model/components/rescnn.md) - Residual CNN blocks
-  - [`mamba.md`](02-model/components/mamba.md) - Bi-Mamba-2 (O(N))
-  - [`decoder.md`](02-model/components/decoder.md) - Output decoder
+  - [`mamba.md`](02-model/components/mamba.md) - Bi‑Mamba‑2 (O(N))
+  - Legacy (pre‑v2.3):
+    - [`unet.md`](02-model/components/unet.md) - U‑Net encoder/decoder (not used in TCN path)
+    - [`rescnn.md`](02-model/components/rescnn.md) - Residual CNN blocks (not used in TCN path)
+    - [`decoder.md`](02-model/components/decoder.md) - U‑Net decoder (superseded by Projection+Upsample head)
 - **deployment/** - Deployment-specific architecture
   - [`architecture.md`](02-model/deployment/architecture.md) - CUDA/Modal deployment details
   - [`mamba-kernels.md`](02-model/deployment/mamba-kernels.md) - d_conv kernel decisions

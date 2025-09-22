@@ -1,8 +1,12 @@
-Decoder (Upsampling)
+Decoder (Upsampling) — Legacy (pre‑v2.3)
+
+Note: This document describes the U‑Net decoder path that was used prior to v2.3. The current
+runtime architecture uses a Projection+Upsample head in the TCN path instead of this decoder.
+See: `docs/02-model/architecture/current-state.md` and `docs/02-model/architecture/tcn-replacement.md`.
 
 Code anchors
-- src/brain_brr/models/unet.py (decoder path)
-- src/brain_brr/models/detector.py (heads)
+- (legacy) `src/brain_brr/models/unet.py` (decoder path)
+- `src/brain_brr/models/detector.py` (current detection head)
 
 Spec
 - 4 stages; each stage upsamples by ×2, concatenates with the matching encoder skip, then applies Conv1d blocks.
