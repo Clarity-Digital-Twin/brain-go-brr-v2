@@ -227,7 +227,7 @@ class TestTCNIntegration:
 
     def test_loss_compatibility_with_tcn(self):
         """TCN path must produce outputs compatible with existing loss."""
-        import torch.nn.functional as F
+        import torch.nn.functional as functional
 
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
@@ -241,7 +241,7 @@ class TestTCNIntegration:
         output = detector(x)
 
         # Should be able to compute loss without shape errors
-        loss = F.binary_cross_entropy_with_logits(output, labels)
+        loss = functional.binary_cross_entropy_with_logits(output, labels)
         assert loss.shape == torch.Size([])
         assert not torch.isnan(loss)
 
