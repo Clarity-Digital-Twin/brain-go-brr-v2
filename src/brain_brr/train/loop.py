@@ -11,11 +11,11 @@ SOLID principles applied:
 from __future__ import annotations
 
 import math
-import warnings
 import os
 import random
 import sys
 import time
+import warnings
 from contextlib import suppress
 from pathlib import Path
 from typing import Any, cast
@@ -50,7 +50,7 @@ warnings.filterwarnings(
     "ignore",
     message="Detected call of `lr_scheduler.step()` before `optimizer.step()`",
     category=UserWarning,
-    module="torch.optim.lr_scheduler"
+    module="torch.optim.lr_scheduler",
 )
 
 # WSL2-safe multiprocessing defaults (must be before any DataLoader creation)
@@ -960,10 +960,6 @@ def train(
             return_step=True,
         )
 
-        # Create scheduler after first epoch if needed
-        if should_create_scheduler and not scheduler_created:
-            scheduler = create_scheduler(optimizer, scheduler_config, total_steps)
-            scheduler_created = True
         # Type narrowing for mypy
         assert isinstance(result, tuple), "return_step=True should return tuple"
         train_loss, global_step = result
