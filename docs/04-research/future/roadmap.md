@@ -184,7 +184,7 @@ EEG → GNN → TCN → [ConvNeXt + Bi-Mamba parallel] → Fusion
 - Channel ordering contract:
   - `src/brain_brr/constants.py:12` must be respected when building adjacency.
 - Dependency note:
-  - PyTorch Geometric for LPE/GCN is not yet added; to be introduced with v2.5 PR.
+  - PyTorch Geometric for LPE/GCN is not yet added; to be introduced with v2.6 PR (SKIP STATIC, GO FULL DYNAMIC!).
 
 Param guidance (EvoBrain): `d_state=16`, `conv_kernel=4`, `k_eigs=16`, `top_k=3`.
 

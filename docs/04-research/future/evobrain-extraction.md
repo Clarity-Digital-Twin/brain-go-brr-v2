@@ -170,30 +170,9 @@ def keep_topk(adj, top_k=3):
 
 ## 🎯 INTEGRATION STRATEGY FOR BRAIN-GO-BRR
 
-### Phase 1: Add Static GNN (v2.5)
-```python
-# In src/brain_brr/models/graph.py
-class GraphChannelMixer(nn.Module):
-    def __init__(self, d_model=512, num_nodes=19):
-        self.gcn = SSGConv(d_model, d_model, alpha=0.05)
-        self.skip = nn.Identity()
+### ~~Phase 1: Static GNN~~ SKIP STRAIGHT TO DYNAMIC!
 
-    def forward(self, x):
-        # x: (batch, seq_len, channels, d_model)
-        # Build static adjacency based on 10-20 montage
-        edge_index = self.get_10_20_edges()
-
-        # Apply GCN per timestep
-        out = []
-        for t in range(x.shape[1]):
-            node_feats = x[:, t]  # (batch, channels, d_model)
-            node_embeds = self.gcn(node_feats, edge_index)
-            out.append(node_embeds + self.skip(node_feats))
-
-        return torch.stack(out, dim=1)
-```
-
-### Phase 2: Add Laplacian PE (v2.6)
+### Phase 2: FULL Dynamic GNN + LPE (v2.6) 🔥
 ```python
 # Enhance with positional encoding
 from torch_geometric.transforms import AddLaplacianEigenvectorPE
@@ -287,7 +266,7 @@ class DualStreamMamba(nn.Module):
 
 ## 🚀 IMMEDIATE ACTIONS
 
-1. **Create `src/brain_brr/models/graph.py`** with static GNN (v2.5)
+1. **Create `src/brain_brr/models/graph.py`** with FULL DYNAMIC GNN + LPE (v2.6)
 2. **Test integration** after current Bi-Mamba-2
 3. **Benchmark** FA rate reduction on validation set
 4. **If successful**, proceed to Laplacian PE (v2.6)

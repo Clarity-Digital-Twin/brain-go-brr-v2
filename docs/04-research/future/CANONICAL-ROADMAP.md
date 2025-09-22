@@ -32,38 +32,27 @@ EEG → STFT → U-Net → ResCNN → Bi-Mamba-2 → Detection Head
 **Timeline**: 3 days
 **Training**: Same TUSZ, different input representation
 
-### v2.5 - Add GNN for Spatial Reasoning 🧠
-```
-EEG → U-Net → ResCNN → Bi-Mamba-2 → GNN → Detection Head
-                                          ↑
-                                    ADD THIS!
-```
-**Changes**: Add Graph Neural Network after Mamba
-**Status**: Planned (not implemented)
-**Implementation Details** (from EvoBrain):
-- Use SSGConv (Simple Spectral Graph) or GCNConv
-- Edge weights from correlation matrix
-- Skip connections around GNN
-**Why**: Learn electrode relationships, montage-agnostic
-**Expected**: 10-15% cross-dataset transfer improvement
-**Timeline**: 1 week
-**Training**: Same data, spatial awareness added
+### ~~v2.5~~ SKIP STRAIGHT TO v2.6! 🚀
 
-### v2.6 - Dynamic Graphs + Laplacian PE 🔄
+### v2.6 - FULL Dynamic GNN + Laplacian PE 🧠🔥
 ```
-EEG → U-Net → ResCNN → Bi-Mamba-2 → [LPE + Dynamic GNN] → Detection Head
+EEG → U-Net → ResCNN → Bi-Mamba-2 → [Dynamic GNN + LPE] → Detection Head
+                                          ↑
+                                    FULL EVOBRAIN STYLE!
 ```
-**Changes**: GNN with time-evolving adjacency + Laplacian Positional Encoding
-**Status**: Planned (not implemented)
+**Changes**: FULL dynamic graph with time-evolving adjacency + Laplacian Positional Encoding
+**Status**: NEXT IMMEDIATE PRIORITY after v2.0 training
 **Implementation Details** (from EvoBrain):
-- PyG's `AddLaplacianEigenvectorPE(k=16)`
-- Adjacency matrix per timestep: `adj[timestep, batch, nodes, nodes]`
+- PyG's `AddLaplacianEigenvectorPE(k=16)` for positional awareness
+- Dynamic adjacency per timestep: `adj[timestep, batch, nodes, nodes]`
+- SSGConv with alpha=0.05 (proven best for EEG)
+- Edge transform: Linear(512, 1) → Softplus() for positive weights
+- Edge pruning: keep only |weight| > 0.0001 + top_k=3
 - Concatenate PE to node features before GNN
-- Edge pruning: keep only |weight| > 0.0001
-**Why**: EvoBrain proves dynamic > static graphs; LPE stabilizes
-**Expected**: Additional 5-10% improvement
+**Why**: EvoBrain MATHEMATICALLY PROVES dynamic > static; skip static entirely!
+**Expected**: 15-20% improvement (combines what would be v2.5 + v2.6)
 **Timeline**: 1 week
-**Training**: Graph structure evolves per snapshot
+**Training**: Graph structure evolves per snapshot capturing seizure dynamics
 
 ---
 
@@ -151,7 +140,7 @@ EEG → STFT → [TCN-Nodes + TCN-Edges] → GCN+LPE → Detection Head
 | v2.0    | BASELINE   | 47M    | TBD    | $0.80         | Current |
 | v2.1    | Target -30%| +2M    | +0.1   | $0.85         | Artifact head |
 | v2.2    | Target -5% | Same   | +0.5   | $0.85         | STFT input |
-| v2.5    | Target -10%| +5M    | +2.0   | $0.90         | Add GNN |
+| v2.6    | Target -20%| +7M    | +3.0   | $0.95         | FULL Dynamic GNN+LPE |
 | v3.0    | Target same| -10M   | -5.0   | $0.70         | TCN simpler |
 | v3.1    | Target -5% | +2M    | +1.0   | $0.75         | ConvNeXt |
 | v3.2    | Target -10%| +15M   | +3.0   | $0.95         | Dual Mamba |
@@ -163,7 +152,7 @@ EEG → STFT → [TCN-Nodes + TCN-Edges] → GCN+LPE → Detection Head
 1. ✅ **Let v2.0 finish training** (baseline metrics)
 2. 🔧 **Implement v2.1** (artifact head) - HIGHEST ROI
 3. 📊 **Test v2.2** (STFT) - Easy win
-4. 🧠 **Prototype v2.5** (add GNN) - Validated by EvoBrain
+4. 🧠🔥 **FULL SEND v2.6** (Dynamic GNN + LPE) - GO BIG OR GO HOME!
 
 ---
 
@@ -191,10 +180,10 @@ EEG → STFT → [TCN-Nodes + TCN-Edges] → GCN+LPE → Detection Head
 v2.0 (current) working?
 ├─ YES → Add artifact head (v2.1)
 │   ├─ Better? → Add STFT (v2.2)
-│   │   ├─ Better? → Add GNN (v2.5)
+│   │   ├─ Better? → FULL Dynamic GNN+LPE (v2.6)
 │   │   │   ├─ Better? → Replace U-Net with TCN (v3.0)
-│   │   │   └─ Worse? → Try dynamic GNN (v2.6)
-│   │   └─ Worse? → Skip to GNN (v2.5)
+│   │   │   └─ Worse? → Debug graph implementation
+│   │   └─ Worse? → Skip STFT, try v2.6 directly
 │   └─ Worse? → Debug why artifacts hurt
 └─ NO → Fix v2.0 first!
 ```
