@@ -2,6 +2,7 @@
 
 # Fix CUDA detection in pytest-xdist multiprocessing
 # CUDA cannot be re-initialized in forked subprocess
+import gc
 import multiprocessing
 import os
 import tempfile
@@ -11,7 +12,6 @@ from contextlib import suppress
 from pathlib import Path
 from unittest.mock import Mock
 
-import gc
 import numpy as np
 import pytest
 import torch
