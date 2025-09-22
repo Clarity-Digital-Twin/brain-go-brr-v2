@@ -2,9 +2,9 @@
 
 import gc
 import math
-from contextlib import suppress
 import os
 import time
+from contextlib import suppress
 
 import numpy as np
 import pytest
@@ -300,7 +300,6 @@ class TestThroughput:
 
         # Choose a reasonable batch size per device
         batch_size = 16 if is_cpu else 32
-        n_batches = math.ceil(total_windows / batch_size)
 
         # On CPU, evaluate a subset and extrapolate to avoid long walltime
         eval_windows = total_windows if not is_cpu else 96
