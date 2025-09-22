@@ -112,6 +112,7 @@ This document serves as the single source of truth for the complete architecture
   - [✓] d_state: 16
   - [✓] d_conv: 5 (CUDA kernels only support {2,3,4}, internally coerced to 4)
   - [✓] Expand factor: 2
+  - [✓] CUDA compilation: Requires PyTorch 2.2.2+cu121, mamba-ssm==2.2.2, causal-conv1d==1.4.0
 
 - [✓] **Bidirectional Processing**:
   - [✓] Forward Mamba-2 branch
@@ -186,7 +187,7 @@ This document serves as the single source of truth for the complete architecture
 - [ ] **DataLoader Config**:
   - [ ] Batch size from config (default 16)
   - [ ] num_workers from config
-  - [ ] pin_memory=True when CUDA
+  - [✓] pin_memory=True when CUDA (set in Modal configs)
   - [ ] Deterministic seeding
 
 #### 3.2 Loss & Optimization
@@ -336,8 +337,9 @@ This document serves as the single source of truth for the complete architecture
 - [ ] **YAML Configs**:
   - [ ] configs/local.yaml (development, WSL2-safe)
   - [ ] configs/tusz_train_wsl2.yaml (local long-run, WSL2-safe)
-  - [ ] configs/tusz_train_a100.yaml (Modal A100-optimized)
-  - [ ] configs/smoke_test.yaml (CI/testing)
+  - [✓] configs/modal/train_a100.yaml (Modal A100-optimized, batch_size=64, 100 epochs)
+  - [✓] configs/modal/smoke_a100.yaml (Modal smoke test, 1 epoch)
+  - [✓] configs/local/smoke.yaml (Local testing, batch_size=16)
 
 #### 6.2 CLI Interface
 - Location: `src/brain_brr/cli/cli.py`
@@ -384,7 +386,7 @@ This document serves as the single source of truth for the complete architecture
 - [ ] 1 FA/24h: >75% sensitivity (current SOTA: ~70%)
 
 ### Model Performance
-- [ ] Parameters: ~13.4M (defaults)
+- [✓] Parameters: ~13.4M (verified via torchinfo)
 - [ ] Inference: <100ms per 60s window (GPU)
 - [ ] Memory: <4GB for batch size 32
 - [ ] Training: Convergence within 50 epochs
@@ -435,6 +437,8 @@ This document serves as the single source of truth for the complete architecture
 ## ⚠️ KNOWN ISSUES & DEVIATIONS
 
 1. **Mamba Conv Kernel**: d_conv=5 specified, but CUDA kernels only support {2,3,4}, internally coerced to 4
+2. **Modal Deployment**: Requires exact PyTorch 2.2.2+cu121 (NOT 2.8.0 from Modal mirror), mamba-ssm==2.2.2, causal-conv1d==1.4.0
+3. **Parameter Count**: Actual ~13.4M (not ~25M as initially estimated) verified via torchinfo
 2. **Channel Interpolation**: Automatic for Fz, Pz via MNE `set_montage` when missing
 3. **CPU Fallback**: Conv1d replacement for Mamba (NOT functionally equivalent - SSM vs convolution)
 4. **Header Fixes**: TUSZ date separator repair implemented (colons→periods at bytes 168-175)
@@ -444,7 +448,7 @@ This document serves as the single source of truth for the complete architecture
 
 ## ✅ AUDIT STATUS
 
-**Last Audit Date**: 2025-09-19
+**Last Audit Date**: 2025-09-21
 **Auditor**: Claude Code
 
 ### Summary
@@ -455,7 +459,12 @@ This document serves as the single source of truth for the complete architecture
 - [x] Ready for production
 
 ### Notes
-Comprehensive audit completed with 95+ checklist items verified as correctly implemented. Only minor observation: test coverage percentage not audited in depth. The detailed audit report has been archived at `docs/archive/architecture/CANONICAL_SPEC_AUDIT_RESULTS.md`.
+- Comprehensive audit completed with 95+ checklist items verified
+- Parameter count corrected from ~25M to ~13.4M actual
+- Modal deployment requirements documented (PyTorch version critical)
+- ConvBlock uses ReLU (not ELU) in actual implementation
+- Balanced sampling via BalancedSeizureDataset now implemented
+- Detailed audit reports: CANONICAL-SPEC-AUDIT.md and AUDIT-SUMMARY.md
 
 ---
 
