@@ -32,8 +32,10 @@ Build/scan cache inside the container
 
 Cost control
 - Build cache once; reuse across runs via `/results` volume.
+- **CRITICAL**: Optimize cache to local volume (saves 90% compute cost!)
 - Always validate manifest before launching large GPU jobs.
 - If batches show 0% seizures early: stop run and fix CSV/paths; re-scan manifest.
+- **With optimizations**: ~100 hours ($319) instead of ~1000 hours ($3,190)
 
 Observability & logging
 - Real-time logs are enabled (PYTHONUNBUFFERED=1); add `flush=True` to prints for critical steps.
@@ -66,9 +68,22 @@ Code anchors
 - Modal entrypoint and functions: `deploy/modal/app.py` (uses `--action` local_entrypoint).
 - Data pipeline docs: `../01-data-pipeline/*` (CSV_BI parsing, channels, cache+sampling).
 
+Cache Optimization (CRITICAL for Performance)
+- **First run**: Cache optimizer copies NPZ files from S3 to local volume (30-60 min, one-time)
+- **Why needed**: S3 CloudBucketMount has terrible random access (100-700ms per file)
+- **Impact**: 10x speedup (48s → 5s per batch) after optimization
+- **Force re-optimization**: Set `BGB_FORCE_CACHE_COPY=1`
+- **Check status**: Look for "[CACHE] Local cache already exists with X NPZ files"
+
+Performance Settings (A100 Optimized)
+- **Batch size**: 128 (uses full 80GB VRAM)
+- **Mixed precision**: true (leverages FP16 tensor cores)
+- **W&B entity**: Must be username, not team (e.g., `jj-vcmcswaggins`)
+
 Troubleshooting
 - 0 windows in BalancedSeizureDataset: re-scan manifest; fix CSV_BI parser; rebuild cache.
-- Slow cache build: ensure `/data` (read-only) and `/results` are on fast storage; avoid network latency.
+- **Slow training (48s/batch)**: Cache not optimized! Check `/results/cache/tusz/train` exists
 - Memory errors: reduce batch size; verify A100 profile in config; prefer mixed precision.
 - Empty/stale manifest on `/results`: training now validates/deletes bad manifests and rebuilds from existing cache automatically. To force a rebuild regardless, set `BGB_FORCE_MANIFEST_REBUILD=1`.
- - See also: `./troubleshooting.md` → “Modal vs Local divergence”.
+- **W&B not logging**: Check entity name in config and WANDB_API_KEY in secrets
+ - See also: `./troubleshooting.md` → "Modal vs Local divergence".
