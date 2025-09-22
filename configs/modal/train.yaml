@@ -25,7 +25,7 @@ preprocessing:
   use_mne: true
 
 model:
-  architecture: tcn  # Use TCN instead of U-Net
+  architecture: tcn  # TCN + Mamba hybrid architecture
 
   tcn:
     num_layers: 8
@@ -59,7 +59,7 @@ postprocessing:
 
 training:
   epochs: 100                          # full training - will early stop if converged
-  batch_size: 128                      # OPTIMIZED: Using full A100 80GB VRAM
+  batch_size: 64                       # Safe for A100 80GB with 60s windows
   # ⚠️ CRITICAL: MUST use focal loss for 12:1 class imbalance! ⚠️
   # Without this, model WILL collapse to AUROC=0.5 (useless)
   loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
