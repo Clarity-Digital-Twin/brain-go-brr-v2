@@ -1076,7 +1076,11 @@ def train(
             wandb_logger.log_model(checkpoint_dir / "best.pt", name=f"best-{metric_name}")
 
         # Save periodic checkpoint based on checkpoint_interval
-        checkpoint_interval = getattr(config.experiment, "checkpoint_interval", 0)
+        checkpoint_interval = getattr(
+            config.experiment,
+            "checkpoint_interval",
+            getattr(config.training, "checkpoint_interval", 0),
+        )
         if checkpoint_interval > 0 and (epoch + 1) % checkpoint_interval == 0:
             checkpoint_path = checkpoint_dir / f"epoch_{epoch + 1:03d}.pt"
             save_checkpoint(
