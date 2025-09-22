@@ -49,7 +49,7 @@ EEG → U-Net → ResCNN → Bi-Mamba-2 → GNN → Detection Head
 EEG → U-Net → ResCNN → Bi-Mamba-2 → Dynamic GNN → Detection Head
 ```
 **Changes**: GNN with time-evolving adjacency matrices
-**Why**: EvoBrain proves dynamic > static graphs
+**Why**: EvoBrain proves dynamic > static graphs; add Laplacian Positional Encoding (LPE)
 **Expected**: Additional 5-10% improvement
 **Timeline**: 1 week
 **Training**: Graph structure evolves per snapshot
@@ -146,6 +146,7 @@ EEG → STFT → [TCN-Nodes + TCN-Edges] → GCN+LPE → Detection Head
 ✅ **Time-then-graph > Graph-then-time** (mathematically proven)
 ✅ **Dynamic graphs > Static graphs** (explicit modeling wins)
 ✅ **Frequency domain helps** (STFT preprocessing)
+✅ **Laplacian Positional Encoding** stabilizes graph grounding
 ✅ **Dual-stream temporal** (separate node/edge evolution)
 ✅ **Our TCN → GNN ordering is CORRECT!**
 
