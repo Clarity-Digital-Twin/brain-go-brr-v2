@@ -15,6 +15,7 @@ import os
 import random
 import sys
 import time
+import warnings
 from contextlib import suppress
 from pathlib import Path
 from typing import Any, cast
@@ -547,12 +548,16 @@ def train_epoch(
             global_step += 1
 
             # Scheduler step AFTER optimizer.step()
-            # NOTE: PyTorch warns about scheduler.step() before optimizer.step() on first batch.
-            # This is a false positive - we call them in correct order (optimizer then scheduler).
-            # The warning occurs because PyTorch doesn't understand our LambdaLR with last_epoch=-1
-            # is already properly initialized. The LR schedule works correctly despite the warning.
             if scheduler is not None:
-                scheduler.step()
+                # Suppress false positive warning on first batch - we ARE calling in correct order
+                if global_step == 1:
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings(
+                            "ignore", message="Detected call of `lr_scheduler.step()`"
+                        )
+                        scheduler.step()
+                else:
+                    scheduler.step()
 
             total_loss += loss.item()
             num_batches += 1

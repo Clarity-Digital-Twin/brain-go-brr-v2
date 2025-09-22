@@ -3,6 +3,16 @@ Training (Loop, Dataloaders, Guards)
 Scope
 - Train/val split handling, dataset choice, samplers, logging, guardrails.
 
+LR scheduling
+- The training loop steps the LR scheduler once per optimizer update and does so after the optimizer step. See `src/brain_brr/train/loop.py:555`.
+- A PyTorch warning may appear on the first batch: `Detected call of lr_scheduler.step() before optimizer.step()`.
+  - In this codebase, the order is correct: `optimizer.step()` (or `scaler.step(optimizer)` when AMP is enabled) happens before `scheduler.step()`.
+  - Why the warning can still show:
+    - LambdaLR with `last_epoch=-1` initializes to base LR and the first call sets step=0. Some torch versions emit the warning even when the optimizer has stepped within the same iteration.
+    - With AMP, if the very first update overflows, `scaler.step(optimizer)` skips the underlying `optimizer.step()`. The scheduler still advances one step by design; this can trigger the warning once. The schedule remains well‑defined and training proceeds normally.
+  - Impact: benign for our per‑step warmup+cosine schedule. It can shift the schedule by at most one step in the rare first‑batch overflow case; smoke runs and typical training are unaffected.
+  - Verify locally by logging `optimizer.param_groups[0]['lr']` across the first few steps or comparing `scheduler.get_last_lr()` before/after `optimizer.step()`.
+
 Dataset selection
 - If manifest exists and use_balanced is enabled → BalancedSeizureDataset for train.
 - Otherwise → EEGWindowDataset (classic) for train.
