@@ -96,7 +96,7 @@ experiment:
   wandb:
     enabled: true    # W&B secret now configured!
     project: seizure-detection-smoke
-    entity: jj-vcmcswaggins-novamindnyc  # Your W&B team name
+    entity: jj-vcmcswaggins  # Your W&B username (not team)
     tags: ["smoke-test", "modal", "a100"]
 
 logging:
