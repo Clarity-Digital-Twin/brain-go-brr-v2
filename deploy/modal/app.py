@@ -267,8 +267,18 @@ def train(
     exp = data.setdefault("experiment", {})
     out_name = Path(exp.get("output_dir", "results/run")).name
     exp["output_dir"] = f"/results/{out_name}"
-    cache = exp.get("cache_dir", f"cache/{out_name}")
-    exp["cache_dir"] = f"/results/{cache}" if not str(cache).startswith("/") else str(cache)
+
+    # For smoke tests, ensure separate cache directory
+    if "smoke" in config_path.lower():
+        cache_dir = "/results/cache/smoke"
+    else:
+        cache_dir = exp.get("cache_dir", f"/results/cache/{out_name}")
+        if not str(cache_dir).startswith("/"):
+            cache_dir = f"/results/{cache_dir}"
+
+    # Set cache_dir in both data and experiment sections
+    exp["cache_dir"] = cache_dir
+    data.setdefault("data", {})["cache_dir"] = cache_dir
 
     Path(exp["output_dir"]).mkdir(parents=True, exist_ok=True)
     (Path(exp["output_dir"]) / "checkpoints").mkdir(parents=True, exist_ok=True)
