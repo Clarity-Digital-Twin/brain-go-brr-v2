@@ -11,6 +11,14 @@ from typing import cast
 import torch
 import torch.nn as nn
 
+# Suppress deprecation warning for weight_norm - we use old API for torch.compile compat
+warnings.filterwarnings(
+    "ignore",
+    message=".*weight_norm is deprecated.*",
+    category=UserWarning,
+    module="torch.nn.utils.weight_norm",
+)
+
 # Try to import pytorch-tcn (optional dependency)
 try:
     from pytorch_tcn import TCN  # type: ignore[import-untyped]
@@ -58,8 +66,8 @@ class MinimalTCN(nn.Module):
                 in_channels, out_channels, kernel_size, padding=padding, dilation=dilation_size
             )
 
-            # Weight normalization using new parametrizations API
-            conv = nn.utils.parametrizations.weight_norm(conv)
+            # Weight normalization (using old API for torch.compile compatibility)
+            conv = nn.utils.weight_norm(conv)
 
             layers.append(conv)
             layers.append(nn.ReLU())
