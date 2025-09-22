@@ -48,8 +48,6 @@ def pytest_configure(config):
     config.addinivalue_line("filterwarnings", "ignore:TensorFloat32 tensor cores.*:UserWarning")
 
 
-
-
 @pytest.fixture(autouse=True)
 def cuda_cleanup():
     """Automatically clean up CUDA memory after each test."""
