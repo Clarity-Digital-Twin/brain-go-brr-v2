@@ -12,9 +12,9 @@ EEG (19ch, 256Hz) → TCN Encoder → Bi-Mamba → Projection → Upsample → D
 
 ## 🚀 TARGET ARCHITECTURE (v2.6)
 ```
-EEG → TCN Encoder → Bi‑Mamba → [Dynamic GNN + LPE] → Projection → Upsample → Detection
+EEG → TCN Encoder → Bi‑Mamba → [Dynamic GNN + LPE] → ProjectionHead → Detection
                                         ↑
-                          Insert after Bi‑Mamba, before proj_512_to_19
+                     Insert after Bi‑Mamba, before proj_head(…)
 
 Constraints to honor:
 - Channel order: keep the canonical 19‑channel 10–20 montage from `src/brain_brr/constants.py` when constructing graphs.
@@ -23,7 +23,7 @@ Constraints to honor:
 ```
 
 Evidence anchors (code and refs):
-- TCN insertion site in detector: after `self.mamba(features)` at `src/brain_brr/models/detector.py:131`, before projection `self.proj_512_to_19(...)` at `src/brain_brr/models/detector.py:132`.
+- TCN insertion site in detector: after `temporal = self.mamba(features)` and before `decoded = self.proj_head(temporal)` in `src/brain_brr/models/detector.py` (current lines ~154 → ~157).
 - Canonical channel order (19-ch 10–20): `src/brain_brr/constants.py:14`.
 - EvoBrain SSGConv with alpha=0.05: `reference_repos/EvoBrain-FBC5/model/EvoBrain.py:332`.
 - EvoBrain Laplacian PE k (AddLaplacianEigenvectorPE): `reference_repos/EvoBrain-FBC5/model/EvoBrain.py:858`.
@@ -240,53 +240,81 @@ class GraphChannelMixer(nn.Module):
 ### 1.3 Integration into Detector
 **File**: `src/brain_brr/models/detector.py` (TCN path)
 
-```python
-Recommended wiring pattern (match current factory):
+Strongly recommended wiring pattern (aligned with current factory + mypy):
 
-1) In `SeizureDetector.from_config` when `cfg.architecture == "tcn"`, gate with `cfg.graph.enabled` and attach modules to the instance:
+1) Declare optional attributes in `__init__` (mypy‑safe):
+
+```python
+# inside SeizureDetector.__init__
+self.use_gnn: bool = False
+self.graph_builder: nn.Module | None = None
+self.gnn: nn.Module | None = None
+self.proj_to_electrodes: nn.Conv1d | None = None
+self.proj_from_electrodes: nn.Conv1d | None = None
+```
+
+2) In `SeizureDetector.from_config`, instantiate the base model, then gate with `cfg.graph.enabled` and attach modules to the instance:
 
 ```python
 # at top of detector.py
 from src.brain_brr.models.graph_builder import DynamicGraphBuilder
 from src.brain_brr.models.gnn import GraphChannelMixer
 
-# inside SeizureDetector.from_config when building TCN path
-instance.use_gnn = getattr(cfg, "graph", None) is not None and cfg.graph.enabled
-if instance.use_gnn:
-    instance.graph_builder = DynamicGraphBuilder(
-        similarity=cfg.graph.similarity,
-        top_k=cfg.graph.top_k,
-        threshold=cfg.graph.threshold,
+@classmethod
+def from_config(cls, cfg: "_ModelConfig") -> "SeizureDetector":
+    instance = cls(
+        tcn_layers=cfg.tcn.num_layers,
+        tcn_kernel_size=cfg.tcn.kernel_size,
+        tcn_dropout=cfg.tcn.dropout,
+        tcn_stride=cfg.tcn.stride_down,
+        mamba_layers=cfg.mamba.n_layers,
+        mamba_d_state=cfg.mamba.d_state,
+        mamba_d_conv=cfg.mamba.conv_kernel,
+        mamba_dropout=cfg.mamba.dropout,
     )
-    instance.gnn = GraphChannelMixer(
-        d_model=512,
-        n_electrodes=19,
-        n_layers=cfg.graph.n_layers,
-        dropout=cfg.graph.dropout,
-    )
-    # Projections to/from electrode space (per‑node feature dim = 64)
-    instance.proj_to_electrodes = nn.Conv1d(512, 19 * 64, kernel_size=1)
-    instance.proj_from_electrodes = nn.Conv1d(19 * 64, 512, kernel_size=1)
+
+    graph_cfg = getattr(cfg, "graph", None)
+    instance.use_gnn = bool(graph_cfg and graph_cfg.enabled)
+    if instance.use_gnn and graph_cfg is not None:
+        instance.graph_builder = DynamicGraphBuilder(
+            similarity=graph_cfg.similarity,
+            top_k=graph_cfg.top_k,
+            threshold=graph_cfg.threshold,
+            temperature=graph_cfg.temperature,
+        )
+        instance.gnn = GraphChannelMixer(
+            d_model=512,
+            n_electrodes=19,
+            n_layers=graph_cfg.n_layers,
+            dropout=graph_cfg.dropout,
+            use_residual=graph_cfg.use_residual,
+        )
+        # Projections to/from electrode space (per‑node feature dim = 64)
+        instance.proj_to_electrodes = nn.Conv1d(512, 19 * 64, kernel_size=1)
+        instance.proj_from_electrodes = nn.Conv1d(19 * 64, 512, kernel_size=1)
+
+    return instance
 ```
 
-2) In `SeizureDetector.forward` TCN path, insert after Bi‑Mamba and before `proj_512_to_19` (see `src/brain_brr/models/detector.py:131` and `src/brain_brr/models/detector.py:132`):
+3) In `SeizureDetector.forward`, insert after Bi‑Mamba and before `self.proj_head(temporal)`:
 
 ```python
 features = self.tcn_encoder(x)               # (B, 512, 960)
 temporal = self.mamba(features)              # (B, 512, 960)
 
-if getattr(self, "use_gnn", False):
+if self.use_gnn and self.graph_builder and self.gnn and \
+   self.proj_to_electrodes and self.proj_from_electrodes:
     B, C, T = temporal.shape
-    elec_flat = self.proj_to_electrodes(temporal)                # (B, 19*64, 960)
-    elec_feats = elec_flat.reshape(B, 19, 64, T).permute(0, 1, 3, 2)  # (B, 19, T, 64)
-    adj = self.graph_builder(elec_feats)                         # (B, T, 19, 19)
-    elec_enh = self.gnn(elec_feats, adj)                         # (B, 19, T, 64)
+    elec_flat = self.proj_to_electrodes(temporal)                    # (B, 19*64, 960)
+    elec_feats = elec_flat.reshape(B, 19, 64, T).permute(0, 1, 3, 2) # (B, 19, T, 64)
+    adj = self.graph_builder(elec_feats)                             # (B, T, 19, 19)
+    elec_enh = self.gnn(elec_feats, adj)                             # (B, 19, T, 64)
     elec_flat = elec_enh.permute(0, 1, 3, 2).reshape(B, 19 * 64, T)
-    temporal = self.proj_from_electrodes(elec_flat)              # (B, 512, 960)
+    temporal = self.proj_from_electrodes(elec_flat)                  # (B, 512, 960)
 
-chan19 = self.proj_512_to_19(temporal)       # (B, 19, 960)
-decoded = self.upsample(chan19)              # (B, 19, 15360)
-```
+decoded = self.proj_head(temporal)           # (B, 19, 15360)
+output = self.detection_head(decoded)        # (B, 1, 15360)
+return output.squeeze(1)
 ```
 
 ---
@@ -335,7 +363,7 @@ class GraphChannelMixerPyG(nn.Module):
     - SSGConv with alpha=0.05 (line 332)
     - Laplacian PE k=16 (line 858)
     - 2-layer GNN
-    """
+"""
 
     def __init__(
         self,
@@ -488,18 +516,17 @@ class TestDynamicGraphBuilder:
         # Check symmetry
         assert torch.allclose(adjacency, adjacency.transpose(-1, -2))
 
-    def test_top_k_sparsity(self):
-        """Each node should have at most k edges."""
+    def test_top_k_monotonicity(self):
+        """More neighbors (higher k) should not reduce sparsity after symmetrization."""
         from src.brain_brr.models.graph_builder import DynamicGraphBuilder
 
-        k = 3
-        builder = DynamicGraphBuilder(top_k=k)
-        features = torch.randn(1, 19, 10, 64)
-        adjacency = builder(features)
+        feats = torch.randn(1, 19, 10, 64)
+        adj_k2 = DynamicGraphBuilder(top_k=2)(feats)
+        adj_k5 = DynamicGraphBuilder(top_k=5)(feats)
 
-        # Count non-zero edges per node
-        edges_per_node = (adjacency > 0).sum(dim=-1)
-        assert edges_per_node.max() <= k
+        nnz_k2 = (adj_k2 > 0).float().mean()
+        nnz_k5 = (adj_k5 > 0).float().mean()
+        assert nnz_k5 >= nnz_k2
 
 
 class TestGraphChannelMixer:
@@ -532,21 +559,20 @@ class TestGraphChannelMixer:
         assert not torch.isnan(features.grad).any()
         assert features.grad.abs().mean() > 1e-8
 
-    def test_gnn_identity_init(self):
-        """With identity adjacency, should be near identity."""
+    def test_gnn_stability_with_identity_adj(self):
+        """With identity adjacency, output should be finite and magnitude-bounded."""
         from src.brain_brr.models.gnn import GraphChannelMixer
 
         gnn = GraphChannelMixer(d_model=64, n_layers=1)
         features = torch.randn(1, 19, 10, 64)
-
-        # Identity adjacency
         adjacency = torch.eye(19).unsqueeze(0).unsqueeze(0).repeat(1, 10, 1, 1)
 
         with torch.no_grad():
             output = gnn(features, adjacency)
 
-        # Should be similar to input (with some transformation)
-        assert torch.allclose(output, features, rtol=0.5)
+        assert torch.isfinite(output).all()
+        ratio = (output.pow(2).mean() / (features.pow(2).mean() + 1e-9)).sqrt()
+        assert 0.1 <= ratio <= 10.0
 ```
 
 ### 3.2 Integration Tests (to add)
@@ -576,8 +602,10 @@ class TestGNNIntegration:
                 "similarity": "cosine",
                 "top_k": 3,
                 "threshold": 1e-4,
+                "temperature": 0.1,
                 "n_layers": 2,
                 "dropout": 0.1,
+                "use_residual": True,
             },
         )
 
@@ -668,7 +696,7 @@ model:
     n_layers: 6
     d_model: 512
     d_state: 16
-    conv_kernel: 4  # CUDA constraint
+    conv_kernel: 4  # CUDA constraint (GPU kernel supports {2,3,4})
     dropout: 0.1
 
 training:
@@ -689,10 +717,11 @@ experiment:
 - [ ] Create `src/brain_brr/models/graph_builder.py`
 - [ ] Create `src/brain_brr/models/gnn.py`
 - [ ] Write unit tests `tests/unit/models/test_gnn.py`
-- [ ] Update `src/brain_brr/models/detector.py` with GNN hook
+- [ ] Update `src/brain_brr/models/detector.py` with GNN hook (mypy‑safe optional attrs + from_config attach)
 - [ ] Update `src/brain_brr/config/schemas.py` with GraphConfig
 - [ ] Create `configs/modal/train_gnn.yaml`
-- [ ] Run `make test` - all tests pass
+- [ ] Run `make q` (lint+format+mypy)
+- [ ] Run `make test-fast` then `make test` - all tests pass
 - [ ] Run smoke test with GNN enabled
 
 ### Phase 2: PyG Integration (Days 3-4)
@@ -748,6 +777,9 @@ threshold = 1e-4    # Edge weight cutoff
 4. **Guard PyG imports** - Keep CI green
 5. **Start with small batches** - GNN adds memory overhead
 6. **Keep graph disabled by default** - Backward compatibility
+7. **Predeclare optional attrs** - Avoid mypy AttributeError in `SeizureDetector`
+8. **Use ProjectionHead** - Detector uses `self.proj_head(...)`, not per‑step `proj_512_to_19/upsample`
+9. **CI stability** - Guard PyG imports; phase 1 has zero new deps
 
 ---
 
@@ -773,11 +805,11 @@ nvidia-smi -l 1
 
 ## 🎯 BOTTOM LINE
 
-This plan gives you EVERYTHING needed to implement Dynamic GNN + LPE:
+This plan gives you EVERYTHING needed to implement Dynamic GNN + LPE with our current TCN+Mamba codebase:
 1. **Exact code** from EvoBrain with proven parameters
 2. **TDD tests** following your test patterns
 3. **Phased approach** - pure torch first, PyG later
-4. **Integration points** clearly marked at `src/brain_brr/models/detector.py:131` → `:132`
+4. **Integration points** clearly marked between `temporal = self.mamba(features)` and `decoded = self.proj_head(temporal)` in `src/brain_brr/models/detector.py`
 5. **Config ready** with all EvoBrain defaults
 
 **NEXT ACTION**: Start with Phase 1 - create `graph_builder.py` and `gnn.py` using the code above.
