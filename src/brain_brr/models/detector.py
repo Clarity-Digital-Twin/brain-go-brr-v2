@@ -40,7 +40,14 @@ class SeizureDetector(nn.Module):
     def __init__(
         self,
         *,
-        # TCN params
+        # Legacy params (accepted but ignored for backward compatibility)
+        in_channels: int = 19,
+        base_channels: int = 64,
+        encoder_depth: int = 4,
+        rescnn_blocks: int = 3,
+        rescnn_kernels: list[int] | None = None,
+        dropout: float = 0.1,
+        # TCN params (new style)
         tcn_layers: int = 8,
         tcn_kernel_size: int = 7,
         tcn_dropout: float = 0.15,
@@ -49,7 +56,7 @@ class SeizureDetector(nn.Module):
         mamba_layers: int = 6,
         mamba_d_state: int = 16,
         mamba_d_conv: int = 4,
-        mamba_dropout: float = 0.1,
+        mamba_dropout: float | None = None,
     ) -> None:
         super().__init__()
 
