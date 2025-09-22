@@ -312,7 +312,9 @@ def train_epoch(
     last_heartbeat = time.time()
     heartbeat_interval = 300  # 5 minutes
     last_mid_save = time.time()
-    mid_interval_s = None if mid_epoch_minutes is None else float(max(0.0, mid_epoch_minutes)) * 60.0
+    mid_interval_s = (
+        None if mid_epoch_minutes is None else float(max(0.0, mid_epoch_minutes)) * 60.0
+    )
 
     # Calculate class weights from dataset sample (not just first batch!)
     # Sample a significant portion to get accurate statistics
@@ -992,7 +994,9 @@ def train(
                 )
             ),
             mid_epoch_keep=int(
-                os.getenv("BGB_MID_EPOCH_KEEP", str(getattr(config.experiment, "mid_epoch_keep", 3)))
+                os.getenv(
+                    "BGB_MID_EPOCH_KEEP", str(getattr(config.experiment, "mid_epoch_keep", 3))
+                )
             ),
         )
 

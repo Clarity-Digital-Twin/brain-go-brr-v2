@@ -1,9 +1,9 @@
 """Weights & Biases integration for Brain-Go-Brr v2."""
 
 import os
+import uuid
 from pathlib import Path
 from typing import Any
-import uuid
 
 try:
     import wandb  # type: ignore[import-not-found]
