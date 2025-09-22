@@ -309,15 +309,21 @@ def train_epoch(
     dataset = dataloader.dataset
     dataset_len = len(dataset)  # type: ignore[arg-type]
 
+    # Skip expensive sampling in smoke test mode
+    is_smoke_test = os.environ.get("BGB_SMOKE_TEST", "0") == "1"
+    if is_smoke_test:
+        print("[SMOKE TEST MODE] Skipping dataset sampling - using default pos_weight=1.0", flush=True)
+        pos_weight_val = 1.0
+
     # CRITICAL FIX: BalancedSeizureDataset already knows its exact seizure ratio!
     # No need to sample 1000 windows (which takes 2+ hours on Modal)
-    from src.brain_brr.data.datasets import BalancedSeizureDataset
-
-    if isinstance(dataset, BalancedSeizureDataset):
-        # Use the pre-computed ratio from manifest statistics
-        pos_ratio = dataset.seizure_ratio
-        print("[DATASET] Using BalancedSeizureDataset known distribution", flush=True)
-        print(f"[DATASET] Seizure ratio: {100 * pos_ratio:.1f}% (from manifest)", flush=True)
+    else:
+        from src.brain_brr.data.datasets import BalancedSeizureDataset
+        if isinstance(dataset, BalancedSeizureDataset):
+            # Use the pre-computed ratio from manifest statistics
+            pos_ratio = dataset.seizure_ratio
+            print("[DATASET] Using BalancedSeizureDataset known distribution", flush=True)
+            print(f"[DATASET] Seizure ratio: {100 * pos_ratio:.1f}% (from manifest)", flush=True)
     else:
         # Fallback: sample windows for regular datasets
         sample_size = min(100, dataset_len)  # Reduced from 1000 for speed
