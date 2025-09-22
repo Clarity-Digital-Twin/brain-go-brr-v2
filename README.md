@@ -11,7 +11,7 @@
 
 - Architecture and pipeline are implemented; training/evaluation are in progress.
 - No published results yet — benchmarks and clinical metrics will be added once validated.
-- For local runs use `configs/tusz_train_wsl2.yaml`; for Modal A100 use `configs/tusz_train_a100.yaml`.
+- For local runs use `configs/local/train.yaml`; for Modal A100 use `configs/modal/train_a100.yaml`.
 - Data split discipline: train for training; dev for tuning; eval for final one‑shot testing.
 - Last updated: 2025‑09‑20.
 
@@ -79,10 +79,10 @@ uv sync -E gpu
 make train-local
 
 # Full training (local, WSL2-safe settings)
-python -m src train configs/tusz_train_wsl2.yaml
+python -m src train configs/local/train.yaml
 
 # With custom config (dev)
-python -m src train configs/local.yaml
+python -m src train configs/local/dev.yaml
 ```
 
 ### 🌩️ Cloud Training (Modal.com)
@@ -93,10 +93,10 @@ pip install --upgrade modal
 modal setup
 
 # Train on Modal (A100-80GB, optimized)
-modal run --detach deploy/modal/app.py -- --action train --config configs/tusz_train_a100.yaml
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_a100.yaml
 
 # Quick smoke on Modal
-modal run --detach deploy/modal/app.py -- --action train --config configs/smoke_test.yaml
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_a100.yaml
 ```
 
 → Full guide: [`docs/deployment/MODAL_DEPLOYMENT_COMPLETE_GUIDE.md`](docs/deployment/MODAL_DEPLOYMENT_COMPLETE_GUIDE.md)
