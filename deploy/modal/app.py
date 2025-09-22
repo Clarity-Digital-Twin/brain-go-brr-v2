@@ -89,9 +89,9 @@ data_mount = modal.CloudBucketMount(
     read_only=True,  # EEG data is read-only
 )
 
-# Persistent volumes for results
-data_volume = modal.Volume.from_name("brain-go-brr-data", create_if_missing=True)
+# Persistent volume for results and cache (310GB currently)
 results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missing=True)
+# NOTE: brain-go-brr-data volume deleted - it was empty and unused
 
 
 @app.function(gpu="A100", timeout=300)  # 5 min test

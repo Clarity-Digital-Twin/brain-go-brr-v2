@@ -180,11 +180,26 @@ def should_optimize_cache() -> Optional[tuple[Path, Path]]:
 
     # Explain why we're not optimizing
     if not s3_train_cache.exists() and not s3_val_cache.exists():
-        print("[CACHE] No S3 cache found at /data/cache/tusz/", flush=True)
-        print("[CACHE] Training will build cache on-the-fly (slower first epoch)", flush=True)
+        # S3 mount only has raw EDF files, not NPZ cache
+        print("[CACHE] No cache on S3 mount (/data/cache/ doesn't exist)", flush=True)
+
+        # Check if cache already exists locally
+        if local_train_cache.exists():
+            npz_count = len(list(local_train_cache.glob("*.npz")))
+            if npz_count > 0:
+                print(f"[CACHE] ✅ Using existing Modal volume cache: {npz_count} NPZ files", flush=True)
+                print(f"[CACHE] Location: {local_train_cache}", flush=True)
+                print("[CACHE] Training will use fast local cache!", flush=True)
+            else:
+                print("[CACHE] ⚠️ Cache directory exists but is empty", flush=True)
+                print("[CACHE] Training will build cache on-the-fly (30-60 min)", flush=True)
+        else:
+            print("[CACHE] ⚠️ No cache found, will build on first epoch", flush=True)
+            print("[CACHE] This will take 30-60 minutes but only happens once", flush=True)
+
     elif local_train_cache.exists() and not force:
         npz_count = len(list(local_train_cache.glob("*.npz")))
-        print(f"[CACHE] Local cache already exists with {npz_count} NPZ files", flush=True)
+        print(f"[CACHE] ✅ Local cache already exists with {npz_count} NPZ files", flush=True)
         print("[CACHE] Using existing optimized cache (fast!)", flush=True)
 
     return None
