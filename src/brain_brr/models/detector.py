@@ -1,9 +1,8 @@
-"""Complete Bi-Mamba-2 + U-Net + ResCNN architecture for TUSZ seizure detection.
+"""TCN + Bi-Mamba-2 architecture for TUSZ seizure detection.
 
-CRITICAL INNOVATION: First architecture combining:
-- U-Net: Multi-scale hierarchical feature extraction (what Mamba lacks)
-- ResCNN: Nonlinear local pattern detection (what SSMs miss)
-- Bi-Mamba-2: O(N) global temporal modeling (what CNNs lack)
+CRITICAL INNOVATION: Modern architecture combining:
+- TCN: Multi-scale temporal features with dilated convolutions
+- Bi-Mamba-2: O(N) global temporal modeling with state-space models
 
 This synergy addresses TUSZ-specific challenges:
 - Complex temporal dynamics (10Hz to 10min scales)
@@ -18,23 +17,20 @@ import torch
 import torch.nn as nn
 
 from .mamba import BiMamba2
-from .rescnn import ResCNNStack
-from .tcn import TCNEncoder
-from .unet import UNetDecoder, UNetEncoder
+from .tcn import ProjectionHead, TCNEncoder
 
 if TYPE_CHECKING:  # Only for type checkers; avoids runtime import cycle
     from src.brain_brr.config.schemas import ModelConfig as _ModelConfig
 
 
 class SeizureDetector(nn.Module):
-    """Complete Bi-Mamba-2 + U-Net + ResCNN architecture for TUSZ seizure detection.
+    """TCN + Bi-Mamba architecture for TUSZ seizure detection.
 
     Flow:
         Input (B, 19, 15360) - 60s @ 256Hz, 19 channels
-          -> UNetEncoder (B, 512, 960) + skips [Multi-scale extraction]
-          -> ResCNNStack (B, 512, 960) [Local pattern refinement]
+          -> TCNEncoder (B, 512, 960) [Multi-scale temporal features]
           -> BiMamba2 (B, 512, 960) [Global bidirectional context]
-          -> UNetDecoder (B, 19, 15360) [Multi-scale reconstruction]
+          -> Projection + Upsample (B, 19, 15360) [Restore resolution]
           -> 1x1 Conv -> (B, 15360) [Per-sample logits]
     """
 
