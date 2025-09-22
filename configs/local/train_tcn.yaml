@@ -10,7 +10,7 @@
 data:
   dataset: tuh_eeg
   data_dir: data_ext4/tusz/edf/train   # FAST ext4! root containing .edf + .csv pairs
-  cache_dir: cache/tcn_full             # TCN-specific cache
+  cache_dir: cache/tusz                 # REUSE EXISTING CACHE!
   sampling_rate: 256
   n_channels: 19
   window_size: 60
@@ -95,7 +95,7 @@ experiment:
   seed: 42
   device: cuda  # REQUIRED: Must use CUDA
   output_dir: results/tcn_full_100ep
-  cache_dir: cache/tcn_full
+  cache_dir: cache/tusz
   log_level: INFO
   save_model: true
   save_best_only: true
