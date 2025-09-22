@@ -154,11 +154,8 @@ def minimal_model():
     )
 
     model = SeizureDetector.from_config(config)
-
-    # Move to CUDA if available for performance testing
-    if torch.cuda.is_available():
-        model = model.cuda()
-
+    model.eval()  # Set to eval mode for consistency
+    # Don't auto-move to CUDA - let tests do it explicitly
     return model
 
 
