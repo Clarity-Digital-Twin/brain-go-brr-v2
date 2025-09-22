@@ -126,7 +126,9 @@
       "Read(//home/jj/**)",
       "Bash(do)",
       "Bash(journalctl:*)",
-      "Bash(dmesg:*)"
+      "Bash(dmesg:*)",
+      "Bash(rm:*)",
+      "Bash(mv:*)"
     ],
     "deny": [],
     "ask": []

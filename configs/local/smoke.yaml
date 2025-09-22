@@ -1,51 +1,69 @@
-# Quick smoke test config - 1 epoch, small batch
-#
-# GPU REQUIREMENTS:
-# - Minimum: NVIDIA GPU with 16GB+ VRAM (e.g., A100, RTX 4090)
-# - CPU-only training is impractical (40s/batch vs 0.5s/batch on GPU)
-data:
-  dataset: tuh_eeg
-  data_dir: data_ext4/tusz/edf/train  # Use TRAIN for smoke tests (limit files via env)
-  cache_dir: cache/smoke              # Separate cache for smoke tests
-  sampling_rate: 256
-  n_channels: 19
-  window_size: 60
-  stride: 10                    # fixed stride value
-  num_workers: 0                # WSL2-safe: avoid multiprocessing hangs
-  pin_memory: false             # WSL2-safe: prevent /dev/shm issues
-  persistent_workers: false     # WSL2-safe: critical for stability
-  prefetch_factor: 2            # ignored when num_workers=0
-  validation_split: 0.2
-  # ⚠️ CRITICAL: Without balanced sampling, batches may have ZERO seizures! ⚠️
-  use_balanced_sampling: true   # CRITICAL: Ensures every batch contains seizures
+# TCN smoke test config - 1 epoch quick validation
+# Usage: python -m src train configs/local/smoke_tcn.yaml
 
-preprocessing:
-  montage: "10-20"
-  bandpass: [0.5, 120]
-  notch_freq: 60
-  normalize: true
-  use_mne: true
+experiment:
+  name: tcn_smoke
+  seed: 42
+  output_dir: results/tcn_smoke
+  save_checkpoint: true
+  save_every_n_epochs: 1
 
 model:
-  name: seizure_detector
-  encoder:
-    stages: 4
+  architecture: tcn  # NEW: Use TCN instead of U-Net
+
+  tcn:
+    num_layers: 8
     channels: [64, 128, 256, 512]
-    kernel_size: 5
-    downsample_factor: 2
-  rescnn:
-    n_blocks: 3
-    kernel_sizes: [3, 5, 7]
-    dropout: 0.1
+    kernel_size: 7
+    dropout: 0.15
+    causal: false  # Non-causal for offline training
+    stride_down: 16
+    use_cuda_optimizations: true
+
   mamba:
     n_layers: 6
     d_model: 512
     d_state: 16
-    conv_kernel: 4
+    conv_kernel: 4  # IMPORTANT: Set to 4 to avoid CUDA coercion warning
     dropout: 0.1
-  decoder:
-    stages: 4
-    kernel_size: 4
+
+data:
+  dataset: tuh_eeg
+  data_dir: data_ext4/tusz/edf/train  # Use TRAIN for smoke tests
+  cache_dir: cache/smoke_tcn
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60
+  stride: 10
+  use_balanced_sampling: true
+  num_workers: 0
+  pin_memory: false
+  persistent_workers: false
+  prefetch_factor: 2
+  validation_split: 0.2
+  max_samples: 20  # Small for smoke test
+
+preprocessing:
+  montage: "10-20"
+  bandpass: [0.5, 120.0]
+  notch_freq: 60
+  normalize: true
+  use_mne: true
+
+training:
+  batch_size: 4
+  learning_rate: 1.0e-4
+  num_epochs: 1
+  gradient_clip_val: 1.0
+  mixed_precision: false  # Disabled for smoke test
+
+  loss: focal
+  focal_alpha: 0.25
+  focal_gamma: 2.0
+
+  scheduler:
+    type: cosine
+    warmup_ratio: 0.1
 
 postprocessing:
   hysteresis:
@@ -57,47 +75,3 @@ postprocessing:
   duration:
     min_duration_s: 3.0
     max_duration_s: 600.0
-  events:
-    tau_merge: 2.0
-    confidence_method: mean
-
-training:
-  epochs: 1                    # Just 1 epoch for smoke test
-  batch_size: 8                # Small batch for memory
-  # ⚠️ CRITICAL: MUST use focal loss for 12:1 class imbalance! ⚠️
-  # Without this, model WILL collapse to AUROC=0.5 (useless)
-  loss: focal                  # USE FOCAL LOSS FOR EXTREME IMBALANCE!
-  focal_alpha: 0.5             # MUST BE 0.5! (neutral - let pos_weight handle imbalance)
-  focal_gamma: 2.0             # Focusing parameter (higher = more focus on hard examples)
-  learning_rate: 3e-4
-  weight_decay: 0.05
-  optimizer: adamw
-  scheduler:
-    type: cosine
-    warmup_ratio: 0.03
-  gradient_clip: 1.0
-  mixed_precision: true
-
-evaluation:
-  metrics: [taes, sensitivity, specificity, auroc]
-  fa_rates: [10, 5, 2.5, 1]
-
-experiment:
-  name: smoke_test_$(date +%Y%m%d_%H%M%S)
-  description: "Quick smoke test with balanced sampling and collapse detection"
-  seed: 42
-  device: cuda  # Explicit GPU required (auto incorrectly defaults to CPU)
-  output_dir: results/smoke
-  cache_dir: cache/smoke
-  log_level: INFO
-  save_model: false
-  # IMPORTANT: Set BGB_LIMIT_FILES=50 or more for smoke tests!
-  # With only 2 files, validation will likely have no seizures → AUROC=0.5
-  wandb:
-    enabled: true    # W&B secret now configured!
-    project: seizure-detection-smoke
-    entity: jj-vcmcswaggins-novamindnyc  # Your W&B TEAM (matches API key)
-    tags: ["smoke-test", "modal", "a100"]
-
-logging:
-  log_every_n_steps: 10

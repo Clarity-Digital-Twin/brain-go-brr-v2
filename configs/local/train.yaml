@@ -10,7 +10,7 @@
 data:
   dataset: tuh_eeg
   data_dir: data_ext4/tusz/edf/train   # FAST ext4! root containing .edf + .csv pairs
-  cache_dir: cache/tusz                 # Unified cache root (train/val subdirs created)
+  cache_dir: cache/tusz                 # REUSE EXISTING CACHE!
   sampling_rate: 256
   n_channels: 19
   window_size: 60
@@ -30,16 +30,16 @@ preprocessing:
   use_mne: true
 
 model:
-  name: seizure_detector
-  encoder:
-    stages: 4
+  architecture: tcn  # Use TCN instead of U-Net
+
+  tcn:
+    num_layers: 8
     channels: [64, 128, 256, 512]
-    kernel_size: 5
-    downsample_factor: 2
-  rescnn:
-    n_blocks: 3
-    kernel_sizes: [3, 5, 7]
-    dropout: 0.1
+    kernel_size: 7
+    dropout: 0.15
+    causal: false
+    stride_down: 16
+    use_cuda_optimizations: true
   mamba:
     n_layers: 6
     d_model: 512
@@ -90,11 +90,11 @@ evaluation:
   save_plots: false
 
 experiment:
-  name: tusz_wsl2_100ep
-  description: "WSL2-safe TUSZ training 100 epochs with early stopping"
+  name: tcn_full_100ep
+  description: "TCN architecture full training 100 epochs"
   seed: 42
-  device: cuda  # REQUIRED: Must use CUDA (auto defaults to CPU incorrectly)
-  output_dir: results/tusz_wsl2_100ep
+  device: cuda  # REQUIRED: Must use CUDA
+  output_dir: results/tcn_full_100ep
   cache_dir: cache/tusz
   log_level: INFO
   save_model: true
