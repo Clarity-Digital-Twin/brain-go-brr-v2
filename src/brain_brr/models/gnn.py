@@ -67,8 +67,8 @@ class GraphChannelMixer(nn.Module):
 
         # Reshape for batch processing
         x = features.permute(0, 2, 1, 3)  # (B, T, 19, D)
-        x = x.reshape(B * T, N, D)
-        adj = adjacency.reshape(B * T, N, N)
+        x = x.reshape(batch_size * seq_len, n_nodes, feat_dim)
+        adj = adjacency.reshape(batch_size * seq_len, n_nodes, n_nodes)
 
         # Transform edge weights (EvoBrain style)
         adj_weights = self.edge_transform(adj.unsqueeze(-1))
