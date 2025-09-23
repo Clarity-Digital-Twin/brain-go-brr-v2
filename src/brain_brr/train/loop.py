@@ -192,8 +192,10 @@ class FocalLoss(nn.Module):
         pos_weight: torch.Tensor | None = None,
     ) -> torch.Tensor:
         # Per-element BCE on logits for numerical stability
+        # Clamp logits to prevent overflow in BCE computation
+        logits_clamped = logits.clamp(min=-100, max=100)
         bce = tnf.binary_cross_entropy_with_logits(
-            logits, targets, reduction="none", pos_weight=pos_weight
+            logits_clamped, targets, reduction="none", pos_weight=pos_weight
         )
         # Probabilities
         p = torch.sigmoid(logits)
