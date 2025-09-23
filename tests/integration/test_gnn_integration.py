@@ -11,7 +11,7 @@ from src.brain_brr.models.detector import SeizureDetector
 
 # Check if PyG is available
 try:
-    import torch_geometric
+    import torch_geometric  # noqa: F401
     HAS_PYG = True
 except ImportError:
     HAS_PYG = False
@@ -88,76 +88,6 @@ class TestGNNIntegration:
 
         # Check no NaNs
         assert not torch.isnan(output).any()
-
-
-# PyG tests moved to test_gnn_integration_pyg.py
-class TestGNNIntegrationPyG_removed:
-    """Test PyG GNN integration with detector."""
-
-    @pytest.fixture
-    def config_with_pyg_gnn(self) -> ModelConfig:
-        """ModelConfig with PyG GNN and LPE enabled."""
-        return ModelConfig(
-            architecture="tcn",
-            tcn=TCNConfig(
-                num_layers=8,
-                kernel_size=7,
-                dropout=0.15,
-                stride_down=16,
-            ),
-            mamba=MambaConfig(
-                n_layers=6,
-                d_state=16,
-                conv_kernel=4,
-                dropout=0.1,
-            ),
-            graph=GraphConfig(
-                enabled=True,
-                use_pyg=True,  # Enable PyG with LPE
-                similarity="cosine",
-                top_k=3,
-                threshold=1e-4,
-                temperature=0.1,
-                n_layers=2,
-                dropout=0.1,
-                use_residual=True,
-                alpha=0.05,
-                k_eigenvectors=16,  # Laplacian PE dimension
-            ),
-        )
-
-    def test_detector_with_pyg_gnn_forward(self, config_with_pyg_gnn):
-        """Full forward pass with PyG GNN and LPE enabled."""
-        detector = SeizureDetector.from_config(config_with_pyg_gnn)
-        x = torch.randn(2, 19, 15360)
-
-        output = detector(x)
-        assert output.shape == (2, 15360)
-        assert not torch.isnan(output).any()
-
-    def test_pyg_gnn_vs_pure_torch_shape(self, config_with_pyg_gnn):
-        """PyG and pure-torch GNN should have same output shape."""
-        config_pure = ModelConfig(
-            architecture="tcn",
-            tcn=TCNConfig(),
-            mamba=MambaConfig(),
-            graph=GraphConfig(
-                enabled=True,
-                use_pyg=False,  # Pure torch
-            ),
-        )
-
-        detector_pyg = SeizureDetector.from_config(config_with_pyg_gnn)
-        detector_pure = SeizureDetector.from_config(config_pure)
-
-        x = torch.randn(1, 19, 15360)
-
-        output_pyg = detector_pyg(x)
-        output_pure = detector_pure(x)
-
-        # Same shape regardless of implementation
-        assert output_pyg.shape == output_pure.shape
-        assert output_pyg.shape == (1, 15360)
 
         # Check GNN components were initialized
         assert detector.use_gnn is True
@@ -242,76 +172,6 @@ class TestGNNIntegrationPyG_removed:
             output = detector(x)
             assert output.shape == (batch_size, 15360)
             assert not torch.isnan(output).any()
-
-
-# PyG tests moved to test_gnn_integration_pyg.py
-class TestGNNIntegrationPyG_removed:
-    """Test PyG GNN integration with detector."""
-
-    @pytest.fixture
-    def config_with_pyg_gnn(self) -> ModelConfig:
-        """ModelConfig with PyG GNN and LPE enabled."""
-        return ModelConfig(
-            architecture="tcn",
-            tcn=TCNConfig(
-                num_layers=8,
-                kernel_size=7,
-                dropout=0.15,
-                stride_down=16,
-            ),
-            mamba=MambaConfig(
-                n_layers=6,
-                d_state=16,
-                conv_kernel=4,
-                dropout=0.1,
-            ),
-            graph=GraphConfig(
-                enabled=True,
-                use_pyg=True,  # Enable PyG with LPE
-                similarity="cosine",
-                top_k=3,
-                threshold=1e-4,
-                temperature=0.1,
-                n_layers=2,
-                dropout=0.1,
-                use_residual=True,
-                alpha=0.05,
-                k_eigenvectors=16,  # Laplacian PE dimension
-            ),
-        )
-
-    def test_detector_with_pyg_gnn_forward(self, config_with_pyg_gnn):
-        """Full forward pass with PyG GNN and LPE enabled."""
-        detector = SeizureDetector.from_config(config_with_pyg_gnn)
-        x = torch.randn(2, 19, 15360)
-
-        output = detector(x)
-        assert output.shape == (2, 15360)
-        assert not torch.isnan(output).any()
-
-    def test_pyg_gnn_vs_pure_torch_shape(self, config_with_pyg_gnn):
-        """PyG and pure-torch GNN should have same output shape."""
-        config_pure = ModelConfig(
-            architecture="tcn",
-            tcn=TCNConfig(),
-            mamba=MambaConfig(),
-            graph=GraphConfig(
-                enabled=True,
-                use_pyg=False,  # Pure torch
-            ),
-        )
-
-        detector_pyg = SeizureDetector.from_config(config_with_pyg_gnn)
-        detector_pure = SeizureDetector.from_config(config_pure)
-
-        x = torch.randn(1, 19, 15360)
-
-        output_pyg = detector_pyg(x)
-        output_pure = detector_pure(x)
-
-        # Same shape regardless of implementation
-        assert output_pyg.shape == output_pure.shape
-        assert output_pyg.shape == (1, 15360)
 
     @pytest.mark.parametrize("top_k", [2, 3, 5])
     def test_gnn_with_different_top_k(self, top_k):
