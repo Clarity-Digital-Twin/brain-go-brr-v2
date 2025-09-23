@@ -32,7 +32,7 @@ model:
 
   # Dynamic GNN with Laplacian PE (EvoBrain architecture)
   graph:
-    enabled: true
+    enabled: true  # FULL STACK SMOKE TEST!
     use_pyg: true           # USE PyG for Laplacian PE!
     # Graph construction
     similarity: cosine      # EvoBrain proven
