@@ -5,7 +5,7 @@ Pure PyTorch implementation based on EvoBrain architecture.
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.nn.functional as func
 
 
 class GraphChannelMixer(nn.Module):
@@ -63,7 +63,7 @@ class GraphChannelMixer(nn.Module):
         Returns:
             enhanced: (B, 19, T, D) enhanced features
         """
-        B, N, T, D = features.shape
+        batch_size, n_nodes, seq_len, feat_dim = features.shape
 
         # Reshape for batch processing
         x = features.permute(0, 2, 1, 3)  # (B, T, 19, D)
