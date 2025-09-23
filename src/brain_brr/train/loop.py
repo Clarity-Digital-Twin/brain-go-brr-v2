@@ -637,7 +637,9 @@ def train_epoch(
                     scaler.scale(loss).backward()
                     scaler.unscale_(optimizer)
                     if gradient_clip > 0:
-                        grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+                        grad_norm = torch.nn.utils.clip_grad_norm_(
+                            model.parameters(), gradient_clip
+                        )
                         if enable_nan_debug and grad_norm > gradient_clip * 10:
                             print(
                                 f"[DEBUG] Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})",
@@ -648,7 +650,9 @@ def train_epoch(
                 else:
                     loss.backward()
                     if gradient_clip > 0:
-                        grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+                        grad_norm = torch.nn.utils.clip_grad_norm_(
+                            model.parameters(), gradient_clip
+                        )
                         if enable_nan_debug and grad_norm > gradient_clip * 10:
                             print(
                                 f"[DEBUG] Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})",

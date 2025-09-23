@@ -46,6 +46,15 @@ def pytest_configure(config):
         "ignore:.*autograd.function.Function.*should not be instantiated:DeprecationWarning",
     )
     config.addinivalue_line("filterwarnings", "ignore:TensorFloat32 tensor cores.*:UserWarning")
+    # Silence upstream PyTorch warnings we intentionally accept for compatibility/perf
+    config.addinivalue_line(
+        "filterwarnings",
+        "ignore:torch.nn.utils.weight_norm is deprecated in favor of torch.nn.utils.parametrizations.weight_norm:UserWarning",
+    )
+    config.addinivalue_line(
+        "filterwarnings",
+        "ignore:Using padding='same' with even kernel lengths and odd dilation may require a zero-padded copy of the input be created:UserWarning",
+    )
 
 
 @pytest.fixture(autouse=True)
