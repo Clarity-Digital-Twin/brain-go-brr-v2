@@ -14,12 +14,6 @@ import numpy as np
 import pytest
 import torch
 
-# Allow skipping performance tests entirely
-skip_perf_tests = pytest.mark.skipif(
-    os.getenv("SKIP_PERF_TESTS", "0") == "1",
-    reason="Performance tests skipped via SKIP_PERF_TESTS=1"
-)
-
 from src.brain_brr.config.schemas import (
     DecoderConfig,
     EncoderConfig,
@@ -28,6 +22,12 @@ from src.brain_brr.config.schemas import (
     ResCNNConfig,
 )
 from src.brain_brr.models import SeizureDetector
+
+# Allow skipping performance tests entirely
+skip_perf_tests = pytest.mark.skipif(
+    os.getenv("SKIP_PERF_TESTS", "0") == "1",
+    reason="Performance tests skipped via SKIP_PERF_TESTS=1",
+)
 
 # Mark all tests in this module as performance tests (excluded from CI)
 pytestmark = pytest.mark.performance
@@ -100,7 +100,9 @@ class TestInferenceLatency:
         # CPU: Not tested here (too slow)
         if device.type == "cuda":
             # Get GPU name if possible
-            gpu_name = torch.cuda.get_device_name(device.index) if torch.cuda.is_available() else "unknown"
+            gpu_name = (
+                torch.cuda.get_device_name(device.index) if torch.cuda.is_available() else "unknown"
+            )
 
             # More lenient for consumer GPUs, tighter for datacenter GPUs
             if "RTX" in gpu_name or "GTX" in gpu_name:
@@ -123,14 +125,14 @@ class TestInferenceLatency:
             if warn_only:
                 pytest.skip(f"Performance warning (not failing): {msg}")
             else:
-                assert False, msg
+                pytest.fail(msg)
 
         if median_latency_ms >= median_target:
             msg = f"Median latency {median_latency_ms:.1f}ms exceeds {median_target}ms target for {gpu_name}"
             if warn_only:
                 pytest.skip(f"Performance warning (not failing): {msg}")
             else:
-                assert False, msg
+                pytest.fail(msg)
 
     @pytest.mark.performance
     @pytest.mark.parametrize("batch_size", [1, 2, 4, 8])
