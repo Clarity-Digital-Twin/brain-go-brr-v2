@@ -4,7 +4,7 @@
 data:
   dataset: tuh_eeg
   data_dir: /data/edf/train             # Modal S3 mount path
-  cache_dir: /results/cache/tusz   # Fixed: code will append /train and /val
+  cache_dir: /results/cache/tusz        # Persistent SSD with 3734 cached NPZ files
   sampling_rate: 256
   n_channels: 19
   window_size: 60
@@ -102,12 +102,12 @@ evaluation:
   save_plots: true                     # Generate all visualizations
 
 experiment:
-  name: tcn_full_100ep
-  description: "TCN architecture full training 100 epochs on Modal A100"
+  name: v2.6_tcn_gnn_full
+  description: "v2.6 TCN+BiMamba+GNN+LPE full training on Modal A100"
   seed: 42
   device: cuda                         # Explicit GPU for consistency
-  output_dir: /results/tcn_full_100ep # Modal volume mount
-  cache_dir: /results/cache/tusz # Fixed to match data cache_dir
+  output_dir: /results/v2.6_tcn_gnn_full  # Modal volume mount
+  cache_dir: /results/cache/tusz       # Must match data.cache_dir
   log_level: INFO
   save_model: true
   save_best_only: true
@@ -115,7 +115,7 @@ experiment:
     enabled: true                      # W&B secret configured!
     project: seizure-detection-a100
     entity: jj-vcmcswaggins-novamindnyc  # Your W&B TEAM (matches API key)
-    tags: ["production", "a100", "tuh-seizure"]
+    tags: ["v2.6", "a100", "tcn-mamba-gnn", "production"]
 
 logging:
   log_every_n_steps: 25                # More frequent on fast GPU

@@ -61,6 +61,11 @@ image = (
         "tensorboard>=2.10.0",  # For training metrics
         "wandb",  # Weights & Biases for cloud tracking
         "pytorch-tcn",  # TCN implementation for optimal performance
+        # PyTorch Geometric for GNN+LPE (v2.6 stack)
+        "torch-geometric>=2.4.0",
+        "torch-scatter",
+        "torch-sparse",
+        "torch-cluster",
     )
     # Set working directory before adding local files
     .workdir("/app")
@@ -268,13 +273,13 @@ def train(
     out_name = Path(exp.get("output_dir", "results/run")).name
     exp["output_dir"] = f"/results/{out_name}"
 
-    # For smoke tests, ensure separate cache directory
+    # CRITICAL: Use existing cache on Modal persistent volume
+    # Cache location: /results/cache/tusz/{train,val}/ with 3734 NPZ files
     if "smoke" in config_path.lower():
         cache_dir = "/results/cache/smoke"
     else:
-        cache_dir = exp.get("cache_dir", f"/results/cache/{out_name}")
-        if not str(cache_dir).startswith("/"):
-            cache_dir = f"/results/{cache_dir}"
+        # Use the persistent cache that was built on first run
+        cache_dir = "/results/cache/tusz"  # This has train/ and val/ subdirs
 
     # Set cache_dir in both data and experiment sections
     exp["cache_dir"] = cache_dir

@@ -62,7 +62,7 @@ model:
 data:
   dataset: tuh_eeg
   data_dir: data_ext4/tusz/edf/train  # WSL2 ext4 for performance
-  cache_dir: cache/v2.6_full          # Clean cache for v2.6
+  cache_dir: cache/tusz                # Use existing cache with 3734 files!
   sampling_rate: 256
   n_channels: 19
   window_size: 60

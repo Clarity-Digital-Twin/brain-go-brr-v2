@@ -4,7 +4,7 @@
 data:
   dataset: tuh_eeg
   data_dir: /data/edf/train            # Modal S3 mount path
-  cache_dir: /results/cache/smoke      # Modal persistent volume
+  cache_dir: /results/cache/smoke      # Separate smoke test cache
   sampling_rate: 256
   n_channels: 19
   window_size: 60
@@ -91,8 +91,8 @@ evaluation:
   fa_rates: [10, 5, 2.5, 1]
 
 experiment:
-  name: modal_smoke_test_$(date +%Y%m%d_%H%M%S)
-  description: "Modal A100 smoke test with balanced sampling"
+  name: v2.6_smoke_test
+  description: "v2.6 TCN+BiMamba+GNN+LPE smoke test on Modal A100"
   seed: 42
   device: cuda
   output_dir: /results/smoke
@@ -104,7 +104,7 @@ experiment:
     enabled: true
     project: seizure-detection-smoke
     entity: jj-vcmcswaggins-novamindnyc  # Your W&B TEAM (matches API key)
-    tags: ["smoke-test", "modal", "a100"]
+    tags: ["v2.6", "smoke-test", "modal", "a100"]
 
 logging:
   log_every_n_steps: 10
