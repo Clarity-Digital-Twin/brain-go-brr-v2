@@ -25,7 +25,7 @@ preprocessing:
   use_mne: true
 
 model:
-  architecture: tcn  # TCN + Mamba hybrid architecture
+  architecture: tcn  # TCN + Bi‑Mamba + Dynamic GNN (PyG + LPE)
 
   tcn:
     num_layers: 8
@@ -42,6 +42,22 @@ model:
     d_state: 16
     conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
+
+  # Dynamic GNN with Laplacian PE (PyG canonical backend)
+  graph:
+    enabled: true
+    use_pyg: true           # REQUIRED for Laplacian PE
+    # Graph construction (heuristic adjacency for now)
+    similarity: cosine
+    top_k: 3
+    threshold: 1.0e-4
+    temperature: 0.1
+    # GNN architecture
+    n_layers: 2
+    dropout: 0.1
+    use_residual: true
+    alpha: 0.05             # SSGConv mixing
+    k_eigenvectors: 16      # Laplacian PE dimension
 
 postprocessing:
   hysteresis:

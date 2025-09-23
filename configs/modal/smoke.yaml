@@ -23,7 +23,7 @@ preprocessing:
   normalize: true
 
 model:
-  architecture: tcn  # Use TCN instead of U-Net
+  architecture: tcn  # TCN + Bi‑Mamba + Dynamic GNN (PyG + LPE)
 
   tcn:
     num_layers: 8
@@ -41,6 +41,22 @@ model:
     conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
+  # Dynamic GNN with Laplacian PE (PyG canonical backend)
+  graph:
+    enabled: true
+    use_pyg: true           # REQUIRED for Laplacian PE
+    # Graph construction (heuristic adjacency for smoke)
+    similarity: cosine
+    top_k: 3
+    threshold: 1.0e-4
+    temperature: 0.1
+    # GNN architecture
+    n_layers: 2
+    dropout: 0.1
+    use_residual: true
+    alpha: 0.05
+    k_eigenvectors: 16
+
 postprocessing:
   hysteresis:
     tau_on: 0.86
@@ -57,7 +73,7 @@ postprocessing:
 
 training:
   epochs: 1                            # Just 1 epoch for smoke test
-  batch_size: 128                      # OPTIMIZED: Using full A100 80GB VRAM
+  batch_size: 64                       # Safer with GNN+LPE graph overhead
   loss: focal
   focal_alpha: 0.5
   focal_gamma: 2.0
