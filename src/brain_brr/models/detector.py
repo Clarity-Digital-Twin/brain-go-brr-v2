@@ -177,7 +177,7 @@ class SeizureDetector(nn.Module):
             elec_enhanced = self.gnn(elec_feats, adj)  # (B, 19, T, 64)
 
             # Project back to feature space (19*64 -> 512)
-            elec_flat = elec_enhanced.permute(0, 1, 3, 2).reshape(B, 19 * 64, T)
+            elec_flat = elec_enhanced.permute(0, 1, 3, 2).reshape(batch_size, 19 * 64, seq_len)
             temporal = self.proj_from_electrodes(elec_flat)  # (B, 512, 960)
 
         # Project back to 19 channels and upsample to original resolution
