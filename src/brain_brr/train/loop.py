@@ -602,8 +602,22 @@ def train_epoch(
                                 f"[DEBUG] FP32 logits non-finite count at batch {batch_idx}: {nonfinite}",
                                 flush=True,
                             )
-                    except Exception:
-                        pass
+                            # Check batch composition
+                            pos_ratio = labels.sum().item() / labels.numel()
+                            print(
+                                f"[DEBUG] Batch {batch_idx} positive ratio: {pos_ratio:.4f}",
+                                flush=True,
+                            )
+                            # Check for dead channels
+                            channel_stds = windows.std(dim=[0, 2])  # std across batch and time
+                            dead_channels = (channel_stds < 1e-6).sum().item()
+                            if dead_channels > 0:
+                                print(
+                                    f"[DEBUG] Batch {batch_idx} has {dead_channels} dead channels",
+                                    flush=True,
+                                )
+                    except Exception as e:
+                        print(f"[DEBUG] Error in NaN diagnostics: {e}", flush=True)
                     nan_debug_emitted += 1
                 # Clear gradients but skip update
                 optimizer.zero_grad()
