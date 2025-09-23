@@ -44,12 +44,12 @@ class DynamicGraphBuilder(nn.Module):
 
         # Reshape for batch processing
         features_flat = features.permute(0, 2, 1, 3)  # (B, T, 19, D)
-        features_flat = features_flat.reshape(B * T, N, D)
+        features_flat = features_flat.reshape(batch_size * seq_len, n_nodes, feat_dim)
 
         # Compute similarity
         if self.similarity == 'cosine':
             # Normalize features
-            features_norm = F.normalize(features_flat, p=2, dim=-1)
+            features_norm = func.normalize(features_flat, p=2, dim=-1)
             # Compute cosine similarity
             adjacency = torch.bmm(features_norm, features_norm.transpose(1, 2))
             # Scale by temperature
