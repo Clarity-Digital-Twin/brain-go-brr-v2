@@ -61,11 +61,18 @@ image = (
         "tensorboard>=2.10.0",  # For training metrics
         "wandb",  # Weights & Biases for cloud tracking
         "pytorch-tcn",  # TCN implementation for optimal performance
-        # PyTorch Geometric for GNN+LPE (v2.6 stack)
-        "torch-geometric>=2.4.0",
-        "torch-scatter",
-        "torch-sparse",
-        "torch-cluster",
+    )
+    # CRITICAL: Install PyTorch Geometric with exact versions for PyTorch 2.2.2 + CUDA 12.1
+    # These MUST match our local setup exactly!
+    .run_commands(
+        "pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.2.0+cu121.html"
+    )
+    .run_commands(
+        "pip install torch-geometric==2.6.1"
+    )
+    # Verify PyG imports correctly
+    .run_commands(
+        "python -c 'import torch_geometric; print(f\"✅ PyG {torch_geometric.__version__} installed\")'"
     )
     # Set working directory before adding local files
     .workdir("/app")
