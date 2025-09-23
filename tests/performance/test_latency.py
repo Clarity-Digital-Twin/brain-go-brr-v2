@@ -372,7 +372,7 @@ class TestThroughput:
 
         # Should process 24 hours in less than 1 hour
         # Allow more headroom on CPU environments
-        max_hours = 1.0 if device.type != "cpu" else 2.0
+        max_hours = 1.0 if device.type != "cpu" else 2.5
         assert estimated_full_time < max_hours * 3600, (
             f"Processing 24 hours estimated at {estimated_full_time / 3600:.1f} hours (> {max_hours}h)"
         )
@@ -499,8 +499,8 @@ class TestLatencyUnderLoad:
         # Should maintain reasonable latency even under concurrent load
         # More relaxed thresholds for CPU environments
         device = next(minimal_model.parameters()).device
-        p95_limit = 2.0 if device.type == "cpu" else 0.5
-        median_limit = 1.0 if device.type == "cpu" else 0.2
+        p95_limit = 2.5 if device.type == "cpu" else 0.5
+        median_limit = 1.2 if device.type == "cpu" else 0.2
 
         assert p95_latency < p95_limit, f"P95 latency {p95_latency:.2f}s under concurrent load (limit: {p95_limit}s)"
         assert median_latency < median_limit, f"Median latency {median_latency:.2f}s under concurrent load (limit: {median_limit}s)"

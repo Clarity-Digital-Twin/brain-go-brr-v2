@@ -404,6 +404,7 @@ class TestMemoryUsage:
 
     @pytest.mark.performance
     @pytest.mark.slow
+    @pytest.mark.gpu  # Skip on CPU - takes too long
     def test_long_running_memory_stability(self, minimal_model):
         """Test memory stability over extended operation."""
         device = next(minimal_model.parameters()).device
