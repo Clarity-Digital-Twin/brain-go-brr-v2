@@ -1,36 +1,26 @@
-# TUSZ training configuration - WSL2-safe version
-# Prevents OOM and multiprocessing issues on local WSL2 systems
+# v2.6 Stack Training: TCN + Bi-Mamba + Dynamic GNN with Laplacian PE
+# Optimized for RTX 4090 (24GB VRAM) with NaN protections
+# Based on EvoBrain proven parameters + RTX 4090 best practices
 #
-# IMPORTANT GPU REQUIREMENTS:
-# - Minimum: NVIDIA RTX 4090 or equivalent (24GB VRAM)
-# - CPU-only training is impractical (~40s/batch vs ~0.5s/batch on 4090)
-# - Estimated training time for 100 epochs on RTX 4090: ~16-20 hours
-# - Estimated training time on CPU: ~4 years (NOT RECOMMENDED)
+# IMPORTANT:
+# - Install PyG first: uv sync -E graph
+# - Ensure cache is clean or rebuild: rm -rf cache/v2.6_full && make build-cache
+# - Monitor for NaNs: export BGB_NAN_DEBUG=1 BGB_SANITIZE_INPUTS=1
+# - If NaNs persist: disable mixed_precision or reduce learning_rate
 
-data:
-  dataset: tuh_eeg
-  data_dir: data_ext4/tusz/edf/train   # FAST ext4! root containing .edf + .csv pairs
-  cache_dir: cache/tusz                 # REUSE EXISTING CACHE!
-  sampling_rate: 256
-  n_channels: 19
-  window_size: 60
-  stride: 10
-  num_workers: 4                        # Parallel data loading (tested OK on WSL2)
-  pin_memory: true                       # Faster GPU transfers
-  persistent_workers: true               # Reuse workers between epochs
-  prefetch_factor: 2                     # Pre-load 2 batches per worker
-  validation_split: 0.2
-  use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling
-
-preprocessing:
-  montage: "10-20"
-  bandpass: [0.5, 120]
-  notch_freq: 60
-  normalize: true
-  use_mne: true
+experiment:
+  name: v2.6_full
+  description: "v2.6 stack full training - TCN+BiMamba+GNN+LPE on RTX 4090"
+  seed: 42
+  output_dir: results/v2.6_full
+  cache_dir: cache/v2.6_full
+  device: cuda
+  log_level: INFO
+  save_model: true
+  save_best_only: true
 
 model:
-  architecture: tcn  # Use TCN instead of U-Net
+  architecture: tcn
 
   tcn:
     num_layers: 8
@@ -40,30 +30,98 @@ model:
     causal: false
     stride_down: 16
     use_cuda_optimizations: true
+
   mamba:
     n_layers: 6
     d_model: 512
     d_state: 16
-    conv_kernel: 4
+    conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
-  # Dynamic GNN with Laplacian PE (EvoBrain-inspired)
+  # Dynamic GNN with Laplacian PE (EvoBrain architecture)
   graph:
     enabled: true
-    similarity: cosine       # EvoBrain proven
-    top_k: 3                # Sparse connectivity
-    threshold: 1.0e-4       # Edge pruning
-    temperature: 0.1        # Softmax temperature
-    n_layers: 2             # 2-layer GNN
+    use_pyg: true           # CRITICAL: Use PyG for Laplacian PE!
+    # Graph construction
+    similarity: cosine      # EvoBrain proven
+    top_k: 3               # Sparse connectivity (EvoBrain best)
+    threshold: 1.0e-4      # Edge pruning threshold
+    temperature: 0.1       # Softmax temperature
+    # GNN architecture
+    n_layers: 2            # 2-layer GNN (EvoBrain proven)
     dropout: 0.1
-    use_residual: true
-    alpha: 0.05             # SSGConv mixing (EvoBrain default)
-    use_pyg: false          # Pure PyTorch for now
-    k_eigenvectors: 16      # Laplacian PE dimension
+    use_residual: true     # Skip connections
+    # Critical EvoBrain parameters - DO NOT CHANGE
+    alpha: 0.05            # SSGConv mixing parameter
+    k_eigenvectors: 16     # Laplacian PE dimension
 
   decoder:
     stages: 4
     kernel_size: 4
+
+data:
+  dataset: tuh_eeg
+  data_dir: data_ext4/tusz/edf/train  # WSL2 ext4 for performance
+  cache_dir: cache/v2.6_full          # Clean cache for v2.6
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60
+  stride: 10
+  use_balanced_sampling: true         # CRITICAL for imbalanced data
+  num_workers: 4                      # Optimal for WSL2
+  pin_memory: true                    # Faster GPU transfer
+  persistent_workers: true            # Reuse workers
+  prefetch_factor: 2                  # Pre-load batches
+  validation_split: 0.2
+
+preprocessing:
+  montage: "10-20"
+  bandpass: [0.5, 120.0]
+  notch_freq: 60
+  normalize: true
+  use_mne: true
+
+training:
+  epochs: 100
+
+  # RTX 4090 optimal batch size with GNN (24GB VRAM)
+  # Start conservative, increase if stable
+  batch_size: 12  # Was 8 without GNN, 6 with GNN in old configs
+
+  # Conservative learning rate for stability
+  # RTX 4090 best practice: start low, increase if stable
+  learning_rate: 1.5e-4  # Reduced from 3e-4 for stability
+  weight_decay: 0.05
+  optimizer: adamw
+
+  # RTX 4090 NaN protections
+  gradient_clip: 1.0      # Critical for stability
+
+  # Mixed precision OFF by default for RTX 4090 stability
+  # Only enable after confirming no NaNs with a smoke test
+  mixed_precision: false  # Set true only after stable training confirmed
+
+  # Alternative if FP16 causes issues (requires PyTorch 2.0+):
+  # mixed_precision_dtype: bfloat16  # More stable than fp16
+
+  # Focal loss for extreme class imbalance
+  loss: focal
+  focal_alpha: 0.5       # Neutral alpha (let pos_weight handle imbalance)
+  focal_gamma: 2.0       # Focus on hard examples
+
+  # Learning rate schedule
+  scheduler:
+    type: cosine
+    warmup_ratio: 0.03   # 3% warmup
+
+  # Early stopping
+  early_stopping:
+    patience: 5
+    metric: sensitivity_at_10fa
+
+  # Checkpointing
+  checkpoint_interval: 5  # Save every 5 epochs
+  gradient_accumulation_steps: 1  # Can increase if batch_size too small
 
 postprocessing:
   hysteresis:
@@ -79,43 +137,31 @@ postprocessing:
     tau_merge: 2.0
     confidence_method: mean
 
-training:
-  epochs: 100                          # full training - will early stop if converged
-  batch_size: 8                        # WSL2-safe: reduced from 16 to prevent OOM
-  loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
-  focal_alpha: 0.5                     # Neutral alpha; rely on pos_weight from dataset sample
-  focal_gamma: 2.0                     # Focusing parameter (higher = more focus on hard examples)
-  learning_rate: 3e-4
-  weight_decay: 0.05
-  optimizer: adamw
-  scheduler:
-    type: cosine
-    warmup_ratio: 0.03
-  gradient_clip: 1.0
-  mixed_precision: true
-  early_stopping:
-    patience: 5
-    metric: sensitivity_at_10fa
-  checkpoint_interval: 5               # Save every 5 epochs for safety
-
 evaluation:
   metrics: [taes, sensitivity, specificity, auroc]
   fa_rates: [10, 5, 2.5, 1]
   save_predictions: false
   save_plots: false
 
-experiment:
-  name: tcn_full_100ep
-  description: "TCN architecture full training 100 epochs"
-  seed: 42
-  device: cuda  # REQUIRED: Must use CUDA
-  output_dir: results/tcn_full_100ep
-  cache_dir: cache/tusz
-  log_level: INFO
-  save_model: true
-  save_best_only: true
-
 logging:
   log_every_n_steps: 50
   log_gradients: false
   log_weights: false
+
+  # Optional: Enable W&B if configured
+  wandb:
+    enabled: false
+    project: seizure-detection-v2.6
+    tags: ["v2.6", "rtx4090", "tcn-mamba-gnn"]
+
+# RTX 4090 specific settings (not used by current code but documented)
+resources:
+  compile_model: false   # torch.compile incompatible with Mamba CUDA kernels
+  tf32_mode: true       # RTX 4090 tensor cores optimization
+  cudnn_benchmark: true # Auto-tune convolutions
+
+# Debug environment variables (set these for troubleshooting):
+# export BGB_NAN_DEBUG=1          # Enable NaN debugging
+# export BGB_SANITIZE_INPUTS=1    # Replace NaN/Inf with zeros
+# export BGB_ANOMALY_DETECT=1     # PyTorch anomaly detection (slow!)
+# export BGB_DISABLE_TQDM=0       # Keep progress bars locally
