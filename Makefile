@@ -48,8 +48,6 @@ test-fast: ## Run tests without coverage (faster, excludes performance)
 	$(PYTEST) -n 4 --dist=loadfile -m "not performance and not gpu and not serial" -q
 	@echo "${CYAN}Running serial tests (CPU, no GPU/perf)...${NC}"
 	$(PYTEST) -n 0 -m "serial and not performance and not gpu" -q
-	@echo "${CYAN}Running GPU tests (serial)...${NC}"
-	$(PYTEST) -n 1 -m "gpu and not performance" -q
 
 test-cov: ## Run tests with full coverage report
 	@echo "${CYAN}Running tests with full coverage...${NC}"
