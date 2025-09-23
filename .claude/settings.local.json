@@ -133,7 +133,8 @@
       "Bash(ls:*)",
       "Bash(while ! tmux capture-pane -t perf_tests -p)",
       "Bash(while ! tail -1 perf_test_final.log)",
-      "Bash(killall:*)"
+      "Bash(killall:*)",
+      "Bash(.venv/bin/ruff check src/brain_brr/train/loop.py --fix)"
     ],
     "deny": [],
     "ask": []
