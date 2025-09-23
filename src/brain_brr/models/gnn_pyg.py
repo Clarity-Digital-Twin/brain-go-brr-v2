@@ -125,7 +125,19 @@ class GraphChannelMixerPyG(nn.Module):
                 )
 
                 # Add Laplacian PE (EvoBrain line 950)
-                data = self.laplacian_pe(data)
+                # Detach edge weights for PE computation to avoid gradient issues
+                with torch.no_grad():
+                    data_for_pe = Data(
+                        x=data.x,
+                        edge_index=data.edge_index,
+                        edge_weight=data.edge_weight.detach()
+                        if data.edge_weight is not None
+                        else None,
+                    )
+                    data_for_pe = self.laplacian_pe(data_for_pe)
+                    # Copy PE back to original data
+                    if hasattr(data_for_pe, "laplacian_eigenvector_pe"):
+                        data.laplacian_eigenvector_pe = data_for_pe.laplacian_eigenvector_pe
                 batch_list.append(data)
 
             # Batch graphs

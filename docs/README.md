@@ -24,14 +24,11 @@
   - [`canonical-spec.md`](02-model/architecture/canonical-spec.md) - Legacy (pre‑v2.3); see Current State
   - [`current-state.md`](02-model/architecture/current-state.md) - Current runtime architecture (TCN path)
   - [`tcn-replacement.md`](02-model/architecture/tcn-replacement.md) - TCN replacement details and rationale
-  - [`full-model.md`](02-model/architecture/full-model.md) - Legacy U‑Net path (for ablations)
+  - (Legacy U‑Net path moved to archive)
   - [`pipeline-diagram.md`](02-model/architecture/pipeline-diagram.md) - Model pipeline visualization
 - **components/** - Individual model components
   - [`mamba.md`](02-model/components/mamba.md) - Bi‑Mamba‑2 (O(N))
-  - Legacy (pre‑v2.3):
-    - [`unet.md`](02-model/components/unet.md) - U‑Net encoder/decoder (not used in TCN path)
-    - [`rescnn.md`](02-model/components/rescnn.md) - Residual CNN blocks (not used in TCN path)
-    - [`decoder.md`](02-model/components/decoder.md) - U‑Net decoder (superseded by Projection+Upsample head)
+  - Legacy components moved to archive (pre‑v2.3)
 - **deployment/** - Deployment-specific architecture
   - [`architecture.md`](02-model/deployment/architecture.md) - CUDA/Modal deployment details
   - [`mamba-kernels.md`](02-model/deployment/mamba-kernels.md) - d_conv kernel decisions
@@ -63,7 +60,8 @@
   - [`direction.md`](04-research/future/direction.md) - Overall future plans
   - [`roadmap.md`](04-research/future/roadmap.md) - Experimental stack roadmap
   - [`gnn-tcn-stack.md`](04-research/future/gnn-tcn-stack.md) - GNN-TCN architecture exploration
-  - [`v2_6_dynamic_gnn_lpe_plan.md`](../v2_6_dynamic_gnn_lpe_plan.md) - Implementation plan for Dynamic GNN + LPE (temporarily living at repo root during revisions)
+  - [`v2_6_dynamic_gnn_lpe_plan.md`](04-research/future/v2_6_dynamic_gnn_lpe_plan.md) - Plan for Dynamic GNN + LPE with learned adjacency (edge Mamba)
+  - [`v3_tcn_evobrain_hybrid.md`](02-model/architecture/v3_tcn_evobrain_hybrid.md) - V3 (TCN + dual‑stream EvoBrain + PyG GNN + LPE)
 - **benchmarks/** - Performance benchmarking
   - [`plans.md`](04-research/benchmarks/plans.md) - Benchmark planning
   - [`results.md`](04-research/benchmarks/results.md) - Benchmark results
@@ -110,3 +108,9 @@ make q              # Lint + format + type check
 - [CLAUDE.md](../CLAUDE.md) - AI assistant guide
 - [AGENTS.md](../AGENTS.md) - Agent configuration
 - [CHANGELOG.md](../CHANGELOG.md) - Version history
+
+## 🗄️ Archive (Legacy, pre‑v2.3)
+- [U‑Net Encoder/Decoder](archive/unet.md)
+- [ResCNN Stack](archive/rescnn.md)
+- [Decoder (Upsampling)](archive/decoder.md)
+- [Full Model (U‑Net path)](archive/full-model.md)

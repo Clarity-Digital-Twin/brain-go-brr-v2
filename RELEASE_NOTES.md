@@ -45,6 +45,7 @@ model:
     d_model: 512
     d_state: 16
     conv_kernel: 4  # CUDA constraint
+    # v2.6 preview: Dynamic GNN + LPE will use learned adjacency from an edge Mamba stream (no heuristic cosine/correlation graphs). PyG SSGConv (alpha=0.05) + Laplacian PE (k=16) is the canonical backend.
 ```
 
 ### 📊 Training Progress

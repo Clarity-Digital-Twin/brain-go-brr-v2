@@ -18,6 +18,7 @@ except ImportError:
     HAS_PYG = False
 
 
+@pytest.mark.serial
 class TestGNNIntegration:
     """Test GNN integration with detector."""
 

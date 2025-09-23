@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Docs: Converged on pure GNN + Laplacian PE with learned adjacency (edge Mamba stream). Removed heuristic cosine/correlation graph builder from plans and guidance.
+- AGENTS.md: Updated architecture to TCN + Bi‑Mamba with optional Dynamic GNN; corrected Mamba CUDA note (conv_kernel=4).
+- README: Added v2.6 design decisions (learned adjacency; PyG+LPE canonical).
+- Plans: Rewrote v2.6 guides to specify edge stream + adjacency assembly; updated tests and config guidance.
+
 ## [2.3.0] - 2025-09-23
 
 ### Changed

@@ -4,12 +4,12 @@
 data:
   dataset: tuh_eeg
   data_dir: /data/edf/train            # Modal S3 mount path
-  cache_dir: /results/cache/smoke      # Modal persistent volume
+  cache_dir: /results/cache/tusz      # Separate smoke test cache
   sampling_rate: 256
   n_channels: 19
   window_size: 60
   stride: 10
-  num_workers: 4                       # A100 can handle workers
+  num_workers: 0                       # Let Modal handle internally - avoid CPU bottleneck
   pin_memory: true                     # A100 optimized
   persistent_workers: true              # A100 optimized
   prefetch_factor: 4
@@ -23,7 +23,7 @@ preprocessing:
   normalize: true
 
 model:
-  architecture: tcn  # Use TCN instead of U-Net
+  architecture: tcn  # TCN + Bi‑Mamba + Dynamic GNN (PyG + LPE)
 
   tcn:
     num_layers: 8
@@ -41,6 +41,22 @@ model:
     conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
+  # Dynamic GNN with Laplacian PE (PyG canonical backend)
+  graph:
+    enabled: true
+    use_pyg: true           # REQUIRED for Laplacian PE
+    # Graph construction (heuristic adjacency for smoke)
+    similarity: cosine
+    top_k: 3
+    threshold: 1.0e-4
+    temperature: 0.1
+    # GNN architecture
+    n_layers: 2
+    dropout: 0.1
+    use_residual: true
+    alpha: 0.05
+    k_eigenvectors: 16
+
 postprocessing:
   hysteresis:
     tau_on: 0.86
@@ -57,30 +73,30 @@ postprocessing:
 
 training:
   epochs: 1                            # Just 1 epoch for smoke test
-  batch_size: 128                      # OPTIMIZED: Using full A100 80GB VRAM
+  batch_size: 64                       # Safer with GNN+LPE graph overhead
   loss: focal
   focal_alpha: 0.5
   focal_gamma: 2.0
-  learning_rate: 3e-4
+  learning_rate: 5e-5                  # Reduced from 3e-4 for NaN stability
   weight_decay: 0.05
   optimizer: adamw
   scheduler:
     type: cosine
     warmup_ratio: 0.03
-  gradient_clip: 1.0
-  mixed_precision: true
+  gradient_clip: 0.5                   # Stronger clipping for NaN protection
+  mixed_precision: false               # DISABLED - causes NaN issues
 
 evaluation:
   metrics: [taes, sensitivity, specificity, auroc]
   fa_rates: [10, 5, 2.5, 1]
 
 experiment:
-  name: modal_smoke_test_$(date +%Y%m%d_%H%M%S)
-  description: "Modal A100 smoke test with balanced sampling"
+  name: v2.6_smoke_test
+  description: "v2.6 TCN+BiMamba+GNN+LPE smoke test on Modal A100"
   seed: 42
   device: cuda
   output_dir: /results/smoke
-  cache_dir: /results/cache/smoke
+  cache_dir: /results/cache/tusz
   log_level: INFO
   save_model: false
   # BGB_LIMIT_FILES set automatically in app.py for smoke configs
@@ -88,7 +104,7 @@ experiment:
     enabled: true
     project: seizure-detection-smoke
     entity: jj-vcmcswaggins-novamindnyc  # Your W&B TEAM (matches API key)
-    tags: ["smoke-test", "modal", "a100"]
+    tags: ["v2.6", "smoke-test", "modal", "a100"]
 
 logging:
   log_every_n_steps: 10

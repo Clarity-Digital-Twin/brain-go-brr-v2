@@ -805,6 +805,10 @@ def validate_epoch(
     total_loss = 0.0
     num_batches = 0
 
+    # Print validation start message
+    n_val_batches = len(dataloader)
+    print(f"[VALIDATION] Starting validation with {n_val_batches} batches...", flush=True)
+
     # Robust tqdm handling for Modal/non-TTY environments
     use_tqdm = not os.getenv("BGB_DISABLE_TQDM")
     progress_bar = None  # Initialize for cleanup
@@ -839,7 +843,10 @@ def validate_epoch(
             iterator = dataloader
 
         try:
-            for windows, labels in iterator:
+            last_heartbeat = time.time()
+            heartbeat_interval = 120  # Print progress every 2 minutes
+
+            for batch_idx, (windows, labels) in enumerate(iterator):
                 windows = windows.to(device_obj)
                 labels = labels.to(device_obj)
 
@@ -857,6 +864,17 @@ def validate_epoch(
 
                 total_loss += loss.item()
                 num_batches += 1
+
+                # Print heartbeat for long validation loops
+                current_time = time.time()
+                if current_time - last_heartbeat > heartbeat_interval:
+                    avg_loss = total_loss / max(1, num_batches)
+                    print(
+                        f"[VAL HEARTBEAT] Batch {batch_idx}/{len(dataloader)} | "
+                        f"Avg Loss: {avg_loss:.4f}",
+                        flush=True,
+                    )
+                    last_heartbeat = current_time
         finally:
             # Clean up tqdm progress bar
             if progress_bar is not None and hasattr(progress_bar, "close"):
@@ -864,6 +882,8 @@ def validate_epoch(
                     progress_bar.close()
 
     # Concatenate all batches
+    print(f"[VALIDATION] Completed {num_batches} batches, computing metrics...", flush=True)
+
     all_probs_tensor = torch.cat(all_probs, dim=0)
     all_labels_tensor = torch.cat(all_labels, dim=0)
 
@@ -878,6 +898,8 @@ def validate_epoch(
 
     # Add validation loss
     metrics["val_loss"] = total_loss / max(1, num_batches)
+
+    print(f"[VALIDATION] Done! Val Loss: {metrics['val_loss']:.4f}", flush=True)
 
     return metrics
 

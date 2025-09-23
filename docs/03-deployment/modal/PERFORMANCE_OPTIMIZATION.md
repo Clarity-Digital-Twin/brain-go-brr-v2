@@ -103,6 +103,18 @@ Mamba CUDA kernels don't support torch.compile:
 3. **A100 needs FP16** - It's 4x slower at FP32 than RTX 4090
 4. **Always verify assumptions** - We optimized the wrong thing!
 
+## CPU and Memory Sizing
+
+- Prefer 16–32 CPU cores to keep 8–12 DataLoader workers fed (2–4 cores per worker).
+- Use 64–128 GB RAM to accommodate large validation sets (often larger than training).
+- Keep caches on Modal SSD volume (`/results/cache/...`) — never on S3.
+
+## Validation Throughput and Logging
+
+- Validation can have more batches than training (e.g., ~810 vs ~778) and used to appear idle.
+- The training loop now logs validation start, 2‑minute heartbeats, and completion with average loss.
+- Use `modal app logs <app-id>` to monitor these messages during long validations.
+
 ## Commands
 
 ### Full Training (Optimized)

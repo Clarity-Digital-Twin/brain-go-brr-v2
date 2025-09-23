@@ -72,6 +72,7 @@ Observability & logging (Modal)
 - Add `flush=True` to key prints (epoch start/end, validation metrics, progress).
 - Periodic progress: print every N batches (e.g., every 100) with loss and lr.
 - Add a simple heartbeat (every ~5 minutes) to avoid long silent periods.
+  - Validation specifically: start/heartbeat/completion messages are printed; validation can be larger than training.
 - Metrics:
   - TensorBoard (local and cloud): write to `/results/runs` and optionally serve.
   - Weights & Biases: initialize `wandb.init(...)` and log `train/` and `val/` scalars.

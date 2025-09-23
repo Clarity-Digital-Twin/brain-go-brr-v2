@@ -24,3 +24,4 @@ Shapes (time length shown; channels in middle)
 Notes
 - Preserve 19‑ch semantics by decoding back to 19 channels before the head.
 - Use residual/skip fusion by concatenation, then Conv1d blocks.
+

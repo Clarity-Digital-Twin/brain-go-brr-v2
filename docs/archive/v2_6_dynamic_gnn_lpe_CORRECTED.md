@@ -1,7 +1,7 @@
 # 🧠🔥 v2.6 Dynamic GNN + LPE - CORRECTED IMPLEMENTATION GUIDE
 
 ## 🎯 EXECUTIVE SUMMARY
-Add Dynamic GNN with Laplacian PE after Bi‑Mamba in the TCN path. EvoBrain reports +23% AUROC and +30% F1 over its baseline; treat as directional guidance, not guaranteed here.
+Add Dynamic GNN with Laplacian PE after Bi‑Mamba in the TCN path, driven by a learned adjacency from an edge Mamba stream (no heuristic cosine/correlation graphs). EvoBrain reports +23% AUROC and +30% F1 over its baseline; treat as directional guidance, not guaranteed here.
 
 **CRITICAL**: EvoBrain uses Mamba for BOTH node and edge streams (lines 1010-1011), not just temporal!
 
@@ -14,7 +14,7 @@ EEG (19ch, 256Hz) → TCN Encoder → Bi-Mamba → Projection → Upsample → D
 
 ## 🚀 TARGET ARCHITECTURE (v2.6)
 ```
-EEG → TCN Encoder → Bi‑Mamba → [Dynamic GNN + LPE] → ProjectionHead → Detection
+EEG → TCN Encoder → Bi‑Mamba → [Edge stream → learned adjacency → GNN+LPE] → ProjectionHead → Detection
                                         ↑
                      Insert after Bi‑Mamba, before proj_head(…)
 
@@ -35,104 +35,18 @@ Evidence anchors (code and refs):
 
 ---
 
-## 📦 PHASE 1: PURE-TORCH MVP (NO DEPENDENCIES)
+## 📦 PHASE 1: EDGE STREAM + LEARNED ADJACENCY (PURE TORCH)
 
-### 1.1 Dynamic Graph Builder
-**File**: `src/brain_brr/models/graph_builder.py`
+### 1.1 Edge Feature Extractor
+From electrode features `elec_feats` (B, 19, T, 64), produce per‑edge scalar time series `edge_feat` (B, E, T), where E is number of edges. Start with cosine per timestep between electrode embeddings (can swap to coherence later). Keep a fixed edge index mapping for packing/unpacking.
 
-```python
-"""Dynamic graph builder for time-varying electrode connectivity.
+### 1.2 Edge Temporal Model (Bi‑Mamba)
+Run a Bi‑Mamba over `edge_feat` across time to obtain `edge_temporal` (B, E, T).
 
-Based on EvoBrain implementation with proven parameters for EEG.
-"""
+### 1.3 Edge→Weight Head and Adjacency Assembly
+Apply Linear(1→1) + Softplus per edge to obtain non‑negative weights, assemble adjacency per timestep, symmetrize, apply top‑k per node then threshold, normalize rows, and use identity fallback for empty rows.
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as func  # Ruff N812: lowercase alias required
-
-
-class DynamicGraphBuilder(nn.Module):
-    """Build time-evolving adjacency matrices from features.
-
-    FROM EVOBRAIN (lines 970-981):
-    - Dynamic graph per timestep
-    - Top-k sparsification (critical!)
-    - Threshold pruning at 1e-4
-    - Symmetric adjacency for undirected graphs
-    """
-
-    def __init__(
-        self,
-        similarity: str = "cosine",  # EvoBrain default
-        top_k: int = 3,  # EvoBrain: proven best for EEG
-        threshold: float = 1e-4,  # EvoBrain: edge weight cutoff
-        temperature: float = 0.1,
-    ):
-        super().__init__()
-        self.similarity = similarity
-        self.top_k = top_k
-        self.threshold = threshold
-        self.temperature = temperature
-
-    def forward(self, features: torch.Tensor) -> torch.Tensor:
-        """Build dynamic adjacency matrices.
-
-        Args:
-            features: (B, 19, T, D) electrode features
-
-        Returns:
-            adjacency: (B, T, 19, 19) time-varying adjacency
-        """
-        # Use lowercase for PEP8 compliance (Ruff N806)
-        batch_size, n_nodes, seq_len, feat_dim = features.shape
-
-        # Reshape for batch processing
-        features_flat = features.permute(0, 2, 1, 3)  # (B, T, 19, D)
-        features_flat = features_flat.reshape(batch_size * seq_len, n_nodes, feat_dim)
-
-        # Compute similarity
-        if self.similarity == "cosine":
-            # Normalize features
-            features_norm = func.normalize(features_flat, p=2, dim=-1)
-            # Compute cosine similarity
-            adjacency = torch.bmm(features_norm, features_norm.transpose(1, 2))
-            # Scale by temperature
-            adjacency = adjacency / self.temperature
-        elif self.similarity == "correlation":
-            # Center features
-            features_centered = features_flat - features_flat.mean(dim=-1, keepdim=True)
-            # Compute correlation
-            adjacency = torch.bmm(features_centered, features_centered.transpose(1, 2))
-            # Normalize
-            std = features_centered.std(dim=-1, keepdim=True) + 1e-6
-            adjacency = adjacency / (std @ std.transpose(1, 2))
-        else:
-            raise ValueError(f"Unknown similarity: {self.similarity}")
-
-        # Apply softmax for probability distribution
-        adjacency = func.softmax(adjacency, dim=-1)
-
-        # Top-k sparsification (EvoBrain critical!)
-        if self.top_k < n_nodes:
-            # Keep only top-k edges per node
-            topk_vals, topk_idx = torch.topk(adjacency, self.top_k, dim=-1)
-            adjacency_sparse = torch.zeros_like(adjacency)
-            adjacency_sparse.scatter_(-1, topk_idx, topk_vals)
-            adjacency = adjacency_sparse
-
-        # Threshold pruning (EvoBrain: remove weak edges)
-        adjacency = torch.where(adjacency > self.threshold, adjacency, torch.zeros_like(adjacency))
-
-        # Make symmetric (undirected graph for EEG)
-        adjacency = (adjacency + adjacency.transpose(-1, -2)) / 2
-
-        # Reshape back
-        adjacency = adjacency.reshape(batch_size, seq_len, n_nodes, n_nodes)
-
-        return adjacency
-```
-
-### 1.2 Graph Channel Mixer (Pure Torch)
+### 1.4 Graph Channel Mixer (Pure Torch)
 **File**: `src/brain_brr/models/gnn.py`
 
 ```python
@@ -337,11 +251,13 @@ def forward(self, x: torch.Tensor) -> torch.Tensor:
             0, 1, 3, 2
         )  # (B, 19, T, 64)
 
-        # Build dynamic graph (per timestep)
-        adj = self.graph_builder(elec_feats)  # (B, T, 19, 19)
+        # Edge stream → learned adjacency
+        edge_feat = extract_edge_features(elec_feats)  # (B, E, T)
+        edge_temporal = self.edge_mamba(edge_feat)     # (B, E, T)
+        adjacency = assemble_adjacency(edge_temporal)  # (B, T, 19, 19)
 
-        # Apply GNN with dynamic adjacency
-        elec_enhanced = self.gnn(elec_feats, adj)  # (B, 19, T, 64)
+        # Apply GNN with Laplacian PE using learned adjacency
+        elec_enhanced = self.gnn(elec_feats, adjacency)  # (B, 19, T, 64)
 
         # Project back to feature space (19*64 -> 512)
         elec_flat = elec_enhanced.permute(0, 1, 3, 2).reshape(batch_size, 19 * 64, seq_len)
@@ -360,17 +276,15 @@ def forward(self, x: torch.Tensor) -> torch.Tensor:
 
 ```python
 class GraphConfig(BaseModel):
-    """Dynamic GNN configuration based on EvoBrain."""
+    """Dynamic GNN configuration (learned adjacency)."""
 
     enabled: bool = Field(default=False, description="Enable dynamic GNN stage")
 
-    # Graph construction
-    similarity: Literal["cosine", "correlation"] = Field(
-        default="cosine", description="Node similarity metric"
-    )
-    top_k: int = Field(default=3, ge=1, le=18, description="Top-k neighbors per node")
-    threshold: float = Field(default=1e-4, ge=0.0, description="Edge weight cutoff")
-    temperature: float = Field(default=0.1, gt=0.0, description="Similarity softmax temperature")
+    # Edge stream inputs and sparsity
+    edge_features: Literal["cosine", "correlation", "coherence"] = Field(default="cosine")
+    edge_top_k: int = Field(default=3, ge=1, le=18, description="Top-k neighbors per node")
+    edge_threshold: float = Field(default=1e-4, ge=0.0, description="Edge weight cutoff")
+    edge_temperature: float = Field(default=0.1, gt=0.0, description="Softmax temperature before top-k")
 
     # GNN architecture
     n_layers: int = Field(default=2, ge=1, le=4, description="Graph neural network layers")
@@ -381,7 +295,7 @@ class GraphConfig(BaseModel):
     )
 
     # PyG specific (Phase 2)
-    use_pyg: bool = Field(default=False, description="Use PyTorch Geometric implementation")
+    use_pyg: bool = Field(default=True, description="Use PyTorch Geometric implementation (canonical)")
     k_eigenvectors: int = Field(default=16, ge=1, le=18, description="Laplacian PE dimension")
 
 
@@ -417,9 +331,9 @@ Key corrections:
 d_conv = 4          # Mamba CUDA kernel constraint
 d_state = 16        # Mamba state dimension
 k_eigenvectors = 16 # Laplacian PE dimension
-top_k = 3           # Sparse connectivity
+edge_top_k = 3      # Sparse connectivity
 alpha = 0.05        # SSGConv alpha for EEG (but configurable!)
-threshold = 1e-4    # Edge weight cutoff
+edge_threshold = 1e-4
 
 # CORRECTED PARAMETERS
 d_model_per_electrode = 64  # NOT 512! We project 512 -> 19*64
@@ -440,7 +354,6 @@ mamba_for_both_streams = True  # EvoBrain uses Mamba for node AND edge streams
 
 ```bash
 # Phase 1 COMPLETE:
-✅ src/brain_brr/models/graph_builder.py - Created
 ✅ src/brain_brr/models/gnn.py - Created
 ✅ src/brain_brr/models/detector.py - Updated
 ✅ src/brain_brr/config/schemas.py - Updated
