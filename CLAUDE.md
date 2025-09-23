@@ -4,12 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v2: First Bi-Mamba-2 + U-Net + ResCNN for clinical EEG seizure detection — O(N) sequence modeling with bidirectional SSM.
+Brain-Go-Brr v2: TCN + Bi-Mamba-2 + GNN for clinical EEG seizure detection — O(N) sequence modeling with bidirectional SSM and optional graph neural networks.
 
 Why this is different:
 - Transformers struggle on long EEG (O(N²) cost)
 - Pure CNNs miss global temporal context
 - Bidirectional Mamba-2 brings O(N) global context efficiently
+- Optional GNN with Laplacian PE for spatial electrode relationships
 
 ## ⚡ Essential Commands
 
@@ -30,23 +31,25 @@ Why this is different:
 | Component | Specification | Location |
 |-----------|--------------|----------|
 | Input | 19-channel EEG @ 256 Hz | - |
-| U-Net Encoder | [64, 128, 256, 512] channels, ×16 downsample | `src/brain_brr/models/unet.py` |
-| ResCNN | 3 blocks, kernels [3, 5, 7] | `src/brain_brr/models/rescnn.py` |
+| TCN Encoder | Multi-scale temporal, ×16 downsample | `src/brain_brr/models/tcn.py` |
 | Bi-Mamba-2 | 6 layers, d_model=512, d_state=16 | `src/brain_brr/models/mamba.py` |
+| GNN (optional) | PyG SSGConv + Laplacian PE, α=0.05 | `src/brain_brr/models/gnn_pyg.py` |
+| Graph Builder | Heuristic cosine/correlation adjacency | `src/brain_brr/models/graph_builder.py` |
 | Hysteresis | tau_on=0.86, tau_off=0.78 | `src/brain_brr/post/postprocess.py` |
 | Output | Per-timestep probabilities | - |
 
-Full architecture specification: `CANONICAL_ARCHITECTURE_SPEC.md`
+**Note**: Edge Mamba stream for learned adjacency NOT YET IMPLEMENTED (still using heuristic graph builder)
 
 ## 📁 Project Structure
 
 ```
-src/brain_brr/      # Core modules (refactored from /experiments/)
+src/brain_brr/      # Core modules
 ├── models/         # Neural network components
 │   ├── detector.py # Main SeizureDetector class
-│   ├── unet.py    # U-Net encoder/decoder
-│   ├── rescnn.py  # Residual CNN blocks
-│   └── mamba.py   # Bidirectional Mamba-2
+│   ├── tcn.py     # TCN encoder (multi-scale temporal)
+│   ├── mamba.py   # Bidirectional Mamba-2
+│   ├── gnn_pyg.py # PyG GNN with Laplacian PE
+│   └── graph_builder.py # Heuristic adjacency builder
 ├── data/          # EEG preprocessing
 │   ├── loader.py  # EDF handling with MNE
 │   └── dataset.py # PyTorch Dataset
