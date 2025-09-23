@@ -62,7 +62,7 @@ class TestEdgeScalarSeries:
 
         edges = edge_scalar_series(elec, metric="cosine")
 
-        n_edges = n_nodes * (N - 1) // 2  # 171 for N=19
+        n_edges = n_nodes * (n_nodes - 1) // 2  # 171 for n_nodes=19
         assert edges.shape == (batch_size, n_edges, seq_len, 1)
 
     def test_edge_scalar_series_finite(self):
@@ -122,13 +122,13 @@ class TestAssembleAdjacency:
     """Test adjacency matrix assembly."""
 
     def test_assemble_adjacency_shape(self):
-        """Test output shape: (batch_size, seq_len, N, N)."""
+        """Test output shape: (batch_size, seq_len, n_nodes, n_nodes)."""
         batch_size, n_edges, seq_len = 2, 171, 10
         n_nodes = 19
         weights = torch.rand(batch_size, n_edges, seq_len)
 
         adj = assemble_adjacency(weights, n_nodes=n_nodes)
-        assert adj.shape == (batch_size, seq_len, N, N)
+        assert adj.shape == (batch_size, seq_len, n_nodes, n_nodes)
 
     def test_assemble_adjacency_symmetry(self):
         """Test adjacency is symmetric."""
@@ -277,7 +277,7 @@ class TestIntegration:
             symmetric=True,
             identity_fallback=True
         )
-        assert adj.shape == (batch_size, seq_len, N, N)
+        assert adj.shape == (batch_size, seq_len, n_nodes, n_nodes)
 
         # Verify properties
         assert torch.isfinite(adj).all(), "Non-finite values in adjacency"
