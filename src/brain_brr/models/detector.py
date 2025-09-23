@@ -168,7 +168,7 @@ class SeizureDetector(nn.Module):
 
             # Project to electrode space (512 -> 19*64)
             elec_flat = self.proj_to_electrodes(temporal)  # (B, 19*64, 960)
-            elec_feats = elec_flat.reshape(B, 19, 64, T).permute(0, 1, 3, 2)  # (B, 19, T, 64)
+            elec_feats = elec_flat.reshape(batch_size, 19, 64, seq_len).permute(0, 1, 3, 2)  # (B, 19, T, 64)
 
             # Build dynamic graph (per timestep)
             adj = self.graph_builder(elec_feats)  # (B, T, 19, 19)
