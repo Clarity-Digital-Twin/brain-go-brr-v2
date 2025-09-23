@@ -74,6 +74,17 @@ class GraphChannelMixer(nn.Module):
         row_sum = adj_weights.sum(dim=-1, keepdim=True) + 1e-6
         adj_norm = adj_weights / row_sum
 
+        # Robustness: if a row has no outgoing edges after sparsification/thresholding,
+        # fall back to an identity row so the node keeps its own features.
+        # This prevents degenerate zero rows from producing undefined behavior.
+        row_has_edges = (adj_weights > 0).any(dim=-1, keepdim=True)
+        if not row_has_edges.all():
+            identity = (
+                torch.eye(n_nodes, device=adj_norm.device, dtype=adj_norm.dtype)
+                .unsqueeze(0)
+            )  # (1, N, N)
+            adj_norm = adj_norm * row_has_edges + identity * (~row_has_edges)
+
         # Apply GNN layers
         for i in range(self.n_layers):
             # Store residual
