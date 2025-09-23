@@ -119,3 +119,49 @@ Performance (soft marker)
 - We retain our TCN front‑end (strong performance, already integrated) instead of EvoBrain’s exact preprocessing.
 - Processing all timesteps is the canonical setting; “last‑timestep only” can be supported as an ablation flag.
 
+---
+
+## Source & Reference Index (for implementers)
+
+- Our codebase
+  - Detector wiring (time‑then‑graph): `src/brain_brr/models/detector.py:130–162`, factory at `:187–236`.
+  - Bi‑Mamba2 (constraints, conv kernel): `src/brain_brr/models/mamba.py`.
+  - PyG GNN (current slow path): `src/brain_brr/models/gnn_pyg.py:103` (timestep loop), `:110–141` (per‑batch Data), `:130–138` (PE recompute).
+  - Heuristic adjacency builder (to be replaced): `src/brain_brr/models/graph_builder.py:34–90`.
+  - Canonical montage (channel order): `src/brain_brr/constants.py` (list of 19 electrodes).
+  - TCN and projection heads: `src/brain_brr/models/tcn.py`.
+
+- Literature & reference repo
+  - EvoBrain paper summary: `literature/markdown/EVOBRAIN.md/EVOBRAIN.md`.
+  - EvoBrain reference args (top‑k, dynamic graph, node/edge SNNs): `reference_repos/EvoBrain-FBC5/args.py`.
+  - EvoBrain model folder: `reference_repos/EvoBrain-FBC5/model/` (dual‑stream SNNs and GNN components).
+
+## Current GNN+LPE Issues (Investigated) and V3 Fix
+
+Problems observed (confirmed in code):
+- Per‑timestep loop creates thousands of tiny PyG `Data` objects per forward: `src/brain_brr/models/gnn_pyg.py:103,110–141`.
+- Laplacian PE recomputed inside the loop (repeated eigendecomp): `src/brain_brr/models/gnn_pyg.py:130–138`.
+- All graph work runs on CPU; GPU under‑utilized.
+
+V3 resolution (in this plan):
+- Vectorized GNN forward over all `(B*T)` graphs via one disjoint super‑graph batch (no per‑timestep loops).
+- Static Laplacian PE buffer `(19,k)` computed once from 10–20 topology and broadcast at forward; `dynamic_pe` kept as an off‑by‑default flag.
+- Replace heuristic adjacency with learned adjacency from the edge stream (Bi‑Mamba + Linear+Softplus + top‑k/threshold/symmetry + identity fallback).
+
+## Potential Blockers and Mitigations
+
+- PyG install alignment
+  - Ensure `torch-geometric`, `torch-scatter`, `torch-sparse`, `torch-cluster` match Torch/CUDA; use wheels from `https://data.pyg.org` as we did locally.
+
+- Mamba CUDA kernel constraint
+  - Use `conv_kernel=4` (CUDA supports {2,3,4}); set env `SEIZURE_MAMBA_FORCE_FALLBACK=1` to force Conv1d fallback if needed for debug.
+
+- WSL2 data loader behavior
+  - Use `num_workers=0`, `pin_memory=false`, `persistent_workers=false` (already in local configs) to avoid hangs.
+
+- Channel ordering for edges
+  - Always map pairs using the canonical montage in `src/brain_brr/constants.py` to keep edge indexing consistent.
+
+- Validation length vs training
+  - Validation may have more windows than training (by design); logging added in `src/brain_brr/train/loop.py` prevents “hung” perception.
+
