@@ -138,7 +138,9 @@ class GraphChannelMixerPyG(nn.Module):
                 x_with_pe = torch.cat([x, pe], dim=-1)  # (B*19, D+k)
             else:
                 # Fallback if PE computation fails (e.g., disconnected graph)
-                x_with_pe = torch.cat([x, torch.zeros(x.size(0), self.k_eigenvectors).to(device)], dim=-1)
+                x_with_pe = torch.cat(
+                    [x, torch.zeros(x.size(0), self.k_eigenvectors).to(device)], dim=-1
+                )
 
             # Apply GNN layers
             for i in range(self.n_layers):
