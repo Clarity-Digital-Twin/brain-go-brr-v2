@@ -7,29 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.3.0] - 2025-09-22
+## [2.3.0] - 2025-09-23
 
 ### Changed
 - **MAJOR**: Replaced U-Net + ResCNN with Temporal Convolutional Networks (TCN)
-- **Architecture**: Now TCN encoder/decoder (8 layers) + Mamba-2 SSM (6 layers)
-- **Parameters**: Increased to 34.8M (from ~25M) with better temporal modeling
-- **Configs**: All Modal configs updated to TCN + Mamba hybrid architecture
+- **Architecture**: Now TCN encoder (8 layers) + Bi-Mamba-2 (6 layers) + Projection head
+- **Parameters**: ~34M parameters with improved temporal modeling
+- **Configs**: All configs default to TCN architecture (`architecture: tcn`)
+- **Training Loop**: Major robustness improvements for numerical stability
 
 ### Added
-- **TCN Implementation**: Full TCN encoder/decoder with dilated convolutions
-- **pytorch-tcn**: Added dependency for optimized TCN layers
-- **Cache Isolation**: Separate cache directories for smoke/train/dev/eval configs
-- **LR Scheduler Fix**: Suppressed false-positive PyTorch warning on first batch
+- **TCN Implementation**: Full TCN encoder with dilated convolutions and lightweight fallback
+- **NaN Protection**: Comprehensive NaN handling in training loop with diagnostics
+- **Focal Loss Stability**: Numerical stability improvements (logit clamping, p_t bounds)
+- **Gradient Monitoring**: Enhanced gradient norm tracking and clipping
+- **Batch Diagnostics**: Dead channel detection and class imbalance monitoring
+- **Performance Tests**: Hardware-aware latency thresholds (RTX vs A100 GPUs)
+- **Mid-Epoch Checkpointing**: Auto-save during long training runs with configurable intervals
+- **Test Coverage**: NaN robustness test suite (6 comprehensive tests)
 
 ### Fixed
-- **OOM Test Crash**: Reduced memory limits in test_cuda_oom_recovery preventing IDE crashes
-- **Config Bug**: Restored accidentally deleted Mamba config section in train.yaml
-- **Cache Paths**: Fixed collision between smoke and full training caches
+- **NaN Accumulator Bug**: Once total_loss became NaN, it stayed NaN forever - now properly isolated
+- **Focal Loss Underflow**: (1-p_t)^gamma could underflow to 0 with high confidence predictions
+- **Performance Test Regression**: P95 latency tests now hardware-aware (125ms RTX, 110ms A100)
+- **Mixed Precision Stability**: Better FP16 handling with sanitization options
+- **Weight Initialization**: Improved initialization to prevent output explosion
+- **LR Scheduler Warning**: Properly suppressed false-positive on first batch
+- **Import Order**: Fixed linting issues with module-level imports
+
+### Improved
+- **Training Robustness**: Can now recover from intermittent NaN losses
+- **Error Messages**: Clear diagnostics when NaN issues occur
+- **Test Stability**: Performance tests handle system load variance better
+- **Documentation**: Updated all docs to reflect TCN as canonical architecture
 
 ### Removed
-- **U-Net Components**: Deleted unet.py encoder/decoder modules
+- **U-Net Components**: Deleted unet.py encoder/decoder modules (legacy)
 - **ResCNN Blocks**: Removed rescnn.py (replaced by TCN)
-- **Old Architecture Docs**: Cleaned up obsolete U-Net documentation
+- **Legacy Docs**: Marked pre-v2.3 architecture docs as historical
 
 ## [2.1.0] - 2025-09-22
 

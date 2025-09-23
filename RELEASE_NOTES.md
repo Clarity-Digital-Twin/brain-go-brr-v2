@@ -1,31 +1,30 @@
 # Release Notes
 
-## v2.3.0 - TCN Architecture Revolution (2025-09-22)
+## v2.3.0 - TCN Architecture + Training Robustness (2025-09-23)
 
 ### 🚀 Major Architecture Change
 **Replaced U-Net + ResCNN with Temporal Convolutional Networks (TCN)**
 
-The most significant architectural refactor since project inception. TCNs provide superior temporal modeling for EEG signals with dilated convolutions.
+Complete architectural refactor with TCN for superior temporal modeling + massive training stability improvements.
 
-### ✨ Key Changes
+### ✨ Key Highlights
 
-#### Architecture Overhaul
-- **NEW**: TCN encoder/decoder (8 layers, channels [64, 128, 256, 512], stride_down=16)
-- **KEPT**: Bidirectional Mamba-2 SSM (6 layers, d_model=512, d_state=16)
-- **REMOVED**: U-Net encoder/decoder and ResCNN blocks
-- **RESULT**: 34.8M parameters with O(N) complexity
+#### Architecture Revolution
+- **NEW**: TCN encoder (8 layers, dilated convolutions)
+- **KEPT**: Bidirectional Mamba-2 (6 layers, O(N) complexity)
+- **RESULT**: ~34M parameters, faster training, better gradients
 
-#### Critical Bug Fixes
-- Fixed `test_cuda_oom_recovery` causing IDE crashes (reduced memory limits)
-- Suppressed false-positive LR scheduler warnings
-- Fixed Mamba config accidentally deleted from train.yaml
-- Improved cache isolation between configs
+#### Training Robustness 🛡️
+- **NaN Protection**: Comprehensive handling with isolation and diagnostics
+- **Focal Loss Fix**: Numerical stability (clamped logits, bounded p_t)
+- **Gradient Monitoring**: Enhanced tracking and intelligent clipping
+- **Recovery**: Can now continue training through intermittent NaN losses
 
-#### Infrastructure Updates
-- All Modal configs updated to TCN + Mamba hybrid
-- Cache paths properly isolated (smoke/train/dev/eval)
-- Full 100-epoch training launched on Modal A100
-- W&B integration verified with team entity
+#### Critical Fixes 🔧
+- **NaN Accumulator**: Fixed bug where one NaN contaminated all future losses
+- **Focal Underflow**: Prevented (1-p_t)^gamma → 0 with high confidence
+- **Performance Tests**: Hardware-aware thresholds (RTX: 125ms, A100: 110ms)
+- **Mixed Precision**: Better FP16 stability with optional sanitization
 
 ### 🔧 Configuration
 
