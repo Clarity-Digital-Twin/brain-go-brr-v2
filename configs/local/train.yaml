@@ -46,6 +46,21 @@ model:
     d_state: 16
     conv_kernel: 4
     dropout: 0.1
+
+  # Dynamic GNN with Laplacian PE (EvoBrain-inspired)
+  graph:
+    enabled: true
+    similarity: cosine       # EvoBrain proven
+    top_k: 3                # Sparse connectivity
+    threshold: 1.0e-4       # Edge pruning
+    temperature: 0.1        # Softmax temperature
+    n_layers: 2             # 2-layer GNN
+    dropout: 0.1
+    use_residual: true
+    alpha: 0.05             # SSGConv mixing (EvoBrain default)
+    use_pyg: false          # Pure PyTorch for now
+    k_eigenvectors: 16      # Laplacian PE dimension
+
   decoder:
     stages: 4
     kernel_size: 4

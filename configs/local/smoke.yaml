@@ -27,6 +27,20 @@ model:
     conv_kernel: 4  # IMPORTANT: Set to 4 to avoid CUDA coercion warning
     dropout: 0.1
 
+  # Dynamic GNN with Laplacian PE (EvoBrain-inspired)
+  graph:
+    enabled: true
+    similarity: cosine       # EvoBrain proven
+    top_k: 3                # Sparse connectivity
+    threshold: 1.0e-4       # Edge pruning
+    temperature: 0.1        # Softmax temperature
+    n_layers: 2             # 2-layer GNN
+    dropout: 0.1
+    use_residual: true
+    alpha: 0.05             # SSGConv mixing (EvoBrain default)
+    use_pyg: false          # Pure PyTorch for now
+    k_eigenvectors: 16      # Laplacian PE dimension
+
 data:
   dataset: tuh_eeg
   data_dir: data_ext4/tusz/edf/train  # Use TRAIN for smoke tests

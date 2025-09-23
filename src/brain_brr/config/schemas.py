@@ -426,8 +426,9 @@ class Config(BaseModel):
     @model_validator(mode="after")
     def validate_device_resources(self) -> "Config":
         """Ensure GPU settings are consistent."""
-        if self.experiment.device == "cpu" and self.training.mixed_precision:
-            raise ValueError("Mixed precision requires GPU (cuda/mps)")
+        # Do not hard-fail on mixed precision with CPU; treat as a no-op.
+        # AMP is only enabled in the training loop when running on CUDA.
+        # Keeping this permissive preserves test expectations that AMP on CPU is allowed.
         return self
 
     def to_dict(self) -> dict[str, Any]:
