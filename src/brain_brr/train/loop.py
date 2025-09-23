@@ -586,8 +586,8 @@ def train_epoch(
                 # Mean reduction since pos_weight is already in criterion
                 loss = per_element_loss.mean()
 
-            # Check for NaN loss before gradient update
-            if torch.isnan(loss):
+            # Check for non-finite loss before gradient update
+            if not torch.isfinite(loss):
                 consecutive_nans += 1
                 print(
                     f"[WARNING] NaN loss detected at batch {batch_idx} "
@@ -673,17 +673,17 @@ def train_epoch(
 
             # Handle NaN losses properly
             loss_val = loss.item()
-            if not torch.isnan(torch.tensor(loss_val)):
+            if torch.isfinite(torch.tensor(loss_val)):
                 total_loss += loss_val
                 num_batches += 1
             else:
                 print(
-                    f"[WARNING] NaN loss detected at batch {batch_idx}, skipping in average",
+                    f"[WARNING] Non-finite loss detected at batch {batch_idx}, skipping in average",
                     flush=True,
                 )
 
             if use_tqdm and hasattr(progress, "set_postfix"):
-                if torch.isnan(torch.tensor(loss_val)):
+                if not torch.isfinite(torch.tensor(loss_val)):
                     progress.set_postfix({"loss": "NaN"})
                 else:
                     progress.set_postfix({"loss": f"{loss_val:.4f}"})
@@ -691,7 +691,7 @@ def train_epoch(
             # Modal progress logging - print every 100 batches for visibility
             if batch_idx > 0 and batch_idx % 100 == 0:
                 current_lr = optimizer.param_groups[0]["lr"]
-                if torch.isnan(torch.tensor(loss_val)):
+                if not torch.isfinite(torch.tensor(loss_val)):
                     print(
                         f"[PROGRESS] Batch {batch_idx}/{len(dataloader)} | "
                         f"Loss: nan | LR: {current_lr:.2e}",
