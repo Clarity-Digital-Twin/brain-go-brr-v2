@@ -1,148 +1,45 @@
-# 🚨 CRITICAL GNN IMPLEMENTATION DISCREPANCIES - FIX PLAN
+# ✅ Pure GNN + Laplacian PE — Cleanup and Implementation Plan
 
-## ⚠️ VERDICT: PARTIAL IMPLEMENTATION - MISSING CRITICAL COMPONENTS
+Goal: implement a sequential‑then‑graph stack with learned adjacency (edge Mamba stream) and Laplacian PE. Remove heuristic adjacency builders (cosine/correlation) and reflect this across code and docs.
 
-**YES**, our GNN implementation is **INCOMPLETE** compared to EvoBrain. We have:
-- ✅ SSGConv with alpha=0.05
-- ✅ Laplacian PE with k=16
-- ❌ **MISSING: Mamba for EDGE stream processing**
-- ❌ **MISSING: Time-evolving edge embeddings**
-- ❌ **MISSING: Proper sequential-then-graph architecture**
+## Architecture (target)
+- Node stream: TCN → Bi‑Mamba (B, 512, 960)
+- Projection to electrodes: (B, 19, T, 64)
+- Edge stream: per‑edge scalar features per timestep → Bi‑Mamba → Linear + Softplus → adjacency (B, T, 19, 19)
+- GNN: PyG SSGConv (α=0.05) with Laplacian PE (k=16), applied per timestep
+- Back‑projection: (B, 19×64, T) → 1×1 Conv to (B, 512, 960)
 
-## 🔴 CRITICAL MISSING: MAMBA FOR EDGE STREAM
+## Code cleanup (remove/replace)
+- Remove heuristic graph builder usage (cosine/correlation). File can be deprecated and then deleted.
+- Remove “pure torch” GNN as default; keep PyG+LPE as the supported backend for the pure GNN path.
+- Update configs: deprecate `similarity`, `top_k`, `temperature`, `threshold` under `graph`. Replace with `edge_*` controls applied after edge stream.
 
-EvoBrain uses **TWO MAMBA STREAMS** (lines 1010-1011):
-```python
-reduce_edge="mamba",  # EDGE features processed by Mamba
-reduce_node="mamba",  # NODE features processed by Mamba
-```
+## Additions (implement)
+- Edge feature extractor: build per‑edge scalar features from electrode features each timestep.
+- Edge temporal model: Bi‑Mamba over edges across time (shared across edges, batched as (B, E, T)).
+- Edge→weight head: Linear + Softplus; apply sparsity (top‑k), thresholding, and symmetrization; guard against zero rows.
+- Detector wiring: sequential (node) → projection → edge stream → adjacency → GNN+PE → back‑projection → detection.
 
-**OUR IMPLEMENTATION**: Only uses Mamba for node features, then builds static adjacency per timestep.
+## Config changes
+- New: `graph.edge_features: {"cosine", "correlation", "coherence"}` (default: "cosine" as base scalar, not a final heuristic).
+- New: `graph.edge_top_k`, `graph.edge_threshold`, `graph.edge_temperature` (applied post‑edge‑Mamba, not pre‑learned).
+- New: `graph.reduce_edge: {"mamba","gru","lstm"}` (default: "mamba"); reuse `mamba` cfg.
+- Keep: `graph.use_pyg=True`, `graph.k_eigenvectors=16`, `graph.alpha=0.05`, `graph.n_layers=2`.
+- Deprecate: `graph.similarity`, `graph.top_k`, `graph.temperature`, `graph.threshold` (raise deprecation warning; map to new names).
 
-**EVOBRAIN**:
-1. Edge features go through Mamba to learn temporal edge dynamics
-2. Node features go through Mamba to learn temporal node dynamics
-3. BOTH streams feed into GNN
+## Tests (update/add)
+- Remove tests that rely on `DynamicGraphBuilder` adjacency semantics.
+- Add unit tests for edge extractor and adjacency assembly (shape, symmetry, sparsity, identity fallback).
+- Integration: full detector forward with PyG+LPE + edge stream; gradient flow from output to input.
+- Parameter parity: PyG vs pure torch no longer required; PyG is canonical for GNN+LPE.
 
-## 🔴 MISSING: SEQUENTIAL NEURAL NETWORK (SNN) MODULE
+## Docs (update now)
+- AGENTS.md: reflect TCN + Bi‑Mamba + Dynamic GNN (PyG+LPE) and learned adjacency via edge Mamba; Mamba `conv_kernel=4`.
+- README.md: add v2.6 design decisions (learned adjacency; PyG+LPE only).
+- v2_6_dynamic_gnn_lpe_plan.md and v2_6_dynamic_gnn_lpe_CORRECTED.md: remove heuristic builder content; specify edge stream + learned adjacency.
+- CLEANUP_DEBT.md: migration checklist for code removal and config deprecations.
 
-EvoBrain has dedicated `sequentialize()` function that creates:
-- Mamba/MinGRU/LSTM/GRU for temporal processing
-- Separate SNNs for edges AND nodes (lines 863-864):
-```python
-self.snn_edge = sequentialize(reduce_edge, feat_input_size_edge, embed_inside_size)
-self.snn_node = sequentialize(reduce_node, feat_input_size_node, embed_inside_size)
-```
-
-## 🔴 MISSING: EDGE EMBEDDING TRANSFORMATION
-
-EvoBrain processes edge embeddings through:
-1. SNN (Mamba) to get temporal edge embeddings (line 927)
-2. Linear transformation + Softplus activation (lines 869-870, 940)
-3. These become edge weights for GNN
-
-**OUR IMPLEMENTATION**: Just computes cosine similarity - no learned edge dynamics!
-
-## 🔴 ARCHITECTURE MISMATCH
-
-### EvoBrain Flow:
-```
-1. Input features → SNN_node (Mamba) → node_embeds
-2. Adjacency → SNN_edge (Mamba) → edge_embeds
-3. edge_embeds → Linear → Softplus → edge_weights
-4. Combine node_embeds + Laplacian PE
-5. GNN(node_embeds_with_PE, edge_weights) → output
-```
-
-### Our Current Flow:
-```
-1. Mamba(features) → temporal
-2. Build adjacency from cosine similarity (NO LEARNING!)
-3. GNN(temporal, static_adjacency) → output
-```
-
-## 📋 FIX IMPLEMENTATION PLAN
-
-### Step 1: Add Edge Stream Mamba
-```python
-# In detector.py from_config():
-if instance.use_gnn:
-    # Add edge stream Mamba
-    instance.edge_mamba = BidirectionalMamba(
-        d_model=1,  # Edge features are scalar
-        d_state=16,
-        d_conv=4,
-        n_layers=cfg.mamba.n_layers,
-    )
-```
-
-### Step 2: Create Edge Feature Extraction
-```python
-# New method in detector.py:
-def extract_edge_features(self, x: torch.Tensor) -> torch.Tensor:
-    """Extract time-varying edge features from EEG.
-
-    Returns: (B, T, 19*19) edge features
-    """
-    # Compute cross-channel correlations/coherence
-    # This becomes input to edge_mamba
-```
-
-### Step 3: Process Both Streams
-```python
-def forward(self, x):
-    # Node stream (existing)
-    node_features = self.tcn_encoder(x)
-    node_temporal = self.mamba(node_features)
-
-    # Edge stream (NEW)
-    edge_features = self.extract_edge_features(x)
-    edge_temporal = self.edge_mamba(edge_features)
-
-    # Transform edges to weights
-    edge_weights = self.edge_activate(self.edge_transform(edge_temporal))
-
-    # Apply GNN with learned edge weights
-    output = self.gnn(node_temporal, edge_weights)
-```
-
-### Step 4: Fix GNN to Accept Edge Weights
-```python
-# In gnn_pyg.py:
-def forward(self, features, edge_weights):
-    # Use provided edge_weights instead of computing from similarity
-    # These are LEARNED weights from edge Mamba stream
-```
-
-## 🟢 LAPLACIAN PE STATUS: CORRECT
-
-The LPE implementation is **CORRECT**:
-- ✅ Uses AddLaplacianEigenvectorPE(k=16)
-- ✅ Concatenates PE to node features
-- ✅ Applied per timestep batch
-
-## 🎯 PRIORITY FIXES
-
-1. **URGENT**: Add edge stream Mamba
-2. **URGENT**: Remove static adjacency builder, use learned edge weights
-3. **IMPORTANT**: Proper sequential-then-graph flow
-4. **NICE**: Support other SNN options (MinGRU, LSTM)
-
-## 💀 WHY THIS MATTERS
-
-Without edge stream Mamba, we're missing:
-- **Temporal edge dynamics**: How electrode connectivity evolves over time
-- **Learned relationships**: Network is learning what connections matter
-- **23% AUROC gain**: This is likely WHERE the gain comes from!
-
-The current "cosine similarity" approach is a **static heuristic**, not learned dynamics!
-
-## 🚀 NEXT STEPS
-
-1. Implement edge stream Mamba immediately
-2. Modify GNN to use learned edge weights
-3. Add edge feature extraction (cross-channel coherence)
-4. Update tests for dual-stream architecture
-5. Retrain with proper EvoBrain architecture
-
-**BOTTOM LINE**: We built a fucking Toyota when we needed a Ferrari. The edge stream Mamba is CRITICAL for EvoBrain's performance gains!
+## Why this (brief)
+- Temporal edge dynamics matter; heuristics lose information.
+- Laplacian PE stabilizes GNN across changing graphs.
+- Pure learned adjacency keeps the architecture end‑to‑end trainable.
