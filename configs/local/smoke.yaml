@@ -50,7 +50,7 @@ model:
 data:
   dataset: tuh_eeg
   data_dir: data_ext4/tusz/edf/train
-  cache_dir: cache/v2.6_smoke
+  cache_dir: cache/tusz  # Use existing cache for smoke test
   sampling_rate: 256
   n_channels: 19
   window_size: 60
