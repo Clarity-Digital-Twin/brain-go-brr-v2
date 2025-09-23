@@ -72,12 +72,12 @@ preprocessing:
 training:
   epochs: 1               # Just 1 epoch for smoke
   batch_size: 4           # Small for smoke test
-  learning_rate: 1.0e-4   # Conservative for stability
+  learning_rate: 5.0e-5   # Reduced from 1.0e-4 for stability
   weight_decay: 0.05
   optimizer: adamw
 
   # NaN protection for smoke test
-  gradient_clip: 1.0
+  gradient_clip: 0.5      # Reduced from 1.0 for stronger stability
   mixed_precision: false  # Disabled for smoke test stability
 
   # Focal loss for imbalanced data

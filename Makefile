@@ -113,11 +113,13 @@ quality: lint format type-check ## Run all code quality checks
 
 train-local: ## Train model with v2.6 local config
 	@echo "${CYAN}Training with v2.6 stack (TCN+BiMamba+GNN+LPE)...${NC}"
-	.venv/bin/python -m src train configs/local/train.yaml
+	@echo "${YELLOW}NaN protections enabled: BGB_NAN_DEBUG=1, BGB_SANITIZE_INPUTS=1${NC}"
+	BGB_NAN_DEBUG=1 BGB_SANITIZE_INPUTS=1 .venv/bin/python -m src train configs/local/train.yaml
 
 smoke-local: ## Run local smoke test (1 epoch)
 	@echo "${CYAN}Running v2.6 smoke test...${NC}"
-	.venv/bin/python -m src train configs/local/smoke.yaml
+	@echo "${YELLOW}NaN protections enabled: BGB_NAN_DEBUG=1, BGB_SANITIZE_INPUTS=1${NC}"
+	BGB_NAN_DEBUG=1 BGB_SANITIZE_INPUTS=1 BGB_SMOKE_TEST=1 .venv/bin/python -m src train configs/local/smoke.yaml
 
 train: train-prod ## Alias: full training with production config
 

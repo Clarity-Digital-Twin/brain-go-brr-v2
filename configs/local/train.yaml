@@ -90,12 +90,12 @@ training:
 
   # Conservative learning rate for stability
   # RTX 4090 best practice: start low, increase if stable
-  learning_rate: 1.5e-4  # Reduced from 3e-4 for stability
+  learning_rate: 5.0e-5  # Reduced from 1.5e-4 after NaN explosion at batch 4056
   weight_decay: 0.05
   optimizer: adamw
 
   # RTX 4090 NaN protections
-  gradient_clip: 1.0      # Critical for stability
+  gradient_clip: 0.5      # Reduced from 1.0 for stronger stability
 
   # Mixed precision OFF by default for RTX 4090 stability
   # Only enable after confirming no NaNs with a smoke test
