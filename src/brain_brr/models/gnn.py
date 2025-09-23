@@ -39,14 +39,10 @@ class GraphChannelMixer(nn.Module):
         self.edge_activate = nn.Softplus()
 
         # Graph convolution layers (SSGConv-like behavior)
-        self.graph_layers = nn.ModuleList([
-            nn.Linear(d_model, d_model) for _ in range(n_layers)
-        ])
+        self.graph_layers = nn.ModuleList([nn.Linear(d_model, d_model) for _ in range(n_layers)])
 
         # Layer norm and dropout
-        self.layer_norms = nn.ModuleList([
-            nn.LayerNorm(d_model) for _ in range(n_layers)
-        ])
+        self.layer_norms = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(n_layers)])
         self.dropout = nn.Dropout(dropout)
 
     def forward(

@@ -62,7 +62,7 @@ class TestDynamicGraphBuilder:
         """Cosine similarity should be bounded [-1, 1]."""
         from src.brain_brr.models.graph_builder import DynamicGraphBuilder
 
-        builder = DynamicGraphBuilder(similarity='cosine')
+        builder = DynamicGraphBuilder(similarity="cosine")
         features = torch.randn(1, 19, 10, 64)
         adjacency = builder(features)
 
@@ -74,7 +74,7 @@ class TestDynamicGraphBuilder:
         """Correlation similarity option should work."""
         from src.brain_brr.models.graph_builder import DynamicGraphBuilder
 
-        builder = DynamicGraphBuilder(similarity='correlation')
+        builder = DynamicGraphBuilder(similarity="correlation")
         features = torch.randn(1, 19, 10, 64)
         adjacency = builder(features)
 

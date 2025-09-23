@@ -162,13 +162,20 @@ class SeizureDetector(nn.Module):
         temporal = self.mamba(features)  # (B, 512, 960)
 
         # Optional Dynamic GNN stage (time-then-graph architecture)
-        if self.use_gnn and self.graph_builder and self.gnn and \
-           self.proj_to_electrodes and self.proj_from_electrodes:
+        if (
+            self.use_gnn
+            and self.graph_builder
+            and self.gnn
+            and self.proj_to_electrodes
+            and self.proj_from_electrodes
+        ):
             batch_size, _, seq_len = temporal.shape
 
             # Project to electrode space (512 -> 19*64)
             elec_flat = self.proj_to_electrodes(temporal)  # (B, 19*64, 960)
-            elec_feats = elec_flat.reshape(batch_size, 19, 64, seq_len).permute(0, 1, 3, 2)  # (B, 19, T, 64)
+            elec_feats = elec_flat.reshape(batch_size, 19, 64, seq_len).permute(
+                0, 1, 3, 2
+            )  # (B, 19, T, 64)
 
             # Build dynamic graph (per timestep)
             adj = self.graph_builder(elec_feats)  # (B, T, 19, 19)

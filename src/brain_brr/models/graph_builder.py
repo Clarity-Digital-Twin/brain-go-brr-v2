@@ -20,7 +20,7 @@ class DynamicGraphBuilder(nn.Module):
 
     def __init__(
         self,
-        similarity: str = 'cosine',  # EvoBrain default
+        similarity: str = "cosine",  # EvoBrain default
         top_k: int = 3,  # EvoBrain: proven best for EEG
         threshold: float = 1e-4,  # EvoBrain: edge weight cutoff
         temperature: float = 0.1,
@@ -47,14 +47,14 @@ class DynamicGraphBuilder(nn.Module):
         features_flat = features_flat.reshape(batch_size * seq_len, n_nodes, feat_dim)
 
         # Compute similarity
-        if self.similarity == 'cosine':
+        if self.similarity == "cosine":
             # Normalize features
             features_norm = func.normalize(features_flat, p=2, dim=-1)
             # Compute cosine similarity
             adjacency = torch.bmm(features_norm, features_norm.transpose(1, 2))
             # Scale by temperature
             adjacency = adjacency / self.temperature
-        elif self.similarity == 'correlation':
+        elif self.similarity == "correlation":
             # Center features
             features_centered = features_flat - features_flat.mean(dim=-1, keepdim=True)
             # Compute correlation
