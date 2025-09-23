@@ -18,6 +18,7 @@ class TestTAESMetrics:
     """Validate Time-Aligned Event Scoring metrics for clinical targets."""
 
     @pytest.mark.clinical
+    @pytest.mark.serial  # Run serially to avoid memory contention
     @pytest.mark.parametrize(
         ("fa_rate", "expected_sens"),
         [
