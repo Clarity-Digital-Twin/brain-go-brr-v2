@@ -26,7 +26,7 @@ We're investigating whether **Temporal Convolutional Networks (TCN)** combined w
 - Mamba-2 captures long-range dependencies with O(N) efficiency
 - Together: Local patterns (TCN) + Global context (Mamba) = Optimal detection
 
-**Our approach**: TCN encoder (8 layers, 16× downsample) → Bidirectional Mamba‑2 (6 layers) → Projection (512→19) + Upsample (960→15360), achieving ~35M parameters with clinically‑focused post‑processing.
+**Our approach**: TCN encoder (8 layers, 16× downsample) → Bidirectional Mamba‑2 (6 layers) → Projection (512→19) + Upsample (960→15360), achieving ~35M parameters with clinically‑focused post‑processing. v2.6 adds an optional Dynamic GNN stage (SSGConv + Laplacian PE) driven by learned adjacency from an edge‑Mamba stream (no heuristic cosine/correlation graphs).
 
 ## 🏗️ Architecture
 
@@ -45,6 +45,10 @@ EEG Input (19ch, 256Hz, 60s windows)
          ↓
 [TAES Evaluation]   → Clinical performance metrics
 ```
+
+Design decisions (v2.6):
+- Pure learned adjacency via edge Mamba stream; no heuristic cosine/correlation graph builder.
+- PyG SSGConv (α=0.05) with Laplacian PE (k=16) as the only GNN backend.
 
 **Key Specifications:**
 - **Input**: 19-channel 10-20 montage @ 256 Hz
@@ -157,7 +161,7 @@ make train        # Full training run
 | `docs/03-deployment/operations/evaluation.md` | Evaluation methodology (TAES, FA curves) |
 | `docs/03-deployment/local/setup.md` | Local development setup |
 | `docs/03-deployment/operations/training.md` | Training procedures and LR scheduling notes |
-| `../v2_6_dynamic_gnn_lpe_plan.md` | v2.6 Dynamic GNN + LPE implementation plan (root, in revision) |
+| `../v2_6_dynamic_gnn_lpe_plan.md` | v2.6 Dynamic GNN + LPE (edge Mamba + learned adjacency) plan |
 
 ## 🔧 Requirements
 
@@ -196,7 +200,7 @@ Apache License 2.0 - See [LICENSE](LICENSE)
 
 ## Future Research Direction
 
-See `docs/04-research/future/CANONICAL-ROADMAP.md` for the roadmap and `../v2_6_dynamic_gnn_lpe_plan.md` for the next step (Dynamic GNN + Laplacian PE after Mamba in the TCN path). ConvNeXt is optional as a local refiner only if metrics indicate a gap; it does not replace the active TCN path.
+See `docs/04-research/future/CANONICAL-ROADMAP.md` for the roadmap and `../v2_6_dynamic_gnn_lpe_plan.md` for the next step (Dynamic GNN + Laplacian PE after Mamba with learned adjacency from an edge stream). ConvNeXt is optional as a local refiner only if metrics indicate a gap; it does not replace the active TCN path.
 
 ## Contact
 
