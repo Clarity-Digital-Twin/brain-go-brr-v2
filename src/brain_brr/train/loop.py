@@ -200,9 +200,15 @@ class FocalLoss(nn.Module):
         p_t = p * targets + (1.0 - p) * (1.0 - targets)
         # Class-balanced alpha
         alpha_t = self.alpha * targets + (1.0 - self.alpha) * (1.0 - targets)
-        # Focal modulation
-        mod = (1.0 - p_t).clamp(min=0.0, max=1.0).pow(self.gamma)
-        return cast(torch.Tensor, alpha_t * mod * bce)
+        # Focal modulation with numerical stability
+        # Clamp p_t away from 1 to prevent (1-p_t)^gamma from underflowing to 0
+        p_t_stable = p_t.clamp(min=1e-7, max=1 - 1e-7)
+        mod = (1.0 - p_t_stable).pow(self.gamma)
+        focal_loss = alpha_t * mod * bce
+
+        # Additional safety: clamp output to prevent extreme values
+        focal_loss = focal_loss.clamp(max=100.0)  # Prevent loss explosion
+        return cast(torch.Tensor, focal_loss)
 
 
 # ============================================================================
