@@ -475,6 +475,9 @@ def train_epoch(
     num_batches = 0
     consecutive_nans = 0
     max_consecutive_nans = 50  # Threshold for early termination
+    enable_nan_debug = os.getenv("BGB_NAN_DEBUG", "0") == "1"
+    nan_debug_emitted = 0
+    max_nan_debug = int(os.getenv("BGB_NAN_DEBUG_MAX", "3"))
 
     # Robust tqdm handling for Modal/non-TTY environments
     use_tqdm = not os.getenv("BGB_DISABLE_TQDM")
@@ -515,6 +518,17 @@ def train_epoch(
             if labels.dim() == 3:  # (B, C, T)
                 labels = labels.max(dim=1)[0]  # (B, T)
 
+            # Optional sanitation for non-finite inputs/labels
+            if os.getenv("BGB_SANITIZE_INPUTS", "0") == "1":
+                if not torch.isfinite(windows).all():
+                    windows = torch.nan_to_num(windows, nan=0.0, posinf=0.0, neginf=0.0)
+                if not torch.isfinite(labels).all():
+                    labels = torch.nan_to_num(labels, nan=0.0, posinf=0.0, neginf=0.0)
+
+            # Clamp labels to [0,1] for numerical safety
+            if (labels.min() < 0) or (labels.max() > 1):
+                labels = labels.clamp_(0.0, 1.0)
+
             optimizer.zero_grad(set_to_none=True)
 
             # Forward pass with AMP (model returns raw logits)
@@ -523,6 +537,15 @@ def train_epoch(
                     logits = model(windows)  # (B, T) raw logits
                     if logits is None:
                         raise ValueError(f"Model returned None for input shape {windows.shape}")
+                    # Check logits finiteness
+                    if not torch.isfinite(logits).all():
+                        if enable_nan_debug and nan_debug_emitted < max_nan_debug:
+                            nonfinite = (~torch.isfinite(logits)).sum().item()
+                            print(
+                                f"[DEBUG] Non-finite logits at batch {batch_idx}: count={nonfinite}",
+                                flush=True,
+                            )
+                        raise ValueError("Non-finite logits detected")
                     per_element_loss = compute_loss(logits, labels)
                     if per_element_loss is None:
                         raise ValueError("Loss computation returned None")
@@ -535,6 +558,22 @@ def train_epoch(
                     print(f"  - Windows shape: {windows.shape}", flush=True)
                     print(f"  - Labels shape: {labels.shape}", flush=True)
                     print(f"  - Device: {windows.device}", flush=True)
+                    if enable_nan_debug and nan_debug_emitted < max_nan_debug:
+                        try:
+                            w_min = float(windows.min().item())
+                            w_max = float(windows.max().item())
+                            w_mean = float(windows.mean().item())
+                            w_std = float(windows.std().item())
+                            l_min = float(labels.min().item())
+                            l_max = float(labels.max().item())
+                            print(
+                                f"  - Windows stats: min={w_min:.3e} max={w_max:.3e} mean={w_mean:.3e} std={w_std:.3e}",
+                                flush=True,
+                            )
+                            print(f"  - Labels stats: min={l_min:.3e} max={l_max:.3e}", flush=True)
+                        except Exception:
+                            pass
+                        nan_debug_emitted += 1
                     raise
                 # Mean reduction since pos_weight is already in criterion
                 loss = per_element_loss.mean()
@@ -547,6 +586,19 @@ def train_epoch(
                     f"(consecutive: {consecutive_nans}), skipping gradient update",
                     flush=True,
                 )
+                if enable_nan_debug and nan_debug_emitted < max_nan_debug:
+                    try:
+                        with torch.no_grad():
+                            # Recompute logits in full precision for diagnostics
+                            logits_fp32 = model(windows.float())
+                            nonfinite = (~torch.isfinite(logits_fp32)).sum().item()
+                            print(
+                                f"[DEBUG] FP32 logits non-finite count at batch {batch_idx}: {nonfinite}",
+                                flush=True,
+                            )
+                    except Exception:
+                        pass
+                    nan_debug_emitted += 1
                 # Clear gradients but skip update
                 optimizer.zero_grad()
 
@@ -949,6 +1001,12 @@ def train(
         Dictionary of best metrics
     """
     # Setup
+    if os.getenv("BGB_ANOMALY_DETECT", "0") == "1":
+        try:
+            torch.autograd.set_detect_anomaly(True)
+            print("[DEBUG] Enabled torch.autograd anomaly detection", flush=True)
+        except Exception:
+            pass
     set_seed(config.experiment.seed)
     device = config.experiment.device
     if device == "auto":
