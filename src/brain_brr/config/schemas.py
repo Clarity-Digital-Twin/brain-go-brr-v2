@@ -155,6 +155,32 @@ class TCNConfig(BaseModel):
     use_cuda_optimizations: bool = Field(default=True, description="Enable CUDA optimizations")
 
 
+class GraphConfig(BaseModel):
+    """Dynamic GNN configuration based on EvoBrain."""
+
+    enabled: bool = Field(default=False, description="Enable dynamic GNN stage")
+
+    # Graph construction
+    similarity: Literal["cosine", "correlation"] = Field(
+        default="cosine", description="Node similarity metric"
+    )
+    top_k: int = Field(default=3, ge=1, le=18, description="Top-k neighbors per node")
+    threshold: float = Field(default=1e-4, ge=0.0, description="Edge weight cutoff")
+    temperature: float = Field(default=0.1, gt=0.0, description="Similarity softmax temperature")
+
+    # GNN architecture
+    n_layers: int = Field(default=2, ge=1, le=4, description="Graph neural network layers")
+    dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout rate")
+    use_residual: bool = Field(default=True, description="Use residual connections")
+    alpha: float = Field(
+        default=0.05, ge=0.0, le=1.0, description="SSGConv self vs neighbor mixing"
+    )
+
+    # PyG specific (Phase 2)
+    use_pyg: bool = Field(default=False, description="Use PyTorch Geometric implementation")
+    k_eigenvectors: int = Field(default=16, ge=1, le=18, description="Laplacian PE dimension")
+
+
 class ModelConfig(BaseModel):
     """Complete model architecture configuration."""
 
@@ -171,6 +197,9 @@ class ModelConfig(BaseModel):
 
     # Shared Mamba config (used in both paths)
     mamba: MambaConfig = Field(default_factory=MambaConfig)
+
+    # Optional Dynamic GNN config (v2.6+)
+    graph: GraphConfig | None = Field(default=None, description="Dynamic GNN configuration")
 
 
 class HysteresisConfig(BaseModel):
