@@ -4,13 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v2: TCN + Bi-Mamba-2 + GNN for clinical EEG seizure detection — O(N) sequence modeling with bidirectional SSM and optional graph neural networks.
+Brain-Go-Brr v2.6: TCN + Bi-Mamba + GNN + LPE for clinical EEG seizure detection — O(N) sequence modeling with bidirectional SSM and graph neural networks with Laplacian positional encoding.
 
-Why this is different:
+Why this architecture works:
 - Transformers struggle on long EEG (O(N²) cost)
 - Pure CNNs miss global temporal context
-- Bidirectional Mamba-2 brings O(N) global context efficiently
-- Optional GNN with Laplacian PE for spatial electrode relationships
+- Bidirectional Mamba brings O(N) global context efficiently
+- GNN with Laplacian PE captures spatial electrode relationships
+- TCN provides multi-scale temporal feature extraction
 
 ## ⚡ Essential Commands
 
@@ -21,24 +22,28 @@ Why this is different:
 | `make test` | Full tests with coverage |
 | `make test-gpu` | GPU-specific tests |
 | `make setup` | Initial setup (uv, hooks) |
-| `make train-local` | Smoke test config (1 epoch, small batch) |
+| `make setup-gpu` | Install v2.6 stack (Mamba+PyG+TCN) — REQUIRED |
+| `make s` | Smoke test (1 epoch, 3 files) |
+| `make train-local` | Full v2.6 training (100 epochs) |
 | `uv sync -E gpu` | GPU extra (Mamba-SSM) |
 | `uv sync -E post,eval` | Extras: post-proc + eval |
-| `python -m src train configs/smoke_test.yaml` | Direct training command |
+| `python -m src train configs/local/smoke.yaml` | Direct smoke test |
+| `python -m src train configs/local/train.yaml` | Direct full training |
 
 ## 🏗️ Architecture
 
 | Component | Specification | Location |
 |-----------|--------------|----------|
 | Input | 19-channel EEG @ 256 Hz | - |
-| TCN Encoder | Multi-scale temporal, ×16 downsample | `src/brain_brr/models/tcn.py` |
-| Bi-Mamba-2 | 6 layers, d_model=512, d_state=16 | `src/brain_brr/models/mamba.py` |
-| GNN (optional) | PyG SSGConv + Laplacian PE, α=0.05 | `src/brain_brr/models/gnn_pyg.py` |
-| Graph Builder | Heuristic cosine/correlation adjacency | `src/brain_brr/models/graph_builder.py` |
+| TCN Encoder | 8 layers, channels [64,128,256,512], ×16 downsample | `src/brain_brr/models/tcn.py` |
+| Bi-Mamba | 6 layers, d_model=512, d_state=16, conv_kernel=4 | `src/brain_brr/models/mamba.py` |
+| GNN | PyG SSGConv + Laplacian PE (k=16), α=0.05, 2 layers | `src/brain_brr/models/gnn_pyg.py` |
+| Graph Builder | Heuristic cosine similarity, top_k=3 | `src/brain_brr/models/graph_builder.py` |
 | Hysteresis | tau_on=0.86, tau_off=0.78 | `src/brain_brr/post/postprocess.py` |
-| Output | Per-timestep probabilities | - |
+| Output | Per-timestep seizure probabilities | - |
 
-**Note**: Edge Mamba stream for learned adjacency NOT YET IMPLEMENTED (still using heuristic graph builder)
+**Current v2.6**: Uses heuristic graph builder (cosine similarity)
+**Future v3.0**: Will add edge Mamba stream for learned adjacency matrices
 
 ## 📁 Project Structure
 
@@ -75,10 +80,13 @@ MUST maintain canonical 10-20 montage order (defined in `src/brain_brr/constants
  "Fp2", "F4", "C4", "P4", "F8", "T4", "T6", "O2"]
 ```
 
-### Mamba CUDA Dispatch
-- Configured d_conv=5, but CUDA kernels only support {2,3,4}
-- Internally coerces to 4 for CUDA path
-- Set `SEIZURE_MAMBA_FORCE_FALLBACK=1` to force Conv1d fallback
+### Critical Installation Order
+1. **PyTorch 2.2.2**: Must be EXACT version with CUDA 12.1
+2. **Mamba-SSM 2.2.2**: Compile with `--no-build-isolation`
+3. **PyG 2.6.1**: Use pre-built wheels from torch-2.2.0+cu121
+4. **TCN 1.2.3**: Pure PyTorch, installs easily
+
+See `INSTALLATION.md` for detailed steps.
 
 ### Post-Processing Pipeline
 Hysteresis thresholds (tau_on=0.86, tau_off=0.78) → morphology → duration filtering → event generation
@@ -111,19 +119,37 @@ Code style:
 
 Note: TUSZ may have malformed headers - fallback repair implemented. Channel synonyms handled (T7→T3, T8→T4, P7→T5, P8→T6).
 
-## 🚀 Training Strategy
+## 🚀 Training Configuration
 
-- Train: TUH EEG Seizure Corpus
-- Validate: CHB-MIT
-- Evaluate: epilepsybenchmarks.com
-- No pretrained weights (novel architecture)
+### Local (RTX 4090)
+```yaml
+# configs/local/train.yaml
+data:
+  cache_dir: cache/tusz  # MUST use existing cache with 3734 files
+training:
+  batch_size: 12  # Conservative for 24GB VRAM
+  mixed_precision: false  # Disabled - causes NaNs on RTX 4090
+```
+
+### Modal (A100-80GB)
+```yaml
+# configs/modal/train.yaml
+data:
+  cache_dir: /results/cache/tusz  # Persistent SSD volume
+training:
+  batch_size: 64  # A100 can handle larger batches
+  mixed_precision: true  # A100 tensor cores
+```
 
 ## ⚠️ Critical Notes
 
-- Caching keys depend on config; edit config to invalidate cache
-- WSL tip: `export UV_LINK_MODE=copy` (Makefile sets this by default) ⚙️
-- CI uses `uv sync` (no extras) to avoid GPU builds on non-CUDA runners
-- Use `num_workers=0` in configs to prevent WSL multiprocessing hangs
+- **v2.6 Stack**: TCN + BiMamba + GNN + LPE (31M parameters)
+- **Installation**: Run `make setup-gpu` after base setup
+- **Cache**: Local uses `cache/tusz/`, Modal uses `/results/cache/tusz/`
+- **Focal Loss**: REQUIRED for 12:1 class imbalance
+- **Balanced Sampling**: CRITICAL or batches may have zero seizures
+- **WSL**: `export UV_LINK_MODE=copy` prevents permission issues
+- **Modal**: Needs 24 CPU cores + 96GB RAM to avoid bottlenecks
 
 ---
 
