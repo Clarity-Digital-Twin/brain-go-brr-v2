@@ -40,7 +40,7 @@ class DynamicGraphBuilder(nn.Module):
         Returns:
             adjacency: (B, T, 19, 19) time-varying adjacency
         """
-        B, N, T, D = features.shape
+        batch_size, n_nodes, seq_len, feat_dim = features.shape
 
         # Reshape for batch processing
         features_flat = features.permute(0, 2, 1, 3)  # (B, T, 19, D)
