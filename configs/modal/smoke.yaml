@@ -4,12 +4,12 @@
 data:
   dataset: tuh_eeg
   data_dir: /data/edf/train            # Modal S3 mount path
-  cache_dir: /results/cache/smoke      # Separate smoke test cache
+  cache_dir: /results/cache/tusz      # Separate smoke test cache
   sampling_rate: 256
   n_channels: 19
   window_size: 60
   stride: 10
-  num_workers: 4                       # A100 can handle workers
+  num_workers: 0                       # Let Modal handle internally - avoid CPU bottleneck
   pin_memory: true                     # A100 optimized
   persistent_workers: true              # A100 optimized
   prefetch_factor: 4
@@ -77,14 +77,14 @@ training:
   loss: focal
   focal_alpha: 0.5
   focal_gamma: 2.0
-  learning_rate: 3e-4
+  learning_rate: 5e-5                  # Reduced from 3e-4 for NaN stability
   weight_decay: 0.05
   optimizer: adamw
   scheduler:
     type: cosine
     warmup_ratio: 0.03
-  gradient_clip: 1.0
-  mixed_precision: true
+  gradient_clip: 0.5                   # Stronger clipping for NaN protection
+  mixed_precision: false               # DISABLED - causes NaN issues
 
 evaluation:
   metrics: [taes, sensitivity, specificity, auroc]
@@ -96,7 +96,7 @@ experiment:
   seed: 42
   device: cuda
   output_dir: /results/smoke
-  cache_dir: /results/cache/smoke
+  cache_dir: /results/cache/tusz
   log_level: INFO
   save_model: false
   # BGB_LIMIT_FILES set automatically in app.py for smoke configs

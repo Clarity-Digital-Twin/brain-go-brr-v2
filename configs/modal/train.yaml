@@ -81,14 +81,14 @@ training:
   loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
   focal_alpha: 0.5                     # MUST BE 0.5! (neutral - let pos_weight handle imbalance)
   focal_gamma: 2.0                     # Focusing parameter (higher = more focus on hard examples)
-  learning_rate: 3e-4
+  learning_rate: 5e-5                  # Reduced from 3e-4 for NaN stability
   weight_decay: 0.05
   optimizer: adamw
   scheduler:
     type: cosine
     warmup_ratio: 0.03
-  gradient_clip: 1.0
-  mixed_precision: true                # A100 tensor cores for speed
+  gradient_clip: 0.5                   # Stronger clipping for NaN protection
+  mixed_precision: false               # DISABLED - causes NaN issues on our stack
   gradient_accumulation_steps: 1       # Can increase if needed
   early_stopping:
     patience: 5
