@@ -55,13 +55,12 @@ data:
   n_channels: 19
   window_size: 60
   stride: 10
-  use_balanced_sampling: true
-  num_workers: 2          # Reduced for smoke test
-  pin_memory: true
+  use_balanced_sampling: false  # Disable for smoke test
+  num_workers: 0          # Zero for smoke test
+  pin_memory: false
   persistent_workers: false
   prefetch_factor: 2
   validation_split: 0.2
-  max_samples: 20         # Small for smoke test
 
 preprocessing:
   montage: "10-20"
