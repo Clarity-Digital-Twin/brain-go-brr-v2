@@ -8,7 +8,7 @@ import torch
 
 # Check if PyG is available
 try:
-    import torch_geometric
+    import torch_geometric  # noqa: F401
     HAS_PYG = True
 except ImportError:
     HAS_PYG = False

@@ -17,7 +17,7 @@ try:
     HAS_PYG = True
 except ImportError:
     HAS_PYG = False
-    warnings.warn("PyTorch Geometric not installed. Install with: uv sync -E graph")
+    warnings.warn("PyTorch Geometric not installed. Install with: uv sync -E graph", stacklevel=2)
 
 
 class GraphChannelMixerPyG(nn.Module):
@@ -95,7 +95,7 @@ class GraphChannelMixerPyG(nn.Module):
         Returns:
             enhanced: (B, 19, T, D) enhanced features
         """
-        batch_size, n_nodes, seq_len, feat_dim = features.shape
+        batch_size, n_nodes, seq_len, _ = features.shape
         device = features.device
 
         # Process each timestep

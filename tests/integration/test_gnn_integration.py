@@ -90,8 +90,8 @@ class TestGNNIntegration:
         assert not torch.isnan(output).any()
 
 
-@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
-class TestGNNIntegrationPyG:
+# PyG tests moved to test_gnn_integration_pyg.py
+class TestGNNIntegrationPyG_removed:
     """Test PyG GNN integration with detector."""
 
     @pytest.fixture
@@ -244,8 +244,8 @@ class TestGNNIntegrationPyG:
             assert not torch.isnan(output).any()
 
 
-@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
-class TestGNNIntegrationPyG:
+# PyG tests moved to test_gnn_integration_pyg.py
+class TestGNNIntegrationPyG_removed:
     """Test PyG GNN integration with detector."""
 
     @pytest.fixture
