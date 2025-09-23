@@ -66,10 +66,10 @@ class DynamicGraphBuilder(nn.Module):
             raise ValueError(f"Unknown similarity: {self.similarity}")
 
         # Apply softmax for probability distribution
-        adjacency = F.softmax(adjacency, dim=-1)
+        adjacency = func.softmax(adjacency, dim=-1)
 
         # Top-k sparsification (EvoBrain critical!)
-        if self.top_k < N:
+        if self.top_k < n_nodes:
             # Keep only top-k edges per node
             topk_vals, topk_idx = torch.topk(adjacency, self.top_k, dim=-1)
             adjacency_sparse = torch.zeros_like(adjacency)
