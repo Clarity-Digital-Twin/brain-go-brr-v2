@@ -164,7 +164,7 @@ class SeizureDetector(nn.Module):
         # Optional Dynamic GNN stage (time-then-graph architecture)
         if self.use_gnn and self.graph_builder and self.gnn and \
            self.proj_to_electrodes and self.proj_from_electrodes:
-            B, C, T = temporal.shape
+            batch_size, _, seq_len = temporal.shape
 
             # Project to electrode space (512 -> 19*64)
             elec_flat = self.proj_to_electrodes(temporal)  # (B, 19*64, 960)
