@@ -19,6 +19,7 @@ except ImportError:
 
 
 @pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
+@pytest.mark.serial  # PyG tests crash when run with many parallel workers
 class TestGNNIntegrationPyG:
     """Test PyG GNN integration with detector."""
 
