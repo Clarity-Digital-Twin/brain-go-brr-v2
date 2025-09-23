@@ -1,4 +1,8 @@
-# BiMamba Architecture Comparison for TUSZ Seizure Detection
+# BiMamba Architecture Comparison for TUSZ Seizure Detection (Historical)
+
+Note: This comparison was written before the TCN front‑end replacement. It discusses a
+U‑Net + ResCNN + Bi‑Mamba design. The current runtime path uses TCN → Bi‑Mamba →
+Projection+Upsample → Detection. See `../architecture/current-state.md`.
 
 ## Executive Summary
 

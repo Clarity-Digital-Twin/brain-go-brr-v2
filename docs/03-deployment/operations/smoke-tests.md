@@ -47,7 +47,7 @@ modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
 ```
 
 ## What Smoke Tests Validate
-- Model init and forward across the active path (TCN → Bi‑Mamba → decoder → head).
+- Model init and forward across the active path (TCN → Bi‑Mamba → Projection+Upsample → head).
 - Loss/gradients, optimizer update, checkpoint I/O, CUDA memory behavior.
 - Shapes and absence of NaNs/infs.
 
@@ -62,4 +62,3 @@ What they do not validate
 
 ## Reference
 - Discovery notes and analysis were consolidated from prior docs: SMOKE_TEST_DISCOVERY and SMOKE_TEST_FIX.
-

@@ -159,9 +159,9 @@ class ModelConfig(BaseModel):
     """Complete model architecture configuration."""
 
     name: Literal["seizure_detector"] = Field(default="seizure_detector", description="Model name")
-    architecture: Literal["unet", "tcn"] = Field(default="unet", description="Architecture type")
+    architecture: Literal["tcn"] = Field(default="tcn", description="Architecture type (TCN only)")
 
-    # U-Net path configs (used when architecture="unet")
+    # Deprecated configs kept for backward compatibility (not used)
     encoder: EncoderConfig = Field(default_factory=EncoderConfig)
     rescnn: ResCNNConfig = Field(default_factory=ResCNNConfig)
     decoder: DecoderConfig = Field(default_factory=DecoderConfig)

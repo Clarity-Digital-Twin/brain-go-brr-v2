@@ -1,18 +1,17 @@
 # CANONICAL ARCHITECTURE SPECIFICATION
-## Brain-Go-Brr v2: First Bi-Mamba-2 + U-Net + ResCNN for Clinical EEG Seizure Detection
+## Brain-Go-Brr v2: Canonical Architecture (TCN → Bi‑Mamba)
 
-**Status: ✅ IMPLEMENTED & WORKING**
-**Last updated: 2025-09-20**
-**Location: `architecture/CANONICAL_ARCHITECTURE_SPEC.md`**
+Note: This document previously described a U‑Net + ResCNN design. The canonical runtime path is
+now TCN → Bi‑Mamba → Projection+Upsample → Detection. Legacy U‑Net/ResCNN sections are preserved
+for historical context and are marked accordingly. For a concise snapshot of the active path,
+see `current-state.md`.
 
 This document serves as the single source of truth for the complete architecture specification. All components listed here are implemented and verified working in the codebase.
 
-### Architecture Note: Why Not SeizureTransformer Weights?
-**We CANNOT use SeizureTransformer's pretrained weights** because we're changing the core architecture:
-- SeizureTransformer: U-Net + ResCNN + **Transformer**
-- Our Model: U-Net + ResCNN + **Bi-Mamba-2** (fundamentally different)
-- **Result**: Must train from scratch on TUH/CHB-MIT data
-- **What we CAN reuse**: U-Net/ResCNN architecture design and hyperparameters as starting points
+### Architecture Note
+SeizureTransformer uses U‑Net + ResCNN + Transformer. Our canonical model replaces the encoder and
+decoder with a TCN front‑end and a lightweight Projection+Upsample head, and replaces the
+Transformer with Bi‑Mamba‑2 for O(N) sequence modeling. We train from scratch.
 
 ---
 
@@ -71,15 +70,15 @@ This document serves as the single source of truth for the complete architecture
 ---
 
 ### 2. MODEL ARCHITECTURE (Phase 2)
-**Purpose**: Novel Bi-Mamba-2 + U-Net + ResCNN for O(N) seizure detection
+**Purpose**: TCN + Bi‑Mamba‑2 for O(N) seizure detection
 
-#### 2.1 U-Net Encoder
-- Location: `src/brain_brr/models/unet.py::UNetEncoder`
+#### 2.1 TCN Encoder (Current)
+- Location: `src/brain_brr/models/tcn.py::TCNEncoder`
 
-- [✓] **Structure**: 4 stages with progressive downsampling
-  - [✓] Channel progression: [64, 128, 256, 512]
-  - [✓] Downsample factor: ×2 per stage (total ×16)
-  - [✓] Final bottleneck: (B, 512, 960)
+- [✓] **Structure**: Dilated temporal conv blocks, repeated to reach 8 layers
+  - [✓] Channel progression: [64, 128, 256, 512] cycled over layers
+  - [✓] Downsample factor: ×16 overall via stride_down
+  - [✓] Bottleneck: (B, 512, L/16)
 
 - [✓] **Blocks**:
   - [✓] Initial projection: 19→64 channels (kernel=7, padding=3)
@@ -89,51 +88,27 @@ This document serves as the single source of truth for the complete architecture
   - [✓] Skip shapes: [(64,15360), (128,7680), (256,3840), (512,1920)]
   - [✓] Downsample: Conv1d(kernel=2, stride=2)
 
-#### 2.2 ResCNN Stack
-- Location: `src/brain_brr/models/rescnn.py::ResCNNStack`
-
-- [✓] **Multi-scale Feature Extraction**:
-  - [✓] 3 ResidualCNN blocks
-  - [✓] Multi-kernel branches: [3, 5, 7] with proper padding (k//2)
-  - [✓] Channel split: [170, 170, 172] for 512 total
-  - [✓] Residual connections per block
-
-- [✓] **Shape Preservation**:
-  - [✓] Input: (B, 512, 960)
-  - [✓] Output: (B, 512, 960)
-  - [✓] Dropout: nn.Dropout1d(0.1) (1D signals)
-
-#### 2.3 Bidirectional Mamba-2
+#### 2.2 Bi‑Mamba‑2 (Current)
 - Location: `src/brain_brr/models/mamba.py::BiMamba2`
 
-- [✓] **SSM Configuration**:
-  - [✓] 6 bidirectional layers
-  - [✓] d_model: 512
-  - [✓] d_state: 16
-  - [✓] d_conv: 4 (CUDA kernels only support {2,3,4}, internally coerced to 4)
-  - [✓] Expand factor: 2
-  - [✓] CUDA compilation: Requires PyTorch 2.2.2+cu121, mamba-ssm==2.2.2, causal-conv1d==1.4.0
+- [✓] **Configuration**:
+  - [✓] 6 bidirectional layers, d_model=512, d_state=16, d_conv=4 (coerced to 4 in CUDA)
+  - [✓] Dropout 0.1; residual and projection path to keep 512 channels
+  - [✓] Output shape: (B, 512, L/16)
 
-- [✓] **Bidirectional Processing**:
-  - [✓] Forward Mamba-2 branch
-  - [✓] Backward Mamba-2 branch (flipped sequence via `.flip(dims=[1])`)
-  - [✓] Concatenate → Project (1024→512) via Linear
-  - [✓] LayerNorm + Residual per layer
-  - [✓] Residual connection from pre-Mamba bottleneck features
+#### 2.3 Projection + Upsample Head (Current)
+- Location: `src/brain_brr/models/tcn.py::ProjectionHead`
 
-- [✓] **Fallback**: Conv1d for CPU testing
-  - [✓] Automatic detection via MAMBA_AVAILABLE flag
-  - [✓] Warning issued when using fallback
-  - [✓] Shape‑compatible but NOT functionally equivalent
-  - [✓] Force fallback: set `SEIZURE_MAMBA_FORCE_FALLBACK=1`
+- [✓] **Function**:
+  - [✓] 1×1 Conv: 512→19 channels; Upsample by ×16 back to L
+  - [✓] Output shape: (B, 19, L)
 
-#### 2.4 U-Net Decoder
-- Location: `src/brain_brr/models/unet.py::UNetDecoder`
+#### 2.4 Detection Head (Current)
+- Location: `src/brain_brr/models/detector.py::SeizureDetector`
 
-- [✓] **Structure**: 4 stages with progressive upsampling
-  - [✓] Channel progression: [512, 256, 128, 64]
-  - [✓] Upsample: ConvTranspose1d(kernel=2, stride=2) per stage (total ×16)
-  - [✓] Skip fusion at each stage (concatenation)
+- [✓] **Final Layers**:
+  - [✓] Conv1d: 19→1 channel (kernel=1)
+  - [✓] Output: (B, L) raw logits; apply Sigmoid at inference/eval
 
 - [✓] **Skip Connection Order** (reverse from encoder):
   - [✓] Stage 0 uses skip[3] (deepest, 512 channels)
@@ -144,19 +119,16 @@ This document serves as the single source of truth for the complete architecture
 - [✓] **Output**: (B, 19, 15360) - recovers input dimensions
 - [✓] **Final projection**: Conv1d(64→19, kernel=1)
 
-#### 2.5 Detection Head
-- Location: `src/brain_brr/models/detector.py::SeizureDetector`
+#### 2.5 Notes
 
-- [✓] **Final Layers**:
-  - [✓] Conv1d: 19→1 channel (kernel=1)
-  - [✓] Output: (B, 15360) raw logits; apply Sigmoid at inference/eval
-  - [✓] `.squeeze(1)` to remove channel dimension
+Legacy sections for U‑Net encoder/decoder and ResCNN remain below, marked as legacy, to aid
+reproduction of ablations.
 
 #### 2.6 Complete Model Assembly
 - [✓] **SeizureDetector** class combines all components
 - [✓] Parameter count (defaults): ~13.4M (confirmed via model instantiation)
 - [✓] Weight initialization: Xavier/He
-- [✓] Component order: Encoder → ResCNN → BiMamba → Decoder → Detection Head
+- [✓] Component order (current): TCN → BiMamba → Projection+Upsample → Detection Head
 - [✓] `count_parameters()` and `get_layer_info()` methods for debugging
 
 ---

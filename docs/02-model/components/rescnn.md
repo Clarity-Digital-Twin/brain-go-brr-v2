@@ -1,7 +1,11 @@
-ResCNN Stack
+ResCNN Stack — Legacy (pre‑v2.3)
+
+Note: This document describes the legacy ResCNN bottleneck used before the TCN front‑end
+replacement. The current runtime path does not include ResCNN.
+See: `docs/02-model/architecture/current-state.md`.
 
 Code anchors
-- src/brain_brr/models/rescnn.py
+- (legacy) `src/brain_brr/models/rescnn.py`
 
 Spec
 - Input/output channels: 512 (bottleneck width).

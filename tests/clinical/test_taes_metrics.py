@@ -18,6 +18,7 @@ class TestTAESMetrics:
     """Validate Time-Aligned Event Scoring metrics for clinical targets."""
 
     @pytest.mark.clinical
+    @pytest.mark.gpu  # 24 hours of 256Hz data needs GPU memory
     @pytest.mark.parametrize(
         ("fa_rate", "expected_sens"),
         [
@@ -363,16 +364,20 @@ class TestClinicalValidation:
         if not torch.cuda.is_available():
             pytest.skip("Test requires GPU - model inference too slow on CPU (times out)")
 
+        # Ensure model and tensors run on GPU for performance
+        device = torch.device("cuda")
+        trained_model = trained_model.to(device)
+
         # Create 1 hour of test data
         duration_s = 3600
         sample_rate = 256
         n_samples = duration_s * sample_rate
 
         # Create test EEG data
-        test_data = torch.randn(1, 19, n_samples) * 10
+        test_data = (torch.randn(1, 19, n_samples, device=device) * 10).contiguous()
 
         # Create labels with known seizures
-        labels = torch.zeros(1, n_samples)
+        labels = torch.zeros(1, n_samples, device=device)
         seizure_times = [(100, 130), (500, 550), (1000, 1060), (2000, 2030)]
         for start_s, end_s in seizure_times:
             labels[0, start_s * sample_rate : end_s * sample_rate] = 1
@@ -394,7 +399,7 @@ class TestClinicalValidation:
             if predictions:
                 full_predictions = torch.cat(predictions, dim=1)[:, :n_samples]
             else:
-                full_predictions = torch.zeros(1, n_samples)
+                full_predictions = torch.zeros(1, n_samples, device=device)
 
         # Apply post-processing
         from src.brain_brr.post.postprocess import apply_hysteresis, apply_morphology

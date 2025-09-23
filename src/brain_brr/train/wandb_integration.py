@@ -1,6 +1,7 @@
 """Weights & Biases integration for Brain-Go-Brr v2."""
 
 import os
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,15 @@ class WandBLogger:
 
         # Initialize W&B
         try:
+            out_dir = Path(config.experiment.output_dir)
+            out_dir.mkdir(parents=True, exist_ok=True)
+            run_id_path = out_dir / ".wandb_run_id"
+            if run_id_path.exists():
+                run_id = run_id_path.read_text().strip() or uuid.uuid4().hex
+            else:
+                run_id = uuid.uuid4().hex
+                run_id_path.write_text(run_id)
+
             self.run = wandb.init(
                 project=config.experiment.wandb.project,
                 entity=config.experiment.wandb.entity,
@@ -75,7 +85,8 @@ class WandBLogger:
                 },
                 tags=config.experiment.wandb.tags,
                 dir=str(config.experiment.output_dir),
-                resume="allow",  # Allow resuming runs
+                id=run_id,
+                resume="allow",
             )
             self.enabled = True
             print(f"W&B run initialized: {wandb.run.url}", flush=True)

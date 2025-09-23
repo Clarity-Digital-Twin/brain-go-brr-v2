@@ -15,7 +15,6 @@ import os
 import random
 import sys
 import time
-import warnings
 from contextlib import suppress
 from pathlib import Path
 from typing import Any, cast
@@ -193,17 +192,25 @@ class FocalLoss(nn.Module):
         pos_weight: torch.Tensor | None = None,
     ) -> torch.Tensor:
         # Per-element BCE on logits for numerical stability
+        # Clamp logits to prevent overflow in BCE computation
+        logits_clamped = logits.clamp(min=-100, max=100)
         bce = tnf.binary_cross_entropy_with_logits(
-            logits, targets, reduction="none", pos_weight=pos_weight
+            logits_clamped, targets, reduction="none", pos_weight=pos_weight
         )
-        # Probabilities
-        p = torch.sigmoid(logits)
+        # Probabilities (use clamped logits for numerical stability)
+        p = torch.sigmoid(logits_clamped)
         p_t = p * targets + (1.0 - p) * (1.0 - targets)
         # Class-balanced alpha
         alpha_t = self.alpha * targets + (1.0 - self.alpha) * (1.0 - targets)
-        # Focal modulation
-        mod = (1.0 - p_t).clamp(min=0.0, max=1.0).pow(self.gamma)
-        return cast(torch.Tensor, alpha_t * mod * bce)
+        # Focal modulation with numerical stability
+        # Clamp p_t away from 1 to prevent (1-p_t)^gamma from underflowing to 0
+        p_t_stable = p_t.clamp(min=1e-7, max=1 - 1e-7)
+        mod = (1.0 - p_t_stable).pow(self.gamma)
+        focal_loss = alpha_t * mod * bce
+
+        # Additional safety: clamp output to prevent extreme values
+        focal_loss = focal_loss.clamp(max=100.0)  # Prevent loss explosion
+        return cast(torch.Tensor, focal_loss)
 
 
 # ============================================================================
@@ -281,6 +288,10 @@ def train_epoch(
     focal_alpha: float = 0.25,
     focal_gamma: float = 2.0,
     return_step: bool = False,
+    checkpoint_dir: Path | None = None,
+    epoch_index: int | None = None,
+    mid_epoch_minutes: float | None = None,
+    mid_epoch_keep: int = 3,
 ) -> float | tuple[float, int]:
     """Train for one epoch.
 
@@ -308,6 +319,10 @@ def train_epoch(
     # Heartbeat timer for Modal visibility
     last_heartbeat = time.time()
     heartbeat_interval = 300  # 5 minutes
+    last_mid_save = time.time()
+    mid_interval_s = (
+        None if mid_epoch_minutes is None else float(max(0.0, mid_epoch_minutes)) * 60.0
+    )
 
     # Calculate class weights from dataset sample (not just first batch!)
     # Sample a significant portion to get accurate statistics
@@ -466,6 +481,11 @@ def train_epoch(
     print(f"[TRAIN] Starting epoch with {len(dataloader)} batches", flush=True)
     total_loss = 0.0
     num_batches = 0
+    consecutive_nans = 0
+    max_consecutive_nans = 50  # Threshold for early termination
+    enable_nan_debug = os.getenv("BGB_NAN_DEBUG", "0") == "1"
+    nan_debug_emitted = 0
+    max_nan_debug = int(os.getenv("BGB_NAN_DEBUG_MAX", "3"))
 
     # Robust tqdm handling for Modal/non-TTY environments
     use_tqdm = not os.getenv("BGB_DISABLE_TQDM")
@@ -506,6 +526,17 @@ def train_epoch(
             if labels.dim() == 3:  # (B, C, T)
                 labels = labels.max(dim=1)[0]  # (B, T)
 
+            # Optional sanitation for non-finite inputs/labels
+            if os.getenv("BGB_SANITIZE_INPUTS", "0") == "1":
+                if not torch.isfinite(windows).all():
+                    windows = torch.nan_to_num(windows, nan=0.0, posinf=0.0, neginf=0.0)
+                if not torch.isfinite(labels).all():
+                    labels = torch.nan_to_num(labels, nan=0.0, posinf=0.0, neginf=0.0)
+
+            # Clamp labels to [0,1] for numerical safety
+            if (labels.min() < 0) or (labels.max() > 1):
+                labels = labels.clamp_(0.0, 1.0)
+
             optimizer.zero_grad(set_to_none=True)
 
             # Forward pass with AMP (model returns raw logits)
@@ -514,6 +545,15 @@ def train_epoch(
                     logits = model(windows)  # (B, T) raw logits
                     if logits is None:
                         raise ValueError(f"Model returned None for input shape {windows.shape}")
+                    # Check logits finiteness
+                    if not torch.isfinite(logits).all():
+                        if enable_nan_debug and nan_debug_emitted < max_nan_debug:
+                            nonfinite = (~torch.isfinite(logits)).sum().item()
+                            print(
+                                f"[DEBUG] Non-finite logits at batch {batch_idx}: count={nonfinite}",
+                                flush=True,
+                            )
+                        raise ValueError("Non-finite logits detected")
                     per_element_loss = compute_loss(logits, labels)
                     if per_element_loss is None:
                         raise ValueError("Loss computation returned None")
@@ -526,62 +566,190 @@ def train_epoch(
                     print(f"  - Windows shape: {windows.shape}", flush=True)
                     print(f"  - Labels shape: {labels.shape}", flush=True)
                     print(f"  - Device: {windows.device}", flush=True)
+                    if enable_nan_debug and nan_debug_emitted < max_nan_debug:
+                        try:
+                            w_min = float(windows.min().item())
+                            w_max = float(windows.max().item())
+                            w_mean = float(windows.mean().item())
+                            w_std = float(windows.std().item())
+                            l_min = float(labels.min().item())
+                            l_max = float(labels.max().item())
+                            print(
+                                f"  - Windows stats: min={w_min:.3e} max={w_max:.3e} mean={w_mean:.3e} std={w_std:.3e}",
+                                flush=True,
+                            )
+                            print(f"  - Labels stats: min={l_min:.3e} max={l_max:.3e}", flush=True)
+                        except Exception:
+                            pass
+                        nan_debug_emitted += 1
                     raise
                 # Mean reduction since pos_weight is already in criterion
                 loss = per_element_loss.mean()
 
-            # Backward pass with proper scaler handling
-            if scaler.is_enabled():
-                scaler.scale(loss).backward()
-                scaler.unscale_(optimizer)
-                if gradient_clip > 0:
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
-                scaler.step(optimizer)
-                scaler.update()
+            # Check for non-finite loss before gradient update
+            if not torch.isfinite(loss):
+                consecutive_nans += 1
+                print(
+                    f"[WARNING] NaN loss detected at batch {batch_idx} "
+                    f"(consecutive: {consecutive_nans}), skipping gradient update",
+                    flush=True,
+                )
+                if enable_nan_debug and nan_debug_emitted < max_nan_debug:
+                    try:
+                        with torch.no_grad():
+                            # Recompute logits in full precision for diagnostics
+                            logits_fp32 = model(windows.float())
+                            nonfinite = (~torch.isfinite(logits_fp32)).sum().item()
+                            print(
+                                f"[DEBUG] FP32 logits non-finite count at batch {batch_idx}: {nonfinite}",
+                                flush=True,
+                            )
+                            # Check batch composition
+                            pos_ratio = labels.sum().item() / labels.numel()
+                            print(
+                                f"[DEBUG] Batch {batch_idx} positive ratio: {pos_ratio:.4f}",
+                                flush=True,
+                            )
+                            # Check for dead channels
+                            channel_stds = windows.std(dim=[0, 2])  # std across batch and time
+                            dead_channels = (channel_stds < 1e-6).sum().item()
+                            if dead_channels > 0:
+                                print(
+                                    f"[DEBUG] Batch {batch_idx} has {dead_channels} dead channels",
+                                    flush=True,
+                                )
+                    except Exception as e:
+                        print(f"[DEBUG] Error in NaN diagnostics: {e}", flush=True)
+                    nan_debug_emitted += 1
+                # Clear gradients but skip update
+                optimizer.zero_grad()
+
+                # Check if we should stop training
+                if consecutive_nans >= max_consecutive_nans:
+                    print(
+                        f"[ERROR] {consecutive_nans} consecutive NaN losses detected, "
+                        "model may be corrupted. Stopping training.",
+                        flush=True,
+                    )
+                    break
             else:
-                loss.backward()
-                if gradient_clip > 0:
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
-                optimizer.step()
-
-            # Increment global step counter
-            global_step += 1
-
-            # Scheduler step AFTER optimizer.step()
-            if scheduler is not None:
-                # Suppress false positive warning on first batch - we ARE calling in correct order
-                if global_step == 1:
-                    with warnings.catch_warnings():
-                        warnings.filterwarnings(
-                            "ignore", message="Detected call of `lr_scheduler.step()`"
+                consecutive_nans = 0  # Reset counter on valid loss
+                # Backward pass with proper scaler handling
+                if scaler.is_enabled():
+                    scaler.scale(loss).backward()
+                    scaler.unscale_(optimizer)
+                    if gradient_clip > 0:
+                        grad_norm = torch.nn.utils.clip_grad_norm_(
+                            model.parameters(), gradient_clip
                         )
-                        scheduler.step()
+                        if enable_nan_debug and grad_norm > gradient_clip * 10:
+                            print(
+                                f"[DEBUG] Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})",
+                                flush=True,
+                            )
+                    scaler.step(optimizer)
+                    scaler.update()
                 else:
-                    scheduler.step()
+                    loss.backward()
+                    if gradient_clip > 0:
+                        grad_norm = torch.nn.utils.clip_grad_norm_(
+                            model.parameters(), gradient_clip
+                        )
+                        if enable_nan_debug and grad_norm > gradient_clip * 10:
+                            print(
+                                f"[DEBUG] Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})",
+                                flush=True,
+                            )
+                    optimizer.step()
 
-            total_loss += loss.item()
-            num_batches += 1
+                # Increment global step counter only after successful update
+                global_step += 1
+
+                # Scheduler step ONLY after a real optimizer step
+                if scheduler is not None:
+                    step_count = getattr(optimizer, "_step_count", 0)
+                    if isinstance(step_count, int) and step_count > 0:
+                        scheduler.step()
+
+            # Handle NaN losses properly
+            loss_val = loss.item()
+            if torch.isfinite(torch.tensor(loss_val)):
+                total_loss += loss_val
+                num_batches += 1
+            else:
+                print(
+                    f"[WARNING] Non-finite loss detected at batch {batch_idx}, skipping in average",
+                    flush=True,
+                )
 
             if use_tqdm and hasattr(progress, "set_postfix"):
-                progress.set_postfix({"loss": f"{loss.item():.4f}"})
+                if not torch.isfinite(torch.tensor(loss_val)):
+                    progress.set_postfix({"loss": "NaN"})
+                else:
+                    progress.set_postfix({"loss": f"{loss_val:.4f}"})
 
             # Modal progress logging - print every 100 batches for visibility
             if batch_idx > 0 and batch_idx % 100 == 0:
                 current_lr = optimizer.param_groups[0]["lr"]
-                print(
-                    f"[PROGRESS] Batch {batch_idx}/{len(dataloader)} | "
-                    f"Loss: {loss.item():.4f} | LR: {current_lr:.2e}",
-                    flush=True,
-                )
+                if not torch.isfinite(torch.tensor(loss_val)):
+                    print(
+                        f"[PROGRESS] Batch {batch_idx}/{len(dataloader)} | "
+                        f"Loss: nan | LR: {current_lr:.2e}",
+                        flush=True,
+                    )
+                else:
+                    print(
+                        f"[PROGRESS] Batch {batch_idx}/{len(dataloader)} | "
+                        f"Loss: {loss_val:.4f} | LR: {current_lr:.2e}",
+                        flush=True,
+                    )
 
             # Heartbeat for Modal (every 5 minutes)
             if time.time() - last_heartbeat > heartbeat_interval:
-                print(
-                    f"[HEARTBEAT] Still training... Batch {batch_idx}/{len(dataloader)} | "
-                    f"Avg Loss: {total_loss / max(1, num_batches):.4f}",
-                    flush=True,
-                )
+                if num_batches > 0:
+                    avg_loss = total_loss / num_batches
+                    print(
+                        f"[HEARTBEAT] Still training... Batch {batch_idx}/{len(dataloader)} | "
+                        f"Avg Loss: {avg_loss:.4f}",
+                        flush=True,
+                    )
+                else:
+                    print(
+                        f"[HEARTBEAT] Still training... Batch {batch_idx}/{len(dataloader)} | "
+                        f"Avg Loss: N/A (all NaN)",
+                        flush=True,
+                    )
                 last_heartbeat = time.time()
+
+            if (
+                checkpoint_dir is not None
+                and epoch_index is not None
+                and mid_interval_s is not None
+                and (time.time() - last_mid_save) >= mid_interval_s
+            ):
+                mid_path = checkpoint_dir / f"mid_epoch_{epoch_index + 1:03d}_{batch_idx:06d}.pt"
+                try:
+                    save_checkpoint(
+                        model,
+                        optimizer,
+                        epoch_index,
+                        0.0,
+                        mid_path,
+                        scheduler,
+                        None,
+                        extra={"batch_idx": batch_idx, "kind": "mid_epoch"},
+                    )
+                    print(f"[CHECKPOINT] Saved mid-epoch snapshot: {mid_path.name}", flush=True)
+                    last_mid_save = time.time()
+                    mids = sorted(
+                        checkpoint_dir.glob("mid_epoch_*.pt"), key=lambda p: p.stat().st_mtime
+                    )
+                    if len(mids) > int(max(0, mid_epoch_keep)):
+                        for old in mids[: len(mids) - int(mid_epoch_keep)]:
+                            with suppress(Exception):
+                                old.unlink()
+                except Exception as e:
+                    print(f"[WARNING] Failed to save mid-epoch checkpoint: {e}", flush=True)
 
     except Exception as e:
         # Clean up tqdm if it exists
@@ -727,6 +895,7 @@ def save_checkpoint(
     checkpoint_path: Path,
     scheduler: LRScheduler | None = None,
     config: Config | None = None,
+    extra: dict[str, Any] | None = None,
 ) -> None:
     """Save training checkpoint with verification.
 
@@ -754,6 +923,8 @@ def save_checkpoint(
 
     if config is not None:
         checkpoint["config"] = config.model_dump()
+    if extra:
+        checkpoint.update(extra)
 
     # Save to temp file first, then rename (atomic operation)
     temp_path = checkpoint_path.with_suffix(".tmp")
@@ -866,6 +1037,12 @@ def train(
         Dictionary of best metrics
     """
     # Setup
+    if os.getenv("BGB_ANOMALY_DETECT", "0") == "1":
+        try:
+            torch.autograd.set_detect_anomaly(True)
+            print("[DEBUG] Enabled torch.autograd anomaly detection", flush=True)
+        except Exception:
+            pass
     set_seed(config.experiment.seed)
     device = config.experiment.device
     if device == "auto":
@@ -915,6 +1092,12 @@ def train(
             scheduler.load_state_dict(ckpt["scheduler_state_dict"])
         start_epoch = ckpt["epoch"]
         best_metric = ckpt.get("best_metric", 0.0)
+        if best_metric == 0.0 and (checkpoint_dir / "last.pt").exists():
+            try:
+                _last = torch.load(checkpoint_dir / "last.pt", map_location="cpu")
+                best_metric = _last.get("best_metric", 0.0)
+            except Exception:
+                pass
         print(
             f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}", flush=True
         )
@@ -946,7 +1129,26 @@ def train(
             focal_alpha=getattr(config.training, "focal_alpha", 0.25),
             focal_gamma=getattr(config.training, "focal_gamma", 2.0),
             return_step=True,
+            checkpoint_dir=checkpoint_dir,
+            epoch_index=epoch,
+            mid_epoch_minutes=(
+                float(os.getenv("BGB_MID_EPOCH_MINUTES", "0"))
+                if config.training.resume and os.getenv("BGB_MID_EPOCH_MINUTES")
+                else (
+                    getattr(
+                        config.experiment,
+                        "mid_epoch_checkpoint_minutes",
+                        10.0 if config.training.resume else None,
+                    )
+                )
+            ),
+            mid_epoch_keep=int(
+                os.getenv(
+                    "BGB_MID_EPOCH_KEEP", str(getattr(config.experiment, "mid_epoch_keep", 3))
+                )
+            ),
         )
+
         # Type narrowing for mypy
         assert isinstance(result, tuple), "return_step=True should return tuple"
         train_loss, global_step = result
@@ -1043,7 +1245,11 @@ def train(
             wandb_logger.log_model(checkpoint_dir / "best.pt", name=f"best-{metric_name}")
 
         # Save periodic checkpoint based on checkpoint_interval
-        checkpoint_interval = getattr(config.experiment, "checkpoint_interval", 0)
+        checkpoint_interval = getattr(
+            config.experiment,
+            "checkpoint_interval",
+            getattr(config.training, "checkpoint_interval", 0),
+        )
         if checkpoint_interval > 0 and (epoch + 1) % checkpoint_interval == 0:
             checkpoint_path = checkpoint_dir / f"epoch_{epoch + 1:03d}.pt"
             save_checkpoint(

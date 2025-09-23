@@ -40,8 +40,8 @@ test: ## Run tests with coverage (excludes performance benchmarks)
 	$(PYTEST) -n auto -m "not serial and not performance and not gpu" --cov=src --cov-append --cov-report=term-missing:skip-covered
 	@echo "${CYAN}Running GPU tests (serial)...${NC}"
 	$(PYTEST) -n 1 -m "gpu and not performance" --cov=src --cov-append --cov-report=term-missing:skip-covered
-	@echo "${CYAN}Running serial tests (excluding performance)...${NC}"
-	$(PYTEST) -n 0 -m "serial and not performance" --cov=src --cov-append --cov-report=term-missing:skip-covered --cov-report=html
+	@echo "${CYAN}Running serial tests (excluding performance and GPU)...${NC}"
+	$(PYTEST) -n 0 -m "serial and not performance and not gpu" --cov=src --cov-append --cov-report=term-missing:skip-covered --cov-report=html
 
 test-fast: ## Run tests without coverage (faster, excludes performance)
 	@echo "${CYAN}Running fast tests (CPU only)...${NC}"
@@ -86,8 +86,8 @@ test-all: ## Run ALL tests including performance (comprehensive)
 	$(PYTEST) -n auto -m "not serial and not gpu" --cov=src --cov-append
 	@echo "${CYAN}Running GPU tests (serial)...${NC}"
 	$(PYTEST) -n 1 -m "gpu" --cov=src --cov-append
-	@echo "${CYAN}Running serial tests (including performance)...${NC}"
-	$(PYTEST) -n 0 -m "serial" --cov=src --cov-append --cov-report=term-missing --cov-report=html
+	@echo "${CYAN}Running serial tests (including performance, excluding GPU)...${NC}"
+	$(PYTEST) -n 0 -m "serial and not gpu" --cov=src --cov-append --cov-report=term-missing --cov-report=html
 
 # Detect available tools (professional pattern)
 RUFF := $(if $(wildcard .venv/bin/ruff),.venv/bin/ruff,uv run ruff)
@@ -129,6 +129,7 @@ clean: ## Clean all artifacts
 	rm -rf .pytest_cache/
 	rm -rf .mypy_cache/
 	rm -rf htmlcov/
+	rm -f .coverage .coverage.*
 	rm -rf results/models/*
 	rm -rf results/metrics/*
 	rm -rf results/plots/*

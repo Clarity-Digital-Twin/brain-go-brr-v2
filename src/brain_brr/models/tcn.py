@@ -11,6 +11,14 @@ from typing import cast
 import torch
 import torch.nn as nn
 
+# Suppress deprecation warning for weight_norm - we use old API for torch.compile compat
+warnings.filterwarnings(
+    "ignore",
+    message=".*weight_norm is deprecated.*",
+    category=UserWarning,
+    module="torch.nn.utils.weight_norm",
+)
+
 # Try to import pytorch-tcn (optional dependency)
 try:
     from pytorch_tcn import TCN
@@ -58,7 +66,7 @@ class MinimalTCN(nn.Module):
                 in_channels, out_channels, kernel_size, padding=padding, dilation=dilation_size
             )
 
-            # Weight normalization
+            # Weight normalization (using old API for torch.compile compatibility)
             conv = nn.utils.weight_norm(conv)
 
             layers.append(conv)
@@ -91,8 +99,8 @@ class MinimalTCN(nn.Module):
 class TCNEncoder(nn.Module):
     """TCN encoder that produces features for Bi-Mamba.
 
-    Input:  (B, 19, 15360) - 60s of 19-channel EEG @ 256Hz
-    Output: (B, 512, 960)   - Downsampled by 16x for Mamba
+    Input:  (B, 19, L) where L is divisible by stride_down (default 16)
+    Output: (B, 512, L/16)   - Downsampled by 16x for Mamba
     """
 
     def __init__(
@@ -126,11 +134,12 @@ class TCNEncoder(nn.Module):
             torch.backends.cuda.matmul.allow_tf32 = True
             torch.backends.cudnn.allow_tf32 = True
 
-        # Choose backend: prefer external TCN only when CUDA is available (faster),
-        # else use the lightweight in-repo fallback to keep CPU tests fast.
-        use_external = HAS_PYTORCH_TCN and (
-            torch.cuda.is_available() or os.getenv("BGB_FORCE_TCN_EXT", "0") == "1"
-        )
+        # Choose backend: prefer external TCN only when explicitly enabled or forced
+        # The external pytorch-tcn can hang on certain configurations
+        force_ext = os.getenv("BGB_FORCE_TCN_EXT", "0") == "1"
+        force_internal = os.getenv("BGB_FORCE_TCN_EXT", "0") == "0"
+
+        use_external = HAS_PYTORCH_TCN and force_ext and not force_internal
 
         # TCN backbone
         if use_external:
@@ -170,15 +179,18 @@ class TCNEncoder(nn.Module):
         """Forward pass through TCN encoder.
 
         Args:
-            x: Input EEG tensor (B, 19, 15360)
+            x: Input EEG tensor (B, 19, L)
 
         Returns:
-            Encoded features (B, 512, 960)
+            Encoded features (B, 512, L/stride_down)
         """
         # Check input shape
         _b, c, length = x.shape
         assert self.input_channels == c, f"Expected {self.input_channels} channels, got {c}"
-        assert length == 15360, f"Expected 15360 samples, got {length}"
+        if length % self.stride_down != 0:
+            raise AssertionError(
+                f"Input length {length} must be divisible by stride_down {self.stride_down}"
+            )
 
         # TCN processing
         x = self.tcn(x)  # (B, tcn_channels, 15360)
@@ -215,6 +227,17 @@ class ProjectionHead(nn.Module):
 
         # Upsample to restore temporal resolution
         self.upsample = nn.Upsample(scale_factor=upsample_factor, mode="nearest")
+
+        # Initialize weights properly
+        self._initialize_weights()
+
+    def _initialize_weights(self) -> None:
+        """Initialize weights using Xavier initialization for stable gradients."""
+        for module in self.modules():
+            if isinstance(module, nn.Conv1d):
+                nn.init.xavier_uniform_(module.weight)
+                if module.bias is not None:
+                    nn.init.zeros_(module.bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass through projection head.

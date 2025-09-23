@@ -2,6 +2,7 @@
 
 # Fix CUDA detection in pytest-xdist multiprocessing
 # CUDA cannot be re-initialized in forked subprocess
+import gc
 import multiprocessing
 import os
 import tempfile
@@ -17,16 +18,13 @@ import torch
 import yaml
 from click.testing import CliRunner
 
-# Force single GPU visibility for tests to avoid Triton device issues
+# Force single GPU visibility for tests to avoid multi-GPU issues
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 if torch.cuda.is_available():
     # Only set spawn if not already set and CUDA is available
     with suppress(RuntimeError):
         multiprocessing.set_start_method("spawn", force=False)
-
-    # Ensure device 0 is set as default for Triton
-    torch.cuda.set_device(0)
 
 
 # Register custom markers
@@ -48,6 +46,26 @@ def pytest_configure(config):
         "ignore:.*autograd.function.Function.*should not be instantiated:DeprecationWarning",
     )
     config.addinivalue_line("filterwarnings", "ignore:TensorFloat32 tensor cores.*:UserWarning")
+    # Silence upstream PyTorch warnings we intentionally accept for compatibility/perf
+    config.addinivalue_line(
+        "filterwarnings",
+        "ignore:torch.nn.utils.weight_norm is deprecated in favor of torch.nn.utils.parametrizations.weight_norm:UserWarning",
+    )
+    config.addinivalue_line(
+        "filterwarnings",
+        "ignore:Using padding='same' with even kernel lengths and odd dilation may require a zero-padded copy of the input be created:UserWarning",
+    )
+
+
+@pytest.fixture(autouse=True)
+def cuda_cleanup():
+    """Automatically clean up CUDA memory after each test."""
+    yield
+    # Cleanup after test
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
 
 
 @pytest.fixture(scope="session")
@@ -142,11 +160,8 @@ def minimal_model():
     )
 
     model = SeizureDetector.from_config(config)
-
-    # Move to CUDA if available for performance testing
-    if torch.cuda.is_available():
-        model = model.cuda()
-
+    model.eval()  # Set to eval mode for consistency
+    # Don't auto-move to CUDA - let tests do it explicitly
     return model
 
 

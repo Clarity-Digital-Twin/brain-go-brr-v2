@@ -1,8 +1,12 @@
-# SEIZURE DETECTION MVP: FINAL ARCHITECTURE SPECIFICATION
+# SEIZURE DETECTION MVP: FINAL ARCHITECTURE SPECIFICATION (Legacy pre‑v2.3)
+
+Note: This analysis reflects the original U‑Net + ResCNN design. It has been superseded by the
+TCN front‑end described in `02-model/architecture/current-state.md` and
+`02-model/architecture/tcn-replacement.md`. Keep for historical context/ablations.
 
 ## Executive Summary
 
-**Architecture:** U-Net (1D CNN) → ResCNN stack → Bi-Mamba-2 → U-Net decoder → sigmoid → Hysteresis → TAES
+**Legacy Architecture:** U‑Net (1D CNN) → ResCNN stack → Bi‑Mamba‑2 → U‑Net decoder → sigmoid → Hysteresis → TAES
 
 **Key Innovation:** Replace SeizureTransformer's attention mechanism with Bi-Mamba-2 for O(N) complexity on long recordings while maintaining state-of-the-art performance.
 

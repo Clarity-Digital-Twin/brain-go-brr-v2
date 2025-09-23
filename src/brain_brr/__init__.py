@@ -1,13 +1,13 @@
-"""Brain-Go-Brr: Bi-Mamba-2 + U-Net + ResCNN for TUSZ seizure detection.
+"""Brain-Go-Brr: TCN + Bi-Mamba-2 for TUSZ seizure detection.
 
 First architecture to combine:
+- TCN (Temporal Convolutional Network) for efficient feature extraction
 - Bidirectional Mamba-2 for O(N) sequence modeling
-- U-Net for multi-scale feature extraction
-- ResCNN for temporal convolution
+- Projection + upsampling for output restoration
 Specifically optimized for TUSZ seizure detection.
 """
 
-__version__ = "2.0.0-alpha"
+__version__ = "2.3.0"
 
 # Clean imports from new package structure
 from .constants import *  # noqa: F403
