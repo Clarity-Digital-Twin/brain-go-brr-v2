@@ -184,6 +184,7 @@ class TestTrainingSmoke:
             assert epoch == 5
             assert best_metric == 0.95
 
+    @pytest.mark.serial
     def test_gradient_clipping(
         self, model: SeizureDetector, synthetic_data: tuple[DataLoader, DataLoader]
     ) -> None:
@@ -202,6 +203,7 @@ class TestTrainingSmoke:
             if param.grad is not None:
                 assert torch.norm(param.grad).item() <= 1.1  # Small tolerance
 
+    @pytest.mark.serial
     def test_mixed_precision(
         self, model: SeizureDetector, synthetic_data: tuple[DataLoader, DataLoader]
     ) -> None:
@@ -270,6 +272,7 @@ class TestTrainingSmoke:
         # Note: Can't easily test exact distribution due to probabilistic assignment
         # but sampler should be created successfully
 
+    @pytest.mark.serial
     def test_full_training_loop(
         self, model: SeizureDetector, synthetic_data: tuple[DataLoader, DataLoader]
     ) -> None:
