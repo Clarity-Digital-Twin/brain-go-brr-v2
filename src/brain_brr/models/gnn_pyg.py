@@ -130,7 +130,9 @@ class GraphChannelMixerPyG(nn.Module):
                     data_for_pe = Data(
                         x=data.x,
                         edge_index=data.edge_index,
-                        edge_weight=data.edge_weight.detach() if data.edge_weight is not None else None,
+                        edge_weight=data.edge_weight.detach()
+                        if data.edge_weight is not None
+                        else None,
                     )
                     data_for_pe = self.laplacian_pe(data_for_pe)
                     # Copy PE back to original data

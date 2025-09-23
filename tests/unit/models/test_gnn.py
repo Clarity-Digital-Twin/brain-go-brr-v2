@@ -93,11 +93,12 @@ class TestDynamicGraphBuilder:
 
 
 class TestGraphChannelMixer:
-    """Test GNN module."""
+    """Test GNN module (REMOVED - PyG only now)."""
 
+    @pytest.mark.skip(reason="Pure torch GNN removed - PyG is required")
     def test_gnn_preserves_shape(self):
         """GNN must preserve input shape."""
-        from src.brain_brr.models.gnn import GraphChannelMixer
+        pytest.skip("Pure torch GNN removed - use PyG tests")
 
         gnn = GraphChannelMixer(d_model=64)
         features = torch.randn(2, 19, 960, 64)
@@ -106,9 +107,10 @@ class TestGraphChannelMixer:
         output = gnn(features, adjacency)
         assert output.shape == features.shape
 
+    @pytest.mark.skip(reason="Pure torch GNN removed - PyG is required")
     def test_gnn_gradient_flow(self):
         """Gradients must flow through GNN."""
-        from src.brain_brr.models.gnn import GraphChannelMixer
+        pytest.skip("Pure torch GNN removed - use PyG tests")
 
         gnn = GraphChannelMixer(d_model=64)
         features = torch.randn(1, 19, 10, 64, requires_grad=True)
@@ -122,9 +124,10 @@ class TestGraphChannelMixer:
         assert not torch.isnan(features.grad).any()
         assert features.grad.abs().mean() > 1e-8
 
+    @pytest.mark.skip(reason="Pure torch GNN removed - PyG is required")
     def test_gnn_stability_with_identity_adj(self):
         """With identity adjacency, output should be finite and bounded."""
-        from src.brain_brr.models.gnn import GraphChannelMixer
+        pytest.skip("Pure torch GNN removed - use PyG tests")
 
         gnn = GraphChannelMixer(d_model=64, n_layers=2)
         features = torch.randn(1, 19, 10, 64)
@@ -138,9 +141,10 @@ class TestGraphChannelMixer:
         ratio = (output.pow(2).mean() / (features.pow(2).mean() + 1e-9)).sqrt()
         assert 0.1 <= ratio <= 10.0
 
+    @pytest.mark.skip(reason="Pure torch GNN removed - PyG is required")
     def test_gnn_alpha_mixing(self):
         """SSGConv alpha should control self vs neighbor mixing."""
-        from src.brain_brr.models.gnn import GraphChannelMixer
+        pytest.skip("Pure torch GNN removed - use PyG tests")
 
         # Test that different alpha values produce different outputs
         gnn_low_alpha = GraphChannelMixer(d_model=64, alpha=0.05)  # EvoBrain default
@@ -157,9 +161,10 @@ class TestGraphChannelMixer:
         # Different alpha values should produce different outputs
         assert not torch.allclose(output_low, output_high, rtol=1e-4)
 
+    @pytest.mark.skip(reason="Pure torch GNN removed - PyG is required")
     def test_gnn_residual_connections(self):
         """Residual connections should help gradient flow."""
-        from src.brain_brr.models.gnn import GraphChannelMixer
+        pytest.skip("Pure torch GNN removed - use PyG tests")
 
         gnn_with_res = GraphChannelMixer(d_model=64, use_residual=True)
         gnn_without_res = GraphChannelMixer(d_model=64, use_residual=False)
@@ -184,9 +189,10 @@ class TestGraphChannelMixer:
         assert grad_with.abs().mean() > 0
         assert grad_without.abs().mean() > 0
 
+    @pytest.mark.skip(reason="Pure torch GNN removed - PyG is required")
     def test_gnn_dropout(self):
         """Dropout should affect training vs eval mode."""
-        from src.brain_brr.models.gnn import GraphChannelMixer
+        pytest.skip("Pure torch GNN removed - use PyG tests")
 
         gnn = GraphChannelMixer(d_model=64, dropout=0.5)
         features = torch.randn(1, 19, 10, 64)
