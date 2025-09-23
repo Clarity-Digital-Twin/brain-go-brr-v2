@@ -11,7 +11,7 @@ import sys
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parents[3]))
 
-from src.brain_brr.train.loop import FocalLoss, train_one_epoch
+from src.brain_brr.train.loop import FocalLoss
 
 
 class TestNaNRobustness:
