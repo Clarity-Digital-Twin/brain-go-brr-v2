@@ -3,7 +3,15 @@
 Based on EvoBrain architecture and parameters.
 """
 
+import pytest
 import torch
+
+# Check if PyG is available
+try:
+    import torch_geometric
+    HAS_PYG = True
+except ImportError:
+    HAS_PYG = False
 
 
 class TestDynamicGraphBuilder:
@@ -198,3 +206,60 @@ class TestGraphChannelMixer:
 
         # Outputs should be identical in eval mode
         assert torch.allclose(output_eval1, output_eval2)
+
+
+@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
+class TestGraphChannelMixerPyG:
+    """Test PyG GNN with Laplacian PE."""
+
+    def test_pyg_gnn_with_lpe(self):
+        """PyG GNN should add Laplacian PE to features."""
+        from src.brain_brr.models.gnn_pyg import GraphChannelMixerPyG
+
+        gnn = GraphChannelMixerPyG(
+            d_model=64,
+            k_eigenvectors=16,  # EvoBrain default
+            alpha=0.05,
+        )
+        features = torch.randn(1, 19, 10, 64)
+        adjacency = torch.randn(1, 10, 19, 19).softmax(dim=-1)
+
+        output = gnn(features, adjacency)
+        assert output.shape == features.shape
+        assert torch.isfinite(output).all()
+
+    def test_pyg_gnn_handles_sparse_adjacency(self):
+        """PyG GNN should work with very sparse adjacency."""
+        from src.brain_brr.models.gnn_pyg import GraphChannelMixerPyG
+
+        gnn = GraphChannelMixerPyG(d_model=64)
+        features = torch.randn(1, 19, 5, 64)
+
+        # Create very sparse adjacency (only diagonal + few edges)
+        adjacency = torch.eye(19).unsqueeze(0).unsqueeze(0).repeat(1, 5, 1, 1)
+        adjacency[0, :, 0, 1] = 0.5  # Add one edge
+        adjacency[0, :, 1, 0] = 0.5  # Symmetric
+
+        output = gnn(features, adjacency)
+        assert output.shape == features.shape
+        assert torch.isfinite(output).all()
+
+    def test_pyg_gnn_gradient_flow_with_lpe(self):
+        """Gradients should flow through PyG GNN with LPE."""
+        from src.brain_brr.models.gnn_pyg import GraphChannelMixerPyG
+
+        gnn = GraphChannelMixerPyG(
+            d_model=64,
+            k_eigenvectors=8,
+            n_layers=2,
+        )
+        features = torch.randn(1, 19, 3, 64, requires_grad=True)
+        adjacency = torch.randn(1, 3, 19, 19).softmax(dim=-1)
+
+        output = gnn(features, adjacency)
+        loss = output.mean()
+        loss.backward()
+
+        assert features.grad is not None
+        assert not torch.isnan(features.grad).any()
+        assert features.grad.abs().mean() > 1e-8

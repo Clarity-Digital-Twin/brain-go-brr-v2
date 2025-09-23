@@ -1,0 +1,113 @@
+# TCN + Bi-Mamba + Dynamic GNN with Laplacian PE
+# Based on EvoBrain proven parameters
+# Install PyG first: uv sync -E graph
+
+experiment:
+  name: tcn_gnn_lpe_full
+  description: "v2.6 TCN + Bi-Mamba + Dynamic GNN with Laplacian PE (EvoBrain)"
+  seed: 42
+  output_dir: results/tcn_gnn_lpe_full
+  save_checkpoint: true
+  save_every_n_epochs: 5
+
+model:
+  architecture: tcn  # TCN + Bi-Mamba architecture
+
+  tcn:
+    num_layers: 8
+    channels: [64, 128, 256, 512]
+    kernel_size: 7
+    dropout: 0.15
+    causal: false
+    stride_down: 16
+    use_cuda_optimizations: true
+
+  mamba:
+    n_layers: 6
+    d_model: 512
+    d_state: 16
+    conv_kernel: 4  # CUDA constraint
+    dropout: 0.1
+
+  # Dynamic GNN with Laplacian PE (EvoBrain architecture)
+  graph:
+    enabled: true
+    use_pyg: true           # Enable PyTorch Geometric for LPE
+    # Graph construction
+    similarity: cosine      # EvoBrain proven
+    top_k: 3               # Sparse connectivity (EvoBrain best)
+    threshold: 1.0e-4      # Edge pruning threshold
+    temperature: 0.1       # Softmax temperature
+    # GNN architecture
+    n_layers: 2            # 2-layer GNN (EvoBrain proven)
+    dropout: 0.1
+    use_residual: true     # Skip connections
+    # EvoBrain critical parameters
+    alpha: 0.05            # SSGConv mixing (DO NOT CHANGE)
+    k_eigenvectors: 16     # Laplacian PE dimension (DO NOT CHANGE)
+
+data:
+  dataset: tuh_eeg
+  data_dir: data_ext4/tusz/edf/train
+  cache_dir: cache/tusz_gnn_lpe
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60
+  stride: 10
+  use_balanced_sampling: true
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
+  validation_split: 0.2
+
+preprocessing:
+  montage: "10-20"
+  bandpass: [0.5, 120.0]
+  notch_freq: 60
+  normalize: true
+  use_mne: true
+
+training:
+  batch_size: 6  # Reduced due to GNN memory overhead
+  learning_rate: 3.0e-4
+  num_epochs: 100
+  gradient_clip_val: 1.0
+  mixed_precision: true
+
+  loss: focal
+  focal_alpha: 0.5
+  focal_gamma: 2.0
+
+  scheduler:
+    type: cosine
+    warmup_ratio: 0.03
+
+  optimizer:
+    type: adamw
+    weight_decay: 0.05
+
+  early_stopping:
+    patience: 5
+    metric: sensitivity_at_10fa
+
+postprocessing:
+  hysteresis:
+    tau_on: 0.86
+    tau_off: 0.78
+  morphology:
+    opening_kernel: 11
+    closing_kernel: 31
+  duration:
+    min_duration_s: 3.0
+    max_duration_s: 600.0
+
+evaluation:
+  metrics: [taes, sensitivity, specificity, auroc]
+  fa_rates: [10, 5, 2.5, 1]
+  save_predictions: false
+  save_plots: false
+
+logging:
+  log_every_n_steps: 50
+  tensorboard: true

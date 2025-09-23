@@ -212,7 +212,6 @@ class SeizureDetector(nn.Module):
 
         if instance.use_gnn and graph_cfg is not None:
             # Lazy imports to avoid dependency when not using GNN
-            from .gnn import GraphChannelMixer
             from .graph_builder import DynamicGraphBuilder
 
             # Initialize graph builder
@@ -223,15 +222,38 @@ class SeizureDetector(nn.Module):
                 temperature=graph_cfg.temperature,
             )
 
-            # Initialize GNN
-            instance.gnn = GraphChannelMixer(
-                d_model=64,  # Per-electrode feature dimension
-                n_electrodes=19,
-                n_layers=graph_cfg.n_layers,
-                dropout=graph_cfg.dropout,
-                use_residual=graph_cfg.use_residual,
-                alpha=graph_cfg.alpha,
-            )
+            # Choose GNN implementation based on config
+            if graph_cfg.use_pyg:
+                # Use PyTorch Geometric with Laplacian PE
+                try:
+                    from .gnn_pyg import GraphChannelMixerPyG
+
+                    instance.gnn = GraphChannelMixerPyG(
+                        d_model=64,  # Per-electrode feature dimension
+                        n_electrodes=19,
+                        k_eigenvectors=graph_cfg.k_eigenvectors,
+                        alpha=graph_cfg.alpha,
+                        k_hops=2,  # 2-hop neighborhood
+                        n_layers=graph_cfg.n_layers,
+                        dropout=graph_cfg.dropout,
+                        use_residual=graph_cfg.use_residual,
+                    )
+                except ImportError as e:
+                    raise ImportError(
+                        "PyTorch Geometric not installed. Install with: uv sync -E graph"
+                    ) from e
+            else:
+                # Use pure PyTorch implementation (no LPE)
+                from .gnn import GraphChannelMixer
+
+                instance.gnn = GraphChannelMixer(
+                    d_model=64,  # Per-electrode feature dimension
+                    n_electrodes=19,
+                    n_layers=graph_cfg.n_layers,
+                    dropout=graph_cfg.dropout,
+                    use_residual=graph_cfg.use_residual,
+                    alpha=graph_cfg.alpha,
+                )
 
             # Projections to/from electrode space
             instance.proj_to_electrodes = nn.Conv1d(512, 19 * 64, kernel_size=1)

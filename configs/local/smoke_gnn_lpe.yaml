@@ -1,0 +1,73 @@
+# Quick smoke test for GNN with Laplacian PE
+# Install PyG first: uv sync -E graph
+
+experiment:
+  name: tcn_gnn_lpe_smoke
+  description: "Smoke test for Dynamic GNN + LPE"
+  seed: 42
+  output_dir: results/tcn_gnn_lpe_smoke
+  save_checkpoint: false
+
+model:
+  architecture: tcn
+
+  tcn:
+    num_layers: 8
+    kernel_size: 7
+    dropout: 0.15
+    stride_down: 16
+
+  mamba:
+    n_layers: 6
+    d_state: 16
+    conv_kernel: 4  # CUDA constraint
+    dropout: 0.1
+
+  # Dynamic GNN with Laplacian PE
+  graph:
+    enabled: true
+    use_pyg: true           # PyTorch Geometric for LPE
+    similarity: cosine
+    top_k: 3
+    threshold: 1.0e-4
+    temperature: 0.1
+    n_layers: 2
+    dropout: 0.1
+    use_residual: true
+    alpha: 0.05             # SSGConv mixing (EvoBrain)
+    k_eigenvectors: 16      # Laplacian PE dimension
+
+data:
+  dataset: tuh_eeg
+  data_dir: data_ext4/tusz/edf/train
+  cache_dir: cache/smoke_gnn_lpe
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60
+  stride: 10
+  use_balanced_sampling: true
+  num_workers: 0  # No multiprocessing for smoke test
+  max_samples: 10  # Very small for quick test
+
+preprocessing:
+  montage: "10-20"
+  bandpass: [0.5, 120.0]
+  notch_freq: 60
+  normalize: true
+  use_mne: true
+
+training:
+  batch_size: 2  # Small batch for smoke test
+  learning_rate: 1.0e-4
+  num_epochs: 1  # Single epoch
+  gradient_clip_val: 1.0
+  mixed_precision: false  # Disabled for smoke test
+
+  loss: focal
+  focal_alpha: 0.25
+  focal_gamma: 2.0
+
+postprocessing:
+  hysteresis:
+    tau_on: 0.86
+    tau_off: 0.78

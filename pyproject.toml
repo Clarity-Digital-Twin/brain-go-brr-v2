@@ -74,6 +74,12 @@ monitoring = [
 tcn = [
     "pytorch-tcn==1.2.3",  # Temporal Convolutional Networks
 ]
+graph = [
+    "torch-geometric>=2.4.0",  # Graph Neural Networks with Laplacian PE
+    "torch-scatter",  # Scatter operations for PyG
+    "torch-sparse",  # Sparse operations for PyG
+    "torch-cluster",  # Clustering operations for PyG
+]
 
 [tool.uv]
 managed = true
@@ -218,10 +224,14 @@ strict_equality = true
 
 [[tool.mypy.overrides]]
 module = [
-    "torch.*", 
+    "torch.*",
     "torchvision.*",
     "matplotlib.*",
     "seaborn.*",
     "mamba_ssm.*",
+    "torch_geometric.*",
+    "torch_scatter.*",
+    "torch_sparse.*",
+    "torch_cluster.*",
 ]
 ignore_missing_imports = true
