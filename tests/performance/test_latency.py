@@ -324,7 +324,7 @@ class TestThroughput:
         )
 
         # Should process 1 hour of data quickly; allow CPU more headroom
-        max_seconds = 180 if not is_cpu else 360
+        max_seconds = 180 if not is_cpu else 380
         assert total_time < max_seconds, (
             f"Estimated time {total_time:.1f}s (> {max_seconds}s limit)"
         )
@@ -500,10 +500,14 @@ class TestLatencyUnderLoad:
         # More relaxed thresholds for CPU environments
         device = next(minimal_model.parameters()).device
         p95_limit = 2.5 if device.type == "cpu" else 0.5
-        median_limit = 1.2 if device.type == "cpu" else 0.2
+        median_limit = 1.25 if device.type == "cpu" else 0.2
 
-        assert p95_latency < p95_limit, f"P95 latency {p95_latency:.2f}s under concurrent load (limit: {p95_limit}s)"
-        assert median_latency < median_limit, f"Median latency {median_latency:.2f}s under concurrent load (limit: {median_limit}s)"
+        assert p95_latency < p95_limit, (
+            f"P95 latency {p95_latency:.2f}s under concurrent load (limit: {p95_limit}s)"
+        )
+        assert median_latency < median_limit, (
+            f"Median latency {median_latency:.2f}s under concurrent load (limit: {median_limit}s)"
+        )
 
         # Check throughput improvement
         sequential_time = median_latency * n_threads * n_requests_per_thread

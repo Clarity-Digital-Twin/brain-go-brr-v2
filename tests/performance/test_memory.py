@@ -408,6 +408,8 @@ class TestMemoryUsage:
     def test_long_running_memory_stability(self, minimal_model):
         """Test memory stability over extended operation."""
         device = next(minimal_model.parameters()).device
+        if device.type == "cpu":
+            pytest.skip("Test requires GPU - too slow on CPU (1000 iterations)")
         window = torch.randn(1, 19, 15360, device=device)
         memory_checkpoints = []
 
