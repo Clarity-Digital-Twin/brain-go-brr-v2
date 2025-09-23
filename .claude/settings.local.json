@@ -135,7 +135,9 @@
       "Bash(while ! tail -1 perf_test_final.log)",
       "Bash(killall:*)",
       "Bash(.venv/bin/ruff check src/brain_brr/train/loop.py --fix)",
-      "Bash(.venv/bin/pip:*)"
+      "Bash(.venv/bin/pip:*)",
+      "Bash(git reset:*)",
+      "Bash(.venv/bin/ruff check src/brain_brr/models/edge_features.py tests/unit/models/test_edge_features.py --fix --unsafe-fixes)"
     ],
     "deny": [],
     "ask": []
