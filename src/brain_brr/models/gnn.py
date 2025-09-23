@@ -79,9 +79,8 @@ class GraphChannelMixer(nn.Module):
         # This prevents degenerate zero rows from producing undefined behavior.
         row_has_edges = (adj_weights > 0).any(dim=-1, keepdim=True)
         if not row_has_edges.all():
-            identity = (
-                torch.eye(n_nodes, device=adj_norm.device, dtype=adj_norm.dtype)
-                .unsqueeze(0)
+            identity = torch.eye(n_nodes, device=adj_norm.device, dtype=adj_norm.dtype).unsqueeze(
+                0
             )  # (1, N, N)
             adj_norm = adj_norm * row_has_edges + identity * (~row_has_edges)
 
