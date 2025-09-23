@@ -5,7 +5,7 @@ Based on EvoBrain implementation with proven parameters for EEG.
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.nn.functional as func
 
 
 class DynamicGraphBuilder(nn.Module):
