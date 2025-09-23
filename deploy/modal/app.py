@@ -100,7 +100,12 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
 # NOTE: brain-go-brr-data volume deleted - it was empty and unused
 
 
-@app.function(gpu="A100", timeout=300)  # 5 min test
+@app.function(
+    gpu="A100",
+    timeout=300,  # 5 min test
+    cpu=16,  # Safe: 16 cores for testing
+    memory=32768,  # Safe: 32GB RAM for tests
+)
 def test_mamba_cuda():
     """Test that Mamba CUDA kernels work properly."""
     import torch
@@ -160,8 +165,8 @@ def test_mamba_cuda():
         "/data": data_mount,  # S3 bucket with TUH data!
         "/results": results_volume,
     },
-    memory=32768,  # 32GB RAM
-    cpu=8,
+    memory=98304,  # SAFE: 96GB RAM (was 32GB, now 3x for safety)
+    cpu=24,  # SAFE: 24 CPU cores (3 cores per 8 DataLoader workers)
 )
 def train(
     config_path: str = "configs/modal/smoke.yaml",  # Default to smoke test for safety
@@ -351,6 +356,8 @@ def train(
         "/data": data_mount,   # Use S3 mount for eval datasets
         "/results": results_volume,
     },
+    memory=65536,  # SAFE: 64GB RAM for evaluation
+    cpu=16,  # SAFE: 16 CPU cores for eval
 )
 def evaluate(
     checkpoint_path: str,
