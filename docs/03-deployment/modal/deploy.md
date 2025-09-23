@@ -90,3 +90,13 @@ Troubleshooting
 - Empty/stale manifest on `/results`: training now validates/deletes bad manifests and rebuilds from existing cache automatically. To force a rebuild regardless, set `BGB_FORCE_MANIFEST_REBUILD=1`.
 - **W&B not logging**: Check entity name in config and WANDB_API_KEY in secrets
  - See also: `./troubleshooting.md` → "Modal vs Local divergence".
+
+Resource allocation (Modal basics)
+- Resources are set in `@app.function(...)` decorators in `deploy/modal/app.py` (Modal is not Docker; you don’t use docker‑compose for CPU/RAM).
+- Recommended for A100 training:
+  - `gpu="A100-80GB"`, `cpu=16-32`, `memory=65536-131072`, `timeout=86400`.
+  - Mount S3 (read‑only) to `/data` and a persistent Modal volume to `/results`.
+
+Progress during long validation
+- Validation often has more batches than training (e.g., 810 vs 778) and can appear idle.
+- The training loop prints validation start, periodic heartbeats, and completion messages to avoid “silent hangs”.
