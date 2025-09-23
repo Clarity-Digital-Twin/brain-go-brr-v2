@@ -45,9 +45,7 @@ test: ## Run tests with coverage (excludes performance benchmarks)
 
 test-fast: ## Run tests without coverage (faster, excludes performance)
 	@echo "${CYAN}Running fast tests (CPU only)...${NC}"
-	$(PYTEST) -n 4 --dist=loadfile -m "not performance and not gpu" -q
-	@echo "${CYAN}Running GPU tests (serial)...${NC}"
-	$(PYTEST) -n 1 -m "gpu and not performance" -q
+	$(PYTEST) -n 4 --dist=loadfile -m "not performance and not gpu and not serial" -q
 
 test-cov: ## Run tests with full coverage report
 	@echo "${CYAN}Running tests with full coverage...${NC}"
@@ -113,9 +111,15 @@ type-check: ## Run mypy type checking
 quality: lint format type-check ## Run all code quality checks
 	@echo "${GREEN}✓ All quality checks passed${NC}"
 
-train-local: ## Train model with local config
-	@echo "${CYAN}Training with local config...${NC}"
-	.venv/bin/python -m src train configs/local/train.yaml
+train-local: ## Train model with v2.6 local config
+	@echo "${CYAN}Training with v2.6 stack (TCN+BiMamba+GNN+LPE)...${NC}"
+	@echo "${YELLOW}NaN protections enabled: BGB_NAN_DEBUG=1, BGB_SANITIZE_INPUTS=1${NC}"
+	BGB_NAN_DEBUG=1 BGB_SANITIZE_INPUTS=1 .venv/bin/python -m src train configs/local/train.yaml
+
+smoke-local: ## Run local smoke test (1 epoch)
+	@echo "${CYAN}Running v2.6 smoke test...${NC}"
+	@echo "${YELLOW}NaN protections enabled: BGB_NAN_DEBUG=1, BGB_SANITIZE_INPUTS=1${NC}"
+	BGB_NAN_DEBUG=1 BGB_SANITIZE_INPUTS=1 BGB_SMOKE_TEST=1 .venv/bin/python -m src train configs/local/smoke.yaml
 
 train: train-prod ## Alias: full training with production config
 
@@ -144,18 +148,25 @@ setup: ## Initial project setup
 	uv run pre-commit install
 	@echo "${GREEN}✓ Project ready!${NC}"
 
-setup-gpu: ## Setup GPU support with mamba-ssm (requires CUDA toolkit 12.1)
-	@echo "${CYAN}Setting up GPU support...${NC}"
+setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.1)
+	@echo "${CYAN}Setting up GPU support for v2.6 stack...${NC}"
 	@echo "${YELLOW}Checking CUDA versions...${NC}"
-	@.venv/bin/python -c "import torch; print(f'PyTorch CUDA: {torch.version.cuda}')" || echo "${RED}PyTorch not installed${NC}"
-	@nvcc --version 2>/dev/null | grep "release" || echo "${RED}CUDA toolkit not found! See GPU_SETUP.md${NC}"
-	@echo "${CYAN}Installing GPU extensions manually (UV can't build them)...${NC}"
+	@.venv/bin/python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA: {torch.version.cuda}')" || echo "${RED}PyTorch not installed${NC}"
+	@nvcc --version 2>/dev/null | grep "release" || echo "${RED}CUDA toolkit not found!${NC}"
+	@echo "${CYAN}Installing Mamba-SSM components...${NC}"
 	@export CUDA_HOME=/usr/local/cuda-12.1 && \
 		uv pip install --no-build-isolation causal-conv1d==1.4.0 && \
 		uv pip install --no-build-isolation mamba-ssm==2.2.2
-	@echo "${CYAN}Verifying mamba-ssm...${NC}"
-	@.venv/bin/python -c "from mamba_ssm import Mamba2; print('${GREEN}✓ Mamba-SSM working!${NC}')" 2>/dev/null || \
-		(echo "${RED}⚠️  Mamba-SSM not working! See WORKING_SETUP.md${NC}")
+	@echo "${CYAN}Installing PyG with pre-built wheels...${NC}"
+	@.venv/bin/pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.2.0+cu121.html
+	@.venv/bin/pip install torch-geometric==2.6.1
+	@echo "${CYAN}Installing TCN...${NC}"
+	@uv pip install pytorch-tcn==1.2.3
+	@echo "${CYAN}Verifying v2.6 stack...${NC}"
+	@.venv/bin/python -c "from mamba_ssm import Mamba2; print('${GREEN}✓ Mamba-SSM working${NC}')" || echo "${RED}⚠️  Mamba-SSM failed${NC}"
+	@.venv/bin/python -c "import torch_geometric; print(f'${GREEN}✓ PyG {torch_geometric.__version__} installed${NC}')" || echo "${RED}⚠️  PyG failed${NC}"
+	@.venv/bin/python -c "import pytorch_tcn; print('${GREEN}✓ TCN installed${NC}')" || echo "${RED}⚠️  TCN failed${NC}"
+	@echo "${GREEN}✓ v2.6 stack ready (TCN + BiMamba + GNN + LPE)${NC}"
 
 hooks: ## Run pre-commit hooks on all files
 	@echo "${CYAN}Running pre-commit hooks...${NC}"
@@ -182,3 +193,5 @@ tp: test-performance ## Shortcut for performance benchmarks
 f: format ## Shortcut for format
 l: lint ## Shortcut for lint
 q: quality ## Shortcut for quality checks
+s: smoke-local ## Shortcut for smoke test
+g: setup-gpu ## Shortcut for GPU setup

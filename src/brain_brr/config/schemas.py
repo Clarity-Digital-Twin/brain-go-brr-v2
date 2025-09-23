@@ -176,8 +176,7 @@ class GraphConfig(BaseModel):
         default=0.05, ge=0.0, le=1.0, description="SSGConv self vs neighbor mixing"
     )
 
-    # PyG specific (Phase 2)
-    use_pyg: bool = Field(default=False, description="Use PyTorch Geometric implementation")
+    # Laplacian PE (requires PyG)
     k_eigenvectors: int = Field(default=16, ge=1, le=18, description="Laplacian PE dimension")
 
 

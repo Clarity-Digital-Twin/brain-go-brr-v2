@@ -4,7 +4,7 @@
 data:
   dataset: tuh_eeg
   data_dir: /data/edf/train             # Modal S3 mount path
-  cache_dir: /results/cache/tusz   # Fixed: code will append /train and /val
+  cache_dir: /results/cache/tusz        # Persistent SSD with 3734 cached NPZ files
   sampling_rate: 256
   n_channels: 19
   window_size: 60
@@ -25,7 +25,7 @@ preprocessing:
   use_mne: true
 
 model:
-  architecture: tcn  # TCN + Mamba hybrid architecture
+  architecture: tcn  # TCN + Bi‑Mamba + Dynamic GNN (PyG + LPE)
 
   tcn:
     num_layers: 8
@@ -42,6 +42,22 @@ model:
     d_state: 16
     conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
+
+  # Dynamic GNN with Laplacian PE (PyG canonical backend)
+  graph:
+    enabled: true
+    use_pyg: true           # REQUIRED for Laplacian PE
+    # Graph construction (heuristic adjacency for now)
+    similarity: cosine
+    top_k: 3
+    threshold: 1.0e-4
+    temperature: 0.1
+    # GNN architecture
+    n_layers: 2
+    dropout: 0.1
+    use_residual: true
+    alpha: 0.05             # SSGConv mixing
+    k_eigenvectors: 16      # Laplacian PE dimension
 
 postprocessing:
   hysteresis:
@@ -65,14 +81,14 @@ training:
   loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
   focal_alpha: 0.5                     # MUST BE 0.5! (neutral - let pos_weight handle imbalance)
   focal_gamma: 2.0                     # Focusing parameter (higher = more focus on hard examples)
-  learning_rate: 3e-4
+  learning_rate: 5e-5                  # Reduced from 3e-4 for NaN stability
   weight_decay: 0.05
   optimizer: adamw
   scheduler:
     type: cosine
     warmup_ratio: 0.03
-  gradient_clip: 1.0
-  mixed_precision: true                # A100 tensor cores for speed
+  gradient_clip: 0.5                   # Stronger clipping for NaN protection
+  mixed_precision: false               # DISABLED - causes NaN issues on our stack
   gradient_accumulation_steps: 1       # Can increase if needed
   early_stopping:
     patience: 5
@@ -86,12 +102,12 @@ evaluation:
   save_plots: true                     # Generate all visualizations
 
 experiment:
-  name: tcn_full_100ep
-  description: "TCN architecture full training 100 epochs on Modal A100"
+  name: v2.6_tcn_gnn_full
+  description: "v2.6 TCN+BiMamba+GNN+LPE full training on Modal A100"
   seed: 42
   device: cuda                         # Explicit GPU for consistency
-  output_dir: /results/tcn_full_100ep # Modal volume mount
-  cache_dir: /results/cache/tusz # Fixed to match data cache_dir
+  output_dir: /results/v2.6_tcn_gnn_full  # Modal volume mount
+  cache_dir: /results/cache/tusz       # Must match data.cache_dir
   log_level: INFO
   save_model: true
   save_best_only: true
@@ -99,7 +115,7 @@ experiment:
     enabled: true                      # W&B secret configured!
     project: seizure-detection-a100
     entity: jj-vcmcswaggins-novamindnyc  # Your W&B TEAM (matches API key)
-    tags: ["production", "a100", "tuh-seizure"]
+    tags: ["v2.6", "a100", "tcn-mamba-gnn", "production"]
 
 logging:
   log_every_n_steps: 25                # More frequent on fast GPU

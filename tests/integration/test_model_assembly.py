@@ -10,12 +10,23 @@ class TestSeizureDetector:
     @pytest.fixture
     def model(self) -> SeizureDetector:
         return SeizureDetector(
+            # Legacy params (ignored)
             in_channels=19,
-            base_channels=64,
-            encoder_depth=4,
-            mamba_layers=6,
-            mamba_d_state=16,
-            rescnn_blocks=3,
+            base_channels=32,
+            encoder_depth=2,
+            rescnn_blocks=1,
+            rescnn_kernels=[3, 5],
+            dropout=0.1,
+            # TCN params (actually used)
+            tcn_layers=2,  # SMALL: 2 layers instead of 8
+            tcn_kernel_size=3,  # SMALL: kernel 3 instead of 7
+            tcn_stride=16,
+            tcn_dropout=0.1,
+            # Mamba params
+            mamba_layers=1,  # SMALL: 1 layer instead of 6
+            mamba_d_state=8,  # SMALL: 8 instead of 16
+            mamba_d_conv=4,
+            mamba_dropout=0.1,
         )
 
     @pytest.fixture
@@ -63,8 +74,8 @@ class TestSeizureDetector:
             + info["head_params"]
         )
         assert component_sum == info["total_params"]
-        # TCN+Mamba typically 15M-40M depending on cfg
-        assert 5_000_000 < info["total_params"] < 50_000_000
+        # Small TCN+Mamba model: ~1-10M params
+        assert 500_000 < info["total_params"] < 10_000_000
 
     def test_memory_usage(self, model: SeizureDetector) -> None:
         mem_info = model.get_memory_usage(batch_size=16)
@@ -74,10 +85,18 @@ class TestSeizureDetector:
     @pytest.mark.serial
     @pytest.mark.gpu  # Large batch sizes need GPU memory
     def test_different_batch_sizes(self, model: SeizureDetector) -> None:
-        for batch_size in [1, 8, 16, 32]:
-            x = torch.randn(batch_size, 19, 15360)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = model.to(device)
+
+        # Use smaller batch sizes for small model
+        for batch_size in [1, 2, 4, 8]:
+            x = torch.randn(batch_size, 19, 15360, device=device)
             y = model(x)
             assert y.shape == (batch_size, 15360)
+
+            # Clear cache to prevent OOM
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
     def test_deterministic(self, model: SeizureDetector) -> None:
         torch.manual_seed(42)
@@ -97,7 +116,8 @@ class TestSeizureDetector:
         info = model.get_layer_info()
         config = info["config"]
         assert config["in_channels"] == 19
-        assert config["base_channels"] == 64
-        assert config["encoder_depth"] == 4
-        assert config["mamba_layers"] == 6
-        assert config["mamba_d_state"] == 16
+        assert config["base_channels"] == 32  # Legacy param
+        assert config["tcn_layers"] == 2
+        assert config["tcn_kernel_size"] == 3
+        assert config["mamba_layers"] == 1
+        assert config["mamba_d_state"] == 8

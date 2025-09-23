@@ -1,22 +1,25 @@
-# TCN smoke test config - 1 epoch quick validation
-# Usage: python -m src train configs/local/smoke_tcn.yaml
+# v2.6 Stack Smoke Test: TCN + Bi-Mamba + Dynamic GNN with Laplacian PE
+# Quick validation (1 epoch) for pipeline testing on RTX 4090
+# Usage: python -m src train configs/local/smoke_v2.6.yaml
 
 experiment:
-  name: tcn_smoke
+  name: v2.6_smoke
+  description: "v2.6 stack smoke test - TCN+BiMamba+GNN+LPE"
   seed: 42
-  output_dir: results/tcn_smoke
+  output_dir: results/v2.6_smoke
+  device: cuda
   save_checkpoint: true
   save_every_n_epochs: 1
 
 model:
-  architecture: tcn  # NEW: Use TCN instead of U-Net
+  architecture: tcn
 
   tcn:
     num_layers: 8
     channels: [64, 128, 256, 512]
     kernel_size: 7
     dropout: 0.15
-    causal: false  # Non-causal for offline training
+    causal: false
     stride_down: 16
     use_cuda_optimizations: true
 
@@ -24,38 +27,40 @@ model:
     n_layers: 6
     d_model: 512
     d_state: 16
-    conv_kernel: 4  # IMPORTANT: Set to 4 to avoid CUDA coercion warning
+    conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
-  # Dynamic GNN with Laplacian PE (EvoBrain-inspired)
+  # Dynamic GNN with Laplacian PE (EvoBrain architecture)
   graph:
-    enabled: true
-    similarity: cosine       # EvoBrain proven
-    top_k: 3                # Sparse connectivity
-    threshold: 1.0e-4       # Edge pruning
-    temperature: 0.1        # Softmax temperature
-    n_layers: 2             # 2-layer GNN
+    enabled: true  # FULL STACK SMOKE TEST!
+    use_pyg: true           # USE PyG for Laplacian PE!
+    # Graph construction
+    similarity: cosine      # EvoBrain proven
+    top_k: 3               # Sparse connectivity
+    threshold: 1.0e-4      # Edge pruning
+    temperature: 0.1       # Softmax temperature
+    # GNN architecture
+    n_layers: 2            # 2-layer GNN
     dropout: 0.1
-    use_residual: true
-    alpha: 0.05             # SSGConv mixing (EvoBrain default)
-    use_pyg: false          # Pure PyTorch for now
-    k_eigenvectors: 16      # Laplacian PE dimension
+    use_residual: true     # Skip connections
+    # Critical EvoBrain parameters
+    alpha: 0.05            # SSGConv mixing
+    k_eigenvectors: 16     # Laplacian PE dimension
 
 data:
   dataset: tuh_eeg
-  data_dir: data_ext4/tusz/edf/train  # Use TRAIN for smoke tests
-  cache_dir: cache/smoke_tcn
+  data_dir: data_ext4/tusz/edf/train
+  cache_dir: cache/tusz  # Use existing cache for smoke test
   sampling_rate: 256
   n_channels: 19
   window_size: 60
   stride: 10
-  use_balanced_sampling: true
-  num_workers: 0
-  pin_memory: false
+  use_balanced_sampling: true   # Use BalancedSeizureDataset to avoid rebuilding cache!
+  num_workers: 0          # Zero for smoke test (WSL2 safety)
+  pin_memory: false       # Disable for smoke test
   persistent_workers: false
   prefetch_factor: 2
   validation_split: 0.2
-  max_samples: 20  # Small for smoke test
 
 preprocessing:
   montage: "10-20"
@@ -65,19 +70,30 @@ preprocessing:
   use_mne: true
 
 training:
-  batch_size: 4
-  learning_rate: 1.0e-4
-  num_epochs: 1
-  gradient_clip_val: 1.0
-  mixed_precision: false  # Disabled for smoke test
+  epochs: 1               # Just 1 epoch for smoke
+  batch_size: 4           # Small for smoke test
+  learning_rate: 5.0e-5   # Reduced from 1.0e-4 for stability
+  weight_decay: 0.05
+  optimizer: adamw
 
+  # NaN protection for smoke test
+  gradient_clip: 0.5      # Reduced from 1.0 for stronger stability
+  mixed_precision: false  # Disabled for smoke test stability
+
+  # Focal loss for imbalanced data
   loss: focal
-  focal_alpha: 0.25
+  focal_alpha: 0.5       # Neutral alpha
   focal_gamma: 2.0
 
   scheduler:
     type: cosine
     warmup_ratio: 0.1
+
+  early_stopping:
+    patience: 5
+    metric: sensitivity_at_10fa
+
+  checkpoint_interval: 1
 
 postprocessing:
   hysteresis:
@@ -89,3 +105,17 @@ postprocessing:
   duration:
     min_duration_s: 3.0
     max_duration_s: 600.0
+  events:
+    tau_merge: 2.0
+    confidence_method: mean
+
+evaluation:
+  metrics: [taes, sensitivity, specificity, auroc]
+  fa_rates: [10, 5, 2.5, 1]
+  save_predictions: false
+  save_plots: false
+
+logging:
+  log_every_n_steps: 10  # Frequent for smoke test
+  log_gradients: false
+  log_weights: false

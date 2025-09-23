@@ -1,4 +1,4 @@
-Full Model (Detector Wiring)
+Full Model (Detector Wiring) — Legacy U‑Net Path
 
 Note: The current runtime path uses the TCN front‑end instead of U‑Net + ResCNN. See `docs/02-model/architecture/tcn-replacement.md` for the architecture that is training on Modal now. The U‑Net path below remains documented for ablations and historical reference.
 
@@ -21,3 +21,4 @@ Shape tracking
 Notes
 - Keep decoder output at 19 channels prior to head to preserve channelwise features.
 - Training uses BCEWithLogitsLoss on logits; do not add Sigmoid in the module.
+

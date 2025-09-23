@@ -62,6 +62,18 @@ image = (
         "wandb",  # Weights & Biases for cloud tracking
         "pytorch-tcn",  # TCN implementation for optimal performance
     )
+    # CRITICAL: Install PyTorch Geometric with exact versions for PyTorch 2.2.2 + CUDA 12.1
+    # These MUST match our local setup exactly!
+    .run_commands(
+        "pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.2.0+cu121.html"
+    )
+    .run_commands(
+        "pip install torch-geometric==2.6.1"
+    )
+    # Verify PyG imports correctly
+    .run_commands(
+        "python -c 'import torch_geometric; print(f\"✅ PyG {torch_geometric.__version__} installed\")'"
+    )
     # Set working directory before adding local files
     .workdir("/app")
     # Add project code - MUST be last for Modal image caching
@@ -95,7 +107,12 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
 # NOTE: brain-go-brr-data volume deleted - it was empty and unused
 
 
-@app.function(gpu="A100", timeout=300)  # 5 min test
+@app.function(
+    gpu="A100",
+    timeout=300,  # 5 min test
+    cpu=16,  # Safe: 16 cores for testing
+    memory=32768,  # Safe: 32GB RAM for tests
+)
 def test_mamba_cuda():
     """Test that Mamba CUDA kernels work properly."""
     import torch
@@ -155,8 +172,8 @@ def test_mamba_cuda():
         "/data": data_mount,  # S3 bucket with TUH data!
         "/results": results_volume,
     },
-    memory=32768,  # 32GB RAM
-    cpu=8,
+    memory=98304,  # SAFE: 96GB RAM (was 32GB, now 3x for safety)
+    cpu=24,  # SAFE: 24 CPU cores (3 cores per 8 DataLoader workers)
 )
 def train(
     config_path: str = "configs/modal/smoke.yaml",  # Default to smoke test for safety
@@ -268,13 +285,13 @@ def train(
     out_name = Path(exp.get("output_dir", "results/run")).name
     exp["output_dir"] = f"/results/{out_name}"
 
-    # For smoke tests, ensure separate cache directory
+    # CRITICAL: Use existing cache on Modal persistent volume
+    # Cache location: /results/cache/tusz/{train,val}/ with 3734 NPZ files
     if "smoke" in config_path.lower():
         cache_dir = "/results/cache/smoke"
     else:
-        cache_dir = exp.get("cache_dir", f"/results/cache/{out_name}")
-        if not str(cache_dir).startswith("/"):
-            cache_dir = f"/results/{cache_dir}"
+        # Use the persistent cache that was built on first run
+        cache_dir = "/results/cache/tusz"  # This has train/ and val/ subdirs
 
     # Set cache_dir in both data and experiment sections
     exp["cache_dir"] = cache_dir
@@ -346,6 +363,8 @@ def train(
         "/data": data_mount,   # Use S3 mount for eval datasets
         "/results": results_volume,
     },
+    memory=65536,  # SAFE: 64GB RAM for evaluation
+    cpu=16,  # SAFE: 16 CPU cores for eval
 )
 def evaluate(
     checkpoint_path: str,

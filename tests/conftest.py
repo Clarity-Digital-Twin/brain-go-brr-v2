@@ -18,6 +18,9 @@ import torch
 import yaml
 from click.testing import CliRunner
 
+# Import GPU memory guard
+from .gpu_memory_guard import *  # noqa: F403, F401
+
 # Force single GPU visibility for tests to avoid multi-GPU issues
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 

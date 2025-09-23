@@ -214,7 +214,7 @@ class SeizureDetector(nn.Module):
             # Lazy imports to avoid dependency when not using GNN
             from .graph_builder import DynamicGraphBuilder
 
-            # Initialize graph builder
+            # Initialize graph builder (will be replaced with edge stream)
             instance.graph_builder = DynamicGraphBuilder(
                 similarity=graph_cfg.similarity,
                 top_k=graph_cfg.top_k,
@@ -222,38 +222,24 @@ class SeizureDetector(nn.Module):
                 temperature=graph_cfg.temperature,
             )
 
-            # Choose GNN implementation based on config
-            if graph_cfg.use_pyg:
-                # Use PyTorch Geometric with Laplacian PE
-                try:
-                    from .gnn_pyg import GraphChannelMixerPyG
+            # ONLY PyG implementation with Laplacian PE is supported
+            try:
+                from .gnn_pyg import GraphChannelMixerPyG
 
-                    instance.gnn = GraphChannelMixerPyG(
-                        d_model=64,  # Per-electrode feature dimension
-                        n_electrodes=19,
-                        k_eigenvectors=graph_cfg.k_eigenvectors,
-                        alpha=graph_cfg.alpha,
-                        k_hops=2,  # 2-hop neighborhood
-                        n_layers=graph_cfg.n_layers,
-                        dropout=graph_cfg.dropout,
-                        use_residual=graph_cfg.use_residual,
-                    )
-                except ImportError as e:
-                    raise ImportError(
-                        "PyTorch Geometric not installed. Install with: uv sync -E graph"
-                    ) from e
-            else:
-                # Use pure PyTorch implementation (no LPE)
-                from .gnn import GraphChannelMixer
-
-                instance.gnn = GraphChannelMixer(
+                instance.gnn = GraphChannelMixerPyG(
                     d_model=64,  # Per-electrode feature dimension
                     n_electrodes=19,
+                    k_eigenvectors=graph_cfg.k_eigenvectors,
+                    alpha=graph_cfg.alpha,
+                    k_hops=2,  # 2-hop neighborhood
                     n_layers=graph_cfg.n_layers,
                     dropout=graph_cfg.dropout,
                     use_residual=graph_cfg.use_residual,
-                    alpha=graph_cfg.alpha,
                 )
+            except ImportError as e:
+                raise ImportError(
+                    "PyTorch Geometric not installed. GNN requires PyG. Install with: uv pip install torch-geometric torch-scatter torch-sparse torch-cluster --find-links https://data.pyg.org/whl/torch-2.5.0+cpu.html"
+                ) from e
 
             # Projections to/from electrode space
             instance.proj_to_electrodes = nn.Conv1d(512, 19 * 64, kernel_size=1)
