@@ -197,8 +197,8 @@ class FocalLoss(nn.Module):
         bce = tnf.binary_cross_entropy_with_logits(
             logits_clamped, targets, reduction="none", pos_weight=pos_weight
         )
-        # Probabilities
-        p = torch.sigmoid(logits)
+        # Probabilities (use clamped logits for numerical stability)
+        p = torch.sigmoid(logits_clamped)
         p_t = p * targets + (1.0 - p) * (1.0 - targets)
         # Class-balanced alpha
         alpha_t = self.alpha * targets + (1.0 - self.alpha) * (1.0 - targets)
