@@ -26,10 +26,23 @@ class TestTrainingSmoke:
     def model(self) -> SeizureDetector:
         """Create small model for testing."""
         return SeizureDetector(
-            base_channels=32,  # Smaller for speed
+            # Legacy params (ignored)
+            in_channels=19,
+            base_channels=32,
             encoder_depth=2,
-            mamba_layers=1,
             rescnn_blocks=1,
+            rescnn_kernels=[3, 5],
+            dropout=0.1,
+            # TCN params (actually used)
+            tcn_layers=2,  # SMALL: 2 layers instead of 8
+            tcn_kernel_size=3,  # SMALL: kernel 3 instead of 7
+            tcn_stride=16,
+            tcn_dropout=0.1,
+            # Mamba params
+            mamba_layers=1,  # SMALL: 1 layer instead of 6
+            mamba_d_state=8,  # SMALL: 8 instead of 16
+            mamba_d_conv=4,
+            mamba_dropout=0.1,
         )
 
     @pytest.fixture
@@ -46,8 +59,9 @@ class TestTrainingSmoke:
         train_dataset = TensorDataset(windows[:8], labels[:8])
         val_dataset = TensorDataset(windows[8:], labels[8:])
 
-        train_loader = DataLoader(train_dataset, batch_size=2, shuffle=False)
-        val_loader = DataLoader(val_dataset, batch_size=2, shuffle=False)
+        # Use batch_size=1 to minimize memory usage
+        train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
+        val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
 
         return train_loader, val_loader
 
@@ -145,10 +159,23 @@ class TestTrainingSmoke:
 
             # Load checkpoint
             new_model = SeizureDetector(
+                # Legacy params (ignored)
+                in_channels=19,
                 base_channels=32,
                 encoder_depth=2,
-                mamba_layers=1,
                 rescnn_blocks=1,
+                rescnn_kernels=[3, 5],
+                dropout=0.1,
+                # TCN params (actually used)
+                tcn_layers=2,  # SMALL: 2 layers instead of 8
+                tcn_kernel_size=3,  # SMALL: kernel 3 instead of 7
+                tcn_stride=16,
+                tcn_dropout=0.1,
+                # Mamba params
+                mamba_layers=1,  # SMALL: 1 layer instead of 6
+                mamba_d_state=8,  # SMALL: 8 instead of 16
+                mamba_d_conv=4,
+                mamba_dropout=0.1,
             )
             new_optimizer = torch.optim.AdamW(new_model.parameters())
 
