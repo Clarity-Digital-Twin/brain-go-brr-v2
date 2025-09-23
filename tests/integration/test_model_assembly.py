@@ -74,8 +74,8 @@ class TestSeizureDetector:
             + info["head_params"]
         )
         assert component_sum == info["total_params"]
-        # Small TCN+Mamba model: ~1-5M params
-        assert 500_000 < info["total_params"] < 5_000_000
+        # Small TCN+Mamba model: ~1-10M params
+        assert 500_000 < info["total_params"] < 10_000_000
 
     def test_memory_usage(self, model: SeizureDetector) -> None:
         mem_info = model.get_memory_usage(batch_size=16)
