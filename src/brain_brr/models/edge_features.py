@@ -9,7 +9,6 @@ This module implements the edge stream processing pipeline:
 from __future__ import annotations
 
 import torch
-import torch.nn.functional as func
 
 
 def pair_indices_undirected(n: int = 19) -> list[tuple[int, int]]:
@@ -43,68 +42,45 @@ def edge_scalar_series(
     metric: str = "cosine",
     pairs: list[tuple[int, int]] | None = None,
 ) -> torch.Tensor:
-    """Compute edge features as scalar similarity series.
+    """Compute edge features as scalar similarity series (vectorized).
 
-    For each electrode pair, compute similarity at each timestep
-    using the specified metric on the D-dimensional feature vectors.
+    Computes pairwise similarities for all node pairs at each timestep, then
+    packs the upper-triangular (i<j) entries into an edge list.
 
     Args:
-        elec: Electrode features (B, N, T, D) where:
-            B = batch size
-            N = number of nodes (19)
-            T = sequence length (960)
-            D = feature dimension (64)
-        metric: Similarity metric, "cosine" or "correlation"
-        pairs: Pre-computed pairs, if None uses pair_indices_undirected
+        elec: Electrode features (B, N, T, D)
+        metric: "cosine" or "correlation"
+        pairs: Optional precomputed (i,j) list (len=E)
 
     Returns:
-        Edge features (B, E, T, 1) where E = N*(N-1)/2
-
-    Raises:
-        ValueError: If metric is not supported
-
-    Examples:
-        >>> x = torch.randn(2, 19, 960, 64)
-        >>> edges = edge_scalar_series(x)
-        >>> edges.shape
-        torch.Size([2, 171, 960, 1])
+        (B, E, T, 1) edge feature tensor
     """
     _, n_nodes, _, _ = elec.shape
+    device = elec.device
 
     if pairs is None:
         pairs = pair_indices_undirected(n_nodes)
+    idx_i = torch.tensor([i for i, _ in pairs], device=device, dtype=torch.long)
+    idx_j = torch.tensor([j for _, j in pairs], device=device, dtype=torch.long)
 
-    edge_feats = []
+    # Reorder to (B, T, N, D)
+    x = elec.permute(0, 2, 1, 3)
 
-    for i, j in pairs:
-        # Extract features for electrode pair
-        feat_i = elec[:, i, :, :]  # (B, T, D)
-        feat_j = elec[:, j, :, :]  # (B, T, D)
+    if metric == "cosine":
+        x_norm = x / (torch.linalg.norm(x, dim=-1, keepdim=True) + 1e-8)
+        sim = torch.matmul(x_norm, x_norm.transpose(-1, -2))  # (B,T,N,N)
+    elif metric == "correlation":
+        x_center = x - x.mean(dim=-1, keepdim=True)
+        num = torch.matmul(x_center, x_center.transpose(-1, -2))
+        denom = torch.sqrt(x_center.pow(2).sum(dim=-1) + 1e-8)
+        denom_mat = denom.unsqueeze(-1) * denom.unsqueeze(-2)
+        sim = num / denom_mat
+    else:
+        raise ValueError(f"Unknown metric: {metric}")
 
-        if metric == "cosine":
-            # Cosine similarity along feature dimension
-            similarity = func.cosine_similarity(feat_i, feat_j, dim=-1)  # (B, T)
-        elif metric == "correlation":
-            # Pearson correlation along feature dimension
-            # Center features
-            feat_i_centered = feat_i - feat_i.mean(dim=-1, keepdim=True)
-            feat_j_centered = feat_j - feat_j.mean(dim=-1, keepdim=True)
-
-            # Compute correlation
-            numerator = (feat_i_centered * feat_j_centered).sum(dim=-1)
-            denom_i = torch.sqrt((feat_i_centered ** 2).sum(dim=-1) + 1e-8)
-            denom_j = torch.sqrt((feat_j_centered ** 2).sum(dim=-1) + 1e-8)
-            similarity = numerator / (denom_i * denom_j)  # (B, T)
-        else:
-            raise ValueError(f"Unknown metric: {metric}")
-
-        # Add channel dimension
-        edge_feats.append(similarity.unsqueeze(-1))  # (B, T, 1)
-
-    # Stack all edge features
-    edge_feats = torch.stack(edge_feats, dim=1)  # (B, E, T, 1)
-
-    return edge_feats
+    # Select upper-triangular entries into E
+    sim_e = sim[:, :, idx_i, idx_j]  # (B,T,E)
+    return sim_e.permute(0, 2, 1).unsqueeze(-1)
 
 
 def assemble_adjacency(
@@ -152,29 +128,24 @@ def assemble_adjacency(
     # Initialize adjacency matrices
     adj = torch.zeros(batch_size, seq_len, n_nodes, n_nodes, device=device)
 
-    # Fill adjacency from edge weights
-    for idx, (i, j) in enumerate(pairs):
-        adj[:, :, i, j] = edge_weights[:, idx, :]
-        if symmetric:
-            adj[:, :, j, i] = edge_weights[:, idx, :]
+    # Fill adjacency from edge weights (vectorized)
+    idx_i = torch.tensor([i for i, _ in pairs], device=device, dtype=torch.long)
+    idx_j = torch.tensor([j for _, j in pairs], device=device, dtype=torch.long)
+    adj_bt = adj.view(batch_size * seq_len, n_nodes, n_nodes)
+    w_bt = edge_weights.permute(0, 2, 1).reshape(batch_size * seq_len, -1)  # (B*T,E)
+    bt = torch.arange(batch_size * seq_len, device=device).unsqueeze(1)
+    adj_bt[bt, idx_i.unsqueeze(0).expand_as(w_bt), idx_j.unsqueeze(0).expand_as(w_bt)] = w_bt
+    if symmetric:
+        adj_bt[bt, idx_j.unsqueeze(0).expand_as(w_bt), idx_i.unsqueeze(0).expand_as(w_bt)] = w_bt
 
     # Apply top-k sparsification per row
     if top_k < n_nodes:
-        for b in range(batch_size):
-            for t in range(seq_len):
-                adj_t = adj[b, t]  # (n_nodes, n_nodes)
-
-                # Get top-k values per row
-                topk_vals, topk_idx = torch.topk(adj_t, min(top_k, n_nodes), dim=-1)
-
-                # Create sparse adjacency
-                adj_sparse = torch.zeros_like(adj_t)
-
-                # Scatter top-k values back
-                for i in range(n_nodes):
-                    adj_sparse[i].scatter_(0, topk_idx[i], topk_vals[i])
-
-                adj[b, t] = adj_sparse
+        k = min(top_k, n_nodes)
+        adj_flat = adj.view(batch_size * seq_len, n_nodes, n_nodes)
+        topk_vals, topk_idx = torch.topk(adj_flat, k, dim=-1)
+        adj_sparse = torch.zeros_like(adj_flat)
+        adj_sparse.scatter_(-1, topk_idx, topk_vals)
+        adj = adj_sparse.view(batch_size, seq_len, n_nodes, n_nodes)
 
     # Apply threshold
     adj = torch.where(adj > threshold, adj, torch.zeros_like(adj))
@@ -190,12 +161,10 @@ def assemble_adjacency(
         # Find disconnected nodes
         disconnected = row_sums < threshold
 
-        # Add self-loops
-        for b in range(batch_size):
-            for t in range(seq_len):
-                for i in range(n_nodes):
-                    if disconnected[b, t, i]:
-                        adj[b, t, i, i] = 1.0
+        # Set diagonal via view assignment
+        diag_view = torch.diagonal(adj, dim1=-2, dim2=-1)  # (B,T,N)
+        diag_new = torch.where(disconnected, torch.ones_like(diag_view), diag_view)
+        diag_view.copy_(diag_new)
 
     return adj
 
@@ -223,38 +192,40 @@ def get_structural_adjacency(n_nodes: int = 19) -> torch.Tensor:
     # Define edges based on physical proximity
     edges = [
         # Frontal connections
-        (0, 1), (0, 4),      # Fp1 - F3, Fp1 - F7
-        (11, 12), (11, 15),  # Fp2 - F4, Fp2 - F8
-
+        (0, 1),
+        (0, 4),  # Fp1 - F3, Fp1 - F7
+        (11, 12),
+        (11, 15),  # Fp2 - F4, Fp2 - F8
         # Central chain (left)
-        (1, 2), (2, 3),      # F3 - C3, C3 - P3
-
+        (1, 2),
+        (2, 3),  # F3 - C3, C3 - P3
         # Central chain (right)
-        (12, 13), (13, 14),  # F4 - C4, C4 - P4
-
+        (12, 13),
+        (13, 14),  # F4 - C4, C4 - P4
         # Temporal chain (left)
-        (4, 5), (5, 6),      # F7 - T3, T3 - T5
-
+        (4, 5),
+        (5, 6),  # F7 - T3, T3 - T5
         # Temporal chain (right)
-        (15, 16), (16, 17),  # F8 - T4, T4 - T6
-
+        (15, 16),
+        (16, 17),  # F8 - T4, T4 - T6
         # Occipital connections (left)
-        (3, 7), (6, 7),      # P3 - O1, T5 - O1
-
+        (3, 7),
+        (6, 7),  # P3 - O1, T5 - O1
         # Occipital connections (right)
-        (14, 18), (17, 18),  # P4 - O2, T6 - O2
-
+        (14, 18),
+        (17, 18),  # P4 - O2, T6 - O2
         # Midline chain
-        (8, 9), (9, 10),     # Fz - Cz, Cz - Pz
-
+        (8, 9),
+        (9, 10),  # Fz - Cz, Cz - Pz
         # Cross-hemisphere (frontal)
-        (1, 8), (8, 12),     # F3 - Fz, Fz - F4
-
+        (1, 8),
+        (8, 12),  # F3 - Fz, Fz - F4
         # Cross-hemisphere (central)
-        (2, 9), (9, 13),     # C3 - Cz, Cz - C4
-
+        (2, 9),
+        (9, 13),  # C3 - Cz, Cz - C4
         # Cross-hemisphere (parietal)
-        (3, 10), (10, 14),   # P3 - Pz, Pz - P4
+        (3, 10),
+        (10, 14),  # P3 - Pz, Pz - P4
     ]
 
     # Fill adjacency matrix

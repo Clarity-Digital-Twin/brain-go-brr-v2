@@ -146,7 +146,7 @@ class TestAssembleAdjacency:
             weights,
             n_nodes=3,
             top_k=1,  # Only keep 1 edge per node
-            threshold=0
+            threshold=0,
         )
 
         # Each row should have at most k non-zero entries (excluding diagonal)
@@ -162,7 +162,7 @@ class TestAssembleAdjacency:
             weights,
             n_nodes=3,
             threshold=0.4,
-            top_k=3  # No top-k constraint
+            top_k=3,  # No top-k constraint
         )
 
         # Only weights > 0.4 should remain
@@ -174,12 +174,7 @@ class TestAssembleAdjacency:
         weights = torch.zeros(1, 3, 1)
         weights[0, 0, 0] = 0.5  # Edge (0,1)
 
-        adj = assemble_adjacency(
-            weights,
-            n_nodes=3,
-            threshold=0.1,
-            identity_fallback=True
-        )
+        adj = assemble_adjacency(weights, n_nodes=3, threshold=0.1, identity_fallback=True)
 
         # Node 2 should have self-loop
         assert adj[0, 0, 2, 2] == 1.0, "Disconnected node missing self-loop"
@@ -275,7 +270,7 @@ class TestIntegration:
             top_k=3,
             threshold=1e-4,
             symmetric=True,
-            identity_fallback=True
+            identity_fallback=True,
         )
         assert adj.shape == (batch_size, seq_len, n_nodes, n_nodes)
 
