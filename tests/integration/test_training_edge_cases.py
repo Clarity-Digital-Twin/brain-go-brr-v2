@@ -26,16 +26,25 @@ class TestTrainingExplosions:
     @pytest.fixture
     def small_model(self):
         """Create a small model for testing."""
-        # Use legacy-compatible ctor; args are accepted but ignored for TCN
+        # Use small TCN params to avoid OOM
         model = SeizureDetector(
+            # Legacy params (ignored)
             in_channels=19,
             base_channels=32,
             encoder_depth=4,
             rescnn_blocks=2,
             rescnn_kernels=[3, 5],
-            mamba_layers=2,
-            mamba_d_state=8,
             dropout=0.1,
+            # TCN params (actually used)
+            tcn_layers=2,  # SMALL: 2 layers instead of 8
+            tcn_kernel_size=3,  # SMALL: kernel 3 instead of 7
+            tcn_stride=16,
+            tcn_dropout=0.1,
+            # Mamba params
+            mamba_layers=1,  # SMALL: 1 layer instead of 6
+            mamba_d_state=8,  # SMALL: 8 instead of 16
+            mamba_d_conv=4,
+            mamba_dropout=0.1,
         )
         if torch.cuda.is_available():
             model = model.cuda()
