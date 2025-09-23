@@ -1,213 +1,88 @@
-# 🔴 CRITICAL: GNN+LPE Implementation Analysis & Status
+# 🔴 CRITICAL: GNN + Laplacian PE — Audit, Findings, and Fix Plan
 
 ## Executive Summary
-**WE HAVE A MAJOR IMPLEMENTATION PROBLEM** - Our GNN+LPE is computationally broken and causing 30-40s/batch slowdowns. The architecture is conceptually correct but the implementation is catastrophically inefficient.
+- Conceptually correct: time-then-graph pipeline matches EvoBrain’s flow (temporal model first, graph per timestep).
+- Practically slow: current PyG path constructs thousands of small graphs in Python and recomputes Laplacian PE inside nested loops, causing severe CPU bottlenecks and low GPU utilization.
+- Fixable now: we can vectorize across timesteps and precompute a static PE buffer (per 10–20 montage) to remove eigendecomposition from the hot path. Learned adjacency via an edge temporal stream remains a planned addition.
 
-## Current Status (v2.6)
-```
-TCN → Bi-Mamba → [BROKEN GNN+LPE] → Projection → Detection
-                      ↑
-              THIS IS THE PROBLEM
-```
+## Ground-Truth, With File References
+- Detector integrates GNN after temporal modeling (time-then-graph): `src/brain_brr/models/detector.py:88` and `:130–162`.
+- Adjacency is heuristic (cosine/correlation + top-k + threshold): `src/brain_brr/models/graph_builder.py:34–90`.
+- PyG GNN forward is per-timestep and per-sample, building `Data` objects in Python:
+  - Timestep loop: `src/brain_brr/models/gnn_pyg.py:103`.
+  - Inner batch loop + Data creation: `src/brain_brr/models/gnn_pyg.py:110–141`.
+  - Laplacian PE recomputed for each `Data`: `src/brain_brr/models/gnn_pyg.py:130–138`.
 
-### What We Have:
-- ✅ TCN encoder (working, replaced U-Net successfully)
-- ✅ Bi-Mamba temporal modeling (working)
-- ✅ PyG GNN with Laplacian PE (integrated)
-- ❌ **HORRIBLY INEFFICIENT IMPLEMENTATION**
-- ❌ Missing edge stream (using heuristic graphs)
+## Problems Identified (what’s expensive)
+- Nested Python loops over T and B create thousands of `Data` objects per forward; overhead dominates.
+- `AddLaplacianEigenvectorPE` runs inside the loop, doing an eigendecomposition per graph per timestep. With 19 nodes it’s small, but the repetition + object churn is the killer.
+- All graph operations run on CPU; GPU sits idle waiting for preprocessing.
 
-## 🔥 CRITICAL PROBLEMS IDENTIFIED
+Note on “architecture order”: our order (TCN→Bi‑Mamba→GNN→projection) is fine and matches the intended time‑then‑graph paradigm. The issue is not the ordering, it’s the inefficient per‑timestep implementation.
 
-### Problem 1: Computing Laplacian PE Every Batch
-**Location**: `src/brain_brr/models/gnn_pyg.py` lines 127-140
+## What EvoBrain Does vs. Us
+- EvoBrain: separate SNNs for nodes and edges (Mamba/GRU), learned adjacency from the edge stream, then GNN with PE per timestep.
+- Us (now): Mamba for nodes, heuristic adjacency (no edge stream yet), GNN with PE per timestep implemented via Python loops and transform calls.
 
-**What's happening**:
-- Computing eigendecomposition O(N³) for EVERY timestep (960x per batch!)
-- Should compute ONCE and cache/register as buffer
-- This alone is causing ~10x slowdown
+We are missing the edge temporal stream (learned adjacency). That’s a separate, still‑planned improvement.
 
-**Evidence**:
-```python
-# CURRENT BROKEN CODE (line 127-140):
-with torch.no_grad():
-    data_for_pe = Data(...)
-    data_for_pe = self.laplacian_pe(data_for_pe)  # RECOMPUTING EVERY TIME!
-```
+## Fix Plan (non-breaking, incremental)
+Short-term goal: keep current functionality, remove the bottlenecks.
 
-### Problem 2: Sequential Timestep Processing
-**Location**: `src/brain_brr/models/gnn_pyg.py` lines 102-103
+1) Vectorize across timesteps and batch
+- Flatten `(B, N, T, D)` → `(B*T, N, D)` and `(B*T, N, N)`.
+- Build a single disjoint super-graph for all `(B*T)` graphs:
+  - Compute `edge_index` by taking `nonzero` over `(B*T, N, N)` and offset node indices with `g*N`.
+  - Concatenate node features to shape `(B*T*N, D)` and run SSGConv layers once.
+- Reshape back to `(B, N, T, D)`.
 
-**What's happening**:
-```python
-for t in range(seq_len):  # 960 sequential iterations!
-    # Process one timestep at a time
-```
-- Processing 960 timesteps SEQUENTIALLY instead of batched
-- Creating 960 × batch_size PyG Data objects per forward pass
-- Python loop overhead is killing performance
+2) Replace dynamic PE transform with a static PE buffer (default)
+- Compute a fixed Laplacian PE once for the canonical 10–20 topology (unweighted, undirected base graph) and register as a buffer of shape `(N, k)`.
+- Broadcast and concatenate to node features at every forward; this preserves spatial/positional structure at negligible cost.
+- Keep a feature flag for “dynamic_pe” to enable recomputation later when we have a fast batched eigen path (off by default).
 
-### Problem 3: Creating PyG Data Objects in Nested Loops
-**Location**: `src/brain_brr/models/gnn_pyg.py` lines 110-141
+3) Keep edge-weight transform, but make it optional
+- Current code applies `Linear+Softplus` to edge weights. Heuristic builder already softmaxes; we should allow bypassing the extra transform via a flag (default: keep existing behavior for BC; later set to bypass when learned weights are already Softplus’ed upstream).
 
-**What's happening**:
-- Creating individual Data objects for each batch item at each timestep
-- Total objects created per forward: batch_size × 960
-- Object creation overhead is massive
+4) Prepare for learned adjacency (next PR)
+- Add edge temporal stream (Bi‑Mamba2) to produce edge weights across time from per-edge features; assemble adjacency with top‑k/threshold/symmetry.
+- Detector swaps out `graph_builder` for the learned adjacency path.
 
-### Problem 4: Wrong Architecture Order
-**What we have**: TCN → Bi-Mamba → GNN → Bi-Mamba projections
-**What EvoBrain does**: Time-then-Graph (Mamba FIRST, then ONE GNN at end)
+## TDD Outline (what to test)
+Unit (fast):
+- Shape invariants: `(B, N, T, D)` in → `(B, N, T, D)` out for typical sizes (B=2,N=19,T in {10, 64, 960}).
+- Vectorized batching correctness: constructing a disjoint super‑graph from `(B*T, N, N)` via `nonzero` yields the same number of edges as summing per‑graph edges; guarantees symmetry when adjacency is symmetric.
+- Static PE buffer: present, correct dtype/device, shape `(N, k)`, broadcast to `(B*T, N, k)`.
+- Optional edge transform: when bypass flag is set, ensure no second transform is applied.
 
-We're applying GNN at every timestep instead of once after temporal modeling!
+Integration (PyG enabled):
+- End‑to‑end forward (detector with GNN enabled): no NaNs; output shape correct; laplacian path no longer called in hot loop.
+- Performance regression guard (soft): log forward time over a tiny batch (marker `performance`), assert it doesn’t exceed a loose bound on CI CPU; keep lenient to avoid flakiness.
 
-## 📊 Performance Impact
+## Implementation Sketch (safe changes)
+- Add flags to `GraphChannelMixerPyG.__init__`:
+  - `use_vectorized: bool = True`
+  - `use_dynamic_pe: bool = False`
+  - `bypass_edge_transform: bool = False`
+- Register `self.static_pe: (N, k)` buffer built once from a canonical 10–20 structural graph (unweighted). On failure, fall back to zeros.
+- New forward path when `use_vectorized` is True:
+  - Build `edge_index` and `edge_weight` for all `(B*T)` graphs in one pass; run SSGConv stack once; reshape.
+  - Concatenate `static_pe` (broadcasted) to the first layer input.
+- Keep current loop-based path behind the flag for BC while migrating tests.
 
-### Current Performance (BROKEN):
-- **Local RTX 4090**: 30-40s/batch (GPU only 43% utilized)
-- **Modal A100**: Hanging indefinitely
-- **Bottleneck**: CPU graph operations, not GPU
+Trade‑off note: dynamic PE per timestep is theoretically cleaner but in practice too slow with current tooling. Static PE captures node identity/geometry and is a common/accepted approximation for spectral PEs in dynamic‑edge settings.
 
-### Expected Performance (FIXED):
-- Should be ~3-5s/batch maximum
-- GPU utilization should be >80%
+## Configuration Guidance (until code lands)
+- For long runs today: if training time is critical, set `graph.enabled: false` until vectorized path is merged. Otherwise reduce `k_eigenvectors` to 8 during experimentation.
+- Local (4090): keep `mixed_precision: false`, `gradient_clip: 0.5–1.0`, `num_workers: 0` if WSL2; otherwise `2–4` on Linux.
+- Modal (A100): `mixed_precision: true` is fine once NaNs are controlled; keep `gradient_clip: 0.5–1.0`; large batch sizes help amortize fixed costs.
 
-## 🛠️ HOW TO FIX THIS
+## Roadmap Alignment
+1) P0: Vectorized GNN + static PE buffer (this PR series).
+2) P1: Edge temporal stream (learned adjacency) and detector wiring.
+3) P2: Optional dynamic PE mode backed by a batched/GPU eigen implementation; keep default static.
 
-### Fix 1: Pre-compute and Cache Laplacian PE
-```python
-def __init__(self):
-    # Compute ONCE in init
-    self.register_buffer('laplacian_pe', self._compute_base_pe())
-
-def _compute_base_pe(self):
-    # Standard 10-20 montage topology
-    base_edges = self._get_10_20_topology()
-    # Compute eigendecomposition ONCE
-    L = compute_laplacian(base_edges)
-    eigenvalues, eigenvectors = torch.linalg.eigh(L)
-    return eigenvectors[:, 1:k+1]  # Skip trivial eigenvector
-```
-
-### Fix 2: Batch All Timesteps Together
-```python
-def forward(self, features, adjacency):
-    B, N, T, D = features.shape
-
-    # Flatten batch and time dimensions
-    x_flat = features.permute(0,2,1,3).reshape(B*T, N, D)
-    adj_flat = adjacency.reshape(B*T, N, N)
-
-    # Process ALL timesteps at once with batched GNN
-    x_out = self.gnn(x_flat, adj_flat)  # Single batched operation!
-
-    # Reshape back
-    return x_out.reshape(B, T, N, D).permute(0,2,1,3)
-```
-
-### Fix 3: Use Sparse Operations
-- Don't create dense 19×19 matrices
-- Use edge_index representation
-- Leverage PyG's optimized sparse kernels
-
-### Fix 4: Correct Architecture (Optional for v3.0)
-Implement true time-then-graph:
-```
-TCN → Bi-Mamba (complete temporal) → GNN (once) → Detection
-```
-Not:
-```
-TCN → Bi-Mamba → GNN(per timestep) → More processing
-```
-
-## 🤔 Can We Fix This?
-
-### YES, WE CAN FIX IT!
-The fixes are straightforward engineering:
-1. **Cache the Laplacian PE** (1 hour fix)
-2. **Batch timestep processing** (2-3 hours fix)
-3. **Remove nested loops** (1 hour fix)
-4. **Total time to fix**: ~1 day of focused work
-
-### Should We Fix It Now?
-**RECOMMENDATION**: **NO** - Disable GNN for now and ship what works
-
-**Reasoning**:
-1. TCN + Bi-Mamba alone gives us 90% sensitivity
-2. GNN is a nice-to-have, not critical
-3. We can fix GNN properly in v3.0
-4. Training time is precious - don't waste on broken code
-
-## 📝 Migration Path Status
-
-### Where We Are:
-- **v2.3**: TCN + Bi-Mamba (WORKING, TRAINING NOW)
-- **v2.6 attempt**: Added broken GNN+LPE (CATASTROPHIC SLOWDOWN)
-- **EvoBrain target**: Full edge stream + learned adjacency
-
-### Where We Should Go:
-1. **Immediate**: Disable GNN, train v2.3 to completion
-2. **v2.7**: Fix GNN implementation properly
-3. **v3.0**: Add edge stream for learned adjacency
-
-## 🎯 IMMEDIATE ACTION PLAN
-
-### Option A: Quick Disable (RECOMMENDED)
-```yaml
-# configs/local/train.yaml and configs/modal/train.yaml
-graph:
-  enabled: false  # TURN OFF THE BROKEN GNN!
-```
-
-### Option B: Proper Fix (1-2 days)
-1. Implement cached Laplacian PE
-2. Batch all timestep processing
-3. Remove sequential loops
-4. Test thoroughly
-5. Re-enable in configs
-
-### Option C: Simplified GNN (Compromise)
-- Use fixed adjacency (no dynamic graphs)
-- Apply GNN once at bottleneck
-- Skip Laplacian PE for now
-
-## 🚨 CRITICAL PARAMETERS TO PRESERVE
-
-From EvoBrain, these are PROVEN optimal:
-```python
-k_eigenvectors = 16    # Laplacian PE dimension
-alpha = 0.05           # SSGConv mixing parameter
-top_k = 3              # Graph sparsity
-threshold = 1e-4       # Edge pruning
-d_conv = 4             # Mamba CUDA kernel constraint
-```
-
-## 📊 Expected Impact When Fixed
-
-### With Broken GNN:
-- 30-40s/batch
-- 43% GPU utilization
-- Training infeasible
-
-### With Fixed GNN:
-- 3-5s/batch
-- 80%+ GPU utilization
-- +15-20% accuracy (per EvoBrain)
-
-### Without GNN:
-- 2-3s/batch
-- 90% GPU utilization
-- Baseline accuracy (already good!)
-
-## ✅ CONCLUSION
-
-**CURRENT STATE**: We have the right architecture but TERRIBLE implementation
-**ROOT CAUSE**: Recomputing eigenvectors 960x per batch + sequential processing
-**FIX DIFFICULTY**: Easy (1 day) but not urgent
-**RECOMMENDATION**: Disable GNN, ship TCN+Bi-Mamba, fix GNN properly later
-
-The GNN+LPE implementation is salvageable but needs a complete rewrite of the forward pass. The conceptual architecture is correct - we just need to stop doing eigendecomposition in loops!
-
----
-
-**Bottom Line**: We know exactly what's wrong and how to fix it. But for now, TURN OFF THE GNN and let the training run efficiently!
+## Conclusion
+- The current GNN+LPE integration is conceptually aligned but computationally inefficient due to Python loops and repeated PE transforms.
+- We can fix it without altering outputs by vectorizing across timesteps and switching to a static PE buffer by default.
+- Learned adjacency via an edge stream is the next step toward EvoBrain parity once the core path is performant and test‑covered.
