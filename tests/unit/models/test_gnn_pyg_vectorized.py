@@ -1,7 +1,5 @@
-import os
 import pytest
 import torch
-
 
 torch_geometric = pytest.importorskip("torch_geometric", reason="PyG required for GNN tests")
 

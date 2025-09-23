@@ -1,7 +1,6 @@
 """GPU memory guard for tests to prevent OOM crashes."""
 
 import gc
-import os
 
 import pytest
 import torch
@@ -15,7 +14,8 @@ def pytest_runtest_setup(item):
         gc.collect()
 
         # Kill any lingering Python processes using GPU
-        os.system("nvidia-smi --query-compute-apps=pid --format=csv,noheader,nounits | xargs -r kill -9 2>/dev/null")
+        # NOTE: Disabled as it can hang test execution
+        # os.system("nvidia-smi --query-compute-apps=pid --format=csv,noheader,nounits | xargs -r kill -9 2>/dev/null")
 
 
 def pytest_runtest_teardown(item):
@@ -34,7 +34,7 @@ def pytest_runtest_teardown(item):
         torch.cuda.reset_peak_memory_stats()
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(autouse=True)
 def gpu_memory_limit():
     """Limit GPU memory allocation for tests."""
     if torch.cuda.is_available():
