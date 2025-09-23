@@ -99,11 +99,11 @@ class GraphChannelMixer(nn.Module):
 
             # Layer norm and activation
             x = self.layer_norms[i](x)
-            x = F.gelu(x)
+            x = func.gelu(x)
             x = self.dropout(x)
 
         # Reshape back
-        x = x.reshape(B, T, N, D)
+        x = x.reshape(batch_size, seq_len, n_nodes, feat_dim)
         x = x.permute(0, 2, 1, 3)  # (B, 19, T, D)
 
         return x
