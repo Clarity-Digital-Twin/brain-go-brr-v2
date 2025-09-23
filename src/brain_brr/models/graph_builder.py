@@ -83,6 +83,6 @@ class DynamicGraphBuilder(nn.Module):
         adjacency = (adjacency + adjacency.transpose(-1, -2)) / 2
 
         # Reshape back
-        adjacency = adjacency.reshape(B, T, N, N)
+        adjacency = adjacency.reshape(batch_size, seq_len, n_nodes, n_nodes)
 
         return adjacency
