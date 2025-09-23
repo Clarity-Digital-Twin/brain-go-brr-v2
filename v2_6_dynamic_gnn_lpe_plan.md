@@ -1,7 +1,7 @@
 # 🧠🔥 v2.6 Dynamic GNN + LPE - COMPLETE IMPLEMENTATION GUIDE
 
 ## 🎯 EXECUTIVE SUMMARY
-Add Dynamic GNN with Laplacian PE after Bi‑Mamba in the TCN path. EvoBrain reports +23% AUROC and +30% F1 over its dynamic‑GNN baseline; treat as directional guidance, not guaranteed here.
+Add Dynamic GNN with Laplacian PE after Bi‑Mamba in the TCN path, driven by a learned adjacency from an edge Mamba stream (no heuristic cosine/correlation graphs). EvoBrain reports +23% AUROC and +30% F1 over its dynamic‑GNN baseline; treat as directional guidance, not guaranteed here.
 
 ## ✅ CURRENT ARCHITECTURE (v2.3 - VERIFIED)
 ```
@@ -12,7 +12,7 @@ EEG (19ch, 256Hz) → TCN Encoder → Bi-Mamba → Projection → Upsample → D
 
 ## 🚀 TARGET ARCHITECTURE (v2.6)
 ```
-EEG → TCN Encoder → Bi‑Mamba → [Dynamic GNN + LPE] → ProjectionHead → Detection
+EEG → TCN Encoder → Bi‑Mamba → [Edge stream → learned adjacency → GNN+LPE] → ProjectionHead → Detection
                                         ↑
                      Insert after Bi‑Mamba, before proj_head(…)
 
@@ -29,6 +29,10 @@ Evidence anchors (code and refs):
 - EvoBrain Laplacian PE k (AddLaplacianEigenvectorPE): `reference_repos/EvoBrain-FBC5/model/EvoBrain.py:858`.
 - EvoBrain Softplus edge transform (edge→weight): `reference_repos/EvoBrain-FBC5/model/EvoBrain.py:869`.
 - EvoBrain top‑k sparsification helper: `reference_repos/EvoBrain-FBC5/data/data_utils.py:174`.
+
+Design decisions:
+- Pure learned adjacency via edge stream; no heuristic cosine/correlation graph builder.
+- PyG SSGConv (α=0.05) with Laplacian PE (k=16) is the canonical GNN backend.
 
 ---
 
