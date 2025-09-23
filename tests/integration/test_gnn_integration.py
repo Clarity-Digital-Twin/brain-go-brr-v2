@@ -5,10 +5,9 @@ Tests the full pipeline with dynamic GNN enabled.
 
 import pytest
 import torch
+
+from src.brain_brr.config.schemas import GraphConfig, MambaConfig, ModelConfig, TCNConfig
 from src.brain_brr.models.detector import SeizureDetector
-from src.brain_brr.config.schemas import (
-    ModelConfig, TCNConfig, MambaConfig, GraphConfig
-)
 
 
 class TestGNNIntegration:

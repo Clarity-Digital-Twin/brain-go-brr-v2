@@ -205,8 +205,8 @@ class SeizureDetector(nn.Module):
 
         if instance.use_gnn and graph_cfg is not None:
             # Lazy imports to avoid dependency when not using GNN
-            from .graph_builder import DynamicGraphBuilder
             from .gnn import GraphChannelMixer
+            from .graph_builder import DynamicGraphBuilder
 
             # Initialize graph builder
             instance.graph_builder = DynamicGraphBuilder(

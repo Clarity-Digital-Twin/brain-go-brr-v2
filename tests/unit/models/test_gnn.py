@@ -3,7 +3,6 @@
 Based on EvoBrain architecture and parameters.
 """
 
-import pytest
 import torch
 
 
