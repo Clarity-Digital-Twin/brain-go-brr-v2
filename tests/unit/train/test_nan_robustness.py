@@ -1,12 +1,11 @@
 """Test NaN robustness in training loop."""
 
+import sys
+from pathlib import Path
+
+import pytest
 import torch
 import torch.nn as nn
-import numpy as np
-import pytest
-from unittest.mock import MagicMock, patch
-from pathlib import Path
-import sys
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parents[3]))
@@ -61,35 +60,30 @@ class TestNaNRobustness:
     def test_model_nan_propagation(self):
         """Test that model handles NaN inputs gracefully."""
         # Create a simple model
-        model = nn.Sequential(
-            nn.Linear(10, 5),
-            nn.ReLU(),
-            nn.Linear(5, 1)
-        )
+        model = nn.Sequential(nn.Linear(10, 5), nn.ReLU(), nn.Linear(5, 1))
 
         # Test with NaN input
-        nan_input = torch.full((2, 10), float('nan'))
+        nan_input = torch.full((2, 10), float("nan"))
         output = model(nan_input)
         assert torch.isnan(output).all(), "NaN should propagate through model"
 
         # Test with mixed input
         mixed_input = torch.randn(2, 10)
-        mixed_input[0, 0] = float('nan')
+        mixed_input[0, 0] = float("nan")
         output = model(mixed_input)
         # At least some outputs should be NaN due to propagation
         assert torch.isnan(output).any(), "NaN should affect output"
 
     def test_data_sanitization(self):
         """Test input data sanitization."""
-        windows = torch.tensor([
-            [[float('nan'), 1.0, 2.0]],
-            [[float('inf'), -float('inf'), 0.0]],
-            [[1.0, 2.0, 3.0]]
-        ])
+        windows = torch.tensor(
+            [[[float("nan"), 1.0, 2.0]], [[float("inf"), -float("inf"), 0.0]], [[1.0, 2.0, 3.0]]]
+        )
 
         # Enable sanitization
         import os
-        os.environ['BGB_SANITIZE_INPUTS'] = '1'
+
+        os.environ["BGB_SANITIZE_INPUTS"] = "1"
 
         # Sanitize
         sanitized = torch.nan_to_num(windows, nan=0.0, posinf=0.0, neginf=0.0)
@@ -101,15 +95,15 @@ class TestNaNRobustness:
         assert sanitized[2, 0, 2] == 3.0, "Valid values should be preserved"
 
         # Clean up
-        del os.environ['BGB_SANITIZE_INPUTS']
+        del os.environ["BGB_SANITIZE_INPUTS"]
 
     def test_gradient_clipping_with_nan(self):
         """Test gradient clipping handles NaN gradients."""
         model = nn.Linear(10, 1)
 
         # Create NaN gradient
-        model.weight.grad = torch.full_like(model.weight, float('nan'))
-        model.bias.grad = torch.full_like(model.bias, float('nan'))
+        model.weight.grad = torch.full_like(model.weight, float("nan"))
+        model.bias.grad = torch.full_like(model.bias, float("nan"))
 
         # Clip should handle NaN gracefully
         grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -137,6 +131,7 @@ class TestNaNRobustness:
         channel_stds = windows.std(dim=[0, 2])
         dead_channels = (channel_stds < 1e-6).sum().item()
         assert dead_channels >= 1, "Should detect dead channels"
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
