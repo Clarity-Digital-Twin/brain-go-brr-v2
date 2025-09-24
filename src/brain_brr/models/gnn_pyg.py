@@ -68,8 +68,8 @@ class GraphChannelMixerPyG(nn.Module):
         self.pe_sign_consistency = pe_sign_consistency
 
         # ROBUST: Cache last valid PE for fallback
-        self.last_valid_pe: torch.Tensor | None = None
         self.register_buffer("last_valid_pe", None)
+        self.last_valid_pe: torch.Tensor | None
 
         # Laplacian PE (EvoBrain line 858)
         self.laplacian_pe = AddLaplacianEigenvectorPE(k=k_eigenvectors)
