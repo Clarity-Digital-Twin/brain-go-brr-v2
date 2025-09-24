@@ -2,13 +2,13 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                                SEIZURE DETECTION PIPELINE                            │
+│                                SEIZURE DETECTION PIPELINE                           │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 
 ┌──────────────┐       ┌──────────────────────────────────────────────────┐
 │  RAW EDF     │       │                PREPROCESSING                     │
 │              │       │                                                  │
-│ Multi-channel│─────▶│  • Load 19-ch 10-20 montage (fixed order)         │
+│ Multi-channel│─────▶│  • Load 19-ch 10-20 montage (fixed order)        │
 │   EEG data   │       │  • Resample to 256 Hz                            │
 │              │       │  • Bandpass 0.5-120 Hz + 60 Hz notch             │
 └──────────────┘       │  • Per-channel z-score (full recording)          │
