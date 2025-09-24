@@ -1,12 +1,11 @@
 # Modal Performance Optimization Report
 
 ## Executive Summary
-Modal A100 training appeared slow (~48s/batch) but the root cause was **NOT** data loading. The actual issues were:
+Modal A100 performance hinges on three levers:
 
-1. **Mixed Precision Disabled**: Using FP32 instead of FP16 (A100's strength)
-2. **Small Batch Size**: Only using 64 instead of 128 (underutilizing 80GB VRAM)
-3. **W&B Integration Missing**: Logger existed but wasn't wired into training loop
-4. **W&B Entity Misconfigured**: Entity/API key mismatch (used personal entity with a team API key)
+1) FP16 mixed precision on A100 (tensor cores)  
+2) Adequate batch size given v3 dual‑stream memory needs  
+3) Vectorized GNN + static Laplacian PE (v3), not per‑timestep loops
 
 ## Critical Realization: Cache Was NEVER on S3!
 
@@ -38,31 +37,15 @@ Modal A100 training appeared slow (~48s/batch) but the root cause was **NOT** da
 ```yaml
 # configs/modal/train.yaml
 training:
-  batch_size: 128          # Was 64
-  mixed_precision: true    # Was false
+  batch_size: 48           # v3 dual‑stream; raise if headroom remains
+  mixed_precision: true    # A100 FP16 acceleration
 ```
 
-## Issue 2: W&B Integration
+## Issue 2: Vectorized GNN + Static PE (v3)
 
-### Root Cause
-`WandBLogger` class existed but was NEVER instantiated in training loop!
+The v3 stack eliminates the per‑timestep CPU loop by batching all `(B×T)` graphs into a single disjoint PyG batch, and uses a static Laplacian PE buffer computed once from the 10–20 structural graph. This removes thousands of tiny `Data` allocations per step and repeated eigendecomposition.
 
-### Fix Applied
-```python
-# train/loop.py
-from src.brain_brr.train.wandb_integration import WandBLogger
-
-# In train():
-wandb_logger = WandBLogger(config)
-wandb_logger.log(metrics, step=epoch)
-```
-
-### Entity Configuration
-Fixed entity name to match W&B team API key:
-```yaml
-wandb:
-  entity: jj-vcmcswaggins-novamindnyc  # Team name (matches API key)
-```
+Edge temporal stream uses a learned 1→D→1 lift (default D=16) around Bi‑Mamba2 to keep fused CUDA kernels active and improve capacity.
 
 ## Issue 3: torch.compile Incompatibility
 
@@ -72,17 +55,7 @@ Mamba CUDA kernels don't support torch.compile:
 
 ## Performance Impact
 
-### Before Optimizations
-- Batch time: ~48s
-- Epoch time: ~10 hours
-- Total: ~1000 hours / $3,190
-
-### After Optimizations
-- Batch time: ~5s (10x faster)
-- Epoch time: ~1 hour
-- Total: ~100 hours / $319
-
-### Savings: $2,871 (90% reduction)
+Observed outcomes vary by dataset/cache and worker settings. With FP16, vectorized GNN, and proper caching on Modal SSD, expect sub‑second to a few‑seconds per batch on A100‑80GB. Always validate with a smoke run before full training.
 
 ## Modal Storage Architecture (Correct)
 
@@ -130,10 +103,8 @@ modal run --detach deploy/modal/app.py \
 
 ## Verification Checklist
 
-✅ Mixed precision enabled
-✅ Batch size increased to 128
-✅ W&B integration wired in
-✅ W&B entity corrected
-✅ Cache on Modal SSD (always was!)
-✅ Deleted unused volumes
-✅ Training running at ~5s/batch
+✅ Mixed precision enabled (FP16)  
+✅ Vectorized GNN path active (no per‑timestep Data churn)  
+✅ Static PE buffer computed once  
+✅ Cache on Modal SSD (`/results/cache/tusz`)  
+✅ Batch size set for v3 memory (e.g., 48); raise if headroom allows  
