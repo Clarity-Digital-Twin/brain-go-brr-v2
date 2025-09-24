@@ -7,6 +7,10 @@
 # Or use: ./run_smoke_test.sh
 #
 # Usage: BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 python -m src train configs/local/smoke.yaml
+#
+# Quick local troubleshooting (if smoke fails):
+# - Set data.num_workers: 0 (WSL2 stability)
+# - Keep training.mixed_precision: false (avoid RTX 4090 NaNs)
 
 experiment:
   name: smoke_test

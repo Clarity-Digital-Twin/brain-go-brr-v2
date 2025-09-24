@@ -6,7 +6,8 @@
 # - GPU stack: run `make setup-gpu` (installs Mamba+PyG with prebuilt wheels)
 # - Ensure cache exists at cache/tusz with 3734 train + 933 val NPZ (see configs/README.md for cache build instructions)
 # - Monitor for NaNs: export BGB_NAN_DEBUG=1 BGB_SANITIZE_INPUTS=1
-# - If NaNs persist: disable mixed_precision or reduce learning_rate
+# - If local training stalls/hangs (esp. on WSL2): set data.num_workers: 0
+# - If NaNs persist on RTX 4090: set training.mixed_precision: false; reduce batch_size or learning_rate
 
 experiment:
   name: full_training
@@ -65,10 +66,12 @@ model:
     alpha: 0.05                # SSGConv mixing
     k_eigenvectors: 16         # Laplacian PE dimension
 
-    # Dynamic PE config (v3) - ALWAYS ENABLED
-    use_dynamic_pe: true       # ALWAYS use dynamic PE (EvoBrain approach)
-    semi_dynamic_interval: 1   # Update PE every N timesteps (1=fully dynamic)
-    pe_sign_consistency: true  # Fix eigenvector signs for stability
+    # Dynamic PE config (v3) - NOTE: Ignored in v3 path
+    # v3 uses STATIC Laplacian PE (computed once) and vectorized GNN regardless of these flags.
+    # These remain for compatibility with v2 experiments.
+    use_dynamic_pe: true
+    semi_dynamic_interval: 1
+    pe_sign_consistency: true
 
   decoder:
     stages: 4
@@ -83,7 +86,7 @@ data:
   window_size: 60
   stride: 10
   use_balanced_sampling: true         # CRITICAL for imbalanced data
-  num_workers: 4                      # Optimal for WSL2
+  num_workers: 4                      # If hangs on WSL2, change to 0 (recommended)
   pin_memory: true                    # Faster GPU transfer
   persistent_workers: true            # Reuse workers
   prefetch_factor: 2                  # Pre-load batches
