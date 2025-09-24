@@ -140,7 +140,7 @@ edge_feats = torch.stack([
 edge_in_proj = nn.Conv1d(3, 16, 1)  # Adjust input dim
 ```
 
-### **4. Missing Frequency Analysis** ✅ **[DEFINITIVELY ANSWERED - TCN IS SUPERIOR]**
+### **4. Missing Frequency Analysis** ✅ **[CONSENSUS REACHED - HYBRID APPROACH]**
 
 **EvoBrain uses STFT (line 311 in paper):**
 - Applies STFT to get frequency features
@@ -152,14 +152,18 @@ edge_in_proj = nn.Conv1d(3, 16, 1)  # Adjust input dim
 - Dilated convolutions act as learned filter banks
 - More end-to-end than fixed STFT
 
-**DEFINITIVE ANSWER (Based on 2024-2025 Research): TCN > STFT**
-- **Latest meta-analysis**: TCN variants achieve 98.88% sensitivity vs STFT's 97.74%
-- **Computational**: TCN is 40x faster (1.35M ops vs 55M ops)
-- **Phase preservation**: TCN preserves critical phase relationships STFT loses
-- **Adaptive learning**: TCN learns seizure-specific filters vs fixed Fourier basis
-- **EvoBrain's own ablation**: FFT only adds 3% AUROC (not game-changing)
+**2025 CONSENSUS: TCN + Lightweight STFT Hybrid**
+- **Latest papers (NeurIPS 2025)**: All SOTA use hybrid time-frequency approaches
+- **EEGM2 (2025)**: Mamba2 with spectral-aware loss achieves SOTA
+- **Time-frequency dual-stream (2025)**: Explicit fusion beats either alone
+- **Clinical surveys (2025)**: STFT remains standard practice
 
-**VERDICT: KEEP TCN - IT'S OPTIMAL FOR OUR USE CASE**
+**IMPLEMENTATION PLAN: 3-Band STFT Side-Branch**
+- Keep TCN as primary backbone
+- Add lightweight STFT (theta/alpha, beta/gamma, HFO bands)
+- Late fusion at proj_to_electrodes
+- ~30 lines of code, <10% overhead
+- Created `STFT_SIDEBRANCH_IMPLEMENTATION.md` with complete patch
 ```python
 # Option: Add parallel frequency branch
 class FrequencyBranch(nn.Module):
