@@ -1,7 +1,7 @@
-# DEFINITIVE ANSWER: STFT vs TCN for Your Seizure Detection Use Case
+# CONSENSUS ANSWER: TCN + Lightweight STFT Hybrid for Seizure Detection
 
-## Executive Summary
-**TCN IS THE RIGHT CHOICE FOR YOUR IMPLEMENTATION** - but add a lightweight frequency branch as an enhancement, not replacement.
+## Executive Summary (Updated with 2025 SSOT)
+**HYBRID APPROACH IS OPTIMAL**: Keep TCN/BiMamba2 backbone + add lightweight STFT side-branch (3-band, <10% overhead). This aligns with 2025 state-of-the-art.
 
 ## The Evidence (2024-2025)
 
@@ -101,22 +101,39 @@ class MinimalFreqBranch(nn.Module):
         return band_power  # Minimal 57 extra features
 ```
 
-## FINAL VERDICT
+## 2025 CONSENSUS & STATE-OF-THE-ART
 
-### Keep TCN as Primary
-- **Performance**: Matches or exceeds STFT-based methods
-- **Efficiency**: 40x faster inference
-- **Flexibility**: Learns optimal filters for YOUR data
+### Latest Papers Confirm Hybrid Wins
+1. **EvoBrain (NeurIPS 2025)**: Time-then-graph with frequency cues crucial
+2. **Time-frequency dual-stream transformer (2025)**: Explicit STFT+time fusion beats either alone
+3. **EEGM2 (2025)**: Mamba2 with spectral-aware loss achieves SOTA
+4. **DG-Mamba (2024/2025)**: Range-EEG (compact spectral) + Mamba succeeds
+5. **Clinical surveys (2025)**: STFT spectrograms remain common and effective
 
-### Optional: Add Minimal Frequency Features
-- **3 frequency bands** (not full STFT)
-- **Power statistics** only (not spectrograms)
-- **<10% overhead** acceptable
+### The 2025 SSOT: Hybrid Architecture
+- **Primary**: Time-domain backbone (TCN/Mamba2) for temporal dynamics
+- **Secondary**: Lightweight STFT side-branch (2-3 bands) for explicit frequency cues
+- **Fusion**: Late fusion before GNN preserves both representations
+- **Alternative**: Spectral-aware loss (EEGM2 style) if avoiding STFT branch
 
-### DO NOT
-- Replace TCN with STFT (massive regression)
-- Add full spectrograms (computational waste)
-- Follow EvoBrain blindly (their STFT choice was convenience, not optimality)
+## UPDATED VERDICT
+
+### Implement Lightweight STFT Side-Branch
+- **3 critical bands**: Theta/alpha (4-12Hz), beta/gamma (14-40Hz), HFO (80-250Hz)
+- **Log-magnitude only**: Skip phase for efficiency
+- **Late fusion**: Concatenate with TCN features before proj_to_electrodes
+- **<10% overhead**: Acceptable trade-off for alignment with SOTA
+
+### Keep TCN as Primary Backbone
+- **Performance**: Core temporal dynamics processor
+- **Efficiency**: Still 40x faster than full STFT
+- **Flexibility**: Learns seizure-specific patterns
+
+### Why Hybrid > Pure TCN
+- **Explicit frequency priors**: Help network converge faster
+- **Clinical interpretability**: Doctors understand frequency bands
+- **Robustness**: Two complementary views reduce failure modes
+- **2025 alignment**: All top papers use some frequency representation
 
 ## The Numbers Don't Lie
 
@@ -129,13 +146,13 @@ Your current V3 + TCN + Dynamic LPE setup is **theoretically superior**:
 
 **You already implemented the bigger win (Dynamic LPE)!**
 
-## Action Items
+## Action Items (Updated with Consensus)
 
-1. ✅ **Keep TCN** - it's optimal for your use case
-2. ✅ **Dynamic LPE** - already done, bigger impact than STFT
-3. 🟡 **Optional**: Add minimal frequency features (3 bands, <100 lines of code)
-4. ❌ **Skip**: Full STFT implementation (complexity without benefit)
+1. ✅ **Keep TCN** - primary temporal backbone
+2. ✅ **Dynamic LPE** - already implemented, major win
+3. 🔴 **PRIORITY**: Add lightweight STFT side-branch (3 bands, ~30 lines)
+4. 🟡 **Alternative**: Spectral-aware loss if avoiding STFT complexity
 
 ---
 
-**THE ANSWER**: TCN > STFT for seizure detection in 2025. The research is clear, the math checks out, and your implementation is already superior. Don't let EvoBrain's design choices make you doubt your better architecture.
+**CONSENSUS ACHIEVED**: TCN + lightweight STFT hybrid is the 2025 SSOT. Pure TCN works but hybrid is safer and aligns with all recent SOTA papers. The 3-band STFT adds minimal overhead while providing explicit frequency priors that help convergence and interpretability.

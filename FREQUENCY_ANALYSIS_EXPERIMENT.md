@@ -1,10 +1,10 @@
-# Frequency Analysis Experiment Plan
+# Frequency Analysis Implementation Plan (2025 Consensus)
 
-## Background
-EvoBrain uses STFT for frequency features, showing improved performance in ablations. Our V3 uses TCN with multi-scale kernels as an implicit frequency decomposition.
+## Background (Updated with 2025 SSOT)
+The 2025 state-of-the-art confirms hybrid approaches win: keep time-domain backbone (TCN/Mamba2) and add lightweight STFT side-branch. Latest papers (EvoBrain NeurIPS 2025, EEGM2 2025, Time-frequency dual-stream 2025) all show explicit frequency cues improve performance.
 
-## Hypothesis
-Adding explicit frequency features alongside TCN could improve seizure detection by capturing both learned (TCN) and fixed (STFT) frequency patterns.
+## Consensus Approach
+TCN + lightweight STFT side-branch is the safe, 2025-aligned SSOT for seizure detection. Pure TCN can match it ONLY with spectral-aware loss (EEGM2 style).
 
 ## Proposed Implementation
 
