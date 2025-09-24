@@ -188,9 +188,9 @@ class SeizureDetector(nn.Module):
             )  # (B, 19, 960, 64)
 
             # Node stream: per-electrode Mamba
-            node_flat = elec_feats.permute(0, 1, 3, 2).reshape(
-                batch_size * 19, 64, seq_len
-            )  # (B*19, 64, 960)
+            node_flat = (
+                elec_feats.permute(0, 1, 3, 2).reshape(batch_size * 19, 64, seq_len).contiguous()
+            )  # (B*19, 64, 960) - ensure contiguous for CUDA
             node_processed = self.node_mamba(node_flat)  # (B*19, 64, 960)
             node_feats = node_processed.reshape(batch_size, 19, 64, seq_len).permute(
                 0, 1, 3, 2
