@@ -47,55 +47,149 @@
 
 ## **🔴 UNSOLVED PROBLEMS IN OUR V3 CODEBASE**
 
-### **1. Static vs Dynamic PE - MAJOR THEORETICAL GAP** ⚠️
+### **1. Static vs Dynamic PE - MAJOR THEORETICAL GAP** ⚠️ **[ANSWERED]**
+
+**EvoBrain Implementation (Confirmed from code):**
 ```python
-# EvoBrain: Dynamic PE per timestep based on evolving adjacency
-data.laplacian_eigenvector_pe = compute_pe(adjacency[t])  # Per timestep
-
-# Ours: Static PE computed once
-self.static_pe = compute_pe(structural_10_20_montage)  # Once at init
+# EvoBrain line 943-950: Computes PE per timestep!
+for i in range(batch_size):
+    edge_weights = self.edge_activate(self.edge_transform(current_edge_embeds[-1]))
+    data = Data(
+        x=current_node_embeds[-1],
+        edge_weight=edge_weights  # Dynamic weights from edge Mamba!
+    )
+    data = self.laplacian_pe(data)  # Recomputes PE every timestep
 ```
-**Impact**: Missing temporal evolution of spatial relationships
-**Fix Options**:
-- A) Add dynamic PE option (slow but expressive)
-- B) Keep static but add temporal encoding to PE
-- C) Trust edge stream to capture all temporal adjacency changes
 
-### **2. Online vs Offline Processing** ❓
-- **EvoBrain**: Processes in online fashion (causal)
-- **Ours**: BiMamba processes bidirectionally (non-causal)
-**Question**: For real-time seizure detection, do we need causal processing?
-
-### **3. Edge Feature Dimensionality** ⚠️
+**Our Current Implementation:**
 ```python
-# Current: Edge features are scalar (1D) similarities
-edge_feats = edge_scalar_series(elec_feats)  # (B, 171, 960, 1)
-
-# Potential: Could use richer edge features
-edge_feats = edge_vector_features(elec_feats)  # (B, 171, 960, D)
+# gnn_pyg.py line 70-71: Static PE computed once
+if not use_dynamic_pe:
+    self.register_buffer("static_pe", self._compute_static_pe())
 ```
-**Impact**: Scalar edges may lose information about complex inter-electrode relationships
 
-### **4. Missing Frequency Analysis** ❓
-- **EvoBrain**: Uses STFT for frequency features
-- **EEG-BiMamba**: Mentions frequency bands
-- **Ours**: Pure time-domain processing
-**Question**: Are we missing critical frequency patterns (alpha, beta, gamma waves)?
+**ANSWER: YES, WE NEED DYNAMIC PE!**
+- EvoBrain proves dynamic PE is critical for capturing evolving brain networks
+- Our edge stream learns adjacency but GNN doesn't see the evolution in PE space
+- Performance impact: ~960x slower but necessary for expressivity
 
-### **5. Node Mamba Configuration Mismatch** ⚠️
+**Proposed Implementation:**
 ```python
-# Node stream uses d_model=64
-node_mamba = BiMamba2(d_model=64, ...)
-
-# But main Mamba in V2 uses d_model=512
-mamba = BiMamba2(d_model=512, ...)
+# Add to gnn_pyg.py forward_vectorized
+if self.use_dynamic_pe:
+    # Compute PE per timestep based on learned adjacency
+    pe_list = []
+    for t in range(seq_len):
+        adj_t = adjacency[:, t]  # (B, 19, 19)
+        pe_t = compute_laplacian_pe(adj_t)
+        pe_list.append(pe_t)
+    pe = torch.stack(pe_list, dim=1)  # (B, T, 19, k)
+else:
+    pe = self.static_pe  # Current approach
 ```
-**Impact**: Potential capacity bottleneck in V3 node stream
 
-### **6. GNN Architecture Choice** ❓
-- **EvoBrain**: Uses GCN
-- **Ours**: Uses SSGConv with α=0.05
-**Question**: Is SSGConv optimal for EEG graphs?
+### **2. Online vs Offline Processing** ❓ **[ANSWERED]**
+
+**ANSWER: BIDIRECTIONAL IS CORRECT FOR OUR USE CASE**
+- EvoBrain uses unidirectional Mamba (causal) because they target real-time prediction
+- We use 60-second windows with 10s stride for clinical review (not real-time)
+- Seizures have both pre-ictal buildup AND post-ictal patterns
+- BiMamba captures both directions, improving detection accuracy
+- For future real-time deployment, we could switch to causal mode
+
+### **3. Edge Feature Dimensionality** ⚠️ **[ANSWERED]**
+
+**EvoBrain also uses SCALAR edges!**
+```python
+# EvoBrain line 854: Forces edge input to 1D
+feat_input_size_edge = 1
+# Line 920-921: Reshape to scalar
+edge_features = edge_features.reshape(timestep, -1, 1)
+```
+
+**ANSWER: SCALAR EDGES ARE SUFFICIENT**
+- EvoBrain proves scalar similarity is enough
+- The edge Mamba learns temporal evolution from scalar input
+- The 1→16→1 projection adds capacity for learning
+
+**However, we could experiment with richer features:**
+```python
+# Future experiment: Multi-metric edges
+edge_feats = torch.stack([
+    cosine_similarity,
+    correlation,
+    phase_locking_value
+], dim=-1)  # (B, 171, 960, 3)
+edge_in_proj = nn.Conv1d(3, 16, 1)  # Adjust input dim
+```
+
+### **4. Missing Frequency Analysis** ❓ **[ANSWERED]**
+
+**EvoBrain uses STFT (line 311 in paper):**
+- Applies STFT to get frequency features
+- Retains log amplitudes of non-negative frequencies
+- Input becomes frequency representation, not raw time series
+
+**Our TCN approach:**
+- Multi-scale kernels capture different frequencies implicitly
+- Dilated convolutions act as learned filter banks
+- More end-to-end than fixed STFT
+
+**ANSWER: TCN IS DEFENSIBLE BUT FREQUENCY FEATURES COULD HELP**
+```python
+# Option: Add parallel frequency branch
+class FrequencyBranch(nn.Module):
+    def forward(self, x):
+        # x: (B, 19, 15360)
+        stft = torch.stft(x, n_fft=512, hop_length=128)
+        log_amp = torch.log(torch.abs(stft) + 1e-8)
+        return self.conv(log_amp)  # Process frequency features
+
+# Combine with TCN features
+features = torch.cat([tcn_features, freq_features], dim=1)
+```
+
+### **5. Node Mamba Configuration Mismatch** ⚠️ **[PARTIALLY ANSWERED]**
+
+**Current Setup:**
+```python
+# V3 node stream: d_model=64 (per electrode)
+node_mamba = BiMamba2(d_model=64, num_layers=6, ...)
+# 19 electrodes × 64 dims = 1216 total capacity
+
+# V2 main stream: d_model=512 (global)
+mamba = BiMamba2(d_model=512, num_layers=6, ...)
+```
+
+**Analysis:**
+- V3 total capacity: 19×64 = 1216 dims (higher than V2's 512!)
+- But each electrode only sees 64 dims locally
+- EvoBrain uses similar per-node dimensionality
+
+**RECOMMENDATION: Keep d_model=64 but consider increasing to 128**
+```python
+# Option: Increase node capacity
+node_mamba = BiMamba2(d_model=128, headdim=16, ...)  # (128*2)/16=16
+proj_to_electrodes = nn.Conv1d(512, 19*128, ...)
+```
+
+### **6. GNN Architecture Choice** ❓ **[ANSWERED]**
+
+**EvoBrain uses vanilla GCN (line 385-387):**
+```python
+# EvoBrain simplified GCN update
+h_i = σ(D^(-1/2) A' D^(-1/2) h_j Θ)
+```
+
+**We use SSGConv (Simple Spectral Graph Convolution):**
+- Combines multiple hop aggregations: (1-α)X + αAX
+- α=0.05 means 95% self-loop, 5% neighbor mixing
+- More stable for sparse graphs
+
+**ANSWER: SSGConv IS LIKELY BETTER FOR SPARSE EEG GRAPHS**
+- With top_k=3, graphs are very sparse
+- SSGConv's strong self-loop prevents over-smoothing
+- But we should experiment with both
 
 ## **🟡 QUESTIONABLE DESIGN DECISIONS**
 
@@ -107,17 +201,31 @@ x_batch = x.reshape(-1, feat_dim)  # (B*960*19, D)
 **Pro**: Efficient parallelization
 **Con**: Loses temporal ordering within GNN
 
-### **2. Edge Mamba d_model=16**
-```python
-edge_mamba = BiMamba2(d_model=16, ...)  # Very small!
-```
-**Concern**: Is 16 dimensions enough to model 171 edge dynamics?
+### **2. Edge Mamba d_model=16** **[ANSWERED]**
 
-### **3. Top-k=3 Sparsification**
+**ANSWER: 16 DIMS IS SUFFICIENT**
+- EvoBrain also lifts scalar edges to small embedding
+- Edge features start as 1D similarities
+- 16 dims is 16x expansion from input
+- The temporal modeling matters more than dimensionality
+
+**But we could experiment:**
 ```python
-edge_top_k: 3  # Only keep 3 edges per node
+# Try d_model=32 for more capacity
+edge_mamba = BiMamba2(d_model=32, headdim=8, ...)  # (32*2)/8=8
 ```
-**Concern**: EEG networks may need denser connectivity
+
+### **3. Top-k=3 Sparsification** **[ANSWERED]**
+
+**ANSWER: TOP-K=3 IS REASONABLE BUT COULD INCREASE**
+- Brain networks are known to be sparse
+- 10-20 montage has physical locality constraints
+- 3 neighbors ≈ 16% connectivity is reasonable
+
+**Recommendation: Try k=5 for comparison**
+```python
+edge_top_k: 5  # ~26% connectivity
+```
 
 ## **🟢 THINGS WE DO BETTER THAN EVOBRAIN**
 
@@ -126,46 +234,84 @@ edge_top_k: 3  # Only keep 3 edges per node
 3. **TCN Features**: Better for raw time-series than STFT
 4. **Mamba2**: More modern/efficient than Mamba1
 
-## **CRITICAL QUESTIONS TO RESOLVE**
+## **CRITICAL QUESTIONS RESOLVED**
 
-1. **Should we add dynamic PE?** (expressivity vs speed)
-2. **Should we add frequency features?** (STFT branch?)
-3. **Is node d_model=64 sufficient?** (vs 512 in V2)
-4. **Should edge features be vectors?** (not just scalars)
-5. **Do we need online/causal processing?** (for real-time)
+1. **Should we add dynamic PE?** ✅ **YES - EvoBrain proves it's essential**
+2. **Should we add frequency features?** 🟡 **MAYBE - TCN is defensible but STFT could help**
+3. **Is node d_model=64 sufficient?** ✅ **YES - Total capacity 19×64=1216 > 512**
+4. **Should edge features be vectors?** ✅ **NO - EvoBrain uses scalars successfully**
+5. **Do we need online/causal processing?** ✅ **NO - Bidirectional is better for our use case**
 
 ## **PRIORITY ISSUES**
 
-### **PRIORITY 1: Dynamic PE Question** 🔴
-The biggest theoretical gap is static vs dynamic Laplacian PE:
+### **PRIORITY 1: Dynamic PE Implementation** 🔴 **[MUST FIX]**
+
+**Concrete Implementation Plan:**
 ```python
-# Option A: Add dynamic PE (like EvoBrain)
-if self.use_dynamic_pe:
-    pe = compute_laplacian_pe(adj[t])  # Per timestep
-else:
-    pe = self.static_pe  # Current approach
+# In gnn_pyg.py, modify forward_vectorized:
+def forward_vectorized(self, features, adjacency):
+    if self.use_dynamic_pe:
+        # Compute PE per timestep (like EvoBrain)
+        pe_list = []
+        for t in range(seq_len):
+            # Extract adjacency for timestep t across batch
+            adj_t = adjacency[:, t]  # (B, 19, 19)
+
+            # Compute Laplacian PE for each graph in batch
+            pe_batch = []
+            for b in range(batch_size):
+                data = Data(
+                    x=torch.randn(19, 1),  # Dummy features
+                    edge_index=(adj_t[b] > 0).nonzero().t(),
+                    edge_weight=adj_t[b][adj_t[b] > 0]
+                )
+                data = self.laplacian_pe(data)
+                pe_batch.append(data.laplacian_eigenvector_pe)
+
+            pe_t = torch.stack(pe_batch)  # (B, 19, k)
+            pe_list.append(pe_t)
+
+        pe = torch.stack(pe_list, dim=1)  # (B, T, 19, k)
+        # Flatten and concatenate with features
+    else:
+        # Current static approach
+        pe = self.static_pe.expand(batch_size * seq_len, -1, -1)
 ```
 
-### **PRIORITY 2: Node Stream Capacity** 🟡
-```python
-# Current: Node d_model=64 seems small
-node_mamba = BiMamba2(d_model=64, ...)
-
-# Consider: Matching V2's capacity
-node_mamba = BiMamba2(d_model=128 or 256, ...)
+**Config Update:**
+```yaml
+graph:
+    use_dynamic_pe: true  # Add this flag
 ```
 
-### **PRIORITY 3: Edge Feature Richness** 🟡
+### **PRIORITY 2: Node Stream Capacity** 🟡 **[OPTIONAL]**
+
+**Current is OK but could experiment:**
 ```python
-# Current: Scalar edges may be limiting
+# Current: 19 × 64 = 1216 total dims (good!)
+node_mamba = BiMamba2(d_model=64, headdim=8, ...)
+
+# Optional experiment: More local capacity
+node_mamba = BiMamba2(d_model=128, headdim=16, ...)  # (128*2)/16=16
+proj_to_electrodes = nn.Conv1d(512, 19*128, 1)
+```
+
+### **PRIORITY 3: Edge Feature Richness** 🟡 **[KEEP AS IS]**
+
+**EvoBrain validates scalar approach - no change needed:**
+```python
+# Current implementation is correct!
 edge_feats = edge_scalar_series()  # (B,171,960,1)
+```
 
-# Consider: Vector edge features
-edge_feats = torch.cat([
+**Future experiment (low priority):**
+```python
+# Could try multi-metric but not essential
+edge_feats = torch.stack([
     cosine_similarity,
-    phase_coherence,
-    correlation
-], dim=-1)  # (B,171,960,3)
+    pearson_correlation,
+    mutual_information
+], dim=-1)
 ```
 
 ## **RECOMMENDATIONS**
