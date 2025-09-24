@@ -73,10 +73,12 @@ class GraphChannelMixerPyG(nn.Module):
         # Laplacian PE (EvoBrain line 858)
         self.laplacian_pe = AddLaplacianEigenvectorPE(k=k_eigenvectors)
 
-        # Ensure attribute exists for tests/introspection, even if using dynamic PE
-        self.static_pe = None  # will be populated only when use_dynamic_pe is False
-        if not use_dynamic_pe:
-            # Static PE buffer for v3 (computed once from structural graph)
+        # Static PE buffer - always register but may be None for dynamic PE
+        if use_dynamic_pe:
+            # Dynamic PE: register None buffer for attribute existence
+            self.register_buffer("static_pe", None)
+        else:
+            # Static PE: compute once from structural graph
             self.register_buffer("static_pe", self._compute_static_pe())
 
         # Edge weight transform (EvoBrain lines 869-870)
