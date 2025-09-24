@@ -141,11 +141,17 @@ model:
 - **Likely Case**: +1-2% AUROC improvement with 10-15% compute overhead
 - **Worst Case**: No improvement, validates TCN as sufficient
 
-## Priority: MEDIUM 🟡
+## Priority: HIGH 🔴 (Updated with 2025 Consensus)
 
-While EvoBrain shows frequency helps, our TCN approach is defensible:
-- TCN multi-scale kernels act as learned frequency filters
-- More end-to-end than fixed STFT
-- Avoids hyperparameter tuning for STFT
+All 2025 SOTA papers use hybrid approaches:
+- **EvoBrain (NeurIPS 2025)**: Explicit frequency crucial in ablations
+- **EEGM2 (2025)**: Achieves SOTA with spectral-aware objective
+- **Time-frequency dual-stream (2025)**: Fusion beats either alone
+- **Clinical surveys (2025)**: STFT remains standard practice
 
-This is a good experiment but not critical like dynamic PE was.
+### Implementation Priority
+1. **Immediate**: Add 3-band STFT side-branch (~30 lines of code)
+2. **Alternative**: Spectral-aware loss if avoiding STFT tensor overhead
+3. **Fusion point**: Late fusion at proj_to_electrodes is optimal
+
+This is now HIGH priority to align with 2025 SSOT.
