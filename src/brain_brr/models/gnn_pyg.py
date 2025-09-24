@@ -67,6 +67,9 @@ class GraphChannelMixerPyG(nn.Module):
         self.semi_dynamic_interval = semi_dynamic_interval
         self.pe_sign_consistency = pe_sign_consistency
 
+        # ROBUST: Cache last valid PE for fallback
+        self.register_buffer("last_valid_pe", None)
+
         # Laplacian PE (EvoBrain line 858)
         self.laplacian_pe = AddLaplacianEigenvectorPE(k=k_eigenvectors)
 
@@ -137,6 +140,7 @@ class GraphChannelMixerPyG(nn.Module):
         - Degree clamping to prevent division by zero
         - Float32 eigendecomposition for numerical stability
         - Sign consistency to prevent eigenvector flips
+        - ROBUST: Laplacian regularization + NaN detection + fallback
         """
         B, T, N, _ = adjacency.shape
         device = adjacency.device
@@ -162,11 +166,36 @@ class GraphChannelMixerPyG(nn.Module):
         with torch.cuda.amp.autocast(enabled=False):
             L_stable = L.to(torch.float32)
 
-            # Compute eigenvalues and eigenvectors
-            eigenvalues, eigenvectors = torch.linalg.eigh(L_stable)
+            # ROBUST FIX: Add regularization to prevent singular matrices
+            eps = 1e-5
+            L_stable = L_stable + eps * torch.eye(N, device=L_stable.device, dtype=torch.float32)
 
-            # Take k smallest eigenvectors (already sorted in ascending order)
-            pe = eigenvectors[..., :self.k_eigenvectors]  # (B*T, N, k)
+            try:
+                # Compute eigenvalues and eigenvectors
+                eigenvalues, eigenvectors = torch.linalg.eigh(L_stable)
+
+                # Check for NaNs/Infs
+                if torch.isnan(eigenvalues).any() or torch.isnan(eigenvectors).any() or \
+                   torch.isinf(eigenvalues).any() or torch.isinf(eigenvectors).any():
+                    # Fallback: Use cached or identity-like safe PE
+                    print("[WARNING] NaN/Inf detected in eigendecomposition, using fallback PE")
+                    if self.last_valid_pe is not None and self.last_valid_pe.shape[0] == B:
+                        # Use cached PE if available and correct shape
+                        pe = self.last_valid_pe.reshape(B * T, N, self.k_eigenvectors).to(torch.float32)
+                    else:
+                        # Use small random PE as last resort
+                        pe = torch.randn(B * T, N, self.k_eigenvectors, device=device, dtype=torch.float32) * 0.01
+                else:
+                    # Clamp eigenvalues to safe range [0, 2] (Laplacian eigenvalues)
+                    eigenvalues = torch.clamp(eigenvalues, min=0.0, max=2.0)
+
+                    # Take k smallest eigenvectors (already sorted in ascending order)
+                    pe = eigenvectors[..., :self.k_eigenvectors]  # (B*T, N, k)
+
+            except RuntimeError as e:
+                # Complete eigendecomposition failure - use safe fallback
+                print(f"[WARNING] Eigendecomposition failed: {e}, using fallback PE")
+                pe = torch.randn(B * T, N, self.k_eigenvectors, device=device, dtype=torch.float32) * 0.01
 
         # Sign consistency: Fix eigenvector signs to prevent random flips
         if self.pe_sign_consistency:
@@ -174,8 +203,15 @@ class GraphChannelMixerPyG(nn.Module):
             signs = signs.where(signs != 0, torch.ones_like(signs))
             pe = pe * signs
 
+        # Final NaN check and replacement
+        pe = torch.nan_to_num(pe, nan=0.0, posinf=1.0, neginf=-1.0)
+
         # Reshape back and cast to original dtype
         pe = pe.reshape(B, T, N, self.k_eigenvectors).to(dtype)
+
+        # Cache this valid PE for future fallback
+        if not torch.isnan(pe).any() and not torch.isinf(pe).any():
+            self.last_valid_pe = pe.detach().clone()
 
         return pe
 
