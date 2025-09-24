@@ -243,4 +243,10 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 
 ---
 
-**Mission**: Deploy O(N) clinical seizure detection that beats transformer baselines 🚀
+**Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
+
+**Current Status**:
+- V3 architecture fully implemented and debugged
+- Training running on both RTX 4090 (local) and A100 (Modal)
+- All NaN issues resolved with numerical safeguards
+- Dynamic PE memory-optimized for both platforms
