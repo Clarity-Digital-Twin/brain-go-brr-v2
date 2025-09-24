@@ -1,5 +1,9 @@
 # Modal A100 Smoke Test: TCN + Bi-Mamba + GNN Stack (v2.6 or v3.0)
 # Quick validation (1 epoch) on Modal A100-80GB
+#
+# NOTE: app.py automatically sets BGB_LIMIT_FILES=50 for smoke tests
+# This limits to 50 files instead of full 3734 for quick validation
+#
 # Usage: modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
 data:
   dataset: tuh_eeg
@@ -14,7 +18,7 @@ data:
   persistent_workers: true              # A100 optimized
   prefetch_factor: 4
   validation_split: 0.2
-  use_balanced_sampling: true          # CRITICAL: Ensures seizures in batches
+  use_balanced_sampling: false         # Must be false for BGB_LIMIT_FILES to work
 
 preprocessing:
   montage: "10-20"

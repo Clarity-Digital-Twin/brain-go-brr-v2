@@ -1,6 +1,6 @@
-# Modal A100 Config Consistency (v2.6) ✅
+# Modal A100 Config Consistency (V3) ✅
 
-Canonical stack: TCN + Bi‑Mamba + Dynamic GNN (PyG SSGConv + Laplacian PE)
+Canonical stack: TCN + Dual-Stream BiMamba + GNN (PyG SSGConv + Laplacian PE)
 
 Files
 - configs/modal/smoke.yaml — 1 epoch, A100 smoke; balanced sampling; full stack
@@ -17,7 +17,7 @@ prefetch_factor: 4
 Shared model
 ```yaml
 model:
-  architecture: tcn
+  architecture: v3  # V3 dual-stream architecture
   tcn: { num_layers: 8, channels: [64,128,256,512], kernel_size: 7, stride_down: 16 }
   mamba: { n_layers: 6, d_model: 512, d_state: 16, conv_kernel: 4 }
   graph:
@@ -35,8 +35,8 @@ model:
 ```
 
 Batch sizing
-- smoke.yaml: batch_size: 64 (conservative with GNN)
-- train.yaml: batch_size: 64 (A100‑80GB default)
+- smoke.yaml: batch_size: 32 (reduced for V3 dual-stream)
+- train.yaml: batch_size: 48 (optimized for A100-80GB with V3)
 
 Precision & stability
 - A100: `mixed_precision: true` (Tensor Cores)
@@ -61,3 +61,5 @@ Validation UX
 Notes
 - PyG is required (`use_pyg: true`); ensure graph wheels match your Torch/CUDA.
 - Removed legacy `configs/modal/train_gnn.yaml` (pre‑refactor schema).
+- Smoke test: app.py sets BGB_LIMIT_FILES=50 automatically
+- V3 requires headdim parameters (handled in detector.py)
