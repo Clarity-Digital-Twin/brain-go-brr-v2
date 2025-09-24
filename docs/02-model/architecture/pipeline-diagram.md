@@ -1,8 +1,8 @@
-# MVP PIPELINE DIAGRAM (NO BULLSHIT)
+# MODEL PIPELINE DIAGRAM (TCN + Bi‑Mamba, optional GNN)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                           SEIZURE DETECTION MVP PIPELINE                            │
+│                                SEIZURE DETECTION PIPELINE                            │
 └─────────────────────────────────────────────────────────────────────────────────────┘
 
 ┌──────────────┐       ┌──────────────────────────────────────────────────┐
@@ -20,7 +20,7 @@
                        │              WINDOW EXTRACTION                   │
                        │                                                  │
                        │  • 60-second windows (15360 samples @ 256 Hz)    │
-                       │  • 10-second stride (50-second overlap)          │
+                       │  • 10-second stride (83% overlap)                │
                        │  • Shape: (B, 19, 15360)                         │
                        └────────────────────┬─────────────────────────────┘
                                             │
@@ -28,88 +28,26 @@
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
 │                              DEEP LEARNING MODEL                                    │
 │                                                                                     │
-│  ┌───────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐   │
-│  │   Encoder     │───▶│   Stack      │────▶│  Bottleneck  │───▶│   Decoder    │   │
-│  │               │     │              │     │              │     │              │   │
-│  │ • 4 stages    │     │ • 3 blocks   │     │ • 6 layers   │     │ • 4 stages   │   │
-│  │ • ×16 down    │     │ • k=[3,5,7]  │     │ • d_model=   │     │ • ×16 up     │   │
-│  │ • Skip conn.  │     │ • width=512  │     │   512        │     │ • Skip fuse  │   │
-│  │               │     │              │     │ • Bi-dir     │     │              │   │
-│  └───────────────┘     └──────────────┘     └──────────────┘     └──────┬───────┘   │
-│                                                                         │           │
-│                       Bottleneck: (B, 512, 960)                         ▼           │
-│                                                                   ┌──────────────┐  │
-│                                                                   │    Logit     │  │
-│                                                                   │    Head      │  │
-│                                                                   │              │  │
-│                                                                   │  Conv1d→1    │  │
-│                                                                   └──────┬───────┘  │
-└──────────────────────────────────────────────────────────────────────────┼──────────┘
-                                                                           │
-                                                                           ▼
-                       ┌──────────────────────────────────────────────────────────┐
-                       │           WINDOW PROBABILITIES                           │
-                       │                                                          │
-                       │  • Per-timestep probs @ 256 Hz                           │
-                       │  • Shape: (B, 15360) for each window                     │
-                       └────────────────────┬─────────────────────────────────────┘
-                                            │
-                                            ▼
-                       ┌──────────────────────────────────────────────────┐
-                       │              STITCHING                           │
-                       │                                                  │
-                       │  • Overlap-average 50s overlapping regions       │
-                       │  • Reconstruct full recording timeline           │
-                       │  • Output: continuous probs @ 256 Hz             │
-                       └────────────────────┬─────────────────────────────┘
-                                            │
-                                            ▼
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                           POST-PROCESSING (GLOBAL)                                  │
-│                                                                                     │
-│  ┌──────────────────┐     ┌──────────────────┐     ┌────────────────────────────┐   │
-│  │   Hysteresis     │     │  Morphological   │     │    Duration Filter         │   │ 
-│  │   Threshold      │───▶│    Operations    │────▶│                            │   │
-│  │                  │     │                  │     │  • min_dur ≥ 3.0s          │   │
-│  │ • τ_on = 0.86    │     │ • Open (k=5)     │     │  • Drop short events       │   │
-│  │ • τ_off = 0.78   │     │ • Close (k=5)    │     │                            │   │
-│  └──────────────────┘     └──────────────────┘     └────────────────────────────┘   │
+│  ┌────────────────┐     ┌────────────────┐     ┌───────────────────────────────┐     │
+│  │   TCN Encoder  │───▶│   Bi‑Mamba‑2   │────▶│   Optional GNN + LPE (PyG)    │     │
+│  │ (×16 down)     │     │  (6 layers)    │     │ (vectorized, static PE by    │     │
+│  │ (B,512,960)    │     │ (B,512,960)    │     │  default in v3)              │     │
+│  └────────────────┘     └────────────────┘     └──────────────┬────────────────┘     │
+│                                                                │                      │
+│                                   Bottleneck: (B, 19, 960, 64) ▼                      │
+│                                                        ┌───────────────────────┐      │
+│                                                        │ Projection + Upsample │      │
+│                                                        │   19*64→512, ×16 up   │      │
+│                                                        └──────────┬────────────┘      │
+│                                                                   ▼                   │
+│                                                            ┌──────────────┐           │
+│                                                            │  Detection   │           │
+│                                                            │   Head 1×1   │           │
+│                                                            └──────────────┘           │
 └─────────────────────────────────────────────────────────────────────────────────────┘
-                                           │
-                                           ▼
-                       ┌──────────────────────────────────────────────────┐
-                       │              EVENT EXTRACTION                    │
-                       │                                                  │
-                       │  • Binary mask → event spans                     │
-                       │  • Format: [(start_sec, end_sec), ...]           │
-                       └────────────────────┬─────────────────────────────┘
-                                           │
-                                           ▼
-                       ┌──────────────────────────────────────────────────┐
-                       │           EVALUATION (TAES/NEDC)                 │
-                       │                                                  │
-                       │  • Time-Aligned Event Scoring (TAES)             │
-                       │  • Report sensitivity @ FA/24h:                  │
-                       │    - 10 FA/24h (primary)                         │
-                       │    - 5, 2.5, 1 FA/24h                            │
-                       │  • AUROC (secondary sanity check)                │
-                       └──────────────────────────────────────────────────┘
-
-TRAINING LOOP
-─────────────
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│ Balanced     │────▶│   Forward   │────▶│   Loss       │───▶│  Backprop    │
-│ Dataset      │     │   Pass       │     │   Compute    │     │  & Update    │
-│              │     │              │     │              │     │              │
-│ • ALL partial│     │ • AMP on     │     │ • BCE (or    │     │ • AdamW      │
-│ • 0.3× full  │     │ • Batch 16   │     │   focal w/   │     │ • lr=3e-4    │
-│ • 2.5× none  │     │              │     │   alpha=0.5) │     │ • Clip=1.0   │
-└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘
-                                                                       │
-                                                                       ▼
-                                                            ┌──────────────────┐
-                                                            │   Early Stop     │
-                                                            │                  │
-                                                            │ Dev sens@10FA/24h│
-                                                            └──────────────────┘
 ```
+
+Notes:
+- v2 (architecture: tcn) uses heuristic adjacency when `graph.enabled=true`.
+- v3 (architecture: v3) uses learned adjacency via an edge stream (Bi‑Mamba) + vectorized PyG with static PE.
+

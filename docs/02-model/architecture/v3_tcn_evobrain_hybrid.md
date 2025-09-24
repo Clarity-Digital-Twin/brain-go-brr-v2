@@ -1,6 +1,6 @@
 # V3.0 — TCN + Full EvoBrain Dual‑Stream (Node + Edge) with GNN + LPE
 
-Status: Proposed (ready to implement via TDD). This document aligns precisely with the current codebase (TCN + Bi‑Mamba + PyG GNN), the EvoBrain design (dual SNN streams + learned adjacency), and our constraints (19 electrodes, 60 s @ 256 Hz → 15360 samples).
+Status: Implemented. This document aligns with the current codebase (TCN + Bi‑Mamba + PyG GNN), the EvoBrain design (dual SNN streams + learned adjacency), and our constraints (19 electrodes, 60 s @ 256 Hz → 15360 samples).
 
 ## Canonical Shapes and Flow (exact)
 
@@ -38,6 +38,12 @@ Notes:
 - Replace heuristic adjacency (`graph_builder.py`) with learned adjacency from the edge stream (Mamba + Linear + Softplus + top‑k/threshold/symmetry + identity fallback).
 - Refactor PyG GNN to a vectorized forward over all timesteps and use a static Laplacian PE buffer by default.
 - Keep the “time‑then‑graph” order as today; do not insert extra temporal blocks after GNN.
+
+Code anchors:
+- Detector v3 branch: `src/brain_brr/models/detector.py` (architecture=="v3")
+- Edge pipeline: `src/brain_brr/models/edge_features.py`
+- PyG GNN (vectorized + static PE): `src/brain_brr/models/gnn_pyg.py`
+- Config flags: `src/brain_brr/config/schemas.py` (`ModelConfig.architecture`, `GraphConfig.edge_*`)
 
 ## Implementation Plan (files and signatures)
 
@@ -112,4 +118,3 @@ Performance (soft, non‑flaky)
 4) Update configs (local + modal) to select `architecture: v3`.
 
 This sequence keeps v2 stable while making v3 both correct and performant.
-

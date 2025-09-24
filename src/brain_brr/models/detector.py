@@ -195,10 +195,16 @@ class SeizureDetector(nn.Module):
             # Edge stream: learned adjacency
             edge_metric = str(self.config.get("edge_metric", "cosine"))
             edge_feats = edge_scalar_series(elec_feats, metric=edge_metric)  # (B, 171, 960, 1)
+
+            # Pad edge features from 1 to 8 channels for CUDA alignment
             edge_flat = edge_feats.squeeze(-1).reshape(
                 batch_size * 171, 1, seq_len
             )  # (B*171, 1, 960)
-            edge_processed = self.edge_mamba(edge_flat)  # (B*171, 1, 960)
+            edge_flat_padded = torch.cat(
+                [edge_flat, torch.zeros_like(edge_flat).expand(-1, 7, -1)], dim=1
+            ).contiguous()  # (B*171, 8, 960) - ensure contiguous memory layout
+
+            edge_processed = self.edge_mamba(edge_flat_padded)  # (B*171, 8, 960)
             edge_weights = self.edge_head(edge_processed.transpose(1, 2)).transpose(
                 1, 2
             )  # (B*171, 1, 960)
@@ -291,10 +297,11 @@ class SeizureDetector(nn.Module):
             )
 
             # Edge stream: per-edge Mamba
+            # CRITICAL: Use d_model=8 for CUDA kernel alignment (pad from 1)
             edge_layers = graph_cfg.edge_mamba_layers if graph_cfg else 2
             edge_d_state = graph_cfg.edge_mamba_d_state if graph_cfg else 8
             instance.edge_mamba = BiMamba2(
-                d_model=1,
+                d_model=8,  # Padded from 1 for CUDA alignment
                 d_state=edge_d_state,
                 d_conv=4,
                 num_layers=edge_layers,
@@ -302,8 +309,9 @@ class SeizureDetector(nn.Module):
             )
 
             # Edge weight head (Linear + Softplus)
+            # Input is padded to 8 channels, extract first channel
             instance.edge_head = nn.Sequential(
-                nn.Linear(1, 1),
+                nn.Linear(8, 1),  # From padded 8 channels to 1
                 nn.Softplus(),
             )
 
