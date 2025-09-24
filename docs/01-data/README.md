@@ -61,7 +61,7 @@ Complete documentation of the EDF → Training data pipeline, including TUSZ-spe
 ## Code References
 
 - **Data Loading**: `src/brain_brr/data/loader.py`
-- **Datasets**: `src/brain_brr/data/dataset.py`
+- **Datasets**: `src/brain_brr/data/datasets.py`
 - **CSV Parser**: `src/brain_brr/data/io.py::parse_tusz_csv()`
 - **Cache Utils**: `src/brain_brr/data/cache_utils.py`
 - **Constants**: `src/brain_brr/constants.py`
