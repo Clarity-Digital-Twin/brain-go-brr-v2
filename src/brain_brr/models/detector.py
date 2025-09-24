@@ -203,6 +203,10 @@ class SeizureDetector(nn.Module):
             # Learnable lift 1→8 channels for CUDA alignment & capacity
             edge_flat = edge_feats.squeeze(-1).reshape(batch_size * 171, 1, seq_len)  # (B*E,1,T)
             edge_in = self.edge_in_proj(edge_flat).contiguous()  # (B*E, D, T) where D=16
+
+            # Safety assertion for Mamba CUDA kernel
+            assert edge_in.is_contiguous(), "edge_in tensor must be contiguous for Mamba CUDA kernels"
+
             edge_processed = self.edge_mamba(edge_in)  # (B*E, D, T)
             edge_out = self.edge_out_proj(edge_processed)  # (B*E, 1, T)
             edge_weights = self.edge_activate(edge_out).reshape(batch_size, 171, seq_len)  # (B,E,T)
@@ -297,6 +301,11 @@ class SeizureDetector(nn.Module):
             edge_layers = graph_cfg.edge_mamba_layers if graph_cfg else 2
             edge_d_state = graph_cfg.edge_mamba_d_state if graph_cfg else 8
             edge_d_model = graph_cfg.edge_mamba_d_model if graph_cfg else 16
+
+            # Safety assertions for CUDA kernel alignment
+            assert edge_d_model % 8 == 0, f"edge_mamba_d_model must be multiple of 8 for CUDA, got {edge_d_model}"
+            assert edge_d_model > 0, f"edge_mamba_d_model must be positive, got {edge_d_model}"
+
             instance.edge_mamba = BiMamba2(
                 d_model=edge_d_model,
                 d_state=edge_d_state,
