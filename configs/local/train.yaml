@@ -66,12 +66,10 @@ model:
     alpha: 0.05                # SSGConv mixing
     k_eigenvectors: 16         # Laplacian PE dimension
 
-    # Dynamic PE config (v3) - NOTE: Ignored in v3 path
-    # v3 uses STATIC Laplacian PE (computed once) and vectorized GNN regardless of these flags.
-    # These remain for compatibility with v2 experiments.
-    use_dynamic_pe: true
-    semi_dynamic_interval: 1
-    pe_sign_consistency: true
+    # Dynamic PE config (v3) - ALWAYS ENABLED
+    use_dynamic_pe: true       # ALWAYS use dynamic PE (EvoBrain approach)
+    semi_dynamic_interval: 1   # Update PE every N timesteps (1=fully dynamic)
+    pe_sign_consistency: true  # Fix eigenvector signs for stability
 
   decoder:
     stages: 4

@@ -6,7 +6,10 @@ All configs use the V3 dual-stream architecture:
 - **TCN**: Multi-scale temporal feature extraction (8 layers, stride=16)
 - **Node Stream**: Per-electrode BiMamba (d_model=64, 6 layers, headdim=8)
 - **Edge Stream**: Per-edge BiMamba (d_model=16, 2 layers, headdim=4)
-- **GNN**: Vectorized SSGConv with static Laplacian PE (α=0.05, k=16)
+- **GNN**: Vectorized SSGConv with **DYNAMIC** Laplacian PE (α=0.05, k=16)
+  - **Dynamic PE**: Recomputed per timestep from evolving adjacency (EvoBrain approach)
+  - **Vectorized**: All 960 timesteps computed in parallel (100-1000x faster than loops)
+  - **Numerical Stability**: FP32 eigendecomposition with sign consistency
 - **Total Parameters**: ~31.5M
 
 ## 📁 Directory Structure
