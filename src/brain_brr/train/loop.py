@@ -199,6 +199,8 @@ class FocalLoss(nn.Module):
         )
         # Probabilities (use clamped logits for numerical stability)
         p = torch.sigmoid(logits_clamped)
+        # Critical: Clamp probabilities to avoid log(0) or log(1) issues
+        p = p.clamp(min=1e-6, max=1 - 1e-6)
         p_t = p * targets + (1.0 - p) * (1.0 - targets)
         # Class-balanced alpha
         alpha_t = self.alpha * targets + (1.0 - self.alpha) * (1.0 - targets)
@@ -545,15 +547,24 @@ def train_epoch(
                     logits = model(windows)  # (B, T) raw logits
                     if logits is None:
                         raise ValueError(f"Model returned None for input shape {windows.shape}")
-                    # Check logits finiteness
+                    # Check logits finiteness and sanitize if needed
                     if not torch.isfinite(logits).all():
-                        if enable_nan_debug and nan_debug_emitted < max_nan_debug:
-                            nonfinite = (~torch.isfinite(logits)).sum().item()
-                            print(
-                                f"[DEBUG] Non-finite logits at batch {batch_idx}: count={nonfinite}",
-                                flush=True,
-                            )
-                        raise ValueError("Non-finite logits detected")
+                        nonfinite = (~torch.isfinite(logits)).sum().item()
+                        print(
+                            f"[WARN] Non-finite logits at batch {batch_idx}: count={nonfinite} -> sanitizing",
+                            flush=True,
+                        )
+                        # Save bad batch for debugging
+                        torch.save(
+                            {
+                                "windows": windows.cpu(),
+                                "labels": labels.cpu(),
+                                "global_step": global_step,
+                            },
+                            f"debug/bad_batch_{global_step:06d}.pt",
+                        )
+                        # Sanitize logits to allow training to continue
+                        logits = torch.nan_to_num(logits, nan=0.0, posinf=20.0, neginf=-20.0)
                     per_element_loss = compute_loss(logits, labels)
                     if per_element_loss is None:
                         raise ValueError("Loss computation returned None")

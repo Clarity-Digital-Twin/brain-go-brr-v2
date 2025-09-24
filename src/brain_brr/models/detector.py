@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn as nn
 
+from .debug_utils import assert_finite
 from .mamba import BiMamba2
 from .tcn import ProjectionHead, TCNEncoder
 
@@ -36,7 +37,7 @@ class SeizureDetector(nn.Module):
     """
 
     # Keep a tag for reporting/backward-compat
-    architecture: str | None = "tcn"
+    architecture: str = "tcn"
 
     def __init__(
         self,
@@ -67,6 +68,13 @@ class SeizureDetector(nn.Module):
         self.gnn: nn.Module | None = None
         self.proj_to_electrodes: nn.Conv1d | None = None
         self.proj_from_electrodes: nn.Conv1d | None = None
+
+        # V3 dual-stream components (initialized as None, set by from_config if v3)
+        self.node_mamba: nn.Module | None = None
+        self.edge_mamba: nn.Module | None = None
+        self.edge_in_proj: nn.Conv1d | None = None
+        self.edge_out_proj: nn.Conv1d | None = None
+        self.edge_activate: nn.Module | None = None
 
         # Use legacy dropout if mamba_dropout not specified
         if mamba_dropout is None:
@@ -103,10 +111,13 @@ class SeizureDetector(nn.Module):
         )
 
         # Bi-Mamba for temporal modeling
+        # headdim=64 with d_model=512 ensures (512*2)/64 = 16 which is multiple of 8
         self.mamba = BiMamba2(
             d_model=512,
             d_state=mamba_d_state,
             d_conv=mamba_d_conv,
+            expand=2,
+            headdim=64,  # (512*2)/64 = 16 is multiple of 8
             num_layers=mamba_layers,
             dropout=mamba_dropout,
         )
@@ -157,11 +168,86 @@ class SeizureDetector(nn.Module):
         """
         # TCN encoder: extract multi-scale temporal features
         features = self.tcn_encoder(x)  # (B, 512, 960)
+        assert_finite("tcn_out", features)
 
-        # Bi-Mamba: capture long-range dependencies
-        temporal = self.mamba(features)  # (B, 512, 960)
+        # Branch based on architecture
+        if (
+            self.architecture == "v3"
+            and self.node_mamba
+            and self.edge_mamba
+            and self.proj_to_electrodes
+            and self.proj_from_electrodes
+            and self.edge_in_proj
+            and self.edge_out_proj
+            and self.edge_activate
+        ):
+            # V3: Dual-stream architecture with learned adjacency
+            from .edge_features import assemble_adjacency, edge_scalar_series
 
-        # Optional Dynamic GNN stage (time-then-graph architecture)
+            batch_size, _, seq_len = features.shape
+
+            # Project to electrode features
+            elec_flat = self.proj_to_electrodes(features)  # (B, 19*64, 960)
+            assert_finite("proj_to_electrodes", elec_flat)
+            elec_feats = elec_flat.reshape(batch_size, 19, 64, seq_len).permute(
+                0, 1, 3, 2
+            )  # (B, 19, 960, 64)
+
+            # Node stream: per-electrode Mamba
+            node_flat = (
+                elec_feats.permute(0, 1, 3, 2).reshape(batch_size * 19, 64, seq_len).contiguous()
+            )  # (B*19, 64, 960) - ensure contiguous for CUDA
+            node_processed = self.node_mamba(node_flat)  # (B*19, 64, 960)
+            assert_finite("node_mamba", node_processed)
+            node_feats = node_processed.reshape(batch_size, 19, 64, seq_len).permute(
+                0, 1, 3, 2
+            )  # (B, 19, 960, 64)
+
+            # Edge stream: learned adjacency
+            edge_metric = str(self.config.get("edge_metric", "cosine"))
+            edge_feats = edge_scalar_series(elec_feats, metric=edge_metric)  # (B, 171, 960, 1)
+
+            # Learnable lift 1→8 channels for CUDA alignment & capacity
+            edge_flat = edge_feats.squeeze(-1).reshape(batch_size * 171, 1, seq_len)  # (B*E,1,T)
+            edge_in = self.edge_in_proj(edge_flat).contiguous()  # (B*E, D, T) where D=16
+
+            # Safety assertion for Mamba CUDA kernel
+            assert edge_in.is_contiguous(), (
+                "edge_in tensor must be contiguous for Mamba CUDA kernels"
+            )
+
+            edge_processed = self.edge_mamba(edge_in)  # (B*E, D, T)
+            edge_out = self.edge_out_proj(edge_processed)  # (B*E, 1, T)
+            edge_weights = self.edge_activate(edge_out).reshape(batch_size, 171, seq_len)  # (B,E,T)
+            assert_finite("edge_weights", edge_weights)
+
+            # Assemble adjacency
+            edge_top_k = cast(int, self.config.get("edge_top_k", 3))
+            edge_threshold = cast(float, self.config.get("edge_threshold", 1e-4))
+            adj = assemble_adjacency(
+                edge_weights,
+                n_nodes=19,
+                top_k=edge_top_k,
+                threshold=edge_threshold,
+            )  # (B, 960, 19, 19)
+            assert_finite("adjacency", adj)
+
+            # Apply GNN
+            elec_enhanced = self.gnn(node_feats, adj) if self.gnn else node_feats
+            assert_finite("gnn_out", elec_enhanced)
+
+            # Project back to bottleneck
+            elec_flat = elec_enhanced.permute(0, 1, 3, 2).reshape(
+                batch_size, 19 * 64, seq_len
+            )  # (B, 19*64, 960)
+            temporal = self.proj_from_electrodes(elec_flat)  # (B, 512, 960)
+            assert_finite("backproj", temporal)
+
+        else:
+            # V2: Standard TCN + Mamba
+            temporal = self.mamba(features)  # (B, 512, 960)
+
+        # Optional Dynamic GNN stage (v2 heuristic path, time-then-graph architecture)
         if (
             self.use_gnn
             and self.graph_builder
@@ -189,7 +275,14 @@ class SeizureDetector(nn.Module):
 
         # Project back to 19 channels and upsample to original resolution
         decoded = self.proj_head(temporal)  # (B, 19, 15360)
+        assert_finite("decoder_prelogits", decoded)
+
+        # Add clamping before logits to prevent overflow
+        decoded = torch.nan_to_num(decoded, nan=0.0, posinf=1e4, neginf=-1e4)
+        decoded = torch.clamp(decoded, -40.0, 40.0)
+
         output = self.detection_head(decoded)  # (B, 1, 15360)
+        assert_finite("final_logits", output)
         return cast(torch.Tensor, output.squeeze(1))
 
     @classmethod
@@ -206,26 +299,89 @@ class SeizureDetector(nn.Module):
             mamba_dropout=cfg.mamba.dropout,
         )
 
+        # Set architecture
+        instance.architecture = cfg.architecture
+        instance.config["architecture"] = cfg.architecture
+
+        # Build v3-specific components if v3 architecture
+        if cfg.architecture == "v3":
+            # V3: Dual-stream architecture
+            graph_cfg = cfg.graph  # Required for v3
+
+            # Node stream: per-electrode Mamba
+            # headdim=8 ensures (64 * 2) / 8 = 16 which is multiple of 8
+            instance.node_mamba = BiMamba2(
+                d_model=64,
+                d_state=16,  # Fixed for node stream
+                d_conv=4,
+                expand=2,
+                headdim=8,  # Critical: (64*2)/8 = 16 is multiple of 8
+                num_layers=6,  # Fixed for node stream
+                dropout=cfg.mamba.dropout,
+            )
+
+            # Edge stream: per-edge Mamba (learned lift 1→D→1)
+            edge_layers = graph_cfg.edge_mamba_layers if graph_cfg else 2
+            edge_d_state = graph_cfg.edge_mamba_d_state if graph_cfg else 8
+            edge_d_model = graph_cfg.edge_mamba_d_model if graph_cfg else 16
+
+            # Safety assertions for CUDA kernel alignment
+            assert edge_d_model % 8 == 0, (
+                f"edge_mamba_d_model must be multiple of 8 for CUDA, got {edge_d_model}"
+            )
+            assert edge_d_model > 0, f"edge_mamba_d_model must be positive, got {edge_d_model}"
+
+            # headdim=4 ensures (16 * 2) / 4 = 8 which is multiple of 8
+            instance.edge_mamba = BiMamba2(
+                d_model=edge_d_model,
+                d_state=edge_d_state,
+                d_conv=4,
+                expand=2,
+                headdim=4,  # Critical: (16*2)/4 = 8 is multiple of 8
+                num_layers=edge_layers,
+                dropout=cfg.mamba.dropout,
+            )
+
+            # Edge stream projections (learned lift/project) + activation
+            instance.edge_in_proj = nn.Conv1d(1, edge_d_model, kernel_size=1, bias=False)
+            instance.edge_out_proj = nn.Conv1d(edge_d_model, 1, kernel_size=1, bias=True)
+            instance.edge_activate = nn.Softplus()
+
+            # Projections for electrode space
+            instance.proj_to_electrodes = nn.Conv1d(512, 19 * 64, kernel_size=1)
+            instance.proj_from_electrodes = nn.Conv1d(19 * 64, 512, kernel_size=1)
+
+            # Store edge config in instance.config
+            if graph_cfg:
+                instance.config["edge_metric"] = graph_cfg.edge_features
+                instance.config["edge_top_k"] = graph_cfg.edge_top_k
+                instance.config["edge_threshold"] = graph_cfg.edge_threshold
+
         # Optionally attach GNN components if enabled
         graph_cfg = getattr(cfg, "graph", None)
         instance.use_gnn = bool(graph_cfg and graph_cfg.enabled)
 
         if instance.use_gnn and graph_cfg is not None:
-            # Lazy imports to avoid dependency when not using GNN
-            from .graph_builder import DynamicGraphBuilder
+            # For v2, use heuristic graph builder
+            if cfg.architecture != "v3":
+                # Lazy imports to avoid dependency when not using GNN
+                from .graph_builder import DynamicGraphBuilder
 
-            # Initialize graph builder (will be replaced with edge stream)
-            instance.graph_builder = DynamicGraphBuilder(
-                similarity=graph_cfg.similarity,
-                top_k=graph_cfg.top_k,
-                threshold=graph_cfg.threshold,
-                temperature=graph_cfg.temperature,
-            )
+                # Initialize graph builder (heuristic for v2)
+                instance.graph_builder = DynamicGraphBuilder(
+                    similarity=graph_cfg.similarity,
+                    top_k=graph_cfg.top_k,
+                    threshold=graph_cfg.threshold,
+                    temperature=graph_cfg.temperature,
+                )
+            # v3 uses edge stream instead of heuristic graph builder
 
             # ONLY PyG implementation with Laplacian PE is supported
             try:
                 from .gnn_pyg import GraphChannelMixerPyG
 
+                # V3 uses vectorized GNN with configurable PE
+                is_v3 = cfg.architecture == "v3"
                 instance.gnn = GraphChannelMixerPyG(
                     d_model=64,  # Per-electrode feature dimension
                     n_electrodes=19,
@@ -235,15 +391,21 @@ class SeizureDetector(nn.Module):
                     n_layers=graph_cfg.n_layers,
                     dropout=graph_cfg.dropout,
                     use_residual=graph_cfg.use_residual,
+                    use_vectorized=is_v3,  # V3: vectorized batching
+                    use_dynamic_pe=graph_cfg.use_dynamic_pe,  # Configurable PE mode
+                    bypass_edge_transform=is_v3,  # V3: skip since we have Softplus upstream
+                    semi_dynamic_interval=graph_cfg.semi_dynamic_interval,
+                    pe_sign_consistency=graph_cfg.pe_sign_consistency,
                 )
             except ImportError as e:
                 raise ImportError(
-                    "PyTorch Geometric not installed. GNN requires PyG. Install with: uv pip install torch-geometric torch-scatter torch-sparse torch-cluster --find-links https://data.pyg.org/whl/torch-2.5.0+cpu.html"
+                    "PyTorch Geometric not installed. GNN requires PyG. Install from prebuilt wheels for torch 2.2.2+cu121 (see INSTALLATION.md) or run 'make setup-gpu'"
                 ) from e
 
-            # Projections to/from electrode space
-            instance.proj_to_electrodes = nn.Conv1d(512, 19 * 64, kernel_size=1)
-            instance.proj_from_electrodes = nn.Conv1d(19 * 64, 512, kernel_size=1)
+            # Projections to/from electrode space (v2 only, v3 creates them above)
+            if cfg.architecture != "v3":
+                instance.proj_to_electrodes = nn.Conv1d(512, 19 * 64, kernel_size=1)
+                instance.proj_from_electrodes = nn.Conv1d(19 * 64, 512, kernel_size=1)
 
         return instance
 

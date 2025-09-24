@@ -1,116 +1,30 @@
-# Documentation Index
+# Brain-Go-Brr Docs Home
 
-## 📁 Documentation Structure
+This is the canonical, current documentation for the codebase. Historical material lives in `docs/archive/`. TUH-specific guides live in `docs/tusz/` (do not modify from here).
 
-### 01-data/ - Data Pipeline & Processing
-- **pipeline/** - Core data pipeline architecture
-  - [`architecture.md`](01-data/pipeline/architecture.md) - Complete EDF → Training pipeline with optimizations
-  - [`flow-diagram.md`](01-data/pipeline/flow-diagram.md) - Mermaid visualization of data flow
-  - [`cache-rebuild.md`](01-data/pipeline/cache-rebuild.md) - Quick cache rebuild guide
-- **tusz/** - TUSZ dataset specifics
-  - [`overview.md`](01-data/tusz/overview.md) - Dataset structure
-  - [`channels.md`](01-data/tusz/channels.md) - 10-20 montage mapping
-  - [`csv-parser.md`](01-data/tusz/csv-parser.md) - CSV_BI label parsing
-  - [`edf-repair.md`](01-data/tusz/edf-repair.md) - Header repair
-  - [`data-flow.md`](01-data/tusz/data-flow.md) - Processing pipeline
-  - [`cache-sampling.md`](01-data/tusz/cache-sampling.md) - Balanced sampling
-  - [`preflight.md`](01-data/tusz/preflight.md) - Pre-training checks
-- **issues/** - Historical issues and resolutions
-  - [`critical-resolved.md`](01-data/issues/critical-resolved.md) - Resolved bugs and lessons learned
-  - [`data-io.md`](01-data/issues/data-io.md) - I/O implementation details
+Sections
 
-### 02-model/ - Model Architecture
-- **architecture/** - Core model specifications
-  - [`canonical-spec.md`](02-model/architecture/canonical-spec.md) - Legacy (pre‑v2.3); see Current State
-  - [`current-state.md`](02-model/architecture/current-state.md) - Current runtime architecture (TCN path)
-  - [`tcn-replacement.md`](02-model/architecture/tcn-replacement.md) - TCN replacement details and rationale
-  - (Legacy U‑Net path moved to archive)
-  - [`pipeline-diagram.md`](02-model/architecture/pipeline-diagram.md) - Model pipeline visualization
-- **components/** - Individual model components
-  - [`mamba.md`](02-model/components/mamba.md) - Bi‑Mamba‑2 (O(N))
-  - Legacy components moved to archive (pre‑v2.3)
-- **deployment/** - Deployment-specific architecture
-  - [`architecture.md`](02-model/deployment/architecture.md) - CUDA/Modal deployment details
-  - [`mamba-kernels.md`](02-model/deployment/mamba-kernels.md) - d_conv kernel decisions
-- **analysis/** - Architecture analysis and audits
-  - [`comparison.md`](02-model/analysis/comparison.md) - Architecture comparisons
-  - [`stack-analysis.md`](02-model/analysis/stack-analysis.md) - Stack breakdown
-  - [`audit-summary.md`](02-model/analysis/audit-summary.md) - Audit results
-  - [`spec-audit.md`](02-model/analysis/spec-audit.md) - Specification audit
+- 00-Overview — quick orientation and goals
+- 01-Installation — environment and GPU stack
+- 02-Data — dataset overview and preprocessing
+- 03-Configuration — config schema and presets
+- 04-Model — V3 architecture and components
+  - Time–frequency hybrid: `docs/04-model/time-frequency-hybrid.md`
+- 05-Training — local and Modal workflows
+- 06-Evaluation — metrics and outputs
+- 07-CLI-Tools — CLI and Makefile
+- 08-Operations — troubleshooting and performance
+  - Incident: Dynamic PE NaNs — `docs/08-operations/incidents/nan-logits-dynamic-pe.md`
+- 09-Development — standards, testing, versioning
 
-### 03-deployment/ - Deployment & Operations
-- **modal/** - Modal.com cloud deployment
-  - [`deploy.md`](03-deployment/modal/deploy.md) - Modal deployment guide
-  - [`storage.md`](03-deployment/modal/storage.md) - Storage architecture (S3 mount + Modal SSD)
-  - [`PERFORMANCE_OPTIMIZATION.md`](03-deployment/modal/PERFORMANCE_OPTIMIZATION.md) - A100 performance tuning
-  - [`preflight.md`](03-deployment/modal/preflight.md) - Pre-deployment checks
-- **local/** - Local development setup
-  - [`wsl2.md`](03-deployment/local/wsl2.md) - WSL2-specific setup
-  - [`setup.md`](03-deployment/local/setup.md) - General setup guide
-- **operations/** - Training and evaluation
-  - [`training.md`](03-deployment/operations/training.md) - Training procedures
-  - [`smoke-tests.md`](03-deployment/operations/smoke-tests.md) - Fast pipeline and unit smoke tests
-  - [`evaluation.md`](03-deployment/operations/evaluation.md) - TAES metrics
-  - [`postprocessing.md`](03-deployment/operations/postprocessing.md) - Post-processing pipeline
-- [`troubleshooting.md`](03-deployment/troubleshooting.md) - Comprehensive troubleshooting guide
+Start here: `docs/00-overview/overview.md`.
 
-### 04-research/ - Research & Future Work
-- **future/** - Future directions
-  - [`CANONICAL-ROADMAP.md`](04-research/future/CANONICAL-ROADMAP.md) - Canonical roadmap and status
-  - [`direction.md`](04-research/future/direction.md) - Overall future plans
-  - [`roadmap.md`](04-research/future/roadmap.md) - Experimental stack roadmap
-  - [`gnn-tcn-stack.md`](04-research/future/gnn-tcn-stack.md) - GNN-TCN architecture exploration
-  - [`v2_6_dynamic_gnn_lpe_plan.md`](04-research/future/v2_6_dynamic_gnn_lpe_plan.md) - Plan for Dynamic GNN + LPE with learned adjacency (edge Mamba)
-  - [`v3_tcn_evobrain_hybrid.md`](02-model/architecture/v3_tcn_evobrain_hybrid.md) - V3 (TCN + dual‑stream EvoBrain + PyG GNN + LPE)
-- **benchmarks/** - Performance benchmarking
-  - [`plans.md`](04-research/benchmarks/plans.md) - Benchmark planning
-  - [`results.md`](04-research/benchmarks/results.md) - Benchmark results
-- **experiments/** - Experimental features
-  - [`channel-annotations.md`](04-research/experiments/channel-annotations.md) - Channel-specific analysis
-  - [`streaming.md`](04-research/experiments/streaming.md) - Real-time streaming plans
+Source of truth pointers
 
-## 🚀 Quick Start
+- V3 Ground Truth: `V3_ARCHITECTURE_AS_IMPLEMENTED.md`
+- Code: `src/brain_brr/models/detector.py`, `src/brain_brr/models/edge_features.py`, `src/brain_brr/models/gnn_pyg.py`, `src/brain_brr/models/mamba.py`, `src/brain_brr/models/tcn.py`, `src/brain_brr/train/loop.py`, `src/brain_brr/data/loader.py`, `src/brain_brr/data/dataset.py`
 
-1. **[Setup Guide](03-deployment/local/setup.md)** - Complete installation instructions
-2. **[Architecture Overview](02-model/architecture/canonical-spec.md)** - Model specification
-3. **[Training](03-deployment/operations/training.md)** - How to train models
+Quick local stability tips
 
-## ⚡ Critical Information
-
-### GPU Setup Requirements
-- **CUDA Toolkit 12.1** (MUST match PyTorch)
-- **mamba-ssm 2.2.2** (not 2.2.4/2.2.5 - have bugs)
-- **causal-conv1d 1.4.0** (1.5+ needs PyTorch 2.4+)
-- Use `make setup-gpu` to install
-
-### Key Commands
-```bash
-# Setup
-make setup          # Base dependencies
-make setup-gpu      # GPU extensions
-
-# Training
-make train-local    # Uses .venv/bin/python
-# DON'T use: uv run python -m src train
-
-# Quality
-make q              # Lint + format + type check
-```
-
-### Known Issues
-- **UV can't build GPU packages** - Use `--no-build-isolation`
-- **WSL2 multiprocessing** - Configs set `num_workers: 0`
-- **Mamba fallback** - Ensure CUDA 12.1 installed
-
-## 📁 Root Documents
-- [README.md](../README.md) - Project overview
-- [SETUP.md](../SETUP.md) - Quick setup reference
-- [CLAUDE.md](../CLAUDE.md) - AI assistant guide
-- [AGENTS.md](../AGENTS.md) - Agent configuration
-- [CHANGELOG.md](../CHANGELOG.md) - Version history
-
-## 🗄️ Archive (Legacy, pre‑v2.3)
-- [U‑Net Encoder/Decoder](archive/unet.md)
-- [ResCNN Stack](archive/rescnn.md)
-- [Decoder (Upsampling)](archive/decoder.md)
-- [Full Model (U‑Net path)](archive/full-model.md)
+- If local training hangs (WSL2): set `data.num_workers: 0`.
+- If NaNs on RTX 4090: set `training.mixed_precision: false`, reduce `batch_size` or `learning_rate`.

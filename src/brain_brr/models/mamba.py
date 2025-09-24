@@ -35,6 +35,7 @@ class BiMamba2Layer(nn.Module):
         d_state: SSM state dimension
         d_conv: Conv kernel size (default 4; CUDA supports 2-4)
         expand: Expansion factor in Mamba component
+        headdim: Head dimension for Mamba2 (must satisfy (d_model * expand) / headdim is multiple of 8)
         dropout: Dropout probability
     """
 
@@ -44,11 +45,26 @@ class BiMamba2Layer(nn.Module):
         d_state: int = 16,
         d_conv: int = 4,
         expand: int = 2,
+        headdim: int = 64,
         dropout: float = 0.1,
     ):
         super().__init__()
         self.d_model = d_model
         self.d_conv = d_conv  # Now always 4 or less, no coercion needed
+        self.expand = expand
+        self.headdim = headdim
+
+        # Validate headdim requirement for CUDA kernels
+        ratio = (d_model * expand) / headdim
+        if ratio != int(ratio):
+            raise ValueError(
+                f"Invalid headdim: (d_model * expand) / headdim = ({d_model} * {expand}) / {headdim} = {ratio} must be an integer"
+            )
+        if int(ratio) % 8 != 0:
+            warnings.warn(
+                f"(d_model * expand) / headdim = {int(ratio)} should be multiple of 8 for best CUDA performance",
+                stacklevel=2,
+            )
 
         # Optional override to force fallback even if CUDA/Mamba are available
         self._force_fallback = os.getenv("SEIZURE_MAMBA_FORCE_FALLBACK", "0") == "1"
@@ -58,10 +74,10 @@ class BiMamba2Layer(nn.Module):
             # Real Mamba-2 for GPU
             try:
                 self.forward_mamba_real = Mamba2(
-                    d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand
+                    d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand, headdim=headdim
                 )
                 self.backward_mamba_real = Mamba2(
-                    d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand
+                    d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand, headdim=headdim
                 )
                 print("[MAMBA] Successfully created Mamba2 layers", flush=True)
             except Exception as e:
@@ -151,7 +167,7 @@ class BiMamba2Layer(nn.Module):
                 raise
 
         # Backward direction (flip sequence)
-        x_backward = x.flip(dims=[1])
+        x_backward = x.flip(dims=[1]).contiguous()  # Ensure contiguous after flip
         try:
             if use_mamba and self.backward_mamba_real is not None:
                 x_backward = self.backward_mamba_real(x_backward)
@@ -199,6 +215,8 @@ class BiMamba2(nn.Module):
         d_model: Model dimension (512 for encoder bottleneck)
         d_state: SSM state dimension (16 default)
         d_conv: Temporal conv kernel (4 default)
+        expand: Expansion factor (2 default)
+        headdim: Head dimension (must satisfy (d_model * expand) / headdim is multiple of 8)
         num_layers: Number of bidirectional layers (6 default)
         dropout: Dropout probability
     """
@@ -208,17 +226,28 @@ class BiMamba2(nn.Module):
         d_model: int = 512,
         d_state: int = 16,
         d_conv: int = 4,
+        expand: int = 2,
+        headdim: int = 64,
         num_layers: int = 6,
         dropout: float = 0.1,
     ):
         super().__init__()
         self.d_model = d_model
         self.num_layers = num_layers
+        self.expand = expand
+        self.headdim = headdim
 
         # Stack of bidirectional layers
         self.layers = nn.ModuleList(
             [
-                BiMamba2Layer(d_model=d_model, d_state=d_state, d_conv=d_conv, dropout=dropout)
+                BiMamba2Layer(
+                    d_model=d_model,
+                    d_state=d_state,
+                    d_conv=d_conv,
+                    expand=expand,
+                    headdim=headdim,
+                    dropout=dropout,
+                )
                 for _ in range(num_layers)
             ]
         )
@@ -233,7 +262,7 @@ class BiMamba2(nn.Module):
             Temporal output (B, C, L)
         """
         # Transpose for sequence processing: (B, L, C)
-        x = x.transpose(1, 2)
+        x = x.transpose(1, 2).contiguous()  # Ensure contiguous for CUDA kernels
 
         # Process through bidirectional layers
         for layer in self.layers:

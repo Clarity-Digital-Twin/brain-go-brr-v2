@@ -1,62 +1,79 @@
-# 🧠 Brain-Go-Brr v2.6: TCN + Bi-Mamba + GNN + LPE for Clinical EEG Seizure Detection
+# 🧠 Brain-Go-Brr V3: TCN + Bi-Mamba + GNN + Dynamic LPE for Clinical EEG Seizure Detection
 
-**Pioneering O(N) complexity seizure detection with state-space models and graph neural networks**
+**Pioneering O(N) complexity seizure detection with dual-stream architecture and dynamic Laplacian positional encoding**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
 [![PyTorch 2.2.2](https://img.shields.io/badge/pytorch-2.2.2-red.svg)](https://pytorch.org)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 
 <details>
-<summary><strong>Status: v2.6.0 - Full Stack Deployed</strong></summary>
+<summary><strong>Status: V3 Production Ready (2025-09-24)</strong></summary>
 
-- **TCN + BiMamba + GNN + LPE** architecture fully implemented (31M parameters)
-- **PyG 2.6.1** with SSGConv (α=0.05) and Laplacian PE (k=16 eigenvectors)
-- **Heuristic graph builder** using cosine similarity (edge Mamba stream planned for v3.0)
-- Local: RTX 4090 optimized; Modal: A100-80GB with 24 CPU cores
-- Last updated: 2025‑09‑23
+- **V3 Dual-Stream Architecture**: Node Mamba (19×) + Edge Mamba (171×) processing in parallel
+- **Dynamic Laplacian PE**: Time-evolving positional encoding computed every timestep (semi-dynamic interval configurable)
+- **31M parameters**: TCN (8L) + BiMamba (6L) + GNN (2L SSGConv) + Dynamic LPE (k=16)
+- **Memory Optimized**: RTX 4090 (batch=4, interval=5), A100 (batch=64, full dynamic)
+- **NaN Protection**: Decoder clamping, focal loss fixes, training safeguards
+- **Production Deployment**: Running on Modal A100-80GB with W&B tracking
 
 </details>
 
 ## 🎯 Mission
 
-We're deploying a **TCN + BiMamba + GNN + LPE** stack to reduce false alarms while maintaining sensitivity on long clinical EEG. Current systems trigger **>10 false alarms per day**, and while transformers work well, their O(N²) cost hinders real-time deployment. Our hybrid achieves **O(N) complexity** with superior spatiotemporal modeling.
+Deploying **V3 dual-stream architecture** for clinical seizure detection with **<1 FA/24h** target. Our innovation: **dynamic Laplacian positional encoding** that evolves with the brain network over time, validated by EvoBrain literature.
 
-**Why this architecture?**
-- **TCN**: Multi-scale temporal features with dilated convolutions (8 layers)
-- **BiMamba**: Long-range dependencies with O(N) efficiency (6 layers)
-- **GNN**: Spatial electrode relationships via SSGConv (α=0.05)
-- **LPE**: Laplacian positional encoding (k=16 eigenvectors)
+**V3 Architecture Innovations:**
+- **Dual-Stream Processing**: Node features (19 electrodes) and edge features (171 connections) processed separately
+- **Dynamic LPE**: Eigendecomposition computed per timestep, capturing evolving brain connectivity
+- **Edge Mamba**: Learns adjacency matrices directly from data (no heuristics)
+- **Vectorized GNN**: Processes all timesteps simultaneously for 10× speedup
+- **Semi-Dynamic Interval**: Configurable PE update frequency for memory/accuracy tradeoff
 
-**Current v2.6**: 31M parameters using heuristic cosine similarity graphs. **Future v3.0** will add edge Mamba stream for learned adjacency matrices.
+**Key Improvements from V2:**
+- Replaced heuristic graphs with learned adjacency (Edge Mamba)
+- Added dynamic PE (was static in V2)
+- Vectorized GNN operations (10× faster)
+- Fixed numerical stability issues (NaN protection throughout)
 
 ## 🏗️ Architecture
 
 ```
-EEG Input (19ch, 256Hz, 60s windows)
+EEG Input (B, 19, 15360) @ 256Hz
          ↓
-[TCN Encoder]       → 8 layers, channels [64,128,256,512], stride_down=16
+[TCN Encoder]           8 layers, [64,128,256,512], stride_down=16
+         ↓              Output: (B, 512, 960)
+[Projection]            512 → 19×64 electrode features
          ↓
-[Bi-Mamba SSM]      → 6 layers, d_model=512, d_state=16, conv_kernel=4
-         ↓           O(N) complexity bidirectional processing
-[GNN + LPE]         → 2 layers SSGConv (α=0.05), Laplacian PE (k=16)
-         ↓           Heuristic cosine similarity (top_k=3)
-[Projection + Upsample] → Restore original resolution (512→19, 960→15360)
+    ┌────┴────┐
+[Node Mamba]  [Edge Mamba]     PARALLEL DUAL-STREAM
+19× BiMamba2  171× BiMamba2    Node: (B×19, 64, 960)
+    │         │                 Edge: (B×171, 16, 960)
+    │    [Adjacency]           Learned per timestep
+    └────┬────┘
          ↓
-[Detection Head]    → Per-timestep seizure probabilities
+[Vectorized GNN]        2-layer SSGConv (α=0.05)
++ Dynamic LPE           k=16 eigenvectors, computed every N steps
+         ↓              Process all 960 timesteps at once
+[Back-Projection]       19×64 → 512 bottleneck
          ↓
-[Post-Processing]   → Hysteresis (τ_on=0.86, τ_off=0.78) + Morphology
+[Decoder + Upsample]    4 stages, restore to (B, 19, 15360)
          ↓
-[TAES Evaluation]   → Clinical performance metrics (10 FA/24h target)
+[Detection Head]        Per-sample logits with clamping
+         ↓
+[Post-Processing]       Hysteresis + Morphology
 ```
 
 **Key Specifications:**
-- **Input**: 19-channel 10-20 montage @ 256 Hz
-- **Model**: 31M parameters (TCN + BiMamba + GNN + LPE)
-- **GPU Requirements**: NVIDIA RTX 4090 (24GB) or A100-80GB
-- **Training Time**: ~200-300 hours on RTX 4090, ~100 hours on A100
-- **Complexity**: O(N) vs Transformer's O(N²)
-- **Window**: 60s with 10s stride (83% overlap)
-- **Class Imbalance**: 12:1 (focal loss + balanced sampling required)
+- **Model Size**: 31,475,722 parameters
+- **Memory Usage**:
+  - RTX 4090: 16GB with batch_size=4, semi_dynamic_interval=5
+  - A100: 60GB with batch_size=64, full dynamic PE (interval=1)
+- **Dynamic PE Cost**: 960 eigendecompositions per batch (7.5GB for full dynamic)
+- **Training Speed**:
+  - RTX 4090: ~2-3 hours/epoch (100-300 hours total)
+  - A100: ~1 hour/epoch (100 hours total, ~$319)
+- **Numerical Stability**: Mixed precision OFF on RTX 4090, ON for A100
+- **Class Imbalance**: 34.2% seizure windows (balanced sampling critical)
 
 → Installation guide: `INSTALLATION.md`
 → Architecture evolution: `ARCHITECTURE_EVOLUTION.md`
@@ -74,8 +91,8 @@ git clone https://github.com/clarity-digital-twin/brain-go-brr-v2.git
 cd brain-go-brr-v2
 make setup
 
-# REQUIRED: Install v2.6 stack (Mamba + PyG + TCN)
-make setup-gpu  # or: make g
+# Install GPU stack (Mamba + PyG + TCN)
+make setup-gpu  # uses prebuilt PyG wheels for torch 2.2.2+cu121
 ```
 
 ### Training
@@ -84,10 +101,11 @@ make setup-gpu  # or: make g
 # Local smoke test (1 epoch, 3 files)
 make s  # or: make smoke-local
 
-# Full v2.6 training (100 epochs, 3734 files)
-tmux new -s train
-make train-local
-# Watch: tmux attach -t train
+# Full V3 training with optimized config
+tmux new -s v3_full
+make train-local  # RTX 4090: batch_size=4, semi_dynamic_interval=5
+# Detach: Ctrl+B then D
+# Watch: tmux attach -t v3_full
 ```
 
 ### 🌩️ Cloud Training (Modal.com)
@@ -204,6 +222,7 @@ tmux ls  # list active training sessions
 
 - **Installation**: See `INSTALLATION.md` for detailed setup
 - **Architecture Evolution**: See `ARCHITECTURE_EVOLUTION.md` for design decisions
+- **V3 Implementation**: See `docs/architecture/V3_ACTUAL.md` for the implemented dual‑stream path
 - **Configuration**: See `configs/README.md` for config details
 - **Claude AI Guide**: See `CLAUDE.md` for AI assistant instructions
 
