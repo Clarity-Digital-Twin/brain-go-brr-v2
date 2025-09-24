@@ -173,13 +173,18 @@ model:
 - **GNN**: O(E + V) per timestep, vectorized over 960 timesteps
 - **Overall**: O(N) complexity maintained
 
-### Known Issues
+### Known Issues & Fixes Applied
 1. **Mamba fallback warnings**: CUDA kernel alignment issues cause fallback to Conv1d
-   - Doesn't break training, just less efficient
-   - Fixed for edge stream with d_model=16
+   - **Root Cause**: Non-contiguous tensors after reshape/permute/transpose operations
+   - **Fixes Applied**:
+     - Added `.contiguous()` after node_flat reshape (line 192-193 in detector.py)
+     - Added `.contiguous()` after edge_in projection (line 205)
+     - Added `.contiguous()` after transpose in BiMamba2 forward (line 236 in mamba.py)
+     - Added `.contiguous()` after flip in BiMamba1Layer (line 154 in mamba.py)
+   - **Status**: Partially resolved, some fallback may still occur but training proceeds
 
 2. **Memory pressure**: V3 uses more memory than V2.6 due to dual streams
-   - Reduced batch sizes recommended
+   - Reduced batch sizes recommended (8 for RTX 4090, 48 for A100)
 
 ## Validation Status
 
