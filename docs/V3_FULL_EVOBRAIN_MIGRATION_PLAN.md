@@ -1,6 +1,6 @@
 # V3.0 — TCN + Full EvoBrain Dual‑Stream with PyG GNN + Laplacian PE
 
-Status: Proposed (ready to implement via TDD). This plan is aligned to the current codebase and the EvoBrain design, with precise shapes and file‑level tasks. It replaces heuristic adjacency with a learned edge stream and fixes GNN performance via vectorization + static PE.
+Status: Historical plan. V3 is implemented (see docs/architecture/V3_ACTUAL.md). Differences vs plan: edge stream uses `d_model=16` with `headdim=4` for CUDA alignment and a 1→D→1 projection around BiMamba2; vectorized GNN + static PE are implemented.
 
 ## Executive Decision
 Skip incremental. Implement the complete dual‑stream EvoBrain backend (node+edge) atop our solid TCN front end. No half measures.
@@ -164,4 +164,3 @@ V3 resolution (in this plan):
 
 - Validation length vs training
   - Validation may have more windows than training (by design); logging added in `src/brain_brr/train/loop.py` prevents “hung” perception.
-

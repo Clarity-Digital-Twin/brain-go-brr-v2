@@ -1,4 +1,4 @@
-# 🧠 Architecture Evolution & Strategy
+# 🧠 Architecture Evolution & Strategy (Historical)
 ## From Transformers to O(N) Mamba to Dynamic Graphs
 
 ---
@@ -41,7 +41,7 @@
   - Two-stream Mamba: one for nodes, one for edges
 - **Key Insight**: Brain connectivity EVOLVES during seizures
 
-### 5️⃣ **Our v2.6** (In Development)
+### 5️⃣ **Our v2.6** (Historical — superseded by V3)
 - **Architecture**: TCN + Bi-Mamba + GNN + LPE
 - **Status**: Transitional - we have GNN+LPE but using heuristic graphs, not learned
 
@@ -71,8 +71,8 @@
 ### What We Currently Have:
 - ✅ Bi-Mamba for temporal (better than uni for offline)
 - ✅ GNN with Laplacian PE (PyG implementation)
-- ❌ Edge stream Mamba (using heuristic cosine similarity instead)
-- ❌ Learned dynamic adjacency (using static graph builder)
+- ✅ Edge stream Mamba (implemented in V3)
+- ✅ Learned dynamic adjacency (implemented in V3)
 
 ---
 

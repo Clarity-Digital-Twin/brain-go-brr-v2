@@ -27,9 +27,9 @@ make setup
 sudo apt-get update
 sudo apt-get install -y cuda-toolkit-12-1
 
-# 4. (Optional) Install GPU/graph extras
-# PyTorch Geometric requires matching wheels; use data.pyg.org wheels under the hood
-uv sync -E gpu,graph
+# 4. Install GPU/graph extras (RECOMMENDED)
+# Use prebuilt wheels for PyG and compile Mamba-SSM against torch 2.2.2+cu121
+make setup-gpu
 
 # 5. Start training
 make train-local
@@ -50,8 +50,8 @@ make train-local
 
 ### Architecture toggle
 
-- Baseline (v2.6): set `model.architecture: tcn`
-- Dual‑stream (v3): set `model.architecture: v3` (node+edge Bi‑Mamba2, vectorized GNN, static Laplacian PE)
+- V2 path: set `model.architecture: tcn`
+- V3 path (default in local config): set `model.architecture: v3` (node+edge Bi‑Mamba2, vectorized GNN, static Laplacian PE)
 
 For v3, `graph:` section uses `edge_features`, `edge_top_k`, `edge_threshold`, and `edge_mamba_*` fields (`edge_mamba_d_model` defaults to 16 for CUDA alignment). 
 

@@ -1,7 +1,7 @@
 Docs Migration Notes (Sept 2025)
 
 We consolidated one‑off documents at the root of docs/ into the canonical structure.
-Active docs reflect the current codebase (TCN → Bi‑Mamba → optional PyG GNN + LPE using heuristic adjacency). Edge temporal stream and learned adjacency remain planned.
+Active docs reflect the current codebase (TCN → Bi‑Mamba → PyG GNN + LPE). The Edge temporal stream and learned adjacency are implemented in V3; this archive captures pre‑V3 planning/history.
 
 Moved to archive:
 - ARCHITECTURE_EVOLUTION.md — history and strategy; superseded by current‑state and canonical‑spec.
@@ -11,4 +11,3 @@ Moved to archive:
 - MODAL_DEPLOYMENT_GUIDE.md — content integrated into modal/deploy.md.
 - MODAL_PERFORMANCE_FIX.md — content integrated into modal/performance_optimization.md and troubleshooting.md.
 - HISTORY.md — outdated structure map; superseded by docs/README and archive/README.
-

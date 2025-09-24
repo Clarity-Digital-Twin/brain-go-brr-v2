@@ -96,7 +96,7 @@ modal app logs <app-id>
    - ✅ Keep `mixed_precision: false` for stability
 
 4. **PyG Not Installed**:
-   - Run `uv sync -E graph` locally
+   - Run `make setup-gpu` locally (installs PyG from prebuilt wheels for torch 2.2.2+cu121)
    - Modal image includes PyG automatically
 
 ## 🏗️ Model Configuration (All Configs)

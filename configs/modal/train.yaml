@@ -1,4 +1,4 @@
-# Modal A100 Full Training: TCN + Bi-Mamba + GNN Stack (v2.6 or v3.0)
+# Modal A100 Full Training: TCN + Bi-Mamba + GNN Stack (v2 or v3)
 # Optimized for A100-80GB on Modal cloud with proper resource allocation
 # Usage: modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
 
@@ -26,8 +26,8 @@ preprocessing:
   use_mne: true
 
 model:
-  # Architecture: "tcn" (v2.6) or "v3" (dual-stream with edge Mamba)
-  architecture: v3  # Change to "tcn" for v2.6 stack
+  # Architecture: "tcn" (v2) or "v3" (dual-stream with edge Mamba)
+  architecture: v3  # Change to "tcn" for v2 path
 
   tcn:
     num_layers: 8
@@ -45,9 +45,9 @@ model:
     conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
-  # Graph configuration (works for both v2.6 and v3)
+  # Graph configuration (works for both v2 and v3)
   graph:
-    enabled: true              # Required for both v2.6 and v3
+    enabled: true              # Required for both v2 and v3
 
     # V3-specific: Edge stream config (ignored when architecture="tcn")
     edge_features: cosine      # Edge feature metric for v3

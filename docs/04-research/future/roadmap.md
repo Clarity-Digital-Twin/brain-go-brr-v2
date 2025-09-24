@@ -1,4 +1,6 @@
-# 🚀 Future Roadmap: Next-Generation EEG Architecture Stack
+# 🚀 Future Roadmap: Next-Generation EEG Architecture Stack (Historical)
+
+Note: This roadmap reflects pre‑V3 plans. V3 (dual‑stream with learned adjacency + vectorized GNN) is implemented. For the actual pipeline, see docs/architecture/V3_ACTUAL.md.
 
 ## Executive Summary
 

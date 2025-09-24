@@ -1,4 +1,4 @@
-# Smoke Test: TCN + Bi-Mamba + GNN Stack (v2.6 or v3.0)
+# Smoke Test: TCN + Bi-Mamba + GNN Stack (v2 or v3)
 # Quick validation (1 epoch) for pipeline testing on RTX 4090
 #
 # IMPORTANT: Must run with environment variables:
@@ -18,8 +18,8 @@ experiment:
   save_every_n_epochs: 1
 
 model:
-  # Architecture: "tcn" (v2.6) or "v3" (dual-stream with edge Mamba)
-  architecture: v3  # Change to "tcn" for v2.6 stack
+  # Architecture: "tcn" (v2) or "v3" (dual-stream with edge Mamba)
+  architecture: v3  # Change to "tcn" for v2 path
 
   tcn:
     num_layers: 8
@@ -37,9 +37,9 @@ model:
     conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
-  # Graph configuration (works for both v2.6 and v3)
+  # Graph configuration (works for both v2 and v3)
   graph:
-    enabled: true  # Required for both v2.6 and v3
+    enabled: true  # Required for both v2 and v3
 
     # V3-specific: Edge stream config (ignored when architecture="tcn")
     edge_features: cosine      # Edge feature metric for v3

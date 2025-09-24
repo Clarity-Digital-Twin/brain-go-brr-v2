@@ -78,8 +78,8 @@ git clone https://github.com/clarity-digital-twin/brain-go-brr-v2.git
 cd brain-go-brr-v2
 make setup
 
-# REQUIRED: Install v2.6 stack (Mamba + PyG + TCN)
-make setup-gpu  # or: make g
+# Install GPU stack (Mamba + PyG + TCN)
+make setup-gpu  # uses prebuilt PyG wheels for torch 2.2.2+cu121
 ```
 
 ### Training

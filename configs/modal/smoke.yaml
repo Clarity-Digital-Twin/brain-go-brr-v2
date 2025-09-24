@@ -1,4 +1,4 @@
-# Modal A100 Smoke Test: TCN + Bi-Mamba + GNN Stack (v2.6 or v3.0)
+# Modal A100 Smoke Test: TCN + Bi-Mamba + GNN Stack (v2 or v3)
 # Quick validation (1 epoch) on Modal A100-80GB
 #
 # NOTE: app.py automatically sets BGB_LIMIT_FILES=50 for smoke tests
@@ -27,8 +27,8 @@ preprocessing:
   normalize: true
 
 model:
-  # Architecture: "tcn" (v2.6) or "v3" (dual-stream with edge Mamba)
-  architecture: v3  # Change to "tcn" for v2.6 stack
+  # Architecture: "tcn" (v2) or "v3" (dual-stream with edge Mamba)
+  architecture: v3  # Change to "tcn" for v2 path
 
   tcn:
     num_layers: 8
@@ -46,7 +46,7 @@ model:
     conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
-  # Graph configuration (works for both v2.6 and v3)
+  # Graph configuration (works for both v2 and v3)
   graph:
     enabled: true              # Required for both v2.6 and v3
 

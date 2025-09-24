@@ -145,7 +145,7 @@ setup: ## Initial project setup
 	@echo "${GREEN}✓ Project ready!${NC}"
 
 setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.1)
-	@echo "${CYAN}Setting up GPU support for v2.6 stack...${NC}"
+	@echo "${CYAN}Setting up GPU support for v2.6/V3 stack...${NC}"
 	@echo "${YELLOW}Checking CUDA versions...${NC}"
 	@.venv/bin/python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA: {torch.version.cuda}')" || echo "${RED}PyTorch not installed${NC}"
 	@nvcc --version 2>/dev/null | grep "release" || echo "${RED}CUDA toolkit not found!${NC}"
@@ -158,11 +158,11 @@ setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.1)
 	@.venv/bin/pip install torch-geometric==2.6.1
 	@echo "${CYAN}Installing TCN...${NC}"
 	@uv pip install pytorch-tcn==1.2.3
-	@echo "${CYAN}Verifying v2.6 stack...${NC}"
+	@echo "${CYAN}Verifying GPU stack...${NC}"
 	@.venv/bin/python -c "from mamba_ssm import Mamba2; print('${GREEN}✓ Mamba-SSM working${NC}')" || echo "${RED}⚠️  Mamba-SSM failed${NC}"
 	@.venv/bin/python -c "import torch_geometric; print(f'${GREEN}✓ PyG {torch_geometric.__version__} installed${NC}')" || echo "${RED}⚠️  PyG failed${NC}"
 	@.venv/bin/python -c "import pytorch_tcn; print('${GREEN}✓ TCN installed${NC}')" || echo "${RED}⚠️  TCN failed${NC}"
-	@echo "${GREEN}✓ v2.6 stack ready (TCN + BiMamba + GNN + LPE)${NC}"
+	@echo "${GREEN}✓ GPU stack ready (TCN + BiMamba + GNN + LPE; V2 or V3)${NC}"
 
 hooks: ## Run pre-commit hooks on all files
 	@echo "${CYAN}Running pre-commit hooks...${NC}"

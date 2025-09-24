@@ -1,9 +1,9 @@
-# Full Training: TCN + Bi-Mamba + GNN Stack (v2.6 or v3.0)
+# Full Training: TCN + Bi-Mamba + GNN Stack (v2 or v3)
 # Optimized for RTX 4090 (24GB VRAM) with NaN protections
 # Based on EvoBrain proven parameters + RTX 4090 best practices
 #
 # IMPORTANT:
-# - Install PyG first: uv sync -E graph
+# - GPU stack: run `make setup-gpu` (installs Mamba+PyG with prebuilt wheels)
 # - Ensure cache is clean or rebuild: rm -rf cache/v2.6_full && make build-cache
 # - Monitor for NaNs: export BGB_NAN_DEBUG=1 BGB_SANITIZE_INPUTS=1
 # - If NaNs persist: disable mixed_precision or reduce learning_rate
@@ -20,8 +20,8 @@ experiment:
   save_best_only: true
 
 model:
-  # Architecture: "tcn" (v2.6) or "v3" (dual-stream with edge Mamba)
-  architecture: v3  # Change to "tcn" for v2.6 stack
+  # Architecture: "tcn" (v2) or "v3" (dual-stream with edge Mamba)
+  architecture: v3  # Change to "tcn" for v2 path
 
   tcn:
     num_layers: 8
@@ -39,9 +39,9 @@ model:
     conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
-  # Graph configuration (works for both v2.6 and v3)
+  # Graph configuration (works for both v2 and v3)
   graph:
-    enabled: true              # Required for both v2.6 and v3
+    enabled: true              # Required for both v2 and v3
 
     # V3-specific: Edge stream config (ignored when architecture="tcn")
     edge_features: cosine      # Edge feature metric for v3

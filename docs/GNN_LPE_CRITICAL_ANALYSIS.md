@@ -1,23 +1,25 @@
-# 🔴 CRITICAL: GNN+LPE Implementation Analysis & Complete Fix Plan
+# 🔴 CRITICAL: GNN+LPE Implementation Analysis (Historical) & Fix Plan
+
+Note: This document captures the pre‑V3 state and the fix plan. As of now, V3 is implemented with vectorized GNN and static Laplacian PE, and the Edge Bi‑Mamba stream is implemented. See the ground‑truth: docs/architecture/V3_ACTUAL.md.
 
 ## Executive Summary
 **CONFIRMED BUG**: Our GNN+LPE has 3 catastrophic performance bugs causing 30-40s/batch slowdowns. After analyzing EvoBrain reference implementation, the architecture is conceptually correct but implementation violates GPU batching principles. **100% FIXABLE** with vectorization.
 
-## Current Status (v2.6)
+## Historical Status (pre‑V3)
 ```
 TCN → Bi-Mamba → [BROKEN GNN+LPE] → Projection → Detection
          ↑              ↑
     (Working)    THIS IS THE PROBLEM
 
-MISSING: Edge Bi-Mamba stream (v3.0 feature)
+Implemented in V3: Edge Bi‑Mamba stream (learned adjacency)
 ```
 
 ### What We Have:
 - ✅ TCN encoder (working, replaced U-Net successfully)
 - ✅ Bi-Mamba temporal modeling (working, O(N) complexity)
 - ✅ PyG GNN with Laplacian PE (integrated but broken)
-- ❌ **3 CRITICAL PERFORMANCE BUGS** (see below)
-- ❌ Missing edge Bi-Mamba stream (planned for v3.0)
+- ❌ 3 CRITICAL PERFORMANCE BUGS (fixed in V3 via vectorization + static PE)
+- ✅ Edge Bi‑Mamba stream implemented in V3
 
 ## 🔥 THREE CRITICAL BUGS IDENTIFIED (Confirmed via EvoBrain Analysis)
 
@@ -199,7 +201,7 @@ class GraphChannelMixer(nn.Module):
         return out.reshape(B, T, N, -1)
 ```
 
-### Phase 2: Architecture Enhancement (v3.0 - Later)
+### Phase 2: Architecture Enhancement (status: implemented in V3)
 
 #### Add Edge Bi-Mamba Stream
 ```python
@@ -327,7 +329,7 @@ def test_full_detector_performance():
 2. Profile with NVIDIA Nsight
 3. Optimize memory layout
 
-### NEXT SPRINT (v3.0)
+### NEXT SPRINT (historical; V3 implemented)
 1. Full edge Bi-Mamba implementation
 2. Dynamic graph learning
 3. Adaptive PE options
