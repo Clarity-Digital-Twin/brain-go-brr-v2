@@ -1,11 +1,13 @@
-# CANONICAL SPEC AUDIT RESULTS
+# CANONICAL SPEC AUDIT RESULTS (Legacy snapshot)
 
-## Audit Date: 2025-09-21
-## Auditor: Claude Code
+Note: This file reflects an older audit (pre‑v2.3). The active and verified
+specs are documented in `../architecture/current-state.md` and
+`../architecture/v3_tcn_evobrain_hybrid.md`. The sections below are kept for
+historical context and ablation reference. Key discrepancies are corrected inline.
 
 ### Summary of Findings
 
-#### ✅ FULLY IMPLEMENTED Components:
+#### ✅ FULLY IMPLEMENTED Components (current)
 1. **Data Pipeline**
    - EDF loading with TUSZ header repair
    - Channel mapping and 10-20 montage ordering
@@ -16,13 +18,11 @@
    - Microvolts conversion in io.py
 
 2. **Model Architecture**
-   - U-Net Encoder (4 stages, [64,128,256,512] channels)
-   - ResCNN Stack (3 blocks, [3,5,7] kernels)
+   - TCN Encoder (×16 down): `src/brain_brr/models/tcn.py`
    - Bidirectional Mamba-2 (6 layers, d_model=512, d_state=16)
-   - U-Net Decoder with skip connections
-   - Detection head (19→1 channel)
-   - Complete SeizureDetector assembly
-   - **ACTUAL PARAMETERS: ~13.4M (not 25M as documented)**
+   - Projection + Upsample head and Detection head
+   - Optional Dynamic GNN + LPE (PyG) after Bi‑Mamba
+   - **Actual parameters (v2): ~13.4M**
 
 3. **Training Components**
    - PyTorch Dataset implementation
@@ -45,12 +45,12 @@
 2. **ConvBlock Activation**: Uses ReLU (not ELU as mentioned in some docs)
 3. **Mamba d_conv**: Documented as 5, coerced to 4 for CUDA kernels
 
-#### ❌ NOT IMPLEMENTED Yet:
-1. Dataset caching to NPZ files (in-memory only currently)
-2. Balanced sampling strategy (WeightedRandomSampler)
-3. Some evaluation metrics (TAES calculation)
-4. CLI commands (train, evaluate, validate, info)
-5. count_parameters() and get_layer_info() helper methods
+#### ❌ OUTDATED (now implemented):
+1. Dataset caching to NPZ files → Implemented (`EEGWindowDataset`, cache_utils)
+2. Balanced sampling strategy → Implemented (`BalancedSeizureDataset`, manifest)
+3. TAES metrics → Implemented (`src/brain_brr/eval/metrics.py`)
+4. CLI commands → Implemented (`python -m src` with `build-cache`, `scan-cache`, `train`, `evaluate`, `validate`)
+5. count_parameters/get_layer_info → N/A; use standard PyTorch utilities and logging
 
 ### Files Verified:
 - ✓ src/brain_brr/models/detector.py

@@ -1,7 +1,7 @@
 # Documentation vs Codebase Audit Complete
 
-## Date: 2025-09-21
-## Status: ✅ AUDIT COMPLETE (TCN path)
+## Date: 2025-09-23
+## Status: ✅ AUDIT COMPLETE (TCN path); v3 implemented and selectable
 
 ### Files Audited (11 total)
 1. ✅ model-mamba.md - Updated d_conv coercion details, added expand=2 factor
@@ -16,7 +16,7 @@
 10. ⏳ stack-analysis.md - Legacy U‑Net/ResCNN analysis; marked as legacy
 11. ✅ CANONICAL-SPEC-AUDIT.md - Created comprehensive audit results
 
-### Key Findings
+### Key Findings (updated)
 
 #### ✅ Accurate Documentation
 - Data pipeline specs match implementation
@@ -42,5 +42,6 @@
 
 ### Recommendation
 Documentation for the current TCN→Bi‑Mamba→Projection path is accurate and marked as the
-runtime default. Legacy U‑Net/ResCNN docs are explicitly labeled as pre‑v2.3 and retained for
-historical context and ablations.
+runtime default (`model.architecture: tcn`). The v3 dual‑stream (learned adjacency + vectorized
+PyG + static PE) is implemented and selectable via `model.architecture: v3`. Legacy U‑Net/ResCNN
+docs are explicitly labeled as pre‑v2.3 and retained for historical context and ablations.
