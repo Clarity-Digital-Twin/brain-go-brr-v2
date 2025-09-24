@@ -128,7 +128,7 @@ training:
   # Learning rate schedule
   scheduler:
     type: cosine
-    warmup_ratio: 0.03   # 3% warmup
+    warmup_ratio: 0.10   # 10% warmup for smoother start on RTX 4090
 
   # Early stopping
   early_stopping:

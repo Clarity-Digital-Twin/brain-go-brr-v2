@@ -38,3 +38,11 @@ After crash or restart
 
 - Resume: add `--resume` to `python -m src train ...` or set `training.resume: true` in config.
 - Mid-epoch checkpointing (optional): set env vars `BGB_MID_EPOCH_MINUTES` and `BGB_MID_EPOCH_KEEP`.
+
+Pre‑flight checklist (recommended before long runs)
+
+- Run quality and config validation: `make q` and `python -m src validate configs/local/train.yaml`.
+- Verify cache and manifest: `python -m src scan-cache --cache-dir cache/tusz/train` → ensure partial>0 or full>0.
+- Confirm BalancedSeizureDataset logs appear at startup (see Data docs for expected lines).
+- WSL2: set `data.num_workers: 0` if you see dataloader hangs.
+- RTX 4090: keep `training.mixed_precision: false` if you see NaNs; reduce LR or batch size if needed.

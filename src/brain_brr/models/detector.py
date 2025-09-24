@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn as nn
 
+from .debug_utils import assert_finite
 from .mamba import BiMamba2
 from .tcn import ProjectionHead, TCNEncoder
 
@@ -167,6 +168,7 @@ class SeizureDetector(nn.Module):
         """
         # TCN encoder: extract multi-scale temporal features
         features = self.tcn_encoder(x)  # (B, 512, 960)
+        assert_finite("tcn_out", features)
 
         # Branch based on architecture
         if (
@@ -186,6 +188,7 @@ class SeizureDetector(nn.Module):
 
             # Project to electrode features
             elec_flat = self.proj_to_electrodes(features)  # (B, 19*64, 960)
+            assert_finite("proj_to_electrodes", elec_flat)
             elec_feats = elec_flat.reshape(batch_size, 19, 64, seq_len).permute(
                 0, 1, 3, 2
             )  # (B, 19, 960, 64)
@@ -195,6 +198,7 @@ class SeizureDetector(nn.Module):
                 elec_feats.permute(0, 1, 3, 2).reshape(batch_size * 19, 64, seq_len).contiguous()
             )  # (B*19, 64, 960) - ensure contiguous for CUDA
             node_processed = self.node_mamba(node_flat)  # (B*19, 64, 960)
+            assert_finite("node_mamba", node_processed)
             node_feats = node_processed.reshape(batch_size, 19, 64, seq_len).permute(
                 0, 1, 3, 2
             )  # (B, 19, 960, 64)
@@ -215,6 +219,7 @@ class SeizureDetector(nn.Module):
             edge_processed = self.edge_mamba(edge_in)  # (B*E, D, T)
             edge_out = self.edge_out_proj(edge_processed)  # (B*E, 1, T)
             edge_weights = self.edge_activate(edge_out).reshape(batch_size, 171, seq_len)  # (B,E,T)
+            assert_finite("edge_weights", edge_weights)
 
             # Assemble adjacency
             edge_top_k = cast(int, self.config.get("edge_top_k", 3))
@@ -225,15 +230,18 @@ class SeizureDetector(nn.Module):
                 top_k=edge_top_k,
                 threshold=edge_threshold,
             )  # (B, 960, 19, 19)
+            assert_finite("adjacency", adj)
 
             # Apply GNN
             elec_enhanced = self.gnn(node_feats, adj) if self.gnn else node_feats
+            assert_finite("gnn_out", elec_enhanced)
 
             # Project back to bottleneck
             elec_flat = elec_enhanced.permute(0, 1, 3, 2).reshape(
                 batch_size, 19 * 64, seq_len
             )  # (B, 19*64, 960)
             temporal = self.proj_from_electrodes(elec_flat)  # (B, 512, 960)
+            assert_finite("backproj", temporal)
 
         else:
             # V2: Standard TCN + Mamba
@@ -267,7 +275,14 @@ class SeizureDetector(nn.Module):
 
         # Project back to 19 channels and upsample to original resolution
         decoded = self.proj_head(temporal)  # (B, 19, 15360)
+        assert_finite("decoder_prelogits", decoded)
+
+        # Add clamping before logits to prevent overflow
+        decoded = torch.nan_to_num(decoded, nan=0.0, posinf=1e4, neginf=-1e4)
+        decoded = torch.clamp(decoded, -40.0, 40.0)
+
         output = self.detection_head(decoded)  # (B, 1, 15360)
+        assert_finite("final_logits", output)
         return cast(torch.Tensor, output.squeeze(1))
 
     @classmethod

@@ -117,7 +117,7 @@ class TestDynamicPE:
 
         # Time vectorized implementation
         start = time.time()
-        pe = gnn._compute_dynamic_pe_vectorized(adjacency)
+        gnn._compute_dynamic_pe_vectorized(adjacency)
         torch.cuda.synchronize()
         vectorized_time = time.time() - start
 
