@@ -9,11 +9,13 @@ Commands
 Resources
 
 - `cpu: 24`, `memory: 98304`, `batch_size: 64`, `mixed_precision: true`
+- Prefer FP16 on A100 (tensor cores); keep dynamic PE enabled (default) — safeguards handle ill‑conditioned graphs.
 
 Cache and volumes
 
 - Data (read-only) mounted at `/data` (S3); persistent SSD volume at `/results`.
 - Ensure `data.cache_dir: /results/cache/tusz` in configs; app logs verify NPZs/manifest.
+ - Cache is built directly on `/results` and reused across runs; do not copy to/from S3.
 
 Resuming
 

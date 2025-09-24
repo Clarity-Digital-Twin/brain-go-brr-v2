@@ -18,3 +18,9 @@ Local training “gets stuck” checklist
 - WSL2 dataloader: set `data.num_workers: 0` to avoid multiprocessing hangs.
 - RTX 4090 NaNs: set `training.mixed_precision: false`; optionally reduce `learning_rate` or `batch_size`.
 - Excessive CPU usage on Modal: ensure `resources.cpu: 24` and `resources.memory: 98304`.
+
+Pre‑flight (before long runs)
+
+- `make q` and `python -m src validate <config>` pass.
+- `python -m src scan-cache --cache-dir <cache>` shows partial>0 or full>0.
+- Startup logs show `BalancedSeizureDataset` and `Seizure ratio: ...`.
