@@ -208,6 +208,7 @@ tmux ls  # list active training sessions
 
 - **Installation**: See `INSTALLATION.md` for detailed setup
 - **Architecture Evolution**: See `ARCHITECTURE_EVOLUTION.md` for design decisions
+- **V3 Implementation**: See `docs/architecture/V3_ACTUAL.md` for the implemented dual‑stream path
 - **Configuration**: See `configs/README.md` for config details
 - **Claude AI Guide**: See `CLAUDE.md` for AI assistant instructions
 
