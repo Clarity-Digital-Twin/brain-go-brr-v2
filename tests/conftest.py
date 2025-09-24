@@ -231,12 +231,16 @@ def valid_config_yaml(tmp_path: Path) -> Path:
 @pytest.fixture
 def sample_windows():
     """Sample window data for testing."""
-    batch_size = 2
+    from tests.test_config import TEST_BATCH_SIZE, TEST_WINDOW_SIZE
+
+    batch_size = min(TEST_BATCH_SIZE, 2)  # Use small batch for tests
     n_channels = 19
-    window_samples = 15360  # 60s at 256Hz
+    window_samples = TEST_WINDOW_SIZE  # 60s at 256Hz
 
     windows = torch.randn(batch_size, n_channels, window_samples)
-    labels = torch.tensor([0, 1], dtype=torch.float32)
+    labels = torch.tensor([0] * batch_size, dtype=torch.float32)
+    if batch_size > 1:
+        labels[1] = 1
 
     return windows, labels
 

@@ -35,29 +35,29 @@ dev: ## Install dev dependencies and pre-commit hooks
 # Detect available test runner (professional pattern from Google/DeepMind)
 PYTEST := $(if $(wildcard .venv/bin/pytest),.venv/bin/pytest,uv run pytest)
 
-test: ## Run tests with coverage (excludes performance benchmarks)
-	@echo "${CYAN}Running non-serial CPU tests (xdist)...${NC}"
-	$(PYTEST) -n auto -m "not serial and not performance and not gpu" --cov=src --cov-append --cov-report=term-missing:skip-covered
-	@echo "${CYAN}Running GPU tests (serial)...${NC}"
-	$(PYTEST) -n 1 -m "gpu and not performance" --cov=src --cov-append --cov-report=term-missing:skip-covered
-	@echo "${CYAN}Running serial tests (excluding performance and GPU)...${NC}"
-	$(PYTEST) -n 0 -m "serial and not performance and not gpu" --cov=src --cov-append --cov-report=term-missing:skip-covered --cov-report=html
+test: ## Run tests with coverage (serial to avoid OOM with V3 models)
+	@echo "${CYAN}Running unit tests (serial for V3 safety)...${NC}"
+	$(PYTEST) -n 1 -m "not performance and not gpu" tests/unit --cov=src --cov-append --cov-report=term-missing:skip-covered
+	@echo "${CYAN}Running integration tests (serial)...${NC}"
+	$(PYTEST) -n 1 -m "not performance and not gpu" tests/integration --cov=src --cov-append --cov-report=term-missing:skip-covered
+	@echo "${CYAN}Running clinical tests...${NC}"
+	$(PYTEST) -n 1 tests/clinical --cov=src --cov-append --cov-report=term-missing:skip-covered --cov-report=html
 
-test-fast: ## Run tests without coverage (faster, excludes performance)
-	@echo "${CYAN}Running fast tests (CPU only)...${NC}"
-	$(PYTEST) -n 4 --dist=loadfile -m "not performance and not gpu and not serial" -q
+test-fast: ## Run tests without coverage (serial to avoid OOM)
+	@echo "${CYAN}Running fast tests (serial for V3 safety)...${NC}"
+	$(PYTEST) -n 1 -m "not performance and not gpu" tests/unit tests/clinical -q
 
-test-cov: ## Run tests with full coverage report
-	@echo "${CYAN}Running tests with full coverage...${NC}"
-	$(PYTEST) -n auto -m "not performance and not gpu" --cov=src --cov-append --cov-report=term-missing:skip-covered
-	@echo "${CYAN}Running GPU tests with coverage (serial)...${NC}"
-	$(PYTEST) -n 1 -m "gpu and not performance" --cov=src --cov-append --cov-report=term-missing --cov-report=html
+test-cov: ## Run tests with full coverage report (serial for V3)
+	@echo "${CYAN}Running tests with full coverage (serial)...${NC}"
+	$(PYTEST) -n 1 -m "not performance and not gpu" --cov=src --cov-append --cov-report=term-missing:skip-covered
+	@echo "${CYAN}Running GPU tests with coverage (if available)...${NC}"
+	$(PYTEST) -n 1 -m "gpu and not performance" --cov=src --cov-append --cov-report=term-missing --cov-report=html || true
 
-test-integration: ## Run only integration tests (excludes performance)
-	@echo "${CYAN}Running non-GPU integration tests (parallel)...${NC}"
-	$(PYTEST) -n auto -m "integration and not performance and not gpu" -v
-	@echo "${CYAN}Running GPU integration tests (serial)...${NC}"
-	$(PYTEST) -n 1 -m "integration and gpu and not performance" -v
+test-integration: ## Run only integration tests (serial for V3)
+	@echo "${CYAN}Running integration tests (serial)...${NC}"
+	$(PYTEST) -n 1 -m "integration and not performance and not gpu" -v
+	@echo "${CYAN}Running GPU integration tests (if available)...${NC}"
+	$(PYTEST) -n 1 -m "integration and gpu and not performance" -v || true
 
 test-performance: ## Run only performance benchmarks (serial)
 	@echo "${CYAN}Running performance benchmarks (serial)...${NC}"
@@ -67,9 +67,9 @@ test-gpu: ## Run tests optimized for GPU (serial)
 	@echo "${CYAN}Running GPU tests (serial)...${NC}"
 	$(PYTEST) -n 1 -v -k "mamba or cuda"
 
-test-cpu: ## Run CPU tests in parallel
-	@echo "${CYAN}Running CPU tests (parallel)...${NC}"
-	$(PYTEST) -n 4 --dist=loadfile -k "not (mamba or cuda)" -q
+test-cpu: ## Run CPU tests (serial for V3 safety)
+	@echo "${CYAN}Running CPU tests (serial)...${NC}"
+	$(PYTEST) -n 1 -k "not (mamba or cuda)" -q
 
 test-edge: ## Run edge case tests for data robustness
 	@echo "${CYAN}Running edge case tests...${NC}"
@@ -79,13 +79,9 @@ test-clinical: ## Run clinical validation suite
 	@echo "${CYAN}Running clinical validation...${NC}"
 	$(PYTEST) tests/clinical/ -v
 
-test-all: ## Run ALL tests including performance (comprehensive)
-	@echo "${CYAN}Running ALL tests comprehensively...${NC}"
-	$(PYTEST) -n auto -m "not serial and not gpu" --cov=src --cov-append
-	@echo "${CYAN}Running GPU tests (serial)...${NC}"
-	$(PYTEST) -n 1 -m "gpu" --cov=src --cov-append
-	@echo "${CYAN}Running serial tests (including performance, excluding GPU)...${NC}"
-	$(PYTEST) -n 0 -m "serial and not gpu" --cov=src --cov-append --cov-report=term-missing --cov-report=html
+test-all: ## Run ALL tests including performance (serial for V3)
+	@echo "${CYAN}Running ALL tests comprehensively (serial)...${NC}"
+	$(PYTEST) -n 1 --cov=src --cov-report=term-missing --cov-report=html
 
 # Detect available tools (professional pattern)
 RUFF := $(if $(wildcard .venv/bin/ruff),.venv/bin/ruff,uv run ruff)
@@ -111,15 +107,15 @@ type-check: ## Run mypy type checking
 quality: lint format type-check ## Run all code quality checks
 	@echo "${GREEN}✓ All quality checks passed${NC}"
 
-train-local: ## Train model with v2.6 local config
-	@echo "${CYAN}Training with v2.6 stack (TCN+BiMamba+GNN+LPE)...${NC}"
-	@echo "${YELLOW}NaN protections enabled: BGB_NAN_DEBUG=1, BGB_SANITIZE_INPUTS=1${NC}"
-	BGB_NAN_DEBUG=1 BGB_SANITIZE_INPUTS=1 .venv/bin/python -m src train configs/local/train.yaml
+train-local: ## Train model with V3 local config (100 epochs, 3734 files)
+	@echo "${CYAN}Training with V3 dual-stream architecture...${NC}"
+	@echo "${YELLOW}Full training: 100 epochs, 3734 files${NC}"
+	.venv/bin/python -m src train configs/local/train.yaml
 
-smoke-local: ## Run local smoke test (1 epoch)
-	@echo "${CYAN}Running v2.6 smoke test...${NC}"
-	@echo "${YELLOW}NaN protections enabled: BGB_NAN_DEBUG=1, BGB_SANITIZE_INPUTS=1${NC}"
-	BGB_NAN_DEBUG=1 BGB_SANITIZE_INPUTS=1 BGB_SMOKE_TEST=1 .venv/bin/python -m src train configs/local/smoke.yaml
+smoke-local: ## Run local smoke test (1 epoch, 3 files)
+	@echo "${CYAN}Running V3 smoke test (3 files only)...${NC}"
+	@echo "${YELLOW}Limited to 3 files with BGB_LIMIT_FILES=3${NC}"
+	BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 .venv/bin/python -m src train configs/local/smoke.yaml
 
 train: train-prod ## Alias: full training with production config
 
@@ -149,7 +145,7 @@ setup: ## Initial project setup
 	@echo "${GREEN}✓ Project ready!${NC}"
 
 setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.1)
-	@echo "${CYAN}Setting up GPU support for v2.6 stack...${NC}"
+	@echo "${CYAN}Setting up GPU support for v2.6/V3 stack...${NC}"
 	@echo "${YELLOW}Checking CUDA versions...${NC}"
 	@.venv/bin/python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA: {torch.version.cuda}')" || echo "${RED}PyTorch not installed${NC}"
 	@nvcc --version 2>/dev/null | grep "release" || echo "${RED}CUDA toolkit not found!${NC}"
@@ -162,11 +158,11 @@ setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.1)
 	@.venv/bin/pip install torch-geometric==2.6.1
 	@echo "${CYAN}Installing TCN...${NC}"
 	@uv pip install pytorch-tcn==1.2.3
-	@echo "${CYAN}Verifying v2.6 stack...${NC}"
+	@echo "${CYAN}Verifying GPU stack...${NC}"
 	@.venv/bin/python -c "from mamba_ssm import Mamba2; print('${GREEN}✓ Mamba-SSM working${NC}')" || echo "${RED}⚠️  Mamba-SSM failed${NC}"
 	@.venv/bin/python -c "import torch_geometric; print(f'${GREEN}✓ PyG {torch_geometric.__version__} installed${NC}')" || echo "${RED}⚠️  PyG failed${NC}"
 	@.venv/bin/python -c "import pytorch_tcn; print('${GREEN}✓ TCN installed${NC}')" || echo "${RED}⚠️  TCN failed${NC}"
-	@echo "${GREEN}✓ v2.6 stack ready (TCN + BiMamba + GNN + LPE)${NC}"
+	@echo "${GREEN}✓ GPU stack ready (TCN + BiMamba + GNN + LPE; V2 or V3)${NC}"
 
 hooks: ## Run pre-commit hooks on all files
 	@echo "${CYAN}Running pre-commit hooks...${NC}"

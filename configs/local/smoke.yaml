@@ -1,18 +1,29 @@
-# v2.6 Stack Smoke Test: TCN + Bi-Mamba + Dynamic GNN with Laplacian PE
+# Smoke Test: TCN + Bi-Mamba + GNN Stack (v2 or v3)
 # Quick validation (1 epoch) for pipeline testing on RTX 4090
-# Usage: python -m src train configs/local/smoke_v2.6.yaml
+#
+# IMPORTANT: Must run with environment variables:
+#   export BGB_LIMIT_FILES=3
+#   export BGB_SMOKE_TEST=1
+# Or use: ./run_smoke_test.sh
+#
+# Usage: BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 python -m src train configs/local/smoke.yaml
+#
+# Quick local troubleshooting (if smoke fails):
+# - Set data.num_workers: 0 (WSL2 stability)
+# - Keep training.mixed_precision: false (avoid RTX 4090 NaNs)
 
 experiment:
-  name: v2.6_smoke
-  description: "v2.6 stack smoke test - TCN+BiMamba+GNN+LPE"
+  name: smoke_test
+  description: "Stack smoke test - TCN+BiMamba+GNN"
   seed: 42
-  output_dir: results/v2.6_smoke
+  output_dir: results/smoke
   device: cuda
   save_checkpoint: true
   save_every_n_epochs: 1
 
 model:
-  architecture: tcn
+  # Architecture: "tcn" (v2) or "v3" (dual-stream with edge Mamba)
+  architecture: v3  # Change to "tcn" for v2 path
 
   tcn:
     num_layers: 8
@@ -30,22 +41,36 @@ model:
     conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
-  # Dynamic GNN with Laplacian PE (EvoBrain architecture)
+  # Graph configuration (works for both v2 and v3)
   graph:
-    enabled: true  # FULL STACK SMOKE TEST!
-    use_pyg: true           # USE PyG for Laplacian PE!
-    # Graph construction
-    similarity: cosine      # EvoBrain proven
-    top_k: 3               # Sparse connectivity
-    threshold: 1.0e-4      # Edge pruning
-    temperature: 0.1       # Softmax temperature
-    # GNN architecture
-    n_layers: 2            # 2-layer GNN
+    enabled: true  # Required for both v2 and v3
+
+    # V3-specific: Edge stream config (ignored when architecture="tcn")
+    edge_features: cosine      # Edge feature metric for v3
+    edge_top_k: 3              # Top-k edges per node for v3
+    edge_threshold: 1.0e-4     # Edge weight cutoff for v3
+    edge_mamba_layers: 2       # Edge Mamba layers for v3
+    edge_mamba_d_state: 8      # Edge Mamba state dim for v3
+    edge_mamba_d_model: 16     # Edge Mamba model dim (learned lift 1→16→1)
+
+    # V2-specific: Heuristic graph (ignored when architecture="v3")
+    use_pyg: true              # PyG backend for v2.6
+    similarity: cosine         # Heuristic similarity for v2.6
+    top_k: 3                   # Sparse connectivity for v2.6
+    threshold: 1.0e-4          # Edge pruning for v2.6
+    temperature: 0.1           # Softmax temperature for v2.6
+
+    # Shared GNN architecture (both v2.6 and v3)
+    n_layers: 2                # 2-layer GNN
     dropout: 0.1
-    use_residual: true     # Skip connections
-    # Critical EvoBrain parameters
-    alpha: 0.05            # SSGConv mixing
-    k_eigenvectors: 16     # Laplacian PE dimension
+    use_residual: true         # Skip connections
+    alpha: 0.05                # SSGConv mixing
+    k_eigenvectors: 16         # Laplacian PE dimension
+
+    # Dynamic PE config (v3) - OPTIMIZED FOR SMOKE TEST
+    use_dynamic_pe: true       # Dynamic PE enabled
+    semi_dynamic_interval: 10  # Smoke test: reduce memory (96 eigendecomps)
+    pe_sign_consistency: true  # Fix eigenvector signs for stability
 
 data:
   dataset: tuh_eeg
@@ -55,7 +80,7 @@ data:
   n_channels: 19
   window_size: 60
   stride: 10
-  use_balanced_sampling: true   # Use BalancedSeizureDataset to avoid rebuilding cache!
+  use_balanced_sampling: false  # MUST be false for BGB_LIMIT_FILES to work!
   num_workers: 0          # Zero for smoke test (WSL2 safety)
   pin_memory: false       # Disable for smoke test
   persistent_workers: false
@@ -71,7 +96,7 @@ preprocessing:
 
 training:
   epochs: 1               # Just 1 epoch for smoke
-  batch_size: 4           # Small for smoke test
+  batch_size: 1           # Minimal for smoke test with 3 files
   learning_rate: 5.0e-5   # Reduced from 1.0e-4 for stability
   weight_decay: 0.05
   optimizer: adamw

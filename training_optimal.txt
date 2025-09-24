@@ -1,0 +1,49 @@
+Loading config: configs/local/train.yaml
+Starting training...
+Loading 3734 train, 933 val files
+[WARNING] config.data.cache_dir (cache/tusz) != config.experiment.cache_dir (cache/full_training)
+[BalancedSeizureDataset] Created with 49760 windows:
+  - 13095 partial seizure (100% of available)
+  - 3928 full seizure (30.0% of partial)
+  - 32737 no-seizure (250.0% of partial)
+[DATASET] BalancedSeizureDataset: 49760 windows from manifest
+[DATA] Loaded cached index: 933 files, 51901 windows
+[DATA] Dataset ready! Total windows: 51901
+[MAMBA] Successfully created Mamba2 layers
+[MAMBA] Successfully created Mamba2 layers
+[MAMBA] Successfully created Mamba2 layers
+[MAMBA] Successfully created Mamba2 layers
+[MAMBA] Successfully created Mamba2 layers
+[MAMBA] Successfully created Mamba2 layers
+[MAMBA] Successfully created Mamba2 layers
+[MAMBA] Successfully created Mamba2 layers
+[MAMBA] Successfully created Mamba2 layers
+[MAMBA] Successfully created Mamba2 layers
+[MAMBA] Successfully created Mamba2 layers
+[MAMBA] Successfully created Mamba2 layers
+[MAMBA] Successfully created Mamba2 layers
+[MAMBA] Successfully created Mamba2 layers
+Model parameters: 31,475,722
+
+Epoch 1/100
+
+============================================================
+[INIT] DATASET STATISTICS
+============================================================
+[DATASET] Using BalancedSeizureDataset known distribution
+[DATASET] Seizure ratio: 34.2% (from manifest)
+[DATASET] Using pos_weight: 1.39 (sqrt scaling)
+============================================================
+
+[INIT] Using FOCAL loss (alpha=0.5, gamma=2.0, pos_weight=on)
+[PREFLIGHT] Testing one batch before training...
+[PREFLIGHT] ✓ Model forward pass OK, loss shape: torch.Size([4, 15360])
+[TRAIN] Starting epoch with 12440 batches
+[ERROR] Forward/loss computation failed at batch 22:
+  - Error: Non-finite logits detected
+  - Model: <class 'src.brain_brr.models.detector.SeizureDetector'>
+  - Windows shape: torch.Size([4, 19, 15360])
+  - Labels shape: torch.Size([4, 15360])
+  - Device: cuda:0
+[ERROR] Training loop failed at batch 22: Non-finite logits detected
+Training error: Non-finite logits detected

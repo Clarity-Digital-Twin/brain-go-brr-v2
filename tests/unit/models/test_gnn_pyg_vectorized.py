@@ -24,7 +24,6 @@ def test_gnn_pyg_preserves_shape_small():
 
 
 @pytest.mark.unit
-@pytest.mark.xfail(reason="Vectorized path and static PE buffer not yet implemented", strict=False)
 def test_gnn_pyg_has_vectorized_flags():
     from src.brain_brr.models.gnn_pyg import GraphChannelMixerPyG
 

@@ -1,26 +1,28 @@
-# v2.6 Stack Training: TCN + Bi-Mamba + Dynamic GNN with Laplacian PE
+# Full Training: TCN + Bi-Mamba + GNN Stack (v2 or v3)
 # Optimized for RTX 4090 (24GB VRAM) with NaN protections
 # Based on EvoBrain proven parameters + RTX 4090 best practices
 #
 # IMPORTANT:
-# - Install PyG first: uv sync -E graph
-# - Ensure cache is clean or rebuild: rm -rf cache/v2.6_full && make build-cache
+# - GPU stack: run `make setup-gpu` (installs Mamba+PyG with prebuilt wheels)
+# - Ensure cache exists at cache/tusz with 3734 train + 933 val NPZ (see configs/README.md for cache build instructions)
 # - Monitor for NaNs: export BGB_NAN_DEBUG=1 BGB_SANITIZE_INPUTS=1
-# - If NaNs persist: disable mixed_precision or reduce learning_rate
+# - If local training stalls/hangs (esp. on WSL2): set data.num_workers: 0
+# - If NaNs persist on RTX 4090: set training.mixed_precision: false; reduce batch_size or learning_rate
 
 experiment:
-  name: v2.6_full
-  description: "v2.6 stack full training - TCN+BiMamba+GNN+LPE on RTX 4090"
+  name: full_training
+  description: "Full training - TCN+BiMamba+GNN on RTX 4090"
   seed: 42
-  output_dir: results/v2.6_full
-  cache_dir: cache/v2.6_full
+  output_dir: results/full_training
+  cache_dir: cache/full_training
   device: cuda
   log_level: INFO
   save_model: true
   save_best_only: true
 
 model:
-  architecture: tcn
+  # Architecture: "tcn" (v2) or "v3" (dual-stream with edge Mamba)
+  architecture: v3  # Change to "tcn" for v2 path
 
   tcn:
     num_layers: 8
@@ -38,22 +40,36 @@ model:
     conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
-  # Dynamic GNN with Laplacian PE (EvoBrain architecture)
+  # Graph configuration (works for both v2 and v3)
   graph:
-    enabled: true
-    use_pyg: true           # CRITICAL: Use PyG for Laplacian PE!
-    # Graph construction
-    similarity: cosine      # EvoBrain proven
-    top_k: 3               # Sparse connectivity (EvoBrain best)
-    threshold: 1.0e-4      # Edge pruning threshold
-    temperature: 0.1       # Softmax temperature
-    # GNN architecture
-    n_layers: 2            # 2-layer GNN (EvoBrain proven)
+    enabled: true              # Required for both v2 and v3
+
+    # V3-specific: Edge stream config (ignored when architecture="tcn")
+    edge_features: cosine      # Edge feature metric for v3
+    edge_top_k: 3              # Top-k edges per node for v3
+    edge_threshold: 1.0e-4     # Edge weight cutoff for v3
+    edge_mamba_layers: 2       # Edge Mamba layers for v3
+    edge_mamba_d_state: 8      # Edge Mamba state dim for v3
+    edge_mamba_d_model: 16     # Edge Mamba model dim (learned lift 1→16→1)
+
+    # V2-specific: Heuristic graph (ignored when architecture="v3")
+    use_pyg: true              # PyG backend for v2.6
+    similarity: cosine         # Heuristic similarity for v2.6
+    top_k: 3                   # Sparse connectivity for v2.6
+    threshold: 1.0e-4          # Edge pruning for v2.6
+    temperature: 0.1           # Softmax temperature for v2.6
+
+    # Shared GNN architecture (both v2.6 and v3)
+    n_layers: 2                # 2-layer GNN
     dropout: 0.1
-    use_residual: true     # Skip connections
-    # Critical EvoBrain parameters - DO NOT CHANGE
-    alpha: 0.05            # SSGConv mixing parameter
-    k_eigenvectors: 16     # Laplacian PE dimension
+    use_residual: true         # Skip connections
+    alpha: 0.05                # SSGConv mixing
+    k_eigenvectors: 16         # Laplacian PE dimension
+
+    # Dynamic PE config (v3) - OPTIMIZED FOR RTX 4090
+    use_dynamic_pe: true       # FULL V3 STACK ENABLED
+    semi_dynamic_interval: 5   # OPTIMAL: PE every 19.5ms (192 eigendecomps)
+    pe_sign_consistency: true  # Fix eigenvector signs for stability
 
   decoder:
     stages: 4
@@ -68,7 +84,7 @@ data:
   window_size: 60
   stride: 10
   use_balanced_sampling: true         # CRITICAL for imbalanced data
-  num_workers: 4                      # Optimal for WSL2
+  num_workers: 0                      # WSL2 fix: prevents multiprocessing hangs
   pin_memory: true                    # Faster GPU transfer
   persistent_workers: true            # Reuse workers
   prefetch_factor: 2                  # Pre-load batches
@@ -84,9 +100,9 @@ preprocessing:
 training:
   epochs: 100
 
-  # RTX 4090 optimal batch size with GNN (24GB VRAM)
-  # Start conservative, increase if stable
-  batch_size: 12  # Was 8 without GNN, 6 with GNN in old configs
+  # RTX 4090 OPTIMAL: balanced memory/speed/safety
+  # 4 = sweet spot: 16GB usage, 8GB buffer, 33% faster than size=3
+  batch_size: 4   # SAFE: uses 16GB out of 24GB
 
   # Conservative learning rate for stability
   # RTX 4090 best practice: start low, increase if stable
@@ -112,7 +128,7 @@ training:
   # Learning rate schedule
   scheduler:
     type: cosine
-    warmup_ratio: 0.03   # 3% warmup
+    warmup_ratio: 0.10   # 10% warmup for smoother start on RTX 4090
 
   # Early stopping
   early_stopping:

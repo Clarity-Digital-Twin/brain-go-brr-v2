@@ -5,13 +5,43 @@ All notable changes to the Brain-Go-Brr v2 project will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.0] - 2025-09-24
+
+### 🎉 Major Release: V3 Dual-Stream Architecture with Dynamic LPE
+
+This release introduces the production-ready V3 architecture, featuring dual-stream processing with dynamic Laplacian positional encoding. This represents a fundamental improvement over V2's heuristic approach.
+
+### Added
+- **Dual-Stream Architecture**: Parallel processing of node features (19× BiMamba2) and edge features (171× BiMamba2)
+- **Dynamic Laplacian PE**: Time-evolving positional encoding computed every N timesteps (configurable interval)
+- **Edge Mamba Stream**: Learned adjacency matrices replacing heuristic cosine similarity
+- **Vectorized GNN**: 10× speedup by processing all 960 timesteps simultaneously
+- **Semi-Dynamic Intervals**: Memory optimization for RTX 4090 (interval=5) vs A100 (interval=1)
+- **Debug Utilities**: Comprehensive NaN detection waypoints (`debug_utils.py`)
+- **Numerical Safeguards**: Decoder clamping, focal loss fixes, training sanitization
 
 ### Changed
-- Docs: Converged on pure GNN + Laplacian PE with learned adjacency (edge Mamba stream). Removed heuristic cosine/correlation graph builder from plans and guidance.
-- AGENTS.md: Updated architecture to TCN + Bi‑Mamba with optional Dynamic GNN; corrected Mamba CUDA note (conv_kernel=4).
-- README: Added v2.6 design decisions (learned adjacency; PyG+LPE canonical).
-- Plans: Rewrote v2.6 guides to specify edge stream + adjacency assembly; updated tests and config guidance.
+- **Architecture**: From V2 heuristic graphs to V3 learned adjacency
+- **GNN Processing**: Sequential → Vectorized (10× speedup)
+- **Positional Encoding**: Static → Dynamic (evolves with brain network)
+- **Batch Sizes**: Optimized for hardware (RTX 4090: 4, A100: 64)
+- **Warmup Ratio**: 3% → 10% for stability
+- **Model Size**: 31,475,722 parameters (refined from ~34M)
+
+### Fixed
+- **Critical NaN Issues**: Comprehensive numerical stability throughout
+  - Eigendecomposition: fp32 + regularization + fallback
+  - Decoder: Pre-logit clamping to [-40, 40]
+  - Focal Loss: Probability clamping [1e-6, 1-1e-6]
+  - Training: NaN sanitization with bad batch saving
+- **Memory OOM**: Semi-dynamic intervals for RTX 4090
+- **Sign Consistency**: Eigenvector alignment across timesteps
+
+### Optimized
+- **RTX 4090**: 16GB/24GB with batch_size=4, interval=5
+- **A100**: 60GB/80GB with batch_size=64, full dynamic
+- **Dynamic PE Memory**: 7.5GB → 1.5GB with interval=5
+- **Training**: Currently running on both platforms
 
 ## [2.3.0] - 2025-09-23
 

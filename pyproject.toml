@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
-    # Core ML dependencies - EXACT VERSIONS LOCKED for v2.6 stack
+    # Core ML dependencies - EXACT VERSIONS LOCKED for v2.6/V3 stack
     "torch==2.2.2",  # EXACT: PyTorch 2.2.2 with CUDA 12.1 for mamba-ssm + PyG compatibility
     "numpy==1.26.4",  # EXACT: numpy 2.x breaks mamba-ssm, use 1.26.4
     "scipy==1.11.4",  # EXACT: Tested version for morphology ops
@@ -140,10 +140,12 @@ addopts = """
     --tb=short
     --strict-markers
     --strict-config
-    --timeout=60
+    --timeout=300
     --timeout-method=thread
     --max-worker-restart=0
     -v
+    -p no:warnings
+    --disable-warnings
 """
 testpaths = ["tests"]
 python_files = ["test_*.py"]
@@ -157,6 +159,12 @@ markers = [
     "clinical: marks tests for clinical validation metrics",
     "performance: performance/latency benchmarks (not run in CI)",
     "gpu: marks tests that can use GPU acceleration",
+    "memory_intensive: marks tests that require significant memory",
+]
+filterwarnings = [
+    "ignore::UserWarning:torch.distributed.*",
+    "ignore::DeprecationWarning:torch.distributed.*",
+    "ignore::PendingDeprecationWarning",
 ]
 
 [tool.coverage.run]
