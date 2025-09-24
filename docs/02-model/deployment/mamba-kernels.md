@@ -33,6 +33,9 @@ export SEIZURE_MAMBA_FORCE_FALLBACK=1
 
 This uses a simpler Conv1d implementation that preserves shapes but isn't a true SSM.
 
+### Edge Stream Alignment (v3)
+- The edge temporal stream uses a learned 1→D→1 projection around Bi‑Mamba2 with `D` a multiple‑of‑8 (default 16) to satisfy CUDA stride/alignment constraints and avoid fast‑path exits. This keeps the fused kernels active instead of falling back to Conv1d, and increases modeling capacity on edges.
+
 ## Architecture Alignment
 - Vision Mamba uses d_conv=4
 - Original Mamba paper tested d_conv=4
