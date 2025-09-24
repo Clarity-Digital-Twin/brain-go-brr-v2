@@ -24,3 +24,11 @@ Dynamic vs static PE
 Bypass edge transform
 
 - In V3, `bypass_edge_transform=True` because edge weights are already transformed by `Linear+Softplus` in the edge stream.
+
+Laplacian PE details (dynamic)
+
+- Normalized Laplacian: `L = I - D^{-1/2} A D^{-1/2}` computed for each graph where `A` is the learned adjacency.
+- Vectorized eigendecomposition across `(B×T)` graphs using `torch.linalg.eigh` in float32 with AMP disabled for stability.
+- Takes the k smallest eigenvectors (k=16) and enforces sign consistency per eigenvector (non‑negative sum heuristic).
+- Optional `semi_dynamic_interval`: compute PE every N timesteps and repeat between updates (reduces compute further).
+- Typical overhead is small (tens of MB, milliseconds per batch) given `N=19`.

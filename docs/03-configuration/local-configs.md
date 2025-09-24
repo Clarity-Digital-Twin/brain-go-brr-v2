@@ -9,6 +9,7 @@ Key recommendations
 - `training.batch_size: 12` (V3 uses more memory than V2)
 - `training.mixed_precision: false` (RTX 4090 NaN stability)
 - `data.use_balanced_sampling: true` for full runs; false for smoke (BGB_LIMIT_FILES)
+- `model.graph.use_dynamic_pe: true` (dynamic PE recommended for V3; set false only if you need extra headroom)
 
 Minimal V3 snippet
 
