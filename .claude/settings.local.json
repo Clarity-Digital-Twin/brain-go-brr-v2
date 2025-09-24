@@ -144,7 +144,8 @@
       "Bash(TEST_BATCH_SIZE=1 .venv/bin/pytest tests/unit -x -q --tb=short --co)",
       "Bash(do echo \"$f:\")",
       "Bash(do echo -e \"\\n=== $f ===\")",
-      "Bash(.venv/bin/ruff check src/ tests/ --fix)"
+      "Bash(.venv/bin/ruff check src/ tests/ --fix)",
+      "Bash(git remote:*)"
     ],
     "deny": [],
     "ask": []
