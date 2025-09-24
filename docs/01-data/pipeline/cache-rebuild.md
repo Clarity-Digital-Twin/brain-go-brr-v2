@@ -14,7 +14,7 @@ Local commands
 ```bash
 # Rebuild train/val caches and manifest
 python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz/train
-python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz/val
+python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz/val --split val
 python -m src scan-cache --cache-dir cache/tusz/train
 ```
 
@@ -22,7 +22,7 @@ Modal commands
 ```bash
 # Rebuild caches on persistent volume
 python -m src build-cache --data-dir /data/edf/train --cache-dir /results/cache/tusz/train
-python -m src build-cache --data-dir /data/edf/train --cache-dir /results/cache/tusz/val
+python -m src build-cache --data-dir /data/edf/train --cache-dir /results/cache/tusz/val --split val
 python -m src scan-cache --cache-dir /results/cache/tusz/train
 ```
 

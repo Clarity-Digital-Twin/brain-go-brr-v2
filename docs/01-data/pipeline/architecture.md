@@ -28,7 +28,8 @@ cache/tusz/
 │   ├── *.npz          # 26-152MB each
 │   └── manifest.json  # Window categorization
 └── val/               # 20% of data (933 files)
-    └── *.npz          # No manifest (random sampling)
+    ├── *.npz
+    └── manifest.json  # May be present; not used for balancing
 ```
 
 ### 3. Manifest Generation (One-Time Scan)
@@ -121,8 +122,8 @@ export BGB_FORCE_MANIFEST_REBUILD=1
 # Scan cache manually
 python -m src scan-cache --cache-dir cache/tusz/train
 
-# Verify before training
-python -m src preflight --data-dir data --cache-dir cache
+# Verify config before training
+python -m src validate configs/local/train.yaml
 ```
 
 ## Mathematical Correctness
