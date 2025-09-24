@@ -32,3 +32,13 @@ Laplacian PE details (dynamic)
 - Takes the k smallest eigenvectors (k=16) and enforces sign consistency per eigenvector (non‑negative sum heuristic).
 - Optional `semi_dynamic_interval`: compute PE every N timesteps and repeat between updates (reduces compute further).
 - Typical overhead is small (tens of MB, milliseconds per batch) given `N=19`.
+
+Stability safeguards (implemented)
+
+- Degree clamping before normalization prevents divide‑by‑zero.
+- Diagonal regularization `L += εI` (ε=1e‑5) avoids singular Laplacians.
+- NaN/Inf detection with graceful fallback:
+  - Use last valid PE when available; else small random PE as a last resort.
+  - Final `torch.nan_to_num` to ensure finite tensors.
+- Cached PE buffer to reuse the last valid dynamic PE on rare failures.
+- These guards eliminate non‑finite logits stemming from ill‑conditioned adjacencies.

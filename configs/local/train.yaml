@@ -66,9 +66,9 @@ model:
     alpha: 0.05                # SSGConv mixing
     k_eigenvectors: 16         # Laplacian PE dimension
 
-    # Dynamic PE config (v3) - ALWAYS ENABLED
-    use_dynamic_pe: true       # ALWAYS use dynamic PE (EvoBrain approach)
-    semi_dynamic_interval: 1   # Update PE every N timesteps (1=fully dynamic)
+    # Dynamic PE config (v3) - OPTIMIZED FOR RTX 4090 MEMORY
+    use_dynamic_pe: true       # ENABLED with semi-dynamic for memory efficiency
+    semi_dynamic_interval: 10  # Update every 10 timesteps (96 vs 960 eigendecomps)
     pe_sign_consistency: true  # Fix eigenvector signs for stability
 
   decoder:
@@ -101,8 +101,8 @@ training:
   epochs: 100
 
   # RTX 4090 optimal batch size with GNN (24GB VRAM)
-  # Start conservative, increase if stable
-  batch_size: 8   # Reduced for v3 (dual-stream more memory intensive)
+  # Reduced for dynamic PE memory overhead
+  batch_size: 6   # Balanced for v3 + dynamic PE (uses ~20GB)
 
   # Conservative learning rate for stability
   # RTX 4090 best practice: start low, increase if stable

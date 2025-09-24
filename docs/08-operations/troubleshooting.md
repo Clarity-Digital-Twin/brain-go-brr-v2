@@ -8,6 +8,11 @@ Common issues
 - Modal stuck: increase CPU (24) and RAM (96GB)
 - PyG install fails: use prebuilt wheels
 
+Dynamic PE NaNs
+
+- If you hit non‑finite logits tied to dynamic PE: the code now includes robust safeguards (regularization, cached fallback, final nan_to_num).
+- See incident postmortem: `docs/08-operations/incidents/nan-logits-dynamic-pe.md`.
+
 Local training “gets stuck” checklist
 
 - WSL2 dataloader: set `data.num_workers: 0` to avoid multiprocessing hangs.

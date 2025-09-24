@@ -9,10 +9,12 @@ Sections
 - 02-Data — dataset overview and preprocessing
 - 03-Configuration — config schema and presets
 - 04-Model — V3 architecture and components
+  - Time–frequency hybrid: `docs/04-model/time-frequency-hybrid.md`
 - 05-Training — local and Modal workflows
 - 06-Evaluation — metrics and outputs
 - 07-CLI-Tools — CLI and Makefile
 - 08-Operations — troubleshooting and performance
+  - Incident: Dynamic PE NaNs — `docs/08-operations/incidents/nan-logits-dynamic-pe.md`
 - 09-Development — standards, testing, versioning
 
 Start here: `docs/00-overview/overview.md`.
