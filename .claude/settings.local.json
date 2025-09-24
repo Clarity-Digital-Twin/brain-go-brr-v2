@@ -143,7 +143,8 @@
       "Bash(.venv/bin/ruff check src/brain_brr/models/gnn_pyg.py --fix --unsafe-fixes)",
       "Bash(TEST_BATCH_SIZE=1 .venv/bin/pytest tests/unit -x -q --tb=short --co)",
       "Bash(do echo \"$f:\")",
-      "Bash(do echo -e \"\\n=== $f ===\")"
+      "Bash(do echo -e \"\\n=== $f ===\")",
+      "Bash(.venv/bin/ruff check src/ tests/ --fix)"
     ],
     "deny": [],
     "ask": []

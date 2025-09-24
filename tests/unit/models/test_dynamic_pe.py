@@ -8,7 +8,9 @@ import torch
 # Check if PyG is available
 try:
     import torch_geometric  # noqa: F401
+
     from src.brain_brr.models.gnn_pyg import GraphChannelMixerPyG
+
     HAS_PYG = True
 except ImportError:
     HAS_PYG = False
