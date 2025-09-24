@@ -191,6 +191,17 @@ class GraphConfig(BaseModel):
     # Laplacian PE (requires PyG)
     k_eigenvectors: int = Field(default=16, ge=1, le=18, description="Laplacian PE dimension")
 
+    # Dynamic PE config (v3)
+    use_dynamic_pe: bool = Field(
+        default=False, description="Compute Laplacian PE per timestep (EvoBrain approach)"
+    )
+    semi_dynamic_interval: int = Field(
+        default=1, ge=1, le=960, description="Update PE every N timesteps (1=fully dynamic)"
+    )
+    pe_sign_consistency: bool = Field(
+        default=True, description="Fix eigenvector signs for temporal consistency"
+    )
+
 
 class ModelConfig(BaseModel):
     """Complete model architecture configuration."""

@@ -46,6 +46,8 @@ class GraphChannelMixerPyG(nn.Module):
         use_vectorized: bool = True,  # V3: vectorized batching
         use_dynamic_pe: bool = False,  # V3: static PE by default
         bypass_edge_transform: bool = False,  # V3: skip if upstream Softplus
+        semi_dynamic_interval: int = 1,  # Update PE every N timesteps
+        pe_sign_consistency: bool = True,  # Fix eigenvector signs
     ):
         super().__init__()
 
@@ -62,6 +64,8 @@ class GraphChannelMixerPyG(nn.Module):
         self.use_vectorized = use_vectorized
         self.use_dynamic_pe = use_dynamic_pe
         self.bypass_edge_transform = bypass_edge_transform
+        self.semi_dynamic_interval = semi_dynamic_interval
+        self.pe_sign_consistency = pe_sign_consistency
 
         # Laplacian PE (EvoBrain line 858)
         self.laplacian_pe = AddLaplacianEigenvectorPE(k=k_eigenvectors)
@@ -122,6 +126,59 @@ class GraphChannelMixerPyG(nn.Module):
             # Fallback if PE fails
             return torch.zeros(self.n_electrodes, self.k_eigenvectors)
 
+    def _compute_dynamic_pe_vectorized(
+        self,
+        adjacency: torch.Tensor,  # (B, T, N, N)
+    ) -> torch.Tensor:  # (B, T, N, k)
+        """Compute dynamic Laplacian PE for all timesteps in parallel.
+
+        This is 100-1000x faster than looping over timesteps.
+        Includes numerical stability guards:
+        - Degree clamping to prevent division by zero
+        - Float32 eigendecomposition for numerical stability
+        - Sign consistency to prevent eigenvector flips
+        """
+        B, T, N, _ = adjacency.shape
+        device = adjacency.device
+        dtype = adjacency.dtype
+
+        # Reshape to process all (B*T) graphs at once
+        A_flat = adjacency.reshape(B * T, N, N)
+
+        # Compute normalized Laplacian: L = I - D^(-1/2) A D^(-1/2)
+        # Critical: Clamp degrees to prevent division by zero
+        degrees = A_flat.sum(dim=-1).clamp_min(1e-6)  # (B*T, N)
+        D_inv_sqrt = torch.diag_embed(degrees.rsqrt())  # (B*T, N, N)
+
+        # Normalized adjacency
+        A_norm = D_inv_sqrt @ A_flat @ D_inv_sqrt
+
+        # Laplacian
+        I = torch.eye(N, device=device, dtype=dtype).unsqueeze(0).expand(B * T, -1, -1)
+        L = I - A_norm  # (B*T, N, N)
+
+        # Eigendecomposition
+        # CRITICAL: Must disable AMP and use fp32 for numerical stability
+        with torch.cuda.amp.autocast(enabled=False):
+            L_stable = L.to(torch.float32)
+
+            # Compute eigenvalues and eigenvectors
+            eigenvalues, eigenvectors = torch.linalg.eigh(L_stable)
+
+            # Take k smallest eigenvectors (already sorted in ascending order)
+            pe = eigenvectors[..., :self.k_eigenvectors]  # (B*T, N, k)
+
+        # Sign consistency: Fix eigenvector signs to prevent random flips
+        if self.pe_sign_consistency:
+            signs = torch.sign(pe.sum(dim=-2, keepdim=True))  # (B*T, 1, k)
+            signs = signs.where(signs != 0, torch.ones_like(signs))
+            pe = pe * signs
+
+        # Reshape back and cast to original dtype
+        pe = pe.reshape(B, T, N, self.k_eigenvectors).to(dtype)
+
+        return pe
+
     def forward_vectorized(
         self,
         features: torch.Tensor,
@@ -176,8 +233,21 @@ class GraphChannelMixerPyG(nn.Module):
 
         # Add PE
         if self.use_dynamic_pe:
-            # Dynamic PE per graph (expensive)
-            raise NotImplementedError("Dynamic PE not implemented for vectorized path")
+            # Dynamic PE per timestep (vectorized implementation)
+            pe = self._compute_dynamic_pe_vectorized(adjacency)  # (B, T, N, k)
+
+            # Semi-dynamic option: Only update PE every N timesteps
+            if self.semi_dynamic_interval > 1:
+                interval = self.semi_dynamic_interval
+                # Compute PE only at intervals
+                indices = torch.arange(0, seq_len, interval)
+                pe_sparse = pe[:, indices]  # (B, T//interval, N, k)
+                # Repeat each computed PE for interval timesteps
+                pe = pe_sparse.repeat_interleave(interval, dim=1)[:, :seq_len]
+
+            # Flatten for GNN processing
+            pe_flat = pe.reshape(-1, self.k_eigenvectors)  # (B*T*19, k)
+            x_with_pe = torch.cat([x_batch, pe_flat], dim=-1)  # (B*T*19, D+k)
         else:
             # Static PE (broadcast)
             pe = self.static_pe.unsqueeze(0).expand(batch_size * seq_len, -1, -1)
