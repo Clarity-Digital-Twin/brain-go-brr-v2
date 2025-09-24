@@ -175,27 +175,41 @@ class GraphChannelMixerPyG(nn.Module):
                 eigenvalues, eigenvectors = torch.linalg.eigh(L_stable)
 
                 # Check for NaNs/Infs
-                if torch.isnan(eigenvalues).any() or torch.isnan(eigenvectors).any() or \
-                   torch.isinf(eigenvalues).any() or torch.isinf(eigenvectors).any():
+                if (
+                    torch.isnan(eigenvalues).any()
+                    or torch.isnan(eigenvectors).any()
+                    or torch.isinf(eigenvalues).any()
+                    or torch.isinf(eigenvectors).any()
+                ):
                     # Fallback: Use cached or identity-like safe PE
                     print("[WARNING] NaN/Inf detected in eigendecomposition, using fallback PE")
                     if self.last_valid_pe is not None and self.last_valid_pe.shape[0] == B:
                         # Use cached PE if available and correct shape
-                        pe = self.last_valid_pe.reshape(B * T, N, self.k_eigenvectors).to(torch.float32)
+                        pe = self.last_valid_pe.reshape(B * T, N, self.k_eigenvectors).to(
+                            torch.float32
+                        )
                     else:
                         # Use small random PE as last resort
-                        pe = torch.randn(B * T, N, self.k_eigenvectors, device=device, dtype=torch.float32) * 0.01
+                        pe = (
+                            torch.randn(
+                                B * T, N, self.k_eigenvectors, device=device, dtype=torch.float32
+                            )
+                            * 0.01
+                        )
                 else:
                     # Clamp eigenvalues to safe range [0, 2] (Laplacian eigenvalues)
                     eigenvalues = torch.clamp(eigenvalues, min=0.0, max=2.0)
 
                     # Take k smallest eigenvectors (already sorted in ascending order)
-                    pe = eigenvectors[..., :self.k_eigenvectors]  # (B*T, N, k)
+                    pe = eigenvectors[..., : self.k_eigenvectors]  # (B*T, N, k)
 
             except RuntimeError as e:
                 # Complete eigendecomposition failure - use safe fallback
                 print(f"[WARNING] Eigendecomposition failed: {e}, using fallback PE")
-                pe = torch.randn(B * T, N, self.k_eigenvectors, device=device, dtype=torch.float32) * 0.01
+                pe = (
+                    torch.randn(B * T, N, self.k_eigenvectors, device=device, dtype=torch.float32)
+                    * 0.01
+                )
 
         # Sign consistency: Fix eigenvector signs to prevent random flips
         if self.pe_sign_consistency:

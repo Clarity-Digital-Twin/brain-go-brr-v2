@@ -121,7 +121,7 @@ class TestDynamicPE:
         torch.cuda.synchronize()
         vectorized_time = time.time() - start
 
-        print(f"Vectorized time: {vectorized_time*1000:.2f}ms for B=8, T=960")
+        print(f"Vectorized time: {vectorized_time * 1000:.2f}ms for B=8, T=960")
         # Should be under 100ms for reasonable performance
         assert vectorized_time < 0.1, f"Vectorized implementation too slow: {vectorized_time:.3f}s"
 
