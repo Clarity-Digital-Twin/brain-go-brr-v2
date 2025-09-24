@@ -1,4 +1,4 @@
-# v2.6 Stack Training: TCN + Bi-Mamba + Dynamic GNN with Laplacian PE
+# Full Training: TCN + Bi-Mamba + GNN Stack (v2.6 or v3.0)
 # Optimized for RTX 4090 (24GB VRAM) with NaN protections
 # Based on EvoBrain proven parameters + RTX 4090 best practices
 #
@@ -9,18 +9,19 @@
 # - If NaNs persist: disable mixed_precision or reduce learning_rate
 
 experiment:
-  name: v2.6_full
-  description: "v2.6 stack full training - TCN+BiMamba+GNN+LPE on RTX 4090"
+  name: full_training
+  description: "Full training - TCN+BiMamba+GNN on RTX 4090"
   seed: 42
-  output_dir: results/v2.6_full
-  cache_dir: cache/v2.6_full
+  output_dir: results/full_training
+  cache_dir: cache/full_training
   device: cuda
   log_level: INFO
   save_model: true
   save_best_only: true
 
 model:
-  architecture: tcn
+  # Architecture: "tcn" (v2.6) or "v3" (dual-stream with edge Mamba)
+  architecture: v3  # Change to "tcn" for v2.6 stack
 
   tcn:
     num_layers: 8
@@ -38,22 +39,30 @@ model:
     conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
-  # Dynamic GNN with Laplacian PE (EvoBrain architecture)
+  # Graph configuration (works for both v2.6 and v3)
   graph:
-    enabled: true
-    use_pyg: true           # CRITICAL: Use PyG for Laplacian PE!
-    # Graph construction
-    similarity: cosine      # EvoBrain proven
-    top_k: 3               # Sparse connectivity (EvoBrain best)
-    threshold: 1.0e-4      # Edge pruning threshold
-    temperature: 0.1       # Softmax temperature
-    # GNN architecture
-    n_layers: 2            # 2-layer GNN (EvoBrain proven)
+    enabled: true              # Required for both v2.6 and v3
+
+    # V3-specific: Edge stream config (ignored when architecture="tcn")
+    edge_features: cosine      # Edge feature metric for v3
+    edge_top_k: 3              # Top-k edges per node for v3
+    edge_threshold: 1.0e-4     # Edge weight cutoff for v3
+    edge_mamba_layers: 2       # Edge Mamba layers for v3
+    edge_mamba_d_state: 8      # Edge Mamba state dim for v3
+
+    # V2.6-specific: Heuristic graph (ignored when architecture="v3")
+    use_pyg: true              # PyG backend for v2.6
+    similarity: cosine         # Heuristic similarity for v2.6
+    top_k: 3                   # Sparse connectivity for v2.6
+    threshold: 1.0e-4          # Edge pruning for v2.6
+    temperature: 0.1           # Softmax temperature for v2.6
+
+    # Shared GNN architecture (both v2.6 and v3)
+    n_layers: 2                # 2-layer GNN
     dropout: 0.1
-    use_residual: true     # Skip connections
-    # Critical EvoBrain parameters - DO NOT CHANGE
-    alpha: 0.05            # SSGConv mixing parameter
-    k_eigenvectors: 16     # Laplacian PE dimension
+    use_residual: true         # Skip connections
+    alpha: 0.05                # SSGConv mixing
+    k_eigenvectors: 16         # Laplacian PE dimension
 
   decoder:
     stages: 4
@@ -86,7 +95,7 @@ training:
 
   # RTX 4090 optimal batch size with GNN (24GB VRAM)
   # Start conservative, increase if stable
-  batch_size: 12  # Was 8 without GNN, 6 with GNN in old configs
+  batch_size: 8   # Reduced for v3 (dual-stream more memory intensive)
 
   # Conservative learning rate for stability
   # RTX 4090 best practice: start low, increase if stable
