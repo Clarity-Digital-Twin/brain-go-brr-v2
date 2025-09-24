@@ -202,7 +202,7 @@ class SeizureDetector(nn.Module):
 
             # Learnable lift 1→8 channels for CUDA alignment & capacity
             edge_flat = edge_feats.squeeze(-1).reshape(batch_size * 171, 1, seq_len)  # (B*E,1,T)
-            edge_in = self.edge_in_proj(edge_flat).contiguous(memory_format=torch.channels_last_1d)
+            edge_in = self.edge_in_proj(edge_flat).contiguous()
             edge_processed = self.edge_mamba(edge_in)  # (B*E, 8, T)
             edge_out = self.edge_out_proj(edge_processed)  # (B*E, 1, T)
             edge_weights = self.edge_activate(edge_out).reshape(batch_size, 171, seq_len)  # (B,E,T)
