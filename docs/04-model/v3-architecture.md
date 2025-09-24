@@ -28,6 +28,6 @@ Where in code
 
 - Detector (V3 branch): `src/brain_brr/models/detector.py`
 - Edge features + adjacency: `src/brain_brr/models/edge_features.py`
-- GNN (vectorized + static PE): `src/brain_brr/models/gnn_pyg.py`
+- GNN (vectorized; PE configurable): `src/brain_brr/models/gnn_pyg.py`
 - Mamba layers: `src/brain_brr/models/mamba.py`
 - TCN encoder + head: `src/brain_brr/models/tcn.py`
