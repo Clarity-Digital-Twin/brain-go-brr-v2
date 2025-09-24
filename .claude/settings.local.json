@@ -140,7 +140,8 @@
       "Bash(.venv/bin/ruff check src/brain_brr/models/edge_features.py tests/unit/models/test_edge_features.py --fix --unsafe-fixes)",
       "Bash(BGB_SMOKE_TEST=1 .venv/bin/python -m src train configs/local/smoke.yaml --model.graph.use_dynamic_pe true)",
       "Bash(TEST_BATCH_SIZE=1 TEST_LOW_MEMORY=true .venv/bin/pytest tests/unit -x --tb=short -q --timeout=60)",
-      "Bash(.venv/bin/ruff check src/brain_brr/models/gnn_pyg.py --fix --unsafe-fixes)"
+      "Bash(.venv/bin/ruff check src/brain_brr/models/gnn_pyg.py --fix --unsafe-fixes)",
+      "Bash(TEST_BATCH_SIZE=1 .venv/bin/pytest tests/unit -x -q --tb=short --co)"
     ],
     "deny": [],
     "ask": []
