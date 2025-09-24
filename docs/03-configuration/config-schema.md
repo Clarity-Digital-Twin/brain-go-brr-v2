@@ -45,7 +45,9 @@ Graph (GNN + adjacency)
 - V2 heuristic (ignored in v3): `similarity: cosine|correlation`, `top_k: 3`, `threshold: 1e-4`, `temperature: 0.1`
 - V3 edge stream: `edge_features: cosine|correlation`, `edge_top_k: 3`, `edge_threshold: 1e-4`, `edge_mamba_layers: 2`, `edge_mamba_d_state: 8`, `edge_mamba_d_model: 16`
 - GNN: `n_layers: 2`, `dropout: 0.1`, `use_residual: true`, `alpha: 0.05`, `k_eigenvectors: 16`
-- Dynamic PE (advanced): `use_dynamic_pe: false`, `semi_dynamic_interval: 1`, `pe_sign_consistency: true`
+- Dynamic PE: `use_dynamic_pe: true|false` (schema default false for backward compat; recommended true for V3)
+- Semi-dynamic update interval: `semi_dynamic_interval: 1` (1 = fully dynamic)
+- Sign consistency: `pe_sign_consistency: true` (prevent random eigenvector sign flips)
 
 Postprocessing
 

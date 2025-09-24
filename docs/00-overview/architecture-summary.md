@@ -13,7 +13,7 @@ Input (B,19,15360)
     └─ Edge features (cosine/corr) → (B,171,960,1)
          → 1→16 lift → Edge Mamba (BiMamba2, d_model=16, n_layers=2) → 16→1 → Softplus
          → Assemble adjacency (top‑k=3, thresh=1e‑4, sym, I+ fallback) → (B,960,19,19)
-  → Vectorized GNN (PyG SSGConv×2, static Laplacian PE k=16) → (B,19,960,64)
+  → Vectorized GNN (PyG SSGConv×2, Laplacian PE k=16; dynamic by default) → (B,19,960,64)
   → Back‑proj 19×64→512 → (B,512,960) → Head (→19) → Upsample 960→15360 → Conv1d(19→1) → (B,15360)
 ```
 
@@ -30,7 +30,7 @@ Shapes (V3)
 V2 vs V3
 
 - V2: `TCN → BiMamba2(512) → Head`; optional heuristic dynamic graph (cosine + top‑k + threshold) and PyG
-- V3: `TCN → Node Mamba(64) + Edge Mamba(16) → Learned adjacency → Vectorized PyG + static PE → Head`
+- V3: `TCN → Node Mamba(64) + Edge Mamba(16) → Learned adjacency → Vectorized PyG + Laplacian PE (dynamic by default) → Head`
 
 Adjacency specifics (V3)
 

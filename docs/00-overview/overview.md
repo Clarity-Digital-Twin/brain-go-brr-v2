@@ -7,7 +7,7 @@
 What’s implemented
 
 - V2 (TCN path): TCN → Bi‑Mamba2(512) → Projection/Upsample → Detection; optional heuristic GNN
-- V3 (Dual‑stream): TCN → Node Mamba(64) + Edge Mamba(16) → Learned adjacency → Vectorized PyG GNN + Static PE → Projection/Upsample → Detection
+- V3 (Dual‑stream): TCN → Node Mamba(64) + Edge Mamba(16) → Learned adjacency → Vectorized PyG GNN + Laplacian PE (dynamic by default) → Projection/Upsample → Detection
 
 Model size and stack
 
@@ -15,7 +15,7 @@ Model size and stack
 - TCN: 8 layers, channels [64,128,256,512]
 - Node Mamba: 6 layers, d_model=64, headdim=8, d_state=16, expand=2
 - Edge Mamba: 2 layers, d_model=16, headdim=4, d_state=8, expand=2
-- GNN: SSGConv×2, α=0.05, static Laplacian PE k=16
+- GNN: SSGConv×2, α=0.05, Laplacian PE k=16 (dynamic by default; static optional)
 
 Authoritative sources
 
