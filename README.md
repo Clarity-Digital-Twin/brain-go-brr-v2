@@ -7,13 +7,14 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 
 <details>
-<summary><strong>Status: v2.6.0 - Full Stack Deployed</strong></summary>
+<summary><strong>Status: v2.6 (stable) + V3 (implemented)</strong></summary>
 
 - **TCN + BiMamba + GNN + LPE** architecture fully implemented (31M parameters)
+- **V3 dual‑stream path implemented**: learned adjacency via Edge Mamba + vectorized GNN
+- **V2 path**: heuristic cosine similarity graphs (top_k=3) remains supported
 - **PyG 2.6.1** with SSGConv (α=0.05) and Laplacian PE (k=16 eigenvectors)
-- **Heuristic graph builder** using cosine similarity (edge Mamba stream planned for v3.0)
-- Local: RTX 4090 optimized; Modal: A100-80GB with 24 CPU cores
-- Last updated: 2025‑09‑23
+- Local: RTX 4090 optimized; Modal: A100‑80GB with 24 CPU cores
+- Last updated: 2025‑09‑24
 
 </details>
 
@@ -27,7 +28,10 @@ We're deploying a **TCN + BiMamba + GNN + LPE** stack to reduce false alarms whi
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-**Current v2.6**: 31M parameters using heuristic cosine similarity graphs. **Future v3.0** will add edge Mamba stream for learned adjacency matrices.
+Use either path:
+- **V2 (architecture: tcn)** → heuristic cosine similarity graphs
+- **V3 (architecture: v3)** → learned adjacency via Edge Mamba + vectorized GNN
+See V3 details: docs/architecture/V3_ACTUAL.md
 
 ## 🏗️ Architecture
 
@@ -36,17 +40,17 @@ EEG Input (19ch, 256Hz, 60s windows)
          ↓
 [TCN Encoder]       → 8 layers, channels [64,128,256,512], stride_down=16
          ↓
-[Bi-Mamba SSM]      → 6 layers, d_model=512, d_state=16, conv_kernel=4
-         ↓           O(N) complexity bidirectional processing
-[GNN + LPE]         → 2 layers SSGConv (α=0.05), Laplacian PE (k=16)
-         ↓           Heuristic cosine similarity (top_k=3)
-[Projection + Upsample] → Restore original resolution (512→19, 960→15360)
+[Temporal SSM]      → BiMamba (O(N)) — global context
          ↓
-[Detection Head]    → Per-timestep seizure probabilities
+[GNN + LPE]         → 2× SSGConv (α=0.05) + Laplacian PE (k=16)
+         ↓           Adjacency: heuristic (v2) or learned via Edge Mamba (v3)
+[Projection + Upsample] → Restore resolution (512→19, 960→15360)
          ↓
-[Post-Processing]   → Hysteresis (τ_on=0.86, τ_off=0.78) + Morphology
+[Detection Head]    → Per‑timestep seizure probabilities
          ↓
-[TAES Evaluation]   → Clinical performance metrics (10 FA/24h target)
+[Post‑Processing]   → Hysteresis (τ_on=0.86, τ_off=0.78) + Morphology
+         ↓
+[TAES Evaluation]   → Clinical metrics (10 FA/24h target)
 ```
 
 **Key Specifications:**
@@ -84,9 +88,9 @@ make setup-gpu  # or: make g
 # Local smoke test (1 epoch, 3 files)
 make s  # or: make smoke-local
 
-# Full v2.6 training (100 epochs, 3734 files)
+# Full training (local config currently uses V3)
 tmux new -s train
-make train-local
+make train-local  # configs/local/train.yaml → model.architecture: v3
 # Watch: tmux attach -t train
 ```
 

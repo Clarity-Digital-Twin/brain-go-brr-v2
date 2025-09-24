@@ -4,7 +4,7 @@ This file provides critical project context for Claude Code (claude.ai/code) whe
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v2.6: Clinical EEG seizure detection using **TCN + BiMamba + GNN + LPE** — achieving O(N) complexity with state-space models and graph neural networks.
+Brain-Go-Brr v2.6 + V3: Clinical EEG seizure detection using **TCN + BiMamba + GNN + LPE** — achieving O(N) complexity with state-space models and graph neural networks.
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
@@ -12,8 +12,10 @@ Brain-Go-Brr v2.6: Clinical EEG seizure detection using **TCN + BiMamba + GNN + 
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-**Current v2.6**: Uses heuristic cosine similarity graphs (top_k=3)
-**Future v3.0**: Will add edge Mamba stream for learned adjacency
+Paths supported:
+- **V2 (architecture: tcn)** → heuristic cosine similarity graphs (top_k=3)
+- **V3 (architecture: v3)** → dual‑stream with learned adjacency (Edge Mamba) + vectorized GNN
+See V3 details: docs/architecture/V3_ACTUAL.md
 
 ## 🚀 Quick Commands
 
@@ -24,7 +26,7 @@ Brain-Go-Brr v2.6: Clinical EEG seizure detection using **TCN + BiMamba + GNN + 
 | `make t` | Fast tests without coverage |
 | `make test` | Full test suite with coverage |
 | `make setup` | Initial setup with uv |
-| `make setup-gpu` | Install GPU stack (Mamba+PyG+TCN) — **REQUIRED for v2.6** |
+| `make setup-gpu` | Install GPU stack (Mamba+PyG+TCN) — **REQUIRED for v2.6/V3** |
 | `make s` | Smoke test (1 epoch, 3 files) |
 | `make train-local` | Full training (100 epochs, 3734 files) |
 
