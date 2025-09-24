@@ -1,15 +1,15 @@
-# Modal A100 smoke test config - 1 epoch, quick validation
-#
-# GPU: A100-80GB on Modal cloud
+# Modal A100 Smoke Test: TCN + Bi-Mamba + GNN Stack (v2.6 or v3.0)
+# Quick validation (1 epoch) on Modal A100-80GB
+# Usage: modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
 data:
   dataset: tuh_eeg
   data_dir: /data/edf/train            # Modal S3 mount path
-  cache_dir: /results/cache/tusz      # Separate smoke test cache
+  cache_dir: /results/cache/tusz       # Persistent SSD cache (NOT S3!)
   sampling_rate: 256
   n_channels: 19
   window_size: 60
   stride: 10
-  num_workers: 0                       # Let Modal handle internally - avoid CPU bottleneck
+  num_workers: 8                       # A100 needs parallel loading
   pin_memory: true                     # A100 optimized
   persistent_workers: true              # A100 optimized
   prefetch_factor: 4
@@ -23,7 +23,8 @@ preprocessing:
   normalize: true
 
 model:
-  architecture: tcn  # TCN + Bi‑Mamba + Dynamic GNN (PyG + LPE)
+  # Architecture: "tcn" (v2.6) or "v3" (dual-stream with edge Mamba)
+  architecture: v3  # Change to "tcn" for v2.6 stack
 
   tcn:
     num_layers: 8
@@ -41,21 +42,30 @@ model:
     conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
-  # Dynamic GNN with Laplacian PE (PyG canonical backend)
+  # Graph configuration (works for both v2.6 and v3)
   graph:
-    enabled: true
-    use_pyg: true           # REQUIRED for Laplacian PE
-    # Graph construction (heuristic adjacency for smoke)
-    similarity: cosine
-    top_k: 3
-    threshold: 1.0e-4
-    temperature: 0.1
-    # GNN architecture
-    n_layers: 2
+    enabled: true              # Required for both v2.6 and v3
+
+    # V3-specific: Edge stream config (ignored when architecture="tcn")
+    edge_features: cosine      # Edge feature metric for v3
+    edge_top_k: 3              # Top-k edges per node for v3
+    edge_threshold: 1.0e-4     # Edge weight cutoff for v3
+    edge_mamba_layers: 2       # Edge Mamba layers for v3
+    edge_mamba_d_state: 8      # Edge Mamba state dim for v3
+
+    # V2.6-specific: Heuristic graph (ignored when architecture="v3")
+    use_pyg: true              # PyG backend for v2.6
+    similarity: cosine         # Heuristic similarity for v2.6
+    top_k: 3                   # Sparse connectivity for v2.6
+    threshold: 1.0e-4          # Edge pruning for v2.6
+    temperature: 0.1           # Softmax temperature for v2.6
+
+    # Shared GNN architecture (both v2.6 and v3)
+    n_layers: 2                # 2-layer GNN
     dropout: 0.1
-    use_residual: true
-    alpha: 0.05
-    k_eigenvectors: 16
+    use_residual: true         # Skip connections
+    alpha: 0.05                # SSGConv mixing
+    k_eigenvectors: 16         # Laplacian PE dimension
 
 postprocessing:
   hysteresis:
@@ -73,7 +83,7 @@ postprocessing:
 
 training:
   epochs: 1                            # Just 1 epoch for smoke test
-  batch_size: 64                       # Safer with GNN+LPE graph overhead
+  batch_size: 32                       # Reduced for v3 dual-stream memory
   loss: focal
   focal_alpha: 0.5
   focal_gamma: 2.0
@@ -84,15 +94,15 @@ training:
     type: cosine
     warmup_ratio: 0.03
   gradient_clip: 0.5                   # Stronger clipping for NaN protection
-  mixed_precision: false               # DISABLED - causes NaN issues
+  mixed_precision: true                # A100 is 3.8x faster at FP16!
 
 evaluation:
   metrics: [taes, sensitivity, specificity, auroc]
   fa_rates: [10, 5, 2.5, 1]
 
 experiment:
-  name: v2.6_smoke_test
-  description: "v2.6 TCN+BiMamba+GNN+LPE smoke test on Modal A100"
+  name: smoke_test
+  description: "Stack smoke test on Modal A100"
   seed: 42
   device: cuda
   output_dir: /results/smoke
@@ -104,7 +114,7 @@ experiment:
     enabled: true
     project: seizure-detection-smoke
     entity: jj-vcmcswaggins-novamindnyc  # Your W&B TEAM (matches API key)
-    tags: ["v2.6", "smoke-test", "modal", "a100"]
+    tags: ["smoke-test", "modal", "a100", "v3"]
 
 logging:
   log_every_n_steps: 10

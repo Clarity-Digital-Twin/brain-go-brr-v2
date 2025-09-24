@@ -1,5 +1,6 @@
-# TUSZ training configuration - A100 GPU optimized for Modal cloud
-# Maximizes throughput on 80GB VRAM with proper Linux environment
+# Modal A100 Full Training: TCN + Bi-Mamba + GNN Stack (v2.6 or v3.0)
+# Optimized for A100-80GB on Modal cloud with proper resource allocation
+# Usage: modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
 
 data:
   dataset: tuh_eeg
@@ -25,7 +26,8 @@ preprocessing:
   use_mne: true
 
 model:
-  architecture: tcn  # TCN + Bi‑Mamba + Dynamic GNN (PyG + LPE)
+  # Architecture: "tcn" (v2.6) or "v3" (dual-stream with edge Mamba)
+  architecture: v3  # Change to "tcn" for v2.6 stack
 
   tcn:
     num_layers: 8
@@ -43,21 +45,30 @@ model:
     conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
-  # Dynamic GNN with Laplacian PE (PyG canonical backend)
+  # Graph configuration (works for both v2.6 and v3)
   graph:
-    enabled: true
-    use_pyg: true           # REQUIRED for Laplacian PE
-    # Graph construction (heuristic adjacency for now)
-    similarity: cosine
-    top_k: 3
-    threshold: 1.0e-4
-    temperature: 0.1
-    # GNN architecture
-    n_layers: 2
+    enabled: true              # Required for both v2.6 and v3
+
+    # V3-specific: Edge stream config (ignored when architecture="tcn")
+    edge_features: cosine      # Edge feature metric for v3
+    edge_top_k: 3              # Top-k edges per node for v3
+    edge_threshold: 1.0e-4     # Edge weight cutoff for v3
+    edge_mamba_layers: 2       # Edge Mamba layers for v3
+    edge_mamba_d_state: 8      # Edge Mamba state dim for v3
+
+    # V2.6-specific: Heuristic graph (ignored when architecture="v3")
+    use_pyg: true              # PyG backend for v2.6
+    similarity: cosine         # Heuristic similarity for v2.6
+    top_k: 3                   # Sparse connectivity for v2.6
+    threshold: 1.0e-4          # Edge pruning for v2.6
+    temperature: 0.1           # Softmax temperature for v2.6
+
+    # Shared GNN architecture (both v2.6 and v3)
+    n_layers: 2                # 2-layer GNN
     dropout: 0.1
-    use_residual: true
-    alpha: 0.05             # SSGConv mixing
-    k_eigenvectors: 16      # Laplacian PE dimension
+    use_residual: true         # Skip connections
+    alpha: 0.05                # SSGConv mixing
+    k_eigenvectors: 16         # Laplacian PE dimension
 
 postprocessing:
   hysteresis:
@@ -75,7 +86,7 @@ postprocessing:
 
 training:
   epochs: 100                          # full training - will early stop if converged
-  batch_size: 64                       # Safe for A100 80GB with 60s windows
+  batch_size: 48                       # Reduced for v3 dual-stream (more memory intensive)
   # ⚠️ CRITICAL: MUST use focal loss for 12:1 class imbalance! ⚠️
   # Without this, model WILL collapse to AUROC=0.5 (useless)
   loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
@@ -88,7 +99,7 @@ training:
     type: cosine
     warmup_ratio: 0.03
   gradient_clip: 0.5                   # Stronger clipping for NaN protection
-  mixed_precision: false               # DISABLED - causes NaN issues on our stack
+  mixed_precision: true                # A100 is 3.8x faster at FP16! Critical for performance
   gradient_accumulation_steps: 1       # Can increase if needed
   early_stopping:
     patience: 5
@@ -102,11 +113,11 @@ evaluation:
   save_plots: true                     # Generate all visualizations
 
 experiment:
-  name: v2.6_tcn_gnn_full
-  description: "v2.6 TCN+BiMamba+GNN+LPE full training on Modal A100"
+  name: v3_full_training
+  description: "V3 dual-stream full training on Modal A100"
   seed: 42
   device: cuda                         # Explicit GPU for consistency
-  output_dir: /results/v2.6_tcn_gnn_full  # Modal volume mount
+  output_dir: /results/v3_full_training   # Modal volume mount
   cache_dir: /results/cache/tusz       # Must match data.cache_dir
   log_level: INFO
   save_model: true
@@ -115,7 +126,7 @@ experiment:
     enabled: true                      # W&B secret configured!
     project: seizure-detection-a100
     entity: jj-vcmcswaggins-novamindnyc  # Your W&B TEAM (matches API key)
-    tags: ["v2.6", "a100", "tcn-mamba-gnn", "production"]
+    tags: ["v3", "a100", "dual-stream", "production"]
 
 logging:
   log_every_n_steps: 25                # More frequent on fast GPU
