@@ -1,6 +1,12 @@
 # Smoke Test: TCN + Bi-Mamba + GNN Stack (v2.6 or v3.0)
 # Quick validation (1 epoch) for pipeline testing on RTX 4090
-# Usage: python -m src train configs/local/smoke.yaml
+#
+# IMPORTANT: Must run with environment variables:
+#   export BGB_LIMIT_FILES=3
+#   export BGB_SMOKE_TEST=1
+# Or use: ./run_smoke_test.sh
+#
+# Usage: BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 python -m src train configs/local/smoke.yaml
 
 experiment:
   name: smoke_test
@@ -65,7 +71,7 @@ data:
   n_channels: 19
   window_size: 60
   stride: 10
-  use_balanced_sampling: true   # Use BalancedSeizureDataset to avoid rebuilding cache!
+  use_balanced_sampling: false  # MUST be false for BGB_LIMIT_FILES to work!
   num_workers: 0          # Zero for smoke test (WSL2 safety)
   pin_memory: false       # Disable for smoke test
   persistent_workers: false
@@ -81,7 +87,7 @@ preprocessing:
 
 training:
   epochs: 1               # Just 1 epoch for smoke
-  batch_size: 2           # Reduced for v3 (more memory intensive)
+  batch_size: 1           # Minimal for smoke test with 3 files
   learning_rate: 5.0e-5   # Reduced from 1.0e-4 for stability
   weight_decay: 0.05
   optimizer: adamw
