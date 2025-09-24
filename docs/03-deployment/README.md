@@ -10,14 +10,16 @@ Brain-Go-Brr v2 supports multiple deployment targets, optimized for different us
 - **Location**: `local/`
 - **Purpose**: Development, debugging, small-scale experiments
 - **Hardware**: RTX 4090 or similar consumer GPU
-- **Performance**: ~3s/batch with FP32
+- **Model switch**: set `model.architecture: tcn` (baseline) or `v3` (dual‑stream)
+- **Performance**: environment‑dependent (seconds per batch on FP32); use smoke config first
 
 ### 2. Modal Cloud (Production)
 - **Location**: `modal/`
 - **Purpose**: Full training runs, production deployment
-- **Hardware**: A100-80GB GPU
-- **Performance**: ~5s/batch with FP16
-- **Cost**: ~$319 for 100 epochs
+- **Hardware**: A100‑80GB GPU
+- **Model switch**: `model.architecture: v3` by default in modal configs
+- **Performance**: FP16 with vectorized GNN yields sub‑second to few‑seconds per batch (dataset/config dependent)
+- **Costs**: usage‑based; monitor with Modal dashboard
 
 ### 3. Operations
 - **Location**: `operations/`
@@ -53,18 +55,15 @@ modal app logs <app-id>
 - **[troubleshooting.md](troubleshooting.md)**: Common issues and fixes
 - **[operations/smoke-tests.md](operations/smoke-tests.md)**: Fast pipeline and unit smoke tests
 
-## Performance Summary
+## Performance Notes
 
-| Environment | GPU | Batch Size | Precision | Speed | Cost |
-|-------------|-----|------------|-----------|-------|------|
-| Local | RTX 4090 | 32 | FP32 | ~3s/batch | Electricity |
-| Modal | A100-80GB | 128 | FP16 | ~5s/batch | $3.19/hr |
+- Vectorized GNN + static Laplacian PE (v3) reduces CPU overhead dramatically.
+- A100 (FP16) is significantly faster than local FP32; exact speed depends on cache, I/O, and batch size.
+- Use `configs/modal/smoke.yaml` to validate environment, then `configs/modal/train.yaml`.
 
 ## Current Status
 
-✅ **Modal A100 training optimized and running**
-- Mixed precision enabled (FP16)
-- Batch size 128 (utilizing full VRAM)
-- Cache on Modal SSD (not S3)
-- W&B integration working
-- Expected completion: ~100 hours ($319)
+✅ **Modal A100 training optimized**
+- Mixed precision (FP16) enabled
+- Cache on Modal SSD (`/results/cache/tusz`, not S3)
+- W&B logging configured in configs

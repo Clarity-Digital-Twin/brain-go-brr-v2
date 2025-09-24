@@ -9,9 +9,9 @@
 
 ### Software
 - **OS**: Ubuntu 20.04+ or WSL2
-- **Python**: 3.11 or 3.12 (tested with 3.11.13)
+- **Python**: 3.11 (tested with 3.11.13)
 - **CUDA Driver**: 525.60+ (for RTX 4090)
-- **CUDA Toolkit**: 12.1 (MUST match PyTorch's CUDA version)
+- **CUDA Toolkit**: 12.1 (MUST match PyTorch CUDA build)
 
 ## Quick Start
 
@@ -27,8 +27,9 @@ make setup
 sudo apt-get update
 sudo apt-get install -y cuda-toolkit-12-1
 
-# 4. Install GPU extensions
-make setup-gpu
+# 4. (Optional) Install GPU/graph extras
+# PyTorch Geometric requires matching wheels; use data.pyg.org wheels under the hood
+uv sync -E gpu,graph
 
 # 5. Start training
 make train-local
@@ -36,16 +37,27 @@ make train-local
 
 ## Critical Version Requirements
 
-**These exact versions are required - DO NOT CHANGE:**
+**Pin compiled extension versions to your environment:**
 
 | Component | Version | Notes |
 |-----------|---------|-------|
 | Python | 3.11.13 | 3.12 works but less tested |
-| PyTorch | 2.2.2+cu121 | MUST use CUDA 12.1 build |
+| PyTorch | 2.2.2+cu121 | Use CUDA 12.1 wheels |
 | CUDA Toolkit | 12.1 | MUST match PyTorch |
-| mamba-ssm | 2.2.2 | 2.2.4/2.2.5 have bugs |
+| mamba-ssm | 2.2.2 | Matches kernels used in code |
 | causal-conv1d | 1.4.0 | 1.5+ requires PyTorch 2.4+ |
-| numpy | <2.0 | 2.x breaks mamba-ssm |
+| numpy | <2.0 | 2.x may break mamba-ssm builds |
+
+### Architecture toggle
+
+- Baseline (v2.6): set `model.architecture: tcn`
+- Dual‑stream (v3): set `model.architecture: v3` (node+edge Bi‑Mamba2, vectorized GNN, static Laplacian PE)
+
+For v3, `graph:` section uses `edge_features`, `edge_top_k`, `edge_threshold`, and `edge_mamba_*` fields (`edge_mamba_d_model` defaults to 16 for CUDA alignment). 
+
+### WSL2 tips
+- Prefer `num_workers: 0` if you hit multiprocessing hangs; otherwise try `num_workers: 4`, `pin_memory: true`, `persistent_workers: true`.
+- Set `export UV_LINK_MODE=copy` to avoid hard‑link issues (see Makefile).
 
 ## Why UV Can't Install GPU Packages
 
