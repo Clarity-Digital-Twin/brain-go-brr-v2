@@ -71,6 +71,16 @@ test-cpu: ## Run CPU tests in parallel
 	@echo "${CYAN}Running CPU tests (parallel)...${NC}"
 	$(PYTEST) -n 4 --dist=loadfile -k "not (mamba or cuda)" -q
 
+test-safe: ## Run tests safely to avoid OOM (serial, excludes heavy models)
+	@echo "${CYAN}Running tests safely (serial to avoid OOM)...${NC}"
+	@echo "${CYAN}Step 1: Unit tests without heavy models...${NC}"
+	$(PYTEST) tests/unit -n 1 -k "not (v3 or V3 or detector_from_config)" -m "not gpu and not performance" --tb=short -q
+	@echo "${CYAN}Step 2: V3 tests in serial...${NC}"
+	$(PYTEST) tests/unit/models/test_detector_v3.py -n 0 -m "not gpu and not performance" --tb=short
+	@echo "${CYAN}Step 3: Lightweight integration tests...${NC}"
+	$(PYTEST) tests/integration -n 1 -k "not (from_config or tcn_integration or gnn_integration)" -m "not gpu and not performance" --tb=short -q
+	@echo "${GREEN}✅ Safe test run complete!${NC}"
+
 test-edge: ## Run edge case tests for data robustness
 	@echo "${CYAN}Running edge case tests...${NC}"
 	$(PYTEST) tests/unit/data/test_io_edge_cases.py tests/unit/post/test_hysteresis_edge.py -v
