@@ -1,8 +1,20 @@
-# 🎯 CANONICAL ARCHITECTURE ROADMAP
+# 🎯 CANONICAL ARCHITECTURE ROADMAP (Updated — v3 implemented)
 
 ## ⚠️ UPDATE: WE'RE ALREADY AT v3.0! (TCN IS LIVE!)
 
-## WHERE WE ARE NOW (v2.3 - CURRENT REALITY)
+## WHERE WE ARE NOW
+v3 dual‑stream is implemented and selectable via `model.architecture: v3`:
+```
+EEG (19ch, 256Hz)
+ → TCN Encoder
+ → Bi‑Mamba‑2 (node)  +  Bi‑Mamba‑2 (edge: learned lift 1→D→1, D=16)
+ → Vectorized PyG GNN (SSGConv, α=0.05) + Static Laplacian PE (k=16)
+ → Projection / Upsample → Detection Head
+```
+
+Baseline (`model.architecture: tcn`) remains available without the learned adjacency path.
+
+## Prior state (v2.3)
 ```
 EEG (19ch, 256Hz) → TCN Encoder → Bi-Mamba-2 → TCN Decoder → Detection Head
 ```
@@ -36,14 +48,14 @@ EEG → STFT → U-Net → ResCNN → Bi-Mamba-2 → Detection Head
 
 ### ~~v2.5~~ SKIP STRAIGHT TO v2.6! 🚀
 
-### v2.6 - NEXT: Dynamic GNN + Laplacian PE 🧠🔥
+### v2.6 - Dynamic GNN + Laplacian PE 🧠🔥 (Implemented in v3)
 ```
 EEG → TCN Encoder → Bi-Mamba-2 → [Dynamic GNN + LPE] → TCN Decoder → Detection Head
                                           ↑
                                   INSERT GNN HERE!
 ```
 **Changes**: Add dynamic graph with time-evolving adjacency + Laplacian Positional Encoding
-**Status**: THIS IS THE IMMEDIATE NEXT STEP!
+**Status**: Implemented (see v3).
 **Implementation Details** (from EvoBrain):
 - PyG's `AddLaplacianEigenvectorPE(k=16)` for positional awareness
 - Dynamic adjacency per timestep: `adj[timestep, batch, nodes, nodes]`
@@ -58,9 +70,9 @@ EEG → TCN Encoder → Bi-Mamba-2 → [Dynamic GNN + LPE] → TCN Decoder → D
 
 ---
 
-## MAJOR REPLACEMENTS (One at a Time)
+## MAJOR REPLACEMENTS
 
-### ✅ v3.0 - ALREADY DONE! TCN Replaced U-Net + ResCNN
+### ✅ v3.0 — TCN replaced U‑Net + ResCNN
 ```
 EEG → TCN Encoder → Bi-Mamba-2 → TCN Decoder → Detection Head
 ```
@@ -87,7 +99,7 @@ ResCNN already removed when we switched to TCN!
 **Note**: ConvNeXt would only be relevant for the OLD U-Net path
 **Alternative**: Could add ConvNeXt as optional local refiner AFTER GNN if needed
 
-### v3.2 - Dual-Stream Mamba 🌊
+### ✅ v3.2 — Dual‑Stream Mamba 🌊 (Node+Edge streams)
 ```
 EEG → TCN → ConvNeXt → [Node-Mamba + Edge-Mamba] → GNN → Detection Head
                                 ↑
@@ -99,9 +111,14 @@ EEG → TCN → ConvNeXt → [Node-Mamba + Edge-Mamba] → GNN → Detection Hea
 - Edge-Mamba: Same config, processes edge features
 - Both outputs fed to GNN
 **Why**: Model channel features and relationships separately
-**Expected**: 10-15% improvement
-**Timeline**: 2 weeks
-**Training**: More complex but powerful
+**Status**: Implemented in v3 (edge lift 1→D→1, D=16; vectorized GNN; static PE).
+
+---
+
+## NEXT: Test hardening and ablations
+- Unit/integration tests: vectorized vs loop equivalence; disjoint‑batch node‑id offsets; edge lift grad‑flow.
+- Ablations: edge features (cosine/correlation/coherence), top‑k and threshold sweeps.
+- Performance markers: forward latency/memory on GPU.
 
 ---
 

@@ -1,4 +1,6 @@
-# 🚀 Future Roadmap: Next-Generation EEG Architecture Stack
+# [ARCHIVED] 🚀 Future Roadmap: Next-Generation EEG Architecture Stack
+
+Status: Superseded by the implemented v3 dual‑stream architecture (TCN → node+edge Bi‑Mamba‑2 → vectorized PyG GNN + static Laplacian PE). For the canonical, implemented design, see `docs/02-model/architecture/v3_tcn_evobrain_hybrid.md`.
 
 ## Executive Summary
 
