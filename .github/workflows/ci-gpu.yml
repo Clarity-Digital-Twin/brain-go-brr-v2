@@ -1,0 +1,56 @@
+name: GPU Tests
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+  workflow_dispatch:  # Allow manual trigger
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gpu-test:
+    name: GPU Tests (self-hosted)
+    # Only run on self-hosted runners with GPU
+    # To set up: Install GitHub Actions runner on a machine with CUDA GPU
+    runs-on: [self-hosted, gpu]
+    if: github.repository == 'Clarity-Digital-Twin/brain-go-brr-v2'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check GPU availability
+        run: |
+          nvidia-smi || echo "No GPU found"
+          python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+
+      - name: Install uv
+        if: steps.check.outputs.uv_missing == 'true'
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Install dependencies with GPU support
+        run: |
+          uv sync --frozen
+          # Install Mamba-SSM and causal-conv1d
+          uv run pip install mamba-ssm==2.2.2 causal-conv1d==1.4.0 --no-build-isolation
+          # Install PyTorch Geometric
+          uv run pip install torch-scatter torch-sparse torch-cluster torch-spline-conv -f https://data.pyg.org/whl/torch-2.2.0+cu121.html --no-deps
+          uv run pip install torch-geometric==2.6.1 --no-deps
+
+      - name: Run GPU tests
+        run: |
+          uv run pytest -m "gpu or performance" -v --tb=short
+
+      - name: Run integration tests with V3
+        run: |
+          uv run pytest tests/integration/test_gnn_integration.py -v
+          uv run pytest tests/unit/models/test_dynamic_pe.py -v
+          uv run pytest tests/unit/models/test_detector_v3.py -v

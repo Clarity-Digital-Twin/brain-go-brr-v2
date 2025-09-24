@@ -99,8 +99,9 @@ class TestBiMamba2Layer:
         """Test Conv1d fallback when Mamba unavailable."""
         assert isinstance(layer.forward_mamba, nn.Conv1d)
         assert isinstance(layer.backward_mamba, nn.Conv1d)
-        assert layer.forward_mamba.kernel_size == (5,)
-        assert layer.backward_mamba.kernel_size == (5,)
+        # d_conv defaults to 4 in BiMamba2Layer
+        assert layer.forward_mamba.kernel_size == (4,)
+        assert layer.backward_mamba.kernel_size == (4,)
 
 
 class TestBiMamba2:

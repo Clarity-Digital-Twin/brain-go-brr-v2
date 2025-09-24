@@ -63,10 +63,18 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: |
+          uv sync --frozen
+          # Install PyTorch Geometric for V3 architecture tests
+          # Use pre-built wheels for torch 2.2.2
+          uv run pip install torch-scatter torch-sparse torch-cluster torch-spline-conv -f https://data.pyg.org/whl/torch-2.2.0+cpu.html --no-deps
+          uv run pip install torch-geometric==2.6.1 --no-deps
 
       - name: Run tests
-        run: uv run pytest --cov=src --cov-report=xml --cov-report=term-missing -m "not gpu and not performance"
+        run: |
+          # Set environment to force CPU fallback for Mamba
+          export SEIZURE_MAMBA_FORCE_FALLBACK=1
+          uv run pytest --cov=src --cov-report=xml --cov-report=term-missing -m "not gpu and not performance"
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
