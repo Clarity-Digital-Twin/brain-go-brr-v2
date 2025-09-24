@@ -1,7 +1,11 @@
 # P0: BiMamba2 CUDA Kernel Incompatibility with V3 Architecture
 
-## Executive Summary
-**CRITICAL BLOCKER**: Our V3 dual-stream architecture is fundamentally incompatible with Mamba2's CUDA kernel requirements, causing 100% fallback to Conv1d and losing all state-space modeling benefits.
+**⚠️ UPDATE: RESOLVED - See [P0_MAMBA2_CUDA_INCOMPATIBILITY_FIXED.md](P0_MAMBA2_CUDA_INCOMPATIBILITY_FIXED.md) for the solution**
+
+## Executive Summary (OUTDATED)
+~~**CRITICAL BLOCKER**: Our V3 dual-stream architecture is fundamentally incompatible with Mamba2's CUDA kernel requirements, causing 100% fallback to Conv1d and losing all state-space modeling benefits.~~
+
+**✅ RESOLVED**: The issue was NOT about B*19/B*171 batching but incorrect `headdim` parameter. Fixed by setting `headdim=8` for nodes and `headdim=4` for edges to satisfy `(d_model * expand) / headdim` is multiple of 8.
 
 ## The Problem
 

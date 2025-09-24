@@ -110,10 +110,13 @@ class SeizureDetector(nn.Module):
         )
 
         # Bi-Mamba for temporal modeling
+        # headdim=64 with d_model=512 ensures (512*2)/64 = 16 which is multiple of 8
         self.mamba = BiMamba2(
             d_model=512,
             d_state=mamba_d_state,
             d_conv=mamba_d_conv,
+            expand=2,
+            headdim=64,  # (512*2)/64 = 16 is multiple of 8
             num_layers=mamba_layers,
             dropout=mamba_dropout,
         )
@@ -291,10 +294,13 @@ class SeizureDetector(nn.Module):
             graph_cfg = cfg.graph  # Required for v3
 
             # Node stream: per-electrode Mamba
+            # headdim=8 ensures (64 * 2) / 8 = 16 which is multiple of 8
             instance.node_mamba = BiMamba2(
                 d_model=64,
                 d_state=16,  # Fixed for node stream
                 d_conv=4,
+                expand=2,
+                headdim=8,  # Critical: (64*2)/8 = 16 is multiple of 8
                 num_layers=6,  # Fixed for node stream
                 dropout=cfg.mamba.dropout,
             )
@@ -310,10 +316,13 @@ class SeizureDetector(nn.Module):
             )
             assert edge_d_model > 0, f"edge_mamba_d_model must be positive, got {edge_d_model}"
 
+            # headdim=4 ensures (16 * 2) / 4 = 8 which is multiple of 8
             instance.edge_mamba = BiMamba2(
                 d_model=edge_d_model,
                 d_state=edge_d_state,
                 d_conv=4,
+                expand=2,
+                headdim=4,  # Critical: (16*2)/4 = 8 is multiple of 8
                 num_layers=edge_layers,
                 dropout=cfg.mamba.dropout,
             )
