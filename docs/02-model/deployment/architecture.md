@@ -3,7 +3,7 @@
 ## Overview
 This document consolidates deployment-specific architecture decisions and CUDA kernel implementation details.
 
-Current runtime path: the TCN architecture is active (`architecture: tcn`). The U‑Net path remains documented for reference/ablations.
+Current runtime path: the TCN architecture is active by default (`architecture: tcn`). The dual‑stream v3 path (`architecture: v3`) is implemented and selectable; it adds a learned edge stream (Bi‑Mamba2 with learned 1→D→1 lift) and a vectorized PyG GNN with static Laplacian PE.
 
 ## Critical Version Requirements
 
@@ -95,13 +95,13 @@ configs/modal/
 - **Memory**: ~4GB for batch_size=64 on A100
 - **Throughput**: ~0.5s per batch on A100-80GB
 
-### A100 Optimizations
+### A100 Optimizations (matching current configs)
 ```yaml
-# configs/modal/train.yaml
-batch_size: 64        # Larger than local (16)
-num_workers: 4        # Parallel data loading
+# configs/modal/train.yaml (v3 default)
+batch_size: 48        # Dual‑stream memory; adjust if headroom remains
+num_workers: 8        # Parallel data loading
 pin_memory: true      # Faster GPU transfer
-mixed_precision: true # FP16 training
+mixed_precision: true # FP16 training (A100)
 ```
 
 ### Balanced Dataset Performance
