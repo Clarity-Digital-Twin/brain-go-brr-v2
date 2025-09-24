@@ -20,3 +20,7 @@ Fallback behavior
 
 - If `mamba-ssm` is unavailable or `SEIZURE_MAMBA_FORCE_FALLBACK=1`, a Conv1d fallback is used.
 - V3 uses explicit headdim to prevent unintended fallback due to misalignment.
+
+Kernel details
+
+- `d_conv` uses the CUDA‑supported set {2, 3, 4}; we choose 4 for best temporal coverage and hardware efficiency.
