@@ -23,10 +23,14 @@ model:
   graph:
     enabled: true
     use_pyg: true
-    similarity: cosine
-    top_k: 3
-    threshold: 1.0e-4
-    temperature: 0.1
+    # V3 edge stream (learned adjacency)
+    edge_features: cosine
+    edge_top_k: 3
+    edge_threshold: 1.0e-4
+    edge_mamba_layers: 2
+    edge_mamba_d_state: 8
+    edge_mamba_d_model: 16  # multiple of 8
+    # GNN
     n_layers: 2
     dropout: 0.1
     use_residual: true

@@ -1,4 +1,6 @@
-# V3.0 FINAL IRONCLAD PLAN - THE CORRECT VERSION
+# V3.0 FINAL IRONCLAD PLAN - THE CORRECT VERSION (Historical)
+
+Note: V3 is implemented. Differences from this plan: edge stream uses `d_model=16` with `headdim=4` and a 1→D→1 projection; see docs/architecture/V3_ACTUAL.md for the ground truth.
 
 ## What We're Building (NOT EvoBrain's Mistakes)
 

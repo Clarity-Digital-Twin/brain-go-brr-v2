@@ -57,7 +57,7 @@ model:
     edge_mamba_d_state: 8      # Edge Mamba state dim for v3
     edge_mamba_d_model: 16     # Edge Mamba model dim (learned lift 1→16→1)
 
-    # V2.6-specific: Heuristic graph (ignored when architecture="v3")
+    # V2-specific: Heuristic graph (ignored when architecture="v3")
     use_pyg: true              # PyG backend for v2.6
     similarity: cosine         # Heuristic similarity for v2.6
     top_k: 3                   # Sparse connectivity for v2.6
