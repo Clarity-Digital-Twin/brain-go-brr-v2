@@ -155,3 +155,4 @@ All 2025 SOTA papers use hybrid approaches:
 3. **Fusion point**: Late fusion at proj_to_electrodes is optimal
 
 This is now HIGH priority to align with 2025 SSOT.
+
