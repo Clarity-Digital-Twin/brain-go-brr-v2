@@ -17,7 +17,7 @@ Vectorized path (V3)
 
 Dynamic vs static PE
 
-- Dynamic PE is configurable via `graph.use_dynamic_pe` (default false in schema for backward compat; recommended true for V3).
+- Dynamic PE is configurable via `graph.use_dynamic_pe` (recommended true for V3).
 - Dynamic PE implementation is vectorized across B×T with sign-consistency and optional semi-dynamic interval (`graph.semi_dynamic_interval`).
 - Static PE remains available when `use_dynamic_pe: false` and is computed once from the structural 10–20 montage.
 
@@ -32,6 +32,13 @@ Laplacian PE details (dynamic)
 - Takes the k smallest eigenvectors (k=16) and enforces sign consistency per eigenvector (non‑negative sum heuristic).
 - Optional `semi_dynamic_interval`: compute PE every N timesteps and repeat between updates (reduces compute further).
 - Typical overhead is small (tens of MB, milliseconds per batch) given `N=19`.
+
+Memory notes (RTX 4090)
+
+- Full dynamic (interval=1) drives many eigendecompositions (960 per window). To reduce memory:
+  - Set `semi_dynamic_interval: 5–10` to cut eigendecomps 5–10× with negligible accuracy impact.
+  - Use a moderate batch size (e.g., 4 on 24GB VRAM).
+  - A100‑80GB can run full dynamic with large batches; keep `mixed_precision: true` on A100.
 
 Stability safeguards (implemented)
 

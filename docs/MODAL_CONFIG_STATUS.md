@@ -1,5 +1,9 @@
 # Modal Configuration Status
 
+> Archived note: Modal config guidance is consolidated in
+> `docs/03-configuration/modal-configs.md` and `docs/05-training/modal.md`.
+> See `docs/ARCHIVE_MAPPING.md`.
+
 ## A100 (80GB) Settings - ALREADY OPTIMAL ✅
 
 ### modal/train.yaml

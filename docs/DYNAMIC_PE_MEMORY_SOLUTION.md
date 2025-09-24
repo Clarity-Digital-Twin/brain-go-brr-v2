@@ -1,5 +1,8 @@
 # Making Dynamic PE Work on RTX 4090 (24GB)
 
+> Archived note: Practical guidance moved to `docs/04-model/gnn.md` and
+> `docs/08-operations/performance-optimization.md`. See `docs/ARCHIVE_MAPPING.md`.
+
 ## THE REAL PROBLEM
 We're computing 960 eigendecompositions ALL AT ONCE:
 - 8 batches × 960 timesteps = 7,680 eigendecompositions

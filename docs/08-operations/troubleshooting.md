@@ -11,7 +11,7 @@ Common issues
 Dynamic PE NaNs
 
 - If you hit non‑finite logits tied to dynamic PE: the code now includes robust safeguards (regularization, cached fallback, final nan_to_num).
-- See incident postmortem: `docs/08-operations/incidents/nan-logits-dynamic-pe.md`.
+- If symptoms persist, try `semi_dynamic_interval: 5–10` and reduce `batch_size`.
 
 Local training “gets stuck” checklist
 
@@ -24,3 +24,8 @@ Pre‑flight (before long runs)
 - `make q` and `python -m src validate <config>` pass.
 - `python -m src scan-cache --cache-dir <cache>` shows partial>0 or full>0.
 - Startup logs show `BalancedSeizureDataset` and `Seizure ratio: ...`.
+
+OOM root cause quick summary
+
+- Full dynamic PE computes 960 eigendecompositions per window; the CUDA workspace across B×T can add several GB.
+- Remedies, in order: increase `semi_dynamic_interval`, reduce `batch_size`, or (as a last resort) disable dynamic PE.

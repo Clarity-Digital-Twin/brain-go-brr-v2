@@ -1,5 +1,9 @@
 # HARDWARE REALITY CHECK: Can V3 + Full Dynamic PE Fit on RTX 4090?
 
+> Archived note: Hardware‑specific recommendations are summarized in
+> `docs/05-training/local.md` and `docs/08-operations/performance-optimization.md`.
+> See `docs/ARCHIVE_MAPPING.md`.
+
 ## THE ABSOLUTE TRUTH
 
 ### Hardware Constraint

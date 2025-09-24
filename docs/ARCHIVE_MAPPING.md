@@ -1,9 +1,9 @@
 # Archive → Canonical Mapping
 
-This maps historical docs in `docs/archive/` to their new canonical homes. Content migration can proceed file-by-file.
+This maps historical and root docs under `docs/` to their canonical homes in the 0X structure. The 0X docs are now the single source of truth (SSOT). Root loose files have been archived in `docs/archive/`.
 
 - `docs/archive/architecture.md` → `docs/04-model/v3-architecture.md` and `docs/00-overview/architecture-summary.md`
-- `docs/archive/V3_ACTUAL.md` → `docs/04-model/v3-architecture.md` (cross-link; canonical truth remains `V3_ARCHITECTURE_AS_IMPLEMENTED.md`)
+- `docs/archive/V3_ACTUAL.md` → `docs/04-model/v3-architecture.md` (SSOT)
 - `docs/archive/mamba.md` → `docs/04-model/mamba.md`
 - `docs/archive/mamba-kernels.md` → `docs/04-model/mamba.md`
 - `docs/archive/flow-diagram.md` → `docs/00-overview/architecture-summary.md`
@@ -31,3 +31,18 @@ This maps historical docs in `docs/archive/` to their new canonical homes. Conte
 - `docs/archive/comparison.md` → `docs/00-overview/architecture-summary.md`
 
 TUH/TUSZ material remains under `docs/tusz/` and is linked from `docs/02-data/overview.md`.
+
+Root docs moved to archive (now summarized in 0X)
+
+- `docs/ARCHITECTURE_STATUS_REPORT.md` → `docs/04-model/v3-architecture.md`, `docs/00-overview/architecture-summary.md`
+- `docs/V3_FINAL_STATUS.md` → `docs/04-model/v3-architecture.md`
+- `docs/V3_ARCHITECTURE_AS_IMPLEMENTED.md` → `docs/04-model/v3-architecture.md`
+- `docs/CONFIG_STATUS_FINAL.md` → `docs/03-configuration/local-configs.md`, `docs/03-configuration/modal-configs.md`, `docs/05-training/local.md`
+- `docs/MODAL_CONFIG_STATUS.md` → `docs/03-configuration/modal-configs.md`
+- `docs/OPTIMAL_RTX4090_CONFIG.md` → `docs/03-configuration/local-configs.md`, `docs/05-training/local.md`, `docs/08-operations/performance-optimization.md`
+- `docs/DYNAMIC_PE_MEMORY_SOLUTION.md` → `docs/04-model/gnn.md`, `docs/08-operations/performance-optimization.md`
+- `docs/OOM_ROOT_CAUSE_ANALYSIS.md` → `docs/08-operations/troubleshooting.md`
+- `docs/HARDWARE_REALITY_CHECK.md` → `docs/05-training/local.md`, `docs/08-operations/performance-optimization.md`
+- `docs/LITERATURE_ANSWERS.md` → `docs/04-model/v3-architecture.md`, `docs/00-overview/architecture-summary.md`
+- `docs/FINAL_QUESTIONS.md` → `docs/04-model/v3-architecture.md`
+- `docs/TEST_FIX_SUMMARY.md` → `docs/09-development/testing.md`

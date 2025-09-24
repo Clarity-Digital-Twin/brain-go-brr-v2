@@ -1,6 +1,4 @@
-# V3 Architecture (Ground Truth)
-
-Canonical reference: `V3_ARCHITECTURE_AS_IMPLEMENTED.md`.
+# V3 Architecture (Single Source of Truth)
 
 Flow
 
@@ -39,3 +37,11 @@ Where in code
 - GNN (vectorized; PE configurable): `src/brain_brr/models/gnn_pyg.py`
 - Mamba layers: `src/brain_brr/models/mamba.py`
 - TCN encoder + head: `src/brain_brr/models/tcn.py`
+
+Status and validated decisions
+
+- Dynamic Laplacian PE: enabled by default; numerically stable with degree clamp, diagonal regularization, NaN/Inf checks, cached‑PE fallback, and final nan_to_num.
+- Graph sparsity: top‑k=3 validated by EvoBrain (“top‑3 neighbors kept”); threshold prune, symmetry, identity fallback for safety.
+- Temporal → spatial order: time‑then‑graph validated by literature; vectorized over timesteps for efficiency.
+- Node stream capacity: 64 dims (1216 total) sufficient; can ablate 128 later.
+- Bidirectional SSM: BiMamba2 for 60s windows (offline); causal variant optional for streaming.

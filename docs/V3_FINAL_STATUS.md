@@ -134,3 +134,6 @@ git checkout -b feature/stft-sidebranch
 ---
 
 **BOTTOM LINE: V3 is production-ready. Ship it! 🚀**
+
+> Archived note: This summary is reflected in `docs/04-model/v3-architecture.md`.
+> See `docs/ARCHIVE_MAPPING.md`.

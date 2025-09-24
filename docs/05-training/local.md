@@ -14,8 +14,20 @@ Recommendations
 
 - `mixed_precision: false`
 - `use_balanced_sampling: true`
-- `batch_size: 12`
 - WSL2: `num_workers: 0`
+
+Recommended V3 profile (RTX 4090, 24GB)
+
+- `training.batch_size: 4`
+- `model.graph.use_dynamic_pe: true`
+- `model.graph.semi_dynamic_interval: 5`  (compute PE every 5 timesteps)
+- `training.gradient_clip: 0.5`
+- `training.warmup_ratio: 0.10`
+
+Notes
+
+- The above profile fits comfortably on 24GB VRAM with dynamic PE and has negligible accuracy impact vs full dynamic.
+- If you absolutely need full dynamic (`semi_dynamic_interval: 1`) on 4090, reduce `batch_size` to ~3.
 
 Cache and manifest
 
@@ -33,6 +45,12 @@ Quick fixes (if local training gets stuck or unstable)
 - Dataloader hangs (WSL2): set `data.num_workers: 0` in your config.
 - NaN losses (RTX 4090): set `training.mixed_precision: false`, reduce `batch_size`, consider lowering `learning_rate`.
 - GPU OOM: reduce `batch_size` or enable gradient accumulation.
+
+Memory levers for dynamic PE
+
+- Prefer `semi_dynamic_interval: 5–10` before turning dynamic PE off.
+- If still tight on memory, reduce `batch_size` (linear memory scaling).
+- A chunked PE path can further reduce memory, but is optional (not required for typical runs).
 
 After crash or restart
 

@@ -19,7 +19,7 @@ Model size and stack
 
 Authoritative sources
 
-- Ground truth: `V3_ARCHITECTURE_AS_IMPLEMENTED.md`
+- Architecture: `docs/04-model/v3-architecture.md`
 - Core code: `src/brain_brr/models/detector.py`, `src/brain_brr/models/edge_features.py`, `src/brain_brr/models/gnn_pyg.py`, `src/brain_brr/models/mamba.py`, `src/brain_brr/models/tcn.py`
 
 Data and preprocessing

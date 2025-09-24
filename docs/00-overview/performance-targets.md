@@ -14,7 +14,7 @@ Training times (typical)
 
 Resource usage
 
-- VRAM: 12–20GB (RTX 4090, batch ~8–12); 40–60GB (A100, batch ~48–64)
+- VRAM: ~16GB (RTX 4090 with V3, batch 4, semi‑dynamic interval 5); 40–60GB (A100 with full dynamic, batch 64)
 - Cache size: ~50GB processed NPZ files
 - Checkpoint: ~125MB per epoch
 

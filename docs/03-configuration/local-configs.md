@@ -6,10 +6,36 @@ Key recommendations
 
 - `data.cache_dir: cache/tusz`
 - `data.num_workers: 0` (WSL2 stability); if native Linux, try 4 with `pin_memory: true` and `persistent_workers: true`.
-- `training.batch_size: 12` (V3 uses more memory than V2)
 - `training.mixed_precision: false` (RTX 4090 NaN stability)
 - `data.use_balanced_sampling: true` for full runs; false for smoke (BGB_LIMIT_FILES)
-- `model.graph.use_dynamic_pe: true` (dynamic PE recommended for V3; set false only if you need extra headroom)
+- `model.graph.use_dynamic_pe: true` (recommended for V3)
+
+Optimal V3 (RTX 4090) snippet
+
+```yaml
+training:
+  batch_size: 4
+  mixed_precision: false
+  gradient_clip: 0.5
+  warmup_ratio: 0.10
+model:
+  architecture: v3
+  graph:
+    enabled: true
+    use_dynamic_pe: true
+    semi_dynamic_interval: 5
+    edge_features: cosine
+    edge_top_k: 3
+    edge_threshold: 1.0e-4
+    edge_mamba_layers: 2
+    edge_mamba_d_state: 8
+    edge_mamba_d_model: 16
+    n_layers: 2
+    dropout: 0.1
+    use_residual: true
+    alpha: 0.05
+    k_eigenvectors: 16
+```
 
 Minimal V3 snippet
 

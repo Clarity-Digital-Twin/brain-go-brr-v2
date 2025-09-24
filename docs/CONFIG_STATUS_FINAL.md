@@ -1,5 +1,8 @@
 # Configuration Status - FINAL CHECK ✅
 
+> Archived note: Canonical configuration lives under `docs/03-configuration/` and `docs/05-training/`.
+> See `docs/ARCHIVE_MAPPING.md` for where this content was integrated.
+
 ## Local Configs (RTX 4090 - 24GB VRAM)
 
 ### ✅ train.yaml - OPTIMIZED

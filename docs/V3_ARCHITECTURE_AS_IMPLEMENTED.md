@@ -1,6 +1,7 @@
 # V3 Architecture: As Implemented (Ground Truth)
 
-This file mirrors the canonical doc at `docs/architecture/V3_ACTUAL.md` and is aligned to the current code. Prefer that path for the most up‑to‑date version.
+> Archived note: Canonical and up‑to‑date architecture now lives at
+> `docs/04-model/v3-architecture.md`. See `docs/ARCHIVE_MAPPING.md`.
 
 ## High‑Level Flow
 
@@ -53,5 +54,4 @@ Notes
 - Edge `D=edge_mamba_d_model` is configurable (default 16) and must be multiple of 8.
 - Mamba fallbacks only occur if `mamba-ssm` is unavailable or forced (`SEIZURE_MAMBA_FORCE_FALLBACK=1`).
 
-For a comprehensive walk‑through (including complexity and test status), see `docs/architecture/V3_ACTUAL.md`.
-
+For a comprehensive walk‑through (including complexity and test status), see `docs/04-model/v3-architecture.md`.

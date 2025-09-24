@@ -1,5 +1,8 @@
 # Test Suite Fix Summary (2025-09-24)
 
+> Archived note: Test stability guidance is reflected in
+> `docs/09-development/testing.md`. See `docs/ARCHIVE_MAPPING.md`.
+
 ## ✅ All Tests Now Passing
 
 Fixed critical test failures and improved test suite reliability with memory-safe configurations and proper timeout handling.

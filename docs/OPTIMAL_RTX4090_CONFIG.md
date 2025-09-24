@@ -1,5 +1,9 @@
 # OPTIMAL RTX 4090 CONFIGURATION FOR V3
 
+> Archived note: The recommended RTX 4090 profile is captured in
+> `docs/03-configuration/local-configs.md` and `docs/05-training/local.md`.
+> See `docs/ARCHIVE_MAPPING.md`.
+
 ## THE BEST BALANCED CONFIGURATION
 
 ### Core Settings (SAFE + FAST + FULL FEATURES)

@@ -1,5 +1,9 @@
 # P0: V3 Training OOM - Root Cause Analysis
 
+> Archived note: OOM causes and mitigations are summarized in
+> `docs/08-operations/troubleshooting.md` and `docs/08-operations/performance-optimization.md`.
+> See `docs/ARCHIVE_MAPPING.md`.
+
 ## Executive Summary
 **CRITICAL**: V3 training fails immediately (batch 1) with OOM on RTX 4090 (24GB).
 - **Memory Used**: 14.44 GB allocated + 1.74 GB reserved = 16.18 GB

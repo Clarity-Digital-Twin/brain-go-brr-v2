@@ -1,5 +1,9 @@
 # Literature Answers for V3 Architecture Questions
 
+> Archived note: Key literature validations are summarized in
+> `docs/04-model/v3-architecture.md` and `docs/00-overview/architecture-summary.md`.
+> See `docs/ARCHIVE_MAPPING.md`.
+
 ## 1. Graph Sparsity (k value) - ANSWERED FROM LITERATURE ✅
 
 ### **EvoBrain Paper Finding:**

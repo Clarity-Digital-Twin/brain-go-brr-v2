@@ -45,3 +45,9 @@ Code references
 - GNN: `src/brain_brr/models/gnn_pyg.py`
 - Mamba: `src/brain_brr/models/mamba.py`
 - TCN/Head: `src/brain_brr/models/tcn.py`
+
+Validated decisions (concise)
+
+- k=3 sparsity (EvoBrain): exact match, no change needed.
+- Time‑then‑graph ordering: temporal first (TCN+BiMamba), spatial next (GNN), vectorized for efficiency.
+- Dynamic PE: enabled with stability guards; semi‑dynamic interval recommended on 24GB VRAM.

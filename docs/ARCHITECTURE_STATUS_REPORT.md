@@ -1,5 +1,9 @@
 # V3 Architecture Status Report - Ready for Training
 
+> Archived note: This document has been consolidated into the 0X SSOT.
+> See `docs/04-model/v3-architecture.md` and `docs/00-overview/architecture-summary.md`.
+> For a full mapping, refer to `docs/ARCHIVE_MAPPING.md`.
+
 ## ✅ **FULLY RESOLVED QUESTIONS**
 
 ### 1. **Dynamic Laplacian PE** ✅

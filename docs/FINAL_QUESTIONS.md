@@ -1,5 +1,8 @@
 # FINAL QUESTIONS: V3 Architecture Critical Analysis
 
+> Archived note: Answers incorporated into `docs/04-model/v3-architecture.md` and
+> `docs/00-overview/architecture-summary.md`. See `docs/ARCHIVE_MAPPING.md`.
+
 ## ✅ **COMPLETED ITEMS**
 
 ### **1. Dynamic Laplacian PE** ✅ **[IMPLEMENTED & FIXED]**

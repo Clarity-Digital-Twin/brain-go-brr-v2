@@ -7,7 +7,7 @@ Resources
 
 Training
 
-- `training.batch_size: 48–64` (depends on VRAM)
+- `training.batch_size: 64` (A100‑80GB)
 - `training.mixed_precision: true` (A100 tensor cores)
 - `loss: focal` with `focal_alpha: 0.5`, `focal_gamma: 2.0`
 
@@ -20,6 +20,7 @@ Graph and V3
 
 - `model.architecture: v3`
 - `graph.enabled: true` with edge stream and vectorized GNN defaults
+- `graph.use_dynamic_pe: true` with `semi_dynamic_interval: 1` (full dynamic on A100)
 
 Commands
 
