@@ -365,7 +365,7 @@ class SeizureDetector(nn.Module):
             try:
                 from .gnn_pyg import GraphChannelMixerPyG
 
-                # V3 uses vectorized GNN with static PE
+                # V3 uses vectorized GNN with configurable PE
                 is_v3 = cfg.architecture == "v3"
                 instance.gnn = GraphChannelMixerPyG(
                     d_model=64,  # Per-electrode feature dimension
@@ -377,8 +377,10 @@ class SeizureDetector(nn.Module):
                     dropout=graph_cfg.dropout,
                     use_residual=graph_cfg.use_residual,
                     use_vectorized=is_v3,  # V3: vectorized batching
-                    use_dynamic_pe=False,  # V3: static PE
+                    use_dynamic_pe=graph_cfg.use_dynamic_pe,  # Configurable PE mode
                     bypass_edge_transform=is_v3,  # V3: skip since we have Softplus upstream
+                    semi_dynamic_interval=graph_cfg.semi_dynamic_interval,
+                    pe_sign_consistency=graph_cfg.pe_sign_consistency,
                 )
             except ImportError as e:
                 raise ImportError(
