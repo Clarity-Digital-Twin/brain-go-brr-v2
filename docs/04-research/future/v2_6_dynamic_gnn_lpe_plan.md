@@ -269,7 +269,7 @@ graph = [
     "torch-cluster",
 ]
 
-# Install with: uv sync -E graph
+# Prefer: make setup-gpu (installs PyG from prebuilt wheels for torch 2.2.2+cu121)
 ```
 
 ### 2.2 Enhanced GNN with PyG
@@ -641,7 +641,7 @@ experiment:
 
 ### Phase 2: PyG Integration (Days 3-4)
 - [ ] Add graph extras to `pyproject.toml`
-- [ ] Run `uv sync -E graph`
+- [ ] Run `make setup-gpu` (installs PyG prebuilt wheels)
 - [ ] Create `src/brain_brr/models/gnn_pyg.py`
 - [ ] Add PyG tests
 - [ ] Switch config `use_pyg: true`
@@ -705,8 +705,8 @@ edge_threshold = 1e-4
 make test-fast
 pytest -q tests/unit/models/test_gnn.py -q
 
-# Phase 2: Test with PyG
-uv sync -E graph
+# Phase 2: Test with PyG (ensure PyG installed)
+# Prefer: make setup-gpu (installs prebuilt PyG wheels)
 make test-gpu
 
 # Phase 3: Run full training (Modal)
