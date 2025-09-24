@@ -202,8 +202,8 @@ class SeizureDetector(nn.Module):
 
             # Learnable lift 1→8 channels for CUDA alignment & capacity
             edge_flat = edge_feats.squeeze(-1).reshape(batch_size * 171, 1, seq_len)  # (B*E,1,T)
-            edge_in = self.edge_in_proj(edge_flat).contiguous()
-            edge_processed = self.edge_mamba(edge_in)  # (B*E, 8, T)
+            edge_in = self.edge_in_proj(edge_flat).contiguous()  # (B*E, D, T) where D=16
+            edge_processed = self.edge_mamba(edge_in)  # (B*E, D, T)
             edge_out = self.edge_out_proj(edge_processed)  # (B*E, 1, T)
             edge_weights = self.edge_activate(edge_out).reshape(batch_size, 171, seq_len)  # (B,E,T)
 
@@ -293,11 +293,12 @@ class SeizureDetector(nn.Module):
                 dropout=cfg.mamba.dropout,
             )
 
-            # Edge stream: per-edge Mamba (learned lift 1→8)
+            # Edge stream: per-edge Mamba (learned lift 1→D→1)
             edge_layers = graph_cfg.edge_mamba_layers if graph_cfg else 2
             edge_d_state = graph_cfg.edge_mamba_d_state if graph_cfg else 8
+            edge_d_model = graph_cfg.edge_mamba_d_model if graph_cfg else 16
             instance.edge_mamba = BiMamba2(
-                d_model=8,
+                d_model=edge_d_model,
                 d_state=edge_d_state,
                 d_conv=4,
                 num_layers=edge_layers,
@@ -305,8 +306,8 @@ class SeizureDetector(nn.Module):
             )
 
             # Edge stream projections (learned lift/project) + activation
-            instance.edge_in_proj = nn.Conv1d(1, 8, kernel_size=1, bias=False)
-            instance.edge_out_proj = nn.Conv1d(8, 1, kernel_size=1, bias=True)
+            instance.edge_in_proj = nn.Conv1d(1, edge_d_model, kernel_size=1, bias=False)
+            instance.edge_out_proj = nn.Conv1d(edge_d_model, 1, kernel_size=1, bias=True)
             instance.edge_activate = nn.Softplus()
 
             # Projections for electrode space

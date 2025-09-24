@@ -39,7 +39,9 @@ class TestDetectorV3:
         # Check v3 components exist
         assert detector.node_mamba is not None
         assert detector.edge_mamba is not None
-        assert detector.edge_head is not None
+        assert detector.edge_in_proj is not None
+        assert detector.edge_out_proj is not None
+        assert detector.edge_activate is not None
         assert detector.proj_to_electrodes is not None
         assert detector.proj_from_electrodes is not None
 
@@ -155,7 +157,9 @@ class TestDetectorV3:
         # Check v3 components are not created
         assert detector.node_mamba is None
         assert detector.edge_mamba is None
-        assert detector.edge_head is None
+        assert detector.edge_in_proj is None
+        assert detector.edge_out_proj is None
+        assert detector.edge_activate is None
 
         # Test forward pass
         x = torch.randn(1, 19, 15360)

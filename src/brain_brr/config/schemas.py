@@ -176,6 +176,9 @@ class GraphConfig(BaseModel):
     edge_threshold: float = Field(default=1e-4, ge=0.0, description="Edge weight cutoff for v3")
     edge_mamba_layers: int = Field(default=2, ge=1, le=6, description="Edge Mamba layers")
     edge_mamba_d_state: int = Field(default=8, ge=4, le=64, description="Edge Mamba state dim")
+    edge_mamba_d_model: int = Field(
+        default=16, ge=8, le=64, description="Edge Mamba model dim (must be multiple of 8)"
+    )
 
     # GNN architecture
     n_layers: int = Field(default=2, ge=1, le=4, description="Graph neural network layers")
