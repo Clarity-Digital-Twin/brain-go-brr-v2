@@ -63,6 +63,11 @@ model:
     alpha: 0.05                # SSGConv mixing
     k_eigenvectors: 16         # Laplacian PE dimension
 
+    # Dynamic PE config (v3)
+    use_dynamic_pe: false      # Set to true to test dynamic PE
+    semi_dynamic_interval: 1   # Update PE every N timesteps (1=fully dynamic)
+    pe_sign_consistency: true  # Fix eigenvector signs for stability
+
 data:
   dataset: tuh_eeg
   data_dir: data_ext4/tusz/edf/train

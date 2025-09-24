@@ -137,7 +137,8 @@
       "Bash(.venv/bin/ruff check src/brain_brr/train/loop.py --fix)",
       "Bash(.venv/bin/pip:*)",
       "Bash(git reset:*)",
-      "Bash(.venv/bin/ruff check src/brain_brr/models/edge_features.py tests/unit/models/test_edge_features.py --fix --unsafe-fixes)"
+      "Bash(.venv/bin/ruff check src/brain_brr/models/edge_features.py tests/unit/models/test_edge_features.py --fix --unsafe-fixes)",
+      "Bash(BGB_SMOKE_TEST=1 .venv/bin/python -m src train configs/local/smoke.yaml --model.graph.use_dynamic_pe true)"
     ],
     "deny": [],
     "ask": []
