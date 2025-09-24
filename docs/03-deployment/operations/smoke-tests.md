@@ -57,6 +57,9 @@ What they do not validate
 ## Quick Checklist
 - Set `BGB_SMOKE_TEST=1` for smoke; unset for real training.
 - Limit files (`BGB_LIMIT_FILES=2`) for fast I/O.
+- Select architecture in the config:
+  - Baseline: `model.architecture: tcn`
+  - Dual‑stream v3: `model.architecture: v3` (vectorized GNN + static PE)
 - Expect an initial LR scheduler warning on first batch to be suppressed or harmless.
 - Verify batch seizure ratio only on real runs; smoke runs may be uniform.
 

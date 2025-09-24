@@ -1,4 +1,9 @@
-# 🧠🔥 v2.6 Dynamic GNN + LPE - COMPLETE IMPLEMENTATION GUIDE
+# [ARCHIVED] 🧠🔥 v2.6 Dynamic GNN + LPE — COMPLETE IMPLEMENTATION GUIDE
+
+Status: Archived. This plan has been superseded by the v3 dual‑stream architecture with learned edge lift (1→D→1), vectorized PyG GNN over all timesteps, and static Laplacian PE.
+
+Canonical documentation: `docs/02-model/architecture/v3_tcn_evobrain_hybrid.md`
+
 
 ## 🎯 EXECUTIVE SUMMARY
 Add Dynamic GNN with Laplacian PE after Bi‑Mamba in the TCN path, driven by a learned adjacency from an edge Mamba stream (no heuristic cosine/correlation graphs). EvoBrain reports +23% AUROC and +30% F1 over its dynamic‑GNN baseline; treat as directional guidance, not guaranteed here.

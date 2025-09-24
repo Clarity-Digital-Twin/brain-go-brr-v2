@@ -22,7 +22,7 @@ Core commands (Modal CLI)
 - Evaluate checkpoint:
   - `modal run deploy/modal/app.py --action evaluate --config /results/tcn_full_100ep/checkpoints/best.pt`
 
-Build/scan cache inside the container
+ Build/scan cache inside the container
 - Build cache:
   - `python -m src build-cache --data-dir /data/edf/train --cache-dir /results/cache/tusz/train`
 - Scan manifest:
@@ -32,10 +32,9 @@ Build/scan cache inside the container
 
 Cost control
 - Build cache once to `/results/cache/...` and reuse across runs (Modal volume is persistent).
-- Enable mixed precision and use batch_size=128 on A100 for 4–6x throughput.
+- Enable mixed precision and use a batch size appropriate for v3 dual‑stream (default 48; raise if VRAM permits).
 - Always validate manifest before launching large GPU jobs.
-- If batches show 0% seizures early: stop run and fix CSV/paths; re-scan manifest.
-- With these settings: ~100 hours (~$319) instead of ~1000 hours (~$3,190)
+- If batches show 0% seizures early: stop run and fix CSV/paths; re‑scan manifest.
 
 Observability & logging
 - Real-time logs are enabled (PYTHONUNBUFFERED=1); add `flush=True` to prints for critical steps.
@@ -46,7 +45,7 @@ Observability & logging
   - Stop: `modal app stop <app-id>`
  - Training emits manifest checks: look for `[CACHE]`, `[DATA] Built manifest ...`, and `[DATASET] BalancedSeizureDataset ...` lines
 
-CUDA/Mamba notes (CRITICAL - Must Match Local Setup)
+CUDA/Mamba notes (CRITICAL — must match local setup)
 - CUDA kernels coerce unsupported `d_conv` to 4 automatically.
 - Force Conv1d fallback if needed: `SEIZURE_MAMBA_FORCE_FALLBACK=1`.
 - The image MUST compile mamba-ssm from source against PyTorch 2.2.2+cu121.
@@ -77,15 +76,16 @@ Storage Architecture
   - `/results/wandb/` - W&B logs
 - **Key fact**: Cache is built directly to Modal SSD, never touches S3
 
-Performance Settings (A100 Optimized)
-- **Batch size**: 128 (uses full 80GB VRAM)
-- **Mixed precision**: true (A100 is 3.8x faster at FP16 than FP32)
+Performance Settings (A100 optimized)
+- **Architecture**: `model.architecture: v3` (dual‑stream with vectorized GNN + static PE)
+- **Batch size**: 48 by default for v3; increase if headroom remains
+- **Mixed precision**: true (A100 tensor cores)
 - **W&B entity**: Team name if using team API key (e.g., `jj-vcmcswaggins-novamindnyc`)
-- **Expected performance**: ~5s/batch, ~1hr/epoch, ~100hrs total (~$319)
+- **Throughput**: sub‑second to few‑seconds per batch (env‑dependent; validate via smoke)
 
 Troubleshooting
 - 0 windows in BalancedSeizureDataset: re-scan manifest; fix CSV_BI parser; rebuild cache.
-- **Slow training (~48s/batch)**: Usually FP32 and/or small batch. Set `mixed_precision: true` and `batch_size: 128`. Verify cache exists at `/results/cache/tusz/train` (it is built on first run and reused).
+- **Slow training**: Usually FP32 and/or per‑timestep GNN loops. Use `mixed_precision: true`, ensure v3 is selected (vectorized GNN), and verify cache exists at `/results/cache/tusz/train`.
 - Memory errors: reduce batch size; verify A100 profile in config; prefer mixed precision.
 - Empty/stale manifest on `/results`: training now validates/deletes bad manifests and rebuilds from existing cache automatically. To force a rebuild regardless, set `BGB_FORCE_MANIFEST_REBUILD=1`.
 - **W&B not logging**: Check entity name in config and WANDB_API_KEY in secrets
