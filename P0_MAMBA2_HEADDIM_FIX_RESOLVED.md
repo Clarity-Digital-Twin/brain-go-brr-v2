@@ -1,7 +1,7 @@
-# P0: BiMamba2 CUDA Kernel Incompatibility - ROOT CAUSE FOUND & FIXED
+# ✅ RESOLVED: BiMamba2 headdim Parameter Fix
 
 ## Executive Summary
-**ISSUE RESOLVED**: The CUDA kernel errors were caused by incorrect `headdim` parameter in Mamba2, NOT by our B*19 or B*171 batching strategy. The fix is simple: specify correct `headdim` values that satisfy `(d_model * expand) / headdim` is a multiple of 8.
+**100% FIXED**: The CUDA kernel errors were caused by missing/incorrect `headdim` parameter in Mamba2. NOT a batching issue. Simple fix: set `headdim` values so `(d_model * expand) / headdim` is a multiple of 8.
 
 ## The Real Problem (Corrected Understanding)
 

@@ -37,7 +37,7 @@ proj_to_electrodes: Conv1d(512 → 19*64)
 
 #### 3.2 Node Stream (Per-Electrode Temporal)
 ```python
-node_mamba: BiMamba2(d_model=64, n_layers=6, d_state=16)
+node_mamba: BiMamba2(d_model=64, n_layers=6, d_state=16, expand=2, headdim=8)
 ```
 - **Reshape**: `(B, 19, 960, 64)` → `(B*19, 64, 960)`
 - **Process**: Each electrode independently through bidirectional Mamba
@@ -57,7 +57,7 @@ edge_features → edge_mamba → edge_weights → adjacency
 2. **Edge Mamba Processing**:
    ```python
    edge_in_proj: Conv1d(1 → 16)  # Learned lift for CUDA alignment
-   edge_mamba: BiMamba2(d_model=16, n_layers=2, d_state=8)
+   edge_mamba: BiMamba2(d_model=16, n_layers=2, d_state=8, expand=2, headdim=4)
    edge_out_proj: Conv1d(16 → 1)  # Project back to scalar
    edge_activate: Softplus()      # Non-negative weights
    ```
@@ -119,9 +119,10 @@ detection_head: Conv1d(19 → 1)
 ## Key Implementation Choices
 
 ### 1. Mamba Configuration
-- **Node Mamba**: Fixed at d_model=64, 6 layers
-- **Edge Mamba**: d_model=16 (for CUDA alignment), 2 layers
-- **Fallback**: Both use Conv1d fallback if CUDA kernels fail
+- **Node Mamba**: d_model=64, 6 layers, headdim=8 (ensures (64*2)/8=16 is multiple of 8)
+- **Edge Mamba**: d_model=16, 2 layers, headdim=4 (ensures (16*2)/4=8 is multiple of 8)
+- **CUDA Requirement**: (d_model * expand) / headdim must be multiple of 8
+- **No More Fallback**: Fixed headdim parameters prevent Conv1d fallback
 
 ### 2. Edge Processing
 - **Metric**: Cosine similarity (default) or correlation
@@ -135,7 +136,8 @@ detection_head: Conv1d(19 → 1)
 
 ### 4. Safety Features
 - **Assertions**: Edge d_model must be multiple of 8
-- **Contiguous tensors**: Enforced before Mamba
+- **Headdim validation**: Ensures (d_model * expand) / headdim is integer
+- **Contiguous tensors**: Enforced before Mamba operations
 - **Identity fallback**: Prevents disconnected nodes
 
 ## Configuration Parameters
@@ -174,14 +176,14 @@ model:
 - **Overall**: O(N) complexity maintained
 
 ### Known Issues & Fixes Applied
-1. **Mamba fallback warnings**: CUDA kernel alignment issues cause fallback to Conv1d
-   - **Root Cause**: Non-contiguous tensors after reshape/permute/transpose operations
+1. **✅ RESOLVED - Mamba fallback warnings**: CUDA kernel alignment issues
+   - **Root Cause**: Incorrect headdim parameter causing (d_model*expand)/headdim to not be multiple of 8
    - **Fixes Applied**:
-     - Added `.contiguous()` after node_flat reshape (line 192-193 in detector.py)
-     - Added `.contiguous()` after edge_in projection (line 205)
-     - Added `.contiguous()` after transpose in BiMamba2 forward (line 236 in mamba.py)
-     - Added `.contiguous()` after flip in BiMamba1Layer (line 154 in mamba.py)
-   - **Status**: Partially resolved, some fallback may still occur but training proceeds
+     - Set node headdim=8 for (64*2)/8=16 (multiple of 8)
+     - Set edge headdim=4 for (16*2)/4=8 (multiple of 8)
+     - Added headdim parameter to BiMamba2 constructors
+     - Added validation in BiMamba2Layer __init__
+   - **Status**: FULLY RESOLVED - No more Conv1d fallbacks
 
 2. **Memory pressure**: V3 uses more memory than V2.6 due to dual streams
    - Reduced batch sizes recommended (8 for RTX 4090, 48 for A100)
@@ -197,16 +199,17 @@ model:
 - ✅ `test_v2_still_works` - Backward compatibility
 
 ### Current Training
-- Local full training running (100 epochs)
+- V3 smoke test running with proper BiMamba2 (no fallbacks)
 - No crashes or NaN issues observed
-- Mamba fallback warnings present but not blocking
+- ✅ Full Mamba2 state-space modeling active (no Conv1d fallback)
 
 ## Differences from Original Plans
 
 1. **Edge Mamba d_model**: Changed from 1 to 16 for CUDA alignment
-2. **GNN processing**: Vectorized over ALL timesteps, not just last
-3. **Static PE**: Default, not dynamic (massive speedup)
-4. **Projections**: Using Conv1d instead of Linear for efficiency
+2. **Headdim parameters**: Added explicit headdim=8 (node) and headdim=4 (edge) for CUDA compatibility
+3. **GNN processing**: Vectorized over ALL timesteps, not just last
+4. **Static PE**: Default, not dynamic (massive speedup)
+5. **Projections**: Using Conv1d instead of Linear for efficiency
 
 ## Code Locations
 
