@@ -9,4 +9,4 @@ Planned
 
 - Edge stream refinements and potential further vectorization
 
-Historical documents: see `docs/docs/archive/`.
+Historical documents: see `docs/archive/`.

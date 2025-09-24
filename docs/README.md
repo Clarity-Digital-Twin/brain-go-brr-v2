@@ -1,6 +1,6 @@
 # Brain-Go-Brr Docs Home
 
-This is the canonical, current documentation for the codebase. Historical material lives in `docs/docs/archive/`. TUH-specific guides live in `docs/docs/tusz/` (do not modify from here).
+This is the canonical, current documentation for the codebase. Historical material lives in `docs/archive/`. TUH-specific guides live in `docs/tusz/` (do not modify from here).
 
 Sections
 
