@@ -17,7 +17,10 @@ try:
     HAS_PYG = True
 except ImportError:
     HAS_PYG = False
-    warnings.warn("PyTorch Geometric not installed. Install with: uv sync -E graph", stacklevel=2)
+    warnings.warn(
+        "PyTorch Geometric not installed. Install from prebuilt wheels (see INSTALLATION.md) or run 'make setup-gpu'",
+        stacklevel=2,
+    )
 
 
 class GraphChannelMixerPyG(nn.Module):
@@ -48,7 +51,7 @@ class GraphChannelMixerPyG(nn.Module):
 
         if not HAS_PYG:
             raise ImportError(
-                "PyTorch Geometric required for this module. Install with: uv sync -E graph"
+                "PyTorch Geometric required. Install from prebuilt wheels (see INSTALLATION.md) or run 'make setup-gpu'"
             )
 
         self.d_model = d_model
