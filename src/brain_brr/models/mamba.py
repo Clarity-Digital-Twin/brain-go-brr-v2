@@ -151,7 +151,7 @@ class BiMamba2Layer(nn.Module):
                 raise
 
         # Backward direction (flip sequence)
-        x_backward = x.flip(dims=[1])
+        x_backward = x.flip(dims=[1]).contiguous()  # Ensure contiguous after flip
         try:
             if use_mamba and self.backward_mamba_real is not None:
                 x_backward = self.backward_mamba_real(x_backward)
@@ -233,7 +233,7 @@ class BiMamba2(nn.Module):
             Temporal output (B, C, L)
         """
         # Transpose for sequence processing: (B, L, C)
-        x = x.transpose(1, 2)
+        x = x.transpose(1, 2).contiguous()  # Ensure contiguous for CUDA kernels
 
         # Process through bidirectional layers
         for layer in self.layers:
