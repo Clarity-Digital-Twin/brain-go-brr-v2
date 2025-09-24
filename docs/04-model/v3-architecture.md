@@ -11,12 +11,20 @@ Flow
 - Vectorized GNN (SSGConv×2 + Laplacian PE) over all timesteps → `(B,19,960,64)`
 - Back‑project to `(B,512,960)` → ProjectionHead to `(B,19,15360)` → Conv1d(19→1) logits `(B,15360)`
 
+Optional enhancement
+
+- Lightweight time–frequency hybrid: add a 3‑band STFT side‑branch and fuse before `proj_to_electrodes`. See `docs/04-model/time-frequency-hybrid.md`.
+
 Key parameters
 
 - Node Mamba: d_model=64, n_layers=6, d_state=16, d_conv=4, expand=2, headdim=8
 - Edge Mamba: d_model=16, n_layers=2, d_state=8, d_conv=4, expand=2, headdim=4; 1→16→1 Conv1d lift/proj; Softplus
 - GNN: SSGConv×2, α=0.05, residuals, LayerNorm+Dropout; Laplacian PE (k=16) dynamic by default, static optional
 - TCN: 8 layers, channels [64,128,256,512], kernel 7, stride_down 16
+
+Stability notes (dynamic PE)
+
+- Degree clamp, diagonal regularization, NaN/Inf checks with cached PE fallback are implemented in `gnn_pyg.py` to prevent non‑finite logits.
 
 Constraints and guards
 
