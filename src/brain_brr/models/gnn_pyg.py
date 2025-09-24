@@ -40,6 +40,9 @@ class GraphChannelMixerPyG(nn.Module):
         n_layers: int = 2,
         dropout: float = 0.1,
         use_residual: bool = True,
+        use_vectorized: bool = True,  # V3: vectorized batching
+        use_dynamic_pe: bool = False,  # V3: static PE by default
+        bypass_edge_transform: bool = False,  # V3: skip if upstream Softplus
     ):
         super().__init__()
 
@@ -53,9 +56,16 @@ class GraphChannelMixerPyG(nn.Module):
         self.k_eigenvectors = k_eigenvectors
         self.n_layers = n_layers
         self.use_residual = use_residual
+        self.use_vectorized = use_vectorized
+        self.use_dynamic_pe = use_dynamic_pe
+        self.bypass_edge_transform = bypass_edge_transform
 
         # Laplacian PE (EvoBrain line 858)
         self.laplacian_pe = AddLaplacianEigenvectorPE(k=k_eigenvectors)
+
+        # Static PE buffer for v3 (computed once from structural graph)
+        if not use_dynamic_pe:
+            self.register_buffer("static_pe", self._compute_static_pe())
 
         # Edge weight transform (EvoBrain lines 869-870)
         self.edge_transform = nn.Linear(1, 1)
@@ -81,6 +91,117 @@ class GraphChannelMixerPyG(nn.Module):
         self.layer_norms = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(n_layers)])
         self.dropout = nn.Dropout(dropout)
 
+    def _compute_static_pe(self) -> torch.Tensor:
+        """Compute static Laplacian PE from 10-20 structural graph."""
+        from .edge_features import get_structural_adjacency
+
+        # Get structural adjacency
+        adj = get_structural_adjacency(self.n_electrodes)  # (19, 19)
+
+        # Create edge index
+        edge_indices = (adj > 0).nonzero(as_tuple=False)
+        edge_index = edge_indices.t()  # (2, E)
+
+        # Create graph data for PE computation
+        data = Data(
+            x=torch.randn(self.n_electrodes, 1),  # Dummy features
+            edge_index=edge_index,
+        )
+
+        # Compute Laplacian PE
+        data = self.laplacian_pe(data)
+
+        # Extract PE
+        if hasattr(data, "laplacian_eigenvector_pe"):
+            pe: torch.Tensor = data.laplacian_eigenvector_pe  # (19, k)
+            return pe
+        else:
+            # Fallback if PE fails
+            return torch.zeros(self.n_electrodes, self.k_eigenvectors)
+
+    def forward_vectorized(
+        self,
+        features: torch.Tensor,
+        adjacency: torch.Tensor,
+    ) -> torch.Tensor:
+        """Vectorized forward - process all graphs at once.
+
+        This is the V3 default path that processes B*T graphs in one batch,
+        avoiding the per-timestep Python loop.
+        """
+        batch_size, n_nodes, seq_len, feat_dim = features.shape
+        device = features.device
+
+        # Flatten to (B*T, N, D)
+        x = features.permute(0, 2, 1, 3).reshape(-1, n_nodes, feat_dim)  # (B*T, 19, D)
+        adj = adjacency.reshape(-1, n_nodes, n_nodes)  # (B*T, 19, 19)
+
+        # Build disjoint batch
+        edge_index_list = []
+        edge_weight_list = []
+        batch_idx = []
+
+        for i in range(batch_size * seq_len):
+            # Get edges for this graph
+            edge_indices = (adj[i] > 0).nonzero(as_tuple=False)
+            if len(edge_indices) == 0:
+                # Empty graph - add self-loop to avoid issues
+                edge_indices = torch.tensor([[0], [0]], device=device)
+                edge_weights = torch.ones(1, device=device)
+            else:
+                edge_weights = adj[i][edge_indices[:, 0], edge_indices[:, 1]]
+
+            # Offset indices for disjoint union
+            offset = i * n_nodes
+            edge_index_offset = edge_indices.t() + offset
+            edge_index_list.append(edge_index_offset)
+
+            # Edge weights (optionally transform)
+            if not self.bypass_edge_transform:
+                edge_weights = self.edge_transform(edge_weights.unsqueeze(-1))
+                edge_weights = self.edge_activate(edge_weights).squeeze(-1)
+            edge_weight_list.append(edge_weights)
+
+            # Batch assignment
+            batch_idx.extend([i] * n_nodes)
+
+        # Concatenate all
+        x_batch = x.reshape(-1, feat_dim)  # (B*T*19, D)
+        edge_index_batch = torch.cat(edge_index_list, dim=1)  # (2, E_total)
+        edge_weight_batch = torch.cat(edge_weight_list, dim=0)  # (E_total,)
+        # batch_tensor = torch.tensor(batch_idx, device=device, dtype=torch.long)  # For future use
+
+        # Add PE
+        if self.use_dynamic_pe:
+            # Dynamic PE per graph (expensive)
+            raise NotImplementedError("Dynamic PE not implemented for vectorized path")
+        else:
+            # Static PE (broadcast)
+            pe = self.static_pe.unsqueeze(0).expand(batch_size * seq_len, -1, -1)
+            pe_flat = pe.reshape(-1, self.k_eigenvectors)  # (B*T*19, k)
+            x_with_pe = torch.cat([x_batch, pe_flat], dim=-1)  # (B*T*19, D+k)
+
+        # Apply GNN layers
+        x_out = x_with_pe
+        for i, (gnn_layer, norm) in enumerate(zip(self.gnn_layers, self.layer_norms, strict=False)):
+            # First layer uses PE, others don't
+            x_in = x_out if i == 0 else x_batch
+
+            # Apply GNN
+            x_gnn = gnn_layer(x_in, edge_index_batch, edge_weight_batch)
+
+            # Residual and norm
+            if self.use_residual and i > 0:
+                x_gnn = x_gnn + x_batch
+            x_gnn = norm(x_gnn)
+            x_batch = self.dropout(x_gnn)
+
+        # Reshape back to (B, 19, T, D)
+        output = x_batch.reshape(batch_size, seq_len, n_nodes, feat_dim)
+        output = output.permute(0, 2, 1, 3)  # (B, 19, T, D)
+
+        return output
+
     def forward(
         self,
         features: torch.Tensor,
@@ -95,6 +216,11 @@ class GraphChannelMixerPyG(nn.Module):
         Returns:
             enhanced: (B, 19, T, D) enhanced features
         """
+        # Use vectorized path for v3 (default)
+        if self.use_vectorized:
+            return self.forward_vectorized(features, adjacency)
+
+        # Legacy per-timestep path (v2 compatibility)
         batch_size, n_nodes, seq_len, _ = features.shape
         device = features.device
 

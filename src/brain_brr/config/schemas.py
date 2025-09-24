@@ -160,13 +160,22 @@ class GraphConfig(BaseModel):
 
     enabled: bool = Field(default=False, description="Enable dynamic GNN stage")
 
-    # Graph construction
+    # Graph construction (v2 - heuristic)
     similarity: Literal["cosine", "correlation"] = Field(
         default="cosine", description="Node similarity metric"
     )
     top_k: int = Field(default=3, ge=1, le=18, description="Top-k neighbors per node")
     threshold: float = Field(default=1e-4, ge=0.0, description="Edge weight cutoff")
     temperature: float = Field(default=0.1, gt=0.0, description="Similarity softmax temperature")
+
+    # Edge stream config (v3 - learned adjacency)
+    edge_features: Literal["cosine", "correlation"] = Field(
+        default="cosine", description="Edge feature metric for v3"
+    )
+    edge_top_k: int = Field(default=3, ge=1, le=18, description="Top-k edges per node for v3")
+    edge_threshold: float = Field(default=1e-4, ge=0.0, description="Edge weight cutoff for v3")
+    edge_mamba_layers: int = Field(default=2, ge=1, le=6, description="Edge Mamba layers")
+    edge_mamba_d_state: int = Field(default=8, ge=4, le=64, description="Edge Mamba state dim")
 
     # GNN architecture
     n_layers: int = Field(default=2, ge=1, le=4, description="Graph neural network layers")
@@ -184,7 +193,9 @@ class ModelConfig(BaseModel):
     """Complete model architecture configuration."""
 
     name: Literal["seizure_detector"] = Field(default="seizure_detector", description="Model name")
-    architecture: Literal["tcn"] = Field(default="tcn", description="Architecture type (TCN only)")
+    architecture: Literal["tcn", "v3"] = Field(
+        default="tcn", description="Architecture type: tcn (v2) or v3 (dual-stream)"
+    )
 
     # Deprecated configs kept for backward compatibility (not used)
     encoder: EncoderConfig = Field(default_factory=EncoderConfig)

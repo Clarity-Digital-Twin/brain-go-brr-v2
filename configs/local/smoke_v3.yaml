@@ -1,0 +1,128 @@
+# V3 Stack Smoke Test: TCN + Dual-Stream (Node+Edge Mamba) + Vectorized GNN + Static PE
+# Quick validation (1 epoch) for V3 pipeline testing on RTX 4090
+# Usage: python -m src train configs/local/smoke_v3.yaml
+
+experiment:
+  name: v3_smoke
+  description: "V3 dual-stream smoke test - TCN+NodeMamba+EdgeMamba+VectorizedGNN+StaticPE"
+  seed: 42
+  output_dir: results/v3_smoke
+  device: cuda
+  save_checkpoint: true
+  save_every_n_epochs: 1
+
+model:
+  architecture: v3  # NEW V3 ARCHITECTURE!
+
+  tcn:
+    num_layers: 8
+    channels: [64, 128, 256, 512]
+    kernel_size: 7
+    dropout: 0.15
+    causal: false
+    stride_down: 16
+    use_cuda_optimizations: true
+
+  mamba:
+    n_layers: 6
+    d_model: 512
+    d_state: 16
+    conv_kernel: 4  # CUDA constraint: must be 2-4
+    dropout: 0.1
+
+  # V3 Dual-stream GNN with learned adjacency
+  graph:
+    enabled: true  # Required for V3
+
+    # V3 Edge stream config
+    edge_features: cosine  # Edge feature metric
+    edge_top_k: 3          # Top-k edges per node
+    edge_threshold: 1.0e-4 # Edge weight cutoff
+    edge_mamba_layers: 2   # Edge Mamba layers
+    edge_mamba_d_state: 8  # Edge Mamba state dim
+
+    # GNN architecture (shared with v2)
+    n_layers: 2            # 2-layer GNN
+    dropout: 0.1
+    use_residual: true     # Skip connections
+    alpha: 0.05            # SSGConv mixing
+    k_eigenvectors: 16     # Laplacian PE dimension
+
+    # V2 heuristic fields (ignored in v3)
+    similarity: cosine
+    top_k: 3
+    threshold: 1.0e-4
+    temperature: 0.1
+
+data:
+  dataset: tuh_eeg
+  data_dir: data_ext4/tusz/edf/train
+  cache_dir: cache/tusz  # Use existing cache for smoke test
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60
+  stride: 10
+  use_balanced_sampling: true   # Use BalancedSeizureDataset
+  num_workers: 0          # Zero for smoke test (WSL2 safety)
+  pin_memory: false       # Disable for smoke test
+  persistent_workers: false
+  prefetch_factor: 2
+  validation_split: 0.2
+
+preprocessing:
+  montage: "10-20"
+  bandpass: [0.5, 120.0]
+  notch_freq: 60
+  normalize: true
+  use_mne: true
+
+training:
+  epochs: 1               # Just 1 epoch for smoke
+  batch_size: 2           # Smaller for v3 (more memory intensive)
+  learning_rate: 5.0e-5   # Reduced for stability
+  weight_decay: 0.05
+  optimizer: adamw
+
+  # NaN protection
+  gradient_clip: 0.5      # Strong clipping for stability
+  mixed_precision: false  # Disabled for v3 initial testing
+
+  # Focal loss for imbalanced data
+  loss: focal
+  focal_alpha: 0.5       # Neutral alpha
+  focal_gamma: 2.0
+
+  scheduler:
+    type: cosine
+    warmup_ratio: 0.1
+
+  early_stopping:
+    patience: 5
+    metric: sensitivity_at_10fa
+
+  checkpoint_interval: 1
+
+postprocessing:
+  hysteresis:
+    tau_on: 0.86
+    tau_off: 0.78
+  morphology:
+    opening_kernel: 11
+    closing_kernel: 31
+  duration:
+    min_duration_s: 3.0
+    max_duration_s: 600.0
+  events:
+    tau_merge: 2.0
+    confidence_method: mean
+
+evaluation:
+  metrics: [taes, sensitivity, specificity, auroc]
+  fa_rates: [10, 5, 2.5, 1]
+  save_predictions: false
+  save_plots: false
+
+logging:
+  log_every_n_steps: 5   # Very frequent for v3 debugging
+  log_gradients: false
+  log_weights: false
