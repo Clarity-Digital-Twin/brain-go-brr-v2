@@ -44,7 +44,7 @@ class GraphChannelMixerPyG(nn.Module):
         dropout: float = 0.1,
         use_residual: bool = True,
         use_vectorized: bool = True,  # V3: vectorized batching
-        use_dynamic_pe: bool = False,  # V3: static PE by default
+        use_dynamic_pe: bool = True,  # V3: dynamic PE by default (EvoBrain approach)
         bypass_edge_transform: bool = False,  # V3: skip if upstream Softplus
         semi_dynamic_interval: int = 1,  # Update PE every N timesteps
         pe_sign_consistency: bool = True,  # Fix eigenvector signs

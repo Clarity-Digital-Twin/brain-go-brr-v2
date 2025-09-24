@@ -65,6 +65,11 @@ model:
     alpha: 0.05                # SSGConv mixing
     k_eigenvectors: 16         # Laplacian PE dimension
 
+    # Dynamic PE config (v3) - ALWAYS ENABLED
+    use_dynamic_pe: true       # ALWAYS use dynamic PE (EvoBrain approach)
+    semi_dynamic_interval: 1   # Update PE every N timesteps (1=fully dynamic)
+    pe_sign_consistency: true  # Fix eigenvector signs for stability
+
   decoder:
     stages: 4
     kernel_size: 4

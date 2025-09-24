@@ -64,7 +64,7 @@ model:
     k_eigenvectors: 16         # Laplacian PE dimension
 
     # Dynamic PE config (v3)
-    use_dynamic_pe: false      # Set to true to test dynamic PE
+    use_dynamic_pe: true       # ALWAYS use dynamic PE (EvoBrain approach)
     semi_dynamic_interval: 1   # Update PE every N timesteps (1=fully dynamic)
     pe_sign_consistency: true  # Fix eigenvector signs for stability
 

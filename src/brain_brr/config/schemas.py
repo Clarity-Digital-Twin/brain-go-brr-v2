@@ -193,7 +193,7 @@ class GraphConfig(BaseModel):
 
     # Dynamic PE config (v3)
     use_dynamic_pe: bool = Field(
-        default=False, description="Compute Laplacian PE per timestep (EvoBrain approach)"
+        default=True, description="Compute Laplacian PE per timestep (EvoBrain approach)"
     )
     semi_dynamic_interval: int = Field(
         default=1, ge=1, le=960, description="Update PE every N timesteps (1=fully dynamic)"
