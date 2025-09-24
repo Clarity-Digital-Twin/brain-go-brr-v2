@@ -16,8 +16,9 @@ Dual‑stream EvoBrain backend:
 2) Edge temporal stream (learned adjacency)
 - Edge scalar feature per pair and timestep: for each `(i,j)`, compute a scalar series over time from electrode features (default: cosine across the 64‑d feature vectors at each `t`).
 - Output shape: `(B, E=171, 960, 1)` (undirected upper‑triangle without self‑edges).
-- Reshape to `(B*E, 1, 960)` → `BiMamba2(d_model=1, n_layers=2)` → `(B*E, 1, 960)` → reshape back `(B, E, 960, 1)`.
-- Edge→weight head: `Linear(1→1) + Softplus` → `(B, E, 960)` non‑negative weights.
+- Learned lift/project to satisfy CUDA alignment and add capacity: 1→D→1 where `D = graph.edge_mamba_d_model` (default 16, multiple‑of‑8).
+  - Reshape `(B*E, 1, 960)` → `Conv1d(1→D, k=1)` → `BiMamba2(d_model=D, n_layers=2)` → `Conv1d(D→1, k=1)` → reshape back `(B, E, 960, 1)` → Softplus.
+- Edge weights: `(B, E, 960)` non‑negative.
 - Assemble adjacency per timestep: map edges to `(B, 960, 19, 19)`, symmetrize, top‑k per row (default 3), threshold (default 1e‑4), identity fallback for empty rows.
 
 3) GNN + Laplacian PE (PyG, vectorized across time)
@@ -40,10 +41,10 @@ Notes:
 - Keep the “time‑then‑graph” order as today; do not insert extra temporal blocks after GNN.
 
 Code anchors:
-- Detector v3 branch: `src/brain_brr/models/detector.py` (architecture=="v3")
-- Edge pipeline: `src/brain_brr/models/edge_features.py`
+- Detector v3 branch integrated in `SeizureDetector`: `src/brain_brr/models/detector.py` (select with `architecture: "v3"`)
+- Edge pipeline helpers: `src/brain_brr/models/edge_features.py`
 - PyG GNN (vectorized + static PE): `src/brain_brr/models/gnn_pyg.py`
-- Config flags: `src/brain_brr/config/schemas.py` (`ModelConfig.architecture`, `GraphConfig.edge_*`)
+- Config flags: `src/brain_brr/config/schemas.py` (`ModelConfig.architecture`, `GraphConfig.edge_*` incl. `edge_mamba_d_model`)
 
 ## Implementation Plan (files and signatures)
 
@@ -53,17 +54,13 @@ Code anchors:
   - `def edge_scalar_series(elec: torch.Tensor, *, metric: str='cosine') -> torch.Tensor` → `(B,E,T,1)` from `(B,19,T,64)`.
   - `def assemble_adjacency(edge_weights: torch.Tensor, *, n_nodes: int=19, top_k: int=3, threshold: float=1e-4, symmetric: bool=True, identity_fallback: bool=True) -> torch.Tensor` → `(B,T,19,19)`.
 
-2) Dual streams in detector (new v3 class; v2 remains intact)
-- File: `src/brain_brr/models/detector_v3.py`
-  - `class SeizureDetectorV3(nn.Module)`
-  - Members: `tcn_encoder`, `proj_to_electrodes`, `node_mamba: BiMamba2(d_model=64,n_layers=6)`, `edge_mamba: BiMamba2(d_model=1,n_layers=2)`, `edge_head = nn.Sequential(nn.Linear(1,1), nn.Softplus())`, `gnn: GraphChannelMixerPyG(d_model=64, k_eigenvectors=16, alpha=0.05, K=2, n_layers=2)`, `proj_from_electrodes: Conv1d(19*64→512)`, `proj_head`, `detection_head`.
-  - `forward(x: torch.Tensor) -> torch.Tensor`
-    - TCN → `(B,512,960)`; to electrodes → `(B,19,960,64)`.
-    - Node stream: `(B*19,64,960)` → Mamba → `(B,19,960,64)`.
-    - Edge features: `(B,E,960,1)`; `(B*E,1,960)` → Mamba → `(B,E,960,1)` → head → `(B,E,960)`.
-    - Adjacency: `(B,960,19,19)`.
-    - GNN (vectorized across time): `(B,19,960,64)` + adjacency → `(B,19,960,64)`.
-    - Back‑projection and detection (as v2): logits `(B,15360)`.
+2) Dual streams in detector (integrated v3 branch; v2 remains intact)
+- File: `src/brain_brr/models/detector.py`
+  - Class: `SeizureDetector` with `architecture: "tcn"|"v3"` (config‑selectable)
+  - Node stream: `BiMamba2(d_model=64, n_layers=6)` on `(B*19,64,960)`
+  - Edge stream: learned lift 1→D→1 around `BiMamba2(d_model=D, n_layers=2)` where `D=edge_mamba_d_model` (default 16)
+  - GNN: `GraphChannelMixerPyG(d_model=64, k_eigenvectors=16, alpha=0.05, K=2, n_layers=2, use_vectorized=True, use_dynamic_pe=False)`
+  - Back‑projection and detection unchanged.
 
 3) PyG GNN vectorization + static PE
 - File: `src/brain_brr/models/gnn_pyg.py` (extend existing `GraphChannelMixerPyG`)
@@ -101,10 +98,10 @@ Performance (soft, non‑flaky)
 
 ## Defaults and Hyperparameters
 - Node Mamba: `d_model=64`, `n_layers=6`, `d_state=16`, `d_conv=4`.
-- Edge Mamba: `d_model=1`, `n_layers=2`, `d_state=8`, `d_conv=4`.
+- Edge Mamba: `d_model=edge_mamba_d_model` (default 16), `n_layers=2`, `d_state=8`, `d_conv=4`.
 - GNN: `SSGConv` with `alpha=0.05`, `K=2`, `n_layers=2`, `k_eigenvectors=16`.
 - Adjacency: `edge_top_k=3`, `edge_threshold=1e-4`, symmetric with identity fallback.
-- Laplacian PE: static buffer by default; `dynamic_pe=False` unless explicitly enabled for research.
+- Laplacian PE: static buffer by default; `use_dynamic_pe=False` unless explicitly enabled for research.
 
 ## Notes vs. EvoBrain
 - We follow EvoBrain’s dual SNN streams (node + edge) and learned adjacency.
