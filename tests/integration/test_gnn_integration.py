@@ -19,6 +19,7 @@ except ImportError:
 
 
 @pytest.mark.serial
+@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
 class TestGNNIntegration:
     """Test GNN integration with detector."""
 

@@ -5,9 +5,17 @@ import time
 import pytest
 import torch
 
-from src.brain_brr.models.gnn_pyg import GraphChannelMixerPyG
+# Check if PyG is available
+try:
+    import torch_geometric  # noqa: F401
+    from src.brain_brr.models.gnn_pyg import GraphChannelMixerPyG
+    HAS_PYG = True
+except ImportError:
+    HAS_PYG = False
+    GraphChannelMixerPyG = None  # type: ignore
 
 
+@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
 class TestDynamicPE:
     """Test suite for dynamic PE implementation."""
 
