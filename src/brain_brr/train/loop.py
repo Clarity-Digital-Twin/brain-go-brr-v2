@@ -556,7 +556,11 @@ def train_epoch(
                         )
                         # Save bad batch for debugging
                         torch.save(
-                            {"windows": windows.cpu(), "labels": labels.cpu(), "global_step": global_step},
+                            {
+                                "windows": windows.cpu(),
+                                "labels": labels.cpu(),
+                                "global_step": global_step,
+                            },
                             f"debug/bad_batch_{global_step:06d}.pt",
                         )
                         # Sanitize logits to allow training to continue

@@ -68,6 +68,7 @@ class GraphChannelMixerPyG(nn.Module):
         self.pe_sign_consistency = pe_sign_consistency
 
         # ROBUST: Cache last valid PE for fallback
+        self.last_valid_pe: torch.Tensor | None = None
         self.register_buffer("last_valid_pe", None)
 
         # Laplacian PE (EvoBrain line 858)
@@ -146,37 +147,37 @@ class GraphChannelMixerPyG(nn.Module):
         - Sign consistency to prevent eigenvector flips
         - ROBUST: Laplacian regularization + NaN detection + fallback
         """
-        B, T, N, _ = adjacency.shape
+        B, T, N, _ = adjacency.shape  # noqa: N806
         device = adjacency.device
         dtype = adjacency.dtype
 
         # Reshape to process all (B*T) graphs at once
-        A_flat = adjacency.reshape(B * T, N, N)
+        a_flat = adjacency.reshape(B * T, N, N)
 
         # Compute normalized Laplacian: L = I - D^(-1/2) A D^(-1/2)
         # Critical: Clamp degrees to prevent division by zero
-        degrees = A_flat.sum(dim=-1).clamp_min(1e-6)  # (B*T, N)
-        D_inv_sqrt = torch.diag_embed(degrees.rsqrt())  # (B*T, N, N)
+        degrees = a_flat.sum(dim=-1).clamp_min(1e-6)  # (B*T, N)
+        d_inv_sqrt = torch.diag_embed(degrees.rsqrt())  # (B*T, N, N)
 
         # Normalized adjacency
-        A_norm = D_inv_sqrt @ A_flat @ D_inv_sqrt
+        a_norm = d_inv_sqrt @ a_flat @ d_inv_sqrt
 
         # Laplacian
-        I = torch.eye(N, device=device, dtype=dtype).unsqueeze(0).expand(B * T, -1, -1)
-        L = I - A_norm  # (B*T, N, N)
+        identity = torch.eye(N, device=device, dtype=dtype).unsqueeze(0).expand(B * T, -1, -1)
+        laplacian = identity - a_norm  # (B*T, N, N)
 
         # Eigendecomposition
         # CRITICAL: Must disable AMP and use fp32 for numerical stability
         with torch.cuda.amp.autocast(enabled=False):
-            L_stable = L.to(torch.float32)
+            l_stable = laplacian.to(torch.float32)
 
             # ROBUST FIX: Add regularization to prevent singular matrices
             eps = 1e-5
-            L_stable = L_stable + eps * torch.eye(N, device=L_stable.device, dtype=torch.float32)
+            l_stable = l_stable + eps * torch.eye(N, device=l_stable.device, dtype=torch.float32)
 
             try:
                 # Compute eigenvalues and eigenvectors
-                eigenvalues, eigenvectors = torch.linalg.eigh(L_stable)
+                eigenvalues, eigenvectors = torch.linalg.eigh(l_stable)
 
                 # Check for NaNs/Infs
                 if (
