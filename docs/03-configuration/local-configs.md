@@ -44,6 +44,10 @@ Smoke testing
 
 - Use `BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1` and set `data.use_balanced_sampling: false`.
 
+WSL2 note
+
+- The shipped `configs/local/train.yaml` currently sets `num_workers: 4` as a starting point. If you observe hangs or deadlocks on WSL2, set `num_workers: 0` and rerun.
+
 Reference configs
 
 - Smoke: `configs/local/smoke.yaml`
