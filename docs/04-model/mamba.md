@@ -12,4 +12,11 @@ Edge stream
 
 CUDA alignment
 
-- `(d_model*expand)/headdim` must be multiple of 8
+- `(d_model*expand)/headdim` must be an integer multiple of 8
+- Node: `(64*2)/8 = 16` → aligned
+- Edge: `(16*2)/4 = 8` → aligned
+
+Fallback behavior
+
+- If `mamba-ssm` is unavailable or `SEIZURE_MAMBA_FORCE_FALLBACK=1`, a Conv1d fallback is used.
+- V3 uses explicit headdim to prevent unintended fallback due to misalignment.
