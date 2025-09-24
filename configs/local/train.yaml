@@ -4,7 +4,7 @@
 #
 # IMPORTANT:
 # - GPU stack: run `make setup-gpu` (installs Mamba+PyG with prebuilt wheels)
-# - Ensure cache is clean or rebuild: rm -rf cache/v2.6_full && make build-cache
+# - Ensure cache exists at cache/tusz with 3734 train + 933 val NPZ (see configs/README.md for cache build instructions)
 # - Monitor for NaNs: export BGB_NAN_DEBUG=1 BGB_SANITIZE_INPUTS=1
 # - If NaNs persist: disable mixed_precision or reduce learning_rate
 
