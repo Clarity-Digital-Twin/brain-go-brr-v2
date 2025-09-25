@@ -195,7 +195,7 @@ def valid_config_yaml(tmp_path: Path) -> Path:
             "num_workers": 0,
         },
         "model": {
-            "architecture": "tcn",
+            "architecture": "v3",
             "tcn": {
                 "num_layers": 8,
                 "channels": [64, 128, 256, 512],
