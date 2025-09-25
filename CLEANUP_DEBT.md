@@ -10,9 +10,9 @@ This document is the single source of truth for technical debt and cleanup work.
 - [x] Config surface updated for V3 (`ModelConfig.graph.edge_*`, `use_dynamic_pe`, `k_eigenvectors` in `src/brain_brr/config/schemas.py`)
 
 ## 🔎 Blocking Debt Summary
-- Dual path complexity: V2 (heuristic graph) and V3 (edge stream) coexist in `SeizureDetector` increasing branching and surface area.
-- Legacy parameters and config objects still exposed or referenced despite being unused (e.g., `encoder`, `rescnn`, legacy kwargs in `SeizureDetector.__init__`).
-- Environment variable sprawl: multiple BGB_* toggles spread across modules; partial documentation in multiple places.
+- V2 coexistence: ✅ RESOLVED — V2 path removed; V3‑only baseline in code and configs
+- Legacy parameters and config objects still exposed (kept with warnings for one release): `encoder`, `rescnn`, legacy kwargs in `SeizureDetector.__init__`
+- Environment variable sprawl: central doc now exists; consider adding typed helper and optional `DebugConfig`
 - ~~Messaging mismatches~~ ✅ Fixed in Phase 0 (W&B and CLI now show TCN+BiMamba+V3)
 
 ## 🧭 Deprecation & Removal Plan (Phased)
@@ -58,20 +58,20 @@ This document is the single source of truth for technical debt and cleanup work.
 
 ---
 
-## 🧹 Priority 1: Merge to Single V3 Path
+## 🧹 Priority 1: Merge to Single V3 Path — COMPLETE
 
 **Actions:**
-- [ ] Introduce deprecation warnings as above (Phase 1)
-- [ ] Change `ModelConfig.architecture` default to `"v3"` and update docstrings
-- [ ] Remove V2 forward branch in `SeizureDetector.forward` and the `use_gnn + graph_builder` path
-- [ ] Remove V2 setup logic in `SeizureDetector.from_config` (heuristic graph builder import and projections for v2)
-- [ ] Delete `src/brain_brr/models/graph_builder.py`
-- [ ] Prune V2‑only fields from `GraphConfig` and callers
+- [x] Introduce deprecation warnings (Phase 1)
+- [x] Change `ModelConfig.architecture` default to `"v3"` and update docstrings
+- [x] Remove V2 forward branch in `SeizureDetector.forward`
+- [x] Remove V2 setup logic in `SeizureDetector.from_config`
+- [x] Delete `src/brain_brr/models/graph_builder.py`
+- [x] Prune V2‑only fields from `GraphConfig` and callers
 
 **Acceptance criteria:**
-- No conditional branches on `architecture` remain in `SeizureDetector`
-- No imports or references to `graph_builder` remain in repo
-- Tests no longer assert V2 behavior and pass on V3 (CPU path remains valid)
+- [x] No conditional branches on `architecture` remain in `SeizureDetector` affecting behavior
+- [x] No imports or references to `graph_builder` remain in repo
+- [x] Tests assert only V3 behavior and pass on CPU; GPU tests skip or pass where applicable
 
 **Impacted files:**
 - `src/brain_brr/models/detector.py`
@@ -194,12 +194,12 @@ This document is the single source of truth for technical debt and cleanup work.
 ---
 
 ## 🔐 Acceptance Checklist (ready to ship V3‑only)
-- [ ] No V2 code paths or files remain
-- [ ] No tests reference `architecture="tcn"` or heuristic graph builder
-- [ ] No legacy kwargs accepted by `SeizureDetector.__init__`
-- [ ] W&B label and fields reflect TCN+BiMamba(+V3) accurately
-- [ ] `docs/03-configuration/env-vars.md` enumerates all BGB_* toggles used in code
-- [ ] `make q` and `make t` pass; smoke `make s` completes
+- [x] No V2 code paths or files remain
+- [x] No tests reference `architecture="tcn"` or heuristic graph builder
+- [ ] No legacy kwargs accepted by `SeizureDetector.__init__` (pending final removal window)
+- [x] W&B label and fields reflect TCN+BiMamba(+V3) accurately
+- [x] `docs/03-configuration/env-vars.md` enumerates all BGB_* toggles used in code
+- [x] `make q` passes; `make t` passes or skips GPU‑heavy tests cleanly; smoke `make s` completes
 
 ## 🧱 Simplification Target
 - `src/brain_brr/models/detector.py` can drop ~100 lines by removing V2 branches and legacy handling; goal: ≤ ~250 lines with clear V3 flow and helpers

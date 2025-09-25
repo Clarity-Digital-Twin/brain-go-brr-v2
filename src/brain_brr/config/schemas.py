@@ -217,13 +217,13 @@ class ModelConfig(BaseModel):
     rescnn: ResCNNConfig = Field(default_factory=ResCNNConfig)
     decoder: DecoderConfig = Field(default_factory=DecoderConfig)
 
-    # TCN path config (used when architecture="tcn")
+    # TCN encoder configuration (used within V3)
     tcn: TCNConfig = Field(default_factory=TCNConfig)
 
     # Shared Mamba config (used in both paths)
     mamba: MambaConfig = Field(default_factory=MambaConfig)
 
-    # Optional Dynamic GNN config (v2.6+)
+    # Optional GNN config (V3 learned adjacency)
     graph: GraphConfig | None = Field(default=None, description="GNN configuration (V3)")
 
 

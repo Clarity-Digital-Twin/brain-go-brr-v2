@@ -12,10 +12,9 @@ Brain-Go-Brr v2.6 + V3: Clinical EEG seizure detection using **TCN + BiMamba + G
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-Paths supported:
-- **V2 (architecture: tcn)** → heuristic cosine similarity graphs (top_k=3)
+Current path:
 - **V3 (architecture: v3)** → dual‑stream with learned adjacency (Edge Mamba) + vectorized GNN
-See V3 details: docs/architecture/V3_ACTUAL.md
+V2 heuristic path has been removed.
 
 ## 🚀 Quick Commands
 
@@ -73,7 +72,7 @@ src/brain_brr/           # Core implementation
 │   ├── tcn.py          # TCN encoder (8 layers, stride_down=16)
 │   ├── mamba.py        # Bidirectional Mamba (6 layers)
 │   ├── gnn_pyg.py      # PyG GNN with Laplacian PE
-│   └── graph_builder.py # Heuristic adjacency builder
+│   └── (removed)        # Heuristic adjacency builder (V2) removed
 ├── data/               # EEG data pipeline
 │   ├── loader.py       # EDF processing with MNE
 │   └── dataset.py      # PyTorch Dataset with balanced sampling
@@ -117,7 +116,7 @@ training:
 ### Modal Cloud (A100-80GB)
 ```yaml
 data:
-  cache_dir: /cache              # S3 mount (read-only)
+  cache_dir: /results/cache/tusz  # Persistent SSD volume (Modal)
   num_workers: 8                  # A100 handles parallel IO
 training:
   batch_size: 64                  # Larger batch for 80GB

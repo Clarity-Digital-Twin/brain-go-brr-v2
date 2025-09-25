@@ -4,10 +4,10 @@
 - Input: 19‑channel EEG (60s at 256Hz)
 - Output: Per‑sample seizure probability `(B, 15360)` and clinical post‑processed events
 
-What’s implemented
+Current architecture
 
-- V2 (TCN path): TCN → Bi‑Mamba2(512) → Projection/Upsample → Detection; optional heuristic GNN
 - V3 (Dual‑stream): TCN → Node Mamba(64) + Edge Mamba(16) → Learned adjacency → Vectorized PyG GNN + Laplacian PE (dynamic by default) → Projection/Upsample → Detection
+  (Legacy V2 heuristic graph path has been removed; kept in docs only for historical context.)
 
 Model size and stack
 

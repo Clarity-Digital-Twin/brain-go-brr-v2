@@ -39,7 +39,7 @@ class SeizureDetector(nn.Module):
     """
 
     # Keep a tag for reporting/backward-compat
-    architecture: str = "tcn"
+    architecture: str = "v3"
 
     def __init__(
         self,
@@ -395,10 +395,7 @@ class SeizureDetector(nn.Module):
                     "PyTorch Geometric not installed. GNN requires PyG. Install from prebuilt wheels for torch 2.2.2+cu121 (see INSTALLATION.md) or run 'make setup-gpu'"
                 ) from e
 
-            # Projections to/from electrode space (v2 only, v3 creates them above)
-            if cfg.architecture != "v3":
-                instance.proj_to_electrodes = nn.Conv1d(512, 19 * 64, kernel_size=1)
-                instance.proj_from_electrodes = nn.Conv1d(19 * 64, 512, kernel_size=1)
+            # V3 creates projections above; no V2 heuristic path remains
 
         return instance
 
