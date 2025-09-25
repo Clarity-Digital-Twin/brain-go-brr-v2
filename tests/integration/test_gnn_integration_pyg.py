@@ -89,10 +89,11 @@ class TestGNNIntegrationPyG:
         assert not torch.isnan(x.grad).any()
         assert x.grad.abs().mean() > 0
 
-        # Check all GNN components have gradients
-        for param in detector.gnn.parameters():
-            assert param.grad is not None
-            assert not torch.isnan(param.grad).any()
+        # Check all model components have gradients
+        for param in detector.parameters():
+            if param.requires_grad:
+                assert param.grad is not None
+                assert not torch.isnan(param.grad).any()
 
     def test_dynamic_vs_static_param_count(self, config_with_pyg_gnn):
         """Dynamic vs static PE should have similar parameter counts (PE is non-learned)."""

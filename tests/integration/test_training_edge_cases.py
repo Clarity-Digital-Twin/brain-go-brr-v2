@@ -26,10 +26,11 @@ class TestTrainingExplosions:
     @pytest.fixture
     def small_model(self):
         """Create a small model for testing (V3, graph disabled)."""
+        # Use minimum allowed values for small test model
         cfg = ModelConfig(
             architecture="v3",
-            tcn={"num_layers": 2, "kernel_size": 3, "stride_down": 16, "dropout": 0.1},
-            mamba={"n_layers": 1, "d_state": 8, "conv_kernel": 4, "dropout": 0.1},
+            tcn={"num_layers": 4, "kernel_size": 3, "stride_down": 16, "dropout": 0.1},  # min 4 layers
+            mamba={"n_layers": 1, "d_state": 16, "conv_kernel": 4, "dropout": 0.1},  # d_state must be 16
             graph={"enabled": False},
         )
         model = SeizureDetector.from_config(cfg)

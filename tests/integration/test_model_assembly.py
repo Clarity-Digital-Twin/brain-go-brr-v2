@@ -10,10 +10,11 @@ from src.brain_brr.models import SeizureDetector
 class TestSeizureDetector:
     @pytest.fixture
     def model(self) -> SeizureDetector:
+        # Use minimum allowed values for small test model
         cfg = ModelConfig(
             architecture="v3",
-            tcn={"num_layers": 2, "kernel_size": 3, "stride_down": 16, "dropout": 0.1},
-            mamba={"n_layers": 1, "d_state": 8, "conv_kernel": 4, "dropout": 0.1},
+            tcn={"num_layers": 4, "kernel_size": 3, "stride_down": 16, "dropout": 0.1},  # min 4 layers
+            mamba={"n_layers": 1, "d_state": 16, "conv_kernel": 4, "dropout": 0.1},  # d_state must be 16
             graph={"enabled": False},
         )
         return SeizureDetector.from_config(cfg)
@@ -105,7 +106,7 @@ class TestSeizureDetector:
         info = model.get_layer_info()
         config = info["config"]
         assert config["in_channels"] == 19
-        assert config["tcn_layers"] == 2
+        assert config["tcn_layers"] == 4  # minimum allowed
         assert config["tcn_kernel_size"] == 3
         assert config["mamba_layers"] == 1
-        assert config["mamba_d_state"] == 8
+        assert config["mamba_d_state"] == 16  # required value
