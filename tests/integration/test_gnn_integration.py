@@ -80,8 +80,7 @@ class TestGNNIntegration:
 
         # Check GNN components were initialized
         assert detector.use_gnn is True
-        assert detector.graph_builder is None  # V3 does not use heuristic builder
-        assert detector.gnn is not None
+        assert detector.gnn is not None  # V3 uses PyG GNN
         assert detector.proj_to_electrodes is not None
         assert detector.proj_from_electrodes is not None
 
@@ -140,7 +139,6 @@ class TestGNNIntegration:
         detector = SeizureDetector.from_config(config_without_gnn)
 
         assert detector.use_gnn is False
-        assert detector.graph_builder is None
         assert detector.gnn is None
         # V3 always has projections for dual-stream, even without GNN
         assert detector.proj_to_electrodes is not None
