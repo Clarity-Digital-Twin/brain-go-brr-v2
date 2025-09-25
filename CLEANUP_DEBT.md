@@ -17,10 +17,10 @@ This document is the single source of truth for technical debt and cleanup work.
 
 ## 🧭 Deprecation & Removal Plan (Phased)
 
-### Phase 0 — Alignment (no breaking changes)
-- [ ] Update messaging to reflect TCN+BiMamba(+V3) everywhere
-  - [ ] `src/brain_brr/train/wandb_integration.py`: change model label to "TCN + Bi-Mamba-2 (+V3 edge/GNN)" and drop UNet/ResCNN fields
-  - [ ] `src/brain_brr/cli/cli.py`: config summary should show `model.architecture`, V3 graph settings, and replace deprecated `postprocessing.min_duration` with `postprocessing.duration.min_duration_s`
+### Phase 0 — Alignment (no breaking changes) ✅ COMPLETE (commit 25a9362)
+- [x] Update messaging to reflect TCN+BiMamba(+V3) everywhere
+  - [x] `src/brain_brr/train/wandb_integration.py`: change model label to "TCN + Bi-Mamba-2 (+V3 edge/GNN)" and drop UNet/ResCNN fields
+  - [x] `src/brain_brr/cli/cli.py`: config summary should show `model.architecture`, V3 graph settings, and replace deprecated `postprocessing.min_duration` with `postprocessing.duration.min_duration_s`
   - [ ] Docs: ensure `docs/04-model/v3-architecture.md`, `docs/00-overview/architecture-summary.md` match current code
 
 ### Phase 1 — Soft deprecation (warnings, defaults)
