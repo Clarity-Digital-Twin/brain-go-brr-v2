@@ -160,7 +160,9 @@
       "Read(//mnt/c/Users/JJ/.aws/**)",
       "Bash(~/.local/bin/aws s3 ls:*)",
       "Bash(git show:*)",
-      "Bash(bc)"
+      "Bash(bc)",
+      "Bash(BGB_SMOKE_TEST=1 BGB_LIMIT_FILES=3 .venv/bin/python -m src train configs/local/smoke.yaml)",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []
