@@ -13,7 +13,6 @@ This synergy addresses TUSZ-specific challenges:
 """
 
 import os
-import warnings
 from typing import TYPE_CHECKING, cast
 
 import torch
@@ -44,14 +43,9 @@ class SeizureDetector(nn.Module):
     def __init__(
         self,
         *,
-        # Legacy params (accepted but ignored for backward compatibility)
+        # Core (fixed input channels)
         in_channels: int = 19,
-        base_channels: int = 64,
-        encoder_depth: int = 4,
-        rescnn_blocks: int = 3,
-        rescnn_kernels: list[int] | None = None,
-        dropout: float = 0.1,
-        # TCN params (new style)
+        # TCN params
         tcn_layers: int = 8,
         tcn_kernel_size: int = 7,
         tcn_dropout: float = 0.15,
@@ -63,32 +57,6 @@ class SeizureDetector(nn.Module):
         mamba_dropout: float | None = None,
     ) -> None:
         super().__init__()
-
-        # Emit deprecation warnings for legacy kwargs
-        if base_channels != 64 or encoder_depth != 4 or rescnn_blocks != 3:
-            warnings.warn(
-                "Legacy parameters (base_channels, encoder_depth, rescnn_blocks) are deprecated "
-                "and will be removed in a future version. These parameters are ignored. "
-                "Use SeizureDetector.from_config() with a ModelConfig instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-        if rescnn_kernels is not None:
-            warnings.warn(
-                "The rescnn_kernels parameter is deprecated and will be removed in a future version. "
-                "This parameter is ignored. Use SeizureDetector.from_config() instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-        if mamba_dropout is None and dropout != 0.1:
-            warnings.warn(
-                "Using 'dropout' parameter as a proxy for 'mamba_dropout' is deprecated. "
-                "Specify 'mamba_dropout' explicitly instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
 
         # GNN components (initialized as None, set by from_config if enabled)
         self.use_gnn: bool = False
@@ -103,18 +71,13 @@ class SeizureDetector(nn.Module):
         self.edge_out_proj: nn.Conv1d | None = None
         self.edge_activate: nn.Module | None = None
 
-        # Use legacy dropout if mamba_dropout not specified
+        # Backwards-compat: ensure mamba_dropout has a concrete value
         if mamba_dropout is None:
-            mamba_dropout = dropout
+            mamba_dropout = 0.1
 
         # Persist config snapshot (include legacy keys for tests)
         self.config: dict[str, object] = {
             "in_channels": in_channels,
-            "base_channels": base_channels,
-            "encoder_depth": encoder_depth,
-            "rescnn_blocks": rescnn_blocks,
-            "rescnn_kernels": rescnn_kernels,
-            "dropout": dropout,
             "tcn_layers": tcn_layers,
             "tcn_kernel_size": tcn_kernel_size,
             "tcn_dropout": tcn_dropout,
@@ -418,14 +381,10 @@ class SeizureDetector(nn.Module):
 
         # Provide parameter info with legacy keys for tests
         info: dict[str, object] = {
-            "encoder_params": tcn_params,  # Legacy key
-            "rescnn_params": 0,  # No ResCNN in TCN-only arch
-            "decoder_params": proj_params,  # Legacy key
-            "mamba_params": mamba_params,
-            "head_params": head_params,
-            # Also expose detailed keys
             "tcn_params": tcn_params,
             "proj_params": proj_params,
+            "mamba_params": mamba_params,
+            "head_params": head_params,
             "total_params": total_params,
             "config": self.config,
         }

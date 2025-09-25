@@ -47,8 +47,8 @@ This document is the single source of truth for technical debt and cleanup work.
 - [x] Update default architecture to `"v3"` everywhere (detector, configs, test fixtures)
 - [x] Remove "tcn" architecture option from `ModelConfig` schema (now `Literal["v3"]` only)
 - [x] Clean up all references to V2 in configs and docs
-- [ ] Remove legacy kwargs from `SeizureDetector.__init__` (kept for final release; deprecation warnings active)
-- [ ] Remove deprecated `encoder`/`rescnn`/`decoder` objects from `ModelConfig` (kept for final release)
+- [x] Remove legacy kwargs from `SeizureDetector.__init__`
+- [x] Remove deprecated `encoder`/`rescnn`/`decoder` objects from `ModelConfig`
 
 ### Verification gates (each phase) ✅ ALL VERIFIED
 - [x] `make q` passes (ruff/format/mypy) - PASSED
@@ -80,12 +80,12 @@ This document is the single source of truth for technical debt and cleanup work.
 - `tests/**/*` (updated)
 - Docs under `docs/04-model/*`, `docs/03-configuration/*` (updated)
 
-## 🧹 Priority 2: Legacy Parameter Cleanup
+## 🧹 Priority 2: Legacy Parameter Cleanup — COMPLETE
 
 **Actions:**
-- [ ] Add `DeprecationWarning` in `SeizureDetector.__init__` if any legacy kwargs are passed: `base_channels`, `encoder_depth`, `rescnn_blocks`, `rescnn_kernels`, and using `dropout` as proxy for `mamba_dropout`
-- [ ] Migrate call sites to only use config‑driven construction (`SeizureDetector.from_config(cfg)`) in tests and examples
-- [ ] Remove legacy kwargs entirely (Phase 3)
+- [x] Remove legacy kwargs from `SeizureDetector.__init__`
+- [x] Migrate call sites to only use config‑driven construction (`SeizureDetector.from_config(cfg)`) in tests and examples
+
 
 **Acceptance criteria:**
 - No tests pass legacy kwargs directly to `SeizureDetector`
@@ -196,7 +196,7 @@ This document is the single source of truth for technical debt and cleanup work.
 ## 🔐 Acceptance Checklist (ready to ship V3‑only)
 - [x] No V2 code paths or files remain
 - [x] No tests reference `architecture="tcn"` or heuristic graph builder
-- [ ] No legacy kwargs accepted by `SeizureDetector.__init__` (pending final removal window)
+- [x] No legacy kwargs accepted by `SeizureDetector.__init__`
 - [x] W&B label and fields reflect TCN+BiMamba(+V3) accurately
 - [x] `docs/03-configuration/env-vars.md` enumerates all BGB_* toggles used in code
 - [x] `make q` passes; `make t` passes or skips GPU‑heavy tests cleanly; smoke `make s` completes

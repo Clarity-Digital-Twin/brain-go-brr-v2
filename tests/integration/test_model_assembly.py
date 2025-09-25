@@ -67,11 +67,7 @@ class TestSeizureDetector:
     def test_parameter_count(self, model: SeizureDetector) -> None:
         info = model.get_layer_info()
         component_sum = (
-            info["encoder_params"]
-            + info["rescnn_params"]  # 0 for TCN path
-            + info["mamba_params"]
-            + info["decoder_params"]
-            + info["head_params"]
+            info["tcn_params"] + info["mamba_params"] + info["proj_params"] + info["head_params"]
         )
         assert component_sum == info["total_params"]
         # Small TCN+Mamba model: ~1-10M params

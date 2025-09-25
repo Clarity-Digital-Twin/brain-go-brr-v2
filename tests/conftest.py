@@ -114,21 +114,13 @@ def mock_raw_edf(sample_edf_data):
 @pytest.fixture
 def trained_model(tmp_path):
     """Lightweight pre-trained model for testing."""
-    from src.brain_brr.config.schemas import (
-        DecoderConfig,
-        EncoderConfig,
-        MambaConfig,
-        ModelConfig,
-        ResCNNConfig,
-    )
+    from src.brain_brr.config.schemas import MambaConfig, ModelConfig, TCNConfig
     from src.brain_brr.models import SeizureDetector
 
     config = ModelConfig(
-        encoder=EncoderConfig(channels=[64, 128, 256, 512], stages=4),
-        rescnn=ResCNNConfig(n_blocks=3, kernel_sizes=[3, 5, 7]),
+        tcn=TCNConfig(num_layers=8, kernel_size=7, dropout=0.15, stride_down=16),
         # Use fewer Mamba layers to keep clinical pipeline test under CI timeout
-        mamba=MambaConfig(n_layers=1, d_model=512, d_state=16, conv_kernel=4),
-        decoder=DecoderConfig(stages=4, kernel_size=4),
+        mamba=MambaConfig(n_layers=1, d_model=512, d_state=16, conv_kernel=4, dropout=0.1),
     )
 
     model = SeizureDetector.from_config(config)
@@ -146,20 +138,12 @@ def trained_model(tmp_path):
 @pytest.fixture
 def minimal_model():
     """Minimal model for fast testing."""
-    from src.brain_brr.config.schemas import (
-        DecoderConfig,
-        EncoderConfig,
-        MambaConfig,
-        ModelConfig,
-        ResCNNConfig,
-    )
+    from src.brain_brr.config.schemas import MambaConfig, ModelConfig, TCNConfig
     from src.brain_brr.models import SeizureDetector
 
     config = ModelConfig(
-        encoder=EncoderConfig(channels=[64, 128, 256, 512], stages=4),
-        rescnn=ResCNNConfig(n_blocks=3, kernel_sizes=[3, 5, 7]),
-        mamba=MambaConfig(n_layers=1, d_model=512, d_state=16, conv_kernel=4),
-        decoder=DecoderConfig(stages=4, kernel_size=4),
+        tcn=TCNConfig(num_layers=8, kernel_size=7, dropout=0.15, stride_down=16),
+        mamba=MambaConfig(n_layers=1, d_model=512, d_state=16, conv_kernel=4, dropout=0.1),
     )
 
     model = SeizureDetector.from_config(config)

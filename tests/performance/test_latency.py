@@ -14,13 +14,7 @@ import numpy as np
 import pytest
 import torch
 
-from src.brain_brr.config.schemas import (
-    DecoderConfig,
-    EncoderConfig,
-    MambaConfig,
-    ModelConfig,
-    ResCNNConfig,
-)
+from src.brain_brr.config.schemas import MambaConfig, ModelConfig, TCNConfig
 from src.brain_brr.models import SeizureDetector
 
 # Allow skipping performance tests entirely
@@ -41,10 +35,8 @@ class TestInferenceLatency:
     def production_model(self):
         """Create production-sized model for benchmarking."""
         config = ModelConfig(
-            encoder=EncoderConfig(channels=[64, 128, 256, 512], stages=4),
-            rescnn=ResCNNConfig(n_blocks=3, kernel_sizes=[3, 5, 7]),
-            mamba=MambaConfig(n_layers=6, d_model=512, d_state=16, conv_kernel=4),
-            decoder=DecoderConfig(stages=4, kernel_size=4),
+            tcn=TCNConfig(num_layers=8, kernel_size=7, dropout=0.15, stride_down=16),
+            mamba=MambaConfig(n_layers=6, d_model=512, d_state=16, conv_kernel=4, dropout=0.1),
         )
         model = SeizureDetector.from_config(config)
         model.eval()
@@ -98,6 +90,7 @@ class TestInferenceLatency:
         # RTX 4090/3090: ~100-120ms P95 is normal for 30M param model
         # A100/V100: ~80-100ms P95
         # CPU: Not tested here (too slow)
+        gpu_name = "cpu"
         if device.type == "cuda":
             # Get GPU name if possible
             gpu_name = (

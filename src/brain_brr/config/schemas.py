@@ -92,42 +92,7 @@ class PreprocessingConfig(BaseModel):
         return v
 
 
-class EncoderConfig(BaseModel):
-    """U-Net encoder configuration."""
-
-    stages: Literal[4] = Field(default=4, description="Number of encoder stages")
-    channels: list[int] = Field(
-        default=[64, 128, 256, 512], description="Channel progression per stage"
-    )
-    kernel_size: int = Field(default=5, ge=3, le=9, description="Convolution kernel size")
-    downsample_factor: Literal[2] = Field(default=2, description="Downsampling factor per stage")
-
-    @field_validator("channels")
-    @classmethod
-    def validate_channels(cls, v: list[int]) -> list[int]:
-        """Ensure channel progression matches our architecture."""
-        if v != [64, 128, 256, 512]:
-            raise ValueError("Channels must be [64, 128, 256, 512] for our architecture")
-        return v
-
-
-class ResCNNConfig(BaseModel):
-    """ResCNN stack configuration."""
-
-    n_blocks: Literal[3] = Field(default=3, description="Number of ResCNN blocks")
-    kernel_sizes: list[int] = Field(default=[3, 5, 7], description="Multi-scale kernel sizes")
-    dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout rate")
-
-    @field_validator("kernel_sizes")
-    @classmethod
-    def validate_kernels(cls, v: list[int]) -> list[int]:
-        """Ensure kernel sizes are odd and valid."""
-        for k in v:
-            if k % 2 == 0:
-                raise ValueError(f"Kernel size {k} must be odd")
-            if k < 3 or k > 11:
-                raise ValueError(f"Kernel size {k} must be in [3, 11]")
-        return v
+"""V3 schema: Encoder/ResCNN/Decoder removed; TCN + BiMamba + optional GNN only."""
 
 
 class MambaConfig(BaseModel):
@@ -142,11 +107,7 @@ class MambaConfig(BaseModel):
     dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout rate")
 
 
-class DecoderConfig(BaseModel):
-    """U-Net decoder configuration."""
-
-    stages: Literal[4] = Field(default=4, description="Number of decoder stages")
-    kernel_size: int = Field(default=2, ge=2, le=8, description="Transpose conv kernel size")
+# Legacy decoder config removed in V3-only schema
 
 
 class TCNConfig(BaseModel):
@@ -211,11 +172,6 @@ class ModelConfig(BaseModel):
         default="v3",
         description="Architecture type: v3 (dual-stream with learned adjacency)",
     )
-
-    # Deprecated configs kept for backward compatibility (not used)
-    encoder: EncoderConfig = Field(default_factory=EncoderConfig)
-    rescnn: ResCNNConfig = Field(default_factory=ResCNNConfig)
-    decoder: DecoderConfig = Field(default_factory=DecoderConfig)
 
     # TCN encoder configuration (used within V3)
     tcn: TCNConfig = Field(default_factory=TCNConfig)
@@ -484,7 +440,7 @@ class Config(BaseModel):
             assert self.data.stride == 10, "Must use 10s stride"
         elif phase == "model":
             # Phase 2 needs model config
-            assert len(self.model.encoder.channels) == 4, "Must have 4 encoder stages"
+            assert self.model.tcn.num_layers >= 4, "Must have >=4 TCN layers"
             assert self.model.mamba.d_model == 512, "Mamba d_model must be 512"
         elif phase == "training":
             # Phase 3 needs full config
