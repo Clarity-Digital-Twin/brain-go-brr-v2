@@ -107,11 +107,11 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
 # NOTE: brain-go-brr-data volume deleted - it was empty and unused
 
 
+# CPU-only: cache cleanup should not consume a GPU
 @app.function(
-    gpu="A100",
     timeout=600,  # 10 min to include cache clean
-    cpu=16,  # Safe: 16 cores for testing
-    memory=32768,  # Safe: 32GB RAM for tests
+    cpu=4,
+    memory=4096,
     volumes={"/results": results_volume},  # Need volume for cache operations
 )
 def clean_cache():
@@ -280,9 +280,11 @@ def train(
         with open(cfg_abs, "r") as f:
             config_data = yaml.safe_load(f)
 
-        # Get cache path from config, with fallback
-        cache_dir = config_data.get("data", {}).get("cache_dir") or \
-                   config_data.get("experiment", {}).get("cache_dir", "/results/cache/tusz/train")
+        # Get cache path from config, with fallback (root of cache, not a split subdir)
+        cache_dir = (
+            config_data.get("data", {}).get("cache_dir")
+            or config_data.get("experiment", {}).get("cache_dir", "/results/cache/tusz")
+        )
 
         # For smoke tests, ensure we use a separate cache directory
         if "smoke" in config_path.lower() and "smoke" not in cache_dir:
@@ -320,6 +322,7 @@ def train(
     # Only limit files for smoke tests
     if "smoke" in config_path.lower():
         env["BGB_LIMIT_FILES"] = "50"
+        env["BGB_SMOKE_TEST"] = "1"
     else:
         # EXPLICITLY UNSET for full training to avoid inheritance
         env.pop("BGB_LIMIT_FILES", None)
@@ -342,7 +345,7 @@ def train(
 
     # Auto-select dataset under /data if present
     preferred_roots = [
-        "/data/edf/train",  # S3 mounted path: /data/tusz/edf/train
+        "/data/edf",  # Parent containing train/dev/eval (mounted from S3)
         "/data",  # Fallback to root of mount
     ]
     for root in preferred_roots:
