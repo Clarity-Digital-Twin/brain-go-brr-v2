@@ -164,19 +164,11 @@ class TCNConfig(BaseModel):
 
 
 class GraphConfig(BaseModel):
-    """Dynamic GNN configuration based on EvoBrain."""
+    """GNN configuration (V3, learned adjacency)."""
 
-    enabled: bool = Field(default=False, description="Enable dynamic GNN stage")
+    enabled: bool = Field(default=False, description="Enable GNN stage")
 
-    # Graph construction (v2 - heuristic)
-    similarity: Literal["cosine", "correlation"] = Field(
-        default="cosine", description="Node similarity metric"
-    )
-    top_k: int = Field(default=3, ge=1, le=18, description="Top-k neighbors per node")
-    threshold: float = Field(default=1e-4, ge=0.0, description="Edge weight cutoff")
-    temperature: float = Field(default=0.1, gt=0.0, description="Similarity softmax temperature")
-
-    # Edge stream config (v3 - learned adjacency)
+    # Edge stream config (V3 - learned adjacency)
     edge_features: Literal["cosine", "correlation"] = Field(
         default="cosine", description="Edge feature metric for v3"
     )
@@ -215,9 +207,9 @@ class ModelConfig(BaseModel):
     """Complete model architecture configuration."""
 
     name: Literal["seizure_detector"] = Field(default="seizure_detector", description="Model name")
-    architecture: Literal["tcn", "v3"] = Field(
-        default="tcn",
-        description="Architecture type: tcn (v2 - deprecated) or v3 (dual-stream - recommended)",
+    architecture: Literal["v3"] = Field(
+        default="v3",
+        description="Architecture type: v3 (dual-stream with learned adjacency)",
     )
 
     @model_validator(mode="after")
@@ -245,7 +237,7 @@ class ModelConfig(BaseModel):
     mamba: MambaConfig = Field(default_factory=MambaConfig)
 
     # Optional Dynamic GNN config (v2.6+)
-    graph: GraphConfig | None = Field(default=None, description="Dynamic GNN configuration")
+    graph: GraphConfig | None = Field(default=None, description="GNN configuration (V3)")
 
 
 class HysteresisConfig(BaseModel):
