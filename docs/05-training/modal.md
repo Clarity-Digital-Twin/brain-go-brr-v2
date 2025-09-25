@@ -5,6 +5,7 @@ Commands
 - Test Mamba CUDA: `modal run deploy/modal/app.py --action test-mamba`
 - Smoke: `modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml`
 - Full (detached): `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml`
+- Clean old cache (run once after split fix): `modal run deploy/modal/app.py --action clean-cache`
 
 Resources
 
@@ -14,8 +15,19 @@ Resources
 Cache and volumes
 
 - Data (read-only) mounted at `/data` (S3); persistent SSD volume at `/results`.
+- Ensure `data.data_dir: /data/edf` and `data.split_policy: official_tusz`.
 - Ensure `data.cache_dir: /results/cache/tusz` in configs; app logs verify NPZs/manifest.
- - Cache is built directly on `/results` and reused across runs; do not copy to/from S3.
+- Cache is built directly on `/results` and reused across runs; do not copy to/from S3.
+
+Patient disjointness
+
+- On startup, the app verifies that patient sets in `/data/edf/train` and `/data/edf/dev` are disjoint and aborts if not.
+
+S3 cache (not recommended)
+
+- Do not rely on S3 for cache during training. Prefer building once on `/results` (persistent volume) and reusing.
+- If you must bootstrap cache from local, use Modal volumes instead of S3:
+  - `modal volume put brain-go-brr-results cache/tusz /results/cache/tusz`
 
 Resuming
 

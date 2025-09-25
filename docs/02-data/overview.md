@@ -37,3 +37,4 @@ See also
 
 - Preprocessing: `docs/02-data/preprocessing.md`
 - Cache and manifest: `docs/02-data/cache-layout.md`
+ - Official TUSZ splits and policy: `docs/tusz/tusz-splits.md`

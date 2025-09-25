@@ -13,8 +13,11 @@ Training
 
 Data
 
-- `data.cache_dir: /results/cache/tusz` (Modal persistent SSD)
+- `data.data_dir: /data/edf` (parent containing `train/`, `dev/`, `eval/`)
+- `data.cache_dir: /results/cache/tusz` (Modal persistent SSD; contains `{train,dev}`)
+- `data.split_policy: official_tusz` (enforce patient‑disjoint official splits)
 - `data.num_workers: 8`, `pin_memory: true`, `persistent_workers: true`, `prefetch_factor: 4`
+ - Note: avoid S3 caches; build once on `/results` and reuse
 
 Graph and V3
 
@@ -26,3 +29,4 @@ Commands
 
 - Smoke: `modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml`
 - Full (detached): `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml`
+ - Cache cleanup (once, after the split fix): `modal run deploy/modal/app.py --action clean-cache`
