@@ -96,7 +96,7 @@ preprocessing:
 
 training:
   epochs: 1               # Just 1 epoch for smoke
-  batch_size: 1           # Minimal for smoke test with 3 files
+  batch_size: 8           # Reasonable batch size to avoid NaNs
   learning_rate: 5.0e-5   # Reduced from 1.0e-4 for stability
   weight_decay: 0.05
   optimizer: adamw
