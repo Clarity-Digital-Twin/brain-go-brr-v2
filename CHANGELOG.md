@@ -5,6 +5,54 @@ All notable changes to the Brain-Go-Brr v2 project will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1-critical-patient-leakage-fix] - 2025-09-24
+
+### 🚨 CRITICAL BUG FIX RELEASE: Patient-Level Data Leakage Resolved
+
+**WARNING: ALL PREVIOUS TRAINING RESULTS ARE INVALID**
+
+This emergency release fixes a **CRITICAL BUG** where patients appeared in both training and validation splits, completely invalidating all previous validation metrics. This is a P0 blocker that required immediate action.
+
+### Critical Fixes
+- **PATIENT LEAKAGE ELIMINATED** (P0 Blocker):
+  - Previous file-level alphabetical splitting mixed patient data across train/val splits
+  - Patient `aaaaagxr` (and others) appeared in BOTH splits with different sessions
+  - Now using TUSZ official train/dev/eval splits with enforced patient disjointness
+  - Runtime validation fails fast if any patient appears in multiple splits
+  - Files: `src/brain_brr/data/tusz_splits.py` (new), `src/brain_brr/train/loop.py`
+
+- **FA Curve Threshold Bug** (P0 Blocker):
+  - `sensitivity_at_fa_rates()` was passing ignored threshold parameter
+  - Now properly clones post_cfg and sets tau_on/off for each FA target
+  - File: `src/brain_brr/eval/metrics.py`
+
+### Also Fixed
+- **TensorBoard Import**: Now optional with try/except pattern
+- **TCN Channels Config**: Removed unused field that was ignored by implementation
+- **Manifest Strictness**: NPZ files without labels now excluded with warnings
+- **CLI Threshold Export**: Robust key coercion for "10", 10, or 10.0
+
+### Verification
+```
+[SPLIT STATS] OFFICIAL TUSZ SPLITS:
+  Train: 579 patients, 4667 files
+  Val:   53 patients, 1832 files
+  ✅ PATIENT DISJOINTNESS VERIFIED - No leakage!
+```
+
+### Migration Required
+1. **DELETE all existing cache directories** - they contain contaminated splits
+2. **Rebuild cache** with proper patient-disjoint splits
+3. **Restart all training** from scratch
+4. **All previous model checkpoints are scientifically invalid**
+
+### Configuration Changes
+```yaml
+data:
+  data_dir: data_ext4/tusz/edf  # Parent dir with train/dev/eval
+  split_policy: official_tusz    # REQUIRED - enforces proper splits
+```
+
 ## [3.0.0] - 2025-09-24
 
 ### 🎉 Major Release: V3 Dual-Stream Architecture with Dynamic LPE
