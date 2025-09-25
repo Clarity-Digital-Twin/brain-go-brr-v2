@@ -12,6 +12,7 @@ This synergy addresses TUSZ-specific challenges:
 - Variable seizure morphologies (7+ types in TUSZ)
 """
 
+import os
 from typing import TYPE_CHECKING, cast
 
 import torch
@@ -212,7 +213,10 @@ class SeizureDetector(nn.Module):
             edge_in = self.edge_in_proj(edge_flat).contiguous()  # (B*E, D, T) where D=16
 
             # CRITICAL: Clamp edge projection to prevent explosion
-            edge_in = torch.clamp(edge_in, -10.0, 10.0)
+            if os.getenv("BGB_EDGE_CLAMP", "1") == "1":
+                clamp_min = float(os.getenv("BGB_EDGE_CLAMP_MIN", "-20.0"))
+                clamp_max = float(os.getenv("BGB_EDGE_CLAMP_MAX", "20.0"))
+                edge_in = torch.clamp(edge_in, clamp_min, clamp_max)
 
             # Safety assertion for Mamba CUDA kernel
             assert edge_in.is_contiguous(), (
