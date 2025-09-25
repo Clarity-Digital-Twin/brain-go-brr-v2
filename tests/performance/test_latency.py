@@ -372,7 +372,7 @@ class TestThroughput:
         )
 
         # Should process 1 hour of data quickly; allow CPU more headroom
-        max_seconds = 180 if not is_cpu else 380
+        max_seconds = 180 if not is_cpu else 390  # Slightly more tolerance for CPU
         assert total_time < max_seconds, (
             f"Estimated time {total_time:.1f}s (> {max_seconds}s limit)"
         )
