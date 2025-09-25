@@ -323,12 +323,15 @@ def train(
                     cache_valid = False
             else:
                 # No metadata = old cache from before fix
-                print("[CACHE] ⚠️ No metadata found - cache likely contaminated!", flush=True)
+                if len(npz_files) > 0:
+                    print(f"[CACHE] ⚠️ No metadata found - cache built before patient fix!", flush=True)
+                    print(f"[CACHE] ❌ MUST INVALIDATE {len(npz_files)} contaminated files", flush=True)
+                else:
+                    print("[CACHE] No metadata found - cache is empty (will build fresh)", flush=True)
                 cache_valid = False
 
             if not cache_valid and len(npz_files) > 0:
-                print(f"[CACHE] ❌ INVALIDATING OLD CACHE ({len(npz_files)} files)", flush=True)
-                print("[CACHE] 🧹 Cleaning contaminated cache...", flush=True)
+                print("[CACHE] 🧹 Auto-cleaning contaminated cache...", flush=True)
                 shutil.rmtree(cache_dir, ignore_errors=True)
                 print("[CACHE] ✅ Old cache deleted", flush=True)
 
