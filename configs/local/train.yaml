@@ -136,7 +136,7 @@ training:
     metric: sensitivity_at_10fa
 
   # Checkpointing
-  checkpoint_interval: 5  # Save every 5 epochs
+  checkpoint_interval: 1  # Save every epoch for safety
   gradient_accumulation_steps: 1  # Can increase if batch_size too small
 
 postprocessing:
