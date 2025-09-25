@@ -152,7 +152,9 @@
       "Bash(gh release list:*)",
       "Bash(gh release:*)",
       "Bash(gh release view:*)",
-      "Bash(BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 .venv/bin/python -m src train configs/local/smoke.yaml)"
+      "Bash(BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 .venv/bin/python -m src train configs/local/smoke.yaml)",
+      "Bash(aws s3 ls:*)",
+      "Bash(aws configure:*)"
     ],
     "deny": [],
     "ask": []
