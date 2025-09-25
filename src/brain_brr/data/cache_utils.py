@@ -95,7 +95,7 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
                         f"⚠️  NPZ file {npz_path.name} has NO LABELS! "
                         f"This indicates cache corruption or incomplete processing. "
                         f"Excluding from balanced sampling to prevent flooding with false negatives.",
-                        stacklevel=2
+                        stacklevel=2,
                     )
                     # Skip this file entirely - do NOT assume it's no_seizure!
                     # This prevents flooding the manifest with potentially incorrect data

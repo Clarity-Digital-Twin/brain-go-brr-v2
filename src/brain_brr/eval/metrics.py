@@ -372,6 +372,7 @@ def sensitivity_at_fa_rates(
 
         # Clone post_cfg and update thresholds for this FA target
         from copy import deepcopy
+
         search_cfg = deepcopy(post_cfg)
         search_cfg.hysteresis.tau_on = threshold
         search_cfg.hysteresis.tau_off = max(0.0, threshold - 0.08)  # Default delta

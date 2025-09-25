@@ -33,6 +33,7 @@ from tqdm import tqdm  # type: ignore[import-untyped]
 # Make TensorBoard optional
 try:
     from torch.utils.tensorboard import SummaryWriter
+
     HAS_TENSORBOARD = True
 except ImportError:
     HAS_TENSORBOARD = False
@@ -1385,6 +1386,7 @@ def main() -> None:
 
         # Extract and validate patient IDs for transparency
         from src.brain_brr.data.tusz_splits import extract_patient_id
+
         train_patients = {extract_patient_id(f) for f in train_files}
         val_patients = {extract_patient_id(f) for f in val_files}
 
@@ -1396,7 +1398,7 @@ def main() -> None:
                 f"  {sorted(list(overlap))[:10]}"
             )
 
-        print(f"\n[SPLIT STATS] OFFICIAL TUSZ SPLITS:")
+        print("\n[SPLIT STATS] OFFICIAL TUSZ SPLITS:")
         print(f"  Train: {len(train_patients)} patients, {len(train_files)} files")
         print(f"  Val:   {len(val_patients)} patients, {len(val_files)} files")
         print("  ✅ PATIENT DISJOINTNESS VERIFIED - No leakage!")
@@ -1406,7 +1408,7 @@ def main() -> None:
         warnings.warn(
             "⚠️  Using CUSTOM split policy - this may cause patient leakage!\n"
             "   Strongly recommend using split_policy='official_tusz' instead!",
-            stacklevel=2
+            stacklevel=2,
         )
         edf_files = sorted(data_root.glob("**/*.edf"))
 

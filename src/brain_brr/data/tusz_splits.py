@@ -10,9 +10,6 @@ NO PATIENT LEAKAGE ALLOWED!
 
 import warnings
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
-
-import numpy as np
 
 
 def extract_patient_id(filepath: Path) -> str:
@@ -26,10 +23,8 @@ def extract_patient_id(filepath: Path) -> str:
 
 
 def get_tusz_official_splits(
-    data_root: Path,
-    split: str = "train",
-    verbose: bool = True
-) -> Tuple[List[Path], List[Path], Set[str]]:
+    data_root: Path, split: str = "train", verbose: bool = True
+) -> tuple[list[Path], list[Path], set[str]]:
     """Get TUSZ official train/dev/eval splits.
 
     Args:
@@ -73,9 +68,7 @@ def get_tusz_official_splits(
 
 
 def validate_patient_disjointness(
-    train_patients: Set[str],
-    dev_patients: Set[str],
-    eval_patients: Set[str] = None
+    train_patients: set[str], dev_patients: set[str], eval_patients: set[str] = None
 ) -> None:
     """Validate that patient sets are completely disjoint.
 
@@ -122,10 +115,8 @@ def validate_patient_disjointness(
 
 
 def load_tusz_for_training(
-    data_root: Path,
-    use_eval: bool = False,
-    verbose: bool = True
-) -> Dict[str, Tuple[List[Path], List[Path]]]:
+    data_root: Path, use_eval: bool = False, verbose: bool = True
+) -> dict[str, tuple[list[Path], list[Path]]]:
     """Load TUSZ with official splits for training.
 
     Standard protocol:
@@ -158,7 +149,7 @@ def load_tusz_for_training(
         warnings.warn(
             "⚠️  Loading EVAL set! This should ONLY be done for final testing!\n"
             "   Do NOT use eval for hyperparameter tuning or model selection!",
-            stacklevel=2
+            stacklevel=2,
         )
         edf_files, csv_files, patient_ids = get_tusz_official_splits(
             data_root, "eval", verbose=verbose
@@ -168,16 +159,14 @@ def load_tusz_for_training(
 
     # CRITICAL: Validate patient disjointness
     validate_patient_disjointness(
-        all_patients["train"],
-        all_patients["dev"],
-        all_patients.get("eval")
+        all_patients["train"], all_patients["dev"], all_patients.get("eval")
     )
 
     if verbose:
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("TUSZ OFFICIAL SPLITS LOADED SUCCESSFULLY")
         print("Protocol: Train on train/ | Validate on dev/ | Test on eval/")
-        print("="*60)
+        print("=" * 60)
 
     return splits
 
@@ -188,8 +177,8 @@ def get_train_val_splits(
     data_root: Path,
     validation_split: float = None,  # IGNORED - we use official dev
     split_seed: int = None,  # IGNORED - we use official splits
-    verbose: bool = True
-) -> Tuple[List[Path], List[Path], List[Path], List[Path]]:
+    verbose: bool = True,
+) -> tuple[list[Path], list[Path], list[Path], list[Path]]:
     """Get train/val splits using TUSZ official splits.
 
     NOTE: validation_split and split_seed are IGNORED.
@@ -202,7 +191,7 @@ def get_train_val_splits(
         warnings.warn(
             "validation_split and split_seed are IGNORED!\n"
             "Using official TUSZ train/ and dev/ splits for patient disjointness.",
-            stacklevel=2
+            stacklevel=2,
         )
 
     splits = load_tusz_for_training(data_root, use_eval=False, verbose=verbose)
