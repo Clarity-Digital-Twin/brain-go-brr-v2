@@ -5,7 +5,7 @@ Commands
 - Test Mamba CUDA: `modal run deploy/modal/app.py --action test-mamba`
 - Smoke: `modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml`
 - Full (detached): `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml`
- - Clean old cache (run once after split fix): `modal run deploy/modal/app.py --action clean-cache`
+- Clean old cache (run once after split fix): `modal run deploy/modal/app.py --action clean-cache`
 
 Resources
 
@@ -22,6 +22,12 @@ Cache and volumes
 Patient disjointness
 
 - On startup, the app verifies that patient sets in `/data/edf/train` and `/data/edf/dev` are disjoint and aborts if not.
+
+S3 cache (not recommended)
+
+- Do not rely on S3 for cache during training. Prefer building once on `/results` (persistent volume) and reusing.
+- If you must bootstrap cache from local, use Modal volumes instead of S3:
+  - `modal volume put brain-go-brr-results cache/tusz /results/cache/tusz`
 
 Resuming
 

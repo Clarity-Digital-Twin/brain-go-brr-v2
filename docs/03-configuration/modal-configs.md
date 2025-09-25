@@ -17,6 +17,7 @@ Data
 - `data.cache_dir: /results/cache/tusz` (Modal persistent SSD; contains `{train,dev}`)
 - `data.split_policy: official_tusz` (enforce patient‑disjoint official splits)
 - `data.num_workers: 8`, `pin_memory: true`, `persistent_workers: true`, `prefetch_factor: 4`
+ - Note: avoid S3 caches; build once on `/results` and reuse
 
 Graph and V3
 
