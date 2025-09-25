@@ -212,7 +212,6 @@ class ModelConfig(BaseModel):
         description="Architecture type: v3 (dual-stream with learned adjacency)",
     )
 
-
     # Deprecated configs kept for backward compatibility (not used)
     encoder: EncoderConfig = Field(default_factory=EncoderConfig)
     rescnn: ResCNNConfig = Field(default_factory=ResCNNConfig)
