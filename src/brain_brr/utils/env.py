@@ -12,9 +12,30 @@ import os
 
 
 # Cache environment variables at import time for torch.compile compatibility
+# Model/forward pass variables
 _EDGE_CLAMP = os.getenv("BGB_EDGE_CLAMP", "1") == "1"
 _EDGE_CLAMP_MIN = float(os.getenv("BGB_EDGE_CLAMP_MIN", "-5.0"))
 _EDGE_CLAMP_MAX = float(os.getenv("BGB_EDGE_CLAMP_MAX", "5.0"))
+_DEBUG_FINITE = os.getenv("BGB_DEBUG_FINITE", "0") == "1"
+_FORCE_MAMBA_FALLBACK = os.getenv("SEIZURE_MAMBA_FORCE_FALLBACK", "0") == "1"
+_FORCE_TCN_EXT = os.getenv("BGB_FORCE_TCN_EXT", "0") == "1"
+
+# Training/data variables (not used in forward pass, can stay dynamic)
+_SMOKE_TEST = os.getenv("BGB_SMOKE_TEST", "0") == "1"
+_LIMIT_FILES = os.getenv("BGB_LIMIT_FILES")
+_FORCE_MANIFEST_REBUILD = os.getenv("BGB_FORCE_MANIFEST_REBUILD", "0") == "1"
+_DISABLE_TQDM = os.getenv("BGB_DISABLE_TQDM", "0") == "1"
+_DISABLE_TENSORBOARD = os.getenv("BGB_DISABLE_TB", "0") == "1"
+_MID_EPOCH_MINUTES = os.getenv("BGB_MID_EPOCH_MINUTES")
+_MID_EPOCH_KEEP = int(os.getenv("BGB_MID_EPOCH_KEEP", "2"))
+_NAN_DEBUG = os.getenv("BGB_NAN_DEBUG", "0") == "1"
+_NAN_DEBUG_MAX = int(os.getenv("BGB_NAN_DEBUG_MAX", "10"))
+_SANITIZE_INPUTS = os.getenv("BGB_SANITIZE_INPUTS", "0") == "1"
+_SANITIZE_GRADS = os.getenv("BGB_SANITIZE_GRADS", "0") == "1"
+_SKIP_OPT_STEP_ON_NAN = os.getenv("BGB_SKIP_OPT_STEP_ON_NAN", "0") == "1"
+_ANOMALY_DETECT = os.getenv("BGB_ANOMALY_DETECT", "0") == "1"
+_PERF_ALLOW_GPU = os.getenv("BGB_PERF_ALLOW_GPU", "0") == "1"
+_PERF_THREADS = os.getenv("BGB_PERF_THREADS")
 
 
 class EnvConfig:
