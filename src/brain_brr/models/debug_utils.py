@@ -1,9 +1,10 @@
-import os
 from typing import cast
 
 import torch
 
-DEBUG_FINITE = os.getenv("BGB_DEBUG_FINITE", "0") == "1"
+from src.brain_brr.utils.env import env
+
+DEBUG_FINITE = env.debug_finite()
 
 
 def assert_finite(tag: str, x: torch.Tensor) -> None:

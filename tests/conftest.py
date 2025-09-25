@@ -182,7 +182,6 @@ def valid_config_yaml(tmp_path: Path) -> Path:
             "architecture": "v3",
             "tcn": {
                 "num_layers": 8,
-                "channels": [64, 128, 256, 512],
                 "kernel_size": 7,
                 "dropout": 0.15,
                 "causal": False,
@@ -196,14 +195,13 @@ def valid_config_yaml(tmp_path: Path) -> Path:
             "learning_rate": 1e-3,
             "optimizer": "adamw",
             "gradient_clip": 1.0,
-            "validation_split": 0.2,
         },
         "postprocessing": {
             "hysteresis": {"tau_on": 0.86, "tau_off": 0.78},
-            "morphology": {"kernel_size": 5},
+            "morphology": {"opening_kernel": 11, "closing_kernel": 31},
             "duration": {"min_duration_s": 1.0, "max_duration_s": 300.0},
         },
-        "evaluation": {"fa_rates": [10, 5, 1], "overlap_threshold": 0.5},
+        "evaluation": {"fa_rates": [10, 5, 1]},
     }
 
     with open(config_path, "w") as f:
@@ -404,13 +402,21 @@ def create_temp_config(**overrides) -> Generator[Path, None, None]:
             "experiment": {"name": "test", "seed": 42},
             "data": {"dataset": "tuh_eeg", "data_dir": "tests/fixtures/data"},
             "model": {
-                "encoder": {"channels": [64, 128, 256, 512], "stages": 4},
-                "rescnn": {"n_blocks": 3, "kernel_sizes": [3, 5, 7]},
-                "mamba": {"n_layers": 6, "d_model": 512, "d_state": 16},
-                "decoder": {"stages": 4, "kernel_size": 4},
+                "architecture": "v3",
+                "tcn": {
+                    "num_layers": 8,
+                    "kernel_size": 7,
+                    "dropout": 0.15,
+                    "causal": False,
+                    "stride_down": 16,
+                },
+                "mamba": {"n_layers": 6, "d_model": 512, "d_state": 16, "conv_kernel": 4},
             },
             "training": {"epochs": 1, "batch_size": 2},
-            "postprocessing": {"hysteresis": {"tau_on": 0.86, "tau_off": 0.78}},
+            "postprocessing": {
+                "hysteresis": {"tau_on": 0.86, "tau_off": 0.78},
+                "morphology": {"opening_kernel": 11, "closing_kernel": 31},
+            },
         }
 
         # Deep merge overrides

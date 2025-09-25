@@ -5,12 +5,12 @@ Context (±5min): Pre/post-ictal patterns via bidirectional SSM
 O(N) complexity avoids transformer's O(N²) cost on long EEG sequences
 """
 
-import os
 import warnings
 from typing import cast
 
 import torch
 import torch.nn as nn
+from src.brain_brr.utils.env import env
 
 # Conditional import for GPU/CPU compatibility
 # No longer needed - we use d_conv=4 everywhere now
@@ -67,7 +67,7 @@ class BiMamba2Layer(nn.Module):
             )
 
         # Optional override to force fallback even if CUDA/Mamba are available
-        self._force_fallback = os.getenv("SEIZURE_MAMBA_FORCE_FALLBACK", "0") == "1"
+        self._force_fallback = env.force_mamba_fallback()
 
         # Always create both paths - decide at runtime
         if MAMBA_AVAILABLE:

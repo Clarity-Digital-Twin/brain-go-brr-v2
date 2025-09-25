@@ -50,6 +50,7 @@ from src.brain_brr.config.schemas import (
 from src.brain_brr.eval.metrics import evaluate_predictions
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.wandb_integration import WandBLogger
+from src.brain_brr.utils.env import env
 
 # WSL2-safe multiprocessing defaults (must be before any DataLoader creation)
 if mp.get_start_method(allow_none=True) != "spawn":
@@ -95,7 +96,7 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
     print("[SAMPLER] Creating positive-aware balanced sampler...", flush=True)
 
     # Skip expensive sampling in smoke test mode
-    if os.environ.get("BGB_SMOKE_TEST", "0") == "1":
+    if env.smoke_test():
         print(
             "[SMOKE TEST MODE] Skipping sampler window checking - returning None for uniform sampling",
             flush=True,
@@ -371,7 +372,7 @@ def train_epoch(
     dataset_len = len(dataset)  # type: ignore[arg-type]
 
     # Skip expensive sampling in smoke test mode
-    is_smoke_test = os.environ.get("BGB_SMOKE_TEST", "0") == "1"
+    is_smoke_test = env.smoke_test()
     if is_smoke_test:
         print(
             "[SMOKE TEST MODE] Skipping dataset sampling - using default pos_weight=1.0", flush=True
@@ -520,12 +521,12 @@ def train_epoch(
     num_batches = 0
     consecutive_nans = 0
     max_consecutive_nans = 50  # Threshold for early termination
-    enable_nan_debug = os.getenv("BGB_NAN_DEBUG", "0") == "1"
+    enable_nan_debug = env.nan_debug()
     nan_debug_emitted = 0
-    max_nan_debug = int(os.getenv("BGB_NAN_DEBUG_MAX", "3"))
+    max_nan_debug = env.nan_debug_max()
 
     # Robust tqdm handling for Modal/non-TTY environments
-    use_tqdm = not os.getenv("BGB_DISABLE_TQDM")
+    use_tqdm = not env.disable_tqdm()
     progress_bar = None  # Initialize to None for cleanup
 
     if use_tqdm:
@@ -564,7 +565,7 @@ def train_epoch(
                 labels = labels.max(dim=1)[0]  # (B, T)
 
             # Optional sanitation for non-finite inputs/labels
-            if os.getenv("BGB_SANITIZE_INPUTS", "0") == "1":
+            if env.sanitize_inputs():
                 if not torch.isfinite(windows).all():
                     windows = torch.nan_to_num(windows, nan=0.0, posinf=0.0, neginf=0.0)
                 if not torch.isfinite(labels).all():
@@ -687,7 +688,7 @@ def train_epoch(
 
                     # Sanitize gradients if needed
                     skip_step = False
-                    if os.getenv("BGB_SANITIZE_GRADS", "0") == "1":
+                    if env.sanitize_grads():
                         grad_has_nan = False
                         for _name, param in model.named_parameters():
                             if param.grad is not None and not torch.isfinite(param.grad).all():
@@ -697,7 +698,7 @@ def train_epoch(
                             print(
                                 f"[WARN] Sanitized NaN gradients at batch {batch_idx}", flush=True
                             )
-                            if os.getenv("BGB_SKIP_OPT_STEP_ON_NAN", "0") == "1":
+                            if env.skip_opt_step_on_nan():
                                 skip_step = True
                                 print(
                                     "[WARN] Skipping optimizer step due to NaN gradients",
@@ -898,7 +899,7 @@ def validate_epoch(
     print(f"[VALIDATION] Starting validation with {n_val_batches} batches...", flush=True)
 
     # Robust tqdm handling for Modal/non-TTY environments
-    use_tqdm = not os.getenv("BGB_DISABLE_TQDM")
+    use_tqdm = not env.disable_tqdm()
     progress_bar = None  # Initialize for cleanup
 
     with torch.no_grad():
@@ -1147,7 +1148,7 @@ def train(
         Dictionary of best metrics
     """
     # Setup
-    if os.getenv("BGB_ANOMALY_DETECT", "0") == "1":
+    if env.anomaly_detect():
         try:
             torch.autograd.set_detect_anomaly(True)
             print("[DEBUG] Enabled torch.autograd anomaly detection", flush=True)
@@ -1176,9 +1177,9 @@ def train(
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
     writer: SummaryWriter | None = None
-    if HAS_TENSORBOARD and not os.getenv("BGB_DISABLE_TB"):
+    if HAS_TENSORBOARD and not env.disable_tensorboard():
         writer = SummaryWriter(output_dir / "tensorboard")
-    elif not HAS_TENSORBOARD and not os.getenv("BGB_DISABLE_TB"):
+    elif not HAS_TENSORBOARD and not env.disable_tensorboard():
         print("TensorBoard not installed. Install with: pip install tensorboard")
 
     # Initialize W&B logging
@@ -1244,21 +1245,15 @@ def train(
             checkpoint_dir=checkpoint_dir,
             epoch_index=epoch,
             mid_epoch_minutes=(
-                float(os.getenv("BGB_MID_EPOCH_MINUTES", "0"))
-                if config.training.resume and os.getenv("BGB_MID_EPOCH_MINUTES")
-                else (
-                    getattr(
-                        config.experiment,
-                        "mid_epoch_checkpoint_minutes",
-                        10.0 if config.training.resume else None,
-                    )
+                float(env.mid_epoch_minutes() or 0)
+                if config.training.resume and env.mid_epoch_minutes() is not None
+                else getattr(
+                    config.experiment,
+                    "mid_epoch_checkpoint_minutes",
+                    10.0 if config.training.resume else None,
                 )
             ),
-            mid_epoch_keep=int(
-                os.getenv(
-                    "BGB_MID_EPOCH_KEEP", str(getattr(config.experiment, "mid_epoch_keep", 3))
-                )
-            ),
+            mid_epoch_keep=int(env.mid_epoch_keep()),
         )
 
         # Type narrowing for mypy
@@ -1502,10 +1497,10 @@ def main() -> None:
         raise ValueError(f"Unknown split_policy: {config.data.split_policy}")
 
     # Optional file limit for fast bring-up via env var (does not change config)
-    limit_env = os.getenv("BGB_LIMIT_FILES")
-    if limit_env:
+    limit_env_val = env.limit_files()
+    if limit_env_val is not None:
         try:
-            limit = max(1, int(limit_env))
+            limit = max(1, int(limit_env_val))
             train_files = train_files[:limit]
             train_label_files = train_label_files[:limit]
             val_limit = max(1, min(len(val_files), max(1, limit // 5)))
@@ -1557,7 +1552,7 @@ def main() -> None:
     if use_balanced and manifest_path.exists():
         import json
 
-        force_rebuild = os.getenv("BGB_FORCE_MANIFEST_REBUILD", "").strip() == "1"
+        force_rebuild = env.force_manifest_rebuild()
         try:
             with open(manifest_path) as f:
                 manifest_data = json.load(f)
@@ -1609,7 +1604,7 @@ def main() -> None:
                 flush=True,
             )
             if len(train_dataset) == 0:
-                is_smoke_test = os.environ.get("BGB_SMOKE_TEST", "0") == "1"
+                is_smoke_test = env.smoke_test()
                 if is_smoke_test:
                     print(
                         "[SMOKE TEST MODE] Balanced manifest empty - will fallback to EEGWindowDataset",
@@ -1684,7 +1679,7 @@ def main() -> None:
 
         if train_sampler is None:
             # Check if we're in smoke test mode
-            is_smoke_test = os.environ.get("BGB_SMOKE_TEST", "0") == "1"
+            is_smoke_test = env.smoke_test()
 
             if is_smoke_test:
                 print("=" * 60, flush=True)

@@ -63,20 +63,18 @@ data:
   stride: 10
   num_workers: 0
 model:
-  encoder:
-    channels: [64, 128, 256, 512]
-    stages: 4
-  rescnn:
-    n_blocks: 3
-    kernel_sizes: [3, 5, 7]
+  architecture: v3
+  tcn:
+    num_layers: 8
+    kernel_size: 7
+    dropout: 0.15
+    causal: false
+    stride_down: 16
   mamba:
     n_layers: 6
     d_model: 512
     d_state: 16
     conv_kernel: 4
-  decoder:
-    stages: 4
-    kernel_size: 4
 training:
   epochs: 1
   batch_size: 2
@@ -86,6 +84,9 @@ postprocessing:
   hysteresis:
     tau_on: 0.86
     tau_off: 0.78
+  morphology:
+    opening_kernel: 11
+    closing_kernel: 31
   duration:
     min_duration_s: 1.0
     max_duration_s: 300.0

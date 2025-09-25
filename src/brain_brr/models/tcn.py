@@ -4,7 +4,6 @@ Replaces U-Net encoder/decoder + ResCNN with a modern TCN architecture.
 Uses pytorch-tcn if available, falls back to minimal implementation.
 """
 
-import os
 import warnings
 from typing import cast
 
@@ -136,8 +135,8 @@ class TCNEncoder(nn.Module):
 
         # Choose backend: prefer external TCN only when explicitly enabled or forced
         # The external pytorch-tcn can hang on certain configurations
-        force_ext = os.getenv("BGB_FORCE_TCN_EXT", "0") == "1"
-        force_internal = os.getenv("BGB_FORCE_TCN_EXT", "0") == "0"
+        force_ext = env.force_tcn_ext()
+        force_internal = not force_ext
 
         use_external = HAS_PYTORCH_TCN and force_ext and not force_internal
 
@@ -274,3 +273,4 @@ if __name__ == "__main__":
     restored = head(out)
     print(f"Projection head output: {restored.shape}")
     print(f"Total parameters: {(count_parameters(tcn) + count_parameters(head)) / 1e6:.2f}M")
+from src.brain_brr.utils.env import env

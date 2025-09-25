@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -79,7 +78,9 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
         return manifest
 
     # Centralized iterator choice (handles tqdm=None + env flag)
-    disable_tqdm = os.getenv("BGB_DISABLE_TQDM", "").strip() == "1" or tqdm is None
+    from src.brain_brr.utils.env import env
+
+    disable_tqdm = env.disable_tqdm() or tqdm is None
     print(f"[CACHE] tqdm disabled={disable_tqdm} | files={len(npz_files)}", flush=True)
 
     if disable_tqdm:

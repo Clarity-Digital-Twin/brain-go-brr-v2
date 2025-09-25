@@ -65,9 +65,7 @@ model:
     semi_dynamic_interval: 5   # OPTIMAL: PE every 19.5ms (192 eigendecomps)
     pe_sign_consistency: true  # Fix eigenvector signs for stability
 
-  decoder:
-    stages: 4
-    kernel_size: 4
+  # Decoder removed in V3-only architecture
 
 data:
   dataset: tuh_eeg

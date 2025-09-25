@@ -3,10 +3,15 @@
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
-class DataConfig(BaseModel):
+class StrictModel(BaseModel):
+    """Base model that forbids unknown extra fields for clean configs."""
+    model_config = ConfigDict(extra="forbid")
+
+
+class DataConfig(StrictModel):
     """Data loading and batching configuration."""
 
     dataset: Literal["tuh_eeg", "chb_mit"] = Field(
@@ -65,7 +70,7 @@ class DataConfig(BaseModel):
         return Path(v) if not isinstance(v, Path) else v
 
 
-class PreprocessingConfig(BaseModel):
+class PreprocessingConfig(StrictModel):
     """Signal preprocessing configuration."""
 
     montage: Literal["10-20", "standard_1020"] = Field(
@@ -95,7 +100,7 @@ class PreprocessingConfig(BaseModel):
 """V3 schema: Encoder/ResCNN/Decoder removed; TCN + BiMamba + optional GNN only."""
 
 
-class MambaConfig(BaseModel):
+class MambaConfig(StrictModel):
     """Bi-Mamba-2 configuration."""
 
     n_layers: int = Field(default=6, ge=1, le=12, description="Number of Mamba layers")
@@ -110,7 +115,7 @@ class MambaConfig(BaseModel):
 # Legacy decoder config removed in V3-only schema
 
 
-class TCNConfig(BaseModel):
+class TCNConfig(StrictModel):
     """TCN (Temporal Convolutional Network) configuration."""
 
     num_layers: int = Field(default=8, ge=4, le=12, description="Number of TCN layers")
@@ -124,7 +129,7 @@ class TCNConfig(BaseModel):
     use_cuda_optimizations: bool = Field(default=True, description="Enable CUDA optimizations")
 
 
-class GraphConfig(BaseModel):
+class GraphConfig(StrictModel):
     """GNN configuration (V3, learned adjacency)."""
 
     enabled: bool = Field(default=False, description="Enable GNN stage")
@@ -164,7 +169,7 @@ class GraphConfig(BaseModel):
     )
 
 
-class ModelConfig(BaseModel):
+class ModelConfig(StrictModel):
     """Complete model architecture configuration."""
 
     name: Literal["seizure_detector"] = Field(default="seizure_detector", description="Model name")
@@ -183,7 +188,7 @@ class ModelConfig(BaseModel):
     graph: GraphConfig | None = Field(default=None, description="GNN configuration (V3)")
 
 
-class HysteresisConfig(BaseModel):
+class HysteresisConfig(StrictModel):
     """Hysteresis thresholding configuration."""
 
     tau_on: float = Field(default=0.86, ge=0.5, le=1.0, description="Upper threshold")
@@ -203,7 +208,7 @@ class HysteresisConfig(BaseModel):
         return self
 
 
-class MorphologyConfig(BaseModel):
+class MorphologyConfig(StrictModel):
     """Morphological operations configuration."""
 
     opening_kernel: int = Field(default=11, ge=1, description="Opening kernel size (samples)")
@@ -219,7 +224,7 @@ class MorphologyConfig(BaseModel):
         return v
 
 
-class DurationConfig(BaseModel):
+class DurationConfig(StrictModel):
     """Event duration filtering configuration."""
 
     min_duration_s: float = Field(
@@ -237,7 +242,7 @@ class DurationConfig(BaseModel):
         return self
 
 
-class EventsConfig(BaseModel):
+class EventsConfig(StrictModel):
     """Event merging and confidence configuration."""
 
     tau_merge: float = Field(default=2.0, ge=0.0, description="Max gap to merge events (seconds)")
@@ -249,7 +254,7 @@ class EventsConfig(BaseModel):
     )
 
 
-class StitchingConfig(BaseModel):
+class StitchingConfig(StrictModel):
     """Window stitching configuration."""
 
     method: Literal["overlap_add", "overlap_add_weighted", "max"] = Field(
@@ -259,7 +264,7 @@ class StitchingConfig(BaseModel):
     stride: int = Field(default=2560, ge=1, description="Window stride (samples)")
 
 
-class PostprocessingConfig(BaseModel):
+class PostprocessingConfig(StrictModel):
     """Post-processing pipeline configuration."""
 
     hysteresis: HysteresisConfig = Field(default_factory=HysteresisConfig)
@@ -274,7 +279,7 @@ class PostprocessingConfig(BaseModel):
     )
 
 
-class SchedulerConfig(BaseModel):
+class SchedulerConfig(StrictModel):
     """Learning rate scheduler configuration."""
 
     type: Literal["cosine", "linear", "constant"] = Field(
@@ -285,7 +290,7 @@ class SchedulerConfig(BaseModel):
     )
 
 
-class EarlyStoppingConfig(BaseModel):
+class EarlyStoppingConfig(StrictModel):
     """Early stopping configuration."""
 
     patience: int = Field(default=5, ge=1, le=50, description="Patience epochs")
@@ -296,7 +301,7 @@ class EarlyStoppingConfig(BaseModel):
     mode: Literal["max", "min"] = Field(default="max", description="Maximize or minimize metric")
 
 
-class TrainingConfig(BaseModel):
+class TrainingConfig(StrictModel):
     """Training loop configuration."""
 
     epochs: int = Field(default=1, ge=1, le=200, description="Number of training epochs")
@@ -327,7 +332,7 @@ class TrainingConfig(BaseModel):
     early_stopping: EarlyStoppingConfig = Field(default_factory=EarlyStoppingConfig)
 
 
-class EvaluationConfig(BaseModel):
+class EvaluationConfig(StrictModel):
     """Evaluation and metrics configuration."""
 
     metrics: list[str] = Field(
@@ -341,7 +346,7 @@ class EvaluationConfig(BaseModel):
     save_plots: bool = Field(default=True, description="Generate evaluation plots")
 
 
-class WandbConfig(BaseModel):
+class WandbConfig(StrictModel):
     """Weights & Biases logging configuration."""
 
     enabled: bool = Field(default=False, description="Enable W&B logging")
@@ -350,7 +355,7 @@ class WandbConfig(BaseModel):
     tags: list[str] = Field(default_factory=list, description="Run tags")
 
 
-class ExperimentConfig(BaseModel):
+class ExperimentConfig(StrictModel):
     """Experiment tracking configuration."""
 
     name: str = Field(default="debug", description="Experiment name for tracking")
@@ -375,7 +380,7 @@ class ExperimentConfig(BaseModel):
         return Path(v) if not isinstance(v, Path) else v
 
 
-class LoggingConfig(BaseModel):
+class LoggingConfig(StrictModel):
     """Training logging configuration."""
 
     log_every_n_steps: int = Field(default=10, ge=1, description="Steps between logging")
@@ -383,7 +388,7 @@ class LoggingConfig(BaseModel):
     log_weights: bool = Field(default=False, description="Log weight histograms")
 
 
-class ResourcesConfig(BaseModel):
+class ResourcesConfig(StrictModel):
     """Compute resource configuration."""
 
     max_memory_gb: float | None = Field(default=None, gt=0, description="Maximum GPU memory to use")
@@ -391,7 +396,7 @@ class ResourcesConfig(BaseModel):
     mixed_precision: bool = Field(default=True, description="Use mixed precision training")
 
 
-class Config(BaseModel):
+class Config(StrictModel):
     """Complete configuration schema for seizure detection pipeline."""
 
     data: DataConfig = Field(default_factory=DataConfig)
