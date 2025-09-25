@@ -60,98 +60,95 @@ class EnvConfig:
     @staticmethod
     def debug_finite() -> bool:
         """Enable finite value assertions in models (default: False)."""
-        return os.getenv("BGB_DEBUG_FINITE", "0") == "1"
+        return _DEBUG_FINITE
 
     @staticmethod
     def force_mamba_fallback() -> bool:
         """Force Mamba to use Conv1d fallback instead of CUDA kernel."""
-        return os.getenv("SEIZURE_MAMBA_FORCE_FALLBACK", "0") == "1"
+        return _FORCE_MAMBA_FALLBACK
 
     @staticmethod
     def force_tcn_ext() -> bool:
         """Force use of TCNExt instead of standard TCN."""
-        return os.getenv("BGB_FORCE_TCN_EXT", "0") == "1"
+        return _FORCE_TCN_EXT
 
     # Data/Training controls
     @staticmethod
     def smoke_test() -> bool:
         """Enable smoke test mode (limit to 3 files)."""
-        return os.getenv("BGB_SMOKE_TEST", "0") == "1"
+        return _SMOKE_TEST
 
     @staticmethod
     def limit_files() -> int | None:
         """Limit number of files to load (None for no limit)."""
-        val = os.getenv("BGB_LIMIT_FILES")
-        return int(val) if val else None
+        return int(_LIMIT_FILES) if _LIMIT_FILES else None
 
     @staticmethod
     def force_manifest_rebuild() -> bool:
         """Force rebuild of cache manifest."""
-        return os.getenv("BGB_FORCE_MANIFEST_REBUILD", "0") == "1"
+        return _FORCE_MANIFEST_REBUILD
 
     @staticmethod
     def disable_tqdm() -> bool:
         """Disable tqdm progress bars."""
-        return os.getenv("BGB_DISABLE_TQDM", "0") == "1"
+        return _DISABLE_TQDM
 
     @staticmethod
     def disable_tensorboard() -> bool:
         """Disable TensorBoard logging."""
-        return os.getenv("BGB_DISABLE_TB", "0") == "1"
+        return _DISABLE_TENSORBOARD
 
     @staticmethod
     def mid_epoch_minutes() -> int | None:
         """Save checkpoint every N minutes during epoch."""
-        val = os.getenv("BGB_MID_EPOCH_MINUTES")
-        return int(val) if val else None
+        return int(_MID_EPOCH_MINUTES) if _MID_EPOCH_MINUTES else None
 
     @staticmethod
     def mid_epoch_keep() -> int:
         """Number of mid-epoch checkpoints to keep (default: 2)."""
-        return int(os.getenv("BGB_MID_EPOCH_KEEP", "2"))
+        return _MID_EPOCH_KEEP
 
     # NaN/Debug controls
     @staticmethod
     def nan_debug() -> bool:
         """Enable NaN debugging mode."""
-        return os.getenv("BGB_NAN_DEBUG", "0") == "1"
+        return _NAN_DEBUG
 
     @staticmethod
     def nan_debug_max() -> int:
         """Maximum NaN occurrences before stopping (default: 10)."""
-        return int(os.getenv("BGB_NAN_DEBUG_MAX", "10"))
+        return _NAN_DEBUG_MAX
 
     @staticmethod
     def sanitize_inputs() -> bool:
         """Enable input sanitization (replace NaN/Inf with 0)."""
-        return os.getenv("BGB_SANITIZE_INPUTS", "0") == "1"
+        return _SANITIZE_INPUTS
 
     @staticmethod
     def sanitize_grads() -> bool:
         """Enable gradient sanitization."""
-        return os.getenv("BGB_SANITIZE_GRADS", "0") == "1"
+        return _SANITIZE_GRADS
 
     @staticmethod
     def skip_opt_step_on_nan() -> bool:
         """Skip optimizer step when NaN detected."""
-        return os.getenv("BGB_SKIP_OPT_STEP_ON_NAN", "0") == "1"
+        return _SKIP_OPT_STEP_ON_NAN
 
     @staticmethod
     def anomaly_detect() -> bool:
         """Enable PyTorch anomaly detection."""
-        return os.getenv("BGB_ANOMALY_DETECT", "0") == "1"
+        return _ANOMALY_DETECT
 
     # Performance testing
     @staticmethod
     def perf_allow_gpu() -> bool:
         """Allow GPU usage in performance tests."""
-        return os.getenv("BGB_PERF_ALLOW_GPU", "0") == "1"
+        return _PERF_ALLOW_GPU
 
     @staticmethod
     def perf_threads() -> int | None:
         """Number of threads for performance tests."""
-        val = os.getenv("BGB_PERF_THREADS")
-        return int(val) if val else None
+        return int(_PERF_THREADS) if _PERF_THREADS else None
 
 
 # Global instance for convenience
