@@ -2,7 +2,7 @@
 
 Common issues
 
-- Wrong cache dir: local `cache/tusz/`, Modal `/results/cache/tusz/`
+- Wrong cache dir: local `cache/tusz/`, Modal `/cache/` (S3 mount)
 - No seizures in batches: enable `use_balanced_sampling`
 - NaN losses on 4090: set `mixed_precision: false`
 - Modal stuck: increase CPU (24) and RAM (96GB)
@@ -43,5 +43,6 @@ NaN logits root cause quick summary
 
 Modal cache hygiene
 
-- If you previously trained with leaky splits, purge `/results/cache/{tusz,smoke}` via: `modal run deploy/modal/app.py --action clean-cache`.
+- S3 cache is now used directly: `s3://brain-go-brr-eeg-data-20250919/cache/tusz/`
+- Modal persistent volume only used for results at `/results/`
 - Ensure `data.data_dir: /data/edf` and `data.split_policy: official_tusz`; app verifies patient disjointness on startup.

@@ -3,7 +3,7 @@
 Locations
 
 - Local: `cache/tusz/{train,dev}`
-- Modal: `/results/cache/tusz/{train,dev}` (persistent SSD)
+- Modal: `/cache/{train,dev}` (S3 mount from `s3://brain-go-brr-eeg-data-20250919/cache/tusz/`)
 
 NPZ schema
 
@@ -82,7 +82,8 @@ Verification checklist
 - Training logs show: "BalancedSeizureDataset" and non-zero seizure ratio
 - Split policy in effect: logs show "OFFICIAL TUSZ SPLITS" and "✅ PATIENT DISJOINTNESS VERIFIED"
 
-Modal paths (persistent volume)
+Modal paths (S3 mount)
 
-- Train: `/results/cache/tusz/train`
-- Dev: `/results/cache/tusz/dev`
+- Train: `/cache/train` (mounted from S3)
+- Dev: `/cache/dev` (mounted from S3)
+- Results: `/results/` (persistent volume for outputs only)
