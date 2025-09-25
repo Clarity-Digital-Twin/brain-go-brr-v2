@@ -109,6 +109,48 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
 
 @app.function(
     gpu="A100",
+    timeout=600,  # 10 min to include cache clean
+    cpu=16,  # Safe: 16 cores for testing
+    memory=32768,  # Safe: 32GB RAM for tests
+    volumes={"/results": results_volume},  # Need volume for cache operations
+)
+def clean_cache():
+    """Clean contaminated cache from before patient-disjoint fix."""
+    import shutil
+    from pathlib import Path
+
+    print("\n" + "=" * 60)
+    print("[CACHE CLEAN] Starting cache cleanup...")
+    print("=" * 60)
+
+    cache_paths = [
+        Path("/results/cache/tusz"),
+        Path("/results/cache/smoke"),
+    ]
+
+    for cache_path in cache_paths:
+        if cache_path.exists():
+            print(f"[CLEAN] Removing {cache_path}...")
+            shutil.rmtree(cache_path, ignore_errors=True)
+            print(f"[CLEAN] ✅ Removed {cache_path}")
+        else:
+            print(f"[CLEAN] Path does not exist: {cache_path}")
+
+    # Recreate clean directories
+    for cache_path in cache_paths:
+        cache_path.mkdir(parents=True, exist_ok=True)
+        (cache_path / "train").mkdir(exist_ok=True)
+        (cache_path / "dev").mkdir(exist_ok=True)
+        print(f"[CLEAN] ✅ Created clean structure: {cache_path}/{{train,dev}}/")
+
+    print("\n[CACHE CLEAN] ✅ Cache cleanup complete!")
+    print("Next training run will rebuild cache with patient-disjoint splits.")
+    print("=" * 60 + "\n")
+    return True
+
+
+@app.function(
+    gpu="A100",
     timeout=300,  # 5 min test
     cpu=16,  # Safe: 16 cores for testing
     memory=32768,  # Safe: 32GB RAM for tests
@@ -197,6 +239,31 @@ def train(
     except ImportError as e:
         print(f"⚠️ Mamba-SSM import failed: {e}")
 
+    # CRITICAL: Verify patient disjointness in data
+    print("\n" + "=" * 60, flush=True)
+    print("[PATIENT DISJOINTNESS] Verifying TUSZ splits...", flush=True)
+    print("=" * 60, flush=True)
+
+    from pathlib import Path
+    train_dir = Path("/data/edf/train")
+    dev_dir = Path("/data/edf/dev")
+
+    if train_dir.exists() and dev_dir.exists():
+        train_patients = {p.name for p in train_dir.iterdir() if p.is_dir()}
+        dev_patients = {p.name for p in dev_dir.iterdir() if p.is_dir()}
+        overlap = train_patients & dev_patients
+
+        if overlap:
+            raise RuntimeError(
+                f"CRITICAL: Patient leakage detected! {len(overlap)} patients in both splits:\n"
+                f"  {sorted(overlap)[:10]}"
+            )
+
+        print(f"[SPLITS] ✅ VERIFIED: {len(train_patients)} train, {len(dev_patients)} dev patients")
+        print("[SPLITS] ✅ NO PATIENT OVERLAP - Data is clean!")
+    else:
+        print("[SPLITS] WARNING: Could not verify splits (dirs not found)")
+
     # Check if cache exists on Modal persistent volume
     print("\n" + "=" * 60, flush=True)
     print("[CACHE] Verifying cache location on Modal...", flush=True)
@@ -219,9 +286,12 @@ def train(
 
         # For smoke tests, ensure we use a separate cache directory
         if "smoke" in config_path.lower() and "smoke" not in cache_dir:
-            cache_dir = cache_dir.replace("/train", "/smoke").replace("/tusz", "/smoke")
+            cache_dir = cache_dir.replace("/tusz", "/smoke")
 
-        cache_path = Path(cache_dir) / "train" if "train" not in str(cache_dir) else Path(cache_dir)
+        # CRITICAL: Cache structure should be cache_dir/{train,dev}/ for patient disjointness
+        cache_train = Path(cache_dir) / "train"
+        cache_dev = Path(cache_dir) / "dev"
+        cache_path = cache_train  # Primary cache for reporting
 
         if cache_path.exists():
             npz_files = list(cache_path.glob("*.npz"))
@@ -285,13 +355,19 @@ def train(
     out_name = Path(exp.get("output_dir", "results/run")).name
     exp["output_dir"] = f"/results/{out_name}"
 
-    # CRITICAL: Use existing cache on Modal persistent volume
-    # Cache location: /results/cache/tusz/{train,val}/ with 3734 NPZ files
+    # CRITICAL: Use cache with patient-disjoint structure
+    # Cache location: /results/cache/{tusz,smoke}/{train,dev}/
     if "smoke" in config_path.lower():
         cache_dir = "/results/cache/smoke"
     else:
-        # Use the persistent cache that was built on first run
-        cache_dir = "/results/cache/tusz"  # This has train/ and val/ subdirs
+        # Use the persistent cache for full training
+        cache_dir = "/results/cache/tusz"  # This MUST have train/ and dev/ subdirs
+
+    # Ensure cache directories exist with correct structure
+    from pathlib import Path
+    Path(cache_dir).mkdir(parents=True, exist_ok=True)
+    (Path(cache_dir) / "train").mkdir(exist_ok=True)
+    (Path(cache_dir) / "dev").mkdir(exist_ok=True)
 
     # Set cache_dir in both data and experiment sections
     exp["cache_dir"] = cache_dir
@@ -428,6 +504,9 @@ def main(
     ⚠️ NO DOUBLE DASH (--) separator needed anymore in Modal CLI!
 
     Examples:
+        # IMPORTANT: Clean old contaminated cache first!
+        modal run deploy/modal/app.py --action clean-cache
+
         # Test Mamba CUDA kernels
         modal run deploy/modal/app.py --action test-mamba
 
@@ -446,7 +525,17 @@ def main(
     print("🚀 Brain-Go-Brr v2 Modal Deployment")
     print("=" * 50)
 
-    if action == "test-mamba":
+    if action == "clean-cache":
+        # Clean contaminated cache from before patient-disjoint fix
+        print("🧹 Cleaning contaminated cache...")
+        success = clean_cache.remote()
+        if success:
+            print("✅ Cache cleaned! Next training will rebuild with patient-disjoint splits.")
+        else:
+            print("❌ Cache cleaning failed!")
+            raise RuntimeError("Failed to clean cache")
+
+    elif action == "test-mamba":
         # Test Mamba CUDA kernels
         print("Testing Mamba CUDA kernels...")
         success = test_mamba_cuda.remote()
@@ -468,7 +557,7 @@ def main(
 
     else:
         print(f"Unknown action: {action}")
-        print("Available actions: test-mamba, train, evaluate")
+        print("Available actions: clean-cache, test-mamba, train, evaluate")
 
 
 if __name__ == "__main__":
