@@ -46,6 +46,9 @@ class WandBLogger:
                 run_id = uuid.uuid4().hex
                 run_id_path.write_text(run_id)
 
+            # Guard optional graph config once to avoid repeated hasattr(None, ...)
+            g = getattr(config.model, "graph", None)
+
             self.run = wandb.init(
                 project=config.experiment.wandb.project,
                 entity=config.experiment.wandb.entity,
@@ -77,22 +80,12 @@ class WandBLogger:
                     "mamba_d_model": config.model.mamba.d_model,
                     "mamba_d_state": config.model.mamba.d_state,
                     # Graph config (V3)
-                    "graph_enabled": config.model.graph.enabled,
-                    "graph_edge_features": config.model.graph.edge_features
-                    if hasattr(config.model.graph, "edge_features")
-                    else None,
-                    "graph_edge_top_k": config.model.graph.edge_top_k
-                    if hasattr(config.model.graph, "edge_top_k")
-                    else None,
-                    "graph_edge_threshold": config.model.graph.edge_threshold
-                    if hasattr(config.model.graph, "edge_threshold")
-                    else None,
-                    "graph_edge_mamba_layers": config.model.graph.edge_mamba_layers
-                    if hasattr(config.model.graph, "edge_mamba_layers")
-                    else None,
-                    "graph_k_eigenvectors": config.model.graph.k_eigenvectors
-                    if hasattr(config.model.graph, "k_eigenvectors")
-                    else None,
+                    "graph_enabled": bool(g and getattr(g, "enabled", False)),
+                    "graph_edge_features": getattr(g, "edge_features", None),
+                    "graph_edge_top_k": getattr(g, "edge_top_k", None),
+                    "graph_edge_threshold": getattr(g, "edge_threshold", None),
+                    "graph_edge_mamba_layers": getattr(g, "edge_mamba_layers", None),
+                    "graph_k_eigenvectors": getattr(g, "k_eigenvectors", None),
                     # Data config
                     "window_size": config.data.window_size,
                     "stride": config.data.stride,
