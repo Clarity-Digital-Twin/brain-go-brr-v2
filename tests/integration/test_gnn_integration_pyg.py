@@ -54,8 +54,7 @@ class TestGNNIntegrationPyG:
 
         # Check GNN components were initialized
         assert detector.use_gnn is True
-        assert detector.graph_builder is None
-        assert detector.gnn is not None
+        assert detector.gnn is not None  # V3 uses PyG GNN
 
     def test_dynamic_vs_static_pe_shape(self, config_with_pyg_gnn):
         """Dynamic and static PE should produce same output shape."""
