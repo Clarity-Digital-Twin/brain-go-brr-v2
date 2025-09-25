@@ -124,7 +124,7 @@ class SeizureDetector(nn.Module):
             "mamba_d_state": mamba_d_state,
             "mamba_d_conv": mamba_d_conv,
             "mamba_dropout": mamba_dropout,
-            "architecture": "tcn",
+            "architecture": "v3",
         }
 
         # TCN encoder: 19 channels -> 512 channels, 15360 -> 960 samples
