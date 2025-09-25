@@ -12,8 +12,7 @@ Brain-Go-Brr v2.6 + V3: Clinical EEG seizure detection using **TCN + BiMamba + G
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-Paths supported:
-- **V2 (architecture: tcn)** → heuristic cosine similarity graphs (top_k=3)
+Path supported:
 - **V3 (architecture: v3)** → dual‑stream with learned adjacency (Edge Mamba) + vectorized GNN
 See V3 details: docs/architecture/V3_ACTUAL.md
 

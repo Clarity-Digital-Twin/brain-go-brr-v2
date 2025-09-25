@@ -6,7 +6,7 @@ Top-level sections
 
 - `data` — dataset roots, cache, batching
 - `preprocessing` — filters, normalization, montage
-- `model` — architecture (`tcn` or `v3`), TCN/Mamba/GNN
+- `model` — architecture (`v3`), TCN/Mamba/GNN
 - `postprocessing` — hysteresis, morphology, durations, stitching
 - `training` — epochs, batch size, loss, LR, scheduler
 - `evaluation` — metrics and FA rates
@@ -34,7 +34,7 @@ Preprocessing
 
 Model
 
-- `architecture: tcn|v3`
+- `architecture: v3`
 - `tcn`: `num_layers: 8`, `kernel_size: 7`, `dropout: 0.15`, `causal: false`, `stride_down: 16`
 - `mamba`: `n_layers: 6`, `d_model: 512`, `d_state: 16`, `conv_kernel: 4`, `dropout: 0.1`
 - `graph` (optional): see Graph below. Required for v3.
