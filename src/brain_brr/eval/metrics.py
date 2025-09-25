@@ -370,8 +370,14 @@ def sensitivity_at_fa_rates(
             probs, post_cfg, ref_events, fa_target, total_hours, sampling_rate
         )
 
-        # Get predictions at this threshold
-        pred_events = batch_probs_to_events(probs, post_cfg, sampling_rate, threshold=threshold)
+        # Clone post_cfg and update thresholds for this FA target
+        from copy import deepcopy
+        search_cfg = deepcopy(post_cfg)
+        search_cfg.hysteresis.tau_on = threshold
+        search_cfg.hysteresis.tau_off = max(0.0, threshold - 0.08)  # Default delta
+
+        # Get predictions at this threshold (using updated config, not threshold param)
+        pred_events = batch_probs_to_events(probs, search_cfg, sampling_rate)
 
         # Calculate sensitivity (event-level)
         tp_count = 0
