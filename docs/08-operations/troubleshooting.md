@@ -2,21 +2,21 @@
 
 Common issues
 
-- Wrong cache dir: local `cache/tusz/`, Modal `/cache/` (S3 mount)
+- Wrong cache dir: local `cache/tusz/`, Modal `/results/cache/tusz/` (persistent SSD)
 - No seizures in batches: enable `use_balanced_sampling`
 - NaN losses on 4090: set `mixed_precision: false`
 - Modal stuck: increase CPU (24) and RAM (96GB)
 - PyG install fails: use prebuilt wheels
 
-V3 NaN Issues (RESOLVED)
+V3 NaN issues
 
-- **Primary cause**: Dynamic PE eigendecomposition on uninitialized adjacency
-- **Solution**: Set `use_dynamic_pe: false` in configs (currently default)
-- **Additional safeguards**:
-  - Edge clamping enabled (`BGB_EDGE_CLAMP=1`)
-  - Optimizer parameter groups (no weight decay on norms)
-  - Gradient sanitization available (`BGB_SANITIZE_GRADS=1`)
-- For details see: `docs/08-operations/incidents/v3-nan-explosion-resolution.md`
+- Primary contributing factor: dynamic PE eigendecomposition on poorly initialized adjacency.
+- Default configs enable dynamic PE with safeguards; on consumer GPUs (RTX 4090), if NaNs appear early, set `use_dynamic_pe: false` as a fallback.
+- Additional safeguards:
+  - Edge clamping enabled (`BGB_EDGE_CLAMP=1` by default; bounds configurable)
+  - Optimizer parameter groups (no weight decay on norms/bias)
+  - Optional gradient sanitization (`BGB_SANITIZE_GRADS=1`)
+- Details and timeline: `docs/08-operations/incidents/v3-nan-explosion-resolution.md`
 
 Local training “gets stuck” checklist
 
@@ -43,6 +43,6 @@ NaN logits root cause quick summary
 
 Modal cache hygiene
 
-- S3 cache is now used directly: `s3://brain-go-brr-eeg-data-20250919/cache/tusz/`
+- Do not use S3 for caches; keep NPZs on Modal volume at `/results/cache/tusz/`
 - Modal persistent volume only used for results at `/results/`
 - Ensure `data.data_dir: /data/edf` and `data.split_policy: official_tusz`; app verifies patient disjointness on startup.

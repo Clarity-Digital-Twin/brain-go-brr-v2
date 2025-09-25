@@ -1,13 +1,13 @@
-# Archive → Canonical Mapping (0X Docs)
+# Archive → Canonical Mapping (SSOT)
 
-This map lets us safely delete `docs/archive/` after confirming all essential content exists in canonical docs.
+This mapping shows where content from the legacy `docs/ARCHIVE/` was consolidated into canonical docs. With these mappings in place, the archived files can be safely removed.
 
 Key migrations
 - CRITICAL_FIX_PATIENT_LEAKAGE.md → `docs/tusz/tusz-splits.md`, `docs/05-training/modal.md`
 - TUSZ_PIPELINE_AUDIT.md → `docs/tusz/tusz-splits.md`, `docs/02-data/overview.md`
 - MODAL_CONFIG_STATUS.md → `docs/03-configuration/modal-configs.md`, `docs/05-training/modal.md`
 - OOM_ROOT_CAUSE_ANALYSIS.md → `docs/08-operations/troubleshooting.md`
-- NAN_LOGITS_ROOT_CAUSE_ANALYSIS.md → `docs/08-operations/troubleshooting.md`
+- NAN_LOGITS_ROOT_CAUSE_ANALYSIS.md → `docs/08-operations/incidents/v3-nan-explosion-resolution.md`, `docs/08-operations/troubleshooting.md`
 - DYNAMIC_PE_MEMORY_SOLUTION.md → `docs/04-model/laplacian-pe.md`, `docs/08-operations/performance-optimization.md`
 - DYNAMIC_LPE_IMPLEMENTATION.md → `docs/04-model/laplacian-pe.md`
 - OPTIMAL_RTX4090_CONFIG.md → `docs/03-configuration/local-configs.md`, `docs/08-operations/performance-optimization.md`
@@ -21,3 +21,4 @@ TUSZ references
 
 Status
 - All essential topics above now have canonical homes. It is safe to remove the corresponding archived files.
+

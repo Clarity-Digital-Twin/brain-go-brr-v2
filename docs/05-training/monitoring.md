@@ -13,7 +13,7 @@ Modal
 
 Storage
 
-- Modal cache on `/cache/` (S3 mount, read-only from `s3://brain-go-brr-eeg-data-20250919/cache/tusz/`).
+- Modal cache at `/results/cache/tusz/` (persistent SSD volume; no S3 mount).
 - Checkpoints under `/results/<run>/checkpoints` (persistence volume for outputs only).
 
 W&B (optional)

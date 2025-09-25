@@ -14,9 +14,10 @@ P0 — Fixed
   - Fix: set `tau_on/off` on cloned post config before eventization.
   - Docs: `docs/06-evaluation/metrics-and-taes.md#notes-and-caveats`.
 - V3 NaN explosion during training
-  - Root cause: Dynamic PE eigendecomposition on uninitialized adjacency
-  - Fix: Disabled dynamic PE, added edge clamping, fixed optimizer parameter groups
-  - Docs: `docs/08-operations/incidents/v3-nan-explosion-resolution.md`
+  - Root causes: dynamic PE on poorly initialized adjacency; optimizer hygiene (weight decay on norms); edge‑stream amplification
+  - Fix: optimizer parameter groups (no decay on norms/bias), edge clamping (env‑gated), PE safeguards (degree/diag regularization, fp32 eigens, cached fallback)
+  - Fallback: on RTX 4090, set `use_dynamic_pe: false` if NaNs persist
+  - Docs: `docs/08-operations/incidents/v3-nan-explosion-resolution.md`, `docs/08-operations/troubleshooting.md`
 
 P1 — Fixed / Hardened
 - TensorBoard optional import

@@ -63,7 +63,7 @@ Cache hygiene and invalidation
 **Storage:**
 - Manifest uses relative filenames; keep it next to NPZs under the cache dir
 - Local: `cache/tusz/` (smoke tests use SAME cache with `BGB_LIMIT_FILES=3`)
-- Modal: `/cache/` (S3 mount, smoke tests use SAME cache with `BGB_LIMIT_FILES=50`)
+- Modal: `/results/cache/tusz/` (persistent SSD; smoke tests use SAME cache with `BGB_LIMIT_FILES=50`)
 
 Code anchors
 

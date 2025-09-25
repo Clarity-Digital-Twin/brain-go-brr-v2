@@ -22,10 +22,10 @@ Key parameters
 
 Stability notes (dynamic PE)
 
-- **CRITICAL**: Dynamic PE is currently DISABLED due to numerical instability (see `docs/08-operations/incidents/v3-nan-explosion-resolution.md`)
-- Degree clamp, diagonal regularization, NaN/Inf checks with cached PE fallback are implemented in `gnn_pyg.py` to prevent non‑finite logits
-- Edge projection clamping enabled by default (`BGB_EDGE_CLAMP=1`) to prevent explosion
-- See also: `docs/04-model/laplacian-pe.md` for implementation details and config knobs
+- Dynamic PE is enabled by default with safeguards (degree clamp, diagonal regularization, NaN/Inf checks, cached‑PE fallback; eigens in fp32).
+- On consumer GPUs (e.g., RTX 4090), if you observe NaNs early in training, set `use_dynamic_pe: false` as a temporary fallback and file an issue with logs.
+- Edge projection clamping is enabled by default via env (`BGB_EDGE_CLAMP=1` by default; min/max configurable) to prevent edge‑stream explosions.
+- See `docs/04-model/laplacian-pe.md` for implementation details and configuration knobs, and `docs/08-operations/incidents/v3-nan-explosion-resolution.md` for incident context.
 
 Constraints and guards
 
@@ -43,7 +43,7 @@ Where in code
 
 Status and validated decisions
 
-- Dynamic Laplacian PE: enabled by default; numerically stable with degree clamp, diagonal regularization, NaN/Inf checks, cached‑PE fallback, and final nan_to_num.
+- Dynamic Laplacian PE: default ON with safeguards; fallback OFF on RTX 4090 if instability is observed.
 - Graph sparsity: top‑k=3 validated by EvoBrain (“top‑3 neighbors kept”); threshold prune, symmetry, identity fallback for safety.
 - Temporal → spatial order: time‑then‑graph validated by literature; vectorized over timesteps for efficiency.
 - Node stream capacity: 64 dims (1216 total) sufficient; can ablate 128 later.

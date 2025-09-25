@@ -28,7 +28,7 @@ Runtime verification
 
 Cache structure
 - Local: `cache/tusz/{train,dev}/` (smoke uses SAME cache with `BGB_LIMIT_FILES` env var).
-- Modal: `/cache/{train,dev}/` (S3 mount from `s3://brain-go-brr-eeg-data-20250919/cache/tusz/`).
+- Modal: `/results/cache/tusz/{train,dev}/` (persistent SSD volume; no S3 mounts).
 
 Guardrails
 - If any overlap is detected between train/dev patients, training aborts.
@@ -38,4 +38,3 @@ Related
 - Data overview: `docs/02-data/overview.md`
 - Preflight & troubleshooting: `docs/tusz/tusz-preflight.md`
 - Cache & manifest: `docs/02-data/cache-layout.md`
-

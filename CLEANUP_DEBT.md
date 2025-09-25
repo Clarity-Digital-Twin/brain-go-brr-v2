@@ -1,26 +1,31 @@
 # Technical Debt & Cleanup Tasks
 
-## 🧹 PRIORITY 1: GNN Implementation Cleanup (Pure GNN + LPE)
-- [ ] Remove heuristic adjacency builder path (cosine/correlation)
-- [ ] Implement edge stream (extractor + Bi‑Mamba + Linear+Softplus)
-- [ ] Assemble learned adjacency with top‑k + threshold + symmetry + identity fallback
-- [ ] Make PyG + Laplacian PE the canonical backend (keep pure‑torch only for tests)
-- [ ] Update detector to consume learned adjacency (no builder)
-- [ ] Update configs: add `edge_*` fields; deprecate `similarity`, `top_k`, `temperature`, `threshold`
+## ✅ COMPLETED (V3 Implementation Done)
+- [x] Implement edge stream (edge_mamba in detector.py:207-229 with 16D projection)
+- [x] Assemble learned adjacency (assemble_adjacency in edge_features.py)
+- [x] PyG + Laplacian PE canonical (gnn_pyg.py fully implemented)
+- [x] Detector consumes learned adjacency (V3 path lines 207-241)
+- [x] Configs updated (edge_metric, edge_top_k, edge_threshold, edge_mamba_* all present)
 
-## 🧹 PRIORITY 2: Legacy Code Removal
-- [ ] Remove UNet legacy imports/references
-- [ ] Remove ResCNN legacy imports/references
-- [ ] Clean up detector.py to remove legacy parameter handling
-- [ ] Update all tests to use TCN parameters only
-- [ ] Remove `base_channels`, `encoder_depth`, `rescnn_blocks` parameters
+## 🧹 PRIORITY 1: V2/V3 Path Consolidation
+- [ ] Remove heuristic adjacency builder (still used by V2 path detector.py:375)
+- [ ] Remove graph_builder.py entirely after V2 deprecation
+- [ ] Consolidate to single V3 architecture (remove V2 branches)
+- [ ] Clean up architecture config (remove 'tcn' vs 'v3' distinction)
 
-## 🧹 PRIORITY 3: Test Suite Stability
-- [ ] Fix intermittent worker crashes in parallel tests
-- [ ] Add proper resource cleanup in test fixtures
-- [ ] Investigate memory leaks in training tests
-- [ ] Ensure all tests properly marked with `@pytest.mark.serial` when needed
-- [ ] Add timeout decorators for long-running tests
+## 🧹 PRIORITY 2: Legacy Parameter Cleanup
+- [ ] Remove `base_channels`, `encoder_depth`, `rescnn_blocks` from detector.__init__ (lines 48-50, 87-89)
+- [ ] Add deprecation warnings before removal
+- [ ] Update all test fixtures to stop passing these parameters
+- [ ] Remove from conftest.py and test files
+- [ ] Clean up schemas.py if referenced there
+
+## 🧹 PRIORITY 3: Test Suite Improvements
+- [x] Tests marked with `@pytest.mark.serial` (25 tests properly marked)
+- [x] Timeout decorators added (test_latency.py, test_training_edge_cases.py, test_memory.py)
+- [ ] Investigate if worker crashes still occur
+- [ ] Add resource cleanup fixtures
+- [ ] Memory leak investigation (unknown if still an issue)
 
 ## 🧹 PRIORITY 4: Future Enhancements (from EvoBrain)
 - [ ] Support alternative SNNs for edge stream (GRU/LSTM)
@@ -35,15 +40,17 @@
 - [ ] Clean up config schemas (remove unused fields)
 - [ ] Document all magic numbers/constants
 
-## ⚠️ Known Issues
-1. **Fake SSGConv**: Pure PyTorch implementation is 1-hop only, not real K-hop
-2. **Missing Edge Mamba**: EvoBrain uses Mamba for both node AND edge streams (addressed by Priority 1)
-3. **Test Workers Crashing**: Resource exhaustion in parallel test execution
-4. **Legacy Parameters**: Still accepting UNet/ResCNN params that are ignored
+## ⚠️ Current Issues
+1. **V2/V3 Coexistence**: Both paths active making code complex (~100 lines of branching logic)
+2. **Legacy Parameters**: Still accepting base_channels/encoder_depth/rescnn_blocks that are ignored
+3. **Environment Variable Sprawl**: Debug flags scattered (BGB_NAN_DEBUG, BGB_EDGE_CLAMP, etc.)
+4. **No Deprecation Warnings**: Legacy parameters silently accepted without warnings
 
-## 🔧 Refactoring Opportunities
-- Unify graph construction logic
-- Extract common patterns in model initialization
-- Simplify configuration hierarchy
-- Consolidate loss function implementations
-- Streamline data pipeline
+## 🔧 New Technical Debt (Found During Investigation)
+- [ ] Consolidate debug environment variables into config or debug mode
+- [ ] Remove assert_finite calls once training is stable
+- [ ] Add formal deprecation system with warnings
+- [ ] Simplify detector.py after V2 removal (~400 lines → ~250 lines possible)
+- [ ] Remove edge clamping workarounds after numerical stability proven
+- [ ] Document all environment variables in single place
+- [ ] Remove NaN safeguards once V3 proven stable in production

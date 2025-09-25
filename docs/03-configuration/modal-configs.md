@@ -14,7 +14,7 @@ Training
 Data
 
 - `data.data_dir: /data/edf` (parent containing `train/`, `dev/`, `eval/`)
-- `data.cache_dir: /cache` (S3 mount from `s3://brain-go-brr-eeg-data-20250919/cache/tusz/`)
+- `data.cache_dir: /results/cache/tusz` (Modal persistent SSD volume; do not use S3 for caches)
 - `data.split_policy: official_tusz` (enforce patient‑disjoint official splits)
 - `data.num_workers: 8`, `pin_memory: true`, `persistent_workers: true`, `prefetch_factor: 4`
 

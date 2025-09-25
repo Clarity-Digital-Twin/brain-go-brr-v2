@@ -14,23 +14,20 @@ Resources
 
 Cache and volumes
 
-- Raw data mounted at `/data/edf/` (S3 bucket with EDF files)
-- **Cache mounted at `/cache/` (S3 bucket with NPZ files)**
-- Results saved to `/results/` (persistent volume)
-- Ensure `data.data_dir: /data/edf` and `data.split_policy: official_tusz`
-- Ensure `data.cache_dir: /cache` in configs (S3 mount, not volume)
-- No cache building needed - using pre-built cache from S3
+- Raw data mounted at `/data/edf/` (read‑only dataset mount)
+- Cache on persistent SSD volume at `/results/cache/tusz` (patient‑disjoint subdirs: `{train,dev}`)
+- Results saved to `/results/` (same persistent volume)
+- Ensure `data.data_dir: /data/edf`, `data.split_policy: official_tusz`
+- Ensure `data.cache_dir: /results/cache/tusz` in configs
+- Do not use S3 for cache on Modal; prebuilt caches should be synced into the Modal volume
 
 Patient disjointness
 
 - On startup, the app verifies that patient sets in `/data/edf/train` and `/data/edf/dev` are disjoint and aborts if not.
 
-S3 cache (not recommended)
+Notes
 
-- **UPDATE**: Now using S3 cache directly via CloudBucketMount
-- Cache is at `s3://brain-go-brr-eeg-data-20250919/cache/tusz/`
-- No Modal volume upload needed - S3 mount is more efficient
-- The Modal persistent volume (`brain-go-brr-results`) is only for results
+- If migrating legacy runs that used an S3 cache mount, copy the cache to the Modal volume once, then point configs to `/results/cache/tusz`.
 
 Resuming
 
