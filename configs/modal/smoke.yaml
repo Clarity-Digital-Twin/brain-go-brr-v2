@@ -7,8 +7,9 @@
 # Usage: modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
 data:
   dataset: tuh_eeg
-  data_dir: /data/edf/train            # Modal S3 mount path
+  data_dir: /data/edf                   # Parent dir containing train/dev/eval
   cache_dir: /results/cache/tusz       # Persistent SSD cache (NOT S3!)
+  split_policy: official_tusz          # Use TUSZ official patient-disjoint splits
   sampling_rate: 256
   n_channels: 19
   window_size: 60
@@ -17,7 +18,6 @@ data:
   pin_memory: true                     # A100 optimized
   persistent_workers: true              # A100 optimized
   prefetch_factor: 4
-  validation_split: 0.2
   use_balanced_sampling: false         # Must be false for BGB_LIMIT_FILES to work
 
 preprocessing:
