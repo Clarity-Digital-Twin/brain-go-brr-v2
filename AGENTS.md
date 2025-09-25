@@ -73,7 +73,7 @@ src/brain_brr/           # Core implementation
 │   ├── tcn.py          # TCN encoder (8 layers, stride_down=16)
 │   ├── mamba.py        # Bidirectional Mamba (6 layers)
 │   ├── gnn_pyg.py      # PyG GNN with Laplacian PE
-│   └── graph_builder.py # Heuristic adjacency builder
+│   └── (removed)        # Heuristic adjacency builder (V2) removed in Phase 3
 ├── data/               # EEG data pipeline
 │   ├── loader.py       # EDF processing with MNE
 │   └── dataset.py      # PyTorch Dataset with balanced sampling

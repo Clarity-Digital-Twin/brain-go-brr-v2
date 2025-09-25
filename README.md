@@ -137,7 +137,7 @@ src/brain_brr/           # Core modules
 │   ├── tcn.py          # TCN encoder (8 layers)
 │   ├── mamba.py        # Bidirectional Mamba (6 layers)
 │   ├── gnn_pyg.py      # PyG GNN with Laplacian PE
-│   ├── graph_builder.py # Heuristic adjacency (v2 only)
+│   ├── (removed)        # Heuristic adjacency (V2) removed
 │   └── edge_features.py # Edge Mamba stream (v3 only)
 ├── data/               # EEG preprocessing
 ├── train/              # Training pipeline

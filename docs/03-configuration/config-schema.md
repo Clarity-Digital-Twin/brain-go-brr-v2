@@ -42,8 +42,7 @@ Model
 Graph (GNN + adjacency)
 
 - Enable: `enabled: true`
-- V2 heuristic (ignored in v3): `similarity: cosine|correlation`, `top_k: 3`, `threshold: 1e-4`, `temperature: 0.1`
-- V3 edge stream: `edge_features: cosine|correlation`, `edge_top_k: 3`, `edge_threshold: 1e-4`, `edge_mamba_layers: 2`, `edge_mamba_d_state: 8`, `edge_mamba_d_model: 16`
+- Edge stream: `edge_features: cosine|correlation`, `edge_top_k: 3`, `edge_threshold: 1e-4`, `edge_mamba_layers: 2`, `edge_mamba_d_state: 8`, `edge_mamba_d_model: 16`
 - GNN: `n_layers: 2`, `dropout: 0.1`, `use_residual: true`, `alpha: 0.05`, `k_eigenvectors: 16`
 - Dynamic PE: `use_dynamic_pe: true|false` (schema default true for V3)
 - Semi-dynamic update interval: `semi_dynamic_interval: 1` (1 = fully dynamic)

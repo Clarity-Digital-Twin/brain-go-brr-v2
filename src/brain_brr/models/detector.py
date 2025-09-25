@@ -198,10 +198,9 @@ class SeizureDetector(nn.Module):
         features = self.tcn_encoder(x)  # (B, 512, 960)
         assert_finite("tcn_out", features)
 
-        # Branch based on architecture
+        # V3 dual-stream if components are present
         if (
-            self.architecture == "v3"
-            and self.node_mamba
+            self.node_mamba
             and self.edge_mamba
             and self.proj_to_electrodes
             and self.proj_from_electrodes
@@ -278,34 +277,8 @@ class SeizureDetector(nn.Module):
             assert_finite("backproj", temporal)
 
         else:
-            # V2: Standard TCN + Mamba
+            # Fallback to 512-dim Mamba stack if V3 components not initialized
             temporal = self.mamba(features)  # (B, 512, 960)
-
-        # Optional Dynamic GNN stage (v2 heuristic path, time-then-graph architecture)
-        if (
-            self.use_gnn
-            and self.graph_builder
-            and self.gnn
-            and self.proj_to_electrodes
-            and self.proj_from_electrodes
-        ):
-            batch_size, _, seq_len = temporal.shape
-
-            # Project to electrode space (512 -> 19*64)
-            elec_flat = self.proj_to_electrodes(temporal)  # (B, 19*64, 960)
-            elec_feats = elec_flat.reshape(batch_size, 19, 64, seq_len).permute(
-                0, 1, 3, 2
-            )  # (B, 19, T, 64)
-
-            # Build dynamic graph (per timestep)
-            adj = self.graph_builder(elec_feats)  # (B, T, 19, 19)
-
-            # Apply GNN with dynamic adjacency
-            elec_enhanced = self.gnn(elec_feats, adj)  # (B, 19, T, 64)
-
-            # Project back to feature space (19*64 -> 512)
-            elec_flat = elec_enhanced.permute(0, 1, 3, 2).reshape(batch_size, 19 * 64, seq_len)
-            temporal = self.proj_from_electrodes(elec_flat)  # (B, 512, 960)
 
         # Project back to 19 channels and upsample to original resolution
         decoded = self.proj_head(temporal)  # (B, 19, 15360)
@@ -321,17 +294,7 @@ class SeizureDetector(nn.Module):
 
     @classmethod
     def from_config(cls, cfg: "_ModelConfig") -> "SeizureDetector":
-        """Instantiate from validated schema config (TCN path)."""
-
-        # Emit deprecation warning for V2 architecture
-        if cfg.architecture == "tcn":
-            warnings.warn(
-                "Architecture 'tcn' (V2 heuristic graph) is deprecated and will be removed in a future version. "
-                "Please migrate to 'v3' (dual-stream with learned adjacency) for better performance and stability. "
-                "Set model.architecture='v3' in your config.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+        """Instantiate from validated schema config (V3)."""
 
         instance = cls(
             tcn_layers=cfg.tcn.num_layers,
@@ -407,34 +370,12 @@ class SeizureDetector(nn.Module):
         instance.use_gnn = bool(graph_cfg and graph_cfg.enabled)
 
         if instance.use_gnn and graph_cfg is not None:
-            # For v2, use heuristic graph builder
-            if cfg.architecture != "v3":
-                # Emit warning for using V2 heuristic path
-                warnings.warn(
-                    "Using the V2 heuristic DynamicGraphBuilder is deprecated. "
-                    "Migrate to architecture='v3' with learned adjacency (edge stream).",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-
-                # Lazy imports to avoid dependency when not using GNN
-                from .graph_builder import DynamicGraphBuilder
-
-                # Initialize graph builder (heuristic for v2)
-                instance.graph_builder = DynamicGraphBuilder(
-                    similarity=graph_cfg.similarity,
-                    top_k=graph_cfg.top_k,
-                    threshold=graph_cfg.threshold,
-                    temperature=graph_cfg.temperature,
-                )
-            # v3 uses edge stream instead of heuristic graph builder
-
             # ONLY PyG implementation with Laplacian PE is supported
             try:
                 from .gnn_pyg import GraphChannelMixerPyG
 
                 # V3 uses vectorized GNN with configurable PE
-                is_v3 = cfg.architecture == "v3"
+                is_v3 = True
                 instance.gnn = GraphChannelMixerPyG(
                     d_model=64,  # Per-electrode feature dimension
                     n_electrodes=19,

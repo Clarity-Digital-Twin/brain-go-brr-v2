@@ -103,9 +103,9 @@ def _print_config_summary(config: Config) -> None:
     table.add_row("Data", data_summary)
 
     # Model settings
-    arch = config.model.architecture if hasattr(config.model, "architecture") else "tcn"
+    arch = config.model.architecture if hasattr(config.model, "architecture") else "v3"
     model_summary = (
-        f"Architecture: {arch.upper()} ({'V3 dual-stream' if arch == 'v3' else 'V2 heuristic'})\n"
+        f"Architecture: {arch.upper()} ({'V3 dual-stream' if arch == 'v3' else arch})\n"
         f"TCN: layers={config.model.tcn.num_layers}, "
         f"k={config.model.tcn.kernel_size}, stride_down={config.model.tcn.stride_down}\n"
         f"Mamba: layers={config.model.mamba.n_layers}, d_model={config.model.mamba.d_model}, "
@@ -114,17 +114,11 @@ def _print_config_summary(config: Config) -> None:
 
     # Add graph config if enabled
     if config.model.graph and config.model.graph.enabled:
-        if arch == "v3" and hasattr(config.model.graph, "edge_features"):
-            model_summary += (
-                f"\nGraph (V3): edge_features={config.model.graph.edge_features}, "
-                f"edge_top_k={config.model.graph.edge_top_k}, "
-                f"k_eigenvectors={config.model.graph.k_eigenvectors}"
-            )
-        else:
-            model_summary += (
-                f"\nGraph (V2): similarity={config.model.graph.similarity}, "
-                f"top_k={config.model.graph.top_k}"
-            )
+        model_summary += (
+            f"\nGraph (V3): edge_features={config.model.graph.edge_features}, "
+            f"edge_top_k={config.model.graph.edge_top_k}, "
+            f"k_eigenvectors={config.model.graph.k_eigenvectors}"
+        )
     table.add_row("Model", model_summary)
 
     # Training settings

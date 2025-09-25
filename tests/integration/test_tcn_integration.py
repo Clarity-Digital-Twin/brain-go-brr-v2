@@ -129,29 +129,19 @@ class TestTCNFullPipeline:
         assert output.dtype == torch.float16  # Should be FP16 in autocast
         assert output.shape == (2, 15360)
 
-    def test_config_defaults_to_tcn_with_warning(self):
-        """Config currently defaults to TCN (with deprecation warning)."""
-        import warnings
+    def test_config_defaults_to_v3(self):
+        """Config defaults to V3 architecture."""
 
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
-        # Config should default to TCN (for backward compat) but warn
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            config = ModelConfig()
-            assert config.architecture == "tcn"
-            # Should have deprecation warning
-            assert len(w) > 0
-            assert issubclass(w[0].category, DeprecationWarning)
-            assert "deprecated" in str(w[0].message).lower()
+        # Config should default to V3
+        config = ModelConfig()
+        assert config.architecture == "v3"
 
-        # Should still create working model
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            detector = SeizureDetector.from_config(config)
-            assert hasattr(detector, "tcn_encoder")
-            assert hasattr(detector, "proj_head")
+        detector = SeizureDetector.from_config(config)
+        assert hasattr(detector, "tcn_encoder")
+        assert hasattr(detector, "proj_head")
 
 
 @pytest.mark.integration

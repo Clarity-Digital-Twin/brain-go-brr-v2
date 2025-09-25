@@ -27,14 +27,13 @@ Shapes (V3)
 - GNN out: `(B, 19, 960, 64)`
 - Bottleneck merged: `(B, 512, 960)` → Upsampled `(B, 19, 15360)` → Logits `(B, 15360)`
 
-V2 vs V3
+V3 (current)
 
-- V2 (deprecated): `TCN → BiMamba2(512) → Head`; optional heuristic dynamic graph (cosine + top‑k + threshold) and PyG
-- V3 (recommended): `TCN → Node Mamba(64) + Edge Mamba(16) → Learned adjacency → Vectorized PyG + Laplacian PE (dynamic by default) → Head`
+- `TCN → Node Mamba(64) + Edge Mamba(16) → Learned adjacency → Vectorized PyG + Laplacian PE (dynamic by default) → Head`
 
 Note
 
-- Current default in configs may still be `tcn` for backward compatibility in tests; deprecation warnings are emitted and the default will switch to `v3` in a subsequent release. Prefer setting `model.architecture: v3` now.
+- The legacy V2 heuristic graph path has been removed. All configs and code should use `model.architecture: v3`.
 
 Adjacency specifics (V3)
 
