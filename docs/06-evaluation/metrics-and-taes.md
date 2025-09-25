@@ -45,3 +45,4 @@ Notes and caveats
 - Hysteresis thresholds: `tau_off` is derived as `max(0, tau_on - 0.08)` during threshold search.
 - When no negatives, specificity is defined as 1.0; when no predicted positives, precision is 0.0 (stability in tests).
 - TAES includes a false-alarm duration penalty (alpha=0.15) in addition to overlap reward.
+ - Threshold path correctness: FA‑curve search sets `tau_on/off` on a cloned post config before eventization, avoiding deprecated threshold arguments.

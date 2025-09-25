@@ -23,6 +23,7 @@ Key parameters
 Stability notes (dynamic PE)
 
 - Degree clamp, diagonal regularization, NaN/Inf checks with cached PE fallback are implemented in `gnn_pyg.py` to prevent non‑finite logits.
+ - See also: `docs/04-model/laplacian-pe.md` for implementation details and config knobs.
 
 Constraints and guards
 
