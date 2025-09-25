@@ -233,13 +233,35 @@ def create_optimizer(model: nn.Module, config: TrainingConfig) -> Optimizer:
     """Create optimizer from config.
 
     Factory pattern for optimizer creation.
+    Applies weight decay only to weights, not biases or normalization parameters.
     """
     if config.optimizer == "adamw":
-        return AdamW(
-            model.parameters(),
-            lr=config.learning_rate,
-            weight_decay=config.weight_decay,
-        )
+        # Separate parameters into decay and no_decay groups
+        # This prevents weight decay from corrupting normalization layers
+        no_decay = ["bias", "bn", "ln", "layernorm", "norm", "rmsnorm"]
+        decay_params = []
+        no_decay_params = []
+
+        for name, param in model.named_parameters():
+            if not param.requires_grad:
+                continue
+            # Check if parameter name contains any no_decay keyword
+            if any(nd in name.lower() for nd in no_decay):
+                no_decay_params.append(param)
+            else:
+                decay_params.append(param)
+
+        # Create parameter groups with different weight decay
+        param_groups = [
+            {"params": decay_params, "weight_decay": config.weight_decay, "lr": config.learning_rate},
+            {"params": no_decay_params, "weight_decay": 0.0, "lr": config.learning_rate}
+        ]
+
+        print(f"[OPTIMIZER] Created parameter groups:", flush=True)
+        print(f"  - Decay group: {len(decay_params)} parameters", flush=True)
+        print(f"  - No-decay group: {len(no_decay_params)} parameters", flush=True)
+
+        return AdamW(param_groups, lr=config.learning_rate, betas=(0.9, 0.999), eps=1e-8)
     else:
         raise ValueError(f"Unknown optimizer: {config.optimizer}")
 
@@ -642,7 +664,7 @@ def train_epoch(
                         print(f"[DEBUG] Error in NaN diagnostics: {e}", flush=True)
                     nan_debug_emitted += 1
                 # Clear gradients but skip update
-                optimizer.zero_grad()
+                optimizer.zero_grad(set_to_none=True)
 
                 # Check if we should stop training
                 if consecutive_nans >= max_consecutive_nans:
@@ -658,6 +680,17 @@ def train_epoch(
                 if scaler.is_enabled():
                     scaler.scale(loss).backward()
                     scaler.unscale_(optimizer)
+
+                    # Sanitize gradients if needed
+                    if os.getenv("BGB_SANITIZE_GRADS", "0") == "1":
+                        grad_has_nan = False
+                        for name, param in model.named_parameters():
+                            if param.grad is not None and not torch.isfinite(param.grad).all():
+                                grad_has_nan = True
+                                param.grad.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
+                        if grad_has_nan:
+                            print(f"[WARN] Sanitized NaN gradients at batch {batch_idx}", flush=True)
+
                     if gradient_clip > 0:
                         grad_norm = torch.nn.utils.clip_grad_norm_(
                             model.parameters(), gradient_clip
@@ -671,6 +704,17 @@ def train_epoch(
                     scaler.update()
                 else:
                     loss.backward()
+
+                    # Sanitize gradients if needed
+                    if os.getenv("BGB_SANITIZE_GRADS", "0") == "1":
+                        grad_has_nan = False
+                        for name, param in model.named_parameters():
+                            if param.grad is not None and not torch.isfinite(param.grad).all():
+                                grad_has_nan = True
+                                param.grad.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
+                        if grad_has_nan:
+                            print(f"[WARN] Sanitized NaN gradients at batch {batch_idx}", flush=True)
+
                     if gradient_clip > 0:
                         grad_norm = torch.nn.utils.clip_grad_norm_(
                             model.parameters(), gradient_clip

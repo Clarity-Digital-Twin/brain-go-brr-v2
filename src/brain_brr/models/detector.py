@@ -211,6 +211,9 @@ class SeizureDetector(nn.Module):
             edge_flat = edge_feats.squeeze(-1).reshape(batch_size * 171, 1, seq_len)  # (B*E,1,T)
             edge_in = self.edge_in_proj(edge_flat).contiguous()  # (B*E, D, T) where D=16
 
+            # CRITICAL: Clamp edge projection to prevent explosion
+            edge_in = torch.clamp(edge_in, -10.0, 10.0)
+
             # Safety assertion for Mamba CUDA kernel
             assert edge_in.is_contiguous(), (
                 "edge_in tensor must be contiguous for Mamba CUDA kernels"
