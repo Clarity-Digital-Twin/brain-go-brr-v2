@@ -1106,8 +1106,10 @@ def train(
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
     writer: SummaryWriter | None = None
-    if not os.getenv("BGB_DISABLE_TB"):
+    if HAS_TENSORBOARD and not os.getenv("BGB_DISABLE_TB"):
         writer = SummaryWriter(output_dir / "tensorboard")
+    elif not HAS_TENSORBOARD and not os.getenv("BGB_DISABLE_TB"):
+        print("TensorBoard not installed. Install with: pip install tensorboard")
 
     # Initialize W&B logging
     wandb_logger = WandBLogger(config)
