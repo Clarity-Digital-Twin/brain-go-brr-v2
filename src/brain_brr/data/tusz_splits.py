@@ -68,7 +68,7 @@ def get_tusz_official_splits(
 
 
 def validate_patient_disjointness(
-    train_patients: set[str], dev_patients: set[str], eval_patients: set[str] = None
+    train_patients: set[str], dev_patients: set[str], eval_patients: set[str] | None = None
 ) -> None:
     """Validate that patient sets are completely disjoint.
 
@@ -175,8 +175,8 @@ def load_tusz_for_training(
 # but uses proper splits
 def get_train_val_splits(
     data_root: Path,
-    validation_split: float = None,  # IGNORED - we use official dev
-    split_seed: int = None,  # IGNORED - we use official splits
+    validation_split: float | None = None,  # IGNORED - we use official dev
+    split_seed: int | None = None,  # IGNORED - we use official splits
     verbose: bool = True,
 ) -> tuple[list[Path], list[Path], list[Path], list[Path]]:
     """Get train/val splits using TUSZ official splits.

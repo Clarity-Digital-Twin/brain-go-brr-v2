@@ -105,7 +105,7 @@ def _print_config_summary(config: Config) -> None:
     # Model settings (TCN only)
     model_summary = (
         f"Architecture: TCN -> Bi-Mamba -> Head\n"
-        f"TCN: layers={config.model.tcn.num_layers}, channels={config.model.tcn.channels}, "
+        f"TCN: layers={config.model.tcn.num_layers}, "
         f"k={config.model.tcn.kernel_size}, stride_down={config.model.tcn.stride_down}\n"
         f"Mamba: layers={config.model.mamba.n_layers}, d_model={config.model.mamba.d_model}, "
         f"d_state={config.model.mamba.d_state}, conv_kernel={config.model.mamba.conv_kernel}"

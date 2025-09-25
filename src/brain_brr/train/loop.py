@@ -1396,7 +1396,7 @@ def main() -> None:
         if overlap:
             raise ValueError(
                 f"CRITICAL: Patient leakage detected! {len(overlap)} patients in both splits:\n"
-                f"  {sorted(list(overlap))[:10]}"
+                f"  {sorted(overlap)[:10]}"
             )
 
         print("\n[SPLIT STATS] OFFICIAL TUSZ SPLITS:")
@@ -1415,7 +1415,9 @@ def main() -> None:
 
         # Apply seed for reproducibility
         rng = np.random.RandomState(config.data.split_seed)
-        rng.shuffle(edf_files)
+        indices = np.arange(len(edf_files))
+        rng.shuffle(indices)
+        edf_files = [edf_files[i] for i in indices]
 
         val_split = int(len(edf_files) * config.data.validation_split)
         val_files = edf_files[:val_split]
