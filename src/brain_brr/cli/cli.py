@@ -458,7 +458,15 @@ def evaluate(
             # Convert to events using best threshold
             thresholds_dict = metrics.get("thresholds", {})
             if isinstance(thresholds_dict, dict):
-                best_threshold = thresholds_dict.get("10", 0.86)
+                # Be robust to key types: accept "10", 10, or 10.0
+                if "10" in thresholds_dict:
+                    best_threshold = thresholds_dict["10"]
+                elif 10 in thresholds_dict:
+                    best_threshold = thresholds_dict[10]
+                elif 10.0 in thresholds_dict:
+                    best_threshold = thresholds_dict[10.0]
+                else:
+                    best_threshold = 0.86
             else:
                 best_threshold = 0.86
             cfg_for_export = cfg.postprocessing
