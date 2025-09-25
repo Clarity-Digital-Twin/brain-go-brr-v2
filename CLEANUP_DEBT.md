@@ -17,13 +17,13 @@ This document is the single source of truth for technical debt and cleanup work.
 
 ## 🧭 Deprecation & Removal Plan (Phased)
 
-Phase 0 — Alignment (no breaking changes)
+### Phase 0 — Alignment (no breaking changes)
 - [ ] Update messaging to reflect TCN+BiMamba(+V3) everywhere
   - [ ] `src/brain_brr/train/wandb_integration.py`: change model label to "TCN + Bi-Mamba-2 (+V3 edge/GNN)" and drop UNet/ResCNN fields
   - [ ] `src/brain_brr/cli/cli.py`: config summary should show `model.architecture`, V3 graph settings, and replace deprecated `postprocessing.min_duration` with `postprocessing.duration.min_duration_s`
   - [ ] Docs: ensure `docs/04-model/v3-architecture.md`, `docs/00-overview/architecture-summary.md` match current code
 
-Phase 1 — Soft deprecation (warnings, defaults)
+### Phase 1 — Soft deprecation (warnings, defaults)
 - [ ] Emit `DeprecationWarning` when:
   - [ ] `ModelConfig.architecture == "tcn"` in `SeizureDetector.from_config` (file: `src/brain_brr/models/detector.py`)
   - [ ] `SeizureDetector.__init__` receives legacy kwargs: `base_channels`, `encoder_depth`, `rescnn_blocks`, `rescnn_kernels`, and `dropout` as a surrogate for `mamba_dropout`
@@ -31,7 +31,7 @@ Phase 1 — Soft deprecation (warnings, defaults)
 - [ ] Set default architecture to `"v3"` in `ModelConfig` (keeping `"tcn"` allowed but deprecated)
 - [ ] Add warning when `graph.use_pyg=false` (V2 heuristic path) suggesting migration to V3
 
-Phase 2 — Test and config migration (breaking tests only)
+### Phase 2 — Test and config migration (breaking tests only)
 - [ ] Update tests to stop relying on V2 and legacy params (see inventories below)
   - [ ] Replace `architecture="tcn"` with `"v3"` where feasible
   - [ ] Remove creation/use of `DynamicGraphBuilder` assertions
@@ -39,14 +39,14 @@ Phase 2 — Test and config migration (breaking tests only)
   - [ ] Update fixtures to use `ModelConfig` with V3 graph config where graph behavior is required
 - [ ] Update example configs and docs to V3‑only (local + modal)
 
-Phase 3 — Removal (breaking API)
+### Phase 3 — Removal (breaking API)
 - [ ] Remove V2 code paths from `SeizureDetector.forward` and `from_config`
 - [ ] Delete `src/brain_brr/models/graph_builder.py`
 - [ ] Remove V2‑only fields from `GraphConfig`: `similarity`, `top_k`, `threshold`, `temperature`
 - [ ] Remove legacy kwargs from `SeizureDetector.__init__`
 - [ ] Remove deprecated `encoder`/`rescnn`/`decoder` objects from `ModelConfig` (or gate behind a compatibility flag for a final release)
 
-Verification gates (each phase)
+### Verification gates (each phase)
 - [ ] `make q` passes (ruff/format/mypy)
 - [ ] `make t` passes; mark/skip GPU when not available
 - [ ] Smoke run works locally: `make s` (CPU OK, PyG optional path guarded)
@@ -56,7 +56,7 @@ Verification gates (each phase)
 
 ## 🧹 Priority 1: Merge to Single V3 Path
 
-Actions
+**Actions:**
 - [ ] Introduce deprecation warnings as above (Phase 1)
 - [ ] Change `ModelConfig.architecture` default to `"v3"` and update docstrings
 - [ ] Remove V2 forward branch in `SeizureDetector.forward` and the `use_gnn + graph_builder` path
@@ -64,12 +64,12 @@ Actions
 - [ ] Delete `src/brain_brr/models/graph_builder.py`
 - [ ] Prune V2‑only fields from `GraphConfig` and callers
 
-Acceptance criteria
+**Acceptance criteria:**
 - No conditional branches on `architecture` remain in `SeizureDetector`
 - No imports or references to `graph_builder` remain in repo
 - Tests no longer assert V2 behavior and pass on V3 (CPU path remains valid)
 
-Impacted files
+**Impacted files:**
 - `src/brain_brr/models/detector.py`
 - `src/brain_brr/models/graph_builder.py` (delete)
 - `src/brain_brr/config/schemas.py` (`GraphConfig`, `ModelConfig`)
@@ -78,34 +78,34 @@ Impacted files
 
 ## 🧹 Priority 2: Legacy Parameter Cleanup
 
-Actions
+**Actions:**
 - [ ] Add `DeprecationWarning` in `SeizureDetector.__init__` if any legacy kwargs are passed: `base_channels`, `encoder_depth`, `rescnn_blocks`, `rescnn_kernels`, and using `dropout` as proxy for `mamba_dropout`
 - [ ] Migrate call sites to only use config‑driven construction (`SeizureDetector.from_config(cfg)`) in tests and examples
 - [ ] Remove legacy kwargs entirely (Phase 3)
 
-Acceptance criteria
+**Acceptance criteria:**
 - No tests pass legacy kwargs directly to `SeizureDetector`
 - Mypy signatures reflect the reduced surface area
 
-Impacted files
+**Impacted files:**
 - `src/brain_brr/models/detector.py`
 - `tests/unit/train/test_loop.py` (direct constructor usage)
 - `tests/**/conftest.py` (fixtures)
 
 ## 🧪 Priority 3: Test Suite Hardening
 
-Actions
+**Actions:**
 - [ ] Replace V2‑specific tests with V3 equivalents
 - [ ] Add resource cleanup fixtures to avoid worker/process leaks (torch, dataloaders, CUDA) in `tests/conftest.py`
 - [ ] Ensure timeouts on slow integration/performance tests are present and calibrated
 - [ ] Add CPU‑only V3 smoke forward for environments without PyG (GNN disabled) to keep CI green
 - [ ] Investigate worker crashes if they still occur (run `pytest tests/ -n 4` to test parallel execution)
 
-Acceptance criteria
+**Acceptance criteria:**
 - Tests pass deterministically on CPU (no intermittent worker crashes)
 - GPU tests are either gated or skip cleanly without CUDA
 
-Known V2‑dependent tests to migrate/remove
+**Known V2‑dependent tests to migrate/remove:**
 - `tests/integration/test_gnn_integration.py` and `tests/integration/test_gnn_integration_pyg.py` (assertions about graph_builder usage)
 - `tests/unit/models/test_tcn.py` sections asserting `architecture="tcn"`
 - `tests/unit/models/test_detector_v3.py::test_v2_still_works` (remove)
@@ -113,7 +113,7 @@ Known V2‑dependent tests to migrate/remove
 
 ## 🧰 Priority 4: Config & CLI/W&B Consistency
 
-Actions
+**Actions:**
 - [ ] `ModelConfig`: default `architecture="v3"`; plan removal of `encoder/rescnn/decoder` blocks after one release with warnings
 - [ ] CLI summary in `src/brain_brr/cli/cli.py`
   - [ ] Show `model.architecture`, V3 graph knobs when present
@@ -121,13 +121,13 @@ Actions
 - [ ] W&B metadata in `src/brain_brr/train/wandb_integration.py`
   - [ ] Update model string; drop UNet/ResCNN keys; add `model.architecture`, `tcn.*`, `graph.edge_*`
 
-Acceptance criteria
+**Acceptance criteria:**
 - `cli validate` and summary output reflect V3 accurately
 - W&B runs show correct model description and keys (no UNet/ResCNN)
 
 ## 🧯 Priority 5: Env Vars → Single Source + Optional Config
 
-Inventory (current usage)
+**Inventory (current usage):**
 - Model/streaming toggles
   - `BGB_EDGE_CLAMP`, `BGB_EDGE_CLAMP_MIN`, `BGB_EDGE_CLAMP_MAX` in `src/brain_brr/models/detector.py`
   - `SEIZURE_MAMBA_FORCE_FALLBACK` in `src/brain_brr/models/mamba.py`
@@ -139,50 +139,50 @@ Inventory (current usage)
 - Tooling/WSL2
   - `UV_LINK_MODE` (docs/install), optional env during setup
 
-Actions
+**Actions:**
 - [ ] Centralize documentation: ensure all variables above appear in `docs/03-configuration/env-vars.md` (missing today: `BGB_EDGE_CLAMP*`, `BGB_DEBUG_FINITE`, `BGB_SANITIZE_GRADS`, `BGB_SKIP_OPT_STEP_ON_NAN`, perf vars)
 - [ ] Add optional `DebugConfig` or `Experiment.debug: bool` in schemas to replace common toggles (nan debug, sanitize inputs/grads); env vars remain as overrides for quick experiments
 - [ ] Add a small helper `src/brain_brr/utils/env.py` to read env once and expose typed accessors (prevents scattering)
 
-Acceptance criteria
+**Acceptance criteria:**
 - One canonical doc page lists all env vars and their default behavior
 - Training loop reads from a single helper or config path for debug toggles
 
 ## 🧮 Priority 6: Numerical Guards Lifecycle
 
-Actions
+**Actions:**
 - [ ] Keep `assert_finite` behind `BGB_DEBUG_FINITE` (already implemented in `src/brain_brr/models/debug_utils.py`); add a short doc link from V3 doc
 - [ ] Maintain edge clamp in V3 path (`BGB_EDGE_CLAMP*`) with a plan to disable by default after stability milestone
 
-Disable plan (post‑stability)
+**Disable plan (post‑stability):**
 - [ ] Prove stability on full train (no NaN explosions) → flip default `BGB_EDGE_CLAMP=0` and remove guards after one release
 
 ## 🧾 Priority 7: Documentation Sweep
 
-Actions
+**Actions:**
 - [ ] Update architecture pages to V3‑only path, drop V2 heuristics except for historical context
 - [ ] Ensure config READMEs show V3 knobs (edge_*), and remove mentions of heuristic similarity/top_k/threshold after removal
 - [ ] Modal/local guides: verify batch size, AMP guidance, and PE notes are consistent with code
 
-Acceptance criteria
+**Acceptance criteria:**
 - No references to UNet/ResCNN or heuristic graph builder remain in living docs
 
 ---
 
 ## 📦 Inventories (for migration work)
 
-Tests referencing V2 or legacy kwargs (must be updated)
+**Tests referencing V2 or legacy kwargs (must be updated):**
 - `tests/unit/models/test_detector_v3.py`: `test_v2_still_works` asserts V2 path via heuristic graph builder
 - `tests/unit/models/test_tcn.py`: several tests assert `architecture="tcn"`; convert to V3 or limit scope to TCN encoder only
 - `tests/unit/train/test_loop.py`: constructs `SeizureDetector(...)` with legacy kwargs (`base_channels`, `encoder_depth`, `rescnn_blocks`, `rescnn_kernels`) — switch to `from_config` and remove legacy kwargs
 - `tests/integration/test_gnn_integration.py` and `tests/integration/test_gnn_integration_pyg.py`: remove any reliance on heuristic adjacency, focus on V3 edge stream + GNN
 
-Files referencing deprecated config objects
+**Files referencing deprecated config objects:**
 - `src/brain_brr/train/wandb_integration.py`: logs `encoder/rescnn`; update to TCN/V3 fields
 - `src/brain_brr/cli/cli.py`: prints `postprocessing.min_duration`; migrate to `postprocessing.duration.min_duration_s`
 - `src/brain_brr/config/schemas.py`: `ModelConfig` still includes `encoder`, `rescnn`, `decoder` for compatibility; plan removal
 
-Env vars missing in the canonical doc (to add in `docs/03-configuration/env-vars.md`)
+**Env vars missing in the canonical doc (to add in `docs/03-configuration/env-vars.md`):**
 - Model/stream: `BGB_EDGE_CLAMP`, `BGB_EDGE_CLAMP_MIN`, `BGB_EDGE_CLAMP_MAX`, `BGB_DEBUG_FINITE`
 - Training: `BGB_SANITIZE_GRADS`, `BGB_SKIP_OPT_STEP_ON_NAN`
 - Perf tests: `BGB_PERF_ALLOW_GPU`, `BGB_PERF_THREADS`
