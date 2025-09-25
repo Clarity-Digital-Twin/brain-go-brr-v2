@@ -152,9 +152,7 @@ class TCNConfig(BaseModel):
     """TCN (Temporal Convolutional Network) configuration."""
 
     num_layers: int = Field(default=8, ge=4, le=12, description="Number of TCN layers")
-    channels: list[int] = Field(
-        default=[64, 128, 256, 512], description="Channel progression (repeated if needed)"
-    )
+    # channels field removed - hardcoded to [64, 128, 256, 512] in implementation
     kernel_size: int = Field(default=7, ge=3, le=11, description="Temporal kernel size")
     dropout: float = Field(default=0.15, ge=0.0, le=0.5, description="Dropout rate")
     causal: bool = Field(
