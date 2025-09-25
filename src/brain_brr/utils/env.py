@@ -6,7 +6,6 @@ and providing clear documentation of each variable's purpose.
 """
 
 import os
-from typing import Optional
 
 
 class EnvConfig:
@@ -50,7 +49,7 @@ class EnvConfig:
         return os.getenv("BGB_SMOKE_TEST", "0") == "1"
 
     @staticmethod
-    def limit_files() -> Optional[int]:
+    def limit_files() -> int | None:
         """Limit number of files to load (None for no limit)."""
         val = os.getenv("BGB_LIMIT_FILES")
         return int(val) if val else None
@@ -71,7 +70,7 @@ class EnvConfig:
         return os.getenv("BGB_DISABLE_TB", "0") == "1"
 
     @staticmethod
-    def mid_epoch_minutes() -> Optional[int]:
+    def mid_epoch_minutes() -> int | None:
         """Save checkpoint every N minutes during epoch."""
         val = os.getenv("BGB_MID_EPOCH_MINUTES")
         return int(val) if val else None
@@ -119,7 +118,7 @@ class EnvConfig:
         return os.getenv("BGB_PERF_ALLOW_GPU", "0") == "1"
 
     @staticmethod
-    def perf_threads() -> Optional[int]:
+    def perf_threads() -> int | None:
         """Number of threads for performance tests."""
         val = os.getenv("BGB_PERF_THREADS")
         return int(val) if val else None

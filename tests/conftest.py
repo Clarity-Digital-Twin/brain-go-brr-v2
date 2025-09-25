@@ -462,9 +462,9 @@ def cleanup_dataloader():
 
     # Cleanup all tracked dataloaders
     for dl in dataloaders:
-        if hasattr(dl, '_iterator'):
+        if hasattr(dl, "_iterator"):
             del dl._iterator
-        if hasattr(dl, '_workers'):
+        if hasattr(dl, "_workers"):
             for w in dl._workers:
                 w.terminate()
         gc.collect()
