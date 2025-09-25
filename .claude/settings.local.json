@@ -159,7 +159,8 @@
       "Bash(git revert:*)",
       "Read(//mnt/c/Users/JJ/.aws/**)",
       "Bash(~/.local/bin/aws s3 ls:*)",
-      "Bash(git show:*)"
+      "Bash(git show:*)",
+      "Bash(bc)"
     ],
     "deny": [],
     "ask": []
