@@ -22,7 +22,7 @@ model:
   mamba: { n_layers: 6, d_model: 512, d_state: 16, conv_kernel: 4 }
   graph:
     enabled: true
-    use_pyg: true
+    # PyG is required; no explicit toggle
     # V3 edge stream (learned adjacency)
     edge_features: cosine
     edge_top_k: 3
@@ -63,7 +63,7 @@ Validation UX
   - `[VALIDATION] Completed …, computing metrics…` then final metrics.
 
 Notes
-- PyG is required (`use_pyg: true`); ensure graph wheels match your Torch/CUDA.
+- PyG is required; ensure graph wheels match your Torch/CUDA.
 - Removed legacy `configs/modal/train_gnn.yaml` (pre‑refactor schema).
 - Smoke test: app.py sets BGB_LIMIT_FILES=50 automatically
 - V3 requires headdim parameters (handled in detector.py)

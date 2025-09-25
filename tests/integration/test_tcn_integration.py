@@ -22,8 +22,8 @@ class TestTCNFullPipeline:
                 "num_layers": 8,
                 "kernel_size": 7,
                 "dropout": 0.15,
-                "channels": [64, 128, 256, 512],
                 "causal": False,
+                "stride_down": 16,
             },
             mamba={
                 "conv_kernel": 4,  # Avoid CUDA coercion
@@ -131,9 +131,10 @@ class TestTCNFullPipeline:
 
     def test_config_defaults_to_tcn_with_warning(self):
         """Config currently defaults to TCN (with deprecation warning)."""
+        import warnings
+
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
-        import warnings
 
         # Config should default to TCN (for backward compat) but warn
         with warnings.catch_warnings(record=True) as w:

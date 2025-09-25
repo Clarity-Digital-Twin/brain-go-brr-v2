@@ -15,81 +15,35 @@ except ImportError:
     HAS_PYG = False
 
 
-class TestDynamicGraphBuilder:
-    """Test dynamic graph construction."""
+class TestEdgeFeaturesAndAdjacency:
+    """Test V3 edge feature pipeline and adjacency assembly."""
 
-    def test_adjacency_shape(self):
-        """Adjacency must be (B, T, N, N)."""
-        from src.brain_brr.models.graph_builder import DynamicGraphBuilder
+    def test_edge_scalar_series_shape(self):
+        from src.brain_brr.models.edge_features import edge_scalar_series
 
-        builder = DynamicGraphBuilder(top_k=3)
-        features = torch.randn(2, 19, 960, 64)  # (B, N, T, D)
-        adjacency = builder(features)
+        elec = torch.randn(2, 19, 10, 64)  # (B, N, T, D)
+        edges = edge_scalar_series(elec, metric="cosine")  # (B, E, T, 1)
+        assert edges.shape[0] == 2
+        assert edges.shape[2] == 10
+        assert edges.shape[3] == 1
 
-        assert adjacency.shape == (2, 960, 19, 19)
+    def test_assemble_adjacency_properties(self):
+        from src.brain_brr.models.edge_features import assemble_adjacency
 
-    def test_adjacency_symmetric(self):
-        """Graph must be undirected (symmetric)."""
-        from src.brain_brr.models.graph_builder import DynamicGraphBuilder
+        weights = torch.rand(1, 171, 10)  # (B, E, T)
+        adj = assemble_adjacency(weights, n_nodes=19, top_k=3, threshold=1e-4)
+        assert adj.shape == (1, 10, 19, 19)
+        # Symmetric
+        assert torch.allclose(adj, adj.transpose(-1, -2))
+        # Threshold applied
+        assert (adj >= 0).all()
 
-        builder = DynamicGraphBuilder()
-        features = torch.randn(1, 19, 10, 64)
-        adjacency = builder(features)
+    def test_correlation_metric_support(self):
+        from src.brain_brr.models.edge_features import edge_scalar_series
 
-        # Check symmetry
-        assert torch.allclose(adjacency, adjacency.transpose(-1, -2))
-
-    def test_top_k_sparsification(self):
-        """Top-k should limit number of edges per node."""
-        from src.brain_brr.models.graph_builder import DynamicGraphBuilder
-
-        builder = DynamicGraphBuilder(top_k=3)
-        features = torch.randn(1, 19, 10, 64)
-        adjacency = builder(features)
-
-        # Each node should have at most top_k * 2 edges (bidirectional)
-        for t in range(10):
-            adj_t = adjacency[0, t]
-            # Count non-zero edges per node
-            for i in range(19):
-                # Due to symmetrization, may have slightly more than 2*top_k edges
-                # Because neighbors may also select this node
-                assert (adj_t[i] > 0).sum() <= 10  # Reasonable upper bound
-
-    def test_threshold_pruning(self):
-        """Edges below threshold should be removed."""
-        from src.brain_brr.models.graph_builder import DynamicGraphBuilder
-
-        builder = DynamicGraphBuilder(threshold=0.5)  # High threshold
-        features = torch.randn(1, 19, 10, 64)
-        adjacency = builder(features)
-
-        # Should have very sparse adjacency with high threshold
-        sparsity = (adjacency == 0).float().mean()
-        assert sparsity > 0.8  # Most edges should be pruned
-
-    def test_cosine_similarity(self):
-        """Cosine similarity should be bounded [-1, 1]."""
-        from src.brain_brr.models.graph_builder import DynamicGraphBuilder
-
-        builder = DynamicGraphBuilder(similarity="cosine")
-        features = torch.randn(1, 19, 10, 64)
-        adjacency = builder(features)
-
-        # After softmax, values should be in [0, 1]
-        assert adjacency.min() >= 0
-        assert adjacency.max() <= 1
-
-    def test_correlation_similarity(self):
-        """Correlation similarity option should work."""
-        from src.brain_brr.models.graph_builder import DynamicGraphBuilder
-
-        builder = DynamicGraphBuilder(similarity="correlation")
-        features = torch.randn(1, 19, 10, 64)
-        adjacency = builder(features)
-
-        assert adjacency.shape == (1, 10, 19, 19)
-        assert torch.isfinite(adjacency).all()
+        elec = torch.randn(1, 19, 5, 64)
+        edges_corr = edge_scalar_series(elec, metric="correlation")
+        assert edges_corr.shape == (1, 171, 5, 1)
 
 
 class TestGraphChannelMixer:

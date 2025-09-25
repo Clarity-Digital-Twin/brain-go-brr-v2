@@ -27,7 +27,7 @@ model:
 
   graph:
     enabled: true
-    use_pyg: true  # Required for vectorized GNN
+    # PyG is required; no explicit toggle
 
     # V3 edge stream config:
     edge_features: cosine

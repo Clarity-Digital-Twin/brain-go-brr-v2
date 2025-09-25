@@ -123,7 +123,7 @@ model:
 
   graph:
     enabled: true
-    use_pyg: true  # Required for vectorized GNN
+    # PyG is required; no separate toggle needed
     alpha: 0.05    # SSGConv mixing parameter
     k_eigenvectors: 16  # Static Laplacian PE
 

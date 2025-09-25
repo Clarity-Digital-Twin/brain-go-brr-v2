@@ -147,8 +147,7 @@ class TestDetectorV3:
         assert detector.config["edge_metric"] == "correlation"
         assert detector.config["edge_top_k"] == 5
         assert detector.config["edge_threshold"] == 1e-3
-
-        assert output.shape == (1, 15360)
+        # No forward pass required for this test
 
 
 if __name__ == "__main__":

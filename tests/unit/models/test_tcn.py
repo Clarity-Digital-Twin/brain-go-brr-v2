@@ -158,46 +158,36 @@ class TestTCNProjectionHead:
 class TestTCNIntegration:
     """Integration tests for TCN in the full detector pipeline."""
 
-    def test_detector_with_tcn_flag(self):
-        """Detector should use TCN when architecture='tcn'."""
+    def test_detector_v3_instantiation(self):
+        """Detector should instantiate and expose TCN components in V3 path."""
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
-        # Create config with TCN architecture
         config = ModelConfig(
-            architecture="tcn",
-            tcn={
-                "num_layers": 8,
-                "kernel_size": 7,
-                "dropout": 0.15,
-                "channels": [64, 128, 256, 512],
-            },
-            mamba={
-                "conv_kernel": 4  # Avoid coercion warning
-            },
+            architecture="v3",
+            tcn={"num_layers": 8, "kernel_size": 7, "dropout": 0.15, "stride_down": 16},
+            mamba={"conv_kernel": 4},
+            graph={"enabled": False},
         )
 
         detector = SeizureDetector.from_config(config)
 
-        # Should have TCN components
+        # Should have TCN components (encoder + projection head)
         assert hasattr(detector, "tcn_encoder")
         assert hasattr(detector, "proj_head")  # Unified projection head now
 
     # Legacy 'unet' path removed in v2.3+; skipping old-compat tests
     # def test_detector_with_unet_flag(self): ...
 
-    def test_detector_forward_with_tcn(self):
-        """Full forward pass with TCN should produce correct output shape."""
+    def test_detector_forward_v3(self):
+        """Full forward pass with V3 should produce correct output shape (graph disabled)."""
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
         config = ModelConfig(
-            architecture="tcn",
-            tcn={
-                "num_layers": 4,  # Smaller for testing
-                "kernel_size": 3,
-                "dropout": 0.1,
-            },
+            architecture="v3",
+            tcn={"num_layers": 4, "kernel_size": 3, "dropout": 0.1, "stride_down": 16},
+            graph={"enabled": False},
         )
 
         detector = SeizureDetector.from_config(config)
@@ -208,14 +198,14 @@ class TestTCNIntegration:
         # Must maintain per-sample output at 256Hz
         assert output.shape == (2, 15360), f"Detector output {output.shape} != expected (2, 15360)"
 
-    def test_loss_compatibility_with_tcn(self):
-        """TCN path must produce outputs compatible with existing loss."""
+    def test_loss_compatibility_with_v3(self):
+        """V3 path must produce outputs compatible with existing loss."""
         import torch.nn.functional as functional
 
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
-        config = ModelConfig(architecture="tcn")
+        config = ModelConfig(architecture="v3", graph={"enabled": False})
         detector = SeizureDetector.from_config(config)
 
         x = torch.randn(2, 19, 15360)
@@ -228,12 +218,12 @@ class TestTCNIntegration:
         assert loss.shape == torch.Size([])
         assert not torch.isnan(loss)
 
-    def test_config_gating_works(self):
-        """TCN path must instantiate and run forward."""
+    def test_config_gating_v3(self):
+        """V3 path must instantiate and run forward."""
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
-        config = ModelConfig(architecture="tcn")
+        config = ModelConfig(architecture="v3", graph={"enabled": False})
         detector = SeizureDetector.from_config(config)
         x = torch.randn(1, 19, 15360)
         output = detector(x)

@@ -25,33 +25,21 @@ class TestGNNIntegrationPyG:
 
     @pytest.fixture
     def config_with_pyg_gnn(self) -> ModelConfig:
-        """ModelConfig with PyG GNN and LPE enabled."""
+        """ModelConfig with GNN and LPE enabled (PyG is canonical)."""
         return ModelConfig(
             architecture="v3",
-            tcn=TCNConfig(
-                num_layers=8,
-                kernel_size=7,
-                dropout=0.15,
-                stride_down=16,
-            ),
-            mamba=MambaConfig(
-                n_layers=6,
-                d_state=16,
-                conv_kernel=4,
-                dropout=0.1,
-            ),
+            tcn=TCNConfig(num_layers=8, kernel_size=7, dropout=0.15, stride_down=16),
+            mamba=MambaConfig(n_layers=6, d_state=16, conv_kernel=4, dropout=0.1),
             graph=GraphConfig(
                 enabled=True,
-                use_pyg=True,  # Enable PyG with LPE
-                similarity="cosine",
-                top_k=3,
-                threshold=1e-4,
-                temperature=0.1,
+                edge_features="cosine",
+                edge_top_k=3,
+                edge_threshold=1e-4,
                 n_layers=2,
                 dropout=0.1,
                 use_residual=True,
                 alpha=0.05,
-                k_eigenvectors=16,  # Laplacian PE dimension
+                k_eigenvectors=16,
             ),
         )
 
@@ -66,32 +54,26 @@ class TestGNNIntegrationPyG:
 
         # Check GNN components were initialized
         assert detector.use_gnn is True
-        assert detector.graph_builder is not None
+        assert detector.graph_builder is None
         assert detector.gnn is not None
 
-    def test_pyg_gnn_vs_pure_torch_shape(self, config_with_pyg_gnn):
-        """PyG and pure-torch GNN should have same output shape."""
-        config_pure = ModelConfig(
+    def test_dynamic_vs_static_pe_shape(self, config_with_pyg_gnn):
+        """Dynamic and static PE should produce same output shape."""
+        config_static = ModelConfig(
             architecture="v3",
             tcn=TCNConfig(),
             mamba=MambaConfig(),
-            graph=GraphConfig(
-                enabled=True,
-                use_pyg=False,  # Pure torch
-            ),
+            graph=GraphConfig(enabled=True, use_dynamic_pe=False),
         )
 
-        detector_pyg = SeizureDetector.from_config(config_with_pyg_gnn)
-        detector_pure = SeizureDetector.from_config(config_pure)
+        detector_dyn = SeizureDetector.from_config(config_with_pyg_gnn)
+        detector_static = SeizureDetector.from_config(config_static)
 
         x = torch.randn(1, 19, 15360)
+        out_dyn = detector_dyn(x)
+        out_static = detector_static(x)
 
-        output_pyg = detector_pyg(x)
-        output_pure = detector_pure(x)
-
-        # Same shape regardless of implementation
-        assert output_pyg.shape == output_pure.shape
-        assert output_pyg.shape == (1, 15360)
+        assert out_dyn.shape == out_static.shape == (1, 15360)
 
     def test_pyg_gnn_gradient_flow(self, config_with_pyg_gnn):
         """Gradients should flow through entire model with PyG GNN."""
@@ -112,28 +94,22 @@ class TestGNNIntegrationPyG:
             assert param.grad is not None
             assert not torch.isnan(param.grad).any()
 
-    def test_pyg_lpe_parameter_count(self, config_with_pyg_gnn):
-        """PyG with LPE should have similar parameter count to pure-torch."""
-        config_pure = ModelConfig(
+    def test_dynamic_vs_static_param_count(self, config_with_pyg_gnn):
+        """Dynamic vs static PE should have similar parameter counts (PE is non-learned)."""
+        config_static = ModelConfig(
             architecture="v3",
             tcn=TCNConfig(),
             mamba=MambaConfig(),
-            graph=GraphConfig(
-                enabled=True,
-                use_pyg=False,
-            ),
+            graph=GraphConfig(enabled=True, use_dynamic_pe=False),
         )
 
-        detector_pyg = SeizureDetector.from_config(config_with_pyg_gnn)
-        detector_pure = SeizureDetector.from_config(config_pure)
+        detector_dyn = SeizureDetector.from_config(config_with_pyg_gnn)
+        detector_static = SeizureDetector.from_config(config_static)
 
-        params_pyg = detector_pyg.count_parameters()
-        params_pure = detector_pure.count_parameters()
+        params_dyn = detector_dyn.count_parameters()
+        params_static = detector_static.count_parameters()
 
-        # Both should have similar parameter counts
-        # LPE doesn't add learnable params, just computed features
-        # SSGConv has same params as our Linear layers
-        assert abs(params_pyg - params_pure) < 10000  # Within 10k params
+        assert abs(params_dyn - params_static) < 10000
 
     @pytest.mark.parametrize("k_eigenvectors", [8, 16, 18])
     def test_pyg_with_different_lpe_dims(self, k_eigenvectors):
@@ -142,11 +118,7 @@ class TestGNNIntegrationPyG:
             architecture="v3",
             tcn=TCNConfig(),
             mamba=MambaConfig(),
-            graph=GraphConfig(
-                enabled=True,
-                use_pyg=True,
-                k_eigenvectors=k_eigenvectors,
-            ),
+            graph=GraphConfig(enabled=True, k_eigenvectors=k_eigenvectors),
         )
 
         detector = SeizureDetector.from_config(config)

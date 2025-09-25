@@ -28,33 +28,19 @@ class TestGNNIntegration:
         """ModelConfig with GNN enabled using EvoBrain parameters."""
         return ModelConfig(
             architecture="v3",
-            tcn=TCNConfig(
-                num_layers=8,
-                kernel_size=7,
-                dropout=0.15,
-                stride_down=16,
-            ),
-            mamba=MambaConfig(
-                n_layers=6,
-                d_state=16,
-                conv_kernel=4,  # CUDA constraint
-                dropout=0.1,
-            ),
+            tcn=TCNConfig(num_layers=8, kernel_size=7, dropout=0.15, stride_down=16),
+            mamba=MambaConfig(n_layers=6, d_state=16, conv_kernel=4, dropout=0.1),
             graph=GraphConfig(
                 enabled=True,
-                # Graph construction (EvoBrain proven)
-                similarity="cosine",
-                top_k=3,
-                threshold=1e-4,
-                temperature=0.1,
+                # V3 edge stream + GNN
+                edge_features="cosine",
+                edge_top_k=3,
+                edge_threshold=1e-4,
                 # GNN architecture
                 n_layers=2,
                 dropout=0.1,
                 use_residual=True,
-                # EvoBrain SSGConv parameters
                 alpha=0.05,
-                # PyG specific (for phase 2)
-                use_pyg=False,
                 k_eigenvectors=16,
             ),
         )
@@ -94,7 +80,7 @@ class TestGNNIntegration:
 
         # Check GNN components were initialized
         assert detector.use_gnn is True
-        assert detector.graph_builder is not None
+        assert detector.graph_builder is None  # V3 does not use heuristic builder
         assert detector.gnn is not None
         assert detector.proj_to_electrodes is not None
         assert detector.proj_from_electrodes is not None
@@ -127,11 +113,7 @@ class TestGNNIntegration:
         assert not torch.isnan(x.grad).any()
         assert x.grad.abs().mean() > 0
 
-        # Check all GNN components have gradients
-        for param in detector.graph_builder.parameters():
-            assert param.grad is not None
-            assert not torch.isnan(param.grad).any()
-
+        # Check GNN components have gradients
         for param in detector.gnn.parameters():
             assert param.grad is not None
             assert not torch.isnan(param.grad).any()
@@ -176,8 +158,8 @@ class TestGNNIntegration:
             assert output.shape == (batch_size, 15360)
             assert not torch.isnan(output).any()
 
-    @pytest.mark.parametrize("top_k", [2, 3, 5])
-    def test_gnn_with_different_top_k(self, top_k):
+    @pytest.mark.parametrize("edge_top_k", [2, 3, 5])
+    def test_gnn_with_different_top_k(self, edge_top_k):
         """GNN should work with different top_k values."""
         config = ModelConfig(
             architecture="v3",
@@ -185,7 +167,7 @@ class TestGNNIntegration:
             mamba=MambaConfig(),
             graph=GraphConfig(
                 enabled=True,
-                top_k=top_k,
+                edge_top_k=edge_top_k,
             ),
         )
 

@@ -3,31 +3,20 @@
 import pytest
 import torch
 
+from src.brain_brr.config.schemas import ModelConfig
 from src.brain_brr.models import SeizureDetector
 
 
 class TestSeizureDetector:
     @pytest.fixture
     def model(self) -> SeizureDetector:
-        return SeizureDetector(
-            # Legacy params (ignored)
-            in_channels=19,
-            base_channels=32,
-            encoder_depth=2,
-            rescnn_blocks=1,
-            rescnn_kernels=[3, 5],
-            dropout=0.1,
-            # TCN params (actually used)
-            tcn_layers=2,  # SMALL: 2 layers instead of 8
-            tcn_kernel_size=3,  # SMALL: kernel 3 instead of 7
-            tcn_stride=16,
-            tcn_dropout=0.1,
-            # Mamba params
-            mamba_layers=1,  # SMALL: 1 layer instead of 6
-            mamba_d_state=8,  # SMALL: 8 instead of 16
-            mamba_d_conv=4,
-            mamba_dropout=0.1,
+        cfg = ModelConfig(
+            architecture="v3",
+            tcn={"num_layers": 2, "kernel_size": 3, "stride_down": 16, "dropout": 0.1},
+            mamba={"n_layers": 1, "d_state": 8, "conv_kernel": 4, "dropout": 0.1},
+            graph={"enabled": False},
         )
+        return SeizureDetector.from_config(cfg)
 
     @pytest.fixture
     def sample_input(self) -> torch.Tensor:
@@ -116,7 +105,6 @@ class TestSeizureDetector:
         info = model.get_layer_info()
         config = info["config"]
         assert config["in_channels"] == 19
-        assert config["base_channels"] == 32  # Legacy param
         assert config["tcn_layers"] == 2
         assert config["tcn_kernel_size"] == 3
         assert config["mamba_layers"] == 1

@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from torch.cuda.amp import GradScaler, autocast
 
-from src.brain_brr.config.schemas import Config
+from src.brain_brr.config.schemas import Config, ModelConfig
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.loop import FocalLoss
 
@@ -25,27 +25,14 @@ class TestTrainingExplosions:
 
     @pytest.fixture
     def small_model(self):
-        """Create a small model for testing."""
-        # Use small TCN params to avoid OOM
-        model = SeizureDetector(
-            # Legacy params (ignored)
-            in_channels=19,
-            base_channels=32,
-            encoder_depth=4,
-            rescnn_blocks=2,
-            rescnn_kernels=[3, 5],
-            dropout=0.1,
-            # TCN params (actually used)
-            tcn_layers=2,  # SMALL: 2 layers instead of 8
-            tcn_kernel_size=3,  # SMALL: kernel 3 instead of 7
-            tcn_stride=16,
-            tcn_dropout=0.1,
-            # Mamba params
-            mamba_layers=1,  # SMALL: 1 layer instead of 6
-            mamba_d_state=8,  # SMALL: 8 instead of 16
-            mamba_d_conv=4,
-            mamba_dropout=0.1,
+        """Create a small model for testing (V3, graph disabled)."""
+        cfg = ModelConfig(
+            architecture="v3",
+            tcn={"num_layers": 2, "kernel_size": 3, "stride_down": 16, "dropout": 0.1},
+            mamba={"n_layers": 1, "d_state": 8, "conv_kernel": 4, "dropout": 0.1},
+            graph={"enabled": False},
         )
+        model = SeizureDetector.from_config(cfg)
         if torch.cuda.is_available():
             model = model.cuda()
         return model
