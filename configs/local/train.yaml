@@ -22,7 +22,7 @@ experiment:
 
 model:
   # Architecture: "tcn" (v2) or "v3" (dual-stream with edge Mamba)
-  architecture: v3  # Change to "tcn" for v2 path
+  architecture: tcn  # SWITCHED FROM v3 - V3 HAS NaN ISSUES
 
   tcn:
     num_layers: 8
@@ -66,7 +66,7 @@ model:
     k_eigenvectors: 16         # Laplacian PE dimension
 
     # Dynamic PE config (v3) - OPTIMIZED FOR RTX 4090
-    use_dynamic_pe: true       # FULL V3 STACK ENABLED
+    use_dynamic_pe: false      # DISABLED - CAUSES NaNs
     semi_dynamic_interval: 5   # OPTIMAL: PE every 19.5ms (192 eigendecomps)
     pe_sign_consistency: true  # Fix eigenvector signs for stability
 
