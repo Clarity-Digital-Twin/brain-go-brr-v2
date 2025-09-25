@@ -93,28 +93,44 @@ app = modal.App(
     ],
 )
 
-# S3 bucket mounts for EEG data and cache
+# ========================================================================
+# STORAGE ARCHITECTURE (CRITICAL TO UNDERSTAND)
+# ========================================================================
+# 1. S3 BUCKET: brain-go-brr-eeg-data-20250919
+#    - tusz/edf/: Raw EDF files (266GB)
+#    - cache/tusz/: Preprocessed NPZ files (449GB)
+#
+# 2. MODAL MOUNTS (read-only from S3):
+#    - /data/: Raw EDF files (from S3: tusz/)
+#    - /cache/: Preprocessed NPZ cache (from S3: cache/tusz/)
+#
+# 3. PERSISTENCE VOLUME: brain-go-brr-results
+#    - /results/: Training outputs ONLY (checkpoints, logs)
+#    - NO CACHES HERE! Caches come from S3 mount
+# ========================================================================
+
 s3_secret = modal.Secret.from_name("aws-s3-secret")
 
-# Raw EDF data mount
+# Raw EDF data mount (not used in training, but available if needed)
 data_mount = modal.CloudBucketMount(
-    "brain-go-brr-eeg-data-20250919",  # Your actual bucket!
-    secret=s3_secret,
-    key_prefix="tusz/",  # Raw EDF data: tusz/{train,dev,eval}/
-    read_only=True,  # EEG data is read-only
-)
-
-# Pre-built cache mount - NOW ACTIVE! S3 upload complete
-cache_mount = modal.CloudBucketMount(
     "brain-go-brr-eeg-data-20250919",
     secret=s3_secret,
-    key_prefix="cache/tusz/",  # Preprocessed NPZ cache
+    key_prefix="tusz/",  # → Mounted at /data/{train,dev,eval}/
     read_only=True,
 )
 
-# Persistent volume for results and cache (310GB currently)
+# Preprocessed cache mount (MAIN DATA SOURCE FOR TRAINING)
+cache_mount = modal.CloudBucketMount(
+    "brain-go-brr-eeg-data-20250919",
+    secret=s3_secret,
+    key_prefix="cache/tusz/",  # → Mounted at /cache/{train,dev}/
+    read_only=True,
+)
+
+# Persistent volume for TRAINING OUTPUTS ONLY (not caches!)
+# Structure: /results/{smoke,train}/{{checkpoints,tensorboard,wandb}/
 results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missing=True)
-# NOTE: brain-go-brr-data volume deleted - it was empty and unused
+# NOTE: Old cache directories in volume have been cleaned up (Sep 25, 2025)
 
 
 # CPU-only: cache cleanup should not consume a GPU
@@ -439,10 +455,11 @@ def train(
     out_name = Path(exp.get("output_dir", "results/run")).name
     exp["output_dir"] = f"/results/{out_name}"
 
-    # CRITICAL: Use S3 cache mount for ALL training (smoke and full)
-    # Cache mounted at: /cache/{train,dev}/ from S3 bucket
-    # Smoke tests use same cache with BGB_LIMIT_FILES env var
-    cache_dir = "/cache"  # S3 mount point with train/ and dev/ subdirs
+    # CRITICAL: Cache architecture
+    # - Cache is ALWAYS at /cache/ (S3 mount, not persistence volume!)
+    # - Smoke tests use SAME cache with BGB_LIMIT_FILES=50
+    # - NO SEPARATE SMOKE CACHE EXISTS OR IS NEEDED
+    cache_dir = "/cache"  # S3 mount: /cache/{train,dev}/
 
     # Ensure cache directories exist with correct structure
     from pathlib import Path

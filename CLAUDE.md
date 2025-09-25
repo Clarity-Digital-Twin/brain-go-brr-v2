@@ -92,10 +92,12 @@ configs/                 # Training configurations
     └── train.yaml      # 100 epochs, 3734 files
 
 cache/tusz/             # Pre-processed data (local)
-├── train/              # 3734 NPZ files + manifest.json
-└── val/                # 933 NPZ files
+├── train/              # 4667 NPZ files + manifest.json
+└── dev/                # 1832 NPZ files + manifest.json
 
-/results/cache/tusz/    # Modal persistent SSD cache
+/cache/                 # Modal S3 mount (read-only)
+├── train/              # Same 4667 NPZ files from S3
+└── dev/                # Same 1832 NPZ files from S3
 ```
 
 ## ⚙️ Critical Configuration
@@ -115,7 +117,7 @@ training:
 ### Modal Cloud (A100-80GB)
 ```yaml
 data:
-  cache_dir: /results/cache/tusz  # Persistent SSD volume
+  cache_dir: /cache              # S3 mount (read-only)
   num_workers: 8                  # A100 handles parallel IO
 training:
   batch_size: 64                  # Larger batch for 80GB
@@ -209,7 +211,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 
 | Issue | Solution |
 |-------|----------|
-| Cache directory wrong | Local: `cache/tusz/`, Modal: `/results/cache/tusz/` |
+| Cache directory wrong | Local: `cache/tusz/`, Modal: `/cache/` (S3 mount) |
 | Zero seizures in batches | Enable `use_balanced_sampling: true` |
 | NaN losses on RTX 4090 | Set `mixed_precision: false` |
 | Modal training stuck | Increase CPU cores (24) and RAM (96GB) |
@@ -218,7 +220,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 
 ### Modal-Specific Settings
 - **Resources**: 24 CPU cores + 96GB RAM (defaults are too low!)
-- **Storage**: Cache on `/results/` (persistent SSD), never S3
+- **Storage**: Cache from S3 mount at `/cache/`, outputs to `/results/`
 - **W&B**: Set entity to team name if using team API key
 - **Detached runs**: Use `--detach` for long training sessions
 

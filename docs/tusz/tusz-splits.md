@@ -27,8 +27,8 @@ Runtime verification
 - Logs print patient/file counts per split and “✅ PATIENT DISJOINTNESS VERIFIED”.
 
 Cache structure
-- Local: `cache/tusz/{train,dev}/` (smoke uses `cache/smoke/{train,dev}/`).
-- Modal: `/results/cache/{tusz,smoke}/{train,dev}/`.
+- Local: `cache/tusz/{train,dev}/` (smoke uses SAME cache with `BGB_LIMIT_FILES` env var).
+- Modal: `/cache/{train,dev}/` (S3 mount from `s3://brain-go-brr-eeg-data-20250919/cache/tusz/`).
 
 Guardrails
 - If any overlap is detected between train/dev patients, training aborts.
