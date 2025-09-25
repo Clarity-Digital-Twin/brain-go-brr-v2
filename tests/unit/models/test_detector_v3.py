@@ -148,33 +148,6 @@ class TestDetectorV3:
         assert detector.config["edge_top_k"] == 5
         assert detector.config["edge_threshold"] == 1e-3
 
-    def test_v2_still_works(self):
-        """Test v2 architecture still works after v3 changes."""
-        cfg = ModelConfig(
-            architecture="tcn",  # v2
-            tcn=TCNConfig(),
-            mamba=MambaConfig(),
-            graph=GraphConfig(enabled=True),
-        )
-
-        detector = SeizureDetector.from_config(cfg)
-
-        # Check v2 uses heuristic graph builder
-        assert detector.architecture == "tcn"
-        assert detector.graph_builder is not None
-
-        # Check v3 components are not created
-        assert detector.node_mamba is None
-        assert detector.edge_mamba is None
-        assert detector.edge_in_proj is None
-        assert detector.edge_out_proj is None
-        assert detector.edge_activate is None
-
-        # Test forward pass
-        x = torch.randn(1, 19, 15360)
-        with torch.no_grad():
-            output = detector(x)
-
         assert output.shape == (1, 15360)
 
 

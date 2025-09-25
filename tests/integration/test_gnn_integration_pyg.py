@@ -27,7 +27,7 @@ class TestGNNIntegrationPyG:
     def config_with_pyg_gnn(self) -> ModelConfig:
         """ModelConfig with PyG GNN and LPE enabled."""
         return ModelConfig(
-            architecture="tcn",
+            architecture="v3",
             tcn=TCNConfig(
                 num_layers=8,
                 kernel_size=7,
@@ -72,7 +72,7 @@ class TestGNNIntegrationPyG:
     def test_pyg_gnn_vs_pure_torch_shape(self, config_with_pyg_gnn):
         """PyG and pure-torch GNN should have same output shape."""
         config_pure = ModelConfig(
-            architecture="tcn",
+            architecture="v3",
             tcn=TCNConfig(),
             mamba=MambaConfig(),
             graph=GraphConfig(
@@ -115,7 +115,7 @@ class TestGNNIntegrationPyG:
     def test_pyg_lpe_parameter_count(self, config_with_pyg_gnn):
         """PyG with LPE should have similar parameter count to pure-torch."""
         config_pure = ModelConfig(
-            architecture="tcn",
+            architecture="v3",
             tcn=TCNConfig(),
             mamba=MambaConfig(),
             graph=GraphConfig(
@@ -139,7 +139,7 @@ class TestGNNIntegrationPyG:
     def test_pyg_with_different_lpe_dims(self, k_eigenvectors):
         """PyG GNN should work with different LPE dimensions."""
         config = ModelConfig(
-            architecture="tcn",
+            architecture="v3",
             tcn=TCNConfig(),
             mamba=MambaConfig(),
             graph=GraphConfig(

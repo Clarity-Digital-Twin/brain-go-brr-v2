@@ -27,7 +27,7 @@ class TestGNNIntegration:
     def config_with_gnn(self) -> ModelConfig:
         """ModelConfig with GNN enabled using EvoBrain parameters."""
         return ModelConfig(
-            architecture="tcn",
+            architecture="v3",
             tcn=TCNConfig(
                 num_layers=8,
                 kernel_size=7,
@@ -63,7 +63,7 @@ class TestGNNIntegration:
     def config_without_gnn(self) -> ModelConfig:
         """ModelConfig with GNN disabled."""
         return ModelConfig(
-            architecture="tcn",
+            architecture="v3",
             tcn=TCNConfig(
                 num_layers=8,
                 kernel_size=7,
@@ -180,7 +180,7 @@ class TestGNNIntegration:
     def test_gnn_with_different_top_k(self, top_k):
         """GNN should work with different top_k values."""
         config = ModelConfig(
-            architecture="tcn",
+            architecture="v3",
             tcn=TCNConfig(),
             mamba=MambaConfig(),
             graph=GraphConfig(
@@ -200,7 +200,7 @@ class TestGNNIntegration:
     def test_gnn_with_different_depths(self, n_layers):
         """GNN should work with different number of layers."""
         config = ModelConfig(
-            architecture="tcn",
+            architecture="v3",
             tcn=TCNConfig(),
             mamba=MambaConfig(),
             graph=GraphConfig(

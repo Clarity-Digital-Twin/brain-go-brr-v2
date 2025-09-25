@@ -31,13 +31,13 @@ This document is the single source of truth for technical debt and cleanup work.
 - [x] Warn when V2 heuristic path is used (graph enabled with `architecture!='v3'`) suggesting migration to V3
 - [x] Keep default architecture as `"tcn"` for backward compatibility in tests; emit deprecation warnings now and schedule default switch to `"v3"` in Phase 2
 
-### Phase 2 — Test and config migration (breaking tests only)
-- [ ] Update tests to stop relying on V2 and legacy params (see inventories below)
-  - [ ] Replace `architecture="tcn"` with `"v3"` where feasible
-  - [ ] Remove creation/use of `DynamicGraphBuilder` assertions
-  - [ ] Stop passing legacy kwargs to `SeizureDetector` in tests/fixtures
-  - [ ] Update fixtures to use `ModelConfig` with V3 graph config where graph behavior is required
-- [ ] Update example configs and docs to V3‑only (local + modal)
+### Phase 2 — Test and config migration (breaking tests only) ✅ COMPLETE
+- [x] Update tests to stop relying on V2 and legacy params (see inventories below)
+  - [x] Replace `architecture="tcn"` with `"v3"` where feasible
+  - [x] Remove creation/use of `DynamicGraphBuilder` assertions
+  - [x] Stop passing legacy kwargs to `SeizureDetector` in tests/fixtures
+  - [x] Update fixtures to use `ModelConfig` with V3 graph config where graph behavior is required
+- [x] Example configs already set to V3 (local + modal)
 
 ### Phase 3 — Removal (breaking API)
 - [ ] Remove V2 code paths from `SeizureDetector.forward` and `from_config`

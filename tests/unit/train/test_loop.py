@@ -25,25 +25,21 @@ class TestTrainingSmoke:
     @pytest.fixture
     def model(self) -> SeizureDetector:
         """Create small model for testing."""
-        return SeizureDetector(
-            # Legacy params (ignored)
-            in_channels=19,
-            base_channels=32,
-            encoder_depth=2,
-            rescnn_blocks=1,
-            rescnn_kernels=[3, 5],
-            dropout=0.1,
-            # TCN params (actually used)
-            tcn_layers=2,  # SMALL: 2 layers instead of 8
-            tcn_kernel_size=3,  # SMALL: kernel 3 instead of 7
-            tcn_stride=16,
-            tcn_dropout=0.1,
-            # Mamba params
-            mamba_layers=1,  # SMALL: 1 layer instead of 6
-            mamba_d_state=8,  # SMALL: 8 instead of 16
-            mamba_d_conv=4,
-            mamba_dropout=0.1,
-        )
+        # Use config-based construction (no legacy kwargs)
+        from src.brain_brr.config.schemas import ModelConfig
+
+        config = ModelConfig()
+        config.architecture = "v3"  # Use V3 architecture
+        config.tcn.num_layers = 2  # SMALL: 2 layers instead of 8
+        config.tcn.kernel_size = 3  # SMALL: kernel 3 instead of 7
+        config.tcn.stride_down = 16
+        config.tcn.dropout = 0.1
+        config.mamba.n_layers = 1  # SMALL: 1 layer instead of 6
+        config.mamba.d_state = 8  # SMALL: 8 instead of 16
+        config.mamba.conv_kernel = 4
+        config.mamba.dropout = 0.1
+
+        return SeizureDetector.from_config(config)
 
     @pytest.fixture
     def synthetic_data(self) -> tuple[DataLoader, DataLoader]:
@@ -157,26 +153,21 @@ class TestTrainingSmoke:
 
             assert checkpoint_path.exists()
 
-            # Load checkpoint
-            new_model = SeizureDetector(
-                # Legacy params (ignored)
-                in_channels=19,
-                base_channels=32,
-                encoder_depth=2,
-                rescnn_blocks=1,
-                rescnn_kernels=[3, 5],
-                dropout=0.1,
-                # TCN params (actually used)
-                tcn_layers=2,  # SMALL: 2 layers instead of 8
-                tcn_kernel_size=3,  # SMALL: kernel 3 instead of 7
-                tcn_stride=16,
-                tcn_dropout=0.1,
-                # Mamba params
-                mamba_layers=1,  # SMALL: 1 layer instead of 6
-                mamba_d_state=8,  # SMALL: 8 instead of 16
-                mamba_d_conv=4,
-                mamba_dropout=0.1,
-            )
+            # Load checkpoint - use same config as original model
+            from src.brain_brr.config.schemas import ModelConfig
+
+            config = ModelConfig()
+            config.architecture = "v3"  # Use V3 architecture
+            config.tcn.num_layers = 2  # SMALL: 2 layers instead of 8
+            config.tcn.kernel_size = 3  # SMALL: kernel 3 instead of 7
+            config.tcn.stride_down = 16
+            config.tcn.dropout = 0.1
+            config.mamba.n_layers = 1  # SMALL: 1 layer instead of 6
+            config.mamba.d_state = 8  # SMALL: 8 instead of 16
+            config.mamba.conv_kernel = 4
+            config.mamba.dropout = 0.1
+
+            new_model = SeizureDetector.from_config(config)
             new_optimizer = torch.optim.AdamW(new_model.parameters())
 
             epoch, best_metric = load_checkpoint(checkpoint_path, new_model, new_optimizer)
