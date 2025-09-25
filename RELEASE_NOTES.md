@@ -1,5 +1,105 @@
 # Release Notes
 
+## v3.0.1 - CRITICAL Patient Leakage Fix (2025-09-24)
+
+### 🚨 EMERGENCY RELEASE - ALL PREVIOUS MODELS INVALID
+
+**Type**: Critical Bug Fix
+**Severity**: P0 BLOCKER
+
+**WARNING: ALL PREVIOUS TRAINING RESULTS ARE INVALID**
+
+This emergency release fixes a **CRITICAL BUG** where patients appeared in both training and validation splits, completely invalidating all previous validation metrics.
+
+### What Happened
+
+During a critical code review, we discovered that patient `aaaaagxr` (and potentially hundreds of others) appeared in BOTH training and validation splits with different recording sessions. This means:
+
+1. **All validation metrics were artificially inflated**
+2. **Models learned patient-specific patterns rather than generalizable seizure patterns**
+3. **Any published results using these models are invalid**
+
+### Critical Fixes
+
+- **PATIENT LEAKAGE ELIMINATED** (P0 Blocker):
+  - Previous file-level alphabetical splitting mixed patient data across train/val splits
+  - Now using TUSZ official train/dev/eval splits with enforced patient disjointness
+  - Runtime validation fails fast if any patient appears in multiple splits
+  - Files: `src/brain_brr/data/tusz_splits.py` (new), `src/brain_brr/train/loop.py`
+
+- **FA Curve Threshold Bug** (P0 Blocker):
+  - `sensitivity_at_fa_rates()` was passing ignored threshold parameter
+  - Now properly clones post_cfg and sets tau_on/off for each FA target
+  - File: `src/brain_brr/eval/metrics.py`
+
+### Also Fixed
+- **TensorBoard Import**: Now optional with try/except pattern
+- **TCN Channels Config**: Removed unused field that was ignored by implementation
+- **Manifest Strictness**: NPZ files without labels now excluded with warnings
+- **CLI Threshold Export**: Robust key coercion for "10", 10, or 10.0
+
+### Verification
+```
+[SPLIT STATS] OFFICIAL TUSZ SPLITS:
+  Train: 579 patients, 4667 files
+  Val:   53 patients, 1832 files
+  ✅ PATIENT DISJOINTNESS VERIFIED - No leakage!
+```
+
+### Required Migration Steps
+
+1. **Stop All Training Immediately**
+   ```bash
+   tmux kill-session -t train
+   modal app stop <app-id>
+   ```
+
+2. **Delete Contaminated Cache**
+   ```bash
+   rm -rf cache/tusz/train_windows/
+   rm -rf cache/tusz/val_windows/
+   rm -rf /results/cache/tusz/  # Modal
+   ```
+
+3. **Update Configuration**
+   ```yaml
+   data:
+     data_dir: data_ext4/tusz/edf  # Parent directory
+     split_policy: official_tusz    # REQUIRED
+   ```
+
+4. **Rebuild Cache with Proper Splits**
+   ```bash
+   python -m src build-cache \
+     --data-dir data_ext4/tusz/edf \
+     --cache-dir cache/tusz
+   ```
+
+5. **Restart Training from Scratch**
+   ```bash
+   # Local
+   make train-local
+
+   # Modal
+   modal run --detach deploy/modal/app.py \
+     --action train --config configs/modal/train.yaml
+   ```
+
+### Impact Assessment
+
+- **Research**: Any results must be re-run with proper splits
+- **Production**: Models in production are unreliable and must be replaced
+- **Publications**: Consider retracting or updating any published results
+
+### Lessons Learned
+
+1. **ALWAYS use patient-level splits for medical data**
+2. **NEVER split by files when files belong to patients**
+3. **ALWAYS validate disjointness before training**
+4. **Official splits exist for a reason - use them!**
+
+---
+
 ## v3.0.0 - V3 Dual-Stream Architecture with Dynamic LPE (2025-09-24)
 
 ### 🎉 Major Release: Production-Ready V3 Architecture
