@@ -116,13 +116,13 @@ class TestGNNIntegration:
         # In V3 with graph enabled, check critical modules have gradients
         # V3 uses node_mamba and edge_mamba, not self.mamba
         critical_modules = []
-        if hasattr(detector, 'node_mamba'):
+        if hasattr(detector, "node_mamba"):
             critical_modules.append(detector.node_mamba)
-        if hasattr(detector, 'edge_mamba'):
+        if hasattr(detector, "edge_mamba"):
             critical_modules.append(detector.edge_mamba)
-        if hasattr(detector, 'gnn') and detector.gnn:
+        if hasattr(detector, "gnn") and detector.gnn:
             critical_modules.append(detector.gnn)
-        if hasattr(detector, 'tcn_encoder'):
+        if hasattr(detector, "tcn_encoder"):
             critical_modules.append(detector.tcn_encoder)
 
         assert len(critical_modules) > 0, "No critical modules found"
