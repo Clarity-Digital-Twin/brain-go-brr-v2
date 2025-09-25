@@ -27,7 +27,7 @@ preprocessing:
 
 model:
   # Architecture: "tcn" (v2) or "v3" (dual-stream with edge Mamba)
-  architecture: v3  # Change to "tcn" for v2 path
+  architecture: v3  # V3 dual-stream with learned adjacency
 
   tcn:
     num_layers: 8
@@ -48,7 +48,7 @@ model:
   graph:
     enabled: true              # Required for both v2 and v3
 
-    # V3-specific: Edge stream config (ignored when architecture="tcn")
+    # V3: Edge stream config
     edge_features: cosine      # Edge feature metric for v3
     edge_top_k: 3              # Top-k edges per node for v3
     edge_threshold: 1.0e-4     # Edge weight cutoff for v3
