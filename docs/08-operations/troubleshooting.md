@@ -8,10 +8,15 @@ Common issues
 - Modal stuck: increase CPU (24) and RAM (96GB)
 - PyG install fails: use prebuilt wheels
 
-Dynamic PE NaNs
+V3 NaN Issues (RESOLVED)
 
-- If you hit non‑finite logits tied to dynamic PE: the code now includes robust safeguards (regularization, cached fallback, final nan_to_num).
-- If symptoms persist, try `semi_dynamic_interval: 5–10` and reduce `batch_size`.
+- **Primary cause**: Dynamic PE eigendecomposition on uninitialized adjacency
+- **Solution**: Set `use_dynamic_pe: false` in configs (currently default)
+- **Additional safeguards**:
+  - Edge clamping enabled (`BGB_EDGE_CLAMP=1`)
+  - Optimizer parameter groups (no weight decay on norms)
+  - Gradient sanitization available (`BGB_SANITIZE_GRADS=1`)
+- For details see: `docs/08-operations/incidents/v3-nan-explosion-resolution.md`
 
 Local training “gets stuck” checklist
 

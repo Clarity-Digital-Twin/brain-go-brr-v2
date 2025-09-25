@@ -13,6 +13,10 @@ P0 — Fixed
 - FA‑curve threshold path inconsistent
   - Fix: set `tau_on/off` on cloned post config before eventization.
   - Docs: `docs/06-evaluation/metrics-and-taes.md#notes-and-caveats`.
+- V3 NaN explosion during training
+  - Root cause: Dynamic PE eigendecomposition on uninitialized adjacency
+  - Fix: Disabled dynamic PE, added edge clamping, fixed optimizer parameter groups
+  - Docs: `docs/08-operations/incidents/v3-nan-explosion-resolution.md`
 
 P1 — Fixed / Hardened
 - TensorBoard optional import

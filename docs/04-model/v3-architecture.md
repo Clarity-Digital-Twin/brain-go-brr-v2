@@ -22,8 +22,10 @@ Key parameters
 
 Stability notes (dynamic PE)
 
-- Degree clamp, diagonal regularization, NaN/Inf checks with cached PE fallback are implemented in `gnn_pyg.py` to prevent non‑finite logits.
- - See also: `docs/04-model/laplacian-pe.md` for implementation details and config knobs.
+- **CRITICAL**: Dynamic PE is currently DISABLED due to numerical instability (see `docs/08-operations/incidents/v3-nan-explosion-resolution.md`)
+- Degree clamp, diagonal regularization, NaN/Inf checks with cached PE fallback are implemented in `gnn_pyg.py` to prevent non‑finite logits
+- Edge projection clamping enabled by default (`BGB_EDGE_CLAMP=1`) to prevent explosion
+- See also: `docs/04-model/laplacian-pe.md` for implementation details and config knobs
 
 Constraints and guards
 
