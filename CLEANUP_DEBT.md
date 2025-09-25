@@ -39,12 +39,12 @@ This document is the single source of truth for technical debt and cleanup work.
   - [x] Update fixtures to use `ModelConfig` with V3 graph config where graph behavior is required
 - [x] Example configs already set to V3 (local + modal)
 
-### Phase 3 — Removal (breaking API)
-- [ ] Remove V2 code paths from `SeizureDetector.forward` and `from_config`
-- [ ] Delete `src/brain_brr/models/graph_builder.py`
-- [ ] Remove V2‑only fields from `GraphConfig`: `similarity`, `top_k`, `threshold`, `temperature`
-- [ ] Remove legacy kwargs from `SeizureDetector.__init__`
-- [ ] Remove deprecated `encoder`/`rescnn`/`decoder` objects from `ModelConfig` (or gate behind a compatibility flag for a final release)
+### Phase 3 — Removal (breaking API) ✅ COMPLETE
+- [x] Remove V2 code paths from `SeizureDetector.forward` and `from_config`
+- [x] Delete `src/brain_brr/models/graph_builder.py`
+- [x] Remove V2‑only fields from `GraphConfig`: `similarity`, `top_k`, `threshold`, `temperature`
+- [ ] Remove legacy kwargs from `SeizureDetector.__init__` (kept for one more release; deprecation in place)
+- [ ] Remove deprecated `encoder`/`rescnn`/`decoder` objects from `ModelConfig` (kept for compatibility; schedule removal)
 
 ### Verification gates (each phase)
 - [ ] `make q` passes (ruff/format/mypy)
@@ -71,10 +71,10 @@ This document is the single source of truth for technical debt and cleanup work.
 
 **Impacted files:**
 - `src/brain_brr/models/detector.py`
-- `src/brain_brr/models/graph_builder.py` (delete)
+- `src/brain_brr/models/graph_builder.py` (deleted)
 - `src/brain_brr/config/schemas.py` (`GraphConfig`, `ModelConfig`)
-- `tests/**/*` (see inventory below)
-- Docs under `docs/04-model/*`, `docs/03-configuration/*`
+- `tests/**/*` (updated)
+- Docs under `docs/04-model/*`, `docs/03-configuration/*` (updated)
 
 ## 🧹 Priority 2: Legacy Parameter Cleanup
 
