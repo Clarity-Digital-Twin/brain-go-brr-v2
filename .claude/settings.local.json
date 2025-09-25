@@ -155,7 +155,8 @@
       "Bash(BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 .venv/bin/python -m src train configs/local/smoke.yaml)",
       "Bash(aws s3 ls:*)",
       "Bash(aws configure:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(git revert:*)"
     ],
     "deny": [],
     "ask": []
