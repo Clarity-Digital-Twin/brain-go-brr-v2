@@ -1374,8 +1374,23 @@ def main() -> None:
         train_files, train_label_files = splits["train"]
         val_files, val_label_files = splits["dev"]  # Use dev for validation
 
-        print(f"Loading {len(train_files)} train, {len(val_files)} val files")
-        print("✅ Using OFFICIAL TUSZ splits - GUARANTEED patient disjoint!")
+        # Extract and validate patient IDs for transparency
+        from src.brain_brr.data.tusz_splits import extract_patient_id
+        train_patients = {extract_patient_id(f) for f in train_files}
+        val_patients = {extract_patient_id(f) for f in val_files}
+
+        # Final paranoid check - should never trigger if tusz_splits.py works
+        overlap = train_patients & val_patients
+        if overlap:
+            raise ValueError(
+                f"CRITICAL: Patient leakage detected! {len(overlap)} patients in both splits:\n"
+                f"  {sorted(list(overlap))[:10]}"
+            )
+
+        print(f"\n[SPLIT STATS] OFFICIAL TUSZ SPLITS:")
+        print(f"  Train: {len(train_patients)} patients, {len(train_files)} files")
+        print(f"  Val:   {len(val_patients)} patients, {len(val_files)} files")
+        print("  ✅ PATIENT DISJOINTNESS VERIFIED - No leakage!")
 
     elif config.data.split_policy == "custom":
         # DEPRECATED: Old file-based split (WARNING: May cause patient leakage!)
