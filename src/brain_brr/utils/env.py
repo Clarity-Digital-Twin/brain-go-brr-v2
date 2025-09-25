@@ -37,6 +37,10 @@ _ANOMALY_DETECT = os.getenv("BGB_ANOMALY_DETECT", "0") == "1"
 _PERF_ALLOW_GPU = os.getenv("BGB_PERF_ALLOW_GPU", "0") == "1"
 _PERF_THREADS = os.getenv("BGB_PERF_THREADS")
 
+# Performance test tolerance configuration
+_PERF_TOLERANCE_FACTOR = float(os.getenv("BGB_PERF_TOLERANCE_FACTOR", "1.2"))  # 20% slack
+_PERF_STRICT_MODE = os.getenv("BGB_PERF_STRICT_MODE", "0") == "1"  # Disable slack
+
 
 class EnvConfig:
     """Typed accessor for Brain-Go-Brr environment variables."""
@@ -149,6 +153,17 @@ class EnvConfig:
     def perf_threads() -> int | None:
         """Number of threads for performance tests."""
         return int(_PERF_THREADS) if _PERF_THREADS else None
+
+    # Performance tolerance configuration
+    @staticmethod
+    def perf_tolerance_factor() -> float:
+        """Tolerance factor for performance tests (default: 1.2 = 20% slack)."""
+        return _PERF_TOLERANCE_FACTOR
+
+    @staticmethod
+    def perf_strict_mode() -> bool:
+        """Strict mode disables tolerance in performance tests."""
+        return _PERF_STRICT_MODE
 
 
 # Global instance for convenience

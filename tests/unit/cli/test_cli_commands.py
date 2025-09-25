@@ -68,10 +68,17 @@ class TestCLIValidateCommand:
           stride: 10
           num_workers: 0
         model:
-          encoder: {channels: [64, 128, 256, 512], stages: 4}
-          rescnn: {n_blocks: 3, kernel_sizes: [3, 5, 7]}
-          mamba: {n_layers: 6, d_model: 512, d_state: 16}
-          decoder: {stages: 4, kernel_size: 4}
+          architecture: v3
+          tcn:
+            num_layers: 2  # Invalid - must be >= 4
+            channels: [64, 128, 256, 512]
+            kernel_size: 3
+          mamba:
+            n_layers: 6
+            d_model: 512
+            d_state: 8  # Invalid - must be 16
+          graph:
+            use_gnn: false
         training:
           epochs: -1  # Invalid negative
           batch_size: 2

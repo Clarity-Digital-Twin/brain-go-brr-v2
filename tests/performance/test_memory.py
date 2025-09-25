@@ -10,6 +10,7 @@ import torch
 
 from src.brain_brr.config.schemas import MambaConfig, ModelConfig, TCNConfig
 from src.brain_brr.models import SeizureDetector
+from tests.performance.utils import thresholds
 
 # Mark all tests in this module as performance tests (excluded from CI)
 pytestmark = pytest.mark.performance
@@ -69,15 +70,17 @@ class TestMemoryUsage:
         ram_per_sample = ram_used / batch_size
         gpu_per_sample = gpu_used / batch_size if gpu_used > 0 else 0
 
-        # Should use <500MB RAM per sample
-        assert ram_per_sample < 500, (
-            f"RAM usage {ram_per_sample:.1f}MB per sample exceeds 500MB limit"
+        # Check RAM usage per sample
+        max_ram = thresholds.ram_per_sample_mb()
+        assert ram_per_sample < max_ram, (
+            f"RAM usage {ram_per_sample:.1f}MB per sample exceeds {max_ram:.0f}MB limit"
         )
 
         # GPU memory should be reasonable if available
         if gpu_used > 0:
-            assert gpu_per_sample < 200, (
-                f"GPU usage {gpu_per_sample:.1f}MB per sample exceeds 200MB limit"
+            max_gpu = thresholds.gpu_per_sample_mb()
+            assert gpu_per_sample < max_gpu, (
+                f"GPU usage {gpu_per_sample:.1f}MB per sample exceeds {max_gpu:.0f}MB limit"
             )
 
         # Clean up
@@ -424,4 +427,5 @@ class TestMemoryUsage:
 
         growth_rate = (second_half - first_half) / first_half
 
-        assert abs(growth_rate) < 0.05, f"Memory grew by {growth_rate * 100:.1f}% over long run"
+        max_growth_rate = thresholds.long_running_growth_rate()
+        assert abs(growth_rate) < max_growth_rate, f"Memory grew by {growth_rate * 100:.1f}% over long run (max: {max_growth_rate * 100:.0f}%)"

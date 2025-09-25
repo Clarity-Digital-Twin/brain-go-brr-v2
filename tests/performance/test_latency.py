@@ -16,6 +16,7 @@ import torch
 
 from src.brain_brr.config.schemas import MambaConfig, ModelConfig, TCNConfig
 from src.brain_brr.models import SeizureDetector
+from tests.performance.utils import thresholds
 
 # Allow skipping performance tests entirely
 skip_perf_tests = pytest.mark.skipif(
@@ -157,8 +158,10 @@ class TestInferenceLatency:
         avg_time_per_sample = np.mean(times) * 1000 / batch_size  # ms per sample
 
         # Should have sub-linear scaling
-        assert avg_time_per_sample < 100, (
-            f"Batch {batch_size}: {avg_time_per_sample:.1f}ms per sample"
+        is_cpu = production_model.device.type == "cpu"
+        max_latency = thresholds.batch_latency_per_sample_ms(is_cpu)
+        assert avg_time_per_sample < max_latency, (
+            f"Batch {batch_size}: {avg_time_per_sample:.1f}ms per sample (max: {max_latency:.1f}ms)"
         )
 
     @pytest.mark.performance
@@ -194,7 +197,8 @@ class TestInferenceLatency:
 
         # Check overall statistics
         p95 = np.percentile(latencies[10:], 95)  # Exclude warmup
-        assert p95 < stride * 0.5, f"P95 latency {p95:.2f}s too high for {stride}s stride"
+        max_p95 = stride * thresholds.streaming_p95_latency(stride)
+        assert p95 < max_p95, f"P95 latency {p95:.2f}s too high (max: {max_p95:.2f}s for {stride}s stride)"
 
     @pytest.mark.performance
     @pytest.mark.gpu
@@ -237,7 +241,8 @@ class TestInferenceLatency:
             gpu_time = np.median(gpu_times)
 
             speedup = cpu_time / gpu_time
-            assert speedup > 5, f"GPU speedup only {speedup:.1f}x (expected >5x)"
+            min_speedup = thresholds.gpu_speedup_factor()
+            assert speedup > min_speedup, f"GPU speedup only {speedup:.1f}x (expected >{min_speedup:.1f}x)"
 
     @pytest.mark.performance
     @pytest.mark.timeout(300)
@@ -324,7 +329,8 @@ class TestInferenceLatency:
                 pytest.skip(
                     f"CPU compile speedup {speedup:.2f}x below strict threshold; skipping as env-dependent"
                 )
-            assert speedup > 1.05, f"Compilation speedup only {speedup:.2f}x (expected >1.05x)"
+            min_speedup = thresholds.compilation_speedup()
+            assert speedup > min_speedup, f"Compilation speedup only {speedup:.2f}x (expected >{min_speedup:.2f}x)"
 
 
 @pytest.mark.serial
@@ -371,14 +377,14 @@ class TestThroughput:
             else measured_time * (total_windows / eval_windows)
         )
 
-        # Should process 1 hour of data quickly; allow CPU more headroom
-        max_seconds = 180 if not is_cpu else 390  # Slightly more tolerance for CPU
+        # Should process 1 hour of data quickly
+        max_seconds = thresholds.hourly_throughput_time_s(is_cpu)
         assert total_time < max_seconds, (
             f"Estimated time {total_time:.1f}s (> {max_seconds}s limit)"
         )
 
         throughput = 3600 / max(total_time, 1e-6)  # Hours of data per hour of compute
-        min_throughput = 15.0 if not is_cpu else 6.0
+        min_throughput = thresholds.min_throughput_realtime(is_cpu)
         assert throughput > min_throughput, (
             f"Throughput {throughput:.1f}x realtime (expected >{min_throughput}x)"
         )
@@ -420,7 +426,7 @@ class TestThroughput:
 
         # Should process 24 hours in less than 1 hour
         # Allow more headroom on CPU environments
-        max_hours = 1.0 if device.type != "cpu" else 2.5
+        max_hours = thresholds.daily_processing_hours() if device.type == "cpu" else thresholds.daily_processing_hours() / 2
         assert estimated_full_time < max_hours * 3600, (
             f"Processing 24 hours estimated at {estimated_full_time / 3600:.1f} hours (> {max_hours}h)"
         )
@@ -496,7 +502,10 @@ class TestLatencyUnderLoad:
         # Also be more lenient with the degradation threshold (20% instead of 15%)
         if cv < 0.35:
             # Only check degradation if system is stable
-            assert abs(degradation) < 0.20, f"Latency changed by {degradation * 100:.1f}% over time"
+            max_degradation = thresholds.latency_degradation_pct() / 100
+            assert abs(degradation) < max_degradation, (
+                f"Latency changed by {degradation * 100:.1f}% over time (max: {max_degradation * 100:.1f}%)"
+            )
 
     @pytest.mark.performance
     @pytest.mark.timeout(300)
@@ -545,21 +554,22 @@ class TestLatencyUnderLoad:
         median_latency = np.median(all_latencies)
 
         # Should maintain reasonable latency even under concurrent load
-        # More relaxed thresholds for CPU environments
         device = next(minimal_model.parameters()).device
-        p95_limit = 2.5 if device.type == "cpu" else 0.5
-        median_limit = 1.25 if device.type == "cpu" else 0.2
+        is_cpu = device.type == "cpu"
+        p95_limit = thresholds.single_window_latency_ms(is_cpu) * 25 / 1000  # 2.5s/0.5s
+        median_limit = thresholds.single_window_latency_ms(is_cpu) * 12.5 / 1000  # 1.25s/0.2s
 
         assert p95_latency < p95_limit, (
-            f"P95 latency {p95_latency:.2f}s under concurrent load (limit: {p95_limit}s)"
+            f"P95 latency {p95_latency:.2f}s under concurrent load (limit: {p95_limit:.2f}s)"
         )
         assert median_latency < median_limit, (
-            f"Median latency {median_latency:.2f}s under concurrent load (limit: {median_limit}s)"
+            f"Median latency {median_latency:.2f}s under concurrent load (limit: {median_limit:.2f}s)"
         )
 
         # Check throughput improvement
         sequential_time = median_latency * n_threads * n_requests_per_thread
         speedup = sequential_time / total_time
-        assert speedup > n_threads * 0.5, (
-            f"Concurrent speedup only {speedup:.1f}x with {n_threads} threads"
+        min_speedup = n_threads * thresholds.concurrent_speedup_efficiency(n_threads)
+        assert speedup > min_speedup, (
+            f"Concurrent speedup only {speedup:.1f}x with {n_threads} threads (expected >{min_speedup:.1f}x)"
         )
