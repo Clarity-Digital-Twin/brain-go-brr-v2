@@ -145,7 +145,8 @@
       "Bash(do echo \"$f:\")",
       "Bash(do echo -e \"\\n=== $f ===\")",
       "Bash(.venv/bin/ruff check src/ tests/ --fix)",
-      "Bash(git remote:*)"
+      "Bash(git remote:*)",
+      "Bash(BGB_LIMIT_FILES=2 .venv/bin/python -c \"\nfrom pathlib import Path\nfrom src.brain_brr.data.tusz_splits import load_tusz_for_training\n\ndata_root = Path(''data_ext4/tusz/edf'')\nprint(''Testing TUSZ official splits...'')\nsplits = load_tusz_for_training(data_root, use_eval=False, verbose=True)\nprint(f''\\n✅ Test passed! No patient leakage detected.'')\n\")"
     ],
     "deny": [],
     "ask": []

@@ -38,8 +38,17 @@ class DataConfig(BaseModel):
     prefetch_factor: int = Field(
         default=2, ge=2, description="Batches to prefetch per worker (requires num_workers>0)"
     )
+    split_policy: str = Field(
+        default="official_tusz",
+        description="Split policy: 'official_tusz' uses train/dev/eval dirs, 'custom' allows validation_split"
+    )
     validation_split: float = Field(
-        default=0.2, ge=0.0, le=0.5, description="Fraction of data for validation"
+        default=0.2, ge=0.0, le=0.5,
+        description="DEPRECATED - Only used if split_policy='custom'. Use official TUSZ splits!"
+    )
+    split_seed: int = Field(
+        default=42,
+        description="Seed for custom splits (ignored for official_tusz)"
     )
     max_samples: int | None = Field(
         default=None, ge=1, description="Limit samples for debugging (None = use all)"

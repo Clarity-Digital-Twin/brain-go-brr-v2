@@ -1356,16 +1356,53 @@ def main() -> None:
         print("DO NOT use this for real training!")
         print("=" * 60 + "\n", flush=True)
 
-    # Create datasets (discover EDF files and paired CSV_BI annotations if present)
+    # Handle split policy
     data_root = Path(config.data.data_dir)
-    edf_files = sorted(data_root.glob("**/*.edf"))
 
-    # Split train/val
-    val_split = int(len(edf_files) * config.data.validation_split)
-    train_files = edf_files[val_split:]
-    val_files = edf_files[:val_split]
+    if config.data.split_policy == "official_tusz":
+        # Use TUSZ official splits (PATIENT-DISJOINT!)
+        # For TUSZ: train on train/, validate on dev/, never touch eval/
+        from src.brain_brr.data.tusz_splits import load_tusz_for_training
 
-    print(f"Loading {len(train_files)} train, {len(val_files)} val files")
+        # Get the parent directory that contains train/, dev/, eval/
+        if data_root.name in ["train", "dev", "eval"]:
+            # If pointing to a specific split, go up to parent
+            data_root = data_root.parent
+
+        # Load official TUSZ splits with patient disjointness validation
+        splits = load_tusz_for_training(data_root, use_eval=False, verbose=True)
+        train_files, train_label_files = splits["train"]
+        val_files, val_label_files = splits["dev"]  # Use dev for validation
+
+        print(f"Loading {len(train_files)} train, {len(val_files)} val files")
+        print("✅ Using OFFICIAL TUSZ splits - GUARANTEED patient disjoint!")
+
+    elif config.data.split_policy == "custom":
+        # DEPRECATED: Old file-based split (WARNING: May cause patient leakage!)
+        warnings.warn(
+            "⚠️  Using CUSTOM split policy - this may cause patient leakage!\n"
+            "   Strongly recommend using split_policy='official_tusz' instead!",
+            stacklevel=2
+        )
+        edf_files = sorted(data_root.glob("**/*.edf"))
+
+        # Apply seed for reproducibility
+        rng = np.random.RandomState(config.data.split_seed)
+        rng.shuffle(edf_files)
+
+        val_split = int(len(edf_files) * config.data.validation_split)
+        val_files = edf_files[:val_split]
+        train_files = edf_files[val_split:]
+
+        # Pair label files
+        train_label_files = [p.with_suffix(".csv") for p in train_files]
+        val_label_files = [p.with_suffix(".csv") for p in val_files]
+
+        print(f"Loading {len(train_files)} train, {len(val_files)} val files")
+        print("⚠️  WARNING: Custom split may have patient leakage!")
+
+    else:
+        raise ValueError(f"Unknown split_policy: {config.data.split_policy}")
 
     # Optional file limit for fast bring-up via env var (does not change config)
     limit_env = os.getenv("BGB_LIMIT_FILES")
@@ -1373,16 +1410,15 @@ def main() -> None:
         try:
             limit = max(1, int(limit_env))
             train_files = train_files[:limit]
-            val_files = val_files[: max(1, min(len(val_files), max(1, limit // 5)))]
+            train_label_files = train_label_files[:limit]
+            val_limit = max(1, min(len(val_files), max(1, limit // 5)))
+            val_files = val_files[:val_limit]
+            val_label_files = val_label_files[:val_limit]
             print(
                 f"[DEBUG] BGB_LIMIT_FILES={limit}: using {len(train_files)} train, {len(val_files)} val files"
             )
         except Exception:
             pass
-
-    # Pair label files (CSV next to EDF with same stem); pass even if missing
-    train_label_files = [p.with_suffix(".csv") for p in train_files]
-    val_label_files = [p.with_suffix(".csv") for p in val_files]
 
     # Cache directory sanity and preflight
     data_cache_root = Path(config.data.cache_dir)
