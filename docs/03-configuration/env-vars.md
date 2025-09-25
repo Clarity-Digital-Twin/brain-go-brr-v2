@@ -28,3 +28,20 @@ Model toggles
 WSL2 and packaging
 
 - `UV_LINK_MODE=copy` — safer linking mode for uv on Windows filesystems
+
+Model and stability toggles
+
+- `BGB_EDGE_CLAMP=1` — clamp edge stream projections to prevent explosions (default on)
+- `BGB_EDGE_CLAMP_MIN=-20.0` — lower clamp bound for edge stream
+- `BGB_EDGE_CLAMP_MAX=20.0` — upper clamp bound for edge stream
+- `BGB_DEBUG_FINITE=1` — enable assert_finite checks in critical tensors (debug only)
+
+Training safety/debug
+
+- `BGB_SANITIZE_GRADS=1` — clamp/replace NaN/Inf gradients (debug only)
+- `BGB_SKIP_OPT_STEP_ON_NAN=1` — skip optimizer step if NaN detected (debug only)
+
+Performance testing (tests/performance)
+
+- `BGB_PERF_ALLOW_GPU=1` — allow GPU usage in performance tests
+- `BGB_PERF_THREADS=N` — set CPU thread count in performance tests

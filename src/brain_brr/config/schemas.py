@@ -216,9 +216,22 @@ class ModelConfig(BaseModel):
 
     name: Literal["seizure_detector"] = Field(default="seizure_detector", description="Model name")
     architecture: Literal["tcn", "v3"] = Field(
-        default="v3",
+        default="tcn",
         description="Architecture type: tcn (v2 - deprecated) or v3 (dual-stream - recommended)",
     )
+
+    @model_validator(mode="after")
+    def _warn_deprecated_architecture(self) -> "ModelConfig":
+        import warnings
+
+        if self.architecture == "tcn":
+            warnings.warn(
+                "ModelConfig.architecture='tcn' is deprecated and will be removed in a future release. "
+                "Please migrate to 'v3' (dual-stream with learned adjacency).",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return self
 
     # Deprecated configs kept for backward compatibility (not used)
     encoder: EncoderConfig = Field(default_factory=EncoderConfig)

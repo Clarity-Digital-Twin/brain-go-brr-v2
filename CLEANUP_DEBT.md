@@ -21,15 +21,15 @@ This document is the single source of truth for technical debt and cleanup work.
 - [x] Update messaging to reflect TCN+BiMamba(+V3) everywhere
   - [x] `src/brain_brr/train/wandb_integration.py`: change model label to "TCN + Bi-Mamba-2 (+V3 edge/GNN)" and drop UNet/ResCNN fields
   - [x] `src/brain_brr/cli/cli.py`: config summary should show `model.architecture`, V3 graph settings, and replace deprecated `postprocessing.min_duration` with `postprocessing.duration.min_duration_s`
-  - [ ] Docs: ensure `docs/04-model/v3-architecture.md`, `docs/00-overview/architecture-summary.md` match current code
+  - [x] Docs: ensure `docs/04-model/v3-architecture.md`, `docs/00-overview/architecture-summary.md` match current code
 
 ### Phase 1 — Soft deprecation (warnings, defaults) ✅ COMPLETE
 - [x] Emit `DeprecationWarning` when:
-  - [x] `ModelConfig.architecture == "tcn"` in `SeizureDetector.from_config` (file: `src/brain_brr/models/detector.py`)
+  - [x] `ModelConfig.architecture == "tcn"` in `SeizureDetector.from_config` and at `ModelConfig` construction (schema validator)
   - [x] `SeizureDetector.__init__` receives legacy kwargs: `base_channels`, `encoder_depth`, `rescnn_blocks`, `rescnn_kernels`, and `dropout` as a surrogate for `mamba_dropout`
   - [x] `DynamicGraphBuilder` is constructed (file: `src/brain_brr/models/graph_builder.py`)
-- [x] Set default architecture to `"v3"` in `ModelConfig` (keeping `"tcn"` allowed but deprecated)
-- [x] Add warning when `graph.use_pyg=false` (V2 heuristic path) suggesting migration to V3
+- [x] Warn when V2 heuristic path is used (graph enabled with `architecture!='v3'`) suggesting migration to V3
+- [x] Keep default architecture as `"tcn"` for backward compatibility in tests; emit deprecation warnings now and schedule default switch to `"v3"` in Phase 2
 
 ### Phase 2 — Test and config migration (breaking tests only)
 - [ ] Update tests to stop relying on V2 and legacy params (see inventories below)

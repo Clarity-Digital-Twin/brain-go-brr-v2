@@ -25,6 +25,7 @@ Stability notes (dynamic PE)
 - Dynamic PE is enabled by default with safeguards (degree clamp, diagonal regularization, NaN/Inf checks, cached‑PE fallback; eigens in fp32).
 - On consumer GPUs (e.g., RTX 4090), if you observe NaNs early in training, set `use_dynamic_pe: false` as a temporary fallback and file an issue with logs.
 - Edge projection clamping is enabled by default via env (`BGB_EDGE_CLAMP=1` by default; min/max configurable) to prevent edge‑stream explosions.
+- Finite checks: enable `BGB_DEBUG_FINITE=1` to activate `assert_finite` guards in critical tensors (see `src/brain_brr/models/debug_utils.py`). Use only when diagnosing NaNs.
 - See `docs/04-model/laplacian-pe.md` for implementation details and configuration knobs, and `docs/08-operations/incidents/v3-nan-explosion-resolution.md` for incident context.
 
 Constraints and guards

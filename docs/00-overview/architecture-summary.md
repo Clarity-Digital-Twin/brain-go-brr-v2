@@ -29,8 +29,12 @@ Shapes (V3)
 
 V2 vs V3
 
-- V2: `TCN → BiMamba2(512) → Head`; optional heuristic dynamic graph (cosine + top‑k + threshold) and PyG
-- V3: `TCN → Node Mamba(64) + Edge Mamba(16) → Learned adjacency → Vectorized PyG + Laplacian PE (dynamic by default) → Head`
+- V2 (deprecated): `TCN → BiMamba2(512) → Head`; optional heuristic dynamic graph (cosine + top‑k + threshold) and PyG
+- V3 (recommended): `TCN → Node Mamba(64) + Edge Mamba(16) → Learned adjacency → Vectorized PyG + Laplacian PE (dynamic by default) → Head`
+
+Note
+
+- Current default in configs may still be `tcn` for backward compatibility in tests; deprecation warnings are emitted and the default will switch to `v3` in a subsequent release. Prefer setting `model.architecture: v3` now.
 
 Adjacency specifics (V3)
 

@@ -410,14 +410,12 @@ class SeizureDetector(nn.Module):
             # For v2, use heuristic graph builder
             if cfg.architecture != "v3":
                 # Emit warning for using V2 heuristic path
-                if graph_cfg and not getattr(graph_cfg, "use_pyg", True):
-                    warnings.warn(
-                        "Using graph.use_pyg=false (V2 heuristic path) is deprecated. "
-                        "V3 architecture with PyG backend is recommended for better performance. "
-                        "Set model.architecture='v3' and graph.use_pyg=true.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
+                warnings.warn(
+                    "Using the V2 heuristic DynamicGraphBuilder is deprecated. "
+                    "Migrate to architecture='v3' with learned adjacency (edge stream).",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
 
                 # Lazy imports to avoid dependency when not using GNN
                 from .graph_builder import DynamicGraphBuilder
