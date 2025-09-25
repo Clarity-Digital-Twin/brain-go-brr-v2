@@ -439,13 +439,10 @@ def train(
     out_name = Path(exp.get("output_dir", "results/run")).name
     exp["output_dir"] = f"/results/{out_name}"
 
-    # CRITICAL: Use S3 cache mount for pre-built caches
-    # Cache now at: /cache/{train,dev}/ from S3 bucket
-    if "smoke" in config_path.lower():
-        cache_dir = "/results/cache/smoke"  # Smoke still uses volume
-    else:
-        # Use the S3 cache mount for full training
-        cache_dir = "/cache"  # S3 mount point with train/ and dev/ subdirs
+    # CRITICAL: Use S3 cache mount for ALL training (smoke and full)
+    # Cache mounted at: /cache/{train,dev}/ from S3 bucket
+    # Smoke tests use same cache with BGB_LIMIT_FILES env var
+    cache_dir = "/cache"  # S3 mount point with train/ and dev/ subdirs
 
     # Ensure cache directories exist with correct structure
     from pathlib import Path
