@@ -134,6 +134,7 @@ This document is the single source of truth for technical debt and cleanup work.
 - [x] Remove `encoder/rescnn/decoder` blocks from schema (removed)
 - [x] CLI summary in `src/brain_brr/cli/cli.py` (already clean)
 - [x] W&B metadata in `src/brain_brr/train/wandb_integration.py` (already updated)
+- [x] Strict Pydantic schemas: forbid extra fields (prevents legacy keys like `channels`, `encoder`, `rescnn`)
 
 **Acceptance criteria:**
 - `cli validate` and summary output reflect V3 accurately
@@ -144,11 +145,12 @@ This document is the single source of truth for technical debt and cleanup work.
 **Actions:**
 - [x] Documentation already comprehensive in `docs/03-configuration/env-vars.md`
 - [x] Created typed helper `src/brain_brr/utils/env.py` with all env vars
+- [x] Replaced scattered `os.getenv` usages across models/train/data with `env` helper
 - [x] Provides single source of truth for all BGB_* environment variables
 
 **Acceptance criteria:**
 - One canonical doc page lists all env vars and their default behavior
-- Training loop reads from a single helper or config path for debug toggles
+- Training loop reads from a single helper or config path for debug toggles (implemented)
 
 ## 🧮 Priority 6: Numerical Guards Lifecycle — COMPLETE
 

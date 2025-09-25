@@ -18,7 +18,7 @@ Shared model
 ```yaml
 model:
   architecture: v3  # V3 dual-stream architecture
-  tcn: { num_layers: 8, channels: [64,128,256,512], kernel_size: 7, stride_down: 16 }
+  tcn: { num_layers: 8, kernel_size: 7, stride_down: 16 }
   mamba: { n_layers: 6, d_model: 512, d_state: 16, conv_kernel: 4 }
   graph:
     enabled: true

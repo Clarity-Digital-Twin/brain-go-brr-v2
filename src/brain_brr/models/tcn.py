@@ -10,6 +10,8 @@ from typing import cast
 import torch
 import torch.nn as nn
 
+from src.brain_brr.utils.env import env
+
 # Suppress deprecation warning for weight_norm - we use old API for torch.compile compat
 warnings.filterwarnings(
     "ignore",
@@ -273,4 +275,3 @@ if __name__ == "__main__":
     restored = head(out)
     print(f"Projection head output: {restored.shape}")
     print(f"Total parameters: {(count_parameters(tcn) + count_parameters(head)) / 1e6:.2f}M")
-from src.brain_brr.utils.env import env

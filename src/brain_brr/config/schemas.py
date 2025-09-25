@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 class StrictModel(BaseModel):
     """Base model that forbids unknown extra fields for clean configs."""
+
     model_config = ConfigDict(extra="forbid")
 
 

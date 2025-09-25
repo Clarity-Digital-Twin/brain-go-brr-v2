@@ -110,7 +110,6 @@ model:
 
   tcn:
     num_layers: 8
-    channels: [64, 128, 256, 512]
     kernel_size: 7
     stride_down: 16
 

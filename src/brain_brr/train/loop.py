@@ -11,7 +11,6 @@ SOLID principles applied:
 from __future__ import annotations
 
 import math
-import os
 import random
 import sys
 import time
@@ -722,7 +721,7 @@ def train_epoch(
 
                     # Sanitize gradients if needed
                     skip_step = False
-                    if os.getenv("BGB_SANITIZE_GRADS", "0") == "1":
+                    if env.sanitize_grads():
                         grad_has_nan = False
                         for _name, param in model.named_parameters():
                             if param.grad is not None and not torch.isfinite(param.grad).all():
@@ -732,7 +731,7 @@ def train_epoch(
                             print(
                                 f"[WARN] Sanitized NaN gradients at batch {batch_idx}", flush=True
                             )
-                            if os.getenv("BGB_SKIP_OPT_STEP_ON_NAN", "0") == "1":
+                            if env.skip_opt_step_on_nan():
                                 skip_step = True
                                 print(
                                     "[WARN] Skipping optimizer step due to NaN gradients",
@@ -1422,7 +1421,7 @@ def main() -> None:
     config.training.resume = args.resume
 
     # Check if we're in smoke test mode
-    is_smoke_test = os.environ.get("BGB_SMOKE_TEST", "0") == "1"
+    is_smoke_test = env.smoke_test()
     if is_smoke_test:
         print("\n" + "=" * 60)
         print("SMOKE TEST MODE ACTIVE")

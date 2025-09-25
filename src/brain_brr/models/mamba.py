@@ -10,6 +10,7 @@ from typing import cast
 
 import torch
 import torch.nn as nn
+
 from src.brain_brr.utils.env import env
 
 # Conditional import for GPU/CPU compatibility
