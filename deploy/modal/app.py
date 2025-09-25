@@ -271,6 +271,9 @@ def train(
 
     try:
         from pathlib import Path
+        import shutil
+        import json
+
         # Load config to get the actual cache path
         cfg_abs = config_path
         if not config_path.startswith("/"):
@@ -295,17 +298,81 @@ def train(
         cache_dev = Path(cache_dir) / "dev"
         cache_path = cache_train  # Primary cache for reporting
 
+        # CACHE VALIDATION: Check if cache was built with patient-disjoint splits
+        cache_metadata_file = Path(cache_dir) / ".cache_metadata.json"
+        cache_valid = False
+
         if cache_path.exists():
             npz_files = list(cache_path.glob("*.npz"))
-            manifest = cache_path / "manifest.json"
-            print(f"[CACHE] ✅ Using Modal SSD cache: {len(npz_files)} NPZ files", flush=True)
-            if manifest.exists():
-                print(f"[CACHE] ✅ Manifest found at {manifest}", flush=True)
-            print(f"[CACHE] Cache location: {cache_path}", flush=True)
-            print(f"[CACHE] This is optimal - using fast local SSD storage", flush=True)
+
+            # Check if metadata exists and validates
+            if cache_metadata_file.exists():
+                try:
+                    with open(cache_metadata_file) as f:
+                        metadata = json.load(f)
+
+                    # Check if built with official_tusz policy
+                    if metadata.get("split_policy") == "official_tusz":
+                        print(f"[CACHE] ✅ Cache built with official_tusz policy", flush=True)
+                        cache_valid = True
+                    else:
+                        print(f"[CACHE] ⚠️ Cache built with old policy: {metadata.get('split_policy', 'unknown')}", flush=True)
+                        cache_valid = False
+                except Exception as e:
+                    print(f"[CACHE] ⚠️ Could not read cache metadata: {e}", flush=True)
+                    cache_valid = False
+            else:
+                # No metadata = old cache from before fix
+                print("[CACHE] ⚠️ No metadata found - cache likely contaminated!", flush=True)
+                cache_valid = False
+
+            if not cache_valid and len(npz_files) > 0:
+                print(f"[CACHE] ❌ INVALIDATING OLD CACHE ({len(npz_files)} files)", flush=True)
+                print("[CACHE] 🧹 Cleaning contaminated cache...", flush=True)
+                shutil.rmtree(cache_dir, ignore_errors=True)
+                print("[CACHE] ✅ Old cache deleted", flush=True)
+
+                # Recreate clean structure
+                Path(cache_dir).mkdir(parents=True, exist_ok=True)
+                cache_train.mkdir(exist_ok=True)
+                cache_dev.mkdir(exist_ok=True)
+
+                # Write new metadata
+                metadata = {
+                    "split_policy": "official_tusz",
+                    "created": str(Path("/app") / "configs" / "modal" / "smoke.yaml" if "smoke" in config_path else "train.yaml"),
+                    "timestamp": str(Path(__file__).stat().st_mtime)
+                }
+                with open(cache_metadata_file, "w") as f:
+                    json.dump(metadata, f, indent=2)
+                print("[CACHE] ✅ Created clean cache structure with metadata", flush=True)
+
+                npz_files = []  # Reset file count
+            elif cache_valid:
+                manifest = cache_path / "manifest.json"
+                print(f"[CACHE] ✅ Using valid Modal SSD cache: {len(npz_files)} NPZ files", flush=True)
+                if manifest.exists():
+                    print(f"[CACHE] ✅ Manifest found at {manifest}", flush=True)
+                print(f"[CACHE] Cache location: {cache_path}", flush=True)
+                print(f"[CACHE] This is optimal - using fast local SSD storage", flush=True)
         else:
             print(f"[CACHE] Cache will be built at: {cache_path}", flush=True)
             print(f"[CACHE] First epoch will be slower while building cache", flush=True)
+
+            # Create metadata for new cache
+            Path(cache_dir).mkdir(parents=True, exist_ok=True)
+            cache_train.mkdir(exist_ok=True)
+            cache_dev.mkdir(exist_ok=True)
+
+            metadata = {
+                "split_policy": "official_tusz",
+                "created": str(Path("/app") / "configs" / "modal" / "smoke.yaml" if "smoke" in config_path else "train.yaml"),
+                "timestamp": str(Path(__file__).stat().st_mtime)
+            }
+            with open(cache_metadata_file, "w") as f:
+                json.dump(metadata, f, indent=2)
+            print("[CACHE] ✅ Created cache metadata for validation", flush=True)
+
     except Exception as e:
         print(f"[WARNING] Could not verify cache: {e}", flush=True)
 
