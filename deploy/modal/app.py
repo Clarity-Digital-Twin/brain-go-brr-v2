@@ -104,14 +104,13 @@ data_mount = modal.CloudBucketMount(
     read_only=True,  # EEG data is read-only
 )
 
-# Pre-built cache mount (will be added after local cache upload)
-# Uncomment after uploading cache to S3:
-# cache_mount = modal.CloudBucketMount(
-#     "brain-go-brr-eeg-data-20250919",
-#     secret=s3_secret,
-#     key_prefix="cache/tusz/",  # Preprocessed NPZ cache
-#     read_only=True,
-# )
+# Pre-built cache mount - NOW ACTIVE! S3 upload complete
+cache_mount = modal.CloudBucketMount(
+    "brain-go-brr-eeg-data-20250919",
+    secret=s3_secret,
+    key_prefix="cache/tusz/",  # Preprocessed NPZ cache
+    read_only=True,
+)
 
 # Persistent volume for results and cache (310GB currently)
 results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missing=True)
@@ -223,6 +222,7 @@ def test_mamba_cuda():
     timeout=86400,  # 24 hours max (Modal limit)
     volumes={
         "/data": data_mount,  # S3 bucket with TUH data!
+        "/cache": cache_mount,  # S3 bucket with preprocessed NPZ cache!
         "/results": results_volume,
     },
     memory=98304,  # SAFE: 96GB RAM (was 32GB, now 3x for safety)
@@ -439,13 +439,13 @@ def train(
     out_name = Path(exp.get("output_dir", "results/run")).name
     exp["output_dir"] = f"/results/{out_name}"
 
-    # CRITICAL: Use cache with patient-disjoint structure
-    # Cache location: /results/cache/{tusz,smoke}/{train,dev}/
+    # CRITICAL: Use S3 cache mount for pre-built caches
+    # Cache now at: /cache/{train,dev}/ from S3 bucket
     if "smoke" in config_path.lower():
-        cache_dir = "/results/cache/smoke"
+        cache_dir = "/results/cache/smoke"  # Smoke still uses volume
     else:
-        # Use the persistent cache for full training
-        cache_dir = "/results/cache/tusz"  # This MUST have train/ and dev/ subdirs
+        # Use the S3 cache mount for full training
+        cache_dir = "/cache"  # S3 mount point with train/ and dev/ subdirs
 
     # Ensure cache directories exist with correct structure
     from pathlib import Path
