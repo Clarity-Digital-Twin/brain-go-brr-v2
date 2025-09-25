@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -89,12 +90,15 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
         try:
             with np.load(npz_path) as data:
                 if "labels" not in data:
-                    # No labels = assume all windows are no-seizure
-                    n_windows = int(data["windows"].shape[0])
-                    for w_idx in range(n_windows):
-                        manifest["no_seizure"].append(
-                            {"cache_file": npz_path.name, "window_idx": int(w_idx)}
-                        )
+                    # CRITICAL: NPZ without labels - likely a cache corruption!
+                    warnings.warn(
+                        f"⚠️  NPZ file {npz_path.name} has NO LABELS! "
+                        f"This indicates cache corruption or incomplete processing. "
+                        f"Excluding from balanced sampling to prevent flooding with false negatives.",
+                        stacklevel=2,
+                    )
+                    # Skip this file entirely - do NOT assume it's no_seizure!
+                    # This prevents flooding the manifest with potentially incorrect data
                     continue
                 labels = data["labels"]
         except (OSError, ValueError) as e:

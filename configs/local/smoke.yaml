@@ -27,7 +27,6 @@ model:
 
   tcn:
     num_layers: 8
-    channels: [64, 128, 256, 512]
     kernel_size: 7
     dropout: 0.15
     causal: false
@@ -74,8 +73,9 @@ model:
 
 data:
   dataset: tuh_eeg
-  data_dir: data_ext4/tusz/edf/train
-  cache_dir: cache/tusz  # Use existing cache for smoke test
+  data_dir: data_ext4/tusz/edf
+  cache_dir: cache/tusz  # Will rebuild with proper splits
+  split_policy: official_tusz  # Use patient-disjoint splits!
   sampling_rate: 256
   n_channels: 19
   window_size: 60

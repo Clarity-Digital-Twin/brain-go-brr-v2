@@ -144,7 +144,13 @@
       "Bash(TEST_BATCH_SIZE=1 .venv/bin/pytest tests/unit -x -q --tb=short --co)",
       "Bash(do echo \"$f:\")",
       "Bash(do echo -e \"\\n=== $f ===\")",
-      "Bash(.venv/bin/ruff check src/ tests/ --fix)"
+      "Bash(.venv/bin/ruff check src/ tests/ --fix)",
+      "Bash(git remote:*)",
+      "Bash(BGB_LIMIT_FILES=2 .venv/bin/python -c \"\nfrom pathlib import Path\nfrom src.brain_brr.data.tusz_splits import load_tusz_for_training\n\ndata_root = Path(''data_ext4/tusz/edf'')\nprint(''Testing TUSZ official splits...'')\nsplits = load_tusz_for_training(data_root, use_eval=False, verbose=True)\nprint(f''\\n✅ Test passed! No patient leakage detected.'')\n\")",
+      "Bash(BGB_LIMIT_FILES=5 BGB_SMOKE_TEST=1 .venv/bin/python -m src train configs/local/smoke.yaml)",
+      "Bash(BGB_SMOKE_TEST=1 BGB_LIMIT_FILES=5 .venv/bin/python -m src train configs/local/smoke.yaml)",
+      "Bash(gh release list:*)",
+      "Bash(gh release:*)"
     ],
     "deny": [],
     "ask": []

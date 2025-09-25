@@ -4,8 +4,9 @@
 
 data:
   dataset: tuh_eeg
-  data_dir: /data/edf/train             # Modal S3 mount path
+  data_dir: /data/edf                    # Parent dir containing train/dev/eval
   cache_dir: /results/cache/tusz        # Persistent SSD with 3734 cached NPZ files
+  split_policy: official_tusz           # Use TUSZ official patient-disjoint splits
   sampling_rate: 256
   n_channels: 19
   window_size: 60
@@ -14,7 +15,6 @@ data:
   pin_memory: true                      # Fast GPU transfer
   persistent_workers: true               # Reuse workers between epochs
   prefetch_factor: 4                     # Pre-load batches
-  validation_split: 0.2
   # ⚠️ CRITICAL: Without balanced sampling, batches may have ZERO seizures! ⚠️
   use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling
 
@@ -31,7 +31,6 @@ model:
 
   tcn:
     num_layers: 8
-    channels: [64, 128, 256, 512]
     kernel_size: 7
     dropout: 0.15
     causal: false

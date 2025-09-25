@@ -105,7 +105,7 @@ def _print_config_summary(config: Config) -> None:
     # Model settings (TCN only)
     model_summary = (
         f"Architecture: TCN -> Bi-Mamba -> Head\n"
-        f"TCN: layers={config.model.tcn.num_layers}, channels={config.model.tcn.channels}, "
+        f"TCN: layers={config.model.tcn.num_layers}, "
         f"k={config.model.tcn.kernel_size}, stride_down={config.model.tcn.stride_down}\n"
         f"Mamba: layers={config.model.mamba.n_layers}, d_model={config.model.mamba.d_model}, "
         f"d_state={config.model.mamba.d_state}, conv_kernel={config.model.mamba.conv_kernel}"
@@ -458,7 +458,15 @@ def evaluate(
             # Convert to events using best threshold
             thresholds_dict = metrics.get("thresholds", {})
             if isinstance(thresholds_dict, dict):
-                best_threshold = thresholds_dict.get("10", 0.86)
+                # Be robust to key types: accept "10", 10, or 10.0
+                if "10" in thresholds_dict:
+                    best_threshold = thresholds_dict["10"]
+                elif 10 in thresholds_dict:
+                    best_threshold = thresholds_dict[10]
+                elif 10.0 in thresholds_dict:
+                    best_threshold = thresholds_dict[10.0]
+                else:
+                    best_threshold = 0.86
             else:
                 best_threshold = 0.86
             cfg_for_export = cfg.postprocessing

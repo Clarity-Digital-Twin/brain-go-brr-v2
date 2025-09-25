@@ -38,8 +38,18 @@ class DataConfig(BaseModel):
     prefetch_factor: int = Field(
         default=2, ge=2, description="Batches to prefetch per worker (requires num_workers>0)"
     )
+    split_policy: str = Field(
+        default="official_tusz",
+        description="Split policy: 'official_tusz' uses train/dev/eval dirs, 'custom' allows validation_split",
+    )
     validation_split: float = Field(
-        default=0.2, ge=0.0, le=0.5, description="Fraction of data for validation"
+        default=0.2,
+        ge=0.0,
+        le=0.5,
+        description="DEPRECATED - Only used if split_policy='custom'. Use official TUSZ splits!",
+    )
+    split_seed: int = Field(
+        default=42, description="Seed for custom splits (ignored for official_tusz)"
     )
     max_samples: int | None = Field(
         default=None, ge=1, description="Limit samples for debugging (None = use all)"
@@ -143,9 +153,7 @@ class TCNConfig(BaseModel):
     """TCN (Temporal Convolutional Network) configuration."""
 
     num_layers: int = Field(default=8, ge=4, le=12, description="Number of TCN layers")
-    channels: list[int] = Field(
-        default=[64, 128, 256, 512], description="Channel progression (repeated if needed)"
-    )
+    # channels field removed - hardcoded to [64, 128, 256, 512] in implementation
     kernel_size: int = Field(default=7, ge=3, le=11, description="Temporal kernel size")
     dropout: float = Field(default=0.15, ge=0.0, le=0.5, description="Dropout rate")
     causal: bool = Field(
