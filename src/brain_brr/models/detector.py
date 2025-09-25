@@ -13,6 +13,7 @@ This synergy addresses TUSZ-specific challenges:
 """
 
 import os
+import warnings
 from typing import TYPE_CHECKING, cast
 
 import torch
@@ -62,6 +63,32 @@ class SeizureDetector(nn.Module):
         mamba_dropout: float | None = None,
     ) -> None:
         super().__init__()
+
+        # Emit deprecation warnings for legacy kwargs
+        if base_channels != 64 or encoder_depth != 4 or rescnn_blocks != 3:
+            warnings.warn(
+                "Legacy parameters (base_channels, encoder_depth, rescnn_blocks) are deprecated "
+                "and will be removed in a future version. These parameters are ignored. "
+                "Use SeizureDetector.from_config() with a ModelConfig instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        if rescnn_kernels is not None:
+            warnings.warn(
+                "The rescnn_kernels parameter is deprecated and will be removed in a future version. "
+                "This parameter is ignored. Use SeizureDetector.from_config() instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        if mamba_dropout is None and dropout != 0.1:
+            warnings.warn(
+                "Using 'dropout' parameter as a proxy for 'mamba_dropout' is deprecated. "
+                "Specify 'mamba_dropout' explicitly instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         # GNN components (initialized as None, set by from_config if enabled)
         self.use_gnn: bool = False
@@ -295,6 +322,17 @@ class SeizureDetector(nn.Module):
     @classmethod
     def from_config(cls, cfg: "_ModelConfig") -> "SeizureDetector":
         """Instantiate from validated schema config (TCN path)."""
+
+        # Emit deprecation warning for V2 architecture
+        if cfg.architecture == "tcn":
+            warnings.warn(
+                "Architecture 'tcn' (V2 heuristic graph) is deprecated and will be removed in a future version. "
+                "Please migrate to 'v3' (dual-stream with learned adjacency) for better performance and stability. "
+                "Set model.architecture='v3' in your config.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         instance = cls(
             tcn_layers=cfg.tcn.num_layers,
             tcn_kernel_size=cfg.tcn.kernel_size,
@@ -371,6 +409,16 @@ class SeizureDetector(nn.Module):
         if instance.use_gnn and graph_cfg is not None:
             # For v2, use heuristic graph builder
             if cfg.architecture != "v3":
+                # Emit warning for using V2 heuristic path
+                if graph_cfg and not getattr(graph_cfg, "use_pyg", True):
+                    warnings.warn(
+                        "Using graph.use_pyg=false (V2 heuristic path) is deprecated. "
+                        "V3 architecture with PyG backend is recommended for better performance. "
+                        "Set model.architecture='v3' and graph.use_pyg=true.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+
                 # Lazy imports to avoid dependency when not using GNN
                 from .graph_builder import DynamicGraphBuilder
 

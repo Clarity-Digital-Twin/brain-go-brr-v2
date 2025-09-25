@@ -13,7 +13,7 @@ This document is the single source of truth for technical debt and cleanup work.
 - Dual path complexity: V2 (heuristic graph) and V3 (edge stream) coexist in `SeizureDetector` increasing branching and surface area.
 - Legacy parameters and config objects still exposed or referenced despite being unused (e.g., `encoder`, `rescnn`, legacy kwargs in `SeizureDetector.__init__`).
 - Environment variable sprawl: multiple BGB_* toggles spread across modules; partial documentation in multiple places.
-- Messaging mismatches (e.g., W&B model descriptor, CLI summaries) still reflect pre‑TCN state.
+- ~~Messaging mismatches~~ ✅ Fixed in Phase 0 (W&B and CLI now show TCN+BiMamba+V3)
 
 ## 🧭 Deprecation & Removal Plan (Phased)
 
@@ -23,13 +23,13 @@ This document is the single source of truth for technical debt and cleanup work.
   - [x] `src/brain_brr/cli/cli.py`: config summary should show `model.architecture`, V3 graph settings, and replace deprecated `postprocessing.min_duration` with `postprocessing.duration.min_duration_s`
   - [ ] Docs: ensure `docs/04-model/v3-architecture.md`, `docs/00-overview/architecture-summary.md` match current code
 
-### Phase 1 — Soft deprecation (warnings, defaults)
-- [ ] Emit `DeprecationWarning` when:
-  - [ ] `ModelConfig.architecture == "tcn"` in `SeizureDetector.from_config` (file: `src/brain_brr/models/detector.py`)
-  - [ ] `SeizureDetector.__init__` receives legacy kwargs: `base_channels`, `encoder_depth`, `rescnn_blocks`, `rescnn_kernels`, and `dropout` as a surrogate for `mamba_dropout`
-  - [ ] `DynamicGraphBuilder` is constructed (file: `src/brain_brr/models/graph_builder.py`)
-- [ ] Set default architecture to `"v3"` in `ModelConfig` (keeping `"tcn"` allowed but deprecated)
-- [ ] Add warning when `graph.use_pyg=false` (V2 heuristic path) suggesting migration to V3
+### Phase 1 — Soft deprecation (warnings, defaults) ✅ COMPLETE
+- [x] Emit `DeprecationWarning` when:
+  - [x] `ModelConfig.architecture == "tcn"` in `SeizureDetector.from_config` (file: `src/brain_brr/models/detector.py`)
+  - [x] `SeizureDetector.__init__` receives legacy kwargs: `base_channels`, `encoder_depth`, `rescnn_blocks`, `rescnn_kernels`, and `dropout` as a surrogate for `mamba_dropout`
+  - [x] `DynamicGraphBuilder` is constructed (file: `src/brain_brr/models/graph_builder.py`)
+- [x] Set default architecture to `"v3"` in `ModelConfig` (keeping `"tcn"` allowed but deprecated)
+- [x] Add warning when `graph.use_pyg=false` (V2 heuristic path) suggesting migration to V3
 
 ### Phase 2 — Test and config migration (breaking tests only)
 - [ ] Update tests to stop relying on V2 and legacy params (see inventories below)

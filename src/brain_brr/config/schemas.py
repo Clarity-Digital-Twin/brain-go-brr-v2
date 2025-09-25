@@ -216,7 +216,8 @@ class ModelConfig(BaseModel):
 
     name: Literal["seizure_detector"] = Field(default="seizure_detector", description="Model name")
     architecture: Literal["tcn", "v3"] = Field(
-        default="tcn", description="Architecture type: tcn (v2) or v3 (dual-stream)"
+        default="v3",
+        description="Architecture type: tcn (v2 - deprecated) or v3 (dual-stream - recommended)",
     )
 
     # Deprecated configs kept for backward compatibility (not used)

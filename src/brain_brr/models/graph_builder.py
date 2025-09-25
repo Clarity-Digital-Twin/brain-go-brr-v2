@@ -3,6 +3,8 @@
 Based on EvoBrain implementation with proven parameters for EEG.
 """
 
+import warnings
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as func
@@ -26,6 +28,16 @@ class DynamicGraphBuilder(nn.Module):
         temperature: float = 0.1,
     ):
         super().__init__()
+
+        # Emit deprecation warning
+        warnings.warn(
+            "DynamicGraphBuilder (V2 heuristic adjacency) is deprecated and will be removed in a future version. "
+            "V3 architecture with learned edge features provides better performance and stability. "
+            "Set model.architecture='v3' in your config to use the improved dual-stream architecture.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         self.similarity = similarity
         self.top_k = top_k
         self.threshold = threshold
