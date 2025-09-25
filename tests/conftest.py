@@ -434,3 +434,49 @@ def assert_tensor_close(a: torch.Tensor, b: torch.Tensor, rtol: float = 1e-5, at
     """Helper for comparing tensors with tolerance."""
     assert a.shape == b.shape, f"Shape mismatch: {a.shape} vs {b.shape}"
     assert torch.allclose(a, b, rtol=rtol, atol=atol)
+
+
+# Resource cleanup fixtures
+@pytest.fixture(autouse=True)
+def cleanup_torch_resources():
+    """Automatically cleanup PyTorch resources after each test."""
+    yield
+    # Clear PyTorch caches
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+    # Force garbage collection
+    gc.collect()
+
+
+@pytest.fixture
+def cleanup_dataloader():
+    """Fixture to properly cleanup DataLoader workers."""
+    dataloaders = []
+
+    def track_dataloader(dl):
+        dataloaders.append(dl)
+        return dl
+
+    yield track_dataloader
+
+    # Cleanup all tracked dataloaders
+    for dl in dataloaders:
+        if hasattr(dl, '_iterator'):
+            del dl._iterator
+        if hasattr(dl, '_workers'):
+            for w in dl._workers:
+                w.terminate()
+        gc.collect()
+
+
+@pytest.fixture(autouse=True)
+def reset_cuda_stats():
+    """Reset CUDA memory stats before each test."""
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats()
+        torch.cuda.empty_cache()
+    yield
+    # Cleanup after test
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
