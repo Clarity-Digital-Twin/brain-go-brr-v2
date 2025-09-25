@@ -253,11 +253,15 @@ def create_optimizer(model: nn.Module, config: TrainingConfig) -> Optimizer:
 
         # Create parameter groups with different weight decay
         param_groups = [
-            {"params": decay_params, "weight_decay": config.weight_decay, "lr": config.learning_rate},
-            {"params": no_decay_params, "weight_decay": 0.0, "lr": config.learning_rate}
+            {
+                "params": decay_params,
+                "weight_decay": config.weight_decay,
+                "lr": config.learning_rate,
+            },
+            {"params": no_decay_params, "weight_decay": 0.0, "lr": config.learning_rate},
         ]
 
-        print(f"[OPTIMIZER] Created parameter groups:", flush=True)
+        print("[OPTIMIZER] Created parameter groups:", flush=True)
         print(f"  - Decay group: {len(decay_params)} parameters", flush=True)
         print(f"  - No-decay group: {len(no_decay_params)} parameters", flush=True)
 
@@ -682,49 +686,69 @@ def train_epoch(
                     scaler.unscale_(optimizer)
 
                     # Sanitize gradients if needed
+                    skip_step = False
                     if os.getenv("BGB_SANITIZE_GRADS", "0") == "1":
                         grad_has_nan = False
-                        for name, param in model.named_parameters():
+                        for _name, param in model.named_parameters():
                             if param.grad is not None and not torch.isfinite(param.grad).all():
                                 grad_has_nan = True
                                 param.grad.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
                         if grad_has_nan:
-                            print(f"[WARN] Sanitized NaN gradients at batch {batch_idx}", flush=True)
-
-                    if gradient_clip > 0:
-                        grad_norm = torch.nn.utils.clip_grad_norm_(
-                            model.parameters(), gradient_clip
-                        )
-                        if enable_nan_debug and grad_norm > gradient_clip * 10:
                             print(
-                                f"[DEBUG] Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})",
-                                flush=True,
+                                f"[WARN] Sanitized NaN gradients at batch {batch_idx}", flush=True
                             )
-                    scaler.step(optimizer)
-                    scaler.update()
+                            if os.getenv("BGB_SKIP_OPT_STEP_ON_NAN", "0") == "1":
+                                skip_step = True
+                                print(
+                                    "[WARN] Skipping optimizer step due to NaN gradients",
+                                    flush=True,
+                                )
+
+                    if not skip_step:
+                        if gradient_clip > 0:
+                            grad_norm = torch.nn.utils.clip_grad_norm_(
+                                model.parameters(), gradient_clip
+                            )
+                            if enable_nan_debug and grad_norm > gradient_clip * 10:
+                                print(
+                                    f"[DEBUG] Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})",
+                                    flush=True,
+                                )
+                        scaler.step(optimizer)
+                        scaler.update()
                 else:
                     loss.backward()
 
                     # Sanitize gradients if needed
+                    skip_step = False
                     if os.getenv("BGB_SANITIZE_GRADS", "0") == "1":
                         grad_has_nan = False
-                        for name, param in model.named_parameters():
+                        for _name, param in model.named_parameters():
                             if param.grad is not None and not torch.isfinite(param.grad).all():
                                 grad_has_nan = True
                                 param.grad.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
                         if grad_has_nan:
-                            print(f"[WARN] Sanitized NaN gradients at batch {batch_idx}", flush=True)
-
-                    if gradient_clip > 0:
-                        grad_norm = torch.nn.utils.clip_grad_norm_(
-                            model.parameters(), gradient_clip
-                        )
-                        if enable_nan_debug and grad_norm > gradient_clip * 10:
                             print(
-                                f"[DEBUG] Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})",
-                                flush=True,
+                                f"[WARN] Sanitized NaN gradients at batch {batch_idx}", flush=True
                             )
-                    optimizer.step()
+                            if os.getenv("BGB_SKIP_OPT_STEP_ON_NAN", "0") == "1":
+                                skip_step = True
+                                print(
+                                    "[WARN] Skipping optimizer step due to NaN gradients",
+                                    flush=True,
+                                )
+
+                    if not skip_step:
+                        if gradient_clip > 0:
+                            grad_norm = torch.nn.utils.clip_grad_norm_(
+                                model.parameters(), gradient_clip
+                            )
+                            if enable_nan_debug and grad_norm > gradient_clip * 10:
+                                print(
+                                    f"[DEBUG] Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})",
+                                    flush=True,
+                                )
+                        optimizer.step()
 
                 # Increment global step counter only after successful update
                 global_step += 1
