@@ -92,7 +92,6 @@ class SeizureDetector(nn.Module):
 
         # GNN components (initialized as None, set by from_config if enabled)
         self.use_gnn: bool = False
-        self.graph_builder: nn.Module | None = None
         self.gnn: nn.Module | None = None
         self.proj_to_electrodes: nn.Conv1d | None = None
         self.proj_from_electrodes: nn.Conv1d | None = None
