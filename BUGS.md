@@ -1,5 +1,8 @@
 Brain-Go-Brr v2.6/V3 — Risk Audit and Bug List
 
+## ⚠️  UPDATE 2025-09-24: Critical fixes have been applied!
+## See BUGS_FIXED.md for details on resolved P0 blockers and P2 issues.
+
 Severity legend
 - P0: Blocks correct training/evaluation or corrupts results
 - P1: High risk of silent degradation or wrong metrics; not a hard block
