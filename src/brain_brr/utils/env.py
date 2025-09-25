@@ -3,9 +3,18 @@
 This module provides typed access to all BGB_* environment variables
 used throughout the codebase, preventing scattered os.getenv() calls
 and providing clear documentation of each variable's purpose.
+
+NOTE: Environment variables are cached at module import time to support
+torch.compile which cannot trace through os.getenv() calls.
 """
 
 import os
+
+
+# Cache environment variables at import time for torch.compile compatibility
+_EDGE_CLAMP = os.getenv("BGB_EDGE_CLAMP", "1") == "1"
+_EDGE_CLAMP_MIN = float(os.getenv("BGB_EDGE_CLAMP_MIN", "-5.0"))
+_EDGE_CLAMP_MAX = float(os.getenv("BGB_EDGE_CLAMP_MAX", "5.0"))
 
 
 class EnvConfig:
@@ -15,17 +24,17 @@ class EnvConfig:
     @staticmethod
     def edge_clamp() -> bool:
         """Enable edge value clamping in V3 path (default: True for stability)."""
-        return os.getenv("BGB_EDGE_CLAMP", "1") == "1"
+        return _EDGE_CLAMP
 
     @staticmethod
     def edge_clamp_min() -> float:
         """Minimum value for edge clamping (default: -5.0)."""
-        return float(os.getenv("BGB_EDGE_CLAMP_MIN", "-5.0"))
+        return _EDGE_CLAMP_MIN
 
     @staticmethod
     def edge_clamp_max() -> float:
         """Maximum value for edge clamping (default: 5.0)."""
-        return float(os.getenv("BGB_EDGE_CLAMP_MAX", "5.0"))
+        return _EDGE_CLAMP_MAX
 
     @staticmethod
     def debug_finite() -> bool:
