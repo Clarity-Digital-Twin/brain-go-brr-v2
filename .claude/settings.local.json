@@ -156,7 +156,10 @@
       "Bash(aws s3 ls:*)",
       "Bash(aws configure:*)",
       "Bash(gh api:*)",
-      "Bash(git revert:*)"
+      "Bash(git revert:*)",
+      "Read(//mnt/c/Users/JJ/.aws/**)",
+      "Bash(~/.local/bin/aws s3 ls:*)",
+      "Bash(git show:*)"
     ],
     "deny": [],
     "ask": []
