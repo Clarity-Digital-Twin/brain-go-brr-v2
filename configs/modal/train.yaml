@@ -91,13 +91,13 @@ postprocessing:
 
 training:
   epochs: 100                          # full training - will early stop if converged
-  batch_size: 48                       # Reduced for v3 dual-stream (more memory intensive)
+  batch_size: 64                       # Optimized for A100-80GB with v3
   # ⚠️ CRITICAL: MUST use focal loss for 12:1 class imbalance! ⚠️
   # Without this, model WILL collapse to AUROC=0.5 (useless)
   loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
   focal_alpha: 0.5                     # MUST BE 0.5! (neutral - let pos_weight handle imbalance)
   focal_gamma: 2.0                     # Focusing parameter (higher = more focus on hard examples)
-  learning_rate: 5e-5                  # Reduced from 3e-4 for NaN stability
+  learning_rate: 3e-5                  # Conservative for stability with larger batch
   weight_decay: 0.05
   optimizer: adamw
   scheduler:
@@ -109,7 +109,7 @@ training:
   early_stopping:
     patience: 5
     metric: sensitivity_at_10fa
-  checkpoint_interval: 5               # Save every 5 epochs
+  checkpoint_interval: 1               # Save every epoch for full training
 
 evaluation:
   metrics: [taes, sensitivity, specificity, auroc]

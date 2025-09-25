@@ -37,11 +37,11 @@ P1 issues
   - Impact: Val loss comparisons and LR/scheduler heuristics based on it are biased; can hide collapse.
   - Fix: Mirror class weighting used in train (pos_weight) or report both weighted and unweighted metrics.
 
-- Non-random split order can encode confounds even with fixed seed
+ - Non-random split order can encode confounds even with fixed seed — Mitigated
   - Problem: Sorting filenames and then slicing induces a fixed bias if filenames encode site/date/patient.
-  - Where: src/brain_brr/train/loop.py:1359–1368
+  - Where: Custom split path in src/brain_brr/train/loop.py (seeded shuffle now applied)
   - Impact: Distribution shift between splits; over/underestimation of generalization.
-  - Fix: Shuffle file list deterministically (seeded) before splitting and prefer patient-level split.
+  - Fix: Official policy avoids file-level splitting entirely; custom mode now shuffles deterministically before splitting. Prefer `split_policy: official_tusz`.
 
 P2 issues
 - TCN channels in config are ignored by implementation

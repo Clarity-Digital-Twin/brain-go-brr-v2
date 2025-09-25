@@ -1569,10 +1569,12 @@ def main() -> None:
             allow_on_demand=True,
         )
 
+    # Align validation cache subdir name with split policy for clarity
+    val_split_name = "dev" if config.data.split_policy == "official_tusz" else "val"
     val_dataset = EEGWindowDataset(
         val_files,
         label_files=val_label_files,
-        cache_dir=data_cache_root / "val",
+        cache_dir=data_cache_root / val_split_name,
         allow_on_demand=True,
     )
 

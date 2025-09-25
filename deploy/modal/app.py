@@ -93,18 +93,71 @@ app = modal.App(
     ],
 )
 
-# S3 bucket mount for massive EEG data
+# S3 bucket mounts for EEG data and cache
 s3_secret = modal.Secret.from_name("aws-s3-secret")
+
+# Raw EDF data mount
 data_mount = modal.CloudBucketMount(
     "brain-go-brr-eeg-data-20250919",  # Your actual bucket!
     secret=s3_secret,
-    key_prefix="tusz/",  # Mount just the TUH data (matches actual upload path)
+    key_prefix="tusz/",  # Raw EDF data: tusz/{train,dev,eval}/
     read_only=True,  # EEG data is read-only
 )
+
+# Pre-built cache mount (will be added after local cache upload)
+# Uncomment after uploading cache to S3:
+# cache_mount = modal.CloudBucketMount(
+#     "brain-go-brr-eeg-data-20250919",
+#     secret=s3_secret,
+#     key_prefix="cache/tusz/",  # Preprocessed NPZ cache
+#     read_only=True,
+# )
 
 # Persistent volume for results and cache (310GB currently)
 results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missing=True)
 # NOTE: brain-go-brr-data volume deleted - it was empty and unused
+
+
+# CPU-only: cache cleanup should not consume a GPU
+@app.function(
+    timeout=600,  # 10 min to include cache clean
+    cpu=4,
+    memory=4096,
+    volumes={"/results": results_volume},  # Need volume for cache operations
+)
+def clean_cache():
+    """Clean contaminated cache from before patient-disjoint fix."""
+    import shutil
+    from pathlib import Path
+
+    print("\n" + "=" * 60)
+    print("[CACHE CLEAN] Starting cache cleanup...")
+    print("=" * 60)
+
+    cache_paths = [
+        Path("/results/cache/tusz"),
+        Path("/results/cache/smoke"),
+    ]
+
+    for cache_path in cache_paths:
+        if cache_path.exists():
+            print(f"[CLEAN] Removing {cache_path}...")
+            shutil.rmtree(cache_path, ignore_errors=True)
+            print(f"[CLEAN] ✅ Removed {cache_path}")
+        else:
+            print(f"[CLEAN] Path does not exist: {cache_path}")
+
+    # Recreate clean directories
+    for cache_path in cache_paths:
+        cache_path.mkdir(parents=True, exist_ok=True)
+        (cache_path / "train").mkdir(exist_ok=True)
+        (cache_path / "dev").mkdir(exist_ok=True)
+        print(f"[CLEAN] ✅ Created clean structure: {cache_path}/{{train,dev}}/")
+
+    print("\n[CACHE CLEAN] ✅ Cache cleanup complete!")
+    print("Next training run will rebuild cache with patient-disjoint splits.")
+    print("=" * 60 + "\n")
+    return True
 
 
 @app.function(
@@ -197,6 +250,31 @@ def train(
     except ImportError as e:
         print(f"⚠️ Mamba-SSM import failed: {e}")
 
+    # CRITICAL: Verify patient disjointness in data
+    print("\n" + "=" * 60, flush=True)
+    print("[PATIENT DISJOINTNESS] Verifying TUSZ splits...", flush=True)
+    print("=" * 60, flush=True)
+
+    from pathlib import Path
+    train_dir = Path("/data/edf/train")
+    dev_dir = Path("/data/edf/dev")
+
+    if train_dir.exists() and dev_dir.exists():
+        train_patients = {p.name for p in train_dir.iterdir() if p.is_dir()}
+        dev_patients = {p.name for p in dev_dir.iterdir() if p.is_dir()}
+        overlap = train_patients & dev_patients
+
+        if overlap:
+            raise RuntimeError(
+                f"CRITICAL: Patient leakage detected! {len(overlap)} patients in both splits:\n"
+                f"  {sorted(overlap)[:10]}"
+            )
+
+        print(f"[SPLITS] ✅ VERIFIED: {len(train_patients)} train, {len(dev_patients)} dev patients")
+        print("[SPLITS] ✅ NO PATIENT OVERLAP - Data is clean!")
+    else:
+        print("[SPLITS] WARNING: Could not verify splits (dirs not found)")
+
     # Check if cache exists on Modal persistent volume
     print("\n" + "=" * 60, flush=True)
     print("[CACHE] Verifying cache location on Modal...", flush=True)
@@ -204,6 +282,9 @@ def train(
 
     try:
         from pathlib import Path
+        import shutil
+        import json
+
         # Load config to get the actual cache path
         cfg_abs = config_path
         if not config_path.startswith("/"):
@@ -213,27 +294,99 @@ def train(
         with open(cfg_abs, "r") as f:
             config_data = yaml.safe_load(f)
 
-        # Get cache path from config, with fallback
-        cache_dir = config_data.get("data", {}).get("cache_dir") or \
-                   config_data.get("experiment", {}).get("cache_dir", "/results/cache/tusz/train")
+        # Get cache path from config, with fallback (root of cache, not a split subdir)
+        cache_dir = (
+            config_data.get("data", {}).get("cache_dir")
+            or config_data.get("experiment", {}).get("cache_dir", "/results/cache/tusz")
+        )
 
         # For smoke tests, ensure we use a separate cache directory
         if "smoke" in config_path.lower() and "smoke" not in cache_dir:
-            cache_dir = cache_dir.replace("/train", "/smoke").replace("/tusz", "/smoke")
+            cache_dir = cache_dir.replace("/tusz", "/smoke")
 
-        cache_path = Path(cache_dir) / "train" if "train" not in str(cache_dir) else Path(cache_dir)
+        # CRITICAL: Cache structure should be cache_dir/{train,dev}/ for patient disjointness
+        cache_train = Path(cache_dir) / "train"
+        cache_dev = Path(cache_dir) / "dev"
+        cache_path = cache_train  # Primary cache for reporting
+
+        # CACHE VALIDATION: Check if cache was built with patient-disjoint splits
+        cache_metadata_file = Path(cache_dir) / ".cache_metadata.json"
+        cache_valid = False
 
         if cache_path.exists():
             npz_files = list(cache_path.glob("*.npz"))
-            manifest = cache_path / "manifest.json"
-            print(f"[CACHE] ✅ Using Modal SSD cache: {len(npz_files)} NPZ files", flush=True)
-            if manifest.exists():
-                print(f"[CACHE] ✅ Manifest found at {manifest}", flush=True)
-            print(f"[CACHE] Cache location: {cache_path}", flush=True)
-            print(f"[CACHE] This is optimal - using fast local SSD storage", flush=True)
+
+            # Check if metadata exists and validates
+            if cache_metadata_file.exists():
+                try:
+                    with open(cache_metadata_file) as f:
+                        metadata = json.load(f)
+
+                    # Check if built with official_tusz policy
+                    if metadata.get("split_policy") == "official_tusz":
+                        print(f"[CACHE] ✅ Cache built with official_tusz policy", flush=True)
+                        cache_valid = True
+                    else:
+                        print(f"[CACHE] ⚠️ Cache built with old policy: {metadata.get('split_policy', 'unknown')}", flush=True)
+                        cache_valid = False
+                except Exception as e:
+                    print(f"[CACHE] ⚠️ Could not read cache metadata: {e}", flush=True)
+                    cache_valid = False
+            else:
+                # No metadata = old cache from before fix
+                if len(npz_files) > 0:
+                    print(f"[CACHE] ⚠️ No metadata found - cache built before patient fix!", flush=True)
+                    print(f"[CACHE] ❌ MUST INVALIDATE {len(npz_files)} contaminated files", flush=True)
+                else:
+                    print("[CACHE] No metadata found - cache is empty (will build fresh)", flush=True)
+                cache_valid = False
+
+            if not cache_valid and len(npz_files) > 0:
+                print("[CACHE] 🧹 Auto-cleaning contaminated cache...", flush=True)
+                shutil.rmtree(cache_dir, ignore_errors=True)
+                print("[CACHE] ✅ Old cache deleted", flush=True)
+
+                # Recreate clean structure
+                Path(cache_dir).mkdir(parents=True, exist_ok=True)
+                cache_train.mkdir(exist_ok=True)
+                cache_dev.mkdir(exist_ok=True)
+
+                # Write new metadata
+                metadata = {
+                    "split_policy": "official_tusz",
+                    "created": str(Path("/app") / "configs" / "modal" / "smoke.yaml" if "smoke" in config_path else "train.yaml"),
+                    "timestamp": str(Path(__file__).stat().st_mtime)
+                }
+                with open(cache_metadata_file, "w") as f:
+                    json.dump(metadata, f, indent=2)
+                print("[CACHE] ✅ Created clean cache structure with metadata", flush=True)
+
+                npz_files = []  # Reset file count
+            elif cache_valid:
+                manifest = cache_path / "manifest.json"
+                print(f"[CACHE] ✅ Using valid Modal SSD cache: {len(npz_files)} NPZ files", flush=True)
+                if manifest.exists():
+                    print(f"[CACHE] ✅ Manifest found at {manifest}", flush=True)
+                print(f"[CACHE] Cache location: {cache_path}", flush=True)
+                print(f"[CACHE] This is optimal - using fast local SSD storage", flush=True)
         else:
             print(f"[CACHE] Cache will be built at: {cache_path}", flush=True)
             print(f"[CACHE] First epoch will be slower while building cache", flush=True)
+
+            # Create metadata for new cache
+            Path(cache_dir).mkdir(parents=True, exist_ok=True)
+            cache_train.mkdir(exist_ok=True)
+            cache_dev.mkdir(exist_ok=True)
+
+            metadata = {
+                "split_policy": "official_tusz",
+                "created": str(Path("/app") / "configs" / "modal" / "smoke.yaml" if "smoke" in config_path else "train.yaml"),
+                "timestamp": str(Path(__file__).stat().st_mtime)
+            }
+            with open(cache_metadata_file, "w") as f:
+                json.dump(metadata, f, indent=2)
+            print("[CACHE] ✅ Created cache metadata for validation", flush=True)
+
     except Exception as e:
         print(f"[WARNING] Could not verify cache: {e}", flush=True)
 
@@ -250,6 +403,7 @@ def train(
     # Only limit files for smoke tests
     if "smoke" in config_path.lower():
         env["BGB_LIMIT_FILES"] = "50"
+        env["BGB_SMOKE_TEST"] = "1"
     else:
         # EXPLICITLY UNSET for full training to avoid inheritance
         env.pop("BGB_LIMIT_FILES", None)
@@ -272,7 +426,7 @@ def train(
 
     # Auto-select dataset under /data if present
     preferred_roots = [
-        "/data/edf/train",  # S3 mounted path: /data/tusz/edf/train
+        "/data/edf",  # Parent containing train/dev/eval (mounted from S3)
         "/data",  # Fallback to root of mount
     ]
     for root in preferred_roots:
@@ -285,13 +439,19 @@ def train(
     out_name = Path(exp.get("output_dir", "results/run")).name
     exp["output_dir"] = f"/results/{out_name}"
 
-    # CRITICAL: Use existing cache on Modal persistent volume
-    # Cache location: /results/cache/tusz/{train,val}/ with 3734 NPZ files
+    # CRITICAL: Use cache with patient-disjoint structure
+    # Cache location: /results/cache/{tusz,smoke}/{train,dev}/
     if "smoke" in config_path.lower():
         cache_dir = "/results/cache/smoke"
     else:
-        # Use the persistent cache that was built on first run
-        cache_dir = "/results/cache/tusz"  # This has train/ and val/ subdirs
+        # Use the persistent cache for full training
+        cache_dir = "/results/cache/tusz"  # This MUST have train/ and dev/ subdirs
+
+    # Ensure cache directories exist with correct structure
+    from pathlib import Path
+    Path(cache_dir).mkdir(parents=True, exist_ok=True)
+    (Path(cache_dir) / "train").mkdir(exist_ok=True)
+    (Path(cache_dir) / "dev").mkdir(exist_ok=True)
 
     # Set cache_dir in both data and experiment sections
     exp["cache_dir"] = cache_dir
@@ -428,6 +588,9 @@ def main(
     ⚠️ NO DOUBLE DASH (--) separator needed anymore in Modal CLI!
 
     Examples:
+        # IMPORTANT: Clean old contaminated cache first!
+        modal run deploy/modal/app.py --action clean-cache
+
         # Test Mamba CUDA kernels
         modal run deploy/modal/app.py --action test-mamba
 
@@ -446,7 +609,17 @@ def main(
     print("🚀 Brain-Go-Brr v2 Modal Deployment")
     print("=" * 50)
 
-    if action == "test-mamba":
+    if action == "clean-cache":
+        # Clean contaminated cache from before patient-disjoint fix
+        print("🧹 Cleaning contaminated cache...")
+        success = clean_cache.remote()
+        if success:
+            print("✅ Cache cleaned! Next training will rebuild with patient-disjoint splits.")
+        else:
+            print("❌ Cache cleaning failed!")
+            raise RuntimeError("Failed to clean cache")
+
+    elif action == "test-mamba":
         # Test Mamba CUDA kernels
         print("Testing Mamba CUDA kernels...")
         success = test_mamba_cuda.remote()
@@ -468,7 +641,7 @@ def main(
 
     else:
         print(f"Unknown action: {action}")
-        print("Available actions: test-mamba, train, evaluate")
+        print("Available actions: clean-cache, test-mamba, train, evaluate")
 
 
 if __name__ == "__main__":
