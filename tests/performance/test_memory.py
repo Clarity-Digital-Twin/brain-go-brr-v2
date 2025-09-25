@@ -428,4 +428,6 @@ class TestMemoryUsage:
         growth_rate = (second_half - first_half) / first_half
 
         max_growth_rate = thresholds.long_running_growth_rate()
-        assert abs(growth_rate) < max_growth_rate, f"Memory grew by {growth_rate * 100:.1f}% over long run (max: {max_growth_rate * 100:.0f}%)"
+        assert abs(growth_rate) < max_growth_rate, (
+            f"Memory grew by {growth_rate * 100:.1f}% over long run (max: {max_growth_rate * 100:.0f}%)"
+        )

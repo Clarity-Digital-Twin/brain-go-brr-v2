@@ -10,7 +10,6 @@ torch.compile which cannot trace through os.getenv() calls.
 
 import os
 
-
 # Cache environment variables at import time for torch.compile compatibility
 # Model/forward pass variables
 _EDGE_CLAMP = os.getenv("BGB_EDGE_CLAMP", "1") == "1"

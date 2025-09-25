@@ -198,7 +198,9 @@ class TestInferenceLatency:
         # Check overall statistics
         p95 = np.percentile(latencies[10:], 95)  # Exclude warmup
         max_p95 = stride * thresholds.streaming_p95_latency(stride)
-        assert p95 < max_p95, f"P95 latency {p95:.2f}s too high (max: {max_p95:.2f}s for {stride}s stride)"
+        assert p95 < max_p95, (
+            f"P95 latency {p95:.2f}s too high (max: {max_p95:.2f}s for {stride}s stride)"
+        )
 
     @pytest.mark.performance
     @pytest.mark.gpu
@@ -242,7 +244,9 @@ class TestInferenceLatency:
 
             speedup = cpu_time / gpu_time
             min_speedup = thresholds.gpu_speedup_factor()
-            assert speedup > min_speedup, f"GPU speedup only {speedup:.1f}x (expected >{min_speedup:.1f}x)"
+            assert speedup > min_speedup, (
+                f"GPU speedup only {speedup:.1f}x (expected >{min_speedup:.1f}x)"
+            )
 
     @pytest.mark.performance
     @pytest.mark.timeout(300)
@@ -330,7 +334,9 @@ class TestInferenceLatency:
                     f"CPU compile speedup {speedup:.2f}x below strict threshold; skipping as env-dependent"
                 )
             min_speedup = thresholds.compilation_speedup()
-            assert speedup > min_speedup, f"Compilation speedup only {speedup:.2f}x (expected >{min_speedup:.2f}x)"
+            assert speedup > min_speedup, (
+                f"Compilation speedup only {speedup:.2f}x (expected >{min_speedup:.2f}x)"
+            )
 
 
 @pytest.mark.serial
@@ -426,7 +432,11 @@ class TestThroughput:
 
         # Should process 24 hours in less than 1 hour
         # Allow more headroom on CPU environments
-        max_hours = thresholds.daily_processing_hours() if device.type == "cpu" else thresholds.daily_processing_hours() / 2
+        max_hours = (
+            thresholds.daily_processing_hours()
+            if device.type == "cpu"
+            else thresholds.daily_processing_hours() / 2
+        )
         assert estimated_full_time < max_hours * 3600, (
             f"Processing 24 hours estimated at {estimated_full_time / 3600:.1f} hours (> {max_hours}h)"
         )
