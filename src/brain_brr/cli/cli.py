@@ -102,14 +102,29 @@ def _print_config_summary(config: Config) -> None:
     )
     table.add_row("Data", data_summary)
 
-    # Model settings (TCN only)
+    # Model settings
+    arch = config.model.architecture if hasattr(config.model, "architecture") else "tcn"
     model_summary = (
-        f"Architecture: TCN -> Bi-Mamba -> Head\n"
+        f"Architecture: {arch.upper()} ({'V3 dual-stream' if arch == 'v3' else 'V2 heuristic'})\n"
         f"TCN: layers={config.model.tcn.num_layers}, "
         f"k={config.model.tcn.kernel_size}, stride_down={config.model.tcn.stride_down}\n"
         f"Mamba: layers={config.model.mamba.n_layers}, d_model={config.model.mamba.d_model}, "
         f"d_state={config.model.mamba.d_state}, conv_kernel={config.model.mamba.conv_kernel}"
     )
+
+    # Add graph config if enabled
+    if config.model.graph and config.model.graph.enabled:
+        if arch == "v3" and hasattr(config.model.graph, "edge_features"):
+            model_summary += (
+                f"\nGraph (V3): edge_features={config.model.graph.edge_features}, "
+                f"edge_top_k={config.model.graph.edge_top_k}, "
+                f"k_eigenvectors={config.model.graph.k_eigenvectors}"
+            )
+        else:
+            model_summary += (
+                f"\nGraph (V2): similarity={config.model.graph.similarity}, "
+                f"top_k={config.model.graph.top_k}"
+            )
     table.add_row("Model", model_summary)
 
     # Training settings
@@ -125,7 +140,7 @@ def _print_config_summary(config: Config) -> None:
     post_summary = (
         f"Hysteresis: τ_on={config.postprocessing.hysteresis.tau_on}, "
         f"τ_off={config.postprocessing.hysteresis.tau_off}\n"
-        f"Min duration: {config.postprocessing.min_duration}s"
+        f"Min duration: {config.postprocessing.duration.min_duration_s}s"
     )
     table.add_row("Post-processing", post_summary)
 

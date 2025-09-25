@@ -54,7 +54,7 @@ class WandBLogger:
                     "learning_rate": config.training.learning_rate,
                     "epochs": config.training.epochs,
                     "batch_size": config.training.batch_size,
-                    "model": "Bi-Mamba-2 + U-Net + ResCNN",
+                    "model": "TCN + Bi-Mamba-2 + GNN (V3)",
                     "optimizer": config.training.optimizer,
                     "scheduler": config.training.scheduler.type
                     if config.training.scheduler
@@ -69,12 +69,30 @@ class WandBLogger:
                     "early_stopping_patience": config.training.early_stopping.patience,
                     "early_stopping_metric": config.training.early_stopping.metric,
                     # Model config
-                    "encoder_stages": config.model.encoder.stages,
-                    "encoder_channels": config.model.encoder.channels,
-                    "rescnn_blocks": config.model.rescnn.n_blocks,
+                    "architecture": config.model.architecture,
+                    "tcn_num_layers": config.model.tcn.num_layers,
+                    "tcn_kernel_size": config.model.tcn.kernel_size,
+                    "tcn_stride_down": config.model.tcn.stride_down,
                     "mamba_layers": config.model.mamba.n_layers,
                     "mamba_d_model": config.model.mamba.d_model,
                     "mamba_d_state": config.model.mamba.d_state,
+                    # Graph config (V3)
+                    "graph_enabled": config.model.graph.enabled,
+                    "graph_edge_features": config.model.graph.edge_features
+                    if hasattr(config.model.graph, "edge_features")
+                    else None,
+                    "graph_edge_top_k": config.model.graph.edge_top_k
+                    if hasattr(config.model.graph, "edge_top_k")
+                    else None,
+                    "graph_edge_threshold": config.model.graph.edge_threshold
+                    if hasattr(config.model.graph, "edge_threshold")
+                    else None,
+                    "graph_edge_mamba_layers": config.model.graph.edge_mamba_layers
+                    if hasattr(config.model.graph, "edge_mamba_layers")
+                    else None,
+                    "graph_k_eigenvectors": config.model.graph.k_eigenvectors
+                    if hasattr(config.model.graph, "k_eigenvectors")
+                    else None,
                     # Data config
                     "window_size": config.data.window_size,
                     "stride": config.data.stride,
