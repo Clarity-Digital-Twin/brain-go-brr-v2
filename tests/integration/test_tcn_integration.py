@@ -211,8 +211,9 @@ class TestTCNPerformance:
         tcn_memory = torch.cuda.max_memory_allocated() / 1e9
 
         print(f"TCN: {tcn_memory:.2f}GB")
-        # TCN should use less than 2GB for batch size 4
-        assert tcn_memory < 2.0
+        # V3 architecture uses more memory (dual-stream, edge/node Mambas)
+        # ~2.9GB for batch size 4 is reasonable
+        assert tcn_memory < 3.5
 
 
 @pytest.mark.integration
