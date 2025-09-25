@@ -93,14 +93,25 @@ app = modal.App(
     ],
 )
 
-# S3 bucket mount for massive EEG data
+# S3 bucket mounts for EEG data and cache
 s3_secret = modal.Secret.from_name("aws-s3-secret")
+
+# Raw EDF data mount
 data_mount = modal.CloudBucketMount(
     "brain-go-brr-eeg-data-20250919",  # Your actual bucket!
     secret=s3_secret,
-    key_prefix="tusz/",  # Mount just the TUH data (matches actual upload path)
+    key_prefix="tusz/",  # Raw EDF data: tusz/{train,dev,eval}/
     read_only=True,  # EEG data is read-only
 )
+
+# Pre-built cache mount (will be added after local cache upload)
+# Uncomment after uploading cache to S3:
+# cache_mount = modal.CloudBucketMount(
+#     "brain-go-brr-eeg-data-20250919",
+#     secret=s3_secret,
+#     key_prefix="cache/tusz/",  # Preprocessed NPZ cache
+#     read_only=True,
+# )
 
 # Persistent volume for results and cache (310GB currently)
 results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missing=True)
