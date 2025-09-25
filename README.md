@@ -11,10 +11,10 @@
 
 - **V3 Dual-Stream Architecture**: Node Mamba (19×) + Edge Mamba (171×) processing in parallel
 - **Dynamic Laplacian PE**: Time-evolving positional encoding computed every timestep (semi-dynamic interval configurable)
-- **31M parameters**: TCN (8L) + BiMamba (6L) + GNN (2L SSGConv) + Dynamic LPE (k=16)
-- **Memory Optimized**: RTX 4090 (batch=4, interval=5), A100 (batch=64, full dynamic)
-- **NaN Protection**: Decoder clamping, focal loss fixes, training safeguards
-- **Production Deployment**: Running on Modal A100-80GB with W&B tracking
+- **31M parameters**: 31,475,722 exactly (TCN + BiMamba + GNN + Dynamic LPE)
+- **Memory Optimized**: RTX 4090 (16GB @ batch=4), A100 (60GB @ batch=64)
+- **NaN Protection**: Decoder clamping, focal loss fixes, numerical safeguards throughout
+- **Patient-Disjoint Splits**: 579 train patients (4667 files), 53 dev patients (1832 files)
 
 </details>
 
@@ -137,7 +137,8 @@ src/brain_brr/           # Core modules
 │   ├── tcn.py          # TCN encoder (8 layers)
 │   ├── mamba.py        # Bidirectional Mamba (6 layers)
 │   ├── gnn_pyg.py      # PyG GNN with Laplacian PE
-│   └── graph_builder.py # Heuristic adjacency builder
+│   ├── graph_builder.py # Heuristic adjacency (v2 only)
+│   └── edge_features.py # Edge Mamba stream (v3 only)
 ├── data/               # EEG preprocessing
 ├── train/              # Training pipeline
 ├── post/               # Post-processing
@@ -158,11 +159,11 @@ docs/                    # Documentation
 
 ## 📊 Clinical Targets
 
-| FA Rate | Target Sensitivity | Current SOTA | Our Goal |
-|---------|-------------------|--------------|----------|
-| 10 FA/24h | >95% | ~90% | ✓ |
-| 5 FA/24h | >90% | ~85% | ✓ |
-| 1 FA/24h | >75% | ~70% | ✓ |
+| FA Rate | Target Sensitivity | Status |
+|---------|-------------------|--------|
+| 10 FA/24h | >95% | Training |
+| 5 FA/24h | >90% | Training |
+| 1 FA/24h | >75% | Target |
 
 ## 🔬 Technical Details
 
@@ -174,7 +175,7 @@ docs/                    # Documentation
    - Resample to 256 Hz
    - Window: 60s with 10s stride
    - Per-channel z-score normalization
-3. **Cache**: Pre-processed NPZ files (3734 train, 933 val)
+3. **Cache**: Pre-processed NPZ files (4667 train, 1832 dev)
 
 ### Training Strategy
 - **Loss**: Focal loss (α=0.5, γ=2.0) for class imbalance
@@ -187,10 +188,10 @@ docs/                    # Documentation
 **Local (RTX 4090)**:
 ```yaml
 training:
-  batch_size: 12  # Conservative for 24GB VRAM
-  mixed_precision: false  # Disabled - causes NaNs
+  batch_size: 4  # Actual working config (16GB VRAM)
+  mixed_precision: false  # MUST be false - causes NaNs
 data:
-  cache_dir: cache/tusz  # 3734 pre-processed files
+  cache_dir: cache/tusz  # 4667 train + 1832 dev files
 ```
 
 **Modal (A100-80GB)**:
@@ -220,11 +221,31 @@ tmux ls  # list active training sessions
 
 ## 📖 Documentation
 
-- **Installation**: See `INSTALLATION.md` for detailed setup
-- **Architecture Evolution**: See `ARCHITECTURE_EVOLUTION.md` for design decisions
-- **V3 Implementation**: See `docs/architecture/V3_ACTUAL.md` for the implemented dual‑stream path
-- **Configuration**: See `configs/README.md` for config details
-- **Claude AI Guide**: See `CLAUDE.md` for AI assistant instructions
+### Core Architecture
+- **[ARCHITECTURE_EVOLUTION.md](ARCHITECTURE_EVOLUTION.md)** - Why we built V3 this way
+- **[V3_ARCHITECTURE_FINAL.md](V3_ARCHITECTURE_FINAL.md)** - Complete V3 technical spec
+- **[docs/04-model/](docs/04-model/)** - Deep dives into each component:
+  - [tcn.md](docs/04-model/tcn.md) - TCN encoder details
+  - [mamba.md](docs/04-model/mamba.md) - Bidirectional Mamba implementation
+  - [gnn.md](docs/04-model/gnn.md) - Vectorized GNN operations
+  - [laplacian-pe.md](docs/04-model/laplacian-pe.md) - Dynamic PE math
+  - [edge-features-and-adjacency.md](docs/04-model/edge-features-and-adjacency.md) - V3 edge stream
+
+### Setup & Training
+- **[INSTALLATION.md](INSTALLATION.md)** - Exact versions that work
+- **[configs/README.md](configs/README.md)** - Every parameter explained
+- **[docs/05-training/](docs/05-training/)** - Training guides:
+  - [local.md](docs/05-training/local.md) - RTX 4090 specifics
+  - [modal.md](docs/05-training/modal.md) - A100 cloud setup
+
+### Data & Preprocessing
+- **[docs/tusz/](docs/tusz/)** - TUSZ corpus details:
+  - [tusz-splits.md](docs/tusz/tusz-splits.md) - Patient-disjoint splits
+  - [tusz-cache-sampling.md](docs/tusz/tusz-cache-sampling.md) - Balanced sampling strategy
+
+### Development
+- **[CLAUDE.md](CLAUDE.md)** - AI pair programming setup
+- **[docs/08-operations/troubleshooting.md](docs/08-operations/troubleshooting.md)** - Common issues & fixes
 
 ## 🤝 Contributing
 
@@ -248,4 +269,4 @@ Apache 2.0 - See [LICENSE](LICENSE) for details
 
 ---
 
-**Mission**: Shock the world with O(N) clinical seizure detection 🚀
+**Current Status**: Training V3 dual-stream architecture on TUSZ corpus. Cache building: ~17% complete.
