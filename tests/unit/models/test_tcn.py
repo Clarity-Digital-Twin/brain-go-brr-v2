@@ -181,7 +181,7 @@ class TestTCNIntegration:
 
     def test_detector_forward_v3(self):
         """Full forward pass with V3 should produce correct output shape (graph disabled)."""
-        from src.brain_brr.config.schemas import GraphConfig, MambaConfig, ModelConfig, TCNConfig
+        from src.brain_brr.config.schemas import GraphConfig, ModelConfig, TCNConfig
         from src.brain_brr.models.detector import SeizureDetector
 
         config = ModelConfig(
@@ -202,7 +202,7 @@ class TestTCNIntegration:
         """V3 path must produce outputs compatible with existing loss."""
         import torch.nn.functional as functional
 
-        from src.brain_brr.config.schemas import GraphConfig, MambaConfig, ModelConfig, TCNConfig
+        from src.brain_brr.config.schemas import GraphConfig, ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
         config = ModelConfig(architecture="v3", graph=GraphConfig(enabled=False))
@@ -220,7 +220,7 @@ class TestTCNIntegration:
 
     def test_config_gating_v3(self):
         """V3 path must instantiate and run forward."""
-        from src.brain_brr.config.schemas import GraphConfig, MambaConfig, ModelConfig, TCNConfig
+        from src.brain_brr.config.schemas import GraphConfig, ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
         config = ModelConfig(architecture="v3", graph=GraphConfig(enabled=False))

@@ -13,7 +13,7 @@ class TestTCNFullPipeline:
 
     def test_full_pipeline_with_tcn(self):
         """TCN path should work end-to-end: EEG → TCN → Mamba → Output."""
-        from src.brain_brr.config.schemas import ModelConfig, TCNConfig
+        from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
         config = ModelConfig(
@@ -54,7 +54,7 @@ class TestTCNFullPipeline:
         """TCN should work with training pipeline."""
         import torch.nn.functional as functional
 
-        from src.brain_brr.config.schemas import ModelConfig, TCNConfig
+        from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
         model_config = ModelConfig(
@@ -132,7 +132,7 @@ class TestTCNFullPipeline:
     def test_config_defaults_to_v3(self):
         """Config defaults to V3 architecture."""
 
-        from src.brain_brr.config.schemas import ModelConfig, TCNConfig
+        from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
         # Config should default to V3
@@ -157,7 +157,7 @@ class TestTCNPerformance:
         """TCN should have fast inference on GPU."""
         import time
 
-        from src.brain_brr.config.schemas import ModelConfig, TCNConfig
+        from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
         # Create TCN model
@@ -187,7 +187,7 @@ class TestTCNPerformance:
     @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required for memory profiling")
     def test_tcn_memory_efficient(self):
         """TCN should be memory efficient."""
-        from src.brain_brr.config.schemas import ModelConfig, TCNConfig
+        from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
 
         # Create TCN model
