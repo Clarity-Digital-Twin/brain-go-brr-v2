@@ -171,9 +171,22 @@ class GraphChannelMixerPyG(nn.Module):
         with torch.cuda.amp.autocast(enabled=False):
             l_stable = laplacian.to(torch.float32)
 
-            # ROBUST FIX: Add regularization to prevent singular matrices
-            eps = 1e-5
+            # ROBUST FIX: Add STRONGER regularization to prevent singular matrices
+            # Increased from 1e-5 to 1e-4 for better stability
+            eps = 1e-4
             l_stable = l_stable + eps * torch.eye(N, device=l_stable.device, dtype=torch.float32)
+
+            # Check condition number before eigendecomposition
+            try:
+                cond = torch.linalg.cond(l_stable)
+                if (cond > 1e6).any():
+                    # Matrix is poorly conditioned, increase regularization
+                    eps = 1e-3
+                    l_stable = laplacian.to(torch.float32) + eps * torch.eye(
+                        N, device=l_stable.device, dtype=torch.float32
+                    )
+            except:
+                pass  # If cond check fails, continue with current regularization
 
             try:
                 # Compute eigenvalues and eigenvectors
@@ -202,8 +215,9 @@ class GraphChannelMixerPyG(nn.Module):
                             * 0.01
                         )
                 else:
-                    # Clamp eigenvalues to safe range [0, 2] (Laplacian eigenvalues)
-                    eigenvalues = torch.clamp(eigenvalues, min=0.0, max=2.0)
+                    # Clamp eigenvalues to SAFER range [1e-6, 2] (Laplacian eigenvalues)
+                    # Added small minimum to prevent near-zero eigenvalues
+                    eigenvalues = torch.clamp(eigenvalues, min=1e-6, max=2.0)
 
                     # Take k smallest eigenvectors (already sorted in ascending order)
                     pe = eigenvectors[..., : self.k_eigenvectors]  # (B*T, N, k)

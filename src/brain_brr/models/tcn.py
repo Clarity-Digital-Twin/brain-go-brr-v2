@@ -193,14 +193,33 @@ class TCNEncoder(nn.Module):
                 f"Input length {length} must be divisible by stride_down {self.stride_down}"
             )
 
+        # CRITICAL: Input validation and clamping to prevent NaN propagation
+        # Check for NaN/Inf in inputs
+        if torch.isnan(x).any() or torch.isinf(x).any():
+            # Replace NaN/Inf with zeros
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # Clamp inputs to reasonable range for EEG data
+        # EEG signals should be normalized, so [-100, 100] is very conservative
+        x = torch.clamp(x, min=-100.0, max=100.0)
+
         # TCN processing
         x = self.tcn(x)  # (B, tcn_channels, 15360)
+
+        # Additional clamping after TCN to prevent explosion
+        x = torch.clamp(x, min=-50.0, max=50.0)
 
         # Project to output channels
         x = self.channel_proj(x)  # (B, 512, 15360)
 
+        # Clamp after projection
+        x = torch.clamp(x, min=-20.0, max=20.0)
+
         # Downsample for Mamba
         x = self.downsample(x)  # (B, 512, 960)
+
+        # Final safety clamp
+        x = torch.clamp(x, min=-10.0, max=10.0)
 
         return x
 
