@@ -160,14 +160,14 @@ class TestTCNIntegration:
 
     def test_detector_v3_instantiation(self):
         """Detector should instantiate and expose TCN components in V3 path."""
-        from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.config.schemas import GraphConfig, MambaConfig, ModelConfig, TCNConfig
         from src.brain_brr.models.detector import SeizureDetector
 
         config = ModelConfig(
             architecture="v3",
-            tcn={"num_layers": 8, "kernel_size": 7, "dropout": 0.15, "stride_down": 16},
-            mamba={"conv_kernel": 4},
-            graph={"enabled": False},
+            tcn=TCNConfig(num_layers=8, kernel_size=7, dropout=0.15, stride_down=16),
+            mamba=MambaConfig(conv_kernel=4),
+            graph=GraphConfig(enabled=False),
         )
 
         detector = SeizureDetector.from_config(config)
@@ -181,13 +181,13 @@ class TestTCNIntegration:
 
     def test_detector_forward_v3(self):
         """Full forward pass with V3 should produce correct output shape (graph disabled)."""
-        from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.config.schemas import GraphConfig, MambaConfig, ModelConfig, TCNConfig
         from src.brain_brr.models.detector import SeizureDetector
 
         config = ModelConfig(
             architecture="v3",
-            tcn={"num_layers": 4, "kernel_size": 3, "dropout": 0.1, "stride_down": 16},
-            graph={"enabled": False},
+            tcn=TCNConfig(num_layers=4, kernel_size=3, dropout=0.1, stride_down=16),
+            graph=GraphConfig(enabled=False),
         )
 
         detector = SeizureDetector.from_config(config)
@@ -202,10 +202,10 @@ class TestTCNIntegration:
         """V3 path must produce outputs compatible with existing loss."""
         import torch.nn.functional as functional
 
-        from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.config.schemas import GraphConfig, MambaConfig, ModelConfig, TCNConfig
         from src.brain_brr.models.detector import SeizureDetector
 
-        config = ModelConfig(architecture="v3", graph={"enabled": False})
+        config = ModelConfig(architecture="v3", graph=GraphConfig(enabled=False))
         detector = SeizureDetector.from_config(config)
 
         x = torch.randn(2, 19, 15360)
@@ -220,10 +220,10 @@ class TestTCNIntegration:
 
     def test_config_gating_v3(self):
         """V3 path must instantiate and run forward."""
-        from src.brain_brr.config.schemas import ModelConfig
+        from src.brain_brr.config.schemas import GraphConfig, MambaConfig, ModelConfig, TCNConfig
         from src.brain_brr.models.detector import SeizureDetector
 
-        config = ModelConfig(architecture="v3", graph={"enabled": False})
+        config = ModelConfig(architecture="v3", graph=GraphConfig(enabled=False))
         detector = SeizureDetector.from_config(config)
         x = torch.randn(1, 19, 15360)
         output = detector(x)

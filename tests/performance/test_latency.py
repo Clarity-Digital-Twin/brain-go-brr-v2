@@ -35,6 +35,8 @@ class TestInferenceLatency:
     @pytest.fixture(scope="class")
     def production_model(self):
         """Create production-sized model for benchmarking."""
+        import gc
+
         config = ModelConfig(
             tcn=TCNConfig(num_layers=8, kernel_size=7, dropout=0.15, stride_down=16),
             mamba=MambaConfig(n_layers=6, d_model=512, d_state=16, conv_kernel=4, dropout=0.1),
@@ -46,7 +48,13 @@ class TestInferenceLatency:
         if torch.cuda.is_available():
             model = model.cuda()
 
-        return model
+        yield model
+
+        # Cleanup
+        del model
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
 
     @pytest.mark.performance
     @pytest.mark.timeout(180)
@@ -158,7 +166,7 @@ class TestInferenceLatency:
         avg_time_per_sample = np.mean(times) * 1000 / batch_size  # ms per sample
 
         # Should have sub-linear scaling
-        is_cpu = production_model.device.type == "cpu"
+        is_cpu = next(production_model.parameters()).device.type == "cpu"
         max_latency = thresholds.batch_latency_per_sample_ms(is_cpu)
         assert avg_time_per_sample < max_latency, (
             f"Batch {batch_size}: {avg_time_per_sample:.1f}ms per sample (max: {max_latency:.1f}ms)"

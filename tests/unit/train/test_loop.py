@@ -86,11 +86,15 @@ class TestTrainingSmoke:
         _, val_loader = synthetic_data
 
         # Validate
-        from src.brain_brr.config.schemas import HysteresisConfig, PostprocessingConfig
+        from src.brain_brr.config.schemas import (
+            HysteresisConfig,
+            MorphologyConfig,
+            PostprocessingConfig,
+        )
 
         post_cfg = PostprocessingConfig(
             hysteresis=HysteresisConfig(tau_on=0.86, tau_off=0.78),
-            morphology={"kernel_size": 5, "operation": "closing"},
+            morphology=MorphologyConfig(opening_kernel=11, closing_kernel=31),
             min_duration=1.0,
         )
 
