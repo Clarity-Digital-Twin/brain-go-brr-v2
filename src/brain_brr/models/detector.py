@@ -318,6 +318,11 @@ class SeizureDetector(nn.Module):
             instance.edge_out_proj = nn.Conv1d(edge_d_model, 1, kernel_size=1, bias=True)
             instance.edge_activate = nn.Softplus()
 
+            # Initialize edge projections carefully to prevent explosion
+            nn.init.xavier_uniform_(instance.edge_in_proj.weight, gain=0.5)
+            nn.init.zeros_(instance.edge_out_proj.bias)
+            nn.init.xavier_uniform_(instance.edge_out_proj.weight, gain=0.5)
+
             # Projections for electrode space
             instance.proj_to_electrodes = nn.Conv1d(512, 19 * 64, kernel_size=1)
             instance.proj_from_electrodes = nn.Conv1d(19 * 64, 512, kernel_size=1)
