@@ -177,7 +177,8 @@
       "Bash(BGB_NAN_DEBUG=1 BGB_SANITIZE_INPUTS=1 tmux new-session -d -s train_debug '.venv/bin/python -m src train configs/local/train.yaml 2>&1 | tee train_debug.log')",
       "Bash(BGB_LIMIT_FILES=2 .venv/bin/python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/test_rebuild --split train)",
       "Bash(while ! grep -q \"Starting epoch\" train_fixed.log)",
-      "Bash(while ! grep -q \"ERROR\\|FAIL\" train_debug.log)"
+      "Bash(while ! grep -q \"ERROR\\|FAIL\" train_debug.log)",
+      "Bash(~/.local/bin/aws s3 rm:*)"
     ],
     "deny": [],
     "ask": []
