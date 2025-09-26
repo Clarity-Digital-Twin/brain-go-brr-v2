@@ -34,12 +34,12 @@ def pytest_runtest_teardown(item):
         torch.cuda.reset_peak_memory_stats()
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True, scope="session")
 def gpu_memory_limit():
     """Limit GPU memory allocation for tests."""
     if torch.cuda.is_available():
-        # Reserve only 20GB for tests (leaving 4GB buffer on RTX 4090)
-        torch.cuda.set_per_process_memory_fraction(0.8, 0)
+        # Conservative limit to prevent OOM - 10GB on RTX 4090
+        torch.cuda.set_per_process_memory_fraction(0.4, 0)  # 40% of 24GB = ~10GB
     yield
     if torch.cuda.is_available():
         torch.cuda.empty_cache()

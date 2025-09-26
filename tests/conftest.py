@@ -18,7 +18,9 @@ import torch
 import yaml
 from click.testing import CliRunner
 
-# GPU memory guard is defined inline below to avoid conflicts
+# Import GPU memory guard for memory management
+# This sets up memory limits and cleanup hooks
+from .gpu_memory_guard import gpu_memory_limit, skip_if_low_gpu_memory  # noqa: F401
 
 # Force single GPU visibility for tests to avoid multi-GPU issues
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -361,12 +363,12 @@ def mock_dataloader(sample_windows):
 @pytest.fixture(autouse=True)
 def setup_test_env(monkeypatch, request):
     """Set up test environment variables."""
-    # Don't force fallback for performance tests
-    if "performance" not in request.keywords:
-        monkeypatch.setenv("SEIZURE_MAMBA_FORCE_FALLBACK", "1")
+    # Don't force fallback - let Mamba use optimal path
+    # monkeypatch.setenv("SEIZURE_MAMBA_FORCE_FALLBACK", "1")  # Removed - may use more memory
 
     monkeypatch.setenv("BGB_LIMIT_FILES", "2")
     monkeypatch.setenv("PYTHONFAULTHANDLER", "1")
+    monkeypatch.setenv("TEST_BATCH_SIZE", "1")  # Force minimal batch size
 
 
 @pytest.fixture
