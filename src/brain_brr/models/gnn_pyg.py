@@ -275,14 +275,16 @@ class GraphChannelMixerPyG(nn.Module):
             edge_indices = (adj[i] > 0).nonzero(as_tuple=False)
             if len(edge_indices) == 0:
                 # Empty graph - add self-loop to avoid issues
-                edge_indices = torch.tensor([[0], [0]], device=device)
+                # Create in COO format directly (2, num_edges)
+                edge_index_offset = (
+                    torch.tensor([[0], [0]], device=device, dtype=torch.long) + i * n_nodes
+                )
                 edge_weights = torch.ones(1, device=device)
             else:
                 edge_weights = adj[i][edge_indices[:, 0], edge_indices[:, 1]]
-
-            # Offset indices for disjoint union
-            offset = i * n_nodes
-            edge_index_offset = edge_indices.t() + offset
+                # Offset indices for disjoint union
+                offset = i * n_nodes
+                edge_index_offset = edge_indices.t() + offset
             edge_index_list.append(edge_index_offset)
 
             # Edge weights (optionally transform)

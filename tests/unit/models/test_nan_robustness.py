@@ -93,9 +93,8 @@ class TestNaNRobustness:
         edge_feats = edge_scalar_series(x, metric="cosine")
 
         assert torch.isfinite(edge_feats).all(), "Edge features contain NaN with zero-norm vectors"
-        assert (edge_feats >= -1.0).all() and (edge_feats <= 1.0).all(), (
-            "Cosine similarity out of range"
-        )
+        assert (edge_feats >= -1.0).all(), "Cosine similarity below -1.0"
+        assert (edge_feats <= 1.0).all(), "Cosine similarity above 1.0"
 
     def test_edge_features_correlation_with_constant(self, device):
         """Test correlation with constant vectors."""
@@ -106,18 +105,19 @@ class TestNaNRobustness:
         edge_feats = edge_scalar_series(x, metric="correlation")
 
         assert torch.isfinite(edge_feats).all(), "Edge features contain NaN with constant vectors"
-        assert (edge_feats >= -1.0).all() and (edge_feats <= 1.0).all(), "Correlation out of range"
+        assert (edge_feats >= -1.0).all(), "Correlation below -1.0"
+        assert (edge_feats <= 1.0).all(), "Correlation above 1.0"
 
     # ========== GNN Tests ==========
 
     def test_gnn_with_disconnected_graph(self, device):
         """Test GNN with disconnected graph (zero adjacency)."""
         gnn = GraphChannelMixerPyG(
-            in_channels=512, out_channels=512, use_dynamic_pe=True, k_eigenvectors=8
+            d_model=512, n_electrodes=19, use_dynamic_pe=True, k_eigenvectors=8
         ).to(device)
 
         # Zero adjacency matrix (disconnected graph)
-        x = torch.randn(2, 5, 19, 512, device=device)  # B=2, T=5, N=19, C=512
+        x = torch.randn(2, 19, 5, 512, device=device)  # B=2, N=19, T=5, C=512
         adj = torch.zeros(2, 5, 19, 19, device=device)
 
         output = gnn(x, adj)
@@ -126,11 +126,11 @@ class TestNaNRobustness:
     def test_gnn_with_singular_laplacian(self, device):
         """Test GNN with singular Laplacian matrix."""
         gnn = GraphChannelMixerPyG(
-            in_channels=512, out_channels=512, use_dynamic_pe=True, k_eigenvectors=8
+            d_model=512, n_electrodes=19, use_dynamic_pe=True, k_eigenvectors=8
         ).to(device)
 
         # Create adjacency that leads to singular Laplacian
-        x = torch.randn(2, 5, 19, 512, device=device)
+        x = torch.randn(2, 19, 5, 512, device=device)  # B=2, N=19, T=5, C=512
         adj = torch.ones(2, 5, 19, 19, device=device)  # Complete graph
 
         output = gnn(x, adj)
@@ -139,10 +139,10 @@ class TestNaNRobustness:
     def test_gnn_with_ill_conditioned_matrix(self, device):
         """Test GNN with ill-conditioned adjacency matrix."""
         gnn = GraphChannelMixerPyG(
-            in_channels=512, out_channels=512, use_dynamic_pe=True, k_eigenvectors=8
+            d_model=512, n_electrodes=19, use_dynamic_pe=True, k_eigenvectors=8
         ).to(device)
 
-        x = torch.randn(2, 5, 19, 512, device=device)
+        x = torch.randn(2, 19, 5, 512, device=device)  # B=2, N=19, T=5, C=512
         # Create ill-conditioned adjacency
         adj = torch.eye(19, device=device).unsqueeze(0).unsqueeze(0)
         adj = adj.expand(2, 5, -1, -1)
@@ -308,12 +308,12 @@ class TestNaNRobustness:
         assert "gradient_clip" in modal_config["training"]
 
         # Mixed precision differs but is intentional (RTX 4090 vs A100)
-        assert local_config["training"]["mixed_precision"] == False  # RTX 4090 needs this
-        assert modal_config["training"]["mixed_precision"] == True  # A100 can handle this
+        assert not local_config["training"]["mixed_precision"]  # RTX 4090 needs this
+        assert modal_config["training"]["mixed_precision"]  # A100 can handle this
 
-        # Both should use balanced sampling for seizure detection
-        assert local_config["training"].get("use_balanced_sampling", False) == True
-        assert modal_config["training"].get("use_balanced_sampling", False) == True
+        # Both should use balanced sampling for seizure detection (in data section, not training)
+        assert local_config["data"].get("use_balanced_sampling", False)
+        assert modal_config["data"].get("use_balanced_sampling", False)
 
 
 if __name__ == "__main__":
