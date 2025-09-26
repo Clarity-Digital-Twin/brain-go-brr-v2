@@ -45,9 +45,9 @@
 ### Edge-Specific (Deprecated/Unused)
 | Variable | Default | Location | Purpose | Status |
 |----------|---------|----------|---------|--------|
-| `BGB_EDGE_CLAMP` | - | Not in code | Was for edge clamping | REMOVED |
-| `BGB_EDGE_CLAMP_MIN` | - | Not in code | Was min edge value | REMOVED |
-| `BGB_EDGE_CLAMP_MAX` | - | Not in code | Was max edge value | REMOVED |
+| `BGB_EDGE_CLAMP` | 1 | `utils/env.py:15` | Legacy toggle for edge clamping | Defined but currently unused |
+| `BGB_EDGE_CLAMP_MIN` | -5.0 | `utils/env.py:16` | Legacy min edge value | Defined but currently unused |
+| `BGB_EDGE_CLAMP_MAX` | 5.0 | `utils/env.py:17` | Legacy max edge value | Defined but currently unused |
 
 ### Mamba-Specific
 | Variable | Default | Location | Purpose | Implementation |
@@ -434,7 +434,7 @@ python -m src train configs/local/train.yaml
 ## Status Summary
 
 ### Currently Active (Hardcoded)
-- ✅ TCN input validation and clamping
+- TCN stability: conservative initialization; optional post‑TCN activation clamp via `BGB_SAFE_CLAMP`; inputs are sanitized by preprocessing and, if enabled, `BGB_SANITIZE_INPUTS` (no unconditional clamp inside TCN forward)
 - ✅ Mamba state management
 - ✅ Edge feature numerical stability
 - ✅ Dynamic PE hardening with fallback
@@ -453,7 +453,7 @@ python -m src train configs/local/train.yaml
 - ❌ `BGB_ANOMALY_DETECT` - PyTorch anomaly mode
 
 ### Removed/Deprecated
-- ❌ `BGB_EDGE_CLAMP*` - Replaced by hardcoded edge clamping
+- ⚠️ `BGB_EDGE_CLAMP*` - Present in `utils/env.py` but not used in forward paths (edge projection clamping is hardcoded in `detector.py`)
 - ❌ Dynamic PE can be disabled via `use_dynamic_pe: false`
 
 ---
