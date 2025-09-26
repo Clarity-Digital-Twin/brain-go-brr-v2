@@ -38,9 +38,9 @@
 ### Activation Clamping
 | Variable | Default | Location | Purpose | Implementation |
 |----------|---------|----------|---------|----------------|
-| `BGB_SAFE_CLAMP` | 0 | `utils/env.py:40` | Enable activation clamps | `detector.py:209-211,297-299` |
-| `BGB_SAFE_CLAMP_MIN` | -10.0 | `utils/env.py:41` | Min clamp value | `detector.py:211,299` |
-| `BGB_SAFE_CLAMP_MAX` | 10.0 | `utils/env.py:42` | Max clamp value | `detector.py:211,299` |
+| `BGB_SAFE_CLAMP` | 0 | `utils/env.py:40` | Enable activation clamps | Applied in `SeizureDetector.forward` (post‑TCN and post‑Mamba) |
+| `BGB_SAFE_CLAMP_MIN` | -10.0 | `utils/env.py:41` | Min clamp value | Used by `SeizureDetector.forward` when `BGB_SAFE_CLAMP=1` |
+| `BGB_SAFE_CLAMP_MAX` | 10.0 | `utils/env.py:42` | Max clamp value | Used by `SeizureDetector.forward` when `BGB_SAFE_CLAMP=1` |
 
 ### Edge-Specific (Deprecated/Unused)
 | Variable | Default | Location | Purpose | Status |
@@ -53,6 +53,7 @@
 | Variable | Default | Location | Purpose | Implementation |
 |----------|---------|----------|---------|----------------|
 | `SEIZURE_MAMBA_FORCE_FALLBACK` | 0 | `utils/env.py:36` | Force Conv1d fallback | `models/mamba.py:71,149` |
+| `BGB_FORCE_TCN_EXT` | 0 | `utils/env.py:37` | Force external TCN backend | `models/tcn.py` backend selection |
 
 ---
 
@@ -295,15 +296,15 @@ m.weight.data *= 0.2  # Scale down by 5x
 ```python
 class FocalLoss(nn.Module):
     def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-        # Clamp logits to prevent overflow
-        logits_clamped = logits.clamp(min=-50, max=50)  # Line 208
+        # Clamp logits to prevent overflow in BCE
+        logits_clamped = logits.clamp(min=-100, max=100)
 
         # Compute probabilities with clamping
         p = torch.sigmoid(logits_clamped)
         p = p.clamp(min=1e-6, max=1 - 1e-6)  # Line 212 - Prevent log(0)
 
-        # Final loss clamping
-        focal_loss = focal_loss.clamp(max=100.0)  # Line 223
+        # Final loss clamping for safety
+        focal_loss = focal_loss.clamp(max=100.0)
 ```
 
 #### Input Sanitization - Lines 566-571
@@ -315,13 +316,17 @@ if env.sanitize_inputs():
         labels = torch.nan_to_num(labels, nan=0.0, posinf=0.0, neginf=0.0)
 ```
 
-#### Logit Sanitization - Lines 585-606
+#### Logit Sanitization & Bad Batch Save - Lines 585-606
 ```python
 if not torch.isfinite(logits).all():
     nonfinite = (~torch.isfinite(logits)).sum().item()
     print(f"[WARN] Non-finite logits at batch {batch_idx}: count={nonfinite}")
     # Sanitize logits to allow training to continue
     logits = torch.nan_to_num(logits, nan=0.0, posinf=20.0, neginf=-20.0)
+    # Save offending batch for offline debugging
+    Path("debug").mkdir(parents=True, exist_ok=True)
+    torch.save({"windows": windows.cpu(), "labels": labels.cpu(), "global_step": global_step},
+               f"debug/bad_batch_{global_step:06d}.pt")
 ```
 
 #### Loss NaN Handling - Lines 639-686

@@ -13,7 +13,7 @@ The V3 dual-stream architecture experienced critical NaN explosions during train
 ```
 Input EEG (B, 19, 15360)
     ↓
-TCN Encoder [FIXED: conservative initialization; optional post‑TCN clamp]
+TCN Encoder [FIXED: input validation & clamping; conservative init]
     ↓ (B, 512, 960)
 Dual-Stream Split
     ├─ Node Stream → Electrode projection (B, 19, 960, 64)
@@ -120,7 +120,7 @@ nn.init.xavier_uniform_(weight, gain=0.01-0.2)  # Was 0.5-1.0
 | Component | File | Lines | Fix Description |
 |-----------|------|-------|-----------------|
 | Dynamic PE | `gnn_pyg.py` | 170-220 | Eigendecomposition hardening, fallback PE |
-| TCN Encoder | `tcn.py` | 179-207 | Conservative initialization; optional post‑TCN clamp via `BGB_SAFE_CLAMP` |
+| TCN Encoder | `tcn.py` | 226-252, 179-207 | Input validation & clamping; conservative initialization |
 | Edge Features | `edge_features.py` | 70-91 | Numerical stability in similarity computation |
 | Node Mamba | `mamba.py` | 128-170 | State clamping, intermediate checks |
 | Edge Projection | `detector.py` | 200-220 | Conservative init (0.1), clamping [-3, 3] |
