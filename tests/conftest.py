@@ -18,8 +18,7 @@ import torch
 import yaml
 from click.testing import CliRunner
 
-# Import GPU memory guard
-from .gpu_memory_guard import *  # noqa: F403
+# GPU memory guard is defined inline below to avoid conflicts
 
 # Force single GPU visibility for tests to avoid multi-GPU issues
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -60,18 +59,10 @@ def pytest_configure(config):
     )
 
 
-@pytest.fixture(autouse=True)
-def cuda_cleanup():
-    """Automatically clean up CUDA memory after each test."""
-    yield
-    # Cleanup after test
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-        torch.cuda.synchronize()
+# Removed cuda_cleanup - using single cleanup fixture below
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")  # Changed from session to function scope
 def sample_edf_data():
     """Generate valid 19-channel EDF test data."""
     from src.brain_brr.constants import CHANNEL_NAMES_10_20
@@ -117,10 +108,10 @@ def trained_model(tmp_path):
     from src.brain_brr.config.schemas import MambaConfig, ModelConfig, TCNConfig
     from src.brain_brr.models import SeizureDetector
 
+    # Use minimal config for tests to prevent OOM
     config = ModelConfig(
-        tcn=TCNConfig(num_layers=8, kernel_size=7, dropout=0.15, stride_down=16),
-        # Use fewer Mamba layers to keep clinical pipeline test under CI timeout
-        mamba=MambaConfig(n_layers=1, d_model=512, d_state=16, conv_kernel=4, dropout=0.1),
+        tcn=TCNConfig(num_layers=4, kernel_size=3, dropout=0.0, stride_down=16),
+        mamba=MambaConfig(n_layers=1, d_model=256, d_state=8, conv_kernel=4, dropout=0.0),
     )
 
     model = SeizureDetector.from_config(config)
@@ -143,9 +134,10 @@ def minimal_model():
     from src.brain_brr.config.schemas import MambaConfig, ModelConfig, TCNConfig
     from src.brain_brr.models import SeizureDetector
 
+    # Use very minimal config for tests to prevent OOM
     config = ModelConfig(
-        tcn=TCNConfig(num_layers=4, kernel_size=3, dropout=0.0, stride_down=16),
-        mamba=MambaConfig(n_layers=1, d_model=512, d_state=16, conv_kernel=4, dropout=0.0),
+        tcn=TCNConfig(num_layers=2, kernel_size=3, dropout=0.0, stride_down=16),
+        mamba=MambaConfig(n_layers=1, d_model=128, d_state=8, conv_kernel=4, dropout=0.0),
     )
 
     model = SeizureDetector.from_config(config)
@@ -451,17 +443,33 @@ def assert_tensor_close(a: torch.Tensor, b: torch.Tensor, rtol: float = 1e-5, at
     assert torch.allclose(a, b, rtol=rtol, atol=atol)
 
 
-# Resource cleanup fixtures
+# Single consolidated cleanup fixture to avoid conflicts
 @pytest.fixture(autouse=True)
 def cleanup_torch_resources():
-    """Automatically cleanup PyTorch resources after each test."""
-    yield
-    # Clear PyTorch caches
+    """Consolidated cleanup for PyTorch resources."""
+    # Pre-test cleanup
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.synchronize()
-    # Force garbage collection
+        torch.cuda.reset_peak_memory_stats()
     gc.collect()
+
+    yield
+
+    # Post-test cleanup
+    # Clear all GPU tensors
+    if torch.cuda.is_available():
+        for obj in gc.get_objects():
+            try:
+                if torch.is_tensor(obj) and obj.is_cuda:
+                    del obj
+            except:
+                pass
+
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
 
 
 @pytest.fixture
@@ -485,13 +493,4 @@ def cleanup_dataloader():
         gc.collect()
 
 
-@pytest.fixture(autouse=True)
-def reset_cuda_stats():
-    """Reset CUDA memory stats before each test."""
-    if torch.cuda.is_available():
-        torch.cuda.reset_peak_memory_stats()
-        torch.cuda.empty_cache()
-    yield
-    # Cleanup after test
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+# Removed reset_cuda_stats - consolidated into cleanup_torch_resources
