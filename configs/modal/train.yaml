@@ -136,4 +136,3 @@ logging:
 resources:
   max_memory_gb: 80                    # A100 has 80GB VRAM
   distributed: false                   # Single GPU for now
-  compile_model: false                 # Torch compile if needed
