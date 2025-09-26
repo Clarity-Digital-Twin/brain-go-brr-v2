@@ -5,10 +5,17 @@ import torch
 
 from src.brain_brr.models.detector import SeizureDetector
 from src.brain_brr.models.edge_features import edge_scalar_series
-from src.brain_brr.models.gnn_pyg import GraphChannelMixerPyG
 from src.brain_brr.models.mamba import BiMamba2
 from src.brain_brr.models.tcn import TCNEncoder
 from src.brain_brr.train.loop import FocalLoss
+
+# Try to import PyG-dependent module, skip tests if not available
+try:
+    from src.brain_brr.models.gnn_pyg import GraphChannelMixerPyG
+
+    HAS_PYG = True
+except ImportError:
+    HAS_PYG = False
 
 
 class TestNaNRobustness:
@@ -110,6 +117,7 @@ class TestNaNRobustness:
 
     # ========== GNN Tests ==========
 
+    @pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
     def test_gnn_with_disconnected_graph(self, device):
         """Test GNN with disconnected graph (zero adjacency)."""
         gnn = GraphChannelMixerPyG(
@@ -123,6 +131,7 @@ class TestNaNRobustness:
         output = gnn(x, adj)
         assert torch.isfinite(output).all(), "GNN fails with disconnected graph"
 
+    @pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
     def test_gnn_with_singular_laplacian(self, device):
         """Test GNN with singular Laplacian matrix."""
         gnn = GraphChannelMixerPyG(
@@ -136,6 +145,7 @@ class TestNaNRobustness:
         output = gnn(x, adj)
         assert torch.isfinite(output).all(), "GNN fails with singular Laplacian"
 
+    @pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
     def test_gnn_with_ill_conditioned_matrix(self, device):
         """Test GNN with ill-conditioned adjacency matrix."""
         gnn = GraphChannelMixerPyG(
