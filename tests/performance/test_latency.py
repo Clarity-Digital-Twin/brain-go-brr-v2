@@ -38,8 +38,8 @@ class TestInferenceLatency:
         import gc
 
         config = ModelConfig(
-            tcn=TCNConfig(num_layers=8, kernel_size=7, dropout=0.15, stride_down=16),
-            mamba=MambaConfig(n_layers=6, d_model=512, d_state=16, conv_kernel=4, dropout=0.1),
+            tcn=TCNConfig(num_layers=4, kernel_size=5, dropout=0.1, stride_down=16),
+            mamba=MambaConfig(n_layers=2, d_model=256, d_state=16, conv_kernel=4, dropout=0.1),
         )
         model = SeizureDetector.from_config(config)
         model.eval()

@@ -138,18 +138,27 @@ def trained_model(tmp_path):
 @pytest.fixture
 def minimal_model():
     """Minimal model for fast testing."""
+    import gc
+
     from src.brain_brr.config.schemas import MambaConfig, ModelConfig, TCNConfig
     from src.brain_brr.models import SeizureDetector
 
     config = ModelConfig(
-        tcn=TCNConfig(num_layers=8, kernel_size=7, dropout=0.15, stride_down=16),
-        mamba=MambaConfig(n_layers=1, d_model=512, d_state=16, conv_kernel=4, dropout=0.1),
+        tcn=TCNConfig(num_layers=4, kernel_size=3, dropout=0.0, stride_down=16),
+        mamba=MambaConfig(n_layers=1, d_model=256, d_state=16, conv_kernel=4, dropout=0.0),
     )
 
     model = SeizureDetector.from_config(config)
     model.eval()  # Set to eval mode for consistency
     # Don't auto-move to CUDA - let tests do it explicitly
-    return model
+
+    yield model
+
+    # Cleanup
+    del model
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    gc.collect()
 
 
 @pytest.fixture
