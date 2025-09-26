@@ -331,6 +331,12 @@ class TrainingConfig(StrictModel):
     )
     mixed_precision: bool = Field(default=True, description="Use automatic mixed precision (AMP)")
     early_stopping: EarlyStoppingConfig = Field(default_factory=EarlyStoppingConfig)
+    checkpoint_interval: int = Field(
+        default=1, ge=0, le=100, description="Save checkpoint every N epochs (0 = disabled)"
+    )
+    gradient_accumulation_steps: int = Field(
+        default=1, ge=1, le=100, description="Number of gradient accumulation steps"
+    )
 
 
 class EvaluationConfig(StrictModel):

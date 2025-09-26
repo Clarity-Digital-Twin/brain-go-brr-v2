@@ -163,7 +163,8 @@
       "Bash(bc)",
       "Bash(BGB_SMOKE_TEST=1 BGB_LIMIT_FILES=3 .venv/bin/python -m src train configs/local/smoke.yaml)",
       "Bash(git restore:*)",
-      "Bash(BGB_PERF_TOLERANCE_FACTOR=2.0 .venv/bin/pytest tests/performance/test_latency.py::TestInferenceLatency::test_batch_inference_latency -x --tb=short)"
+      "Bash(BGB_PERF_TOLERANCE_FACTOR=2.0 .venv/bin/pytest tests/performance/test_latency.py::TestInferenceLatency::test_batch_inference_latency -x --tb=short)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []
