@@ -169,7 +169,9 @@
       "Bash(do echo -n \"$f: \")",
       "Bash(.venv/bin/mypy src/)",
       "Bash(.venv/bin/ruff format src/ tests/ --check)",
-      "Bash(TEST_BATCH_SIZE=1 TEST_LOW_MEMORY=true .venv/bin/pytest tests/unit -x --tb=short -q --timeout=60 -k \"not test_training\")"
+      "Bash(TEST_BATCH_SIZE=1 TEST_LOW_MEMORY=true .venv/bin/pytest tests/unit -x --tb=short -q --timeout=60 -k \"not test_training\")",
+      "Bash(BGB_SMOKE_TEST=1 BGB_LIMIT_FILES=3 .venv/bin/python -m src train configs/local/smoke.yaml --training.num_epochs 1)",
+      "Bash(BGB_SMOKE_TEST=1 BGB_LIMIT_FILES=3 timeout 30 .venv/bin/python -m src train configs/local/smoke.yaml)"
     ],
     "deny": [],
     "ask": []

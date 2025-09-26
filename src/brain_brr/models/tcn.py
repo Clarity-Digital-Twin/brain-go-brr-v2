@@ -237,28 +237,29 @@ class TCNEncoder(nn.Module):
             # Replace NaN/Inf with zeros
             x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
 
-        # Clamp inputs to reasonable range for EEG data
-        # EEG signals should be normalized, so [-100, 100] is very conservative
-        x = torch.clamp(x, min=-100.0, max=100.0)
+        # Input tier clamping: [-10, 10] for normalized EEG data
+        x = torch.clamp(x, min=-10.0, max=10.0)
 
         # TCN processing
         x = self.tcn(x)  # (B, tcn_channels, 15360)
 
-        # Optional post-block clamping for stability during probes
+        # Internal tier clamping: [-50, 50] for feature maps
         if env.safe_clamp():
             x = torch.clamp(x, min=-50.0, max=50.0)
 
         # Project to output channels
         x = self.channel_proj(x)  # (B, 512, 15360)
 
+        # Maintain internal tier for features
         if env.safe_clamp():
-            x = torch.clamp(x, min=-20.0, max=20.0)
+            x = torch.clamp(x, min=-50.0, max=50.0)
 
         # Downsample for Mamba
         x = self.downsample(x)  # (B, 512, 960)
 
+        # Final output uses internal tier (features, not logits)
         if env.safe_clamp():
-            x = torch.clamp(x, min=-10.0, max=10.0)
+            x = torch.clamp(x, min=-50.0, max=50.0)
 
         return x
 

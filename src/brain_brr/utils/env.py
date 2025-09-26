@@ -12,9 +12,6 @@ import os
 
 # Cache environment variables at import time for torch.compile compatibility
 # Model/forward pass variables
-_EDGE_CLAMP = os.getenv("BGB_EDGE_CLAMP", "1") == "1"
-_EDGE_CLAMP_MIN = float(os.getenv("BGB_EDGE_CLAMP_MIN", "-5.0"))
-_EDGE_CLAMP_MAX = float(os.getenv("BGB_EDGE_CLAMP_MAX", "5.0"))
 _DEBUG_FINITE = os.getenv("BGB_DEBUG_FINITE", "0") == "1"
 _FORCE_MAMBA_FALLBACK = os.getenv("SEIZURE_MAMBA_FORCE_FALLBACK", "0") == "1"
 _FORCE_TCN_EXT = os.getenv("BGB_FORCE_TCN_EXT", "0") == "1"
@@ -50,21 +47,6 @@ class EnvConfig:
     """Typed accessor for Brain-Go-Brr environment variables."""
 
     # Model/Streaming toggles
-    @staticmethod
-    def edge_clamp() -> bool:
-        """Enable edge value clamping in V3 path (default: True for stability)."""
-        return _EDGE_CLAMP
-
-    @staticmethod
-    def edge_clamp_min() -> float:
-        """Minimum value for edge clamping (default: -5.0)."""
-        return _EDGE_CLAMP_MIN
-
-    @staticmethod
-    def edge_clamp_max() -> float:
-        """Maximum value for edge clamping (default: 5.0)."""
-        return _EDGE_CLAMP_MAX
-
     @staticmethod
     def debug_finite() -> bool:
         """Enable finite value assertions in models (default: False)."""

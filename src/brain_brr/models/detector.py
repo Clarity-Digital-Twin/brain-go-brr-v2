@@ -302,9 +302,9 @@ class SeizureDetector(nn.Module):
         decoded = self.proj_head(temporal)  # (B, 19, 15360)
         assert_finite("decoder_prelogits", decoded)
 
-        # Add clamping before logits to prevent overflow
-        decoded = torch.nan_to_num(decoded, nan=0.0, posinf=1e4, neginf=-1e4)
-        decoded = torch.clamp(decoded, -40.0, 40.0)
+        # Internal tier clamping for features before final projection
+        decoded = torch.nan_to_num(decoded, nan=0.0, posinf=50.0, neginf=-50.0)
+        decoded = torch.clamp(decoded, -50.0, 50.0)
 
         output = self.detection_head(decoded)  # (B, 1, 15360)
         assert_finite("final_logits", output)
