@@ -63,6 +63,10 @@ def preprocess_recording(
     std = np.std(x, axis=1, keepdims=True)
     x = (x - mean) / (std + 1e-8)
 
+    # CRITICAL: Clip outliers to prevent infinities during training
+    # EEG data can have extreme artifacts (>100σ) that cause numerical issues
+    x = np.clip(x, -10.0, 10.0)  # Clip to ±10 standard deviations
+
     # Sanitize NaNs / Infs and cast
     x_clean: npt.NDArray[np.float32] = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0).astype(
         np.float32
