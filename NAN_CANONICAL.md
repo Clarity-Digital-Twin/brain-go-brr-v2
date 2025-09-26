@@ -94,6 +94,22 @@ model:
 
 ## Code Implementations
 
+### 0. Data Preprocessing (`data/preprocess.py`) [FIRST LINE OF DEFENSE]
+
+#### Automatic NaN Removal - Line 67
+```python
+# Always sanitize raw EEG data before any processing
+x_clean: npt.NDArray[np.float32] = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+```
+
+#### Channel Interpolation (`data/io.py`) - Lines 198-215
+```python
+# Interpolate missing channels (Fz/Pz) using MNE montage
+if missing_midline:
+    raw.info['bads'] = missing_midline
+    raw.interpolate_bads(reset_bads=True)
+```
+
 ### 1. Debug Utilities (`models/debug_utils.py`)
 
 #### `assert_finite()` - Lines 9-49
