@@ -62,7 +62,7 @@ def clamp_and_check(tag: str, x: torch.Tensor, min_val: float = -10.0, max_val: 
         Clamped and cleaned tensor
     """
     # First check and report
-    had_nonfinite = not assert_finite(f"{tag}_pre_clamp", x, raise_on_fail=False)
+    assert_finite(f"{tag}_pre_clamp", x, raise_on_fail=False)
 
     # Replace NaN/Inf
     if torch.isnan(x).any() or torch.isinf(x).any():
@@ -111,7 +111,7 @@ def check_gradients(model: torch.nn.Module, max_grad_norm: float = 100.0) -> dic
                 problematic_params.append(f"{name}: norm={grad_norm:.2e} > {max_grad_norm}")
 
     if problematic_params and DEBUG_FINITE:
-        print(f"[GRAD-CHECK] Problematic gradients found:")
+        print("[GRAD-CHECK] Problematic gradients found:")
         for issue in problematic_params:
             print(f"  {issue}")
         print(flush=True)
