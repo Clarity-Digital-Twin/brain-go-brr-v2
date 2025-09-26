@@ -52,8 +52,9 @@
 ### Mamba-Specific
 | Variable | Default | Location | Purpose | Implementation |
 |----------|---------|----------|---------|----------------|
-| `SEIZURE_MAMBA_FORCE_FALLBACK` | 0 | `utils/env.py:36` | Force Conv1d fallback | `models/mamba.py:71,149` |
-| `BGB_FORCE_TCN_EXT` | 0 | `utils/env.py:37` | Force external TCN backend | `models/tcn.py` backend selection |
+| `SEIZURE_MAMBA_FORCE_FALLBACK` | 0 | `utils/env.py:19` | Force Conv1d fallback | `models/mamba.py:71,149` |
+| `BGB_FORCE_TCN_EXT` | 0 | `utils/env.py:20` | Force external TCN backend | `models/tcn.py` backend selection |
+| `BGB_TEST_MODE` | 0 | `utils/env.py:23` | **ANTI-PATTERN - DO NOT USE** | Changes model init for tests (violates testing principles) |
 
 ---
 
@@ -101,6 +102,7 @@ model:
 # Always sanitize raw EEG data before any processing
 x_clean: npt.NDArray[np.float32] = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
 ```
+**Status**: ALWAYS ACTIVE - Unconditional preprocessing safeguard
 
 #### Channel Interpolation (`data/io.py: load_edf_file`) – midline (Fz/Pz) interpolation when available
 ```python
@@ -148,29 +150,54 @@ def check_gradients(model: torch.nn.Module, max_grad_norm: float = 100.0) -> dic
 
 ### 2. TCN Encoder (`models/tcn.py`)
 
-#### Input Validation [ALWAYS RUNS] - Lines 226-234
+#### Input Validation [ALWAYS RUNS] - Lines 239-248
 ```python
-# UNCONDITIONAL - Always sanitizes input
+# CRITICAL: Input validation and clamping to prevent NaN propagation
+# Check for NaN/Inf in inputs
 if torch.isnan(x).any() or torch.isinf(x).any():
+    # Replace NaN/Inf with zeros
     x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+
+# Clamp inputs to reasonable range for EEG data
+# EEG signals should be normalized, so [-100, 100] is very conservative
 x = torch.clamp(x, min=-100.0, max=100.0)
 ```
+**Status**: ALWAYS ACTIVE - Unconditional input safeguard
 
-#### Post-Processing Clamps [CONDITIONAL on BGB_SAFE_CLAMP=1] - Lines 240-253
+#### Post-Processing Clamps [CONDITIONAL on BGB_SAFE_CLAMP=1] - Lines 253-267
 ```python
-# ONLY if env.safe_clamp() == True:
-x = torch.clamp(x, min=-50.0, max=50.0)   # After TCN blocks
-x = torch.clamp(x, min=-20.0, max=20.0)   # After channel projection
-x = torch.clamp(x, min=-10.0, max=10.0)   # After downsampling
+# Optional post-block clamping for stability during probes
+if env.safe_clamp():
+    x = torch.clamp(x, min=-50.0, max=50.0)  # After TCN blocks (line 254)
+    x = torch.clamp(x, min=-20.0, max=20.0)  # After channel projection (line 260)
+    x = torch.clamp(x, min=-10.0, max=10.0)  # After downsampling (line 266)
 ```
+**Status**: DISABLED BY DEFAULT - Only active when BGB_SAFE_CLAMP=1
 
-#### Weight Initialization - Lines 179-207
+#### Weight Initialization - Lines 182-220
 ```python
-# Conservative gains to prevent explosion while preserving signal
-nn.init.xavier_uniform_(self.channel_proj.weight, gain=0.2)
-nn.init.xavier_uniform_(self.downsample.weight, gain=0.1)
-module.weight.data *= 0.5  # Scaled down Kaiming init
+def _initialize_weights(self) -> None:
+    """Initialize TCN encoder weights with mode-dependent gains."""
+    from src.brain_brr.utils.env import env as _env
+
+    # BGB_TEST_MODE ANTI-PATTERN (lines 188-192):
+    if _env.test_mode():
+        proj_gain = 0.5  # WRONG - Different behavior for tests
+        down_gain = 0.3
+        conv_scale = 0.8
+    else:
+        proj_gain = 0.2  # Production values (conservative)
+        down_gain = 0.1
+        conv_scale = 0.5
+
+    # Channel projection
+    nn.init.xavier_uniform_(self.channel_proj.weight, gain=proj_gain)
+    # Downsampling
+    nn.init.xavier_uniform_(self.downsample.weight, gain=down_gain)
+    # TCN conv layers scaled down
+    module.weight.data *= conv_scale
 ```
+**CRITICAL**: This test-mode branching is an ANTI-PATTERN that should be removed
 
 ### 3. Mamba Layers (`models/mamba.py`)
 
@@ -197,12 +224,22 @@ for i, layer in enumerate(self.layers):
         x = torch.clamp(x, min=-10.0, max=10.0)
 ```
 
-#### Weight Initialization - Lines 127-143
+#### Weight Initialization - Lines 113-133
 ```python
-nn.init.xavier_uniform_(self.output_proj.weight, gain=0.2)
-nn.init.xavier_uniform_(self.forward_mamba_fallback.weight, gain=0.2)
-nn.init.xavier_uniform_(self.backward_mamba_fallback.weight, gain=0.2)
+def _initialize_weights(self) -> None:
+    """Initialize Mamba layer weights with mode-dependent gains."""
+    from src.brain_brr.utils.env import env
+
+    # BGB_TEST_MODE ANTI-PATTERN (line 119):
+    gain = 0.5 if env.test_mode() else 0.2  # WRONG - Different for tests
+
+    # Output projection: residual-like behavior
+    nn.init.xavier_uniform_(self.output_proj.weight, gain=gain)
+    # Fallback convolutions
+    nn.init.xavier_uniform_(self.forward_mamba_fallback.weight, gain=gain)
+    nn.init.xavier_uniform_(self.backward_mamba_fallback.weight, gain=gain)
 ```
+**CRITICAL**: This test-mode branching is an ANTI-PATTERN that should be removed
 
 ### 4. Edge Features (`models/edge_features.py`)
 
@@ -433,11 +470,21 @@ for name, param in model.named_parameters():
 - `tests/integration/test_training_edge_cases.py` - Training robustness
 
 ### Expected Test Failures (Benign)
-Due to conservative initialization (gain=0.2-0.5) for NaN prevention:
+Due to conservative initialization (gain=0.2) for NaN prevention:
 - `test_bidirectional_processing` - Mamba gradient signal below test threshold (0.01)
 - `test_temporal_modeling` - Mamba gradient signal below test threshold (0.001)
 
-**NOTE**: These failures are acceptable trade-offs. The tests expect strong gradient signals in isolation, but our initialization is tuned for stable full-model training. The model trains successfully without NaN.
+**IMPORTANT**: These failures are ACCEPTABLE TRADE-OFFS:
+- Tests expect strong gradients for unit testing in isolation
+- Production needs conservative init for stable training without NaN
+- Result: Model trains perfectly (676+ batches without NaN), unit tests show weak signal
+- **DO NOT** change initialization just to pass tests - it will break training
+
+**Professional Solution Options**:
+1. Accept test failures as documented trade-offs (RECOMMENDED)
+2. Skip these tests with proper documentation
+3. Adjust test thresholds to match conservative initialization
+4. NEVER use BGB_TEST_MODE or test-specific initialization
 
 ### Validation Commands
 ```bash
@@ -459,14 +506,15 @@ python -m src train configs/local/train.yaml
 ## Status Summary
 
 ### Currently Active (Hardcoded)
-- TCN stability: unconditional input sanitization + clamp in `TCNEncoder.forward` ([-100, 100]); conservative initialization; optional post‑TCN rails via `BGB_SAFE_CLAMP`
-- ✅ Mamba state management
-- ✅ Edge feature numerical stability
-- ✅ Dynamic PE hardening with fallback
-- ✅ Conservative weight initialization
-- ✅ Focal loss probability clamping
-- ✅ Optimizer parameter groups (no decay on norms)
-- ✅ Gradient clipping (0.1 local, 0.5 modal)
+- ✅ **Data Preprocessing**: `np.nan_to_num()` on raw EEG (preprocess.py:67)
+- ✅ **TCN Input Sanitization**: Unconditional NaN replacement + clamp [-100,100] (tcn.py:239-248)
+- ✅ **Mamba State Management**: Input/output/intermediate clamps (mamba.py)
+- ✅ **Edge Feature Stability**: Cosine similarity epsilon=1e-6 (edge_features.py:70-91)
+- ✅ **Dynamic PE Hardening**: Regularization eps=1e-4, fallback on failure (gnn_pyg.py:170-220)
+- ✅ **Conservative Initialization**: Gains 0.2-0.5 throughout (all models)
+- ✅ **Focal Loss Clamping**: Probability [1e-6, 1-1e-6] (loop.py:212)
+- ✅ **Optimizer Groups**: No weight decay on normalization (loop.py:280-293)
+- ✅ **Gradient Clipping**: 0.1 local, 0.5 modal (configs)
 
 ### Available but Disabled by Default
 - ❌ `BGB_SAFE_CLAMP` - Extra activation clamping
@@ -483,4 +531,31 @@ python -m src train configs/local/train.yaml
 
 ---
 
+---
+
+## Critical Issues to Address
+
+### BGB_TEST_MODE Anti-Pattern
+The previous AI agent added `BGB_TEST_MODE` which changes model initialization based on whether tests are running. This violates fundamental testing principles:
+- Tests should validate production behavior, not special test behavior
+- Creates hidden bugs where model behaves differently in tests vs production
+- Tests STILL FAIL even with BGB_TEST_MODE=1
+
+**Required Actions**:
+1. Remove `BGB_TEST_MODE` from env.py
+2. Remove test-mode branching from TCN and Mamba initialization
+3. Use single initialization path for both tests and production
+4. Accept or adjust test failures, don't change model for tests
+
+### Training Status
+- **Current**: 676+ batches without NaN (stable)
+- **Loss**: 0.0854 and decreasing
+- **Memory**: 12-20GB stable on RTX 4090
+
+---
+
 **This document is the COMPLETE and AUTHORITATIVE reference for ALL NaN-related implementations in the codebase as of September 26, 2025.**
+
+**Version**: V3 dual-stream architecture
+**Last Verified**: Commit 4d76979 (current HEAD)
+**Training Status**: STABLE - No NaN in 676+ batches
