@@ -199,8 +199,9 @@ for i, layer in enumerate(self.layers):
 
 #### Weight Initialization - Lines 127-143
 ```python
-nn.init.xavier_uniform_(self.output_proj.weight, gain=0.05)
-nn.init.xavier_uniform_(self.forward_mamba_fallback.weight, gain=0.1)
+nn.init.xavier_uniform_(self.output_proj.weight, gain=0.2)
+nn.init.xavier_uniform_(self.forward_mamba_fallback.weight, gain=0.2)
+nn.init.xavier_uniform_(self.backward_mamba_fallback.weight, gain=0.2)
 ```
 
 ### 4. Edge Features (`models/edge_features.py`)
@@ -458,7 +459,7 @@ python -m src train configs/local/train.yaml
 ## Status Summary
 
 ### Currently Active (Hardcoded)
-- TCN stability: conservative initialization; optional post‑TCN activation clamp via `BGB_SAFE_CLAMP`; inputs are sanitized by preprocessing and, if enabled, `BGB_SANITIZE_INPUTS` (no unconditional clamp inside TCN forward)
+- TCN stability: unconditional input sanitization + clamp in `TCNEncoder.forward` ([-100, 100]); conservative initialization; optional post‑TCN rails via `BGB_SAFE_CLAMP`
 - ✅ Mamba state management
 - ✅ Edge feature numerical stability
 - ✅ Dynamic PE hardening with fallback

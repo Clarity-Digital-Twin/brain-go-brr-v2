@@ -14,7 +14,7 @@ Technical details
 Implemented safeguards
 
 - Clamp degrees: `degrees.clamp_min(1e-6)`.
-- Regularize Laplacian: `L = L + 1e-5 * I` in float32 with AMP disabled.
+- Regularize Laplacian: `L = L + 1e-4 * I` in float32 with AMP disabled (increase to `1e-3` when ill‑conditioned).
 - Guard eigendecomp: try/except with NaN/Inf checks; use cached PE or small random PE as fallback.
 - Final sanity: `torch.nan_to_num` on PE; cache last valid PE for reuse.
 

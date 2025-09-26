@@ -30,7 +30,7 @@ Dual-Stream Split
             ↓
         Backprojection (B, 512, 960)
             ↓
-        Projection Head [FIXED: Output bounds]
+        Decoder pre‑logits [FIXED: Sanitization + clamp]
             ↓
         Logits (B, 15360)
             ↓
@@ -187,12 +187,11 @@ python -m src train configs/local/train.yaml
 
 ## Known Test Failures (Benign)
 
-Due to conservative initialization, these tests may fail:
-- `test_bidirectional_processing` - Expects stronger signal propagation
-- `test_temporal_modeling` - Expects larger gradient magnitudes
-- `test_tcn_encoder_gradient_flow` - Expects gradients > 1e-12
+Due to conservative initialization in Mamba, these unit tests may fail on signal thresholds:
+- `tests/unit/models/test_mamba.py::TestBiMamba2Layer::test_bidirectional_processing` (>0.01)
+- `tests/unit/models/test_mamba.py::TestBiMamba2::test_temporal_modeling` (>0.001)
 
-These failures are acceptable trade-offs for training stability.
+These are acceptable trade-offs for stability; full training remains stable without NaNs.
 
 ## Prevention Guidelines
 

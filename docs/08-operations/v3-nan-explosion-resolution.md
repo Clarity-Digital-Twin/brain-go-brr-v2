@@ -10,7 +10,7 @@
 ### 1. Dynamic Laplacian PE (PRIMARY CAUSE)
 - **Issue**: Eigendecomposition on uninitialized/garbage adjacency matrices
 - **Symptoms**: NaN explosion at batch 10-20
-- **Fix**: Disabled dynamic PE in configs (`use_dynamic_pe: false`)
+- **Fix**: Hardened eigendecomposition (regularization, condition checks, cached fallback) and kept dynamic PE enabled in configs with safeguards
 
 ### 2. Optimizer Hygiene
 - **Issue**: Weight decay applied to normalization parameters
@@ -47,11 +47,9 @@ for name, param in model.named_parameters():
 
 #### 2. Edge Clamping (src/brain_brr/models/detector.py)
 ```python
-# Configurable edge projection clamping
-if os.getenv("BGB_EDGE_CLAMP", "1") == "1":
-    clamp_min = float(os.getenv("BGB_EDGE_CLAMP_MIN", "-20.0"))
-    clamp_max = float(os.getenv("BGB_EDGE_CLAMP_MAX", "20.0"))
-    edge_in = torch.clamp(edge_in, clamp_min, clamp_max)
+# Hardcoded edge clamping for numerical stability
+edge_feats = torch.clamp(edge_feats, -0.99, 0.99)  # Similarity bounds
+edge_in = torch.clamp(edge_in, -3.0, 3.0)          # Projection bounds
 ```
 
 #### 3. Gradient Sanitization (src/brain_brr/train/loop.py)
@@ -68,21 +66,21 @@ if os.getenv("BGB_SANITIZE_GRADS", "0") == "1":
 #### configs/local/train.yaml
 ```yaml
 graph:
-  use_dynamic_pe: false  # CRITICAL: Disabled to prevent NaN
-  semi_dynamic_interval: 5
-  pe_sign_consistency: true
+  use_dynamic_pe: true              # Enabled with safeguards (regularization + fallback)
+  semi_dynamic_interval: 5          # Reduce eigendecomp frequency
+  pe_sign_consistency: true         # Fix eigenvector signs
 ```
 
 ## Environment Variables
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `BGB_NAN_DEBUG` | 0 | Enable NaN debugging output |
-| `BGB_EDGE_CLAMP` | 1 | Enable edge projection clamping |
-| `BGB_EDGE_CLAMP_MIN` | -20.0 | Minimum clamp value |
-| `BGB_EDGE_CLAMP_MAX` | 20.0 | Maximum clamp value |
-| `BGB_SANITIZE_GRADS` | 0 | Enable gradient sanitization |
-| `BGB_SKIP_OPT_STEP_ON_NAN` | 0 | Skip optimizer step on NaN gradients |
+| Variable | Default | Purpose | Status |
+|----------|---------|---------|--------|
+| `BGB_NAN_DEBUG` | 0 | Enable NaN debugging output | Active when set |
+| `BGB_SANITIZE_GRADS` | 0 | Enable gradient sanitization | Active when set |
+| `BGB_SKIP_OPT_STEP_ON_NAN` | 0 | Skip optimizer step on NaN gradients | Active when set |
+| `SEIZURE_MAMBA_FORCE_FALLBACK` | 0 | Force Conv1d fallback for Mamba | Active when set |
+| `BGB_SAFE_CLAMP` | 0 | Optional activation rails | Active when set |
+| `BGB_EDGE_CLAMP*` | 1/-5/5 | Legacy edge clamping toggles | Defined but not used by forward paths |
 
 ## Verification Tests
 
