@@ -83,6 +83,11 @@ class EnvConfig:
         """Force use of TCNExt instead of standard TCN."""
         return _FORCE_TCN_EXT
 
+    @staticmethod
+    def test_mode() -> bool:
+        """Enable test mode with stronger initialization for gradient flow tests."""
+        return _TEST_MODE
+
     # Data/Training controls
     @staticmethod
     def smoke_test() -> bool:
