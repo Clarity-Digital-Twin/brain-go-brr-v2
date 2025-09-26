@@ -197,15 +197,16 @@ class SeizureDetector(nn.Module):
             edge_metric = str(self.config.get("edge_metric", "cosine"))
             edge_feats = edge_scalar_series(elec_feats, metric=edge_metric)  # (B, 171, 960, 1)
 
+            # Clamp cosine similarities to avoid extreme values
+            edge_feats = torch.clamp(edge_feats, -0.99, 0.99)
+
             # Learnable lift 1→8 channels for CUDA alignment & capacity
             edge_flat = edge_feats.squeeze(-1).reshape(batch_size * 171, 1, seq_len)  # (B*E,1,T)
             edge_in = self.edge_in_proj(edge_flat).contiguous()  # (B*E, D, T) where D=16
 
-            # CRITICAL: Clamp edge projection to prevent explosion
-            if env.edge_clamp():
-                clamp_min = env.edge_clamp_min()
-                clamp_max = env.edge_clamp_max()
-                edge_in = torch.clamp(edge_in, clamp_min, clamp_max)
+            # CRITICAL: Always clamp edge projection to prevent explosion
+            # Conservative clamping to [-3, 3] for numerical stability
+            edge_in = torch.clamp(edge_in, -3.0, 3.0)
 
             # Safety assertion for Mamba CUDA kernel
             assert edge_in.is_contiguous(), (
