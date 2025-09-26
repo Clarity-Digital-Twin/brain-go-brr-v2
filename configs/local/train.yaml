@@ -20,6 +20,12 @@ experiment:
   save_model: true
   save_best_only: true
 
+  # W&B configuration (optional)
+  wandb:
+    enabled: false
+    project: seizure-v3
+    entity: null
+
 model:
   # Architecture: "tcn" (v2) or "v3" (dual-stream with edge Mamba)
   architecture: v3  # V3 dual-stream with learned adjacency
@@ -156,18 +162,6 @@ logging:
   log_every_n_steps: 50
   log_gradients: false
   log_weights: false
-
-  # Optional: Enable W&B if configured
-  wandb:
-    enabled: false
-    project: seizure-detection-v2.6
-    tags: ["v2.6", "rtx4090", "tcn-mamba-gnn"]
-
-# RTX 4090 specific settings (not used by current code but documented)
-resources:
-  compile_model: false   # torch.compile incompatible with Mamba CUDA kernels
-  tf32_mode: true       # RTX 4090 tensor cores optimization
-  cudnn_benchmark: true # Auto-tune convolutions
 
 # Debug environment variables (set these for troubleshooting):
 # export BGB_NAN_DEBUG=1          # Enable NaN debugging
