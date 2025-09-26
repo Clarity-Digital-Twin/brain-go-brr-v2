@@ -152,7 +152,7 @@ class SeizureDetector(nn.Module):
         # Edge projection initialization (if present)
         if self.edge_in_proj is not None:
             nn.init.xavier_uniform_(self.edge_in_proj.weight, gain=0.1)  # Reduced from 0.5
-            if hasattr(self.edge_in_proj, 'bias') and self.edge_in_proj.bias is not None:
+            if hasattr(self.edge_in_proj, "bias") and self.edge_in_proj.bias is not None:
                 nn.init.zeros_(self.edge_in_proj.bias)
 
         if self.edge_out_proj is not None:
@@ -165,13 +165,13 @@ class SeizureDetector(nn.Module):
             if m is self.detection_head:
                 continue  # Already initialized above
             # Skip projection layers already handled
-            if hasattr(self, 'proj_to_electrodes') and m is self.proj_to_electrodes:
+            if hasattr(self, "proj_to_electrodes") and m is self.proj_to_electrodes:
                 continue
-            if hasattr(self, 'proj_from_electrodes') and m is self.proj_from_electrodes:
+            if hasattr(self, "proj_from_electrodes") and m is self.proj_from_electrodes:
                 continue
-            if hasattr(self, 'edge_in_proj') and m is self.edge_in_proj:
+            if hasattr(self, "edge_in_proj") and m is self.edge_in_proj:
                 continue
-            if hasattr(self, 'edge_out_proj') and m is self.edge_out_proj:
+            if hasattr(self, "edge_out_proj") and m is self.edge_out_proj:
                 continue
 
             if isinstance(m, (nn.Conv1d, nn.ConvTranspose1d)):
@@ -181,9 +181,9 @@ class SeizureDetector(nn.Module):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
             elif isinstance(m, (nn.BatchNorm1d, nn.LayerNorm, nn.GroupNorm)):
-                if hasattr(m, 'weight') and m.weight is not None:
+                if hasattr(m, "weight") and m.weight is not None:
                     nn.init.constant_(m.weight, 1)
-                if hasattr(m, 'bias') and m.bias is not None:
+                if hasattr(m, "bias") and m.bias is not None:
                     nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Linear):
                 # Small initialization for linear layers
@@ -205,6 +205,7 @@ class SeizureDetector(nn.Module):
         assert_finite("tcn_out", features)
         # Optional safety clamp after TCN
         from src.brain_brr.utils.env import env as _env
+
         if _env.safe_clamp():
             features = torch.nan_to_num(features, nan=0.0, posinf=0.0, neginf=0.0)
             features = torch.clamp(features, _env.safe_clamp_min(), _env.safe_clamp_max())

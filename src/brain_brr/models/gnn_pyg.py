@@ -185,7 +185,7 @@ class GraphChannelMixerPyG(nn.Module):
                     l_stable = laplacian.to(torch.float32) + eps * torch.eye(
                         N, device=l_stable.device, dtype=torch.float32
                     )
-            except:
+            except (RuntimeError, ValueError):
                 pass  # If cond check fails, continue with current regularization
 
             try:
@@ -342,6 +342,7 @@ class GraphChannelMixerPyG(nn.Module):
         # Optional safety clamp before reshape
         try:
             from src.brain_brr.utils.env import env as _env
+
             if _env.safe_clamp():
                 x_batch = torch.nan_to_num(x_batch, nan=0.0, posinf=0.0, neginf=0.0)
                 x_batch = torch.clamp(x_batch, _env.safe_clamp_min(), _env.safe_clamp_max())

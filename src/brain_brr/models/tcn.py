@@ -192,16 +192,16 @@ class TCNEncoder(nn.Module):
             nn.init.zeros_(self.downsample.bias)
 
         # TCN layers: conservative initialization
-        if hasattr(self.tcn, 'network'):
+        if hasattr(self.tcn, "network"):
             # MinimalTCN case
             for module in self.tcn.network.modules():
                 if isinstance(module, nn.Conv1d):
-                    nn.init.kaiming_normal_(module.weight, mode='fan_out', nonlinearity='relu')
+                    nn.init.kaiming_normal_(module.weight, mode="fan_out", nonlinearity="relu")
                     module.weight.data *= 0.2  # Scale down
                     if module.bias is not None:
                         nn.init.zeros_(module.bias)
             # Projection layer in MinimalTCN
-            if hasattr(self.tcn, 'projection'):
+            if hasattr(self.tcn, "projection"):
                 nn.init.xavier_uniform_(self.tcn.projection.weight, gain=0.1)
                 if self.tcn.projection.bias is not None:
                     nn.init.zeros_(self.tcn.projection.bias)

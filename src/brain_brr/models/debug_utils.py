@@ -38,8 +38,8 @@ def assert_finite(tag: str, x: torch.Tensor, raise_on_fail: bool = True) -> bool
     print(
         f"[NaN-CHECK FAIL] {tag}:\n"
         f"  Shape: {x.shape}, Total: {total}\n"
-        f"  NaN: {nan_count} ({100*nan_count/total:.2f}%)\n"
-        f"  Inf: {inf_count} ({100*inf_count/total:.2f}%)\n"
+        f"  NaN: {nan_count} ({100 * nan_count / total:.2f}%)\n"
+        f"  Inf: {inf_count} ({100 * inf_count / total:.2f}%)\n"
         f"  Clean stats: min={xmin:.3e}, max={xmax:.3e}, mean={mu:.3e}, std={std:.3e}",
         flush=True,
     )
@@ -49,7 +49,9 @@ def assert_finite(tag: str, x: torch.Tensor, raise_on_fail: bool = True) -> bool
     return False
 
 
-def clamp_and_check(tag: str, x: torch.Tensor, min_val: float = -10.0, max_val: float = 10.0) -> torch.Tensor:
+def clamp_and_check(
+    tag: str, x: torch.Tensor, min_val: float = -10.0, max_val: float = 10.0
+) -> torch.Tensor:
     """Clamp tensor values and check for NaN/Inf with optional replacement.
 
     Args:
