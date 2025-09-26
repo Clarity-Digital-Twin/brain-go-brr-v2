@@ -91,24 +91,23 @@ NaN prevention is organized into 4 clear responsibilities:
 ### Training Configuration (`configs/local/train.yaml`)
 ```yaml
 training:
-  learning_rate: 1.0e-4     # Line 29 - Increased from 1e-5 to prevent near-zero
-  weight_decay: 0.01        # Line 30 - Reduced from 0.05
-  gradient_clip: 0.1        # Line 31 - Aggressive clipping (was 0.5)
-  mixed_precision: false    # Line 33 - Disabled on RTX 4090 to prevent NaNs
-  loss: focal              # Line 37 - Required for class imbalance
-  focal_alpha: 0.5         # Line 38 - Neutral (let pos_weight handle)
-  focal_gamma: 2.0         # Line 39 - Focus on hard examples
+  learning_rate: 1.0e-4     # Line 108 - Increased from 1e-5 to prevent near-zero
+  gradient_clip: 0.1        # Line 113 - Aggressive clipping (was 0.5)
+  mixed_precision: false    # Line 117 - Disabled on RTX 4090 to prevent NaNs
+  loss: focal              # Required for class imbalance
+  focal_alpha: 0.5         # Neutral (let pos_weight handle)
+  focal_gamma: 2.0         # Focus on hard examples
   scheduler:
-    warmup_ratio: 0.01     # Line 42 - 1% warmup to avoid near-zero LR
+    warmup_ratio: 0.01     # Line 130 - 1% warmup to avoid near-zero LR
 ```
 
 ### Modal Configuration (`configs/modal/train.yaml`)
 ```yaml
 training:
-  learning_rate: 3e-5      # Line 67 - Conservative for larger batch
-  gradient_clip: 0.5       # Line 71 - Strong clipping
-  mixed_precision: true    # Line 72 - A100 can handle FP16 safely
-  warmup_ratio: 0.03      # Line 70 - 3% warmup
+  learning_rate: 3e-5      # Line 95 - Conservative for larger batch
+  gradient_clip: 0.5       # Line 101 - Strong clipping
+  mixed_precision: true    # Line 102 - A100 can handle FP16 safely
+  warmup_ratio: 0.03      # Line 100 - 3% warmup
 ```
 
 ### Model Configuration

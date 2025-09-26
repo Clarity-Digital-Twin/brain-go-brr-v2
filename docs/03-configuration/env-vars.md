@@ -31,8 +31,10 @@ WSL2 and packaging
 
 Model and stability toggles
 
-- `BGB_EDGE_CLAMP*` — legacy edge clamp toggles (present in env helper but not used by forward paths)
 - `BGB_DEBUG_FINITE=1` — enable assert_finite checks in critical tensors (debug only)
+- `BGB_SAFE_CLAMP=1` — enable extra activation clamping (debug only)
+- `BGB_SAFE_CLAMP_MIN=-10.0` — minimum clamp value when safe_clamp enabled
+- `BGB_SAFE_CLAMP_MAX=10.0` — maximum clamp value when safe_clamp enabled
 
 Training safety/debug
 
