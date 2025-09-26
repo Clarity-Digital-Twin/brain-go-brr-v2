@@ -131,9 +131,9 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
 
 # One-time cache population from S3 to Modal SSD
 @app.function(
-    timeout=7200,  # 2 hours for 450GB copy
-    cpu=16,
-    memory=32768,
+    timeout=21600,  # 6 hours for 450GB copy (was timing out at 2 hours)
+    cpu=24,  # More CPU for faster copying
+    memory=65536,  # More memory for file operations
     volumes={
         "/results": results_volume,  # Destination: SSD volume
         "/s3_cache": modal.CloudBucketMount(

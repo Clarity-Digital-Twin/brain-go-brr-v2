@@ -103,14 +103,14 @@ training:
   # 4 = sweet spot: 16GB usage, 8GB buffer, 33% faster than size=3
   batch_size: 4   # SAFE: uses 16GB out of 24GB
 
-  # Conservative learning rate for stability
-  # RTX 4090 best practice: start low, increase if stable
-  learning_rate: 5.0e-5  # Reduced from 1.5e-4 after NaN explosion at batch 4056
-  weight_decay: 0.05
+  # Ultra-conservative learning rate after epoch 25 NaN explosion
+  # RTX 4090 best practice: start very low for stability
+  learning_rate: 1.0e-5  # Further reduced from 5.0e-5 after epoch 25 explosion
+  weight_decay: 0.01     # Reduced from 0.05 to prevent weight explosion
   optimizer: adamw
 
-  # RTX 4090 NaN protections
-  gradient_clip: 0.5      # Reduced from 1.0 for stronger stability
+  # Stronger RTX 4090 NaN protections after epoch 25 failure
+  gradient_clip: 0.1      # Much stronger clipping (was 0.5)
 
   # Mixed precision OFF by default for RTX 4090 stability
   # Only enable after confirming no NaNs with a smoke test
@@ -124,9 +124,9 @@ training:
   focal_alpha: 0.5       # Neutral alpha (let pos_weight handle imbalance)
   focal_gamma: 2.0       # Focus on hard examples
 
-  # Learning rate schedule
+  # Learning rate schedule - minimal decay after epoch 25 NaN issue
   scheduler:
-    type: cosine
+    type: cosine  # Back to cosine but with very conservative LR
     warmup_ratio: 0.10   # 10% warmup for smoother start on RTX 4090
 
   # Early stopping
