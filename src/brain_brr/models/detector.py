@@ -319,7 +319,8 @@ class SeizureDetector(nn.Module):
 
             # Initialize edge projections carefully to prevent explosion
             nn.init.xavier_uniform_(instance.edge_in_proj.weight, gain=0.5)
-            nn.init.zeros_(instance.edge_out_proj.bias)
+            if instance.edge_out_proj.bias is not None:
+                nn.init.zeros_(instance.edge_out_proj.bias)
             nn.init.xavier_uniform_(instance.edge_out_proj.weight, gain=0.5)
 
             # Projections for electrode space

@@ -166,7 +166,9 @@
       "Bash(BGB_PERF_TOLERANCE_FACTOR=2.0 .venv/bin/pytest tests/performance/test_latency.py::TestInferenceLatency::test_batch_inference_latency -x --tb=short)",
       "Bash(pkill:*)",
       "Bash(do for f in configs/$dir/*.yaml)",
-      "Bash(do echo -n \"$f: \")"
+      "Bash(do echo -n \"$f: \")",
+      "Bash(.venv/bin/mypy src/)",
+      "Bash(.venv/bin/ruff format src/ tests/ --check)"
     ],
     "deny": [],
     "ask": []
