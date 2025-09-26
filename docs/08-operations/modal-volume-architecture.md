@@ -91,12 +91,60 @@ data:
 - `BGB_LIMIT_FILES=50` - Modal smoke tests
 - `BGB_SMOKE_TEST=1` - Skip seizure sampling for smoke tests
 
-## 6. Commands Reference
+## 6. Cache Population Strategy
 
-### Populate Modal Cache (one-time)
+### Why NOT S3 Mount for Cache?
+- **S3 is SLOW**: Network latency kills training performance
+- **S3 throttling**: Can hit rate limits with parallel data loading
+- **S3 costs**: Egress charges for repeatedly reading 450GB cache
+- **Reliability**: Network hiccups can crash training
+
+### Why Modal SSD Volume?
+- **FAST**: Local NVMe SSD with microsecond latency
+- **Reliable**: No network issues
+- **Persistent**: Survives between runs
+- **Cost-effective**: One-time population, then free reads
+
+### One-Time Cache Population
+```python
+@app.function(
+    volumes={
+        "/results": results_volume,
+        "/s3_cache": modal.CloudBucketMount(...),  # Temporary S3 mount
+    },
+    timeout=7200,  # 2 hours for 450GB copy
+    cpu=24,
+    memory=65536,
+)
+def populate_cache():
+    """One-time copy of cache from S3 to Modal SSD volume."""
+    import shutil
+    from pathlib import Path
+
+    src = Path("/s3_cache")  # S3 mount
+    dst = Path("/results/cache/tusz")  # SSD volume
+
+    # Copy train
+    print(f"Copying {src}/train to {dst}/train...")
+    shutil.copytree(src / "train", dst / "train", dirs_exist_ok=True)
+
+    # Copy dev
+    print(f"Copying {src}/dev to {dst}/dev...")
+    shutil.copytree(src / "dev", dst / "dev", dirs_exist_ok=True)
+
+    # Verify
+    train_files = len(list((dst / "train").glob("*.npz")))
+    dev_files = len(list((dst / "dev").glob("*.npz")))
+    print(f"✅ Populated cache: {train_files} train, {dev_files} dev files")
+```
+
+### Commands Reference
 ```bash
-# Example: copy from local to Modal volume (run in a context where the volume is mounted)
-rsync -a cache/tusz/ /results/cache/tusz/
+# One-time cache population from S3 to Modal SSD
+modal run deploy/modal/app.py --action populate-cache
+
+# Verify cache on Modal volume
+modal run deploy/modal/app.py --action verify-cache
 ```
 
 ### Modal Volume Management
