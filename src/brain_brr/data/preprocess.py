@@ -64,7 +64,7 @@ def preprocess_recording(
     x = (x - mean) / (std + 1e-8)
 
     # CRITICAL: Clip outliers to prevent infinities during training
-    # EEG data can have extreme artifacts (>100σ) that cause numerical issues
+    # EEG data can have extreme artifacts (>100 sigma) that cause numerical issues
     x = np.clip(x, -10.0, 10.0)  # Clip to ±10 standard deviations
 
     # Sanitize NaNs / Infs and cast
