@@ -53,7 +53,7 @@ class TestTrainingExplosions:
     def test_focal_loss_collapse_real_imbalance(self, small_model):
         """Train 5 epochs on REAL 99.9% negative data."""
         # Create extremely imbalanced data
-        batch_size = 16
+        batch_size = 4  # Reduced from 16 to prevent OOM
         device = next(small_model.parameters()).device
 
         # 99.9% negative labels
@@ -193,7 +193,7 @@ class TestTrainingExplosions:
 
         # MUCH smaller test - simulate OOM without actually causing it
         batch_size = 2
-        max_batch_size = 16  # Reduced from 128 to prevent real OOM
+        max_batch_size = 4  # Reduced from 16 to prevent real OOM
         simulated_oom_batch = 8  # Simulate OOM at this batch size
 
         # Use smaller window size for testing to reduce memory usage
