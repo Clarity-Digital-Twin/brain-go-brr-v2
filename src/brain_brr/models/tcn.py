@@ -114,12 +114,14 @@ class TCNEncoder(nn.Module):
         causal: bool = False,
         stride_down: int = 16,
         use_cuda_optimizations: bool = True,
+        init_gain: float = 0.2,  # Dependency injection for initialization
     ):
         super().__init__()
 
         self.input_channels = input_channels
         self.output_channels = output_channels
         self.stride_down = stride_down
+        self.init_gain = init_gain
 
         # Build channel list for TCN layers
         # Double the channels list to get enough layers
@@ -180,19 +182,12 @@ class TCNEncoder(nn.Module):
         self._initialize_weights()
 
     def _initialize_weights(self) -> None:
-        """Initialize TCN encoder weights with mode-dependent gains."""
-        from src.brain_brr.utils.env import env as _env
-
-        # Use stronger initialization in test mode for gradient flow tests
-        # Production training uses conservative gains for stability
-        if _env.test_mode():
-            proj_gain = 0.5
-            down_gain = 0.3
-            conv_scale = 0.8
-        else:
-            proj_gain = 0.2
-            down_gain = 0.1
-            conv_scale = 0.5
+        """Initialize TCN encoder weights with conservative gains for stability."""
+        # Use conservative initialization for production stability
+        # Tests can pass higher init_gain if needed for gradient flow validation
+        proj_gain = self.init_gain  # Default 0.2
+        down_gain = self.init_gain * 0.5  # Half of proj_gain
+        conv_scale = self.init_gain * 2.5  # 2.5x proj_gain
 
         # Channel projection
         nn.init.xavier_uniform_(self.channel_proj.weight, gain=proj_gain)
