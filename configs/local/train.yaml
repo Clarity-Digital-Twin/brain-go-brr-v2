@@ -103,9 +103,9 @@ training:
   # 4 = sweet spot: 16GB usage, 8GB buffer, 33% faster than size=3
   batch_size: 4   # SAFE: uses 16GB out of 24GB
 
-  # Ultra-conservative learning rate after epoch 25 NaN explosion
-  # RTX 4090 best practice: start very low for stability
-  learning_rate: 1.0e-5  # Further reduced from 5.0e-5 after epoch 25 explosion
+  # Conservative learning rate to prevent NaN
+  # RTX 4090: balanced between stability and learning
+  learning_rate: 1.0e-4  # Increased from 1e-5 which was too low during warmup
   weight_decay: 0.01     # Reduced from 0.05 to prevent weight explosion
   optimizer: adamw
 
@@ -124,10 +124,10 @@ training:
   focal_alpha: 0.5       # Neutral alpha (let pos_weight handle imbalance)
   focal_gamma: 2.0       # Focus on hard examples
 
-  # Learning rate schedule - minimal decay after epoch 25 NaN issue
+  # Learning rate schedule with shorter warmup
   scheduler:
-    type: cosine  # Back to cosine but with very conservative LR
-    warmup_ratio: 0.10   # 10% warmup for smoother start on RTX 4090
+    type: cosine
+    warmup_ratio: 0.01   # 1% warmup (154 steps) to avoid near-zero LR
 
   # Early stopping
   early_stopping:
