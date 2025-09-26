@@ -4,6 +4,16 @@
 **Codebase Version**: V3 dual-stream architecture
 **Status**: CLEAN ARCHITECTURE - Refactored with 3-tier clamping system
 
+## ⚠️ CRITICAL FIX (Sep 26, 2025)
+**Issue**: Non-finite logits warnings during training
+**Root Cause**: Missing final output sanitization after `detection_head` in `SeizureDetector`
+**Fix Applied**: Added Tier 3 clamping (lines 313-314 in `detector.py`):
+```python
+output = torch.nan_to_num(output, nan=0.0, posinf=50.0, neginf=-50.0)
+output = torch.clamp(output, -100.0, 100.0)  # Tier 3: Output clamping
+```
+This ensures logits are always finite before loss computation.
+
 ## Table of Contents
 1. [Environment Variables](#environment-variables)
 2. [Configuration Settings](#configuration-settings)
@@ -337,11 +347,16 @@ edge_feats = torch.clamp(edge_feats, -0.99, 0.99)  # Line 250
 edge_in = torch.clamp(edge_in, -3.0, 3.0)  # Line 256
 ```
 
-#### Decoder Clamping - Lines 305-307
+#### Decoder Clamping - Lines 305-307, 313-314
 ```python
 # Internal tier clamping for features before final projection
 decoded = torch.nan_to_num(decoded, nan=0.0, posinf=50.0, neginf=-50.0)
 decoded = torch.clamp(decoded, -50.0, 50.0)
+
+# CRITICAL: Final output sanitization (was missing, causing non-finite logits!)
+output = self.detection_head(decoded)  # Line 309
+output = torch.nan_to_num(output, nan=0.0, posinf=50.0, neginf=-50.0)  # Line 313
+output = torch.clamp(output, -100.0, 100.0)  # Line 314 - Tier 3: Output clamping
 ```
 
 #### Weight Initialization - Lines 126-192

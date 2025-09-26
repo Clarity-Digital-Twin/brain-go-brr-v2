@@ -171,7 +171,10 @@
       "Bash(.venv/bin/ruff format src/ tests/ --check)",
       "Bash(TEST_BATCH_SIZE=1 TEST_LOW_MEMORY=true .venv/bin/pytest tests/unit -x --tb=short -q --timeout=60 -k \"not test_training\")",
       "Bash(BGB_SMOKE_TEST=1 BGB_LIMIT_FILES=3 .venv/bin/python -m src train configs/local/smoke.yaml --training.num_epochs 1)",
-      "Bash(BGB_SMOKE_TEST=1 BGB_LIMIT_FILES=3 timeout 30 .venv/bin/python -m src train configs/local/smoke.yaml)"
+      "Bash(BGB_SMOKE_TEST=1 BGB_LIMIT_FILES=3 timeout 30 .venv/bin/python -m src train configs/local/smoke.yaml)",
+      "Bash(while true)",
+      "Bash(do clear)",
+      "Bash(BGB_NAN_DEBUG=1 BGB_SANITIZE_INPUTS=1 tmux new-session -d -s train_debug '.venv/bin/python -m src train configs/local/train.yaml 2>&1 | tee train_debug.log')"
     ],
     "deny": [],
     "ask": []

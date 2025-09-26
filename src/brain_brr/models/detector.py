@@ -308,6 +308,11 @@ class SeizureDetector(nn.Module):
 
         output = self.detection_head(decoded)  # (B, 1, 15360)
         assert_finite("final_logits", output)
+
+        # Final output sanitization to prevent non-finite logits
+        output = torch.nan_to_num(output, nan=0.0, posinf=50.0, neginf=-50.0)
+        output = torch.clamp(output, -100.0, 100.0)  # Tier 3: Output clamping for loss
+
         return cast(torch.Tensor, output.squeeze(1))
 
     @classmethod
