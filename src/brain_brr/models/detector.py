@@ -158,6 +158,11 @@ class SeizureDetector(nn.Module):
         # TCN encoder: extract multi-scale temporal features
         features = self.tcn_encoder(x)  # (B, 512, 960)
         assert_finite("tcn_out", features)
+        # Optional safety clamp after TCN
+        from src.brain_brr.utils.env import env as _env
+        if _env.safe_clamp():
+            features = torch.nan_to_num(features, nan=0.0, posinf=0.0, neginf=0.0)
+            features = torch.clamp(features, _env.safe_clamp_min(), _env.safe_clamp_max())
 
         # V3 dual-stream if components are present
         if (
@@ -241,6 +246,11 @@ class SeizureDetector(nn.Module):
         else:
             # Fallback to 512-dim Mamba stack if V3 components not initialized
             temporal = self.mamba(features)  # (B, 512, 960)
+
+        # Optional safety clamp after temporal modeling
+        if _env.safe_clamp():
+            temporal = torch.nan_to_num(temporal, nan=0.0, posinf=0.0, neginf=0.0)
+            temporal = torch.clamp(temporal, _env.safe_clamp_min(), _env.safe_clamp_max())
 
         # Project back to 19 channels and upsample to original resolution
         decoded = self.proj_head(temporal)  # (B, 19, 15360)

@@ -325,6 +325,15 @@ class GraphChannelMixerPyG(nn.Module):
             x_batch = self.dropout(x_gnn)
 
         # Reshape back to (B, 19, T, D)
+        # Optional safety clamp before reshape
+        try:
+            from src.brain_brr.utils.env import env as _env
+            if _env.safe_clamp():
+                x_batch = torch.nan_to_num(x_batch, nan=0.0, posinf=0.0, neginf=0.0)
+                x_batch = torch.clamp(x_batch, _env.safe_clamp_min(), _env.safe_clamp_max())
+        except Exception:
+            pass
+
         output = x_batch.reshape(batch_size, seq_len, n_nodes, feat_dim)
         output = output.permute(0, 2, 1, 3)  # (B, 19, T, D)
 

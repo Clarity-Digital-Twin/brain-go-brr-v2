@@ -36,6 +36,11 @@ _ANOMALY_DETECT = os.getenv("BGB_ANOMALY_DETECT", "0") == "1"
 _PERF_ALLOW_GPU = os.getenv("BGB_PERF_ALLOW_GPU", "0") == "1"
 _PERF_THREADS = os.getenv("BGB_PERF_THREADS")
 
+# Safety clamps for activations (post-block sanitization)
+_SAFE_CLAMP = os.getenv("BGB_SAFE_CLAMP", "0") == "1"
+_SAFE_CLAMP_MIN = float(os.getenv("BGB_SAFE_CLAMP_MIN", "-10.0"))
+_SAFE_CLAMP_MAX = float(os.getenv("BGB_SAFE_CLAMP_MAX", "10.0"))
+
 # Performance test tolerance configuration
 _PERF_TOLERANCE_FACTOR = float(os.getenv("BGB_PERF_TOLERANCE_FACTOR", "1.2"))  # 20% slack
 _PERF_STRICT_MODE = os.getenv("BGB_PERF_STRICT_MODE", "0") == "1"  # Disable slack
@@ -141,6 +146,20 @@ class EnvConfig:
     def anomaly_detect() -> bool:
         """Enable PyTorch anomaly detection."""
         return _ANOMALY_DETECT
+
+    # Activation safety clamps
+    @staticmethod
+    def safe_clamp() -> bool:
+        """Enable activation nan-to-num + clamping between safe bounds."""
+        return _SAFE_CLAMP
+
+    @staticmethod
+    def safe_clamp_min() -> float:
+        return _SAFE_CLAMP_MIN
+
+    @staticmethod
+    def safe_clamp_max() -> float:
+        return _SAFE_CLAMP_MAX
 
     # Performance testing
     @staticmethod
