@@ -161,9 +161,7 @@ class TestBiMamba2:
     def test_temporal_modeling(self) -> None:
         """Test temporal information propagation."""
         # Use production init_gain - we're testing functionality, not gradient strength
-        model = BiMamba2(
-            d_model=512, d_state=16, d_conv=4, expand=2, headdim=64, num_layers=2
-        )
+        model = BiMamba2(d_model=512, d_state=16, d_conv=4, expand=2, headdim=64, num_layers=2)
         x = torch.zeros(1, 512, 960)
         x[:, :, :50] = 1.0  # Signal at beginning only
 
