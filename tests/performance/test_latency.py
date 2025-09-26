@@ -366,8 +366,8 @@ class TestThroughput:
         device = next(minimal_model.parameters()).device
         is_cpu = device.type == "cpu"
 
-        # Choose a reasonable batch size per device
-        batch_size = 16 if is_cpu else 32
+        # Choose conservative batch size to prevent OOM
+        batch_size = 4 if is_cpu else 8  # Reduced from 16/32
 
         # On CPU, evaluate a subset and extrapolate to avoid long walltime
         eval_windows = total_windows if not is_cpu else 96
