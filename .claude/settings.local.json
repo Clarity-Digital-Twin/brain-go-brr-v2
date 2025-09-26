@@ -168,7 +168,8 @@
       "Bash(do for f in configs/$dir/*.yaml)",
       "Bash(do echo -n \"$f: \")",
       "Bash(.venv/bin/mypy src/)",
-      "Bash(.venv/bin/ruff format src/ tests/ --check)"
+      "Bash(.venv/bin/ruff format src/ tests/ --check)",
+      "Bash(TEST_BATCH_SIZE=1 TEST_LOW_MEMORY=true .venv/bin/pytest tests/unit -x --tb=short -q --timeout=60 -k \"not test_training\")"
     ],
     "deny": [],
     "ask": []
