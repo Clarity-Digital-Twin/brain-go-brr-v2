@@ -48,12 +48,14 @@ class BiMamba2Layer(nn.Module):
         expand: int = 2,
         headdim: int = 64,
         dropout: float = 0.1,
+        init_gain: float = 0.2,  # Dependency injection for initialization
     ):
         super().__init__()
         self.d_model = d_model
         self.d_conv = d_conv  # Now always 4 or less, no coercion needed
         self.expand = expand
         self.headdim = headdim
+        self.init_gain = init_gain
 
         # Validate headdim requirement for CUDA kernels
         ratio = (d_model * expand) / headdim
@@ -111,12 +113,10 @@ class BiMamba2Layer(nn.Module):
         self._initialize_weights()
 
     def _initialize_weights(self) -> None:
-        """Initialize Mamba layer weights with mode-dependent gains."""
-        from src.brain_brr.utils.env import env
-
-        # Use stronger initialization in test mode for gradient flow tests
-        # Production training uses conservative gains for stability
-        gain = 0.5 if env.test_mode() else 0.2
+        """Initialize Mamba layer weights with conservative gains for stability."""
+        # Use conservative initialization for production stability
+        # Tests can pass higher init_gain if needed for gradient flow validation
+        gain = self.init_gain  # Default 0.2
 
         # Output projection: residual-like behavior
         nn.init.xavier_uniform_(self.output_proj.weight, gain=gain)
@@ -275,6 +275,7 @@ class BiMamba2(nn.Module):
         headdim: int = 64,
         num_layers: int = 6,
         dropout: float = 0.1,
+        init_gain: float = 0.2,  # Dependency injection for initialization
     ):
         super().__init__()
         self.d_model = d_model
@@ -292,6 +293,7 @@ class BiMamba2(nn.Module):
                     expand=expand,
                     headdim=headdim,
                     dropout=dropout,
+                    init_gain=init_gain,
                 )
                 for _ in range(num_layers)
             ]
