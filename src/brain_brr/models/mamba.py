@@ -107,6 +107,30 @@ class BiMamba2Layer(nn.Module):
         self.layer_norm = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
 
+        # Initialize weights conservatively
+        self._initialize_weights()
+
+    def _initialize_weights(self) -> None:
+        """Initialize Mamba layer weights conservatively to prevent NaN."""
+        # Output projection: small gain for residual-like behavior
+        nn.init.xavier_uniform_(self.output_proj.weight, gain=0.05)
+        if self.output_proj.bias is not None:
+            nn.init.zeros_(self.output_proj.bias)
+
+        # Fallback convolutions: conservative init
+        nn.init.xavier_uniform_(self.forward_mamba_fallback.weight, gain=0.1)
+        if self.forward_mamba_fallback.bias is not None:
+            nn.init.zeros_(self.forward_mamba_fallback.bias)
+        nn.init.xavier_uniform_(self.backward_mamba_fallback.weight, gain=0.1)
+        if self.backward_mamba_fallback.bias is not None:
+            nn.init.zeros_(self.backward_mamba_fallback.bias)
+
+        # LayerNorm: standard initialization
+        if self.layer_norm.weight is not None:
+            nn.init.constant_(self.layer_norm.weight, 1)
+        if self.layer_norm.bias is not None:
+            nn.init.constant_(self.layer_norm.bias, 0)
+
     @property
     def forward_mamba(self) -> nn.Module:
         """Compatibility property for tests."""
@@ -134,6 +158,14 @@ class BiMamba2Layer(nn.Module):
         Returns:
             Bidirectional output (B, L, D)
         """
+        # CRITICAL: Input validation and clamping to prevent NaN propagation
+        if torch.isnan(x).any() or torch.isinf(x).any():
+            # Replace NaN/Inf with zeros
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # Clamp inputs to reasonable range
+        x = torch.clamp(x, min=-10.0, max=10.0)
+
         residual = x
 
         # Use real Mamba only if:
@@ -200,8 +232,14 @@ class BiMamba2Layer(nn.Module):
         # Project back to d_model
         x_output = self.output_proj(x_combined)  # (B, L, D)
 
+        # Clamp projection output to prevent explosion
+        x_output = torch.clamp(x_output, min=-5.0, max=5.0)
+
         # Add residual and normalize
         output = self.layer_norm(residual + self.dropout(x_output))
+
+        # Final safety clamp
+        output = torch.clamp(output, min=-10.0, max=10.0)
 
         return cast(torch.Tensor, output)
 
@@ -262,12 +300,23 @@ class BiMamba2(nn.Module):
         Returns:
             Temporal output (B, C, L)
         """
+        # CRITICAL: Input validation and clamping
+        if torch.isnan(x).any() or torch.isinf(x).any():
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+        x = torch.clamp(x, min=-10.0, max=10.0)
+
         # Transpose for sequence processing: (B, L, C)
         x = x.transpose(1, 2).contiguous()  # Ensure contiguous for CUDA kernels
 
-        # Process through bidirectional layers
-        for layer in self.layers:
+        # Process through bidirectional layers with clamping after each layer
+        for i, layer in enumerate(self.layers):
             x = layer(x)
+            # Intermediate clamping every 2 layers to prevent accumulation
+            if (i + 1) % 2 == 0:
+                x = torch.clamp(x, min=-10.0, max=10.0)
+
+        # Final safety clamp
+        x = torch.clamp(x, min=-10.0, max=10.0)
 
         # Transpose back: (B, C, L)
         return x.transpose(1, 2)
