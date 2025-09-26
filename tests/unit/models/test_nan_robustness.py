@@ -2,14 +2,12 @@
 
 import pytest
 import torch
-import torch.nn as nn
-import numpy as np
 
-from src.brain_brr.models.tcn import TCNEncoder
-from src.brain_brr.models.mamba import BiMamba2, BiMamba2Layer
 from src.brain_brr.models.detector import SeizureDetector
 from src.brain_brr.models.edge_features import edge_scalar_series
 from src.brain_brr.models.gnn_pyg import GraphChannelMixerPyG
+from src.brain_brr.models.mamba import BiMamba2
+from src.brain_brr.models.tcn import TCNEncoder
 from src.brain_brr.train.loop import FocalLoss
 
 
@@ -29,8 +27,8 @@ class TestNaNRobustness:
 
         # Create input with NaN values
         x = torch.randn(2, 19, 15360, device=device)
-        x[0, 5, 1000:2000] = float('nan')
-        x[1, :, 5000] = float('nan')
+        x[0, 5, 1000:2000] = float("nan")
+        x[1, :, 5000] = float("nan")
 
         output = tcn(x)
 
@@ -44,8 +42,8 @@ class TestNaNRobustness:
 
         # Create input with infinite values
         x = torch.randn(2, 19, 15360, device=device)
-        x[0, 3, 500:600] = float('inf')
-        x[1, 10, :100] = float('-inf')
+        x[0, 3, 500:600] = float("inf")
+        x[1, 10, :100] = float("-inf")
 
         output = tcn(x)
 
@@ -70,7 +68,7 @@ class TestNaNRobustness:
 
         # Input with NaN
         x = torch.randn(2, 512, 960, device=device)
-        x[0, :100, :] = float('nan')
+        x[0, :100, :] = float("nan")
 
         output = mamba(x)
         assert torch.isfinite(output).all(), "Mamba output contains NaN/Inf with NaN input"
@@ -95,7 +93,9 @@ class TestNaNRobustness:
         edge_feats = edge_scalar_series(x, metric="cosine")
 
         assert torch.isfinite(edge_feats).all(), "Edge features contain NaN with zero-norm vectors"
-        assert (edge_feats >= -1.0).all() and (edge_feats <= 1.0).all(), "Cosine similarity out of range"
+        assert (edge_feats >= -1.0).all() and (edge_feats <= 1.0).all(), (
+            "Cosine similarity out of range"
+        )
 
     def test_edge_features_correlation_with_constant(self, device):
         """Test correlation with constant vectors."""
@@ -113,10 +113,7 @@ class TestNaNRobustness:
     def test_gnn_with_disconnected_graph(self, device):
         """Test GNN with disconnected graph (zero adjacency)."""
         gnn = GraphChannelMixerPyG(
-            in_channels=512,
-            out_channels=512,
-            use_dynamic_pe=True,
-            k_eigenvectors=8
+            in_channels=512, out_channels=512, use_dynamic_pe=True, k_eigenvectors=8
         ).to(device)
 
         # Zero adjacency matrix (disconnected graph)
@@ -129,10 +126,7 @@ class TestNaNRobustness:
     def test_gnn_with_singular_laplacian(self, device):
         """Test GNN with singular Laplacian matrix."""
         gnn = GraphChannelMixerPyG(
-            in_channels=512,
-            out_channels=512,
-            use_dynamic_pe=True,
-            k_eigenvectors=8
+            in_channels=512, out_channels=512, use_dynamic_pe=True, k_eigenvectors=8
         ).to(device)
 
         # Create adjacency that leads to singular Laplacian
@@ -145,10 +139,7 @@ class TestNaNRobustness:
     def test_gnn_with_ill_conditioned_matrix(self, device):
         """Test GNN with ill-conditioned adjacency matrix."""
         gnn = GraphChannelMixerPyG(
-            in_channels=512,
-            out_channels=512,
-            use_dynamic_pe=True,
-            k_eigenvectors=8
+            in_channels=512, out_channels=512, use_dynamic_pe=True, k_eigenvectors=8
         ).to(device)
 
         x = torch.randn(2, 5, 19, 512, device=device)
@@ -202,7 +193,7 @@ class TestNaNRobustness:
 
     def test_detector_with_pathological_input(self, device):
         """Test full detector with pathological inputs."""
-        from src.brain_brr.config.schemas import ModelConfig, TCNConfig, MambaConfig
+        from src.brain_brr.config.schemas import MambaConfig, ModelConfig, TCNConfig
 
         config = ModelConfig(
             tcn=TCNConfig(num_layers=4, kernel_size=3, dropout=0.0, stride_down=16),
@@ -216,7 +207,7 @@ class TestNaNRobustness:
         test_cases = [
             # Case 1: Mix of NaN, Inf, and normal values
             lambda: torch.randn(1, 19, 15360, device=device).masked_fill_(
-                torch.rand(1, 19, 15360, device=device) < 0.1, float('nan')
+                torch.rand(1, 19, 15360, device=device) < 0.1, float("nan")
             ),
             # Case 2: All zeros
             lambda: torch.zeros(1, 19, 15360, device=device),
@@ -234,12 +225,12 @@ class TestNaNRobustness:
             for i, test_input_fn in enumerate(test_cases):
                 x = test_input_fn()
                 output = model(x)
-                assert torch.isfinite(output).all(), f"Detector fails on test case {i+1}"
+                assert torch.isfinite(output).all(), f"Detector fails on test case {i + 1}"
                 assert output.shape == (1, 15360)
 
     def test_detector_gradient_flow_with_nan(self, device):
         """Test gradient flow through detector with NaN loss."""
-        from src.brain_brr.config.schemas import ModelConfig, TCNConfig, MambaConfig
+        from src.brain_brr.config.schemas import MambaConfig, ModelConfig, TCNConfig
 
         config = ModelConfig(
             tcn=TCNConfig(num_layers=4, kernel_size=3, dropout=0.0, stride_down=16),
@@ -260,9 +251,7 @@ class TestNaNRobustness:
             loss.backward()
             # Gradients might be NaN but shouldn't crash
             has_nan = any(
-                torch.isnan(p.grad).any()
-                for p in model.parameters()
-                if p.grad is not None
+                torch.isnan(p.grad).any() for p in model.parameters() if p.grad is not None
             )
             # This is expected with div by zero
             assert has_nan or torch.isinf(loss), "Expected NaN/Inf gradients with div by zero"
@@ -275,7 +264,7 @@ class TestNaNRobustness:
     @pytest.mark.slow
     def test_repeated_forward_passes(self, device):
         """Test model stability over many forward passes."""
-        from src.brain_brr.config.schemas import ModelConfig, TCNConfig, MambaConfig
+        from src.brain_brr.config.schemas import MambaConfig, ModelConfig, TCNConfig
 
         config = ModelConfig(
             tcn=TCNConfig(num_layers=4, kernel_size=3, dropout=0.0, stride_down=16),
@@ -296,17 +285,17 @@ class TestNaNRobustness:
                     x[:, :, ::100] = 1e6
 
                 output = model(x)
-                assert torch.isfinite(output).all(), f"Model became unstable at iteration {i+1}"
+                assert torch.isfinite(output).all(), f"Model became unstable at iteration {i + 1}"
 
     def test_config_consistency_local_vs_modal(self):
         """Verify local and modal configs maintain identical NaN safeguards."""
+
         import yaml
-        from pathlib import Path
 
         # Load configs
-        with open("configs/local/train.yaml", "r") as f:
+        with open("configs/local/train.yaml") as f:
             local_config = yaml.safe_load(f)
-        with open("configs/modal/train.yaml", "r") as f:
+        with open("configs/modal/train.yaml") as f:
             modal_config = yaml.safe_load(f)
 
         # Check critical NaN-related settings
@@ -320,7 +309,7 @@ class TestNaNRobustness:
 
         # Mixed precision differs but is intentional (RTX 4090 vs A100)
         assert local_config["training"]["mixed_precision"] == False  # RTX 4090 needs this
-        assert modal_config["training"]["mixed_precision"] == True   # A100 can handle this
+        assert modal_config["training"]["mixed_precision"] == True  # A100 can handle this
 
         # Both should use balanced sampling for seizure detection
         assert local_config["training"].get("use_balanced_sampling", False) == True
