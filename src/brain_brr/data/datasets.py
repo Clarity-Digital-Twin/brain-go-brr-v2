@@ -331,11 +331,12 @@ class BalancedSeizureDataset(Dataset):
             self._n_seizure_windows / self._n_total_windows if self._n_total_windows > 0 else 0.0
         )
 
+        base = max(1, n_partial_used)
         print(
             f"[BalancedSeizureDataset] Created with {len(self._entries)} windows:\n"
             f"  - {n_partial_used} partial seizure (100% of available)\n"
-            f"  - {n_full_used} full seizure ({n_full_used / n_partial_used:.1%} of partial)\n"
-            f"  - {n_bg_used} no-seizure ({n_bg_used / n_partial_used:.1%} of partial)"
+            f"  - {n_full_used} full seizure ({n_full_used / base:.1%} of partial)\n"
+            f"  - {n_bg_used} no-seizure ({n_bg_used / base:.1%} of partial)"
         )
         if missing_ref_count > 0:
             print(

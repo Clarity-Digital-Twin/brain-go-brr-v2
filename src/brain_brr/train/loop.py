@@ -589,15 +589,19 @@ def train_epoch(
                             f"[WARN] Non-finite logits at batch {batch_idx}: count={nonfinite} -> sanitizing",
                             flush=True,
                         )
-                        # Save bad batch for debugging
-                        torch.save(
-                            {
-                                "windows": windows.cpu(),
-                                "labels": labels.cpu(),
-                                "global_step": global_step,
-                            },
-                            f"debug/bad_batch_{global_step:06d}.pt",
-                        )
+                        # Save bad batch for debugging (best-effort)
+                        try:
+                            Path("debug").mkdir(parents=True, exist_ok=True)
+                            torch.save(
+                                {
+                                    "windows": windows.cpu(),
+                                    "labels": labels.cpu(),
+                                    "global_step": global_step,
+                                },
+                                f"debug/bad_batch_{global_step:06d}.pt",
+                            )
+                        except Exception:
+                            pass
                         # Sanitize logits to allow training to continue
                         logits = torch.nan_to_num(logits, nan=0.0, posinf=20.0, neginf=-20.0)
                     per_element_loss = compute_loss(logits, labels)
@@ -1497,6 +1501,8 @@ def main() -> None:
 
     # Optional file limit for fast bring-up via env var (does not change config)
     limit_env_val = env.limit_files()
+    if limit_env_val is None and is_smoke_test:
+        limit_env_val = 3  # Safe default for smoke mode
     if limit_env_val is not None:
         try:
             limit = max(1, int(limit_env_val))

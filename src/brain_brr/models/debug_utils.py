@@ -2,7 +2,8 @@ import torch
 
 from src.brain_brr.utils.env import env
 
-DEBUG_FINITE = env.debug_finite()
+# Enable finite assertions by default in smoke tests and when nan-debugging
+DEBUG_FINITE = env.debug_finite() or env.smoke_test() or env.nan_debug()
 
 
 def assert_finite(tag: str, x: torch.Tensor) -> None:
