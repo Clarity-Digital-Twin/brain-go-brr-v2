@@ -119,18 +119,101 @@ data_mount = modal.CloudBucketMount(
     read_only=True,
 )
 
-# Preprocessed cache mount (MAIN DATA SOURCE FOR TRAINING)
-cache_mount = modal.CloudBucketMount(
-    "brain-go-brr-eeg-data-20250919",
-    secret=s3_secret,
-    key_prefix="cache/tusz/",  # → Mounted at /cache/{train,dev}/
-    read_only=True,
-)
+# REMOVED: We don't mount cache from S3 anymore!
+# Cache lives on Modal SSD volume at /results/cache/tusz for performance.
+# See populate_cache() function below for one-time S3→SSD copy.
 
 # Persistent volume for TRAINING OUTPUTS ONLY (not caches!)
 # Structure: /results/{smoke,train}/{{checkpoints,tensorboard,wandb}/
 results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missing=True)
 # NOTE: Old cache directories in volume have been cleaned up (Sep 25, 2025)
+
+
+# One-time cache population from S3 to Modal SSD
+@app.function(
+    timeout=7200,  # 2 hours for 450GB copy
+    cpu=16,
+    memory=32768,
+    volumes={
+        "/results": results_volume,  # Destination: SSD volume
+        "/s3_cache": modal.CloudBucketMount(
+            "brain-go-brr-eeg-data-20250919",
+            secret=s3_secret,
+            key_prefix="cache/tusz/",
+            read_only=True,
+        ),  # Source: S3 bucket
+    },
+)
+def populate_cache():
+    """One-time copy of cache from S3 to Modal SSD volume.
+
+    This copies ~450GB of preprocessed NPZ files from S3 to the Modal
+    persistent SSD volume for fast, reliable training access.
+    Run this ONCE when setting up, then reuse the cache forever.
+    """
+    import shutil
+    from pathlib import Path
+    import time
+
+    src = Path("/s3_cache")  # S3 mount
+    dst = Path("/results/cache/tusz")  # SSD volume
+
+    print("\n" + "=" * 60)
+    print("[CACHE POPULATION] Starting S3 → SSD cache copy...")
+    print(f"Source: {src} (S3 mount)")
+    print(f"Destination: {dst} (Modal SSD)")
+    print("=" * 60 + "\n")
+
+    start = time.time()
+
+    # Create destination if needed
+    dst.mkdir(parents=True, exist_ok=True)
+
+    # Copy train split
+    train_src = src / "train"
+    train_dst = dst / "train"
+    if train_src.exists():
+        train_files = list(train_src.glob("*.npz"))
+        print(f"[COPY] Found {len(train_files)} train files to copy...")
+        if train_dst.exists():
+            print(f"[COPY] Removing existing {train_dst}...")
+            shutil.rmtree(train_dst)
+        print(f"[COPY] Copying {train_src} → {train_dst}...")
+        shutil.copytree(train_src, train_dst)
+        print(f"[COPY] ✅ Copied {len(list(train_dst.glob('*.npz')))} train files")
+    else:
+        print(f"[WARNING] No train split found at {train_src}")
+
+    # Copy dev split
+    dev_src = src / "dev"
+    dev_dst = dst / "dev"
+    if dev_src.exists():
+        dev_files = list(dev_src.glob("*.npz"))
+        print(f"[COPY] Found {len(dev_files)} dev files to copy...")
+        if dev_dst.exists():
+            print(f"[COPY] Removing existing {dev_dst}...")
+            shutil.rmtree(dev_dst)
+        print(f"[COPY] Copying {dev_src} → {dev_dst}...")
+        shutil.copytree(dev_src, dev_dst)
+        print(f"[COPY] ✅ Copied {len(list(dev_dst.glob('*.npz')))} dev files")
+    else:
+        print(f"[WARNING] No dev split found at {dev_src}")
+
+    # Verify final state
+    train_count = len(list((dst / "train").glob("*.npz")))
+    dev_count = len(list((dst / "dev").glob("*.npz")))
+    elapsed = time.time() - start
+
+    print("\n" + "=" * 60)
+    print("[CACHE POPULATION] ✅ COMPLETE!")
+    print(f"Train files: {train_count} (expected: 4667)")
+    print(f"Dev files: {dev_count} (expected: 1832)")
+    print(f"Time taken: {elapsed/60:.1f} minutes")
+    print(f"Cache location: {dst}")
+    print("Cache is now on fast Modal SSD - ready for training!")
+    print("=" * 60 + "\n")
+
+    return train_count, dev_count
 
 
 # CPU-only: cache cleanup should not consume a GPU
@@ -237,9 +320,9 @@ def test_mamba_cuda():
     gpu="A100-80GB",  # 80GB VRAM, 3x faster than 4090
     timeout=86400,  # 24 hours max (Modal limit)
     volumes={
-        "/data": data_mount,  # S3 bucket with TUH data!
-        "/cache": cache_mount,  # S3 bucket with preprocessed NPZ cache!
-        "/results": results_volume,
+        "/data": data_mount,  # S3 bucket with raw EDF data (optional)
+        "/results": results_volume,  # SSD volume with cache AND outputs!
+        # NO /cache mount! Cache is on SSD at /results/cache/tusz
     },
     memory=98304,  # SAFE: 96GB RAM (was 32GB, now 3x for safety)
     cpu=24,  # SAFE: 24 CPU cores (3 cores per 8 DataLoader workers)
@@ -310,15 +393,8 @@ def train(
         with open(cfg_abs, "r") as f:
             config_data = yaml.safe_load(f)
 
-        # Get cache path from config, with fallback (root of cache, not a split subdir)
-        cache_dir = (
-            config_data.get("data", {}).get("cache_dir")
-            or config_data.get("experiment", {}).get("cache_dir", "/results/cache/tusz")
-        )
-
-        # For smoke tests, ensure we use a separate cache directory
-        if "smoke" in config_path.lower() and "smoke" not in cache_dir:
-            cache_dir = cache_dir.replace("/tusz", "/smoke")
+        # ALWAYS use SSD cache on Modal, NOT S3!
+        cache_dir = "/results/cache/tusz"  # Fixed path on SSD volume
 
         # CRITICAL: Cache structure should be cache_dir/{train,dev}/ for patient disjointness
         cache_train = Path(cache_dir) / "train"
@@ -456,10 +532,10 @@ def train(
     exp["output_dir"] = f"/results/{out_name}"
 
     # CRITICAL: Cache architecture
-    # - Cache is ALWAYS at /cache/ (S3 mount, not persistence volume!)
+    # - Cache is on Modal SSD volume at /results/cache/tusz
     # - Smoke tests use SAME cache with BGB_LIMIT_FILES=50
     # - NO SEPARATE SMOKE CACHE EXISTS OR IS NEEDED
-    cache_dir = "/cache"  # S3 mount: /cache/{train,dev}/
+    cache_dir = "/results/cache/tusz"  # SSD volume, NOT S3!
 
     # Ensure cache directories exist with correct structure
     from pathlib import Path
@@ -602,8 +678,8 @@ def main(
     ⚠️ NO DOUBLE DASH (--) separator needed anymore in Modal CLI!
 
     Examples:
-        # IMPORTANT: Clean old contaminated cache first!
-        modal run deploy/modal/app.py --action clean-cache
+        # STEP 1: Populate cache from S3 to Modal SSD (ONE TIME ONLY)
+        modal run deploy/modal/app.py --action populate-cache
 
         # Test Mamba CUDA kernels
         modal run deploy/modal/app.py --action test-mamba
@@ -623,7 +699,20 @@ def main(
     print("🚀 Brain-Go-Brr v2 Modal Deployment")
     print("=" * 50)
 
-    if action == "clean-cache":
+    if action == "populate-cache":
+        # ONE-TIME: Copy cache from S3 to Modal SSD
+        print("📦 Populating Modal SSD cache from S3...")
+        print("This will copy ~450GB and may take 1-2 hours...")
+        train_count, dev_count = populate_cache.remote()
+        if train_count == 4667 and dev_count == 1832:
+            print("✅ Cache populated PERFECTLY! Ready for training.")
+        else:
+            print(f"⚠️ Cache populated with {train_count} train, {dev_count} dev files")
+            print("Expected: 4667 train, 1832 dev")
+            if train_count > 0 and dev_count > 0:
+                print("Cache is usable but may be incomplete.")
+
+    elif action == "clean-cache":
         # Clean contaminated cache from before patient-disjoint fix
         print("🧹 Cleaning contaminated cache...")
         success = clean_cache.remote()
@@ -655,7 +744,8 @@ def main(
 
     else:
         print(f"Unknown action: {action}")
-        print("Available actions: clean-cache, test-mamba, train, evaluate")
+        print("Available actions: populate-cache, clean-cache, test-mamba, train, evaluate")
+        print("\n📌 IMPORTANT: Run 'populate-cache' ONCE before first training!")
 
 
 if __name__ == "__main__":
