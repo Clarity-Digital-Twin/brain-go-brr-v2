@@ -148,23 +148,20 @@ def check_gradients(model: torch.nn.Module, max_grad_norm: float = 100.0) -> dic
 
 ### 2. TCN Encoder (`models/tcn.py`)
 
-#### Input Validation - Lines 226-234
+#### Input Validation [ALWAYS RUNS] - Lines 226-234
 ```python
-# Check for NaN/Inf in inputs
+# UNCONDITIONAL - Always sanitizes input
 if torch.isnan(x).any() or torch.isinf(x).any():
-    # Replace NaN/Inf with zeros
     x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
-
-# Clamp inputs to reasonable range for EEG data
-x = torch.clamp(x, min=-100.0, max=100.0)  # Line 233
+x = torch.clamp(x, min=-100.0, max=100.0)
 ```
 
-#### Optional Post-Block Clamping (Env‑gated) - Lines 239-252
+#### Post-Processing Clamps [CONDITIONAL on BGB_SAFE_CLAMP=1] - Lines 240-253
 ```python
-if env.safe_clamp():
-    x = torch.clamp(x, min=-50.0, max=50.0)   # After TCN
-    x = torch.clamp(x, min=-20.0, max=20.0)   # After projection
-    x = torch.clamp(x, min=-10.0, max=10.0)   # Final safety clamp
+# ONLY if env.safe_clamp() == True:
+x = torch.clamp(x, min=-50.0, max=50.0)   # After TCN blocks
+x = torch.clamp(x, min=-20.0, max=20.0)   # After channel projection
+x = torch.clamp(x, min=-10.0, max=10.0)   # After downsampling
 ```
 
 #### Weight Initialization - Lines 179-207
