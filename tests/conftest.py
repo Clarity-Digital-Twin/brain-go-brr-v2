@@ -64,7 +64,7 @@ def pytest_configure(config):
 # Removed cuda_cleanup - using single cleanup fixture below
 
 
-@pytest.fixture(scope="function")  # Changed from session to function scope
+@pytest.fixture  # Changed from session to function scope
 def sample_edf_data():
     """Generate valid 19-channel EDF test data."""
     from src.brain_brr.constants import CHANNEL_NAMES_10_20
@@ -465,7 +465,7 @@ def cleanup_torch_resources():
             try:
                 if torch.is_tensor(obj) and obj.is_cuda:
                     del obj
-            except:
+            except (AttributeError, RuntimeError):
                 pass
 
     gc.collect()
