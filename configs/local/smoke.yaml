@@ -18,8 +18,6 @@ experiment:
   seed: 42
   output_dir: results/smoke
   device: cuda
-  save_checkpoint: true
-  save_every_n_epochs: 1
 
 model:
   # Architecture: "tcn" (v2) or "v3" (dual-stream with edge Mamba)
@@ -113,7 +111,6 @@ training:
     patience: 5
     metric: sensitivity_at_10fa
 
-  checkpoint_interval: 1
 
 postprocessing:
   hysteresis:
