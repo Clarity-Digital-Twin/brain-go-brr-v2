@@ -9,9 +9,9 @@ from src.brain_brr.models.mamba import BiMamba2
 from src.brain_brr.models.tcn import TCNEncoder
 from src.brain_brr.train.loop import FocalLoss
 
-# Try to import PyG-dependent module, skip tests if not available
+# Check if PyTorch Geometric is available
 try:
-    from src.brain_brr.models.gnn_pyg import GraphChannelMixerPyG
+    import torch_geometric
 
     HAS_PYG = True
 except ImportError:
@@ -123,6 +123,8 @@ class TestNaNRobustness:
         if not HAS_PYG:
             pytest.skip("PyTorch Geometric not installed")
 
+        from src.brain_brr.models.gnn_pyg import GraphChannelMixerPyG
+
         gnn = GraphChannelMixerPyG(
             d_model=512, n_electrodes=19, use_dynamic_pe=True, k_eigenvectors=8
         ).to(device)
@@ -140,6 +142,8 @@ class TestNaNRobustness:
         if not HAS_PYG:
             pytest.skip("PyTorch Geometric not installed")
 
+        from src.brain_brr.models.gnn_pyg import GraphChannelMixerPyG
+
         gnn = GraphChannelMixerPyG(
             d_model=512, n_electrodes=19, use_dynamic_pe=True, k_eigenvectors=8
         ).to(device)
@@ -156,6 +160,8 @@ class TestNaNRobustness:
         """Test GNN with ill-conditioned adjacency matrix."""
         if not HAS_PYG:
             pytest.skip("PyTorch Geometric not installed")
+
+        from src.brain_brr.models.gnn_pyg import GraphChannelMixerPyG
 
         gnn = GraphChannelMixerPyG(
             d_model=512, n_electrodes=19, use_dynamic_pe=True, k_eigenvectors=8
