@@ -1,5 +1,3 @@
-from typing import cast
-
 import torch
 
 from src.brain_brr.utils.env import env

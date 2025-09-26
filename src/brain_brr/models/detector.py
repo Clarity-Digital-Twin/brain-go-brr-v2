@@ -17,8 +17,6 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn as nn
 
-from src.brain_brr.utils.env import env
-
 from .debug_utils import assert_finite
 from .mamba import BiMamba2
 from .tcn import ProjectionHead, TCNEncoder
