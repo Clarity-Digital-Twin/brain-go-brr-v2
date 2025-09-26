@@ -1,5 +1,8 @@
 """Comprehensive NaN robustness tests for all model components."""
 
+# Check if PyTorch Geometric is available
+import importlib.util
+
 import pytest
 import torch
 
@@ -9,13 +12,7 @@ from src.brain_brr.models.mamba import BiMamba2
 from src.brain_brr.models.tcn import TCNEncoder
 from src.brain_brr.train.loop import FocalLoss
 
-# Check if PyTorch Geometric is available
-try:
-    import torch_geometric
-
-    HAS_PYG = True
-except ImportError:
-    HAS_PYG = False
+HAS_PYG = importlib.util.find_spec("torch_geometric") is not None
 
 
 class TestNaNRobustness:
