@@ -132,7 +132,7 @@ def check_gradients(model: torch.nn.Module, max_grad_norm: float = 100.0) -> dic
 
 ### 2. TCN Encoder (`models/tcn.py`)
 
-#### Input Validation - Lines 227-231
+#### Input Validation - Lines 226-234
 ```python
 # Check for NaN/Inf in inputs
 if torch.isnan(x).any() or torch.isinf(x).any():
@@ -143,19 +143,20 @@ if torch.isnan(x).any() or torch.isinf(x).any():
 x = torch.clamp(x, min=-100.0, max=100.0)  # Line 233
 ```
 
-#### Intermediate Clamping - Lines 239-251
+#### Optional Post-Block Clamping (Env‑gated) - Lines 239-252
 ```python
-x = torch.clamp(x, min=-50.0, max=50.0)   # After TCN
-x = torch.clamp(x, min=-20.0, max=20.0)   # After projection
-x = torch.clamp(x, min=-10.0, max=10.0)   # Final output
+if env.safe_clamp():
+    x = torch.clamp(x, min=-50.0, max=50.0)   # After TCN
+    x = torch.clamp(x, min=-20.0, max=20.0)   # After projection
+    x = torch.clamp(x, min=-10.0, max=10.0)   # Final safety clamp
 ```
 
-#### Weight Initialization - Lines 183-207
+#### Weight Initialization - Lines 179-207
 ```python
-# Conservative gains to prevent explosion
-nn.init.xavier_uniform_(self.channel_proj.weight, gain=0.1)
-nn.init.xavier_uniform_(self.downsample.weight, gain=0.05)
-module.weight.data *= 0.2  # Scale down Kaiming init
+# Conservative gains to prevent explosion while preserving signal
+nn.init.xavier_uniform_(self.channel_proj.weight, gain=0.2)
+nn.init.xavier_uniform_(self.downsample.weight, gain=0.1)
+module.weight.data *= 0.5  # Scaled down Kaiming init
 ```
 
 ### 3. Mamba Layers (`models/mamba.py`)

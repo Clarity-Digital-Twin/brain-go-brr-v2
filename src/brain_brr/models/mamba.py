@@ -112,16 +112,16 @@ class BiMamba2Layer(nn.Module):
 
     def _initialize_weights(self) -> None:
         """Initialize Mamba layer weights conservatively to prevent NaN."""
-        # Output projection: small gain for residual-like behavior
-        nn.init.xavier_uniform_(self.output_proj.weight, gain=0.05)
+        # Output projection: small gain for residual-like behavior (but not vanishing)
+        nn.init.xavier_uniform_(self.output_proj.weight, gain=0.2)
         if self.output_proj.bias is not None:
             nn.init.zeros_(self.output_proj.bias)
 
-        # Fallback convolutions: conservative init
-        nn.init.xavier_uniform_(self.forward_mamba_fallback.weight, gain=0.1)
+        # Fallback convolutions: conservative init (maintain signal)
+        nn.init.xavier_uniform_(self.forward_mamba_fallback.weight, gain=0.2)
         if self.forward_mamba_fallback.bias is not None:
             nn.init.zeros_(self.forward_mamba_fallback.bias)
-        nn.init.xavier_uniform_(self.backward_mamba_fallback.weight, gain=0.1)
+        nn.init.xavier_uniform_(self.backward_mamba_fallback.weight, gain=0.2)
         if self.backward_mamba_fallback.bias is not None:
             nn.init.zeros_(self.backward_mamba_fallback.bias)
 

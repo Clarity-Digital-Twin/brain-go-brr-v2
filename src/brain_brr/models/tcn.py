@@ -181,13 +181,13 @@ class TCNEncoder(nn.Module):
 
     def _initialize_weights(self) -> None:
         """Initialize TCN encoder weights with conservative gains."""
-        # Channel projection: small gain
-        nn.init.xavier_uniform_(self.channel_proj.weight, gain=0.1)
+        # Channel projection: small but not vanishing
+        nn.init.xavier_uniform_(self.channel_proj.weight, gain=0.2)
         if self.channel_proj.bias is not None:
             nn.init.zeros_(self.channel_proj.bias)
 
         # Downsampling: very small gain to prevent explosion
-        nn.init.xavier_uniform_(self.downsample.weight, gain=0.05)
+        nn.init.xavier_uniform_(self.downsample.weight, gain=0.1)
         if self.downsample.bias is not None:
             nn.init.zeros_(self.downsample.bias)
 
@@ -197,12 +197,12 @@ class TCNEncoder(nn.Module):
             for module in self.tcn.network.modules():
                 if isinstance(module, nn.Conv1d):
                     nn.init.kaiming_normal_(module.weight, mode="fan_out", nonlinearity="relu")
-                    module.weight.data *= 0.2  # Scale down
+                    module.weight.data *= 0.5  # Scaled down but maintain signal
                     if module.bias is not None:
                         nn.init.zeros_(module.bias)
             # Projection layer in MinimalTCN
             if hasattr(self.tcn, "projection"):
-                nn.init.xavier_uniform_(self.tcn.projection.weight, gain=0.1)
+                nn.init.xavier_uniform_(self.tcn.projection.weight, gain=0.2)
                 if self.tcn.projection.bias is not None:
                     nn.init.zeros_(self.tcn.projection.bias)
 
@@ -236,20 +236,21 @@ class TCNEncoder(nn.Module):
         # TCN processing
         x = self.tcn(x)  # (B, tcn_channels, 15360)
 
-        # Additional clamping after TCN to prevent explosion
-        x = torch.clamp(x, min=-50.0, max=50.0)
+        # Optional post-block clamping for stability during probes
+        if env.safe_clamp():
+            x = torch.clamp(x, min=-50.0, max=50.0)
 
         # Project to output channels
         x = self.channel_proj(x)  # (B, 512, 15360)
 
-        # Clamp after projection
-        x = torch.clamp(x, min=-20.0, max=20.0)
+        if env.safe_clamp():
+            x = torch.clamp(x, min=-20.0, max=20.0)
 
         # Downsample for Mamba
         x = self.downsample(x)  # (B, 512, 960)
 
-        # Final safety clamp
-        x = torch.clamp(x, min=-10.0, max=10.0)
+        if env.safe_clamp():
+            x = torch.clamp(x, min=-10.0, max=10.0)
 
         return x
 
