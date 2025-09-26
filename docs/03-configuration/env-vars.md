@@ -31,9 +31,7 @@ WSL2 and packaging
 
 Model and stability toggles
 
-- `BGB_EDGE_CLAMP=1` — clamp edge stream projections to prevent explosions (default on)
-- `BGB_EDGE_CLAMP_MIN=-20.0` — lower clamp bound for edge stream
-- `BGB_EDGE_CLAMP_MAX=20.0` — upper clamp bound for edge stream
+- `BGB_EDGE_CLAMP*` — legacy edge clamp toggles (present in env helper but not used by forward paths)
 - `BGB_DEBUG_FINITE=1` — enable assert_finite checks in critical tensors (debug only)
 
 Training safety/debug

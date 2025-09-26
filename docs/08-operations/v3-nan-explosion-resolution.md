@@ -20,7 +20,7 @@
 ### 3. Edge Projection Explosion
 - **Issue**: 1→16 dimension projection without bounds
 - **Impact**: Values exploding in edge Mamba stream
-- **Fix**: Added configurable clamping (`BGB_EDGE_CLAMP=1`)
+- **Fix**: Added hardcoded clamping in forward path (similarity [-0.99, 0.99], projection [-3, 3])
 
 ### 4. Gradient Accumulation
 - **Issue**: Gradients not properly cleared on NaN batches

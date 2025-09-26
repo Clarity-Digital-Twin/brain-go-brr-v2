@@ -102,7 +102,7 @@ model:
 x_clean: npt.NDArray[np.float32] = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
 ```
 
-#### Channel Interpolation (`data/io.py`) - Lines 198-215
+#### Channel Interpolation (`data/io.py: load_edf_file`) – midline (Fz/Pz) interpolation when available
 ```python
 # Interpolate missing channels (Fz/Pz) using MNE montage
 if missing_midline:

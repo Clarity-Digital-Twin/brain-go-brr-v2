@@ -19,6 +19,9 @@ _DEBUG_FINITE = os.getenv("BGB_DEBUG_FINITE", "0") == "1"
 _FORCE_MAMBA_FALLBACK = os.getenv("SEIZURE_MAMBA_FORCE_FALLBACK", "0") == "1"
 _FORCE_TCN_EXT = os.getenv("BGB_FORCE_TCN_EXT", "0") == "1"
 
+# Test mode - stronger initialization for gradient flow tests
+_TEST_MODE = os.getenv("BGB_TEST_MODE", "0") == "1"
+
 # Training/data variables (not used in forward pass, can stay dynamic)
 _SMOKE_TEST = os.getenv("BGB_SMOKE_TEST", "0") == "1"
 _LIMIT_FILES = os.getenv("BGB_LIMIT_FILES")
