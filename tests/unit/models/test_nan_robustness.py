@@ -120,6 +120,9 @@ class TestNaNRobustness:
     @pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
     def test_gnn_with_disconnected_graph(self, device):
         """Test GNN with disconnected graph (zero adjacency)."""
+        if not HAS_PYG:
+            pytest.skip("PyTorch Geometric not installed")
+
         gnn = GraphChannelMixerPyG(
             d_model=512, n_electrodes=19, use_dynamic_pe=True, k_eigenvectors=8
         ).to(device)
@@ -134,6 +137,9 @@ class TestNaNRobustness:
     @pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
     def test_gnn_with_singular_laplacian(self, device):
         """Test GNN with singular Laplacian matrix."""
+        if not HAS_PYG:
+            pytest.skip("PyTorch Geometric not installed")
+
         gnn = GraphChannelMixerPyG(
             d_model=512, n_electrodes=19, use_dynamic_pe=True, k_eigenvectors=8
         ).to(device)
@@ -148,6 +154,9 @@ class TestNaNRobustness:
     @pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
     def test_gnn_with_ill_conditioned_matrix(self, device):
         """Test GNN with ill-conditioned adjacency matrix."""
+        if not HAS_PYG:
+            pytest.skip("PyTorch Geometric not installed")
+
         gnn = GraphChannelMixerPyG(
             d_model=512, n_electrodes=19, use_dynamic_pe=True, k_eigenvectors=8
         ).to(device)
