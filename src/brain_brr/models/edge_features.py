@@ -67,14 +67,28 @@ def edge_scalar_series(
     x = elec.permute(0, 2, 1, 3)
 
     if metric == "cosine":
-        x_norm = x / (torch.linalg.norm(x, dim=-1, keepdim=True) + 1e-8)
+        # CRITICAL: More robust normalization to prevent NaN
+        # Increased epsilon from 1e-8 to 1e-6 for better stability
+        norms = torch.linalg.norm(x, dim=-1, keepdim=True)
+        norms = torch.clamp(norms, min=1e-6)  # Prevent division by near-zero
+        x_norm = x / norms
+
+        # Additional safety: clamp normalized values
+        x_norm = torch.clamp(x_norm, min=-10.0, max=10.0)
+
         sim = torch.matmul(x_norm, x_norm.transpose(-1, -2))  # (B,T,N,N)
+        # Clamp similarities to valid cosine range
+        sim = torch.clamp(sim, min=-1.0, max=1.0)
     elif metric == "correlation":
         x_center = x - x.mean(dim=-1, keepdim=True)
         num = torch.matmul(x_center, x_center.transpose(-1, -2))
-        denom = torch.sqrt(x_center.pow(2).sum(dim=-1) + 1e-8)
+        # More robust denominator calculation
+        denom = torch.sqrt(x_center.pow(2).sum(dim=-1) + 1e-6)  # Increased epsilon
+        denom = torch.clamp(denom, min=1e-6)  # Additional safety
         denom_mat = denom.unsqueeze(-1) * denom.unsqueeze(-2)
         sim = num / denom_mat
+        # Clamp correlations to valid range
+        sim = torch.clamp(sim, min=-1.0, max=1.0)
     else:
         raise ValueError(f"Unknown metric: {metric}")
 

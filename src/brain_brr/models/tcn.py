@@ -176,6 +176,36 @@ class TCNEncoder(nn.Module):
             output_channels, output_channels, kernel_size=stride_down, stride=stride_down
         )
 
+        # Initialize weights conservatively
+        self._initialize_weights()
+
+    def _initialize_weights(self) -> None:
+        """Initialize TCN encoder weights with conservative gains."""
+        # Channel projection: small gain
+        nn.init.xavier_uniform_(self.channel_proj.weight, gain=0.1)
+        if self.channel_proj.bias is not None:
+            nn.init.zeros_(self.channel_proj.bias)
+
+        # Downsampling: very small gain to prevent explosion
+        nn.init.xavier_uniform_(self.downsample.weight, gain=0.05)
+        if self.downsample.bias is not None:
+            nn.init.zeros_(self.downsample.bias)
+
+        # TCN layers: conservative initialization
+        if hasattr(self.tcn, 'network'):
+            # MinimalTCN case
+            for module in self.tcn.network.modules():
+                if isinstance(module, nn.Conv1d):
+                    nn.init.kaiming_normal_(module.weight, mode='fan_out', nonlinearity='relu')
+                    module.weight.data *= 0.2  # Scale down
+                    if module.bias is not None:
+                        nn.init.zeros_(module.bias)
+            # Projection layer in MinimalTCN
+            if hasattr(self.tcn, 'projection'):
+                nn.init.xavier_uniform_(self.tcn.projection.weight, gain=0.1)
+                if self.tcn.projection.bias is not None:
+                    nn.init.zeros_(self.tcn.projection.bias)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass through TCN encoder.
 
@@ -252,10 +282,11 @@ class ProjectionHead(nn.Module):
         self._initialize_weights()
 
     def _initialize_weights(self) -> None:
-        """Initialize weights using Xavier initialization for stable gradients."""
+        """Initialize weights conservatively to prevent NaN/explosion."""
         for module in self.modules():
             if isinstance(module, nn.Conv1d):
-                nn.init.xavier_uniform_(module.weight)
+                # Very small initialization for projection head
+                nn.init.xavier_uniform_(module.weight, gain=0.1)
                 if module.bias is not None:
                     nn.init.zeros_(module.bias)
 

@@ -124,25 +124,70 @@ class SeizureDetector(nn.Module):
         self._initialize_weights()
 
     def _initialize_weights(self) -> None:
-        """Initialize model weights (He/Xavier) for conv/linear/bn layers."""
-        # Special init for detection head to prevent output explosion
-        nn.init.xavier_uniform_(self.detection_head.weight, gain=0.1)
+        """Initialize weights with conservative gains to prevent NaN/explosion.
+
+        Key principles:
+        - Very small gains (0.01-0.2) for deep networks
+        - Zero-init residual projections
+        - Careful normalization layer init
+        - Special handling for projections
+        """
+        # Detection head (1x1 conv): very small to prevent saturation
+        nn.init.xavier_uniform_(self.detection_head.weight, gain=0.01)
         if self.detection_head.bias is not None:
             nn.init.constant_(self.detection_head.bias, 0)
 
-        # Standard init for other layers
+        # Initialize projection layers with small gains
+        if self.proj_to_electrodes is not None:
+            nn.init.xavier_uniform_(self.proj_to_electrodes.weight, gain=0.1)
+            if self.proj_to_electrodes.bias is not None:
+                nn.init.zeros_(self.proj_to_electrodes.bias)
+
+        if self.proj_from_electrodes is not None:
+            # Residual-like projection: start near zero
+            nn.init.xavier_uniform_(self.proj_from_electrodes.weight, gain=0.05)
+            if self.proj_from_electrodes.bias is not None:
+                nn.init.zeros_(self.proj_from_electrodes.bias)
+
+        # Edge projection initialization (if present)
+        if self.edge_in_proj is not None:
+            nn.init.xavier_uniform_(self.edge_in_proj.weight, gain=0.1)  # Reduced from 0.5
+            if hasattr(self.edge_in_proj, 'bias') and self.edge_in_proj.bias is not None:
+                nn.init.zeros_(self.edge_in_proj.bias)
+
+        if self.edge_out_proj is not None:
+            nn.init.xavier_uniform_(self.edge_out_proj.weight, gain=0.1)  # Reduced from 0.5
+            if self.edge_out_proj.bias is not None:
+                nn.init.zeros_(self.edge_out_proj.bias)
+
+        # Initialize other conv layers conservatively
         for m in self.modules():
             if m is self.detection_head:
                 continue  # Already initialized above
+            # Skip projection layers already handled
+            if hasattr(self, 'proj_to_electrodes') and m is self.proj_to_electrodes:
+                continue
+            if hasattr(self, 'proj_from_electrodes') and m is self.proj_from_electrodes:
+                continue
+            if hasattr(self, 'edge_in_proj') and m is self.edge_in_proj:
+                continue
+            if hasattr(self, 'edge_out_proj') and m is self.edge_out_proj:
+                continue
+
             if isinstance(m, (nn.Conv1d, nn.ConvTranspose1d)):
+                # Conservative initialization for conv layers
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+                m.weight.data *= 0.2  # Scale down by 5x
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
-            elif isinstance(m, nn.BatchNorm1d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, (nn.BatchNorm1d, nn.LayerNorm, nn.GroupNorm)):
+                if hasattr(m, 'weight') and m.weight is not None:
+                    nn.init.constant_(m.weight, 1)
+                if hasattr(m, 'bias') and m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.Linear):
-                nn.init.xavier_normal_(m.weight)
+                # Small initialization for linear layers
+                nn.init.xavier_uniform_(m.weight, gain=0.2)
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
@@ -327,11 +372,11 @@ class SeizureDetector(nn.Module):
             instance.edge_out_proj = nn.Conv1d(edge_d_model, 1, kernel_size=1, bias=True)
             instance.edge_activate = nn.Softplus()
 
-            # Initialize edge projections carefully to prevent explosion
-            nn.init.xavier_uniform_(instance.edge_in_proj.weight, gain=0.5)
+            # Initialize edge projections with very small gains to prevent explosion
+            nn.init.xavier_uniform_(instance.edge_in_proj.weight, gain=0.1)  # Reduced from 0.5
             if instance.edge_out_proj.bias is not None:
                 nn.init.zeros_(instance.edge_out_proj.bias)
-            nn.init.xavier_uniform_(instance.edge_out_proj.weight, gain=0.5)
+            nn.init.xavier_uniform_(instance.edge_out_proj.weight, gain=0.1)  # Reduced from 0.5
 
             # Projections for electrode space
             instance.proj_to_electrodes = nn.Conv1d(512, 19 * 64, kernel_size=1)
