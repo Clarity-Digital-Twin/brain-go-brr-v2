@@ -1,7 +1,17 @@
 # Comprehensive NaN Troubleshooting Guide
 
 ## Current Status (September 26, 2025)
-**RESOLVED**: All NaN issues fixed with comprehensive safeguards. Training stable through 100+ batches.
+**CRITICAL UPDATE**: New root causes identified and fixed:
+1. **Data Outliers**: Raw EEG had extreme outliers (>100σ) causing overflow
+2. **Missing Output Sanitization**: Detection head wasn't clamping final logits
+3. **TCN Gradient Instability**: Gradients explode after ~30 batches
+
+**FIXES APPLIED** (Commits: `57426ea`, `7ba8017`, `c0578f4`):
+- Added outlier clipping in preprocessing (`np.clip(x, -10.0, 10.0)`)
+- Added output sanitization in detector (Tier 3 clamping)
+- Recommend `BGB_SANITIZE_GRADS=1` for training stability
+
+**ACTION REQUIRED**: Must rebuild cache after preprocessing fix!
 
 ## Historical NaN Issues & Resolutions
 

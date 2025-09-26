@@ -151,7 +151,7 @@ numpy==1.26.4             # 2.x breaks mamba-ssm
 1. **Input**: TUH EEG Seizure Corpus (10-20 montage, 19 channels)
 2. **Preprocessing**: Bandpass 0.5-120Hz, 60Hz notch, resample to 256Hz
 3. **Windowing**: 60s windows with 10s stride (83% overlap)
-4. **Normalization**: Per-channel z-score
+4. **Normalization**: Per-channel z-score + **outlier clipping to ±10σ**
 
 ### Channel Order (MUST maintain)
 ```python
@@ -193,6 +193,7 @@ make test-gpu       # GPU-specific tests
 ```bash
 # Debugging
 export BGB_NAN_DEBUG=1               # Debug NaN losses
+export BGB_SANITIZE_GRADS=1          # RECOMMENDED: Sanitize NaN gradients
 export SEIZURE_MAMBA_FORCE_FALLBACK=1 # Force Conv1d fallback
 export BGB_FORCE_MANIFEST_REBUILD=1   # Rebuild cache manifest
 
@@ -213,6 +214,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 | Cache directory wrong | Local: `cache/tusz/`, Modal: `/cache/` (S3 mount) |
 | Zero seizures in batches | Enable `use_balanced_sampling: true` |
 | NaN losses on RTX 4090 | Set `mixed_precision: false` |
+| **Non-finite logits** | **Rebuild cache after Sep 26 fix + use `BGB_SANITIZE_GRADS=1`** |
 | Modal training stuck | Increase CPU cores (24) and RAM (96GB) |
 | PyG installation fails | Use pre-built wheels, not `uv sync -E graph` |
 | Mamba CUDA errors | Ensure CUDA 12.1 toolkit installed |

@@ -38,7 +38,7 @@ Model and stability toggles
 
 Training safety/debug
 
-- `BGB_SANITIZE_GRADS=1` — clamp/replace NaN/Inf gradients (debug only)
+- `BGB_SANITIZE_GRADS=1` — clamp/replace NaN/Inf gradients (**RECOMMENDED for TCN stability**)
 - `BGB_SKIP_OPT_STEP_ON_NAN=1` — skip optimizer step if NaN detected (debug only)
 
 Performance testing (tests/performance)

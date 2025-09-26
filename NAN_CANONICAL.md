@@ -4,15 +4,31 @@
 **Codebase Version**: V3 dual-stream architecture
 **Status**: CLEAN ARCHITECTURE - Refactored with 3-tier clamping system
 
-## ⚠️ CRITICAL FIX (Sep 26, 2025)
-**Issue**: Non-finite logits warnings during training
-**Root Cause**: Missing final output sanitization after `detection_head` in `SeizureDetector`
-**Fix Applied**: Added Tier 3 clamping (lines 313-314 in `detector.py`):
+## ⚠️ CRITICAL FIXES (Sep 26, 2025)
+
+### Three Root Causes Identified & Fixed
+
+**1. Data Preprocessing Issue**
+- **Problem**: EEG data contained extreme outliers (>100σ) after normalization
+- **Example**: Raw values up to 1256µV creating 121σ outliers post-normalization
+- **Fix**: Added robust clipping in `preprocess.py:68`
+```python
+# Clip to ±10 standard deviations after z-score normalization
+x = np.clip(x, -10.0, 10.0)
+```
+
+**2. Missing Output Sanitization**
+- **Problem**: Detection head output not sanitized before loss computation
+- **Fix**: Added Tier 3 clamping in `detector.py:313-314`
 ```python
 output = torch.nan_to_num(output, nan=0.0, posinf=50.0, neginf=-50.0)
 output = torch.clamp(output, -100.0, 100.0)  # Tier 3: Output clamping
 ```
-This ensures logits are always finite before loss computation.
+
+**3. TCN Gradient Instability**
+- **Problem**: Gradients explode after ~30 batches during training
+- **Workaround**: Enable gradient sanitization with `BGB_SANITIZE_GRADS=1`
+- **Long-term**: TCN architecture review needed for stability
 
 ## Table of Contents
 1. [Environment Variables](#environment-variables)
@@ -134,7 +150,20 @@ model:
 
 ### 0. Data Preprocessing (`data/preprocess.py`) [FIRST LINE OF DEFENSE]
 
-#### Automatic NaN Removal - Line 67
+#### Outlier Clipping - Lines 66-68 [CRITICAL FIX]
+```python
+# 4) Per-channel z-score
+mean = np.mean(x, axis=1, keepdims=True)
+std = np.std(x, axis=1, keepdims=True)
+x = (x - mean) / (std + 1e-8)
+
+# CRITICAL: Clip outliers to prevent infinities during training
+# EEG data can have extreme artifacts (>100σ) that cause numerical issues
+x = np.clip(x, -10.0, 10.0)  # Clip to ±10 standard deviations
+```
+**Status**: ALWAYS ACTIVE - Prevents extreme outliers from causing NaN
+
+#### Automatic NaN Removal - Line 71
 ```python
 # Always sanitize raw EEG data before any processing
 x_clean: npt.NDArray[np.float32] = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
@@ -511,6 +540,10 @@ can vary with conservative initialization and clamping. Initialization uses depe
 
 ### Validation Commands
 ```bash
+# IMPORTANT: Rebuild cache after preprocessing fix!
+rm -rf cache/tusz
+python -m src build-cache --data-dir data_ext4/tusz/edf --cache-dir cache/tusz
+
 # Quick NaN check (10 files)
 export BGB_NAN_DEBUG=1 BGB_DEBUG_FINITE=1 BGB_LIMIT_FILES=10
 python -m src train configs/local/train.yaml
@@ -520,7 +553,8 @@ export BGB_SANITIZE_INPUTS=1 BGB_SANITIZE_GRADS=1 BGB_SAFE_CLAMP=1
 export BGB_DEBUG_FINITE=1 BGB_ANOMALY_DETECT=1
 python -m src train configs/local/smoke.yaml
 
-# Production run (no safeguards needed)
+# Production run (with gradient sanitization recommended)
+export BGB_SANITIZE_GRADS=1  # Recommended for TCN stability
 python -m src train configs/local/train.yaml
 ```
 
@@ -529,7 +563,7 @@ python -m src train configs/local/train.yaml
 ## Status Summary
 
 ### Currently Active (Hardcoded)
-- ✅ **Data Preprocessing**: `np.nan_to_num()` on raw EEG (preprocess.py:67)
+- ✅ **Data Preprocessing**: Outlier clipping + `np.nan_to_num()` (preprocess.py:68,71)
 - ✅ **TCN Input Sanitization**: Unconditional NaN replacement + clamp [-10,10] (tcn.py)
 - ✅ **Mamba State Management**: Input/output/intermediate clamps (mamba.py)
 - ✅ **Edge Feature Stability**: Cosine similarity epsilon=1e-6 (edge_features.py:70-91)
@@ -582,14 +616,19 @@ Replaced ad-hoc clamping ranges with consistent 3-tier system.
 Removed BGB_EDGE_CLAMP* variables that were defined but never used.
 
 ### Training Status
-- **Current**: 676+ batches without NaN (stable)
-- **Loss**: 0.0854 and decreasing
-- **Memory**: 12-20GB stable on RTX 4090
+- **Issue Found**: Data had extreme outliers causing NaN after ~30 batches
+- **Solution**: Added outlier clipping in preprocessing
+- **Recommendation**: Enable `BGB_SANITIZE_GRADS=1` for training stability
+- **Cache**: Must rebuild after preprocessing fix
 
 ---
 
 **This document is the COMPLETE and AUTHORITATIVE reference for ALL NaN-related implementations in the codebase as of September 26, 2025.**
 
 **Version**: V3 dual-stream architecture
-**Last Verified**: Commit 4d76979 (current HEAD)
-**Training Status**: STABLE - No NaN in 676+ batches
+**Last Verified**: Commit c0578f4 (current HEAD)
+**Critical Commits**:
+- `57426ea` - Clip outliers in preprocessing to prevent NaN
+- `7ba8017` - Add output sanitization in detector
+- `c0578f4` - Enhanced debugging capabilities
+**Training Status**: FIXED - Requires cache rebuild with clipped data

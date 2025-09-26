@@ -13,7 +13,7 @@
 - **Dynamic Laplacian PE**: Time-evolving positional encoding computed every timestep (semi-dynamic interval configurable)
 - **31M parameters**: 31,475,722 exactly (TCN + BiMamba + GNN + Dynamic LPE)
 - **Memory Optimized**: RTX 4090 (16GB @ batch=4), A100 (60GB @ batch=64)
-- **NaN Protection**: Decoder clamping, focal loss fixes, numerical safeguards throughout
+- **NaN Protection**: 3-tier clamping system, outlier clipping in preprocessing, gradient sanitization
 - **Patient-Disjoint Splits**: 579 train patients (4667 files), 53 dev patients (1832 files)
 
 </details>
@@ -102,6 +102,9 @@ make setup-gpu  # uses prebuilt PyG wheels for torch 2.2.2+cu121
 make s  # or: make smoke-local
 
 # Full V3 training with optimized config
+# IMPORTANT: After Sep 26 fix, rebuild cache first!
+rm -rf cache/tusz  # Clear old cache with outliers
+export BGB_SANITIZE_GRADS=1  # Recommended for stability
 tmux new -s v3_full
 make train-local  # RTX 4090: batch_size=4, semi_dynamic_interval=5
 # Detach: Ctrl+B then D
