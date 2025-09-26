@@ -113,7 +113,7 @@ def trained_model(tmp_path):
     # Use minimal config for tests to prevent OOM
     config = ModelConfig(
         tcn=TCNConfig(num_layers=4, kernel_size=3, dropout=0.0, stride_down=16),
-        mamba=MambaConfig(n_layers=1, d_model=256, d_state=8, conv_kernel=4, dropout=0.0),
+        mamba=MambaConfig(n_layers=1, d_model=512, d_state=16, conv_kernel=4, dropout=0.0),
     )
 
     model = SeizureDetector.from_config(config)

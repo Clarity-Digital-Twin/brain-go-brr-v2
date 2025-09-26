@@ -13,7 +13,7 @@ V3 NaN issues
 - Primary contributing factor: dynamic PE eigendecomposition on poorly initialized adjacency.
 - Default configs enable dynamic PE with safeguards; on consumer GPUs (RTX 4090), if NaNs appear early, set `use_dynamic_pe: false` as a fallback.
 - Additional safeguards:
-  - Edge clamping is hardcoded in the V3 path (similarity clamp [-0.99, 0.99], edge projection clamp [-3, 3]); legacy `BGB_EDGE_CLAMP*` envs exist but are not used by forward paths
+  - Edge clamping is hardcoded in the V3 path (similarity clamp [-0.99, 0.99], edge projection clamp [-3, 3]); legacy `BGB_EDGE_CLAMP*` envs have been removed
   - Optimizer parameter groups (no weight decay on norms/bias)
   - Optional gradient sanitization (`BGB_SANITIZE_GRADS=1`)
 - Details and timeline: `docs/08-operations/v3-nan-explosion-resolution.md`

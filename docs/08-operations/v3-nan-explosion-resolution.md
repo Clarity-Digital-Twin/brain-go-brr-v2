@@ -80,7 +80,7 @@ graph:
 | `BGB_SKIP_OPT_STEP_ON_NAN` | 0 | Skip optimizer step on NaN gradients | Active when set |
 | `SEIZURE_MAMBA_FORCE_FALLBACK` | 0 | Force Conv1d fallback for Mamba | Active when set |
 | `BGB_SAFE_CLAMP` | 0 | Optional activation rails | Active when set |
-| `BGB_EDGE_CLAMP*` | 1/-5/5 | Legacy edge clamping toggles | Defined but not used by forward paths |
+| `BGB_EDGE_CLAMP*` | — | Legacy edge clamping toggles | Removed; edge clamping is hardcoded in forward paths |
 
 ## Verification Tests
 
@@ -104,9 +104,9 @@ graph:
 - Edge projections reduced from gain=0.5 to 0.1
 
 ### Input Validation
-- TCN: Input clamping [-100, 100] with NaN replacement
-- Mamba: Input validation and clamping [-10, 10]
-- GNN: Safe clamp option for activations
+- TCN: Input clamping [-10, 10] with NaN/Inf replacement
+- Mamba: Input validation and clamping [-10, 10]; projection clamp [-5, 5]
+- GNN: Optional safe clamp via `BGB_SAFE_CLAMP`
 
 ### Numerical Stability
 - Edge features: Improved cosine similarity with epsilon=1e-6

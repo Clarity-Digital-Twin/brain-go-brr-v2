@@ -35,8 +35,8 @@
 **Root Cause**: No input validation or clamping
 **Resolution**:
 - Added NaN/Inf detection and replacement
-- Input clamping [-100, 100]
-- Intermediate clamping after each layer
+- Input clamping [-10, 10]
+- Optional intermediate clamping via `BGB_SAFE_CLAMP`
 
 ### 5. Mamba State Accumulation
 **Symptoms**: Gradual value explosion in Mamba layers

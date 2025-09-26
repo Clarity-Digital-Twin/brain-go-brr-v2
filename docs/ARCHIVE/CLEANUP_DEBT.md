@@ -156,11 +156,11 @@ This document is the single source of truth for technical debt and cleanup work.
 
 **Actions:**
 - [x] Keep `assert_finite` behind `BGB_DEBUG_FINITE` (implemented in `src/brain_brr/models/debug_utils.py`)
-- [x] Edge clamp in V3 path is hardcoded (similarity [-0.99,0.99], projection [-3,3]); `BGB_EDGE_CLAMP*` envs remain defined but are not used by forward paths
+- [x] Edge clamp in V3 path is hardcoded (similarity [-0.99,0.99], projection [-3,3]); legacy `BGB_EDGE_CLAMP*` envs have been removed
 - [x] Documented in env vars helper and docs
 
 **Disable plan (post‑stability):**
-- [ ] Prove stability on full train (no NaN explosions) → consider removing legacy `BGB_EDGE_CLAMP*` envs or wiring them for experimentation (future work)
+- [x] Proved stability and removed legacy `BGB_EDGE_CLAMP*` envs
 
 ## 🧾 Priority 7: Documentation Sweep — COMPLETE
 
