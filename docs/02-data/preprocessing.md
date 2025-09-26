@@ -12,7 +12,7 @@ Steps (in order)
 4) Resample to 256Hz using `scipy.signal.resample`.
 5) Bandpass 0.5–120Hz (Butterworth order=3) via `lfilter`.
 6) Notch filter at 60Hz (`iirnotch`, Q=30) via `lfilter`.
-7) Per‑channel z‑score normalization; sanitize NaN/Inf to 0.0; cast to float32.
+7) Per‑channel z‑score normalization; then clip outliers to ±10σ to prevent extreme artifacts; sanitize NaN/Inf to 0.0; cast to float32.
 8) Convert to windows with `window_size=60s` and `stride=10s`; labels sliced to window extents when available.
 
 Shapes and dtypes

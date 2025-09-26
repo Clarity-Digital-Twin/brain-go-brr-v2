@@ -43,7 +43,7 @@ Memory notes (RTX 4090)
 Stability safeguards (implemented)
 
 - Degree clamping before normalization prevents divide‑by‑zero.
-- Diagonal regularization `L += εI` (ε=1e‑5) avoids singular Laplacians.
+- Diagonal regularization `L += εI` (ε=1e‑4; increase to 1e‑3 when ill‑conditioned) avoids singular Laplacians.
 - NaN/Inf detection with graceful fallback:
   - Use last valid PE when available; else small random PE as a last resort.
   - Final `torch.nan_to_num` to ensure finite tensors.

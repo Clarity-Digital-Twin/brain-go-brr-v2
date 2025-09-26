@@ -43,7 +43,7 @@ Monitoring
 Quick fixes (if local training gets stuck or unstable)
 
 - Dataloader hangs (WSL2): set `data.num_workers: 0` in your config.
-- NaN losses (RTX 4090): set `training.mixed_precision: false`, reduce `batch_size`, consider lowering `learning_rate`.
+- NaN losses (RTX 4090): set `training.mixed_precision: false`, reduce `batch_size`, consider lowering `learning_rate`. For early epochs, you may enable `BGB_SANITIZE_GRADS=1` and (optionally) `BGB_SAFE_CLAMP=1` to absorb initial spikes, then disable once stable.
 - GPU OOM: reduce `batch_size` or enable gradient accumulation.
 
 Memory levers for dynamic PE
