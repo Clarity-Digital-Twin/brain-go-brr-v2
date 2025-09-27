@@ -174,12 +174,7 @@ class BiMamba2Layer(nn.Module):
         Returns:
             Bidirectional output (B, L, D)
         """
-        # CRITICAL: Input validation and clamping to prevent NaN propagation
-        # PR-5 Stage 1: Removed nan_to_num (PR-1 norms handle stability)
-        if torch.isnan(x).any() or torch.isinf(x).any():
-            logger.warning("Non-finite values in Mamba input detected")
-
-        # Clamp inputs to reasonable range
+        # Clamp inputs to reasonable range (essential guard)
         x = torch.clamp(x, min=-10.0, max=10.0)
 
         residual = x
@@ -326,9 +321,7 @@ class BiMamba2(nn.Module):
         Returns:
             Temporal output (B, C, L)
         """
-        # PR-5 Stage 1: Removed nan_to_num (PR-1 norms handle stability)
-        if torch.isnan(x).any() or torch.isinf(x).any():
-            logger.warning("Non-finite values in BiMamba input detected")
+        # Clamp inputs to reasonable range (essential guard)
         x = torch.clamp(x, min=-10.0, max=10.0)
 
         # Transpose for sequence processing: (B, L, C)

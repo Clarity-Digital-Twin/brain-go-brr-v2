@@ -290,7 +290,9 @@ class SeizureDetector(nn.Module):
                     edge_in = edge_in.transpose(1, 2).contiguous()  # (B*E, T, D)
                     edge_in = self.edge_lift_norm(edge_in)
                     edge_in = edge_in.transpose(1, 2).contiguous()  # Back to (B*E, D, T)
-            # PR-5: Removed fallback clamp (PR-2 tanh handles bounding)
+            else:
+                # Safety fallback if PR-2 not enabled
+                edge_in = torch.clamp(edge_in, -3.0, 3.0)
 
             # Safety assertion for Mamba CUDA kernel
             assert edge_in.is_contiguous(), (
