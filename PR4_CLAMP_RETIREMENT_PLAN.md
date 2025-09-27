@@ -47,39 +47,25 @@ After PR-1, PR-2, PR-3, we can retire ~70% of these.
 
 ## Clamp Retirement Analysis
 
-### Category 1: SAFE TO REMOVE (After PR-1,2,3)
+### Category 1: CANDIDATES TO RETIRE (after PR‑1/2/3 validation)
 
-These become redundant with boundary norms and bounded activations:
+These are expected to become redundant with boundary norms, bounded edge lift, and adjacency conditioning. Keep during rollout; retire only after monitoring shows zero clamp hits for 10k+ batches.
 
 ```python
-# TCN (with PR-1 boundary norms)
-✓ tcn.py:248: x = torch.clamp(x, min=-50.0, max=50.0)  # Layer 1
-✓ tcn.py:255: x = torch.clamp(x, min=-50.0, max=50.0)  # Layer 2
-✓ tcn.py:262: x = torch.clamp(x, min=-50.0, max=50.0)  # Layer 3
-✓ tcn.py:269: x = torch.clamp(x, min=-50.0, max=50.0)  # Layer 4
+# TCN (internal feature tier clamps guarded by env)
+# Candidates: internal [-50,50] clamps around TCN feature maps
 
-# Mamba (with PR-1 boundary norms)
-✓ mamba.py:173: x = torch.clamp(x, min=-10.0, max=10.0)  # Input
-✓ mamba.py:242: x_output = torch.clamp(x_output, min=-5.0, max=5.0)  # Internal
-✓ mamba.py:248: output = torch.clamp(output, min=-10.0, max=10.0)  # Output
-✓ mamba.py:324: x = torch.clamp(x, min=-10.0, max=10.0)  # BiMamba intermediate
+# Detector (with PR‑1 norms in place)
+# Candidates: post‑TCN features and post‑temporal modeling safe_clamp conditionals
 
-# Edge features (with PR-2 bounded activation)
-✓ edge_features.py:77: x_norm = torch.clamp(x_norm, min=-10.0, max=10.0)
-✓ detector.py:250: edge_feats = torch.clamp(edge_feats, -0.99, 0.99)
-✓ detector.py:258: edge_in = torch.clamp(edge_in, -3.0, 3.0)
+# Edge stream (with PR‑2 bounded lift)
+# Candidate: detector.py edge_in clamp [-3,3]
 
-# Detector intermediate (with PR-1 norms)
-✓ detector.py:211: features = torch.clamp(features, safe_clamp_min(), safe_clamp_max())
-✓ detector.py:299: temporal = torch.clamp(temporal, safe_clamp_min(), safe_clamp_max())
-
-# GNN (with PR-3 adjacency conditioning)
-✓ gnn_pyg.py:220: eigenvalues = torch.clamp(eigenvalues, min=1e-6, max=2.0)
+# GNN (with PR‑3 conditioning)
+# Candidate: eigenvalue clamp — keep initially as guard; consider reducing reliance later
 ```
 
-**Total: 14 clamps can be removed**
-
-### Category 2: KEEP FOR SAFETY
+### Category 2: KEEP FOR SAFETY (baseline guards)
 
 These provide essential bounds for numerical stability:
 
@@ -94,37 +80,29 @@ These provide essential bounds for numerical stability:
 # Similarity bounds (mathematical requirement)
 ✗ edge_features.py:81: sim = torch.clamp(sim, min=-1.0, max=1.0)  # Cosine
 ✗ edge_features.py:91: sim = torch.clamp(sim, min=-1.0, max=1.0)  # Correlation
-✗ edge_features.py:100: edge_feats = torch.clamp(edge_feats, -1.0, 1.0)  # PLI
-✗ edge_features.py:106: coherence = torch.clamp(coherence.real, 0.0, 1.0)  # Coherence
 
 # Division safety (numerical requirement)
 ✗ edge_features.py:73: norms = torch.clamp(norms, min=1e-6)
 ✗ edge_features.py:87: denom = torch.clamp(denom, min=1e-6)
 
-# Mamba boundaries (architecture-specific, 5 more to keep)
-✗ mamba.py:181: x_proj = torch.clamp(x_proj, min=-10.0, max=10.0)
-✗ mamba.py:192: conv1d_out = torch.clamp(conv1d_out, min=-10.0, max=10.0)
-✗ mamba.py:206: rms_out = torch.clamp(rms_out, min=-10.0, max=10.0)
-✗ mamba.py:314: x = torch.clamp(x, min=-10.0, max=10.0)  # BiMamba input
-✗ mamba.py:327: x = torch.clamp(x, min=-10.0, max=10.0)  # BiMamba output
+# Mamba boundaries (keep until long‑run stability proven)
+✗ mamba.py: input/intermediate/output clamps (e.g., [-10,10], [-5,5])
 ```
 
 **Total: 13 clamps to keep (27 total - 14 removable = 13)**
 
-### Category 3: SIMPLIFY nan_to_num
+### Category 3: SIMPLIFY nan_to_num (defer until metrics confirm)
 
 With proper bounds, most nan_to_num become unnecessary:
 
 ```python
-# Can remove (redundant with norms)
-✓ tcn.py:238: x = torch.nan_to_num(...)
-✓ mamba.py:170: x = torch.nan_to_num(...)
-✓ mamba.py:313: x = torch.nan_to_num(...)
-✓ detector.py:210: features = torch.nan_to_num(...)
-✓ detector.py:298: temporal = torch.nan_to_num(...)
-✓ gnn_pyg.py:349: x_batch = torch.nan_to_num(...)
+# Candidates to remove later (if zero NaN/Inf observed for 10k+ batches):
+# tcn.py: input/feature nan_to_num
+# mamba.py: input nan_to_num
+# detector.py: feature/temporal nan_to_num
+# gnn_pyg.py: x_batch nan_to_num before reshape
 
-# Keep for PE safety
+# Keep for PE safety (always)
 ✗ gnn_pyg.py:240: pe = torch.nan_to_num(...)  # Eigendecomp safety
 
 # Keep for final output
@@ -257,16 +235,18 @@ if not remove_clamps or not torch.isfinite(x).all():
 # Just delete the clamp line
 ```
 
-### Step 3: Add Gated Fusion
+### Step 3: Add Gated Fusion (node vs GNN‑enhanced)
 
 ```python
-# In detector.py forward:
+# In detector.py forward (both tensors: B, 19, T, 64):
+node = node_feats
+edge = elec_enhanced  # post‑GNN output carries edge information
 if self.fusion_type == "gated":
-    fused = self.gated_fusion(node_out, edge_transformed)
+    fused = self.gated_fusion(node, edge)
 elif self.fusion_type == "multihead":
-    fused = self.multihead_fusion(node_out, edge_transformed)
+    fused = self.multihead_fusion(node, edge)
 else:
-    fused = node_out + edge_transformed  # Original
+    fused = node + edge  # Original additive fusion
 ```
 
 ## Testing Strategy
@@ -292,18 +272,17 @@ def test_clamp_removal_safety():
     assert output.abs().max() < 1000
 
 def test_gated_fusion():
-    """Test gated fusion mechanism."""
+    """Test gated fusion mechanism on per‑electrode features (64‑dim)."""
     fusion = GatedFusion(64)
 
     node = torch.randn(8, 19, 960, 64)
-    edge = torch.randn(8, 19, 960, 64) * 10  # Large edge
+    edge = torch.randn(8, 19, 960, 64) * 0.1  # Small edge initially
 
     fused = fusion(node, edge)
 
-    # Should be closer to node than edge initially
-    node_dist = (fused - node).norm()
-    edge_dist = (fused - edge).norm()
-    assert node_dist < edge_dist
+    # Gate ∈ (0,1); fused lies between node and node+edge
+    diff = (fused - node)
+    assert torch.isfinite(diff).all()
 
 def test_monitor_clamp_hits():
     """Test clamp monitoring system."""

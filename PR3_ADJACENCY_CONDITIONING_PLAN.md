@@ -373,7 +373,8 @@ def test_gnn_with_conditioned_adjacency():
 - Total: <5% overhead
 
 ### Memory Impact
-- EMA state: (B, T, 19, 19) - small
+- Within-sequence EMA is vectorized across T and keeps no persistent state
+- Optional cross-forward EMA (disabled by default) would require caching last A per sample
 - No change to PE dimension
 
 ## Mathematical Proofs
