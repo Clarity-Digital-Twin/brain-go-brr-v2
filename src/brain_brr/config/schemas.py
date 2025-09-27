@@ -158,6 +158,26 @@ class GraphConfig(StrictModel):
         default=0.1, gt=0.0, le=1.0, description="Xavier init gain for edge projection"
     )
 
+    # PR-3: Adjacency matrix conditioning
+    adj_row_softmax: bool = Field(
+        default=False, description="Apply masked row-wise softmax normalization (PR-3)"
+    )
+    adj_softmax_tau: float = Field(
+        default=1.0, gt=0.0, le=10.0, description="Temperature for adjacency softmax"
+    )
+    adj_ema_beta: float | None = Field(
+        default=None, ge=0.0, lt=1.0, description="EMA coefficient for temporal smoothing (None=disabled)"
+    )
+    adj_force_symmetric: bool = Field(
+        default=False, description="Force adjacency matrix to be symmetric"
+    )
+    laplacian_eps: float = Field(
+        default=1e-4, gt=0.0, le=0.1, description="Epsilon regularization for Laplacian"
+    )
+    laplacian_normalize: bool = Field(
+        default=True, description="Use normalized Laplacian (vs unnormalized)"
+    )
+
     # GNN architecture
     n_layers: int = Field(default=2, ge=1, le=4, description="Graph neural network layers")
     dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout rate")

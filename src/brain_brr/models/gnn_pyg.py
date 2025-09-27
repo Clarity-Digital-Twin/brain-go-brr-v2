@@ -9,6 +9,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as func
 
+from .adjacency import compute_stable_laplacian, condition_adjacency
+
 try:
     from torch_geometric.data import Batch, Data
     from torch_geometric.nn import SSGConv
@@ -48,6 +50,13 @@ class GraphChannelMixerPyG(nn.Module):
         bypass_edge_transform: bool = False,  # V3: skip if upstream Softplus
         semi_dynamic_interval: int = 1,  # Update PE every N timesteps
         pe_sign_consistency: bool = True,  # Fix eigenvector signs
+        # PR-3: Adjacency conditioning parameters
+        adj_row_softmax: bool = False,
+        adj_softmax_tau: float = 1.0,
+        adj_ema_beta: float | None = None,
+        adj_force_symmetric: bool = False,
+        laplacian_eps: float = 1e-4,
+        laplacian_normalize: bool = True,
     ):
         super().__init__()
 
@@ -66,6 +75,14 @@ class GraphChannelMixerPyG(nn.Module):
         self.bypass_edge_transform = bypass_edge_transform
         self.semi_dynamic_interval = semi_dynamic_interval
         self.pe_sign_consistency = pe_sign_consistency
+
+        # PR-3: Adjacency conditioning parameters
+        self.adj_row_softmax = adj_row_softmax
+        self.adj_softmax_tau = adj_softmax_tau
+        self.adj_ema_beta = adj_ema_beta
+        self.adj_force_symmetric = adj_force_symmetric
+        self.laplacian_eps = laplacian_eps
+        self.laplacian_normalize = laplacian_normalize
 
         # ROBUST: Cache last valid PE for fallback
         self.register_buffer("last_valid_pe", None)
