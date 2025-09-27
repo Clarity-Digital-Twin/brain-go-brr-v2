@@ -32,12 +32,12 @@
 ## 🏗️ Architecture
 
 ```
-                   EEG Input (19 channels @ 256Hz)
+              EEG Input (19 channels @ 256Hz)
                             │
                             ▼
-                     ┌──────────────┐
-                     │ TCN ENCODER  │ 8 layers, stride↓16
-                     └──────────────┘
+                     ┌─────────────┐
+                     │ TCN ENCODER │ 8 layers, stride↓16
+                     └─────────────┘
                             │
                      ╔══════╧═════╗
                      ║ PROJECTION ║ 512 → 19×64
@@ -46,7 +46,7 @@
                       ▼           ▼
               ┌────────────┐ ┌────────────┐
               │ NODE MAMBA │ │ EDGE MAMBA │  Parallel
-              │  19×SSM    │ │  171×SSM   │  Streams
+              │   19×SSM   │ │  171×SSM   │  Streams
               └─────┬──────┘ └──────┬─────┘
                     │               │
                     └───────┬───────┘
