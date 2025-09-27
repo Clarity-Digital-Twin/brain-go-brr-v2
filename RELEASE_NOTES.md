@@ -139,7 +139,7 @@ Val: 53 patients, 1832 files
 
 1. **Delete Contaminated Cache**:
    ```bash
-   rm -rf cache/tusz/train_windows/ cache/tusz/val_windows/
+   rm -rf cache/tusz/train_windows/ cache/tusz/dev_windows/  # Note: Now using 'dev' to match TUSZ naming!
    rm -rf /results/cache/tusz/  # Modal
    ```
 

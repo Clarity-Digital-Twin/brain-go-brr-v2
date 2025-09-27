@@ -15,7 +15,7 @@ Pipeline (high level)
 2) Windowing: 60s windows, 10s stride (256 Hz), per-channel z-score
 3) Cache: `.npz` with `windows` and `labels`
 4) Manifest: scan cache and categorize windows
-5) Dataset: BalancedSeizureDataset from manifest for train; standard dataset for val/test
+5) Dataset: BalancedSeizureDataset from manifest for train; standard dataset for dev/test
 
 For a step-by-step mapping to code, see DATA_FLOW.md
 

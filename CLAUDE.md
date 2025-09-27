@@ -160,6 +160,11 @@ numpy==1.26.4             # 2.x breaks mamba-ssm
  "Fp2", "F4", "C4", "P4", "F8", "T4", "T6", "O2"]
 ```
 
+### CRITICAL: Naming Convention
+- **We use `dev` NOT `val`** for validation split to match TUSZ official naming
+- Cache structure: `cache/tusz/{train,dev}/` NOT `{train,val}/`
+- This prevents confusion when reading TUSZ documentation
+
 ### Post-Processing
 1. **Hysteresis**: τ_on=0.86, τ_off=0.78
 2. **Morphology**: Opening(11), Closing(31)
