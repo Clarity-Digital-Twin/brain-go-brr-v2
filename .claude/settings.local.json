@@ -198,7 +198,8 @@
       "Bash(.venv/bin/mypy:*)",
       "Bash(BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 timeout 120 .venv/bin/python -m src train configs/local/smoke.yaml)",
       "Bash(env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 timeout 120 .venv/bin/python -m src train configs/local/smoke.yaml)",
-      "Bash(env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 timeout 120 .venv/bin/python -m src train configs/local/smoke_minimal.yaml)"
+      "Bash(env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 timeout 120 .venv/bin/python -m src train configs/local/smoke_minimal.yaml)",
+      "Bash(env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 timeout 180 .venv/bin/python -m src train configs/local/smoke.yaml)"
     ],
     "deny": [],
     "ask": []

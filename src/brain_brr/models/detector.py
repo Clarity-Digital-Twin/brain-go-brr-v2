@@ -274,7 +274,8 @@ class SeizureDetector(nn.Module):
             edge_metric = str(self.config.get("edge_metric", "cosine"))
             edge_feats = edge_scalar_series(elec_feats, metric=edge_metric)  # (B, 171, 960, 1)
 
-            # PR-5: Removed redundant edge clamp (edge_features.py already bounds)
+            # Clamp cosine similarities to avoid extreme values
+            edge_feats = torch.clamp(edge_feats, -0.99, 0.99)
 
             # Learnable lift 1→D channels for CUDA alignment & capacity
             edge_flat = edge_feats.squeeze(-1).reshape(batch_size * 171, 1, seq_len)  # (B*E,1,T)
