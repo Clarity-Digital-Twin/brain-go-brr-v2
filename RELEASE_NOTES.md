@@ -1,5 +1,97 @@
 # Release Notes
 
+## v3.2.0 - Architectural Stability Enhancement (2025-09-27)
+
+### 🛡️ PR-5: Edge Similarity Clamping at Source
+
+**Type**: Minor Release
+**Status**: Production Ready
+**Impact**: Prevents NaN explosions in Mamba computations
+
+This release implements the PR-5 architectural stability improvements, introducing edge similarity clamping at the source with a configurable safety margin. This ensures numerical stability throughout the V3 dual-stream architecture.
+
+### ✨ Key Improvements
+
+#### Single Source of Truth (SSOT)
+- **Before**: Edge clamping scattered across detector, Mamba, and GNN layers
+- **After**: Centralized clamping in `edge_features.py` at computation time
+- **Benefit**: Consistent behavior, easier maintenance, cleaner architecture
+
+#### Configurable Safety Margin
+- **New Parameter**: `edge_similarity_margin` (default: 0.01)
+- **Purpose**: Keep cosine similarities away from exact ±1.0
+- **Range**: Clamps to [-0.99, 0.99] by default
+- **Customizable**: Adjust margin based on precision requirements
+
+#### Gradient Flow Fix
+- **Issue**: Dynamic PE wrapped in torch.no_grad blocked gradients
+- **Solution**: Removed wrapper, maintaining proper gradient flow
+- **Impact**: GNN can now learn adjacency patterns correctly
+
+### 🔧 Configuration
+
+Add to your config files:
+```yaml
+model:
+  graph:
+    edge_similarity_margin: 0.01  # Adjust as needed
+```
+
+### 📊 Stability Improvements
+
+| Component | Before | After |
+|-----------|--------|-------|
+| Edge similarities | Could reach ±1.0 | Clamped to ±0.99 |
+| Mamba log operations | Risk of log(0) | Protected by margin |
+| Gradient flow | Blocked in PE | Fully connected |
+| Type safety | Mixed typing | Full mypy compliance |
+
+### 🚀 Deployment
+
+```bash
+# Update code
+git fetch && git checkout v3.2.0
+
+# Verify configs have edge_similarity_margin
+grep -H "edge_similarity_margin" configs/*/*.yaml
+
+# Run smoke test
+make s
+
+# Continue training
+tmux attach -t train_full
+```
+
+### 📈 Expected Impact
+
+- **Training Stability**: No more NaN explosions from extreme similarities
+- **Numerical Robustness**: Protected against edge cases
+- **Gradient Quality**: Improved learning in GNN layers
+- **Code Quality**: Cleaner architecture with SSOT principle
+
+### 🔍 Technical Details
+
+The PR-5 implementation moves all edge similarity clamping to the source (`edge_features.py`), eliminating redundant downstream clamps. The configurable `edge_similarity_margin` parameter allows fine-tuning the safety buffer based on your numerical precision requirements.
+
+Key files changed:
+- `src/brain_brr/models/edge_features.py`: Added margin parameter
+- `src/brain_brr/models/detector.py`: Type-safe margin extraction
+- `configs/*/*.yaml`: Added edge_similarity_margin parameter
+- Removed: Redundant clamps in detector and Mamba layers
+
+### ✅ Validation
+
+- All quality checks passing (lint, format, mypy)
+- Smoke tests running without NaN issues
+- Full local training stable
+- Type safety enforced throughout
+
+**Tag**: `v3.2.0`
+**Branch**: `fix/architectural-stability`
+**Commits**: 10 improvements since v3.1.1
+
+---
+
 ## v3.1.1 - Critical Data Integrity Fix (2025-09-26)
 
 ### 🚨 CRITICAL: Cache Rebuild Required

@@ -5,6 +5,51 @@ All notable changes to the Brain-Go-Brr v2 project will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2025-09-27
+
+### 🛡️ Architectural Stability Enhancement (PR-5)
+
+This minor release delivers critical architectural stability improvements through the implementation of PR-5's edge similarity clamping strategy, ensuring numerical stability in the V3 dual-stream architecture.
+
+### Added
+- **Edge Similarity Margin**: New configurable `edge_similarity_margin` parameter (default 0.01)
+  - Prevents cosine similarities from reaching exact ±1.0 boundaries
+  - Configurable safety margin for different numerical precision requirements
+  - Added to all config files (local/smoke, local/train, modal/smoke, modal/train)
+
+### Changed
+- **Single Source of Truth (SSOT)**: Moved edge similarity clamping to source
+  - Edge clamping now happens in `edge_features.py` at computation time
+  - Removed redundant downstream clamps in detector and Mamba layers
+  - Ensures consistent clamping behavior across entire pipeline
+- **Type Safety**: Enhanced type extraction for edge_similarity_margin
+  - Proper isinstance checking for float/int types
+  - Explicit float casting with fallback defaults
+  - Full mypy compliance without type: ignore comments
+
+### Fixed
+- **Gradient Flow**: Removed torch.no_grad wrapper from dynamic PE computation
+  - Dynamic PE now maintains gradient flow properly
+  - Prevents gradient blocking in GNN backpropagation
+  - Critical for learning-based adjacency optimization
+- **Numerical Stability**: Comprehensive edge similarity protection
+  - Prevents log(0) in Mamba computations
+  - Avoids division-by-zero in normalization
+  - Eliminates NaN propagation from extreme similarities
+
+### Technical Details
+- **Edge Features**: Clamped to [-0.99, 0.99] by default (configurable via margin)
+- **Impact**: Prevents numerical explosions in Mamba SSM computations
+- **Validation**: All quality checks passing (lint, format, type checking)
+- **Testing**: Smoke tests and full training running without NaN issues
+
+### Configuration
+```yaml
+model:
+  graph:
+    edge_similarity_margin: 0.01  # Safety margin from ±1.0
+```
+
 ## [3.1.1] - 2025-09-26
 
 ### 🚨 Critical Fixes: Data Integrity & Naming Consistency
