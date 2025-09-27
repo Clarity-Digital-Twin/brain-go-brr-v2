@@ -17,7 +17,6 @@ model:
     n_layers: 6
     d_state: 16
     conv_kernel: 4  # d_conv for Mamba
-    expand_factor: 2
     dropout: 0.1
 
   # GNN configuration (V3: learned adjacency)
@@ -56,9 +55,7 @@ data:
   cache_dir: cache/tusz  # Pre-processed NPZ cache
   num_workers: 0  # WSL2 multiprocessing fix
   pin_memory: false
-  batch_cache_size: 100
   use_balanced_sampling: true  # CRITICAL: Ensure seizures in batches
-  positive_weight: 0.5  # Target 50% positive in each batch
 
 # Training configuration
 training:

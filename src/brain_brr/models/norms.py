@@ -71,11 +71,7 @@ class LayerScale(nn.Module):
         return self.gamma * x
 
 
-def create_norm_layer(
-    norm_type: str,
-    dim: int,
-    eps: float = 1e-5
-) -> nn.Module | None:
+def create_norm_layer(norm_type: str, dim: int, eps: float = 1e-5) -> nn.Module | None:
     """Factory function to create normalization layers.
 
     Args:

@@ -188,15 +188,9 @@ class NormConfig(StrictModel):
     after_tcn_proj: bool = Field(
         default=True, description="Normalize after TCN projection to electrodes"
     )
-    after_node_mamba: bool = Field(
-        default=True, description="Normalize after node Mamba stream"
-    )
-    after_edge_mamba: bool = Field(
-        default=True, description="Normalize after edge Mamba stream"
-    )
-    after_gnn: bool = Field(
-        default=True, description="Normalize after GNN processing"
-    )
+    after_node_mamba: bool = Field(default=True, description="Normalize after node Mamba stream")
+    after_edge_mamba: bool = Field(default=True, description="Normalize after edge Mamba stream")
+    after_gnn: bool = Field(default=True, description="Normalize after GNN processing")
     before_decoder: bool = Field(
         default=True, description="Normalize before final decoder projection"
     )
@@ -223,7 +217,7 @@ class ModelConfig(StrictModel):
     # Normalization configuration (PR-1: Boundary Normalization)
     norms: NormConfig = Field(
         default_factory=NormConfig,
-        description="Normalization configuration for architectural stability"
+        description="Normalization configuration for architectural stability",
     )
 
 
