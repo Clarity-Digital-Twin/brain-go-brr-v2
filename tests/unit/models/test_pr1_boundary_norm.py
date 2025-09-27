@@ -2,9 +2,10 @@
 
 import torch
 import torch.nn as nn
-from src.brain_brr.models.norms import LayerScale, RMSNorm, create_norm_layer
-from src.brain_brr.models.detector import SeizureDetector
+
 from src.brain_brr.config.schemas import ModelConfig
+from src.brain_brr.models.detector import SeizureDetector
+from src.brain_brr.models.norms import LayerScale, RMSNorm, create_norm_layer
 
 
 def test_layerscale_initialization():
@@ -63,37 +64,37 @@ def test_pr1_model_creation():
             "after_edge_mamba": True,
             "after_gnn": True,
             "before_decoder": True,
-        }
+        },
     )
 
     model = SeizureDetector.from_config(config)
 
     # Verify normalization layers exist
-    assert hasattr(model, 'norm_after_proj_to_electrodes')
+    assert hasattr(model, "norm_after_proj_to_electrodes")
     assert model.norm_after_proj_to_electrodes is not None
     assert isinstance(model.norm_after_proj_to_electrodes, nn.LayerNorm)
 
-    assert hasattr(model, 'norm_after_node_mamba')
+    assert hasattr(model, "norm_after_node_mamba")
     assert model.norm_after_node_mamba is not None
 
-    assert hasattr(model, 'norm_after_edge_mamba')
+    assert hasattr(model, "norm_after_edge_mamba")
     assert model.norm_after_edge_mamba is not None
 
-    assert hasattr(model, 'norm_after_gnn')
+    assert hasattr(model, "norm_after_gnn")
     assert model.norm_after_gnn is not None
 
-    assert hasattr(model, 'norm_before_decoder')
+    assert hasattr(model, "norm_before_decoder")
     assert model.norm_before_decoder is not None
 
     # Verify LayerScale exists in BiMamba2 layers
-    if hasattr(model, 'node_mamba'):
+    if hasattr(model, "node_mamba"):
         # Check that LayerScale is integrated in BiMamba2Layer
         for layer in model.node_mamba.layers:
-            assert hasattr(layer, 'layerscale')
+            assert hasattr(layer, "layerscale")
             assert layer.layerscale is not None
 
     # Verify GNN LayerScale if GNN is present and enabled
-    if hasattr(model, 'gnn_layerscale') and model.gnn_layerscale is not None:
+    if hasattr(model, "gnn_layerscale") and model.gnn_layerscale is not None:
         # GNN LayerScale exists when GNN is enabled with residual
         assert isinstance(model.gnn_layerscale, LayerScale)
 
@@ -111,7 +112,7 @@ def test_pr1_forward_pass():
             "after_edge_mamba": True,
             "after_gnn": True,
             "before_decoder": True,
-        }
+        },
     )
 
     model = SeizureDetector.from_config(config)
@@ -140,7 +141,7 @@ def test_pr1_gradient_flow():
             "after_edge_mamba": True,
             "after_gnn": True,
             "before_decoder": True,
-        }
+        },
     )
 
     model = SeizureDetector.from_config(config)
@@ -176,7 +177,7 @@ def test_contiguous_memory_fix():
             "after_edge_mamba": True,
             "after_gnn": True,
             "before_decoder": True,
-        }
+        },
     )
 
     model = SeizureDetector.from_config(config)
