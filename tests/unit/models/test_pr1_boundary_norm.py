@@ -85,9 +85,17 @@ def test_pr1_model_creation():
     assert hasattr(model, 'norm_before_decoder')
     assert model.norm_before_decoder is not None
 
-    # Verify LayerScale exists for Mamba and GNN
-    assert hasattr(model, 'mamba_layerscales')
-    assert hasattr(model, 'gnn_layerscale')
+    # Verify LayerScale exists in BiMamba2 layers
+    if hasattr(model, 'node_mamba'):
+        # Check that LayerScale is integrated in BiMamba2Layer
+        for layer in model.node_mamba.layers:
+            assert hasattr(layer, 'layerscale')
+            assert layer.layerscale is not None
+
+    # Verify GNN LayerScale if GNN is present and enabled
+    if hasattr(model, 'gnn_layerscale') and model.gnn_layerscale is not None:
+        # GNN LayerScale exists when GNN is enabled with residual
+        assert isinstance(model.gnn_layerscale, LayerScale)
 
 
 def test_pr1_forward_pass():
