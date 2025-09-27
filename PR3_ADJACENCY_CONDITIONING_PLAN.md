@@ -68,14 +68,22 @@ Eigendecomposition stability requires:
 
 ## Proposed Solution
 
-### 1. Masked Row-Wise Softmax Normalization
+### 1. Masked Row-Wise Softmax Normalization (with zero-diagonal)
 
 ```python
 def normalize_adjacency(A: Tensor, top_k: int = 3, tau: float = 1.0) -> Tensor:
-    """Apply masked row-wise softmax (respecting top-k sparsity)."""
+    """Apply masked row-wise softmax (respecting top-k sparsity).
+
+    Note: zeroes the diagonal before softmax to avoid self-loops dominating a row.
+    Identity fallback is applied later if a row becomes empty.
+    """
     # A shape: (B, T, N, N)
     # Note: Our code uses top_k=3 by default (detector.py:271)
     B, T, N, _ = A.shape
+
+    # Remove self-loops before normalization
+    I = torch.eye(N, device=A.device, dtype=A.dtype).view(1, 1, N, N)
+    A = A * (1.0 - I)
 
     # Apply top-k mask first (keep top k edges per node)
     topk_vals, topk_idx = torch.topk(A, k=min(top_k, N), dim=-1)
@@ -93,24 +101,29 @@ def normalize_adjacency(A: Tensor, top_k: int = 3, tau: float = 1.0) -> Tensor:
 - Each node's outgoing weights sum to 1
 - Prevents weight explosion
 
-### 2. Temporal EMA Smoothing
+### 2. Temporal EMA Smoothing (within-sequence by default)
 
 ```python
 class TemporalEMA:
-    """Exponential moving average across timesteps."""
+    """Exponential moving average across timesteps (causal smoothing).
+
+    Default usage smooths across the time dimension T within the same forward pass.
+    Cross-forward EMA is optional and off by default to avoid state leakage.
+    """
 
     def __init__(self, beta: float = 0.9):
         self.beta = beta
         self.prev_A = None
 
     def update(self, A: Tensor) -> Tensor:
-        if self.prev_A is None:
-            self.prev_A = A
-            return A
-
-        A_smooth = self.beta * self.prev_A + (1 - self.beta) * A
-        self.prev_A = A_smooth
-        return A_smooth
+        # Vectorized causal EMA across time axis T
+        # A: (B, T, N, N)
+        B, T, N, _ = A.shape
+        out = torch.empty_like(A)
+        out[:, 0] = A[:, 0]
+        for t in range(1, T):
+            out[:, t] = self.beta * out[:, t - 1] + (1 - self.beta) * A[:, t]
+        return out
 ```
 
 **Benefits**:
@@ -118,13 +131,19 @@ class TemporalEMA:
 - Prevents sudden eigenvalue jumps
 - Maintains temporal coherence
 
-### 3. Strict Symmetrization
+### 3. Strict Symmetrization (+ identity fallback)
 
 ```python
-def symmetrize_adjacency(A: Tensor) -> Tensor:
-    """Force adjacency to be symmetric."""
+def symmetrize_adjacency(A: Tensor, threshold: float = 1e-6, identity_fallback: bool = True) -> Tensor:
+    """Force adjacency to be symmetric and ensure no disconnected rows."""
     # A shape: (B, T, N, N)
     A_sym = (A + A.transpose(-2, -1)) / 2
+    if identity_fallback:
+        # Add self-loops where rows are near-empty after symmetrization
+        row_sums = A_sym.sum(dim=-1)  # (B,T,N)
+        disconnected = row_sums < threshold
+        diag = torch.diagonal(A_sym, dim1=-2, dim2=-1)  # (B,T,N)
+        diag.copy_(torch.where(disconnected, torch.ones_like(diag), diag))
     return A_sym
 ```
 
@@ -133,10 +152,10 @@ def symmetrize_adjacency(A: Tensor) -> Tensor:
 - Required for valid Laplacian
 - Improves numerical stability
 
-### 4. Enhanced Laplacian Regularization
+### 4. Enhanced Laplacian Regularization (match normalized Laplacian in code)
 
 ```python
-def compute_stable_laplacian(A: Tensor, eps: float = 1e-3) -> Tensor:
+def compute_stable_laplacian(A: Tensor, eps: float = 1e-4) -> Tensor:
     """Compute numerically stable Laplacian."""
     N = A.shape[-1]
 
@@ -145,9 +164,7 @@ def compute_stable_laplacian(A: Tensor, eps: float = 1e-3) -> Tensor:
 
     # Normalized Laplacian with stronger regularization
     I = torch.eye(N, device=A.device, dtype=A.dtype)
-    L = D - A + eps * I  # Stronger identity regularization
-
-    # Optional: Normalize
+    # Normalized Laplacian (preferred for stability)
     D_sqrt_inv = torch.diag_embed(1.0 / torch.sqrt(D.diagonal(dim1=-2, dim2=-1) + eps))
     L_norm = I - D_sqrt_inv @ A @ D_sqrt_inv
 
@@ -207,11 +224,11 @@ With normalization: κ(L_norm) < 100
 - NaN in PE: Should not occur
 - Condition number: >10^6 → <100
 
-### Clamps/Checks That Become Redundant
+### Clamps/Checks That May Be Reduced (after validation)
 ```python
-# Can simplify/remove:
-gnn_pyg.py:220: eigenvalues = torch.clamp(eigenvalues, min=1e-6, max=2.0)
-gnn_pyg.py:240: pe = torch.nan_to_num(pe, nan=0.0, posinf=1.0, neginf=-1.0)
+# Candidates to simplify later (keep initially):
+gnn_pyg.py:220: eigenvalues = torch.clamp(eigenvalues, min=1e-6, max=2.0)  # Keep as guard
+gnn_pyg.py:240: pe = torch.nan_to_num(pe, nan=0.0, posinf=1.0, neginf=-1.0)  # Keep as guard
 
 # Fallback logic can be simplified
 if not torch.isfinite(pe).all():  # Should rarely trigger
@@ -249,7 +266,7 @@ A = torch.softmax(Q @ K^T / sqrt(d), dim=-1)
 ### Unit Tests
 ```python
 def test_adjacency_row_normalization():
-    """Verify row sums equal 1."""
+    """Verify row sums equal 1 before symmetrization."""
     A = torch.randn(32, 960, 19, 19)
     A_norm = normalize_adjacency(A)
     row_sums = A_norm.sum(dim=-1)
@@ -271,16 +288,15 @@ def test_laplacian_stability():
     A = torch.rand(2, 10, 19, 19)
     A_norm = normalize_adjacency(A, top_k=3)  # Use actual default
     A_sym = symmetrize_adjacency(A_norm)
-    L = compute_stable_laplacian(A_sym, eps=1e-3)
+    L = compute_stable_laplacian(A_sym, eps=1e-4)
 
     # Test eigendecomposition succeeds without NaN
     eigenvalues, eigenvectors = torch.linalg.eigh(L.to(torch.float32))
     assert torch.isfinite(eigenvalues).all()
     assert torch.isfinite(eigenvectors).all()
 
-    # Check eigenvalues in expected range (after clamping)
-    eigenvalues = torch.clamp(eigenvalues, min=1e-6, max=2.0)
-    assert (eigenvalues >= 1e-6).all() and (eigenvalues <= 2.0).all()
+    # Check eigenvalues are finite and non-negative within tolerance
+    assert (eigenvalues >= -1e-6).all()
 ```
 
 ### Integration Tests
@@ -316,10 +332,10 @@ def test_gnn_with_conditioned_adjacency():
 ## Success Metrics
 
 ### Must Have
-- [ ] Zero NaN in PE computation
+- [ ] Zero NaN/Inf in eigendecomposition across 10,000 batches
 - [ ] Dynamic PE fallback rate < 0.1%
-- [ ] Eigenvalues remain in [1e-6, 2.0] range (as clamped in gnn_pyg.py:220)
-- [ ] No reliance on cached PE fallback
+- [ ] Eigendecomposition succeeds in fp32 with sign-consistency
+- [ ] No reliance on cached PE fallback in steady state
 
 ### Nice to Have
 - [ ] Remove eigenvalue clamping

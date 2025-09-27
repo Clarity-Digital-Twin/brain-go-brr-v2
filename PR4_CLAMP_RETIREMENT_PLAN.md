@@ -56,6 +56,7 @@ These become redundant with boundary norms and bounded activations:
 ✓ tcn.py:248: x = torch.clamp(x, min=-50.0, max=50.0)  # Layer 1
 ✓ tcn.py:255: x = torch.clamp(x, min=-50.0, max=50.0)  # Layer 2
 ✓ tcn.py:262: x = torch.clamp(x, min=-50.0, max=50.0)  # Layer 3
+✓ tcn.py:269: x = torch.clamp(x, min=-50.0, max=50.0)  # Layer 4
 
 # Mamba (with PR-1 boundary norms)
 ✓ mamba.py:173: x = torch.clamp(x, min=-10.0, max=10.0)  # Input
@@ -76,7 +77,7 @@ These become redundant with boundary norms and bounded activations:
 ✓ gnn_pyg.py:220: eigenvalues = torch.clamp(eigenvalues, min=1e-6, max=2.0)
 ```
 
-**Total: 13 clamps can be removed**
+**Total: 14 clamps can be removed**
 
 ### Category 2: KEEP FOR SAFETY
 
@@ -93,17 +94,22 @@ These provide essential bounds for numerical stability:
 # Similarity bounds (mathematical requirement)
 ✗ edge_features.py:81: sim = torch.clamp(sim, min=-1.0, max=1.0)  # Cosine
 ✗ edge_features.py:91: sim = torch.clamp(sim, min=-1.0, max=1.0)  # Correlation
+✗ edge_features.py:100: edge_feats = torch.clamp(edge_feats, -1.0, 1.0)  # PLI
+✗ edge_features.py:106: coherence = torch.clamp(coherence.real, 0.0, 1.0)  # Coherence
 
 # Division safety (numerical requirement)
 ✗ edge_features.py:73: norms = torch.clamp(norms, min=1e-6)
 ✗ edge_features.py:87: denom = torch.clamp(denom, min=1e-6)
 
-# Mamba boundaries (architecture-specific)
+# Mamba boundaries (architecture-specific, 5 more to keep)
+✗ mamba.py:181: x_proj = torch.clamp(x_proj, min=-10.0, max=10.0)
+✗ mamba.py:192: conv1d_out = torch.clamp(conv1d_out, min=-10.0, max=10.0)
+✗ mamba.py:206: rms_out = torch.clamp(rms_out, min=-10.0, max=10.0)
 ✗ mamba.py:314: x = torch.clamp(x, min=-10.0, max=10.0)  # BiMamba input
 ✗ mamba.py:327: x = torch.clamp(x, min=-10.0, max=10.0)  # BiMamba output
 ```
 
-**Total: 9 clamps to keep**
+**Total: 13 clamps to keep (27 total - 14 removable = 13)**
 
 ### Category 3: SIMPLIFY nan_to_num
 
@@ -350,14 +356,14 @@ def test_training_step_no_clamps():
 ## Success Metrics
 
 ### Must Have
-- [ ] Model stable with 12+ clamps removed
+- [ ] Model stable with 14 clamps removed
 - [ ] Zero NaN/Inf in 10,000 batches
 - [ ] Performance maintained or improved
 - [ ] No reliance on BGB_SAFE_CLAMP environment variable
 
 ### Nice to Have
-- [ ] Remove all intermediate clamps (15+ total)
-- [ ] Simplify to only essential math/output guards (~11 clamps)
+- [ ] Remove all intermediate clamps (14 total)
+- [ ] Simplify to only essential math/output guards (~13 clamps)
 - [ ] Improved gradient flow metrics
 
 ## Risk Assessment
@@ -385,7 +391,7 @@ def test_training_step_no_clamps():
 ## Expected Code Reduction
 
 ### Lines Removed
-- 13 clamp lines
+- 14 clamp lines
 - 6 nan_to_num lines
 - ~50 lines of conditional clamping logic
 
@@ -399,9 +405,9 @@ def test_training_step_no_clamps():
 
 ### Speed Improvement
 - Each clamp: ~0.1% overhead
-- 13 clamps removed: ~1.3% speedup
+- 14 clamps removed: ~1.4% speedup
 - Gated fusion: ~0.5% overhead
-- **Net: ~0.8% faster**
+- **Net: ~0.9% faster**
 
 ### Memory Impact
 - Negligible change

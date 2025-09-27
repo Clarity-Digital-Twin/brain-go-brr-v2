@@ -38,10 +38,13 @@ Without bounded activation, this causes:
 ```python
 # Current implementation (UNSTABLE)
 edge_feats = compute_edge_features(x)  # (B, 171, 960, 1)
-# Note: Actually uses Conv1d, not Linear (detector.py:377)
-edge_in_proj = nn.Conv1d(1, 16, kernel_size=1)  # 16x expansion!
-edge_in = edge_in_proj(edge_feats)  # (B*171, 16, 960) - UNBOUNDED
-edge_in = torch.clamp(edge_in, -3, 3)  # BAND-AID at detector.py:258
+# Uses a 1x1 Conv1d lift (projection-only, unrelated to Mamba fallback)
+edge_in_proj = nn.Conv1d(1, 16, kernel_size=1)  # 16x expansion
+# Reshape for Conv1d: (B*E, 1, T) -> (B*E, 16, T)
+edge_flat = edge_feats.squeeze(-1).reshape(B * 171, 1, T)
+edge_in = edge_in_proj(edge_flat)  # UNBOUNDED
+# Band‑aid clamp currently in forward path
+edge_in = torch.clamp(edge_in, -3, 3)
 
 edge_mamba = BiMamba2(d_model=16)
 edge_out = edge_mamba(edge_in)  # Can still explode
@@ -52,15 +55,15 @@ edge_weights = F.softplus(edge_out_proj(edge_out))  # Finally bounded
 
 ### Mathematical Analysis
 
-Without bounds, variance grows as:
+Without bounds, variance can grow as:
 ```
 Var(edge_in) = 16 * Var(edge_feats) * Var(W)
 ```
 
-With ReLU activation and He initialization:
+With unbounded activations and nominal init (worst‑case intuition):
 ```
-After projection: σ² → 16σ²
-After Mamba (6 layers): σ² → 16^6 σ² = 16,777,216σ²
+After projection: σ² → ~16·σ²
+Edge Mamba (2 layers in edge path): σ² → ~(16^2)·σ²
 ```
 
 **Result**: Values reach ±10^6 range, causing NaN.
@@ -80,16 +83,20 @@ With:
 ```python
 edge_in = self.edge_in_proj(edge_flat).contiguous()  # (B*E, 16, T)
 edge_in = torch.tanh(edge_in)  # Bounded [-1, 1]
-# Use GroupNorm for Conv1d output (no reshape needed)
-edge_in = nn.GroupNorm(1, 16)(edge_in)  # Normalized
+# Prefer LayerNorm on feature dim for consistency with PR‑1
+edge_in = edge_in.transpose(1, 2)              # (B*E, T, 16)
+edge_in = self.edge_lift_norm(edge_in)         # nn.LayerNorm(16) defined in __init__
+edge_in = edge_in.transpose(1, 2)              # (B*E, 16, T)
+# Note: Avoid GroupNorm(1,16) here — with Conv1d it normalizes across channels and time,
+# which couples timesteps. LayerNorm on the feature dim keeps normalization per‑timestep.
 ```
 
 ### 2. Improved Initialization
 
 ```python
-# Current: Already has conservative initialization (detector.py:382)
+# Current: Already has conservative initialization in SeizureDetector.from_config
 edge_in_proj = nn.Conv1d(1, 16, kernel_size=1)
-nn.init.xavier_uniform_(edge_in_proj.weight, gain=0.1)  # Already reduced!
+nn.init.xavier_uniform_(edge_in_proj.weight, gain=0.1)  # Reduced gain
 
 # Good news: Initialization is already conservative
 # Just need to add bounded activation
@@ -99,15 +106,14 @@ nn.init.xavier_uniform_(edge_in_proj.weight, gain=0.1)  # Already reduced!
 
 Instead of 1→16 directly, use graduated expansion:
 ```python
+# Optional only; default is 1x1 Conv1d + tanh + LayerNorm.
+# If exploring graduated expansion, prefer 1x1 Conv1d stages to avoid extra permutes:
 edge_lift = nn.Sequential(
-    nn.Linear(1, 4),
-    nn.Tanh(),
-    nn.Linear(4, 8),
-    nn.Tanh(),
-    nn.Linear(8, 16),
-    nn.Tanh(),
-    RMSNorm(16)
+    nn.Conv1d(1, 4, 1), nn.Tanh(),
+    nn.Conv1d(4, 8, 1), nn.Tanh(),
+    nn.Conv1d(8, 16, 1), nn.Tanh(),
 )
+# Then apply LayerNorm(16) on (B*E, T, 16) as above.
 ```
 
 ## Configuration Schema
@@ -121,7 +127,7 @@ model:
     edge_lift_init_std: float  # 0.1 (conservative)
 
     # Edge dimension
-    edge_d_model: int  # 16 (current) | 8 (memory-efficient)
+    edge_d_model: int  # 16 (current) | 8 (memory-efficient; see note)
 
     # Graduated expansion
     edge_graduated_expansion: bool  # false (default) | true
@@ -130,6 +136,9 @@ model:
     # Edge Mamba config
     edge_mamba_layers: int  # 2 (current)
     edge_mamba_d_state: int  # 8 (current)
+    # Note: If changing edge_d_model, adjust headdim to keep
+    # (d_model*expand)/headdim an integer and preferably a multiple of 8.
+    # e.g., d_model=16 -> headdim=4; d_model=8 -> headdim=2.
 ```
 
 ## Mathematical Guarantees
@@ -138,7 +147,7 @@ model:
 ```
 Given: x ∈ [-∞, +∞]
 After tanh: y ∈ [-1, +1]
-After RMSNorm: y' has unit RMS
+After LayerNorm/RMSNorm: y' has bounded scale (unit RMS for RMSNorm)
 → Bounded regardless of input magnitude
 ```
 
@@ -149,7 +158,7 @@ Maximum at x=0: tanh'(0) = 1
 Minimum as x→±∞: tanh'(±∞) → 0
 ```
 
-With RMSNorm, gradients are rescaled to prevent vanishing.
+With LayerNorm/RMSNorm, gradients are rescaled to prevent vanishing.
 
 ## Impact Analysis
 
@@ -158,7 +167,7 @@ With RMSNorm, gradients are rescaled to prevent vanishing.
 # Can remove after PR-2:
 detector.py:258: edge_in = torch.clamp(edge_in, -3.0, 3.0)  # Main target
 
-# May keep for safety:
+# Keep initially for safety; consider removal only after PR‑3 proves stable:
 detector.py:250: edge_feats = torch.clamp(edge_feats, -0.99, 0.99)  # Input validation
 edge_features.py:77: x_norm = torch.clamp(x_norm, -10.0, 10.0)  # After normalization
 ```
@@ -242,9 +251,9 @@ def test_adjacency_from_bounded_edges():
 2. Test gradient flow
 3. Verify edge weight distribution
 
-### Phase 3: Remove Redundant Clamps
+### Phase 3: Remove Redundant Clamps (after PR‑3 passes stability tests)
 1. Remove edge_in clamp (-3, 3)
-2. Remove edge_feats clamp (-0.99, 0.99)
+2. Consider removing edge_feats clamp (-0.99, 0.99) if adjacency conditioning yields stable eigens
 3. Verify stability over 1000 batches
 
 ## Success Metrics
