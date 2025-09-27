@@ -172,7 +172,7 @@ LOCAL                      MODAL (volume)
 ─────                      ──────────────
 cache/tusz/
   ├── train/ ──sync──► /results/cache/tusz/train/
-  └── val/   ──sync──► /results/cache/tusz/val/
+  └── dev/   ──sync──► /results/cache/tusz/dev/  # TUSZ naming: dev not val!
 
 results/                  /results/
   └── local_runs/           ├── cache/tusz/{train,val}

@@ -70,7 +70,7 @@ modal secret create wandb WANDB_API_KEY=<your-key>
 ├── cache/                   # Pre-populated cache (450GB)
 │   └── tusz/
 │       ├── train/          # 4667 NPZ files (~306GB)
-│       └── val/            # 1832 NPZ files (~143GB)
+│       └── dev/            # 1832 NPZ files (~143GB) - TUSZ's 'dev' split!
 ├── checkpoints/            # Training checkpoints
 ├── tensorboard/            # Training logs
 └── wandb/                  # W&B artifacts

@@ -2,8 +2,8 @@
 
 Locations
 
-- Local: `cache/tusz/{train,val}`
-- Modal: `/results/cache/tusz/{train,val}` (persistent SSD volume; no S3 mount)
+- Local: `cache/tusz/{train,dev}`  # CRITICAL: We use 'dev' to match TUSZ's official naming!
+- Modal: `/results/cache/tusz/{train,dev}` (persistent SSD volume; no S3 mount)
 
 NPZ schema
 

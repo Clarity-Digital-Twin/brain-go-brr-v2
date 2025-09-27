@@ -184,30 +184,33 @@ def populate_cache():
     else:
         print(f"[WARNING] No train split found at {train_src}")
 
-    # Copy validation split (TUSZ 'dev' → cache 'val')
+    # Copy dev split (TUSZ 'dev' → cache 'dev')
+    # CRITICAL: We use 'dev' naming to match TUSZ's official split naming!
+    # TUSZ provides train/dev/eval - we use dev for validation/tuning during training.
+    # DO NOT rename to 'val' - this causes confusion with TUSZ documentation.
     dev_src = src / "dev"
-    val_dst = dst / "val"
+    dev_dst = dst / "dev"
     if dev_src.exists():
         dev_files = list(dev_src.glob("*.npz"))
-        print(f"[COPY] Found {len(dev_files)} dev (validation) files to copy...")
-        if val_dst.exists():
-            print(f"[COPY] Removing existing {val_dst}...")
-            shutil.rmtree(val_dst)
-        print(f"[COPY] Copying {dev_src} → {val_dst}...")
-        shutil.copytree(dev_src, val_dst)
-        print(f"[COPY] ✅ Copied {len(list(val_dst.glob('*.npz')))} val files")
+        print(f"[COPY] Found {len(dev_files)} dev files to copy...")
+        if dev_dst.exists():
+            print(f"[COPY] Removing existing {dev_dst}...")
+            shutil.rmtree(dev_dst)
+        print(f"[COPY] Copying {dev_src} → {dev_dst}...")
+        shutil.copytree(dev_src, dev_dst)
+        print(f"[COPY] ✅ Copied {len(list(dev_dst.glob('*.npz')))} dev files")
     else:
         print(f"[WARNING] No dev split found at {dev_src}")
 
     # Verify final state
     train_count = len(list((dst / "train").glob("*.npz")))
-    dev_count = len(list((dst / "val").glob("*.npz")))
+    dev_count = len(list((dst / "dev").glob("*.npz")))
     elapsed = time.time() - start
 
     print("\n" + "=" * 60)
     print("[CACHE POPULATION] ✅ COMPLETE!")
     print(f"Train files: {train_count} (expected: 4667)")
-    print(f"Val files: {dev_count} (expected: 1832)")
+    print(f"Dev files: {dev_count} (expected: 1832)")
     print(f"Time taken: {elapsed/60:.1f} minutes")
     print(f"Cache location: {dst}")
     print("Cache is now on fast Modal SSD - ready for training!")
@@ -249,8 +252,8 @@ def clean_cache():
     for cache_path in cache_paths:
         cache_path.mkdir(parents=True, exist_ok=True)
         (cache_path / "train").mkdir(exist_ok=True)
-        (cache_path / "val").mkdir(exist_ok=True)
-        print(f"[CLEAN] ✅ Created clean structure: {cache_path}/{{train,val}}/")
+        (cache_path / "dev").mkdir(exist_ok=True)  # Use 'dev' to match TUSZ naming!
+        print(f"[CLEAN] ✅ Created clean structure: {cache_path}/{{train,dev}}/")
 
     print("\n[CACHE CLEAN] ✅ Cache cleanup complete!")
     print("Next training run will rebuild cache with patient-disjoint splits.")
@@ -396,9 +399,10 @@ def train(
         # ALWAYS use SSD cache on Modal, NOT S3!
         cache_dir = "/results/cache/tusz"  # Fixed path on SSD volume
 
-        # CRITICAL: Cache structure should be cache_dir/{train,val}/ for patient disjointness
+        # CRITICAL: Cache structure should be cache_dir/{train,dev}/ for patient disjointness
+        # We use 'dev' NOT 'val' to match TUSZ's official split naming convention!
         cache_train = Path(cache_dir) / "train"
-        cache_val = Path(cache_dir) / "val"
+        cache_dev = Path(cache_dir) / "dev"  # TUSZ calls it 'dev', so we keep it 'dev'!
         cache_path = cache_train  # Primary cache for reporting
 
         # CACHE VALIDATION: Check if cache was built with patient-disjoint splits
@@ -441,7 +445,7 @@ def train(
                 # Recreate clean structure
                 Path(cache_dir).mkdir(parents=True, exist_ok=True)
                 cache_train.mkdir(exist_ok=True)
-                cache_val.mkdir(exist_ok=True)
+                cache_dev.mkdir(exist_ok=True)
 
                 # Write new metadata
                 metadata = {

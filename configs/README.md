@@ -88,7 +88,7 @@ modal app logs <app-id>
 
 1. **Wrong Cache Directory**:
    - ❌ Local: `cache/v2.6_full/` (empty)
-   - ✅ Local: `cache/tusz/` (has 3734 files)
+   - ✅ Local: `cache/tusz/{train,dev}/` (4667 + 1832 files) - Using TUSZ's 'dev' naming!
 
 2. **Modal Cache Misconception**:
    - ❌ "Cache is on S3 causing slowdowns"
