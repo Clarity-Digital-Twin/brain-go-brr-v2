@@ -188,65 +188,65 @@ class GraphChannelMixerPyG(nn.Module):
 
         # Eigendecomposition in fp32 without AMP for numerical stability
         with torch.cuda.amp.autocast(enabled=False):
-                l_stable = laplacian.to(torch.float32)
+            l_stable = laplacian.to(torch.float32)
 
-                try:
-                    eigenvalues, eigenvectors = torch.linalg.eigh(l_stable)
+            try:
+                eigenvalues, eigenvectors = torch.linalg.eigh(l_stable)
 
-                    if (
-                        torch.isnan(eigenvalues).any()
-                        or torch.isnan(eigenvectors).any()
-                        or torch.isinf(eigenvalues).any()
-                        or torch.isinf(eigenvectors).any()
-                    ):
-                        print("[WARNING] NaN/Inf detected in eigendecomposition, using fallback PE")
-                        if self.last_valid_pe is not None and self.last_valid_pe.shape[0] == B:
-                            pe = self.last_valid_pe.reshape(B * T, N, self.k_eigenvectors).to(
-                                torch.float32
-                            )
-                        else:
-                            pe = (
-                                torch.randn(
-                                    B * T,
-                                    N,
-                                    self.k_eigenvectors,
-                                    device=device,
-                                    dtype=torch.float32,
-                                )
-                                * 0.01
-                            )
-                    else:
-                        # Clamp eigenvalues to SAFER range [1e-6, 2]
-                        eigenvalues = torch.clamp(eigenvalues, min=1e-6, max=2.0)
-                        # Take k smallest eigenvectors (ascending order)
-                        pe = eigenvectors[..., : self.k_eigenvectors]  # (B*T, N, k)
-
-                except RuntimeError as e:
-                    print(f"[WARNING] Eigendecomposition failed: {e}, using fallback PE")
-                    pe = (
-                        torch.randn(
-                            B * T, N, self.k_eigenvectors, device=device, dtype=torch.float32
+                if (
+                    torch.isnan(eigenvalues).any()
+                    or torch.isnan(eigenvectors).any()
+                    or torch.isinf(eigenvalues).any()
+                    or torch.isinf(eigenvectors).any()
+                ):
+                    print("[WARNING] NaN/Inf detected in eigendecomposition, using fallback PE")
+                    if self.last_valid_pe is not None and self.last_valid_pe.shape[0] == B:
+                        pe = self.last_valid_pe.reshape(B * T, N, self.k_eigenvectors).to(
+                            torch.float32
                         )
-                        * 0.01
+                    else:
+                        pe = (
+                            torch.randn(
+                                B * T,
+                                N,
+                                self.k_eigenvectors,
+                                device=device,
+                                dtype=torch.float32,
+                            )
+                            * 0.01
+                        )
+                else:
+                    # Clamp eigenvalues to SAFER range [1e-6, 2]
+                    eigenvalues = torch.clamp(eigenvalues, min=1e-6, max=2.0)
+                    # Take k smallest eigenvectors (ascending order)
+                    pe = eigenvectors[..., : self.k_eigenvectors]  # (B*T, N, k)
+
+            except RuntimeError as e:
+                print(f"[WARNING] Eigendecomposition failed: {e}, using fallback PE")
+                pe = (
+                    torch.randn(
+                        B * T, N, self.k_eigenvectors, device=device, dtype=torch.float32
                     )
+                    * 0.01
+                )
 
-            # Sign consistency within no_grad
-            if self.pe_sign_consistency:
-                signs = torch.sign(pe.sum(dim=-2, keepdim=True))  # (B*T, 1, k)
-                signs = signs.where(signs != 0, torch.ones_like(signs))
-                pe = pe * signs
+        # Sign consistency
+        if self.pe_sign_consistency:
+            signs = torch.sign(pe.sum(dim=-2, keepdim=True))  # (B*T, 1, k)
+            signs = signs.where(signs != 0, torch.ones_like(signs))
+            pe = pe * signs
 
-            # Final NaN check and replacement
-            pe = torch.nan_to_num(pe, nan=0.0, posinf=1.0, neginf=-1.0)
+        # Final NaN check and replacement
+        pe = torch.nan_to_num(pe, nan=0.0, posinf=1.0, neginf=-1.0)
 
-            # Reshape back and cast to original dtype
-            pe = pe.reshape(B, T, N, self.k_eigenvectors).to(dtype)
+        # Reshape back and cast to original dtype
+        pe = pe.reshape(B, T, N, self.k_eigenvectors).to(dtype)
 
-            # Cache this valid PE for future fallback
-            if not torch.isnan(pe).any() and not torch.isinf(pe).any():
-                self.last_valid_pe = pe.detach().clone()
+        # Cache this valid PE for future fallback
+        if not torch.isnan(pe).any() and not torch.isinf(pe).any():
+            self.last_valid_pe = pe.detach().clone()
 
-        # Return PE without gradients
+        # Return PE with gradients enabled for adjacency learning
         return pe
 
     def forward_vectorized(
