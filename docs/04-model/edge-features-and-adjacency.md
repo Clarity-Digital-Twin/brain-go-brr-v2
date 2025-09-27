@@ -6,6 +6,7 @@ File: `src/brain_brr/models/edge_features.py`
 - 171 unique edges for 19 electrodes
 - Post Mamba weights → assemble adjacency `(B, 960, 19, 19)`
 - Top-k per node (default 3), threshold prune (1e-4), symmetrize, identity fallback
+- Similarity is clamped at the source with a safety margin: `graph.edge_similarity_margin` (default 0.01)
 
 Details
 
@@ -20,5 +21,5 @@ Details
 
 Notes
 
-- In V3, adjacency is learned from the edge stream; the heuristic builder is only used in V2.
-- For V3, `graph.edge_*` fields control sparsification and pruning.
+- V2 heuristic graph path has been removed. In V3, adjacency is learned from the edge stream.
+- For V3, `graph.edge_*` fields control sparsification and pruning; use `edge_similarity_margin` to keep similarities within `[-1+margin, 1-margin]`.

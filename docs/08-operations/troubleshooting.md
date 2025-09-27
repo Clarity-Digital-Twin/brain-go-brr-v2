@@ -7,6 +7,7 @@ Common issues
 - NaN losses on 4090: set `mixed_precision: false`
 - Modal stuck: increase CPU (24) and RAM (96GB)
 - PyG install fails: use prebuilt wheels
+- CI/CD: If PyG isn’t installed in the workflow, tests that require it are skipped by markers; install cu121 wheels to exercise GNN tests.
 - Evaluate CLI exits early:
   - "No config found" — pass `--config` or use a checkpoint with embedded config
   - "No EDF files found" — verify `*.edf` exist under the provided data path
@@ -50,6 +51,10 @@ WSL2 OOM/driver artifact note
 
 - If you see impossible memory in logs like `17179869184.00 GiB`, that is a reporting artifact after a hard OOM or driver fault.
 - Fix: `wsl --shutdown` to reset the VM/GPU state, then relaunch. Also export `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:256` during smokes.
+
+CI note (PyG optional in unit tests)
+
+- The test suite skips GNN‑dependent tests when `torch_geometric` is absent. To validate GNN paths in CI, install PyG using prebuilt wheels for torch 2.2.0+cu121.
 
 NaN logits root cause quick summary
 

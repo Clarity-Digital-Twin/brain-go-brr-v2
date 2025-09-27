@@ -15,6 +15,7 @@ Recommendations
 - `mixed_precision: false`
 - `use_balanced_sampling: true`
 - WSL2: `num_workers: 0`
+- V3.2.0: set `model.graph.edge_similarity_margin: 0.01`
 
 Recommended V3 profile (RTX 4090, 24GB)
 

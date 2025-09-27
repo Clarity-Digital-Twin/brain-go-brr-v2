@@ -8,6 +8,7 @@ Current architecture
 
 - V3 (Dual‑stream): TCN → Node Mamba(64) + Edge Mamba(16) → Learned adjacency → Vectorized PyG GNN + Laplacian PE (dynamic by default) → Projection/Upsample → Detection
   (Legacy V2 heuristic graph path has been removed; kept in docs only for historical context.)
+  – Edge similarity is clamped at the source with a configurable margin (`edge_similarity_margin`, default 0.01) to prevent ±1.0 boundary issues.
 
 Model size and stack
 

@@ -41,6 +41,11 @@ Memory notes (RTX 4090)
   - Use a moderate batch size (e.g., 4 on 24GB VRAM).
   - A100‑80GB can run full dynamic with large batches; keep `mixed_precision: true` on A100.
 
+Quick tips
+
+- Gradient policy: dynamic PE remains gradient‑enabled to allow adjacency learning; AMP is disabled around eigendecomp for stability.
+- If close to OOM, prefer increasing `semi_dynamic_interval` before disabling dynamic PE.
+
 Stability safeguards (implemented)
 
 - Degree clamping before normalization prevents divide‑by‑zero.
