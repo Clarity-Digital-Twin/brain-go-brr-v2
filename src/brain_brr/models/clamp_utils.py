@@ -56,15 +56,15 @@ def monitored_clamp(
 
     if min_val is not None:
         mask_low = x < min_val
-        would_clamp_low = mask_low.any().item()
+        would_clamp_low = bool(mask_low.any().item())
         if would_clamp_low:
-            num_low = mask_low.sum().item()
+            num_low = int(mask_low.sum().item())
 
     if max_val is not None:
         mask_high = x > max_val
-        would_clamp_high = mask_high.any().item()
+        would_clamp_high = bool(mask_high.any().item())
         if would_clamp_high:
-            num_high = mask_high.sum().item()
+            num_high = int(mask_high.sum().item())
 
     # Log if monitoring is enabled
     if config.get("log_clamp_hits", False) and (would_clamp_low or would_clamp_high):
@@ -78,9 +78,8 @@ def monitored_clamp(
 
     if should_remove:
         # Don't clamp, but validate if configured
-        if config.get("validate_finite", True):
-            if not torch.isfinite(x).all():
-                logger.warning(f"Non-finite values detected at '{name}' with clamps removed!")
+        if config.get("validate_finite", True) and not torch.isfinite(x).all():
+            logger.warning(f"Non-finite values detected at '{name}' with clamps removed!")
         return x
     else:
         # Apply clamp as normal

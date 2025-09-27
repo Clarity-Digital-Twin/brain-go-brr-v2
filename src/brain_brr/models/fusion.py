@@ -8,7 +8,7 @@ import math
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.nn.functional as func
 
 
 class GatedFusion(nn.Module):
@@ -41,7 +41,7 @@ class GatedFusion(nn.Module):
 
         # Gated combination: node is primary, edge is gated
         output = node + gate * edge
-        return output
+        return output  # type: ignore[no-any-return]
 
 
 class MultiHeadGatedFusion(nn.Module):
@@ -92,7 +92,7 @@ class MultiHeadGatedFusion(nn.Module):
 
         # Compute attention scores
         scores = torch.matmul(Q, K.transpose(-2, -1)) / self.scale
-        attn = F.softmax(scores, dim=-1)
+        attn = func.softmax(scores, dim=-1)
         attn = self.dropout(attn)
 
         # Apply attention to values
@@ -104,4 +104,4 @@ class MultiHeadGatedFusion(nn.Module):
         out = self.dropout(out)
 
         # Residual connection with node features
-        return node + out
+        return node + out  # type: ignore[no-any-return]

@@ -346,11 +346,13 @@ class SeizureDetector(nn.Module):
                 elec_enhanced = self.norm_after_gnn(elec_enhanced)
 
             # PR-4: Apply fusion between node and edge-enhanced features
-            if self.fusion is not None and elec_enhanced is not node_feats:
+            if (
+                self.fusion is not None
+                and elec_enhanced is not node_feats
+                and self.fusion_type in ("gated", "multihead")
+            ):
                 # elec_enhanced has edge information from GNN, node_feats is pure node
-                if self.fusion_type == "gated" or self.fusion_type == "multihead":
-                    elec_enhanced = self.fusion(node_feats, elec_enhanced)
-                # else: keep default additive fusion (elec_enhanced already has it)
+                elec_enhanced = self.fusion(node_feats, elec_enhanced)
 
             # Project back to bottleneck
             elec_flat = elec_enhanced.permute(0, 1, 3, 2).reshape(

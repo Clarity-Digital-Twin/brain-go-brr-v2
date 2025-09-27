@@ -193,7 +193,9 @@
       "Bash(.venv/bin/mypy src/brain_brr/models/norms.py)",
       "Bash(.venv/bin/ruff check tests/unit/models/test_pr3_adjacency_conditioning.py --fix --unsafe-fixes)",
       "Bash(BGB_SMOKE_TEST=1 BGB_LIMIT_FILES=3 timeout 60 .venv/bin/python -m src train configs/local/smoke_pr123.yaml)",
-      "Bash(pgrep:*)"
+      "Bash(pgrep:*)",
+      "Bash(.venv/bin/ruff check src/brain_brr/models/fusion.py src/brain_brr/models/clamp_utils.py src/brain_brr/models/detector.py src/brain_brr/config/schemas.py tests/unit/models/test_pr4_clamp_retirement.py --fix)",
+      "Bash(.venv/bin/mypy:*)"
     ],
     "deny": [],
     "ask": []
