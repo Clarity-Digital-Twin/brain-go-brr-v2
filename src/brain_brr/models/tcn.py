@@ -4,6 +4,7 @@ Replaces U-Net encoder/decoder + ResCNN with a modern TCN architecture.
 Uses pytorch-tcn if available, falls back to minimal implementation.
 """
 
+import logging
 import warnings
 from typing import cast
 
@@ -11,6 +12,8 @@ import torch
 import torch.nn as nn
 
 from src.brain_brr.utils.env import env
+
+logger = logging.getLogger(__name__)
 
 # Suppress deprecation warning for weight_norm - we use old API for torch.compile compat
 warnings.filterwarnings(

@@ -5,6 +5,7 @@ Context (±5min): Pre/post-ictal patterns via bidirectional SSM
 O(N) complexity avoids transformer's O(N²) cost on long EEG sequences
 """
 
+import logging
 import warnings
 from typing import cast
 
@@ -14,6 +15,8 @@ import torch.nn as nn
 from src.brain_brr.utils.env import env
 
 from .norms import LayerScale
+
+logger = logging.getLogger(__name__)
 
 # Conditional import for GPU/CPU compatibility
 # No longer needed - we use d_conv=4 everywhere now
