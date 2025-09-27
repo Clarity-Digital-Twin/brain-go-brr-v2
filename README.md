@@ -113,7 +113,7 @@ python -m src build-cache \
   --cache-dir cache/tusz/train \
   --split train
 
-# Val split (TUSZ 'dev')
+# Dev split (CRITICAL: We use 'dev' to match TUSZ official naming, not 'val'!)
 python -m src build-cache \
   --data-dir data_ext4/tusz/edf/dev \
   --cache-dir cache/tusz/dev \

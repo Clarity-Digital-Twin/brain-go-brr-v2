@@ -2,6 +2,9 @@
 
 # Script to upload rebuilt cache to S3 after fixing preprocessing
 # This uploads the locally rebuilt cache with outlier clipping to S3
+#
+# CRITICAL: We use 'dev' naming to match TUSZ official splits (not 'val')!
+# TUSZ provides train/dev/eval - we use dev for validation during training.
 
 set -e
 

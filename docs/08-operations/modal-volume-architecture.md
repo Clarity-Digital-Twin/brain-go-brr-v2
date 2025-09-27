@@ -8,18 +8,21 @@ After thorough investigation and cleanup (Sep 25, 2025), here's the **CORRECT** 
 ### Local Caches
 - **Location**: `cache/tusz/`
   - `train/`: 4,667 NPZ files (306GB)
-  - `val/`: 1,832 NPZ files (143GB)
+  - `dev/`: 1,832 NPZ files (143GB) - **CRITICAL: Named 'dev' to match TUSZ official splits!**
   - **Total**: 449GB
 - **Smoke tests**: Use SAME cache with `BGB_LIMIT_FILES=3` env var
 - **NO SEPARATE SMOKE CACHE EXISTS OR IS NEEDED**
 
-### S3 Bucket Structure (raw data only)
+### S3 Bucket Structure
 - **Bucket**: `s3://brain-go-brr-eeg-data-20250919/`
 - **Contents**:
   ```
   tusz/edf/           # Raw EDF data (266GB)
+  cache/tusz/         # NPZ caches (449GB) - uploaded after local rebuild
+    ├── train/        # 4,667 NPZ files
+    └── dev/          # 1,832 NPZ files (NOT 'val' - matches TUSZ naming!)
   ```
-  NPZ caches should NOT be used directly from S3 for training.
+  NPZ caches should NOT be used directly from S3 for training - copy to Modal SSD first!
 
 ### Modal Cache Location
 - **Method**: Modal persistent volume (fast SSD)
