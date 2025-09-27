@@ -1,41 +1,48 @@
 # PR-1: Smoke test with boundary normalization enabled
 # Based on smoke.yaml but with normalization at component boundaries
 
-# Model architecture configuration
-model:
-  architecture: v3  # Dual-stream with learned adjacency
+experiment:
+  name: smoke_test_pr1
+  description: "PR-1 boundary normalization smoke test"
+  seed: 42
+  output_dir: results/smoke_pr1
+  device: cuda
 
-  # TCN encoder
+model:
+  architecture: v3  # V3 dual-stream with learned adjacency
+
   tcn:
     num_layers: 8
     kernel_size: 7
     dropout: 0.15
-    stride_down: 16  # 15360/16 = 960 for Mamba
+    causal: false
+    stride_down: 16
+    use_cuda_optimizations: true
 
-  # Mamba configuration
   mamba:
     n_layers: 6
+    d_model: 512
     d_state: 16
-    conv_kernel: 4  # d_conv for Mamba
+    conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
-  # GNN configuration (V3: learned adjacency)
+  # Graph configuration
   graph:
     enabled: true
-    edge_features: cosine  # Edge metric: cosine similarity
-    edge_top_k: 3  # Top-k edges per node
-    edge_threshold: 1.0e-4  # Edge weight cutoff
-    edge_mamba_layers: 2  # Edge stream Mamba layers
-    edge_mamba_d_state: 8  # Edge stream state dim
-    edge_mamba_d_model: 16  # Must be multiple of 8 for CUDA
-    n_layers: 2  # GNN layers
+    edge_features: cosine
+    edge_top_k: 3
+    edge_threshold: 1.0e-4
+    edge_mamba_layers: 2
+    edge_mamba_d_state: 8
+    edge_mamba_d_model: 16
+    n_layers: 2
     dropout: 0.1
     use_residual: true
-    alpha: 0.05  # SSGConv self vs neighbor mixing
-    k_eigenvectors: 16  # Laplacian PE dimension
-    use_dynamic_pe: true  # Dynamic PE (compute per timestep)
-    semi_dynamic_interval: 1  # Update PE every N timesteps
-    pe_sign_consistency: true  # Fix eigenvector signs
+    alpha: 0.05
+    k_eigenvectors: 16
+    use_dynamic_pe: true
+    semi_dynamic_interval: 10
+    pe_sign_consistency: true
 
   # PR-1: BOUNDARY NORMALIZATION CONFIGURATION
   norms:
@@ -50,83 +57,72 @@ model:
     after_gnn: true  # Normalize after GNN processing
     before_decoder: true  # Normalize before final decoder projection
 
-# Data configuration
 data:
-  cache_dir: cache/tusz  # Pre-processed NPZ cache
-  num_workers: 0  # WSL2 multiprocessing fix
+  dataset: tuh_eeg
+  data_dir: data_ext4/tusz/edf
+  cache_dir: cache/tusz
+  split_policy: official_tusz
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60
+  stride: 10
+  use_balanced_sampling: false  # MUST be false for BGB_LIMIT_FILES to work!
+  num_workers: 0
   pin_memory: false
-  use_balanced_sampling: true  # CRITICAL: Ensure seizures in batches
+  persistent_workers: false
+  prefetch_factor: 2
+  validation_split: 0.2
 
-# Training configuration
+preprocessing:
+  montage: "10-20"
+  bandpass: [0.5, 120.0]
+  notch_freq: 60
+  normalize: true
+  use_mne: true
+
 training:
-  epochs: 1  # SMOKE TEST: Single epoch
-  batch_size: 12  # Conservative for RTX 4090
-  learning_rate: 1.0e-4
-  weight_decay: 1.0e-4
-  gradient_clip: 1.0
-  mixed_precision: false  # DISABLED: Causes NaN on RTX 4090
-  num_accumulation_steps: 1
-  # Loss configuration
-  loss: focal  # Use focal loss for imbalanced data
+  epochs: 1  # Just 1 epoch for smoke
+  batch_size: 8
+  learning_rate: 5.0e-5  # Reduced for stability with norms
+  weight_decay: 0.05
+  optimizer: adamw
+  gradient_clip: 0.5
+  mixed_precision: false  # Disabled for smoke test stability
+
+  # Focal loss for imbalanced data
+  loss: focal
   focal_alpha: 0.5
   focal_gamma: 2.0
-  # Scheduler
+
   scheduler:
     type: cosine
     warmup_ratio: 0.1
-  # Validation
-  val_frequency: 0.25  # 4x per epoch
-  val_check_frequency: 100  # Every 100 batches
-  # Model selection
-  model_selection_metric: sensitivity_at_10fa
-  model_selection_mode: max
-  save_top_k: 1
-  # Early stopping
+
   early_stopping:
     patience: 5
     metric: sensitivity_at_10fa
-    mode: max
-  # Balanced sampling for training
-  use_balanced_sampling: true  # Enable balanced sampling
 
-# Post-processing configuration (inherited from production config)
 postprocessing:
   hysteresis:
     tau_on: 0.86
     tau_off: 0.78
-    min_onset_samples: 128
-    min_offset_samples: 256
   morphology:
     opening_kernel: 11
     closing_kernel: 31
-    use_gpu: false
   duration:
     min_duration_s: 3.0
     max_duration_s: 600.0
   events:
     tau_merge: 2.0
     confidence_method: mean
-    confidence_percentile: 0.75
-  stitching:
-    method: overlap_add
-    window_size: 15360
-    stride: 2560
 
-# Logging
+evaluation:
+  metrics: [taes, sensitivity, specificity, auroc]
+  fa_rates: [10, 5, 2.5, 1]
+  save_predictions: false
+  save_plots: false
+
 logging:
-  use_wandb: false  # Disabled for smoke test
-  project: brain-go-brr-v3
-  log_frequency: 10  # Log every 10 batches
-
-# System
-system:
-  device: auto  # Auto-detect GPU
-  compile: false  # torch.compile disabled for debugging
-  deterministic: false
-  seed: 42
-
-# Paths
-paths:
-  checkpoint_dir: checkpoints
-  output_dir: outputs
-  cache_dir: cache
+  log_every_n_steps: 10
+  log_gradients: false
+  log_weights: false

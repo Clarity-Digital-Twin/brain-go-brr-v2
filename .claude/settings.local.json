@@ -183,7 +183,9 @@
       "Bash(.venv/bin/ruff check src/brain_brr/cli/cli.py --fix --unsafe-fixes)",
       "Bash(BGB_LIMIT_FILES=2 .venv/bin/python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir /tmp/test_cache --split train)",
       "Bash(git rm:*)",
-      "Bash(.venv/bin/ruff check src/brain_brr/models/norms.py src/brain_brr/models/detector.py src/brain_brr/models/mamba.py --fix)"
+      "Bash(.venv/bin/ruff check src/brain_brr/models/norms.py src/brain_brr/models/detector.py src/brain_brr/models/mamba.py --fix)",
+      "Bash(BGB_SMOKE_TEST=1 BGB_LIMIT_FILES=3 .venv/bin/python -m src train configs/local/smoke_pr1.yaml)",
+      "Bash(BGB_SMOKE_TEST=1 BGB_LIMIT_FILES=3 timeout 30 .venv/bin/python -m src train configs/local/smoke_pr1.yaml)"
     ],
     "deny": [],
     "ask": []
