@@ -4,7 +4,7 @@ Canonical stack: TCN + Dual-Stream BiMamba + Vectorized GNN (PyG SSGConv + Stati
 
 Files
 - configs/local/smoke.yaml — 1 epoch, 3 files (via BGB_LIMIT_FILES=3), quick validation
-- configs/local/train.yaml — 100 epochs, 3734 files, balanced sampling
+- configs/local/train.yaml — 100 epochs, official train/dev splits, balanced sampling
 
 Shared model
 ```yaml
@@ -68,17 +68,17 @@ mixed_precision: false
 Train (RTX 4090 optimized)
 ```yaml
 epochs: 100
-batch_size: 8  # Reduced for V3 dual-stream memory
-use_balanced_sampling: true  # Critical for seizure sampling
-mixed_precision: false  # RTX 4090 FP16 causes NaNs
-learning_rate: 5e-5  # Reduced for V3 stability
-gradient_clip: 0.5  # Stronger for NaN protection
+batch_size: 4
+use_balanced_sampling: true  # Critical for severe imbalance
+mixed_precision: false       # RTX 4090 FP16 can cause NaNs
+learning_rate: 1e-4
+gradient_clip: 0.1
 ```
 
 WSL2 notes
-- Must use `num_workers: 0` (multiprocessing issues)
-- Keep `pin_memory: false`, `persistent_workers: false`
-- Full V3 training takes ~200-300 hours on RTX 4090
+- Use `num_workers: 0` (multiprocessing issues)
+- Keep `pin_memory: true`, `persistent_workers: true`
+- Full V3 training is long; prefer Modal for speed
 
 Key V3 improvements
 - Node BiMamba: d_model=64, headdim=8 → (64*2)/8=16 ✓

@@ -18,11 +18,11 @@ All configs use the V3 dual-stream architecture:
 configs/
 ├── local/                    # Local WSL2/Linux configs (RTX 4090 optimized)
 │   ├── smoke.yaml           # Quick test (1 epoch, 3 files via BGB_LIMIT_FILES=3)
-│   └── train.yaml           # Full training (100 epochs, 3734 files)
+│   └── train.yaml           # Full training (100 epochs; train/dev official splits)
 │
 └── modal/                    # Modal cloud GPU configs (A100-80GB optimized)
     ├── smoke.yaml           # Quick cloud test (1 epoch, 50 files)
-    └── train.yaml           # Full cloud training (100 epochs, 3734 files)
+    └── train.yaml           # Full cloud training (100 epochs; train/dev official splits)
 ```
 
 ## ⚡ Critical Cache Configuration
@@ -30,9 +30,9 @@ configs/
 ### Local (RTX 4090)
 ```yaml
 data:
-  cache_dir: cache/tusz     # MUST use existing cache with 3734 files!
+  cache_dir: cache/tusz     # MUST use existing cache for train/dev splits
 ```
-- **Location**: `cache/tusz/train/` (4667 NPZ) + `cache/tusz/dev/` (1832 NPZ)
+- **Location**: `cache/tusz/train/` (≈4667 NPZ) + `cache/tusz/dev/` (≈1832 NPZ)
 - **Warning**: Do NOT use `cache/v2.6_full/` - it's empty!
 
 ### Modal (A100)
@@ -78,11 +78,11 @@ modal app logs <app-id>
 
 | Setting | Local (RTX 4090) | Modal (A100-80GB) | Why Different |
 |---------|------------------|-------------------|---------------|
-| **Batch Size** | 8 | 48 | V3 dual-stream uses more memory |
-| **Mixed Precision** | false | true | RTX 4090 FP16 causes NaNs |
-| **Learning Rate** | 5e-5 | 5e-5 | Reduced for V3 stability |
-| **Workers** | 0 | 8 | WSL2 multiprocessing issues |
-| **Cache Location** | `cache/tusz/` | `/results/cache/tusz/` | Different filesystems |
+| Batch Size | 4 | 64 | A100 has much more VRAM |
+| Mixed Precision | false | true | RTX 4090 FP16 can cause NaNs |
+| Learning Rate | 1e-4 | 3e-5 | Stability vs. large batch size |
+| Workers | 0 | 8 | WSL2 vs. cloud parallel IO |
+| Cache Location | `cache/tusz/` | `/results/cache/tusz/` | Filesystem differences |
 
 ## ⚠️ Common Pitfalls
 

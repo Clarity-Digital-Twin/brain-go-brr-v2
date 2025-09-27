@@ -5,7 +5,7 @@
 data:
   dataset: tuh_eeg
   data_dir: /data/edf                    # Parent dir containing train/dev/eval
-  cache_dir: /results/cache/tusz        # Persistent SSD with 3734 cached NPZ files
+  cache_dir: /results/cache/tusz        # Persistent SSD with cached NPZ files (train/dev)
   split_policy: official_tusz           # Use TUSZ official patient-disjoint splits
   sampling_rate: 256
   n_channels: 19

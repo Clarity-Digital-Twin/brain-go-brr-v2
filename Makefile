@@ -107,9 +107,9 @@ type-check: ## Run mypy type checking
 quality: lint format type-check ## Run all code quality checks
 	@echo "${GREEN}✓ All quality checks passed${NC}"
 
-train-local: ## Train model with V3 local config (100 epochs, 3734 files)
+train-local: ## Train model with V3 local config (100 epochs; official train/dev splits)
 	@echo "${CYAN}Training with V3 dual-stream architecture...${NC}"
-	@echo "${YELLOW}Full training: 100 epochs, 3734 files${NC}"
+	@echo "${YELLOW}Full training: 100 epochs using official TUSZ train/dev splits${NC}"
 	.venv/bin/python -m src train configs/local/train.yaml
 
 smoke-local: ## Run local smoke test (1 epoch, 3 files)
