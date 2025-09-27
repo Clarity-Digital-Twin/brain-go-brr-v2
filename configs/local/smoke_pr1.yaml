@@ -82,7 +82,7 @@ preprocessing:
 
 training:
   epochs: 1  # Just 1 epoch for smoke
-  batch_size: 8
+  batch_size: 4  # Reduced for PR-1 memory overhead
   learning_rate: 5.0e-5  # Reduced for stability with norms
   weight_decay: 0.05
   optimizer: adamw
