@@ -6,14 +6,13 @@ actually needed, enabling systematic removal of redundant interventions.
 
 import logging
 import os
-from typing import Set
 
 import torch
 
 logger = logging.getLogger(__name__)
 
 # Track which clamps are safe to remove (populated during monitoring)
-SAFE_TO_REMOVE: Set[str] = set()
+SAFE_TO_REMOVE: set[str] = set()
 
 # Clamps that should always be kept for safety
 ESSENTIAL_CLAMPS = {

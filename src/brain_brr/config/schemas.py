@@ -257,23 +257,17 @@ class ClampRetirementConfig(StrictModel):
     )
 
     # Safety guards to always keep
-    keep_input_clamp: bool = Field(
-        default=True, description="Keep initial input validation clamp"
-    )
+    keep_input_clamp: bool = Field(default=True, description="Keep initial input validation clamp")
     keep_output_clamp: bool = Field(
         default=True, description="Keep final output clamp for loss stability"
     )
-    keep_loss_clamps: bool = Field(
-        default=True, description="Keep loss-level probability clamps"
-    )
+    keep_loss_clamps: bool = Field(default=True, description="Keep loss-level probability clamps")
 
     # Monitoring during transition
     log_clamp_hits: bool = Field(
         default=False, description="Log when values would have been clamped"
     )
-    validate_finite: bool = Field(
-        default=True, description="Check for NaN/Inf during forward pass"
-    )
+    validate_finite: bool = Field(default=True, description="Check for NaN/Inf during forward pass")
 
 
 class ModelConfig(StrictModel):
