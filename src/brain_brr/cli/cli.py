@@ -213,7 +213,7 @@ def build_cache_cmd(
     """Build cache for a chosen split under DATA_DIR into CACHE_DIR."""
     try:
         from src.brain_brr.data import EEGWindowDataset
-        from src.brain_brr.utils import env
+        from src.brain_brr.utils.env import EnvConfig
 
         edf_files_all = sorted(Path(data_dir).glob("**/*.edf"))
 
@@ -222,7 +222,7 @@ def build_cache_cmd(
             edf_files_all = edf_files_all[:limit_files]
             console.print(f"[yellow]Limiting to {limit_files} files (from --limit-files)[/yellow]")
         else:
-            limit_from_env = env.limit_files()
+            limit_from_env = EnvConfig.limit_files()
             if limit_from_env is not None and limit_from_env > 0:
                 edf_files_all = edf_files_all[:limit_from_env]
                 console.print(
