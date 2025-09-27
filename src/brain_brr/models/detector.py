@@ -268,13 +268,23 @@ class SeizureDetector(nn.Module):
             # Clamp cosine similarities to avoid extreme values
             edge_feats = torch.clamp(edge_feats, -0.99, 0.99)
 
-            # Learnable lift 1→8 channels for CUDA alignment & capacity
+            # Learnable lift 1→D channels for CUDA alignment & capacity
             edge_flat = edge_feats.squeeze(-1).reshape(batch_size * 171, 1, seq_len)  # (B*E,1,T)
             edge_in = self.edge_in_proj(edge_flat).contiguous()  # (B*E, D, T) where D=16
 
-            # CRITICAL: Always clamp edge projection to prevent explosion
-            # Conservative clamping to [-3, 3] for numerical stability
-            edge_in = torch.clamp(edge_in, -3.0, 3.0)
+            # PR-2: Apply bounded activation and normalization
+            if hasattr(self, 'edge_lift_act') and self.edge_lift_act is not None:
+                edge_in = self.edge_lift_act(edge_in)
+
+                # Apply normalization after activation if configured
+                if hasattr(self, 'edge_lift_norm') and self.edge_lift_norm is not None:
+                    # Transpose for LayerNorm on feature dimension
+                    edge_in = edge_in.transpose(1, 2).contiguous()  # (B*E, T, D)
+                    edge_in = self.edge_lift_norm(edge_in)
+                    edge_in = edge_in.transpose(1, 2).contiguous()  # Back to (B*E, D, T)
+            else:
+                # Fallback: Keep original clamp if PR-2 not enabled
+                edge_in = torch.clamp(edge_in, -3.0, 3.0)
 
             # Safety assertion for Mamba CUDA kernel
             assert edge_in.is_contiguous(), (
@@ -435,11 +445,29 @@ class SeizureDetector(nn.Module):
             instance.edge_out_proj = nn.Conv1d(edge_d_model, 1, kernel_size=1, bias=True)
             instance.edge_activate = nn.Softplus()
 
-            # Initialize edge projections with very small gains to prevent explosion
-            nn.init.xavier_uniform_(instance.edge_in_proj.weight, gain=0.1)  # Reduced from 0.5
+            # PR-2: Bounded edge stream components
+            edge_lift_activation = graph_cfg.edge_lift_activation if graph_cfg else "none"
+            edge_lift_norm = graph_cfg.edge_lift_norm if graph_cfg else "none"
+            edge_lift_gain = graph_cfg.edge_lift_init_gain if graph_cfg else 0.1
+
+            # Create activation function
+            if edge_lift_activation == "tanh":
+                instance.edge_lift_act = nn.Tanh()
+            elif edge_lift_activation == "sigmoid":
+                instance.edge_lift_act = nn.Sigmoid()
+            elif edge_lift_activation == "selu":
+                instance.edge_lift_act = nn.SELU()
+            else:
+                instance.edge_lift_act = None
+
+            # Create normalization layer
+            instance.edge_lift_norm = create_norm_layer(edge_lift_norm, edge_d_model)
+
+            # Initialize edge projections with configured gain
+            nn.init.xavier_uniform_(instance.edge_in_proj.weight, gain=edge_lift_gain)
             if instance.edge_out_proj.bias is not None:
                 nn.init.zeros_(instance.edge_out_proj.bias)
-            nn.init.xavier_uniform_(instance.edge_out_proj.weight, gain=0.1)  # Reduced from 0.5
+            nn.init.xavier_uniform_(instance.edge_out_proj.weight, gain=edge_lift_gain)
 
             # Projections for electrode space
             instance.proj_to_electrodes = nn.Conv1d(512, 19 * 64, kernel_size=1)

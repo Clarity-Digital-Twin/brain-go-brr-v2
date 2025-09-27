@@ -147,6 +147,17 @@ class GraphConfig(StrictModel):
         default=16, ge=8, le=64, description="Edge Mamba model dim (must be multiple of 8)"
     )
 
+    # PR-2: Bounded edge stream configuration
+    edge_lift_activation: Literal["tanh", "sigmoid", "selu", "none"] = Field(
+        default="none", description="Activation after edge projection (PR-2)"
+    )
+    edge_lift_norm: Literal["layernorm", "rmsnorm", "none"] = Field(
+        default="none", description="Normalization after edge activation (PR-2)"
+    )
+    edge_lift_init_gain: float = Field(
+        default=0.1, gt=0.0, le=1.0, description="Xavier init gain for edge projection"
+    )
+
     # GNN architecture
     n_layers: int = Field(default=2, ge=1, le=4, description="Graph neural network layers")
     dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout rate")
