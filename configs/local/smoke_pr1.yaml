@@ -40,7 +40,7 @@ model:
     use_residual: true
     alpha: 0.05
     k_eigenvectors: 16
-    use_dynamic_pe: true
+    use_dynamic_pe: true  # Re-enabled with memory fixes
     semi_dynamic_interval: 10
     pe_sign_consistency: true
 
@@ -82,7 +82,7 @@ preprocessing:
 
 training:
   epochs: 1  # Just 1 epoch for smoke
-  batch_size: 4  # Reduced for PR-1 memory overhead
+  batch_size: 8  # Restored to baseline after memory fixes
   learning_rate: 5.0e-5  # Reduced for stability with norms
   weight_decay: 0.05
   optimizer: adamw

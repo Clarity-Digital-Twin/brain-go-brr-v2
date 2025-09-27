@@ -286,9 +286,9 @@ class SeizureDetector(nn.Module):
             # PR-1: Normalize after edge Mamba (permute for LayerNorm on last dim)
             if self.norm_after_edge_mamba:
                 # edge_processed is (B*E, D, T), need to normalize over D dimension
-                edge_processed = edge_processed.transpose(1, 2)  # (B*E, T, D)
+                edge_processed = edge_processed.transpose(1, 2).contiguous()  # (B*E, T, D)
                 edge_processed = self.norm_after_edge_mamba(edge_processed)
-                edge_processed = edge_processed.transpose(1, 2)  # Back to (B*E, D, T)
+                edge_processed = edge_processed.transpose(1, 2).contiguous()  # Back to (B*E, D, T)
             edge_out = self.edge_out_proj(edge_processed)  # (B*E, 1, T)
             edge_weights = self.edge_activate(edge_out).reshape(batch_size, 171, seq_len)  # (B,E,T)
             assert_finite("edge_weights", edge_weights)
@@ -337,9 +337,9 @@ class SeizureDetector(nn.Module):
         # PR-1: Normalize before decoder (temporal is B, 512, 960)
         if self.norm_before_decoder:
             # Need to permute to make 512 the last dimension for LayerNorm
-            temporal = temporal.transpose(1, 2)  # (B, 960, 512)
+            temporal = temporal.transpose(1, 2).contiguous()  # (B, 960, 512)
             temporal = self.norm_before_decoder(temporal)
-            temporal = temporal.transpose(1, 2)  # Back to (B, 512, 960)
+            temporal = temporal.transpose(1, 2).contiguous()  # Back to (B, 512, 960)
 
         # Optional safety clamp after temporal modeling
         if _env.safe_clamp():
