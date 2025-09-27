@@ -351,13 +351,14 @@ def test_training_step_no_clamps():
 ## Success Metrics
 
 ### Must Have
-- [ ] Model stable with 13+ clamps removed
+- [ ] Model stable with 12+ clamps removed
 - [ ] Zero NaN/Inf in 10,000 batches
 - [ ] Performance maintained or improved
+- [ ] No reliance on BGB_SAFE_CLAMP environment variable
 
 ### Nice to Have
-- [ ] Remove all intermediate clamps (22 total)
-- [ ] Simplify to only 3-5 essential guards
+- [ ] Remove all intermediate clamps (15+ total)
+- [ ] Simplify to only essential math/output guards (~11 clamps)
 - [ ] Improved gradient flow metrics
 
 ## Risk Assessment

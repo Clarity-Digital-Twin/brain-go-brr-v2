@@ -38,14 +38,15 @@ Without bounded activation, this causes:
 ```python
 # Current implementation (UNSTABLE)
 edge_feats = compute_edge_features(x)  # (B, 171, 960, 1)
-edge_in_proj = nn.Linear(1, 16)  # 16x expansion!
-edge_in = edge_in_proj(edge_feats)  # (B, 171, 960, 16) - UNBOUNDED
-edge_in = torch.clamp(edge_in, -3, 3)  # BAND-AID
+# Note: Actually uses Conv1d, not Linear (detector.py:377)
+edge_in_proj = nn.Conv1d(1, 16, kernel_size=1)  # 16x expansion!
+edge_in = edge_in_proj(edge_feats)  # (B*171, 16, 960) - UNBOUNDED
+edge_in = torch.clamp(edge_in, -3, 3)  # BAND-AID at detector.py:258
 
 edge_mamba = BiMamba2(d_model=16)
 edge_out = edge_mamba(edge_in)  # Can still explode
 
-edge_out_proj = nn.Linear(16, 1)  # 16x contraction
+edge_out_proj = nn.Conv1d(16, 1, kernel_size=1)  # 16x contraction
 edge_weights = F.softplus(edge_out_proj(edge_out))  # Finally bounded
 ```
 
@@ -70,26 +71,28 @@ After Mamba (6 layers): σ² → 16^6 σ² = 16,777,216σ²
 
 Replace:
 ```python
-edge_in = edge_in_proj(edge_flat)  # Unbounded
-edge_in = torch.clamp(edge_in, -3, 3)  # Band-aid
+# detector.py:254-258
+edge_in = self.edge_in_proj(edge_flat).contiguous()  # Unbounded
+edge_in = torch.clamp(edge_in, -3.0, 3.0)  # Band-aid
 ```
 
 With:
 ```python
-edge_in = torch.tanh(edge_in_proj(edge_flat))  # Bounded [-1, 1]
-edge_in = RMSNorm(16, eps=1e-5)(edge_in)  # Normalized
+edge_in = self.edge_in_proj(edge_flat).contiguous()  # (B*E, 16, T)
+edge_in = torch.tanh(edge_in)  # Bounded [-1, 1]
+# Use GroupNorm for Conv1d output (no reshape needed)
+edge_in = nn.GroupNorm(1, 16)(edge_in)  # Normalized
 ```
 
 ### 2. Improved Initialization
 
 ```python
-# Current: Default initialization (too large for 16x expansion)
-edge_in_proj = nn.Linear(1, 16)
+# Current: Already has conservative initialization (detector.py:382)
+edge_in_proj = nn.Conv1d(1, 16, kernel_size=1)
+nn.init.xavier_uniform_(edge_in_proj.weight, gain=0.1)  # Already reduced!
 
-# Proposed: Conservative initialization
-edge_in_proj = nn.Linear(1, 16)
-nn.init.normal_(edge_in_proj.weight, std=0.1)  # Much smaller
-nn.init.zeros_(edge_in_proj.bias)
+# Good news: Initialization is already conservative
+# Just need to add bounded activation
 ```
 
 ### 3. Optional: Graduated Expansion
@@ -153,11 +156,11 @@ With RMSNorm, gradients are rescaled to prevent vanishing.
 ### Clamps That Become Redundant
 ```python
 # Can remove after PR-2:
-detector.py:250: edge_feats = torch.clamp(edge_feats, -0.99, 0.99)
-detector.py:258: edge_in = torch.clamp(edge_in, -3.0, 3.0)
+detector.py:258: edge_in = torch.clamp(edge_in, -3.0, 3.0)  # Main target
 
-# Edge features module:
-edge_features.py:77: x_norm = torch.clamp(x_norm, -10.0, 10.0)
+# May keep for safety:
+detector.py:250: edge_feats = torch.clamp(edge_feats, -0.99, 0.99)  # Input validation
+edge_features.py:77: x_norm = torch.clamp(x_norm, -10.0, 10.0)  # After normalization
 ```
 
 ### Expected Improvements
@@ -247,9 +250,10 @@ def test_adjacency_from_bounded_edges():
 ## Success Metrics
 
 ### Must Have
-- [ ] Edge stream stable without manual clamps
-- [ ] Edge weights remain in reasonable range [0, 10]
+- [ ] Edge stream stable without the [-3, 3] clamp
+- [ ] Edge weights remain in reasonable range via softplus
 - [ ] Adjacency matrix quality maintained
+- [ ] No NaN/Inf in edge stream for 1000 batches
 
 ### Nice to Have
 - [ ] Reduce edge dimension to 8 (memory savings)

@@ -502,4 +502,61 @@ This is not about removing features or reducing capacity - it's about making the
 
 ---
 
-*"An architecture that needs 47 manual clamps is telling you something. Listen to it."*
+*"An architecture that needs 43 manual interventions is telling you something. Listen to it."*
+
+## Appendix: Complete Intervention Inventory with File:Line References
+
+### Clamps (27 total)
+**In-Model (23):**
+- `src/brain_brr/models/tcn.py:241` - Input clamp [-10, 10]
+- `src/brain_brr/models/tcn.py:248` - Layer 1 conditional clamp [-50, 50]
+- `src/brain_brr/models/tcn.py:255` - Layer 2 conditional clamp [-50, 50]
+- `src/brain_brr/models/tcn.py:262` - Layer 3 conditional clamp [-50, 50]
+- `src/brain_brr/models/mamba.py:173` - Mamba input clamp [-10, 10]
+- `src/brain_brr/models/mamba.py:242` - Internal output clamp [-5, 5]
+- `src/brain_brr/models/mamba.py:248` - Final output clamp [-10, 10]
+- `src/brain_brr/models/mamba.py:314` - BiMamba input clamp [-10, 10]
+- `src/brain_brr/models/mamba.py:324` - BiMamba intermediate clamp [-10, 10]
+- `src/brain_brr/models/mamba.py:327` - BiMamba final clamp [-10, 10]
+- `src/brain_brr/models/edge_features.py:73` - Norm safety clamp [1e-6, inf]
+- `src/brain_brr/models/edge_features.py:77` - Normalized features clamp [-10, 10]
+- `src/brain_brr/models/edge_features.py:81` - Cosine similarity clamp [-1, 1]
+- `src/brain_brr/models/edge_features.py:87` - Denominator safety clamp [1e-6, inf]
+- `src/brain_brr/models/edge_features.py:91` - Final similarity clamp [-1, 1]
+- `src/brain_brr/models/gnn_pyg.py:220` - Eigenvalues clamp [1e-6, 2.0]
+- `src/brain_brr/models/gnn_pyg.py:350` - Output conditional clamp (env-based)
+- `src/brain_brr/models/detector.py:211` - TCN features conditional clamp
+- `src/brain_brr/models/detector.py:250` - Edge features clamp [-0.99, 0.99]
+- `src/brain_brr/models/detector.py:258` - Edge projection clamp [-3, 3]
+- `src/brain_brr/models/detector.py:299` - Mamba output conditional clamp
+- `src/brain_brr/models/detector.py:307` - Decoder output clamp [-50, 50]
+- `src/brain_brr/models/detector.py:314` - Final logits clamp [-100, 100]
+
+**Loss-Level (4):**
+- `src/brain_brr/train/loop.py:205` - Logits pre-loss clamp [-100, 100]
+- `src/brain_brr/train/loop.py:212` - Probability bounds [1e-6, 1-1e-6]
+- `src/brain_brr/train/loop.py:218` - Focal term stability [1e-7, 1-1e-7]
+- `src/brain_brr/train/loop.py:223` - Focal loss max clamp [0, 100]
+
+### NaN/Inf Replacements (9 in-model)
+- `src/brain_brr/models/tcn.py:238`
+- `src/brain_brr/models/mamba.py:170`
+- `src/brain_brr/models/mamba.py:313`
+- `src/brain_brr/models/gnn_pyg.py:240`
+- `src/brain_brr/models/gnn_pyg.py:349`
+- `src/brain_brr/models/detector.py:210`
+- `src/brain_brr/models/detector.py:298`
+- `src/brain_brr/models/detector.py:306`
+- `src/brain_brr/models/detector.py:313`
+
+### Epsilon Additions (6)
+- `src/brain_brr/models/gnn_pyg.py:159` - Degree clamping
+- `src/brain_brr/models/gnn_pyg.py:176-177` - Laplacian regularization
+- `src/brain_brr/models/gnn_pyg.py:184-185` - Fallback regularization
+- `src/brain_brr/models/edge_features.py:73` - Norm safety
+- `src/brain_brr/models/edge_features.py:86` - Sqrt safety
+- `src/brain_brr/models/edge_features.py:87` - Denominator safety
+
+### Gradient Sanitization (2 paths)
+- `src/brain_brr/train/loop.py:694-709` - Mixed precision path
+- `src/brain_brr/train/loop.py:728-745` - Standard path

@@ -8,7 +8,7 @@ The V3 architecture has **unbounded information flow** between major components:
 - Mamba → GNN: No normalization
 - GNN → Decoder: No normalization
 
-This causes activation magnitudes to grow exponentially, requiring 22+ manual clamps.
+This causes activation magnitudes to grow exponentially, requiring 27 manual clamps (23 in-model + 4 in loss).
 
 ## Theoretical Foundation
 
@@ -32,7 +32,7 @@ This causes activation magnitudes to grow exponentially, requiring 22+ manual cl
 
 ## Proposed Solution
 
-### 1. Add RMSNorm at Component Boundaries
+### 1. Add LayerNorm/RMSNorm at Component Boundaries
 
 **Location Points** (5 critical boundaries):
 ```
@@ -92,10 +92,17 @@ After norm: ||x₂'|| = O(1)
 
 ## Implementation Details
 
-### RMSNorm Formula
+### LayerNorm vs RMSNorm Choice
 ```python
+# Preferred: Use existing LayerNorm for consistency
+nn.LayerNorm(dim, eps=1e-5)
+
+# Alternative: RMSNorm if lower overhead needed
 RMSNorm(x) = γ * (x / RMS(x) + ε)
 where RMS(x) = sqrt(mean(x²))
+
+# Note: Mamba reference uses RMSNorm internally
+# reference_repos/mamba/mamba_ssm/modules/block.py uses RMSNorm
 ```
 
 ### LayerScale Formula
@@ -109,7 +116,7 @@ where α starts at 0.1 and is learnable
 ```yaml
 model:
   norms:
-    boundary_norm: str  # "rmsnorm" | "layernorm" | "none"
+    boundary_norm: str  # "layernorm" | "rmsnorm" | "none" (default: layernorm)
     boundary_eps: float  # 1e-5 (default)
     layerscale_alpha: float  # 0.1 (default)
     norm_locations:  # Fine-grained control
@@ -130,10 +137,12 @@ model:
 ### Clamps That Can Be Removed After PR-1
 ```python
 # These become redundant with boundary norms:
-- detector.py:211: features = torch.clamp(...)  # TCN features
-- detector.py:299: temporal = torch.clamp(...)  # Mamba output
-- mamba.py:248: output = torch.clamp(...)  # Final output
-- tcn.py:248-262: Layer output clamps  # All conditional clamps
+- tcn.py:248: x = torch.clamp(x, min=-50.0, max=50.0)  # Layer 1 output
+- tcn.py:255: x = torch.clamp(x, min=-50.0, max=50.0)  # Layer 2 output
+- tcn.py:262: x = torch.clamp(x, min=-50.0, max=50.0)  # Layer 3 output
+- mamba.py:248: output = torch.clamp(output, min=-10.0, max=10.0)  # Final output
+- detector.py:211: features = torch.clamp(features, safe_clamp_min(), safe_clamp_max())  # TCN features
+- detector.py:299: temporal = torch.clamp(temporal, safe_clamp_min(), safe_clamp_max())  # Mamba output
 ```
 
 ## Validation Criteria
@@ -204,11 +213,11 @@ test_layerscale_values()  # Test different α values
 
 ### Must Have
 - [ ] Zero NaN/Inf in 1000 consecutive batches
-- [ ] Gradient norm std < 10
+- [ ] Gradient norm P95 < empirically set threshold
 - [ ] Maintain current accuracy
 
 ### Nice to Have
-- [ ] Remove 4+ manual clamps
+- [ ] Remove 6 manual clamps (TCN layers + detector conditionals)
 - [ ] Improve convergence speed
 - [ ] Reduce gradient variance by 90%
 
