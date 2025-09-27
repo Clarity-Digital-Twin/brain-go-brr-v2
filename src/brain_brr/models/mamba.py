@@ -11,8 +11,9 @@ from typing import cast
 import torch
 import torch.nn as nn
 
-from src.brain_brr.models.norms import LayerScale
 from src.brain_brr.utils.env import env
+
+from .norms import LayerScale
 
 # Conditional import for GPU/CPU compatibility
 # No longer needed - we use d_conv=4 everywhere now

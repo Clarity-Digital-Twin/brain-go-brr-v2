@@ -186,7 +186,8 @@
       "Bash(.venv/bin/ruff check src/brain_brr/models/norms.py src/brain_brr/models/detector.py src/brain_brr/models/mamba.py --fix)",
       "Bash(BGB_SMOKE_TEST=1 BGB_LIMIT_FILES=3 .venv/bin/python -m src train configs/local/smoke_pr1.yaml)",
       "Bash(BGB_SMOKE_TEST=1 BGB_LIMIT_FILES=3 timeout 30 .venv/bin/python -m src train configs/local/smoke_pr1.yaml)",
-      "Bash(BGB_SMOKE_TEST=1 BGB_LIMIT_FILES=3 timeout 60 .venv/bin/python -m src train configs/local/smoke_pr1.yaml)"
+      "Bash(BGB_SMOKE_TEST=1 BGB_LIMIT_FILES=3 timeout 60 .venv/bin/python -m src train configs/local/smoke_pr1.yaml)",
+      "Bash(.venv/bin/ruff check src/brain_brr/models/mamba.py src/brain_brr/models/detector.py src/brain_brr/models/norms.py --fix)"
     ],
     "deny": [],
     "ask": []

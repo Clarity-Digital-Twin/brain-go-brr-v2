@@ -289,3 +289,15 @@ test_layerscale_values()  # Test different α values
 2. **Edge stream normalization**: Can normalize either before (dim=16) or after (dim=1) projection
 3. **LayerScale init**: Start with 0.1 as per paper, tune if needed
 4. **Residual connections**: Only node stream and GNN have explicit residuals currently
+
+### ⚠️ CRITICAL MEMORY FIX DISCOVERED (Sep 27, 2025)
+**Problem**: OOM errors with normalization enabled due to non-contiguous tensors after transpose
+**Root Cause**: Transpose operations for normalization created memory fragmentation
+**Solution**: Add `.contiguous()` after transpose operations:
+```python
+# Fixed implementation:
+edge_processed = edge_processed.transpose(1, 2).contiguous()  # Ensures contiguous memory
+edge_processed = self.norm_after_edge_mamba(edge_processed)
+edge_processed = edge_processed.transpose(1, 2).contiguous()  # Maintains contiguity
+```
+**Impact**: Resolved OOM issues, allows batch_size=8 on RTX 4090 with full V3 architecture
