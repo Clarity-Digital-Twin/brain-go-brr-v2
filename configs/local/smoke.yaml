@@ -42,6 +42,7 @@ model:
     edge_mamba_layers: 2
     edge_mamba_d_state: 8
     edge_mamba_d_model: 16
+    edge_similarity_margin: 0.01  # PR-5: Safety margin from ±1 boundaries
 
     # PR-2: BOUNDED EDGE STREAM (disabled by default)
     # To enable: change edge_lift_activation from "none" to "tanh"
