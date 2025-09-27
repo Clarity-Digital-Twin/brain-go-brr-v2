@@ -389,6 +389,11 @@ class SeizureDetector(nn.Module):
 
             # Node stream: per-electrode Mamba
             # headdim=8 ensures (64 * 2) / 8 = 16 which is multiple of 8
+            # PR-1: Pass LayerScale config to Mamba layers
+            norms_cfg = getattr(cfg, "norms", None)
+            use_layerscale_mamba = norms_cfg and norms_cfg.boundary_norm != "none"
+            layerscale_init = norms_cfg.layerscale_alpha if norms_cfg else 0.1
+
             instance.node_mamba = BiMamba2(
                 d_model=64,
                 d_state=16,  # Fixed for node stream
@@ -397,6 +402,8 @@ class SeizureDetector(nn.Module):
                 headdim=8,  # Critical: (64*2)/8 = 16 is multiple of 8
                 num_layers=6,  # Fixed for node stream
                 dropout=cfg.mamba.dropout,
+                use_layerscale=use_layerscale_mamba,
+                layerscale_init=layerscale_init,
             )
 
             # Edge stream: per-edge Mamba (learned lift 1→D→1)
@@ -419,6 +426,8 @@ class SeizureDetector(nn.Module):
                 headdim=4,  # Critical: (16*2)/4 = 8 is multiple of 8
                 num_layers=edge_layers,
                 dropout=cfg.mamba.dropout,
+                use_layerscale=use_layerscale_mamba,
+                layerscale_init=layerscale_init,
             )
 
             # Edge stream projections (learned lift/project) + activation

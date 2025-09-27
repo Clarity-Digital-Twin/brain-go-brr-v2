@@ -6,7 +6,6 @@ activation explosion and gradient instability.
 """
 
 import math
-from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -76,7 +75,7 @@ def create_norm_layer(
     norm_type: str,
     dim: int,
     eps: float = 1e-5
-) -> Optional[nn.Module]:
+) -> nn.Module | None:
     """Factory function to create normalization layers.
 
     Args:
@@ -97,4 +96,4 @@ def create_norm_layer(
         raise ValueError(f"Unknown norm type: {norm_type}")
 
 
-__all__ = ["RMSNorm", "LayerScale", "create_norm_layer"]
+__all__ = ["LayerScale", "RMSNorm", "create_norm_layer"]
