@@ -77,15 +77,15 @@ Verification checklist
 - Counts present per split:
   - `ls <cache_root>/train/*.npz | wc -l` (expect thousands for full)
   - `ls <cache_root>/val/*.npz | wc -l` (expect hundreds for full)
-- Dataset index exists: `<cache_root>/{train,val}/_dataset_index.json`
-- Manifest exists and non-empty: `<cache_root>/{train,val}/manifest.json`
+- Dataset index exists: `<cache_root>/{train,dev}/_dataset_index.json`
+- Manifest exists and non-empty: `<cache_root>/{train,dev}/manifest.json`
 - Training logs show: "BalancedSeizureDataset" and non-zero seizure ratio
 - Split policy in effect: logs show "OFFICIAL TUSZ SPLITS" and "✅ PATIENT DISJOINTNESS VERIFIED"
 
 Modal paths (persistent volume)
 
 - Train cache: `/results/cache/tusz/train`
-- Val cache: `/results/cache/tusz/val`
+- Dev cache: `/results/cache/tusz/dev`
 - Results: `/results/` (metrics, checkpoints, logs)
 
 Notes

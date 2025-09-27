@@ -23,7 +23,7 @@ After thorough investigation and cleanup (Sep 25, 2025), here's the **CORRECT** 
 
 ### Modal Cache Location
 - **Method**: Modal persistent volume (fast SSD)
-- **Mount point**: `/results/cache/tusz/{train,val}`
+- **Mount point**: `/results/cache/tusz/{train,dev}`
 - Populate once (e.g., by copying from local or S3), then reuse across runs.
 
 ## 2. Modal Persistence Volume
@@ -175,7 +175,7 @@ cache/tusz/
   └── dev/   ──sync──► /results/cache/tusz/dev/  # TUSZ naming: dev not val!
 
 results/                  /results/
-  └── local_runs/           ├── cache/tusz/{train,val}
+  └── local_runs/           ├── cache/tusz/{train,dev}
                              ├── smoke/
                              └── train/
 ```

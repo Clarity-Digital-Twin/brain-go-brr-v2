@@ -203,7 +203,7 @@ def train(config_path: Path, resume: bool, device: str) -> None:
 @click.option("--data-dir", type=click.Path(exists=True, path_type=Path), required=True)
 @click.option("--cache-dir", type=click.Path(path_type=Path), required=True)
 @click.option("--validation-split", type=float, default=0.2)
-@click.option("--split", type=click.Choice(["train", "val"]), default="train")
+@click.option("--split", type=click.Choice(["train", "dev", "val"]), default="train")
 @click.option(
     "--limit-files", type=int, default=None, help="Limit number of files to process (for testing)"
 )
@@ -229,12 +229,13 @@ def build_cache_cmd(
                     f"[yellow]Limiting to {limit_from_env} files (from BGB_LIMIT_FILES)[/yellow]"
                 )
 
-        if not 0.0 <= float(validation_split) <= 0.5:
-            raise ValueError("validation-split must be in [0.0, 0.5]")
-        val_n = int(len(edf_files_all) * float(validation_split))
-        val_files = edf_files_all[:val_n]
-        train_files = edf_files_all[val_n:]
-        edf_files = train_files if split == "train" else val_files
+        # For official TUSZ usage, point --data-dir at a single split (train/ or dev/)
+        # and select --split accordingly. We no longer re-split here; we build the
+        # cache for all files under the provided directory. 'val' is accepted as an
+        # alias for 'dev' for backward compatibility.
+        if split == "val":
+            split = "dev"
+        edf_files = edf_files_all
         label_files = [p.with_suffix(".csv") for p in edf_files]
 
         console.print(

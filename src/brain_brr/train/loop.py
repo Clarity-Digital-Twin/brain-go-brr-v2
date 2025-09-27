@@ -1530,7 +1530,7 @@ def main() -> None:
         from src.brain_brr.data.cache_utils import check_cache_completeness
 
         train_cache = data_cache_root / "train"
-        val_cache = data_cache_root / "val"
+        val_cache = data_cache_root / "dev"
         st_train = check_cache_completeness(train_files, train_cache)
         st_val = check_cache_completeness(val_files, val_cache)
         if st_train.missing_files > 0 or st_val.missing_files > 0:
@@ -1543,7 +1543,7 @@ def main() -> None:
             print(
                 "[HINT] Pre-build cache to avoid slow training:\n"
                 f"  python -m src build-cache --data-dir {config.data.data_dir} --cache-dir {data_cache_root / 'train'}\n"
-                f"  python -m src build-cache --data-dir {config.data.data_dir} --cache-dir {data_cache_root / 'val'}",
+                f"  python -m src build-cache --data-dir {config.data.data_dir} --cache-dir {data_cache_root / 'dev'}",
                 flush=True,
             )
     except Exception:

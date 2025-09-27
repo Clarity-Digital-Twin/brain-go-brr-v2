@@ -26,7 +26,7 @@ Data and preprocessing
 
 - Corpus: TUH EEG Seizure Corpus; strict 10–20 montage (19 channels)
 - Preprocessing: bandpass 0.5–120Hz, 60Hz notch, resample 256Hz, 60s windows with 10s stride, per‑channel z‑score
-- Cache: `cache/tusz/{train,val}` with NPZ files and `manifest.json`; balanced sampling uses manifest (no random I/O)
+- Cache: `cache/tusz/{train,dev}` with NPZ files and `manifest.json`; balanced sampling uses manifest (no random I/O)
 
 Channel order (must maintain)
 
