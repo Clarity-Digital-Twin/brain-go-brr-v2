@@ -12,20 +12,22 @@
 - **O(N) Complexity**: Linear-time processing via Mamba state-space models
 - **Dual-Stream Architecture**: Parallel processing of node (19×) and edge (171×) features
 - **Dynamic Graph Learning**: Time-evolving brain connectivity without heuristics
-- **Production Ready**: Comprehensive NaN protection, patient-disjoint splits, clinical metrics
+- **NaN-Robust Training**: 3-tier clamping system with gradient sanitization
 - **31M Parameters**: Efficient architecture that runs on consumer GPUs
 
-## 📊 Performance
+## 📊 Clinical Performance Targets
 
 ```
 ┌─────────────────┬──────────────┬─────────────┐
 │ False Alarms    │ Sensitivity  │ Status      │
 ├─────────────────┼──────────────┼─────────────┤
-│ 10 FA/24h       │ >95%         │ ✅ Achieved │
-│ 5 FA/24h        │ >90%         │ ✅ Achieved │
+│ 10 FA/24h       │ >95%         │ 🔄 Training │
+│ 5 FA/24h        │ >90%         │ 🔄 Training │
 │ 1 FA/24h        │ >75%         │ 🎯 Target   │
 └─────────────────┴──────────────┴─────────────┘
 ```
+
+**Current Status**: Building cache (4667/6499 files) → Ready to train
 
 ## 🏗️ Architecture
 
@@ -225,23 +227,23 @@ modal app logs <id>   # Stream logs
 | Slow training | Verify cache on SSD, not network mount |
 | Import errors | Exact versions: torch==2.2.2, mamba-ssm==2.2.2 |
 
-## 📊 Benchmarks
+## 📊 Expected Performance
 
-### Training Performance
+### Training Time Estimates
 
 | Hardware | Batch Size | Time/Epoch | Total Time | Cost |
 |----------|------------|------------|------------|------|
-| RTX 4090 | 12 | 2-3 hours | 200-300h | Power |
-| A100-80GB | 64 | 1 hour | 100h | ~$319 |
+| RTX 4090 | 12 | ~2-3 hours | ~200-300h | Power |
+| A100-80GB | 64 | ~1 hour | ~100h | ~$319 |
 
-### Memory Usage
+### Memory Requirements
 
 | Component | RTX 4090 | A100 | Note |
 |-----------|----------|------|------|
 | Model | 4GB | 4GB | Fixed |
 | Batch | 8GB | 32GB | Scales with batch_size |
 | Dynamic PE | 4GB | 8GB | Scales with interval |
-| **Total** | **16GB** | **44GB** | Peak usage |
+| **Total** | **16GB** | **44GB** | Expected peak |
 
 ## 📚 Documentation
 
