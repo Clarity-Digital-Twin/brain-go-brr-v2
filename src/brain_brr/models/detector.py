@@ -229,9 +229,7 @@ class SeizureDetector(nn.Module):
         # Optional safety clamp after TCN
         from src.brain_brr.utils.env import env as _env
 
-        if _env.safe_clamp():
-            features = torch.nan_to_num(features, nan=0.0, posinf=0.0, neginf=0.0)
-            features = torch.clamp(features, _env.safe_clamp_min(), _env.safe_clamp_max())
+        # PR-5: Removed conditional safe clamps (PR-1 norms provide stability)
 
         # V3 dual-stream if components are present
         if (
@@ -277,8 +275,7 @@ class SeizureDetector(nn.Module):
             edge_metric = str(self.config.get("edge_metric", "cosine"))
             edge_feats = edge_scalar_series(elec_feats, metric=edge_metric)  # (B, 171, 960, 1)
 
-            # Clamp cosine similarities to avoid extreme values
-            edge_feats = torch.clamp(edge_feats, -0.99, 0.99)
+            # PR-5: Removed redundant edge clamp (edge_features.py already bounds)
 
             # Learnable lift 1→D channels for CUDA alignment & capacity
             edge_flat = edge_feats.squeeze(-1).reshape(batch_size * 171, 1, seq_len)  # (B*E,1,T)
@@ -294,9 +291,7 @@ class SeizureDetector(nn.Module):
                     edge_in = edge_in.transpose(1, 2).contiguous()  # (B*E, T, D)
                     edge_in = self.edge_lift_norm(edge_in)
                     edge_in = edge_in.transpose(1, 2).contiguous()  # Back to (B*E, D, T)
-            else:
-                # Fallback: Keep original clamp if PR-2 not enabled
-                edge_in = torch.clamp(edge_in, -3.0, 3.0)
+            # PR-5: Removed fallback clamp (PR-2 tanh handles bounding)
 
             # Safety assertion for Mamba CUDA kernel
             assert edge_in.is_contiguous(), (
@@ -372,10 +367,7 @@ class SeizureDetector(nn.Module):
             temporal = self.norm_before_decoder(temporal)
             temporal = temporal.transpose(1, 2).contiguous()  # Back to (B, 512, 960)
 
-        # Optional safety clamp after temporal modeling
-        if _env.safe_clamp():
-            temporal = torch.nan_to_num(temporal, nan=0.0, posinf=0.0, neginf=0.0)
-            temporal = torch.clamp(temporal, _env.safe_clamp_min(), _env.safe_clamp_max())
+        # PR-5: Removed conditional temporal clamps (PR-1 norms provide stability)
 
         # Project back to 19 channels and upsample to original resolution
         decoded = self.proj_head(temporal)  # (B, 19, 15360)

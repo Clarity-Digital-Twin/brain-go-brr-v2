@@ -232,10 +232,9 @@ class TCNEncoder(nn.Module):
             )
 
         # CRITICAL: Input validation and clamping to prevent NaN propagation
-        # Check for NaN/Inf in inputs
+        # PR-5: Removed nan_to_num (PR-1 norms handle stability)
         if torch.isnan(x).any() or torch.isinf(x).any():
-            # Replace NaN/Inf with zeros
-            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+            logger.warning("Non-finite values in TCN input detected")
 
         # Input tier clamping: [-10, 10] for normalized EEG data
         x = torch.clamp(x, min=-10.0, max=10.0)
@@ -243,23 +242,17 @@ class TCNEncoder(nn.Module):
         # TCN processing
         x = self.tcn(x)  # (B, tcn_channels, 15360)
 
-        # Internal tier clamping: [-50, 50] for feature maps
-        if env.safe_clamp():
-            x = torch.clamp(x, min=-50.0, max=50.0)
+        # PR-5: Removed internal tier clamping (replaced by PR-1 boundary norms)
 
         # Project to output channels
         x = self.channel_proj(x)  # (B, 512, 15360)
 
-        # Maintain internal tier for features
-        if env.safe_clamp():
-            x = torch.clamp(x, min=-50.0, max=50.0)
+        # PR-5: Removed internal tier clamping (replaced by PR-1 boundary norms)
 
         # Downsample for Mamba
         x = self.downsample(x)  # (B, 512, 960)
 
-        # Final output uses internal tier (features, not logits)
-        if env.safe_clamp():
-            x = torch.clamp(x, min=-50.0, max=50.0)
+        # PR-5: Removed internal tier clamping (replaced by PR-1 boundary norms)
 
         return x
 
