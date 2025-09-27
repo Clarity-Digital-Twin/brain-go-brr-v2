@@ -19,6 +19,7 @@ import torch.nn as nn
 
 from .debug_utils import assert_finite
 from .mamba import BiMamba2
+from .norms import LayerScale, create_norm_layer
 from .tcn import ProjectionHead, TCNEncoder
 
 if TYPE_CHECKING:  # Only for type checkers; avoids runtime import cycle
@@ -69,6 +70,16 @@ class SeizureDetector(nn.Module):
         self.edge_in_proj: nn.Conv1d | None = None
         self.edge_out_proj: nn.Conv1d | None = None
         self.edge_activate: nn.Module | None = None
+
+        # PR-1: Boundary normalization layers (initialized as None, set by from_config)
+        self.norm_after_proj_to_electrodes: nn.Module | None = None
+        self.norm_after_node_mamba: nn.Module | None = None
+        self.norm_after_edge_mamba: nn.Module | None = None
+        self.norm_after_gnn: nn.Module | None = None
+        self.norm_before_decoder: nn.Module | None = None
+
+        # PR-1: LayerScale for residual connections (initialized as None)
+        self.gnn_layerscale: nn.Module | None = None
 
         # Backwards-compat: ensure mamba_dropout has a concrete value
         if mamba_dropout is None:
@@ -393,6 +404,36 @@ class SeizureDetector(nn.Module):
                 instance.config["edge_metric"] = graph_cfg.edge_features
                 instance.config["edge_top_k"] = graph_cfg.edge_top_k
                 instance.config["edge_threshold"] = graph_cfg.edge_threshold
+
+            # PR-1: Initialize boundary normalization layers if configured
+            norms_cfg = getattr(cfg, "norms", None)
+            if norms_cfg and norms_cfg.boundary_norm != "none":
+                # Create normalization layers at component boundaries
+                if norms_cfg.after_tcn_proj:
+                    instance.norm_after_proj_to_electrodes = create_norm_layer(
+                        norms_cfg.boundary_norm, 64, norms_cfg.boundary_eps
+                    )
+                if norms_cfg.after_node_mamba:
+                    instance.norm_after_node_mamba = create_norm_layer(
+                        norms_cfg.boundary_norm, 64, norms_cfg.boundary_eps
+                    )
+                if norms_cfg.after_edge_mamba:
+                    # Edge stream has 16 dimensions
+                    instance.norm_after_edge_mamba = create_norm_layer(
+                        norms_cfg.boundary_norm, edge_d_model, norms_cfg.boundary_eps
+                    )
+                if norms_cfg.after_gnn:
+                    instance.norm_after_gnn = create_norm_layer(
+                        norms_cfg.boundary_norm, 64, norms_cfg.boundary_eps
+                    )
+                if norms_cfg.before_decoder:
+                    instance.norm_before_decoder = create_norm_layer(
+                        norms_cfg.boundary_norm, 512, norms_cfg.boundary_eps
+                    )
+
+                # Initialize LayerScale for GNN residual if configured
+                if graph_cfg and graph_cfg.use_residual:
+                    instance.gnn_layerscale = LayerScale(64, norms_cfg.layerscale_alpha)
 
         # Optionally attach GNN components if enabled
         graph_cfg = getattr(cfg, "graph", None)

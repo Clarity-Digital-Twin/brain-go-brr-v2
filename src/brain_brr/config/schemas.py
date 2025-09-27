@@ -170,6 +170,38 @@ class GraphConfig(StrictModel):
     )
 
 
+class NormConfig(StrictModel):
+    """Normalization configuration for PR-1: Boundary Normalization."""
+
+    boundary_norm: Literal["layernorm", "rmsnorm", "none"] = Field(
+        default="none",  # Default to none for backward compatibility
+        description="Type of normalization at component boundaries",
+    )
+    boundary_eps: float = Field(
+        default=1e-5, ge=1e-10, le=1e-3, description="Epsilon for normalization stability"
+    )
+    layerscale_alpha: float = Field(
+        default=0.1, ge=0.001, le=1.0, description="Initial LayerScale value for residuals"
+    )
+
+    # Fine-grained control over norm locations
+    after_tcn_proj: bool = Field(
+        default=True, description="Normalize after TCN projection to electrodes"
+    )
+    after_node_mamba: bool = Field(
+        default=True, description="Normalize after node Mamba stream"
+    )
+    after_edge_mamba: bool = Field(
+        default=True, description="Normalize after edge Mamba stream"
+    )
+    after_gnn: bool = Field(
+        default=True, description="Normalize after GNN processing"
+    )
+    before_decoder: bool = Field(
+        default=True, description="Normalize before final decoder projection"
+    )
+
+
 class ModelConfig(StrictModel):
     """Complete model architecture configuration."""
 
@@ -187,6 +219,12 @@ class ModelConfig(StrictModel):
 
     # Optional GNN config (V3 learned adjacency)
     graph: GraphConfig | None = Field(default=None, description="GNN configuration (V3)")
+
+    # Normalization configuration (PR-1: Boundary Normalization)
+    norms: NormConfig = Field(
+        default_factory=NormConfig,
+        description="Normalization configuration for architectural stability"
+    )
 
 
 class HysteresisConfig(StrictModel):
