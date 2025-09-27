@@ -168,26 +168,26 @@ class GraphChannelMixerPyG(nn.Module):
 
         # PR-3: Condition adjacency matrix for stability (row-softmax/EMA/symmetry)
         if self.adj_row_softmax or self.adj_ema_beta or self.adj_force_symmetric:
-                adj_pe = condition_adjacency(
-                    adj_pe,
-                    tau=self.adj_softmax_tau,
-                    force_symmetric=self.adj_force_symmetric,
-                    row_softmax=self.adj_row_softmax,
-                    ema_beta=self.adj_ema_beta,
-                )
+            adj_pe = condition_adjacency(
+                adj_pe,
+                tau=self.adj_softmax_tau,
+                force_symmetric=self.adj_force_symmetric,
+                row_softmax=self.adj_row_softmax,
+                ema_beta=self.adj_ema_beta,
+            )
 
-            # Reshape to process all (B*T) graphs at once
-            a_flat = adj_pe.reshape(B * T, N, N)
+        # Reshape to process all (B*T) graphs at once
+        a_flat = adj_pe.reshape(B * T, N, N)
 
-            # PR-3: Use stable Laplacian computation
-            laplacian = compute_stable_laplacian(
-                a_flat,
-                normalize=self.laplacian_normalize,
-                eps=self.laplacian_eps,
-            )  # (B*T, N, N)
+        # PR-3: Use stable Laplacian computation
+        laplacian = compute_stable_laplacian(
+            a_flat,
+            normalize=self.laplacian_normalize,
+            eps=self.laplacian_eps,
+        )  # (B*T, N, N)
 
-            # Eigendecomposition in fp32 without AMP, still under no_grad
-            with torch.cuda.amp.autocast(enabled=False):
+        # Eigendecomposition in fp32 without AMP for numerical stability
+        with torch.cuda.amp.autocast(enabled=False):
                 l_stable = laplacian.to(torch.float32)
 
                 try:
