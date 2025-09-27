@@ -14,9 +14,10 @@ Common issues
 V3 NaN issues
 
 - Primary contributing factor: dynamic PE eigendecomposition on poorly initialized adjacency.
-- Default configs enable dynamic PE with safeguards; on consumer GPUs (RTX 4090), if NaNs appear early, set `use_dynamic_pe: false` as a fallback.
+- Default configs enable dynamic PE with safeguards; on consumer GPUs (RTX 4090), prefer increasing `graph.semi_dynamic_interval` first; as a last resort set `use_dynamic_pe: false`.
 - Additional safeguards:
-  - Edge clamping is hardcoded in the V3 path (similarity clamp [-0.99, 0.99], edge projection clamp [-3, 3]); legacy `BGB_EDGE_CLAMP*` envs have been removed
+  - Edge similarity is clamped at the source with a configurable margin: `graph.edge_similarity_margin` (default 0.01)
+  - Edge lift uses bounded activation + normalization (tanh + LayerNorm when enabled); no hardcoded `[-3,3]` clamp remains
   - Optimizer parameter groups (no weight decay on norms/bias)
   - Optional gradient sanitization (`BGB_SANITIZE_GRADS=1`)
 - Details and timeline: `docs/08-operations/v3-nan-explosion-resolution.md`
@@ -37,6 +38,11 @@ OOM root cause quick summary
 
 - Full dynamic PE computes 960 eigendecompositions per window; the CUDA workspace across B×T can add several GB.
 - Remedies, in order: increase `semi_dynamic_interval`, reduce `batch_size`, or (as a last resort) disable dynamic PE.
+
+WSL2 OOM/driver artifact note
+
+- If you see impossible memory in logs like `17179869184.00 GiB`, that is a reporting artifact after a hard OOM or driver fault.
+- Fix: `wsl --shutdown` to reset the VM/GPU state, then relaunch. Also export `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:256` during smokes.
 
 NaN logits root cause quick summary
 

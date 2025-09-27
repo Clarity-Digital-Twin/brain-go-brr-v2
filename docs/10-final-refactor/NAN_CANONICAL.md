@@ -4,6 +4,11 @@
 **Codebase Version**: V3 dual-stream architecture
 **Status**: CLEAN ARCHITECTURE - Refactored with 3-tier clamping system
 
+Update (Oct 2025)
+- Edge similarity clamp moved to source with configurable `graph.edge_similarity_margin` (default 0.01), replacing ad‑hoc clamps in the detector.
+- Dynamic PE hardened and kept gradient‑enabled (AMP disabled around eigendecomp); prefer `graph.semi_dynamic_interval` for memory relief instead of disabling gradients.
+- WSL2 OOM artifact note: log lines reporting impossible memory (e.g., `17179869184.00 GiB`) are driver/VM artifacts post‑OOM; reset with `wsl --shutdown` and retry.
+
 ## ⚠️ CRITICAL FIXES (Sep 26, 2025)
 
 ### Three Root Causes Identified & Fixed

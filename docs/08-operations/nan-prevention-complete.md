@@ -79,8 +79,8 @@ python -m src build-cache --data-dir data_ext4/tusz/edf --cache-dir cache/tusz
 4. Node Mamba [CHECK: assert_finite("node_mamba")]
    ↓
 5. Edge Features [CHECK: cosine similarity clamping]
-   ↓
-6. Edge Mamba [CHECK: edge clamping -3 to 3]
+  ↓
+6. Edge Mamba [CHECK: bounded lift (tanh + norm); similarity clamp uses configurable margin]
    ↓
 7. Adjacency [CHECK: assert_finite("adjacency")]
    ↓
@@ -106,9 +106,9 @@ python -m src build-cache --data-dir data_ext4/tusz/edf --cache-dir cache/tusz
 ### Model Components
 - `models/tcn.py:239-248` - Input validation & clamping
 - `models/mamba.py:161-166, 303-319` - State management
-- `models/edge_features.py:70-91` - Numerical stability
-- `models/gnn_pyg.py:170-220` - Dynamic PE safeguards
-- `models/detector.py:250-256, 305-314` - Edge & output clamping
+- `models/edge_features.py:70-95` - Numerical stability incl. `edge_similarity_margin`
+- `models/gnn_pyg.py:154-260` - Dynamic PE safeguards (AMP disabled, gradients preserved)
+- `models/detector.py:270-405` - Edge lift (bounded), decoder/output clamping
 
 ### Training Loop
 - `train/loop.py:180-224` - Focal loss with probability clamping
@@ -168,7 +168,7 @@ python -m src train configs/local/train.yaml
 - ✅ Data preprocessing: Outlier clipping + nan_to_num
 - ✅ TCN input sanitization: Unconditional NaN replacement
 - ✅ Mamba state management: Input/output/intermediate clamps
-- ✅ Edge feature stability: Cosine similarity epsilon=1e-6
+- ✅ Edge feature stability: Cosine/correlation with epsilon=1e-6 and `edge_similarity_margin` clamp at source
 - ✅ Dynamic PE hardening: Regularization + fallback
 - ✅ Conservative initialization: Gains 0.01-0.2 throughout
 - ✅ Focal loss clamping: Probability [1e-6, 1-1e-6]

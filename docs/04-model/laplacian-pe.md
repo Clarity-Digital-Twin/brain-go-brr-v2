@@ -6,6 +6,7 @@ Goal
 Dynamic LPE (vectorized)
 - Compute per‑timestep normalized Laplacian L and take the k smallest eigenvectors.
 - Implementation uses a vectorized path across all timesteps; eigendecomposition runs with AMP disabled for stability.
+ - Gradients through adjacency are preserved for learning; if memory is tight, increase `semi_dynamic_interval` rather than disabling gradients.
 
 Numerical stability
 - Disable autocast for eigendecomposition; compute in float32 (or float64 if needed).

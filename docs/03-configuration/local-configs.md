@@ -25,6 +25,7 @@ model:
     use_dynamic_pe: true
     semi_dynamic_interval: 5
     edge_features: cosine
+    edge_similarity_margin: 0.01   # Clamp similarity within [-1+margin, 1-margin]
     edge_top_k: 3
     edge_threshold: 1.0e-4
     edge_mamba_layers: 2
@@ -54,6 +55,7 @@ model:
   graph:
     enabled: true
     edge_features: cosine
+    edge_similarity_margin: 0.01
     edge_top_k: 3
     edge_threshold: 1.0e-4
     edge_mamba_layers: 2

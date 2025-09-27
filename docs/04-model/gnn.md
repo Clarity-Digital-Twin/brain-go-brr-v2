@@ -20,6 +20,7 @@ Dynamic vs static PE
 - Dynamic PE is configurable via `graph.use_dynamic_pe` (recommended true for V3).
 - Dynamic PE implementation is vectorized across B×T with sign-consistency and optional semi-dynamic interval (`graph.semi_dynamic_interval`).
 - Static PE remains available when `use_dynamic_pe: false` and is computed once from the structural 10–20 montage.
+ - Gradients flow through the adjacency into the eigendecomposition (via `torch.linalg.eigh`); AMP is disabled around eigendecomp for numerical stability.
 
 Bypass edge transform
 
@@ -49,3 +50,7 @@ Stability safeguards (implemented)
   - Final `torch.nan_to_num` to ensure finite tensors.
 - Cached PE buffer to reuse the last valid dynamic PE on rare failures.
 - These guards eliminate non‑finite logits stemming from ill‑conditioned adjacencies.
+
+Edge similarity margin
+
+- Similarity is clamped at source with a configurable margin: `graph.edge_similarity_margin` (default 0.01), keeping values within `[-1+margin, 1-margin]` to prevent downstream explosions in the edge Mamba path.
