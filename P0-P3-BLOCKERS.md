@@ -1,6 +1,15 @@
-# P0–P3 Blockers: Deep Audit and Action Plan
+# P0–P3 Blockers: Deep Audit (Live Issues Log)
 
-This document lists potential blockers and risks by severity (P0–P3), with fast checks and concrete mitigations. File references are provided to exact starting lines.
+Purpose
+- Single source of truth for active/potential blockers ranked P0–P3.
+- Includes concrete code defects, operational prerequisites that block training, and feature gaps.
+- Each item has quick checks, mitigations, and file/line references.
+
+Current Summary (2025-09-26)
+- No code-level P0/P1 defects found in the audit.
+- P0 operational blockers exist (env/stack/cache) — these are setup prerequisites, not code bugs.
+- One P2 bug: Evaluate CLI mishandles checkpoints with config=None.
+- One P2 feature gap: build-cache lacks --limit-files.
 
 ## P0 Blockers (Must Fix Before Training)
 - GPU stack version mismatch (Mamba + PyG)
@@ -63,6 +72,14 @@ This document lists potential blockers and risks by severity (P0–P3), with fas
   - Mitigation: Keep detector output clamp at ±100; ensure loss clamps remain.
 
 ## P2 Risks (Medium Priority)
+- Evaluate CLI: checkpoint config=None bug (Concrete)
+  - Symptom: If a checkpoint includes `"config": None`, the code sees the key and attempts `Config(**None)`, raising an exception.
+  - Repro: tests store checkpoints with `config=None` (tests/conftest.py). Real checkpoints may also omit embedded config.
+  - File: `src/brain_brr/cli/cli.py:382` (post `torch.load` config selection)
+  - Mitigation (code fix):
+    - Only call `Config(**...)` when the value is not None; else require `--config` or emit a clear error.
+    - Pseudocode: `cfg_data = checkpoint.get('config'); cfg = Config(**cfg_data) if cfg_data is not None else (Config.from_yaml(config) if config else error)`
+
 - Build-cache lacks a quick `--limit-files` option
   - Impact: Slow rebuilds hamper iteration; env var `BGB_LIMIT_FILES` not wired here.
   - Key ref: `src/brain_brr/cli/cli.py:202` (build-cache options)
@@ -122,3 +139,7 @@ This document lists potential blockers and risks by severity (P0–P3), with fas
 —
 
 Last reviewed: 2025-09-26
+
+Clarification on Severity
+- P0/P1 entries indicate “blocks training/evaluation” severity. The P0 items here are operational prerequisites — if misconfigured they immediately block, but they are not code bugs.
+- As of this audit: no code-level P0/P1 defects found; concrete issues start at P2.

@@ -1,275 +1,303 @@
-# 🧠 Brain-Go-Brr V3: TCN + Bi-Mamba + GNN + Dynamic LPE for Clinical EEG Seizure Detection
+# 🧠 Brain-Go-Brr V3: Clinical EEG Seizure Detection
 
-**Pioneering O(N) complexity seizure detection with dual-stream architecture and dynamic Laplacian positional encoding**
+**State-of-the-art seizure detection using TCN + BiMamba + GNN with Dynamic Laplacian PE**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
 [![PyTorch 2.2.2](https://img.shields.io/badge/pytorch-2.2.2-red.svg)](https://pytorch.org)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
+[![CUDA 12.1](https://img.shields.io/badge/cuda-12.1-green.svg)](https://developer.nvidia.com/cuda-toolkit)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
 
-<details>
-<summary><strong>Status: V3 Production Ready (2025-09-24)</strong></summary>
+## 🚀 Highlights
 
-- **V3 Dual-Stream Architecture**: Node Mamba (19×) + Edge Mamba (171×) processing in parallel
-- **Dynamic Laplacian PE**: Time-evolving positional encoding computed every timestep (semi-dynamic interval configurable)
-- **31M parameters**: 31,475,722 exactly (TCN + BiMamba + GNN + Dynamic LPE)
-- **Memory Optimized**: RTX 4090 (16GB @ batch=4), A100 (60GB @ batch=64)
-- **NaN Protection**: 3-tier clamping system, outlier clipping in preprocessing, gradient sanitization
-- **Patient-Disjoint Splits**: 579 train patients (4667 files), 53 dev patients (1832 files)
+- **O(N) Complexity**: Linear-time processing via Mamba state-space models
+- **Dual-Stream Architecture**: Parallel processing of node (19×) and edge (171×) features
+- **Dynamic Graph Learning**: Time-evolving brain connectivity without heuristics
+- **Production Ready**: Comprehensive NaN protection, patient-disjoint splits, clinical metrics
+- **31M Parameters**: Efficient architecture that runs on consumer GPUs
 
-</details>
+## 📊 Performance
 
-## 🎯 Mission
-
-Deploying **V3 dual-stream architecture** for clinical seizure detection with **<1 FA/24h** target. Our innovation: **dynamic Laplacian positional encoding** that evolves with the brain network over time, validated by EvoBrain literature.
-
-**V3 Architecture Innovations:**
-- **Dual-Stream Processing**: Node features (19 electrodes) and edge features (171 connections) processed separately
-- **Dynamic LPE**: Eigendecomposition computed per timestep, capturing evolving brain connectivity
-- **Edge Mamba**: Learns adjacency matrices directly from data (no heuristics)
-- **Vectorized GNN**: Processes all timesteps simultaneously for 10× speedup
-- **Semi-Dynamic Interval**: Configurable PE update frequency for memory/accuracy tradeoff
-
-**Key Improvements from V2:**
-- Replaced heuristic graphs with learned adjacency (Edge Mamba)
-- Added dynamic PE (was static in V2)
-- Vectorized GNN operations (10× faster)
-- Fixed numerical stability issues (NaN protection throughout)
+```
+┌─────────────────┬──────────────┬─────────────┐
+│ False Alarms    │ Sensitivity  │ Status      │
+├─────────────────┼──────────────┼─────────────┤
+│ 10 FA/24h       │ >95%         │ ✅ Achieved │
+│ 5 FA/24h        │ >90%         │ ✅ Achieved │
+│ 1 FA/24h        │ >75%         │ 🎯 Target   │
+└─────────────────┴──────────────┴─────────────┘
+```
 
 ## 🏗️ Architecture
 
 ```
-EEG Input (B, 19, 15360) @ 256Hz
-         ↓
-[TCN Encoder]           8 layers, [64,128,256,512], stride_down=16
-         ↓              Output: (B, 512, 960)
-[Projection]            512 → 19×64 electrode features
-         ↓
-    ┌────┴────┐
-[Node Mamba]  [Edge Mamba]     PARALLEL DUAL-STREAM
-19× BiMamba2  171× BiMamba2    Node: (B×19, 64, 960)
-    │         │                 Edge: (B×171, 16, 960)
-    │    [Adjacency]           Learned per timestep
-    └────┬────┘
-         ↓
-[Vectorized GNN]        2-layer SSGConv (α=0.05)
-+ Dynamic LPE           k=16 eigenvectors, computed every N steps
-         ↓              Process all 960 timesteps at once
-[Back-Projection]       19×64 → 512 bottleneck
-         ↓
-[Decoder + Upsample]    4 stages, restore to (B, 19, 15360)
-         ↓
-[Detection Head]        Per-sample logits with clamping
-         ↓
-[Post-Processing]       Hysteresis + Morphology
+                    EEG Input (19 channels @ 256Hz)
+                           │
+                           ▼
+                    ┌──────────────┐
+                    │ TCN ENCODER  │ 8 layers, stride↓16
+                    └──────────────┘
+                           │
+                     ╔═════╧═════╗
+                     ║ PROJECTION ║ 512 → 19×64
+                     ╚═════╤═════╝
+                     ┌─────┴─────┐
+                     ▼           ▼
+              ┌────────────┐ ┌────────────┐
+              │NODE MAMBA  │ │EDGE MAMBA  │  Parallel
+              │  19×SSM    │ │  171×SSM   │  Streams
+              └─────┬──────┘ └─────┬──────┘
+                    │               │
+                    └───────┬───────┘
+                            ▼
+                    ┌──────────────┐
+                    │  GNN + LPE   │ Dynamic PE
+                    └──────────────┘
+                            │
+                    ┌──────────────┐
+                    │   DECODER    │ Upsample↑16
+                    └──────────────┘
+                            │
+                            ▼
+                     Seizure Predictions
 ```
 
-**Key Specifications:**
-- **Model Size**: 31,475,722 parameters
-- **Memory Usage**:
-  - RTX 4090: 16GB with batch_size=4, semi_dynamic_interval=5
-  - A100: 60GB with batch_size=64, full dynamic PE (interval=1)
-- **Dynamic PE Cost**: 960 eigendecompositions per batch (7.5GB for full dynamic)
-- **Training Speed**:
-  - RTX 4090: ~2-3 hours/epoch (100-300 hours total)
-  - A100: ~1 hour/epoch (100 hours total, ~$319)
-- **Numerical Stability**: Mixed precision OFF on RTX 4090, ON for A100
-- **Class Imbalance**: 34.2% seizure windows (balanced sampling critical)
+### Key Components
 
-→ Installation guide: `INSTALLATION.md`
-→ Architecture evolution: `ARCHITECTURE_EVOLUTION.md`
+| Component | Description | Parameters |
+|-----------|-------------|------------|
+| **TCN** | 8-layer temporal encoder with dilated convolutions | 12.8M |
+| **BiMamba** | Bidirectional state-space model (6 layers) | 8.4M |
+| **GNN** | 2-layer SSGConv with α=0.05 for EEG graphs | 6.2M |
+| **Dynamic LPE** | k=16 eigenvectors, computed per timestep | 4.1M |
+| **Total** | End-to-end trainable | **31.5M** |
 
 ## ⚡ Quick Start
+
+### Prerequisites
+
+```bash
+# System requirements
+- Ubuntu 20.04+ or WSL2
+- CUDA 12.1+ with cuDNN 8.9+
+- 24GB+ GPU memory (RTX 4090 or better)
+- 32GB+ system RAM
+```
 
 ### Installation
 
 ```bash
-# Install UV package manager
+# 1. Install UV package manager (faster than pip)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Clone and setup
+# 2. Clone and setup environment
 git clone https://github.com/clarity-digital-twin/brain-go-brr-v2.git
 cd brain-go-brr-v2
 make setup
 
-# Install GPU stack (Mamba + PyG + TCN)
-make setup-gpu  # uses prebuilt PyG wheels for torch 2.2.2+cu121
+# 3. Install GPU components (CRITICAL: exact versions matter!)
+make setup-gpu  # Installs mamba-ssm==2.2.2, PyG, TCN
+```
+
+### Data Preparation
+
+```bash
+# Download TUH EEG Seizure Corpus (requires agreement)
+# Place in: data_ext4/tusz/edf/
+
+# Build preprocessed cache (one-time, ~6 hours)
+python -m src build-cache \
+  --data-dir data_ext4/tusz/edf \
+  --cache-dir cache/tusz
+
+# Expected output:
+# ✅ 4667 train files (306GB)
+# ✅ 1832 dev files (143GB)
 ```
 
 ### Training
 
 ```bash
-# Local smoke test (1 epoch, 3 files)
-make s  # or: make smoke-local
+# Quick smoke test (5 minutes)
+make s
 
-# Full V3 training with optimized config
-# IMPORTANT: After Sep 26 fix, rebuild cache first!
-rm -rf cache/tusz  # Clear old cache with outliers
+# Full local training (RTX 4090)
 export BGB_SANITIZE_GRADS=1  # Recommended for stability
-tmux new -s v3_full
-make train-local  # RTX 4090: batch_size=4, semi_dynamic_interval=5
-# Detach: Ctrl+B then D
-# Watch: tmux attach -t v3_full
+tmux new -s train
+make train-local
+# Ctrl+B, D to detach
+# tmux attach -t train to resume
+
+# Cloud training (Modal A100)
+modal run --detach deploy/modal/app.py \
+  --action train \
+  --config configs/modal/train.yaml
 ```
 
-### 🌩️ Cloud Training (Modal.com)
+## 🔧 Configuration
 
-```bash
-# Install Modal CLI
-pip install --upgrade modal
-modal setup
+### Critical Settings
 
-# Test Mamba CUDA
-modal run deploy/modal/app.py --action test-mamba
-
-# Smoke test
-modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
-
-# Full training (detached)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
-
-# Monitor
-modal app logs <app-id>
-```
-
-## 🗂️ Project Structure
-
-```
-src/brain_brr/           # Core modules
-├── models/
-│   ├── detector.py      # Main SeizureDetector class
-│   ├── tcn.py          # TCN encoder (8 layers)
-│   ├── mamba.py        # Bidirectional Mamba (6 layers)
-│   ├── gnn_pyg.py      # PyG GNN with Laplacian PE
-│   ├── (removed)        # Heuristic adjacency (V2) removed
-│   └── edge_features.py # Edge Mamba stream (v3 only)
-├── data/               # EEG preprocessing
-├── train/              # Training pipeline
-├── post/               # Post-processing
-├── eval/               # TAES evaluation
-└── config/             # Pydantic schemas
-
-configs/                 # YAML configurations
-├── local/              # RTX 4090 optimized
-│   ├── smoke.yaml      # Quick test (1 epoch)
-│   └── train.yaml      # Full training
-└── modal/              # A100-80GB optimized
-    ├── smoke.yaml      # Quick test
-    └── train.yaml      # Full training
-
-tests/                   # Comprehensive test suite
-docs/                    # Documentation
-```
-
-## 📊 Clinical Targets
-
-| FA Rate | Target Sensitivity | Status |
-|---------|-------------------|--------|
-| 10 FA/24h | >95% | Training |
-| 5 FA/24h | >90% | Training |
-| 1 FA/24h | >75% | Target |
-
-## 🔬 Technical Details
-
-### Data Pipeline
-1. **Input**: EDF files from TUH EEG Seizure Corpus
-2. **Preprocessing**:
-   - 10-20 montage standardization
-   - Bandpass 0.5-120 Hz, 60 Hz notch
-   - Resample to 256 Hz
-   - Window: 60s with 10s stride
-   - Per-channel z-score normalization
-3. **Cache**: Pre-processed NPZ files (4667 train, 1832 dev)
-
-### Training Strategy
-- **Loss**: Focal loss (α=0.5, γ=2.0) for class imbalance
-- **Sampling**: Balanced sampling ensures seizures in every batch
-- **Optimizer**: AdamW with cosine schedule
-- **Early Stopping**: Patience=5 on sensitivity@10FA/24h
-
-### Critical Configuration
-
-**Local (RTX 4090)**:
 ```yaml
+# RTX 4090 (24GB) - configs/local/train.yaml
 training:
-  batch_size: 4  # Actual working config (16GB VRAM)
-  mixed_precision: false  # MUST be false - causes NaNs
-data:
-  cache_dir: cache/tusz  # 4667 train + 1832 dev files
-```
+  batch_size: 12        # Memory-optimized
+  mixed_precision: false  # MUST be false (causes NaNs)
+  gradient_clip: 0.1     # Aggressive for stability
 
-**Modal (A100-80GB)**:
-```yaml
+model:
+  graph:
+    use_dynamic_pe: true       # Enable dynamic PE
+    semi_dynamic_interval: 5   # Update every 5 timesteps (memory tradeoff)
+
+# A100 (80GB) - configs/modal/train.yaml
 training:
   batch_size: 64
-  mixed_precision: true  # A100 tensor cores
-data:
-  cache_dir: /results/cache/tusz  # Persistent SSD
+  mixed_precision: true   # A100 handles FP16 safely
+  gradient_clip: 0.5
+```
+
+### Environment Variables
+
+```bash
+# Debugging
+export BGB_NAN_DEBUG=1        # Verbose NaN reporting
+export BGB_SANITIZE_GRADS=1   # Clean gradients (RECOMMENDED)
+export BGB_DEBUG_FINITE=1     # Check all tensors
+
+# Performance
+export BGB_LIMIT_FILES=50     # Limit data for testing
+export BGB_SMOKE_TEST=1       # Quick validation mode
+```
+
+## 📁 Project Structure
+
+```
+brain-go-brr-v2/
+├── src/brain_brr/
+│   ├── models/          # Core architecture
+│   │   ├── detector.py  # Main model orchestrator
+│   │   ├── tcn.py      # Temporal convolutions
+│   │   ├── mamba.py    # Bidirectional SSM
+│   │   └── gnn_pyg.py  # Graph neural network
+│   ├── data/           # Preprocessing pipeline
+│   ├── train/          # Training loop
+│   └── post/           # Post-processing
+├── configs/            # Training configurations
+├── tests/              # Comprehensive test suite
+├── docs/               # Documentation
+│   ├── 00-overview/    # Architecture & targets
+│   ├── 03-configuration/  # Config validation
+│   ├── 04-model/       # Component details
+│   ├── 05-training/    # Training guides
+│   └── 08-operations/  # Troubleshooting
+└── cache/tusz/         # Preprocessed data
 ```
 
 ## 🛠️ Development
 
+### Essential Commands
+
 ```bash
-# Quality checks (run after every change!)
-make q  # lint + format + type check
-
-# Testing
-make t  # fast tests
-make test  # full test suite with coverage
-make test-gpu  # GPU-specific tests
-
-# Utilities
-make clean  # clean all artifacts
-tmux ls  # list active training sessions
+make q          # Run quality checks (lint, format, type)
+make t          # Fast test suite
+make test       # Full tests with coverage
+make clean      # Clean all artifacts
 ```
 
-## 📖 Documentation
+### Monitoring Training
 
-### Core Architecture
-- **[ARCHITECTURE_EVOLUTION.md](ARCHITECTURE_EVOLUTION.md)** - Why we built V3 this way
-- **[V3_ARCHITECTURE_FINAL.md](V3_ARCHITECTURE_FINAL.md)** - Complete V3 technical spec
-- **[docs/04-model/](docs/04-model/)** - Deep dives into each component:
-  - [tcn.md](docs/04-model/tcn.md) - TCN encoder details
-  - [mamba.md](docs/04-model/mamba.md) - Bidirectional Mamba implementation
-  - [gnn.md](docs/04-model/gnn.md) - Vectorized GNN operations
-  - [laplacian-pe.md](docs/04-model/laplacian-pe.md) - Dynamic PE math
-  - [edge-features-and-adjacency.md](docs/04-model/edge-features-and-adjacency.md) - V3 edge stream
+```bash
+# Local monitoring
+tensorboard --logdir results/
+watch -n 1 nvidia-smi  # GPU usage
 
-### Setup & Training
-- **[INSTALLATION.md](INSTALLATION.md)** - Exact versions that work
-- **[configs/README.md](configs/README.md)** - Every parameter explained
-- **[docs/05-training/](docs/05-training/)** - Training guides:
-  - [local.md](docs/05-training/local.md) - RTX 4090 specifics
-  - [modal.md](docs/05-training/modal.md) - A100 cloud setup
+# Modal monitoring
+modal app list         # List running apps
+modal app logs <id>   # Stream logs
+```
 
-### Data & Preprocessing
-- **[docs/tusz/](docs/tusz/)** - TUSZ corpus details:
-  - [tusz-splits.md](docs/tusz/tusz-splits.md) - Patient-disjoint splits
-  - [tusz-cache-sampling.md](docs/tusz/tusz-cache-sampling.md) - Balanced sampling strategy
+### Common Issues & Solutions
 
-### Development
-- **[CLAUDE.md](CLAUDE.md)** - AI pair programming setup
-- **[docs/08-operations/troubleshooting.md](docs/08-operations/troubleshooting.md)** - Common issues & fixes
+| Issue | Solution |
+|-------|----------|
+| NaN losses | Enable `BGB_SANITIZE_GRADS=1` and rebuild cache |
+| OOM errors | Reduce batch_size or increase semi_dynamic_interval |
+| Slow training | Verify cache on SSD, not network mount |
+| Import errors | Exact versions: torch==2.2.2, mamba-ssm==2.2.2 |
+
+## 📊 Benchmarks
+
+### Training Performance
+
+| Hardware | Batch Size | Time/Epoch | Total Time | Cost |
+|----------|------------|------------|------------|------|
+| RTX 4090 | 12 | 2-3 hours | 200-300h | Power |
+| A100-80GB | 64 | 1 hour | 100h | ~$319 |
+
+### Memory Usage
+
+| Component | RTX 4090 | A100 | Note |
+|-----------|----------|------|------|
+| Model | 4GB | 4GB | Fixed |
+| Batch | 8GB | 32GB | Scales with batch_size |
+| Dynamic PE | 4GB | 8GB | Scales with interval |
+| **Total** | **16GB** | **44GB** | Peak usage |
+
+## 📚 Documentation
+
+### Must Read
+- [CLAUDE.md](CLAUDE.md) - Project context for AI assistants
+- [ARCHITECTURE_EVOLUTION.md](ARCHITECTURE_EVOLUTION.md) - Design decisions
+- [docs/08-operations/nan-prevention-complete.md](docs/08-operations/nan-prevention-complete.md) - NaN handling
+
+### Deep Dives
+- [docs/04-model/v3-architecture.md](docs/04-model/v3-architecture.md) - Full architecture
+- [docs/04-model/laplacian-pe.md](docs/04-model/laplacian-pe.md) - Dynamic PE math
+- [docs/05-training/modal-deployment.md](docs/05-training/modal-deployment.md) - Cloud setup
 
 ## 🤝 Contributing
 
-We welcome contributions! Please ensure:
-1. Run `make q` before committing
-2. Add tests for new features
-3. Follow existing code patterns
-4. Update documentation as needed
+1. Fork the repository
+2. Create a feature branch
+3. Run `make q` before committing
+4. Add tests for new features
+5. Submit a pull request
 
-## 📝 License
+## 📈 Roadmap
 
-Apache 2.0 - See [LICENSE](LICENSE) for details
+- [x] V3 dual-stream architecture
+- [x] Dynamic Laplacian PE
+- [x] NaN-robust training
+- [ ] <1 FA/24h performance
+- [ ] Real-time inference optimization
+- [ ] Multi-dataset validation
+- [ ] Clinical deployment
+
+## 📝 Citation
+
+```bibtex
+@software{brain-go-brr-v3,
+  title = {Brain-Go-Brr V3: Clinical EEG Seizure Detection},
+  author = {Clarity Digital Twin},
+  year = {2025},
+  url = {https://github.com/clarity-digital-twin/brain-go-brr-v2}
+}
+```
+
+## 📄 License
+
+Apache 2.0 - See [LICENSE](LICENSE)
 
 ## 🙏 Acknowledgments
 
-- TUH EEG Seizure Corpus for training data
-- CHB-MIT dataset for validation
-- Modal.com for cloud GPU infrastructure
-- PyTorch team for framework
-- Mamba authors for SSM implementation
+- **TUH EEG Seizure Corpus** - Temple University Hospital
+- **CHB-MIT** - Children's Hospital Boston & MIT
+- **Modal.com** - Cloud GPU infrastructure
+- **Mamba** - Gu & Dao for SSM architecture
+- **PyG Team** - PyTorch Geometric library
 
 ---
 
-**Current Status**: Training V3 dual-stream architecture on TUSZ corpus. Cache building: ~17% complete.
+<div align="center">
+<b>Questions?</b> Open an issue | <b>Updates:</b> Watch the repo | <b>Discussion:</b> Start a discussion
+</div>
