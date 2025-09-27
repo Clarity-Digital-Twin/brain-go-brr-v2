@@ -37,6 +37,7 @@ CLI commands
 
 - Build cache: `python -m src build-cache --data-dir <edf_dir> --cache-dir <cache_split_dir> --split train`
 - Scan and manifest: `python -m src scan-cache --cache-dir <cache_split_dir>`
+  - The CLI also accepts `--split dev` (preferred) and `--split val` as a backward-compatible alias for `dev`.
 
 Training behavior
 

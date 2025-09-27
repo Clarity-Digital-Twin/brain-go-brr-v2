@@ -11,6 +11,13 @@ Common issues
   - "No config found" — pass `--config` or use a checkpoint with embedded config
   - "No EDF files found" — verify `*.edf` exist under the provided data path
 
+Operational P0 checklist (must pass)
+
+- GPU stack versions match exactly (Torch 2.2.2+cu121, mamba-ssm 2.2.2, PyG 2.6.1 from cu121 wheels). Install order: `make setup` then `make setup-gpu`.
+- Cache present with seizures and manifest built: run `python -m src scan-cache --cache-dir <cache_split_dir>`; expect partial>0 or full>0.
+- Dynamic PE deps present if `graph.enabled: true`: `pip show torch_geometric` should list installed wheels.
+- After preprocessing changes (e.g., ±10σ clip), rebuild cache: `rm -rf cache/tusz && python -m src build-cache ...`.
+
 V3 NaN issues
 
 - Primary contributing factor: dynamic PE eigendecomposition on poorly initialized adjacency.
