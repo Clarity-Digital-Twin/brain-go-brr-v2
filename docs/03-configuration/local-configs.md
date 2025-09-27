@@ -16,8 +16,8 @@ Optimal V3 (RTX 4090) snippet
 training:
   batch_size: 4
   mixed_precision: false
-  gradient_clip: 0.5
-  warmup_ratio: 0.10
+  gradient_clip: 0.1
+  warmup_ratio: 0.01
 model:
   architecture: v3
   graph:
@@ -72,7 +72,7 @@ Smoke testing
 
 WSL2 note
 
-- The shipped `configs/local/train.yaml` currently sets `num_workers: 4` as a starting point. If you observe hangs or deadlocks on WSL2, set `num_workers: 0` and rerun.
+- The shipped `configs/local/train.yaml` sets `num_workers: 0` for WSL2 stability. If you’re on native Linux, you can try `num_workers: 4` with `pin_memory: true` and `persistent_workers: true`.
 
 Reference configs
 

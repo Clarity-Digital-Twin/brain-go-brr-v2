@@ -30,15 +30,16 @@ Window stitching
 
 CLI evaluate
 
-- `python -m src evaluate <checkpoint> <edf_dir> --config <config.yaml> [--device cuda] [--output-json out.json] [--output-csv-bi out.csv]`
-- Uses `Config` from checkpoint unless `--config` is given.
+- `python -m src evaluate <checkpoint> <edf_dir> --config <config.yaml> [--device cuda] [--output-json out.json] [--output-csv-bi out.csv] [--dry-run]`
+- Config resolution order: `--config` takes precedence; otherwise uses checkpoint-embedded config if present and not `None`; else exits with an error.
+- Exits with an error if no EDF files are found under `<edf_dir>`.
 - Computes metrics and can export events in CSV_BI format.
 - Source: `src/brain_brr/cli/cli.py` (evaluate command)
 
 Outputs
 
 - Metrics: AUROC, sensitivity/specificity, TAES, sensitivity_at_{10|5|2.5|1}fa, and thresholds for each FA target.
-- Events: Optional CSV_BI export with per-record events using the best threshold (10 FA/24h by default).
+- Events (CSV_BI export): Uses the best threshold (10 FA/24h by default). Current implementation emits a single CSV for the evaluation run with stride-aware timing (60s windows with 10s stride). It does not yet group outputs per recording file.
 
 Notes and caveats
 
