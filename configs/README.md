@@ -32,7 +32,7 @@ configs/
 data:
   cache_dir: cache/tusz     # MUST use existing cache with 3734 files!
 ```
-- **Location**: `cache/tusz/train/` (3734 NPZ) + `cache/tusz/val/` (933 NPZ)
+- **Location**: `cache/tusz/train/` (4667 NPZ) + `cache/tusz/dev/` (1832 NPZ)
 - **Warning**: Do NOT use `cache/v2.6_full/` - it's empty!
 
 ### Modal (A100)
@@ -40,7 +40,7 @@ data:
 data:
   cache_dir: /results/cache/tusz  # Persistent SSD volume
 ```
-- **Location**: `/results/cache/tusz/train/` + `/results/cache/tusz/val/`
+- **Location**: `/results/cache/tusz/train/` + `/results/cache/tusz/dev/`
 - **Built once**: First run builds cache, all subsequent runs reuse
 - **NOT on S3**: Cache is on fast Modal SSD, never touches S3 after build
 

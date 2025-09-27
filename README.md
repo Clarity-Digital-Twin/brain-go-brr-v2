@@ -116,12 +116,12 @@ python -m src build-cache \
 # Val split (TUSZ 'dev')
 python -m src build-cache \
   --data-dir data_ext4/tusz/edf/dev \
-  --cache-dir cache/tusz/val \
-  --split val
+  --cache-dir cache/tusz/dev \
+  --split dev
 
 # Build manifests
 python -m src scan-cache --cache-dir cache/tusz/train
-python -m src scan-cache --cache-dir cache/tusz/val
+python -m src scan-cache --cache-dir cache/tusz/dev
 ```
 
 ### Training
