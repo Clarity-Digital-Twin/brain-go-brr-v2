@@ -1,10 +1,20 @@
 """Test PR-2 bounded edge stream implementation."""
 
+import pytest
 import torch
 import torch.nn as nn
 
 from src.brain_brr.config.schemas import ModelConfig
-from src.brain_brr.models.detector import SeizureDetector
+
+# Import SeizureDetector only if PyG is available
+try:
+    import torch_geometric
+    from src.brain_brr.models.detector import SeizureDetector
+    HAS_PYG = True
+except ImportError:
+    HAS_PYG = False
+
+pytestmark = pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric required")
 
 
 def test_edge_lift_activation():

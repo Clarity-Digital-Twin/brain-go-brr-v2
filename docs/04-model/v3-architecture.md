@@ -1,10 +1,10 @@
-# V3 Architecture (Single Source of Truth)
+# V3 Architecture (v3.2.0 - Single Source of Truth)
 
 Flow
 
 - Input `(B,19,15360)` → TCN `(B,512,960)` → Electrode features `(B,19,960,64)`
 - Node Mamba: BiMamba2 over `(B*19,64,960)` → `(B,19,960,64)`
-- Edge features: cosine/correlation `(B,171,960,1)` → Edge Mamba (1→16→1 + Softplus) → weights `(B,171,960)`
+- Edge features: cosine/correlation with safety margin `(B,171,960,1)` → Edge Mamba (1→16→1 + Softplus) → weights `(B,171,960)`
 - Assemble adjacency `(B,960,19,19)` with top‑k, threshold, symmetry, identity fallback
 - Vectorized GNN (SSGConv×2 + Laplacian PE) over all timesteps → `(B,19,960,64)`
 - Back‑project to `(B,512,960)` → ProjectionHead to `(B,19,15360)` → Conv1d(19→1) logits `(B,15360)`
@@ -17,6 +17,7 @@ Key parameters
 
 - Node Mamba: d_model=64, n_layers=6, d_state=16, d_conv=4, expand=2, headdim=8
 - Edge Mamba: d_model=16, n_layers=2, d_state=8, d_conv=4, expand=2, headdim=4; 1→16→1 Conv1d lift/proj; Softplus
+- Edge similarity: Configurable margin (default 0.01) prevents ±1.0 boundary explosions
 - GNN: SSGConv×2, α=0.05, residuals, LayerNorm+Dropout; Laplacian PE (k=16) dynamic by default, static optional
 - TCN: 8 layers, channels [64,128,256,512], kernel 7, stride_down 16
 
@@ -24,7 +25,7 @@ Stability notes (dynamic PE)
 
 - Dynamic PE is enabled by default with safeguards (degree clamp, diagonal regularization, NaN/Inf checks, cached‑PE fallback; eigens in fp32).
 - On consumer GPUs (e.g., RTX 4090), if you observe NaNs early in training, set `use_dynamic_pe: false` as a temporary fallback and file an issue with logs.
-- Edge projection clamping is hardcoded in the V3 path (similarity clamp [-0.99, 0.99], edge projection clamp [-3, 3]). Legacy `BGB_EDGE_CLAMP*` envs have been removed.
+- Edge similarity clamping (v3.2.0): Configurable margin from ±1.0 boundaries via `edge_similarity_margin` (default 0.01). Applied at source in `edge_features.py` for SSOT principle.
 - Finite checks: enable `BGB_DEBUG_FINITE=1` to activate `assert_finite` guards in critical tensors (see `src/brain_brr/models/debug_utils.py`). Use only when diagnosing NaNs.
 - See `docs/04-model/laplacian-pe.md` for implementation details and configuration knobs, and `docs/08-operations/v3-nan-explosion-resolution.md` for incident context.
 
