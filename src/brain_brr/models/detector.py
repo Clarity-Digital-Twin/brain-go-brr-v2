@@ -17,7 +17,9 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn as nn
 
+from .clamp_utils import monitored_clamp, monitored_nan_to_num
 from .debug_utils import assert_finite
+from .fusion import GatedFusion, MultiHeadGatedFusion
 from .mamba import BiMamba2
 from .norms import LayerScale, create_norm_layer
 from .tcn import ProjectionHead, TCNEncoder
@@ -84,6 +86,13 @@ class SeizureDetector(nn.Module):
         # PR-2: Bounded edge stream components (initialized as None, set by from_config)
         self.edge_lift_act: nn.Module | None = None
         self.edge_lift_norm: nn.Module | None = None
+
+        # PR-4: Fusion module for node/edge combination (initialized in from_config)
+        self.fusion: nn.Module | None = None
+        self.fusion_type: str = "add"
+
+        # PR-4: Clamp retirement configuration
+        self.clamp_config: dict = {}
 
         # Backwards-compat: ensure mamba_dropout has a concrete value
         if mamba_dropout is None:
@@ -336,6 +345,15 @@ class SeizureDetector(nn.Module):
             # PR-1: Normalize after GNN
             if self.norm_after_gnn:
                 elec_enhanced = self.norm_after_gnn(elec_enhanced)
+
+            # PR-4: Apply fusion between node and edge-enhanced features
+            if self.fusion is not None and elec_enhanced is not node_feats:
+                # elec_enhanced has edge information from GNN, node_feats is pure node
+                if self.fusion_type == "gated":
+                    elec_enhanced = self.fusion(node_feats, elec_enhanced)
+                elif self.fusion_type == "multihead":
+                    elec_enhanced = self.fusion(node_feats, elec_enhanced)
+                # else: keep default additive fusion (elec_enhanced already has it)
 
             # Project back to bottleneck
             elec_flat = elec_enhanced.permute(0, 1, 3, 2).reshape(
