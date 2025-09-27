@@ -157,17 +157,14 @@ class GraphChannelMixerPyG(nn.Module):
     ) -> torch.Tensor:  # (B, T, N, k)
         """Compute dynamic Laplacian PE for all timesteps in parallel.
 
-        IMPORTANT: We stop autograd through PE to avoid massive backward graphs
-        from batched eigendecomposition. Gradients should not flow through PE;
-        message passing still uses differentiable paths where applicable.
+        Computes PE while maintaining gradient flow for adjacency learning.
         """
         B, T, N, _ = adjacency.shape  # noqa: N806
         device = adjacency.device
         dtype = adjacency.dtype
 
-        # Everything in PE computation is detached from autograd
-        with torch.no_grad():
-            adj_pe = adjacency.detach()
+        # Use adjacency directly - gradients should flow for learning
+        adj_pe = adjacency
 
             # PR-3: Condition adjacency matrix for stability (row-softmax/EMA/symmetry)
             if self.adj_row_softmax or self.adj_ema_beta or self.adj_force_symmetric:

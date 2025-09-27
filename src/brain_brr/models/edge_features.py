@@ -41,6 +41,7 @@ def edge_scalar_series(
     *,
     metric: str = "cosine",
     pairs: list[tuple[int, int]] | None = None,
+    edge_similarity_margin: float = 0.01,
 ) -> torch.Tensor:
     """Compute edge features as scalar similarity series (vectorized).
 
@@ -51,6 +52,7 @@ def edge_scalar_series(
         elec: Electrode features (B, N, T, D)
         metric: "cosine" or "correlation"
         pairs: Optional precomputed (i,j) list (len=E)
+        edge_similarity_margin: Safety margin from ±1 boundaries (default 0.01)
 
     Returns:
         (B, E, T, 1) edge feature tensor
@@ -77,8 +79,8 @@ def edge_scalar_series(
         x_norm = torch.clamp(x_norm, min=-10.0, max=10.0)
 
         sim = torch.matmul(x_norm, x_norm.transpose(-1, -2))  # (B,T,N,N)
-        # Clamp similarities to valid cosine range
-        sim = torch.clamp(sim, min=-1.0, max=1.0)
+        # Clamp similarities with safety margin to prevent edge→Mamba explosion
+        sim = torch.clamp(sim, min=-1.0 + edge_similarity_margin, max=1.0 - edge_similarity_margin)
     elif metric == "correlation":
         x_center = x - x.mean(dim=-1, keepdim=True)
         num = torch.matmul(x_center, x_center.transpose(-1, -2))
@@ -87,8 +89,8 @@ def edge_scalar_series(
         denom = torch.clamp(denom, min=1e-6)  # Additional safety
         denom_mat = denom.unsqueeze(-1) * denom.unsqueeze(-2)
         sim = num / denom_mat
-        # Clamp correlations to valid range
-        sim = torch.clamp(sim, min=-1.0, max=1.0)
+        # Clamp correlations with safety margin to prevent edge→Mamba explosion
+        sim = torch.clamp(sim, min=-1.0 + edge_similarity_margin, max=1.0 - edge_similarity_margin)
     else:
         raise ValueError(f"Unknown metric: {metric}")
 
