@@ -235,6 +235,11 @@ class TCNEncoder(nn.Module):
             )
 
         # CRITICAL: Input validation and clamping to prevent NaN propagation
+        # Check for NaN/Inf in inputs and replace with zeros
+        if torch.isnan(x).any() or torch.isinf(x).any():
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+            logger.warning("Non-finite values in TCN input replaced with zeros")
+
         # Input tier clamping: [-10, 10] for normalized EEG data
         # This is an essential guard for input sanity
         x = torch.clamp(x, min=-10.0, max=10.0)

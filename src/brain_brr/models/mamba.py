@@ -174,6 +174,11 @@ class BiMamba2Layer(nn.Module):
         Returns:
             Bidirectional output (B, L, D)
         """
+        # Check for NaN/Inf and replace with zeros
+        if torch.isnan(x).any() or torch.isinf(x).any():
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+            logger.warning("Non-finite values in Mamba input replaced with zeros")
+
         # Clamp inputs to reasonable range (essential guard)
         x = torch.clamp(x, min=-10.0, max=10.0)
 
@@ -321,6 +326,11 @@ class BiMamba2(nn.Module):
         Returns:
             Temporal output (B, C, L)
         """
+        # Check for NaN/Inf and replace with zeros
+        if torch.isnan(x).any() or torch.isinf(x).any():
+            x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+            logger.warning("Non-finite values in BiMamba input replaced with zeros")
+
         # Clamp inputs to reasonable range (essential guard)
         x = torch.clamp(x, min=-10.0, max=10.0)
 
