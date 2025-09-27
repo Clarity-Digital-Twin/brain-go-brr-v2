@@ -6,7 +6,7 @@ to prevent eigendecomposition failures in dynamic Laplacian PE.
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.nn.functional as func
 
 
 def condition_adjacency(
@@ -32,7 +32,7 @@ def condition_adjacency(
     Returns:
         Conditioned adjacency matrix (B, T, N, N)
     """
-    B, T, N, _ = adjacency.shape
+    B, T, N, _ = adjacency.shape  # noqa: N806
 
     # Apply top-k sparsification first (already done in detector.py)
     # We receive the adjacency after top-k, so we work with that
@@ -51,7 +51,7 @@ def condition_adjacency(
         adjacency_for_softmax = adjacency / tau
         # Mask out zeros with large negative value
         adjacency_for_softmax = adjacency_for_softmax.masked_fill(~mask, -1e9)
-        adjacency = F.softmax(adjacency_for_softmax, dim=-1)
+        adjacency = func.softmax(adjacency_for_softmax, dim=-1)
 
         # Restore zeros where mask is False
         adjacency = adjacency * mask.float()
@@ -103,10 +103,10 @@ def compute_stable_laplacian(
     # Handle both (B*T, N, N) and (B, T, N, N) shapes
     original_shape = adjacency.shape
     if len(original_shape) == 4:
-        B, T, N, _ = original_shape
+        B, T, N, _ = original_shape  # noqa: N806
         adjacency = adjacency.reshape(B * T, N, N)
     else:
-        N = adjacency.shape[-1]
+        N = adjacency.shape[-1]  # noqa: N806
 
     device = adjacency.device
     dtype = adjacency.dtype
@@ -152,6 +152,7 @@ class TemporalEMA(nn.Module):
         self.persistent = persistent
         if persistent:
             self.register_buffer("prev_adjacency", None)
+            self.prev_adjacency: torch.Tensor | None = None
 
     def forward(self, adjacency: torch.Tensor) -> torch.Tensor:
         """Apply temporal EMA smoothing.
@@ -162,7 +163,7 @@ class TemporalEMA(nn.Module):
         Returns:
             Smoothed adjacency (B, T, N, N)
         """
-        B, T, N, _ = adjacency.shape
+        _, T, _, _ = adjacency.shape  # noqa: N806
 
         if T == 1 and not self.persistent:
             # No temporal dimension to smooth
@@ -171,7 +172,7 @@ class TemporalEMA(nn.Module):
         # Within-sequence causal EMA (default)
         smoothed = torch.empty_like(adjacency)
 
-        if self.persistent and self.prev_adjacency is not None:
+        if self.persistent and hasattr(self, "prev_adjacency") and self.prev_adjacency is not None:
             # Use stored state for first timestep
             smoothed[:, 0] = self.beta * self.prev_adjacency + (1 - self.beta) * adjacency[:, 0]
         else:

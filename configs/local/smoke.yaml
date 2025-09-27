@@ -45,9 +45,18 @@ model:
 
     # PR-2: BOUNDED EDGE STREAM (disabled by default)
     # To enable: change edge_lift_activation from "none" to "tanh"
-    edge_lift_activation: none  # Options: tanh | sigmoid | selu | none
-    edge_lift_norm: none  # Options: layernorm | rmsnorm | none
+    edge_lift_activation: tanh  # Options: tanh | sigmoid | selu | none  # PR-2 ENABLED
+    edge_lift_norm: layernorm  # Options: layernorm | rmsnorm | none  # PR-2 ENABLED
     edge_lift_init_gain: 0.1
+
+    # PR-3: ADJACENCY CONDITIONING (disabled by default)
+    # To enable: set adj_row_softmax: true and adj_force_symmetric: true
+    adj_row_softmax: true  # Apply masked row-wise softmax  # PR-3 ENABLED
+    adj_softmax_tau: 1.0  # Temperature for softmax
+    adj_ema_beta: 0.9  # EMA coefficient (null=disabled, 0.9=recommended)  # PR-3 ENABLED
+    adj_force_symmetric: true  # Force symmetric adjacency  # PR-3 ENABLED
+    laplacian_eps: 1.0e-3  # Laplacian regularization  # PR-3 increased for stability
+    laplacian_normalize: true  # Use normalized Laplacian
 
     n_layers: 2
     dropout: 0.1
@@ -61,7 +70,7 @@ model:
   # PR-1: BOUNDARY NORMALIZATION (disabled by default)
   # To enable: change boundary_norm from "none" to "layernorm"
   norms:
-    boundary_norm: none  # Options: layernorm | rmsnorm | none
+    boundary_norm: layernorm  # Options: layernorm | rmsnorm | none  # PR-1 ENABLED
     boundary_eps: 1.0e-5
     layerscale_alpha: 0.1
     after_tcn_proj: true

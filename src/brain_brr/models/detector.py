@@ -538,6 +538,13 @@ class SeizureDetector(nn.Module):
                     bypass_edge_transform=is_v3,  # V3: skip since we have Softplus upstream
                     semi_dynamic_interval=graph_cfg.semi_dynamic_interval,
                     pe_sign_consistency=graph_cfg.pe_sign_consistency,
+                    # PR-3: Adjacency conditioning parameters
+                    adj_row_softmax=graph_cfg.adj_row_softmax,
+                    adj_softmax_tau=graph_cfg.adj_softmax_tau,
+                    adj_ema_beta=graph_cfg.adj_ema_beta,
+                    adj_force_symmetric=graph_cfg.adj_force_symmetric,
+                    laplacian_eps=graph_cfg.laplacian_eps,
+                    laplacian_normalize=graph_cfg.laplacian_normalize,
                 )
             except ImportError as e:
                 raise ImportError(

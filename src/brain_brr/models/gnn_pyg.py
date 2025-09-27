@@ -163,47 +163,39 @@ class GraphChannelMixerPyG(nn.Module):
         - Float32 eigendecomposition for numerical stability
         - Sign consistency to prevent eigenvector flips
         - ROBUST: Laplacian regularization + NaN detection + fallback
+        - PR-3: Adjacency conditioning for numerical stability
         """
         B, T, N, _ = adjacency.shape  # noqa: N806
         device = adjacency.device
         dtype = adjacency.dtype
 
+        # PR-3: Condition adjacency matrix for stability
+        if self.adj_row_softmax or self.adj_ema_beta or self.adj_force_symmetric:
+            adjacency = condition_adjacency(
+                adjacency,
+                tau=self.adj_softmax_tau,
+                force_symmetric=self.adj_force_symmetric,
+                row_softmax=self.adj_row_softmax,
+                ema_beta=self.adj_ema_beta,
+            )
+
         # Reshape to process all (B*T) graphs at once
         a_flat = adjacency.reshape(B * T, N, N)
 
-        # Compute normalized Laplacian: L = I - D^(-1/2) A D^(-1/2)
-        # Critical: Clamp degrees to prevent division by zero
-        degrees = a_flat.sum(dim=-1).clamp_min(1e-6)  # (B*T, N)
-        d_inv_sqrt = torch.diag_embed(degrees.rsqrt())  # (B*T, N, N)
-
-        # Normalized adjacency
-        a_norm = d_inv_sqrt @ a_flat @ d_inv_sqrt
-
-        # Laplacian
-        identity = torch.eye(N, device=device, dtype=dtype).unsqueeze(0).expand(B * T, -1, -1)
-        laplacian = identity - a_norm  # (B*T, N, N)
+        # PR-3: Use stable Laplacian computation
+        laplacian = compute_stable_laplacian(
+            a_flat,
+            normalize=self.laplacian_normalize,
+            eps=self.laplacian_eps,
+        )  # (B*T, N, N)
 
         # Eigendecomposition
         # CRITICAL: Must disable AMP and use fp32 for numerical stability
         with torch.cuda.amp.autocast(enabled=False):
             l_stable = laplacian.to(torch.float32)
 
-            # ROBUST FIX: Add STRONGER regularization to prevent singular matrices
-            # Increased from 1e-5 to 1e-4 for better stability
-            eps = 1e-4
-            l_stable = l_stable + eps * torch.eye(N, device=l_stable.device, dtype=torch.float32)
-
-            # Check condition number before eigendecomposition
-            try:
-                cond = torch.linalg.cond(l_stable)
-                if (cond > 1e6).any():
-                    # Matrix is poorly conditioned, increase regularization
-                    eps = 1e-3
-                    l_stable = laplacian.to(torch.float32) + eps * torch.eye(
-                        N, device=l_stable.device, dtype=torch.float32
-                    )
-            except (RuntimeError, ValueError):
-                pass  # If cond check fails, continue with current regularization
+            # PR-3: Regularization already applied in compute_stable_laplacian
+            # The Laplacian is already well-conditioned with eps regularization
 
             try:
                 # Compute eigenvalues and eigenvectors

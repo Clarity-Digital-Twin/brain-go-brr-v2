@@ -166,7 +166,10 @@ class GraphConfig(StrictModel):
         default=1.0, gt=0.0, le=10.0, description="Temperature for adjacency softmax"
     )
     adj_ema_beta: float | None = Field(
-        default=None, ge=0.0, lt=1.0, description="EMA coefficient for temporal smoothing (None=disabled)"
+        default=None,
+        ge=0.0,
+        lt=1.0,
+        description="EMA coefficient for temporal smoothing (None=disabled)",
     )
     adj_force_symmetric: bool = Field(
         default=False, description="Force adjacency matrix to be symmetric"
