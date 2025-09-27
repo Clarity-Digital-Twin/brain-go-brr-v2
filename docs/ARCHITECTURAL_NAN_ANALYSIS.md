@@ -1,5 +1,11 @@
 # Deep Analysis: V3 Architecture NaN Instability
 
+Status note (Oct 2025)
+- Historical document capturing pre‑refactor issues. The V3 stack has since been hardened by PR‑1/2/3/4/5.
+- For the current policy and implementation details, see:
+  - docs/10-final-refactor/NAN_CANONICAL.md
+  - docs/10-final-refactor/PR5_DEFINITIVE_CLEANUP.md
+
 ## Executive Summary
 
 The V3 dual-stream architecture exhibits **FUNDAMENTAL NUMERICAL INSTABILITY** requiring **40 manual stability interventions** (25 clamps + 15 nan_to_num calls) across the forward pass. This is not an implementation bug - it's an architectural problem that we've now addressed with PR-1/2/3/4.

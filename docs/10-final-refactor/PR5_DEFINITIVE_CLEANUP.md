@@ -1,6 +1,6 @@
 # PR‑5: Definitive Clamp Cleanup & Stable Defaults
 
-Status: **FINAL** - Audited and verified against HEAD
+Status: **FINALIZED (Updated Oct 2025)**
 
 Owner: Core V3 architecture team
 
@@ -8,7 +8,13 @@ Scope: V3 dual‑stream stack (TCN + BiMamba + GNN + LapPE)
 
 As‑of: commit `1106520` on `fix/architectural-stability` branch
 
-## Audit Summary
+Important status update (supersedes earlier drafts)
+- Keep perimeter input sanitization at component boundaries: TCN/Mamba use `torch.nan_to_num` and clamp inputs to [-10, 10].
+- Move edge similarity clamp to source with a configurable margin: `graph.edge_similarity_margin` (default 0.01).
+- Retain Tier‑2/Tier‑3 clamps in the decoder/logits path.
+- Dynamic PE remains gradient‑enabled; eigendecomposition runs with AMP disabled and stability guards (eigenvalue clamp, fallback, sign consistency).
+
+## Audit Summary (historical)
 
 This document has been thoroughly audited against the codebase:
 1. **Line numbers**: All verified exact against HEAD
@@ -20,23 +26,9 @@ This document has been thoroughly audited against the codebase:
 
 PR‑5 finalizes stability work by removing non‑essential clamps and nan_to_num calls made redundant by PR‑1/2/3/4. We keep only mathematically required guards (cosine/division), input sanity, pre‑loss/output clamps, and PE guards. The result is a cleaner, faster, and more stable V3.
 
-## Verified Intervention Counts
+## Verification notes
 
-**Actual counts at commit `1106520`:**
-- `torch.clamp`: 23 in models + 4 in training loop = **27 total**
-- `torch.nan_to_num`: 9 in models + 3 in forward path + 2 gradient sanitization = **14 total**
-
-**Verification commands (excluding debug_utils and clamp_utils):**
-```bash
-# Count clamps in models (excluding utilities)
-grep -n "torch\.clamp" src/brain_brr/models/*.py | grep -v "debug_utils\|clamp_utils" | wc -l  # 23
-# Count clamps in training
-grep -n "clamp(" src/brain_brr/train/loop.py | wc -l  # 4
-# Count nan_to_num in models (excluding utilities)
-grep -n "torch\.nan_to_num" src/brain_brr/models/*.py | grep -v "debug_utils\|clamp_utils" | wc -l  # 9
-# Count nan_to_num in training (3 forward, 2 gradient)
-grep -n "nan_to_num" src/brain_brr/train/loop.py | wc -l  # 5
-```
+- Line numbers/counts drift as code evolves; verify behavior, not totals. Grep call sites when auditing and rely on runtime checks.
 
 ## What Stays vs What Goes (Verified Line Numbers)
 
@@ -216,6 +208,13 @@ If instability appears:
 - [ ] TAES metrics unchanged or improved
 - [ ] Latency improvement ~1-3% from removed checks (conservative estimate)
 - [ ] Clean mypy/ruff with all changes
+
+## Corrections (Oct 2025)
+
+- Input sanitization at TCN/Mamba boundaries is retained (do not remove `nan_to_num` or input clamps).
+- Edge similarity clamping is performed at the source with `graph.edge_similarity_margin`; remove ad‑hoc clamps in the detector.
+- Edge lift stability comes from bounded activation + normalization, not a fixed `[-3,3]` clamp.
+- Dynamic PE is gradient‑enabled; prefer `semi_dynamic_interval` to reduce eigendecomp workload rather than disabling gradients.
 
 ## Final Assessment
 
