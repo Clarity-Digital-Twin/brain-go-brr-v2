@@ -531,6 +531,31 @@ class SeizureDetector(nn.Module):
                 if graph_cfg and graph_cfg.use_residual:
                     instance.gnn_layerscale = LayerScale(64, norms_cfg.layerscale_alpha)
 
+        # PR-4: Initialize fusion module if configured
+        fusion_cfg = getattr(cfg, "fusion", None)
+        if fusion_cfg:
+            instance.fusion_type = fusion_cfg.fusion_type
+            if fusion_cfg.fusion_type == "gated":
+                instance.fusion = GatedFusion(64, fusion_cfg.fusion_dropout)
+            elif fusion_cfg.fusion_type == "multihead":
+                instance.fusion = MultiHeadGatedFusion(
+                    64, fusion_cfg.fusion_heads, fusion_cfg.fusion_dropout
+                )
+            # else: keep None for default additive fusion
+
+        # PR-4: Store clamp retirement configuration
+        clamp_cfg = getattr(cfg, "clamp_retirement", None)
+        if clamp_cfg:
+            instance.clamp_config = {
+                "remove_intermediate_clamps": clamp_cfg.remove_intermediate_clamps,
+                "remove_nan_to_num": clamp_cfg.remove_nan_to_num,
+                "keep_input_clamp": clamp_cfg.keep_input_clamp,
+                "keep_output_clamp": clamp_cfg.keep_output_clamp,
+                "keep_loss_clamps": clamp_cfg.keep_loss_clamps,
+                "log_clamp_hits": clamp_cfg.log_clamp_hits,
+                "validate_finite": clamp_cfg.validate_finite,
+            }
+
         # Optionally attach GNN components if enabled
         graph_cfg = getattr(cfg, "graph", None)
         instance.use_gnn = bool(graph_cfg and graph_cfg.enabled)
