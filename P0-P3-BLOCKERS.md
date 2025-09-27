@@ -79,6 +79,37 @@ Current Summary (2025-09-26)
   - Mitigation (code fix):
     - Only call `Config(**...)` when the value is not None; else require `--config` or emit a clear error.
     - Pseudocode: `cfg_data = checkpoint.get('config'); cfg = Config(**cfg_data) if cfg_data is not None else (Config.from_yaml(config) if config else error)`
+  - Failure mode details:
+    - Current branch checks only for the key’s presence, not value. With `config=None`, Pydantic receives None and raises a TypeError/ValidationError before our own error handling.
+    - Typical stack: `TypeError: BaseModel.__init__() argument after ** must be a mapping`.
+  - Suggested unit test:
+    - Patch `torch.load` to return `{ 'model_state_dict': {}, 'config': None }` and invoke `evaluate` without `--dry-run` and without `--config`; assert exit code != 0 and message "No config found in checkpoint or provided".
+  - Proposed patch (exact lines):
+    - In `src/brain_brr/cli/cli.py` around config selection, replace:
+      - `elif "config" in checkpoint:` with:
+      - `elif ("config" in checkpoint) and (checkpoint["config"] is not None):`
+    - After the `else:` branch that prints "No config found", keep `sys.exit(1)`.
+
+- Evaluate CLI: no EDF files under data_path (Concrete)
+  - Symptom: If `data_path` contains 0 EDFs, the CLI proceeds, producing an empty DataLoader. `validate_epoch` then tries `torch.cat([])` and crashes.
+  - Repro: Point to an empty tmp directory with `--dry-run` off and a valid checkpoint. Observe failure during validation.
+  - Files: `src/brain_brr/cli/cli.py:420` (prints count), `src/brain_brr/train/loop.py:1012` (cat all_probs/all_labels)
+  - Mitigation (code fix):
+    - After counting EDFs, if `len(edf_files) == 0`: print a clear error and `sys.exit(1)`.
+  - Suggested unit test:
+    - Create empty temp dir; patch `torch.load` to include a valid config; run `evaluate` and assert graceful error exit and message like "No EDF files found".
+  - Proposed patch:
+    - After `edf_files = list(data_path.glob("**/*.edf"))` and the console print, insert:
+      - `if len(edf_files) == 0: console.print("[red]No EDF files found under data path[/red]"); sys.exit(1)`
+
+- Evaluate CSV_BI export ignores 10s stride/overlap (Correctness gap)
+  - Symptom: Export treats each window as an adjacent 60s block without considering the 10s stride overlap. Event times are relative to window index × 60s, which inflates/duplicates events and misaligns with real recording time.
+  - Files: `src/brain_brr/cli/cli.py:467–505` (export path), dataset windows use 60s window with 10s stride.
+  - Mitigation (design change):
+    - Record-aware export: group windows by source EDF, compute window_starts using known stride (10s), and stitch via `post.postprocess.stitch_windows` before eventization.
+    - Or extend `EEGWindowDataset` to optionally yield `(window, label, file_id, window_idx)` so CLI can reconstruct global time.
+  - Suggested integration test:
+    - Build a tiny cache for one EDF with known events; run evaluate export and validate CSV_BI times against stitched reference.
 
 - Build-cache lacks a quick `--limit-files` option
   - Impact: Slow rebuilds hamper iteration; env var `BGB_LIMIT_FILES` not wired here.
@@ -95,10 +126,8 @@ Current Summary (2025-09-26)
   - Key refs: `src/brain_brr/models/mamba.py:95` (fallback), `src/brain_brr/models/mamba.py:335` (complexity text)
   - Mitigation: Ensure Mamba installed for training; surface a WARNING is already printed.
 
-- Evaluate CLI is partial (dry-run path only)
-  - Impact: Users expecting full evaluation may be blocked.
-  - Key refs: `src/brain_brr/cli/cli.py:304` (evaluate stub)
-  - Mitigation: Keep using training notebooks/scripts; plan full evaluator or clearly mark CLI as partial.
+- Evaluate CLI status
+  - Implemented (non-dry-run path present). See bugs above for concrete P2 issues (config=None handling, empty EDF set), and CSV_BI export correctness gap.
 
 ## P3 Risks (Low Priority)
 - TCN minimal vs pytorch-tcn implementation differences
