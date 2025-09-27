@@ -4,6 +4,7 @@ These tests verify that normalization at component boundaries
 prevents activation explosion and gradient instability.
 """
 
+import pytest
 import torch
 import torch.nn as nn
 
@@ -14,8 +15,15 @@ from src.brain_brr.config.schemas import (
     NormConfig,
     TCNConfig,
 )
-from src.brain_brr.models.detector import SeizureDetector
 from src.brain_brr.models.norms import LayerScale, RMSNorm, create_norm_layer
+
+# Import SeizureDetector only if PyG is available
+try:
+    import torch_geometric
+    from src.brain_brr.models.detector import SeizureDetector
+    HAS_PYG = True
+except ImportError:
+    HAS_PYG = False
 
 
 def test_norm_layer_creation():
@@ -58,6 +66,7 @@ def test_layerscale_initialization():
     assert torch.allclose(y, x * 0.1)
 
 
+@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric required")
 def test_detector_with_boundary_norms():
     """Test SeizureDetector with boundary normalization enabled."""
     # Create config with normalization enabled
@@ -97,6 +106,7 @@ def test_detector_with_boundary_norms():
     assert isinstance(model.gnn_layerscale, LayerScale)
 
 
+@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric required")
 def test_forward_pass_with_norms():
     """Test full forward pass with normalization enabled."""
     # Create config with normalization
@@ -132,6 +142,7 @@ def test_forward_pass_with_norms():
     assert output.shape == (2, 15360), "Unexpected output shape"
 
 
+@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric required")
 def test_gradient_flow_with_norms():
     """Test gradient flow through normalized architecture."""
     config = ModelConfig(

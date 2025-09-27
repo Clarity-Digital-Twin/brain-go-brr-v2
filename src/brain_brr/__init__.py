@@ -7,7 +7,7 @@ First architecture to combine:
 Specifically optimized for TUSZ seizure detection.
 """
 
-__version__ = "2.3.0"
+__version__ = "3.2.0"
 
 # Clean imports from new package structure
 from .constants import *  # noqa: F403
