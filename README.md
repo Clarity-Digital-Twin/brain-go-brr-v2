@@ -12,6 +12,7 @@
 - **O(N) Complexity**: Linear-time processing via Mamba state-space models
 - **Dual-Stream Architecture**: Parallel processing of node (19×) and edge (171×) features
 - **Dynamic Graph Learning**: Time-evolving brain connectivity without heuristics
+- **Architectural Stability (v3.2.0)**: Edge similarity clamping at source with configurable margin
 - **NaN-Robust Training**: 3-tier clamping system with gradient sanitization
 - **31M Parameters**: Efficient architecture that runs on consumer GPUs
 
@@ -158,6 +159,7 @@ model:
   graph:
     use_dynamic_pe: true       # Enable dynamic PE
     semi_dynamic_interval: 5   # Update every 5 timesteps (memory tradeoff)
+    edge_similarity_margin: 0.01  # v3.2.0: Safety margin for edge clamps
 
 # A100 (80GB) - configs/modal/train.yaml
 training:
