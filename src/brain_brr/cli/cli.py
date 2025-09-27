@@ -500,20 +500,29 @@ def evaluate(
 
             pred_events = batch_probs_to_events(probs, cfg_for_export, cfg.data.sampling_rate)
 
-            # Convert to SeizureEvent objects for export
+            # Convert to SeizureEvent objects for export with proper timing
+            # Windows overlap with 10s stride: window_i starts at i * stride_seconds
+            stride_s = cfg.data.stride  # 10 seconds
+            window_s = cfg.data.window_size  # 60 seconds
             seizure_events = []
-            for record_events in pred_events:
+            for window_idx, record_events in enumerate(pred_events):
+                window_start_s = window_idx * stride_s
                 for start_s, end_s in record_events:
+                    # Adjust event times relative to the window's actual position
                     seizure_events.append(
                         SeizureEvent(
-                            start_s=start_s,
-                            end_s=end_s,
+                            start_s=window_start_s + start_s,
+                            end_s=window_start_s + end_s,
                             confidence=0.9,  # Default confidence
                         )
                     )
 
             # Export to CSV_BI
-            total_duration = len(probs) * 60.0  # Assuming 60s windows
+            # Correct total duration calculation accounting for stride
+            if len(probs) > 0:
+                total_duration = (len(probs) - 1) * stride_s + window_s
+            else:
+                total_duration = 0.0
             export_csv_bi(
                 seizure_events,
                 output_csv_bi,
