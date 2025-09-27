@@ -1,6 +1,6 @@
 # Brain-Go-Brr Docs Home (SSOT)
 
-This is the canonical, current documentation for the codebase. Historical material lives in `docs/archive/`. TUH-specific guides live in `docs/tusz/` (do not modify from here).
+This is the canonical, current documentation for the codebase. Historical drafts in `docs/archive/` have been retired and their relevant content integrated here. TUH-specific guides live in `docs/tusz/` (do not modify from here).
 
 Sections
 
@@ -31,4 +31,4 @@ Quick local stability tips
 
 Archival note
 
-- Legacy root docs have been archived into `docs/archive/`. See `docs/ARCHIVE_MAPPING.md` for where each topic now lives in the 0X structure.
+- Legacy drafts have been retired. Any previously archived content that remained relevant has been merged into the sections above.

@@ -39,6 +39,7 @@ Adjacency specifics (V3)
 
 - Metric: cosine (default) or correlation
 - Top‑k per row (default 3), threshold prune (default 1e‑4), symmetrize, identity fallback for disconnected nodes
+- Edge similarity clamped at source with margin: `graph.edge_similarity_margin` (default 0.01)
 - Bypass edge transform inside GNN because weights are already Softplus’ed upstream
 
 Code references

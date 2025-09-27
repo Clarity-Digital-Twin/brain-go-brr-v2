@@ -41,7 +41,7 @@ PR‑5 finalizes stability work by removing non‑essential clamps and nan_to_nu
 
 **Mathematical Bounds:**
 - `edge_features.py:73` - Division safety (norms min=1e-6)
-- `edge_features.py:81,91` - Cosine similarity bounds (-1, 1) [math requirement]
+- `edge_features.py:81,91` - Similarity clamping with safety margin `[-1+margin, 1-margin]` (see `graph.edge_similarity_margin`)
 - `edge_features.py:87` - Additional division safety
 
 **Range Guards (keep for safety):**
