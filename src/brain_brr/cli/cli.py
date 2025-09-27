@@ -204,12 +204,24 @@ def train(config_path: Path, resume: bool, device: str) -> None:
 @click.option("--cache-dir", type=click.Path(path_type=Path), required=True)
 @click.option("--validation-split", type=float, default=0.2)
 @click.option("--split", type=click.Choice(["train", "val"]), default="train")
-def build_cache_cmd(data_dir: Path, cache_dir: Path, validation_split: float, split: str) -> None:
+@click.option("--limit-files", type=int, default=None, help="Limit number of files to process (for testing)")
+def build_cache_cmd(data_dir: Path, cache_dir: Path, validation_split: float, split: str, limit_files: int | None) -> None:
     """Build cache for a chosen split under DATA_DIR into CACHE_DIR."""
     try:
         from src.brain_brr.data import EEGWindowDataset
+        from src.brain_brr.utils import env
 
         edf_files_all = sorted(Path(data_dir).glob("**/*.edf"))
+
+        # Apply limit from CLI option first, then env var as fallback
+        if limit_files is not None:
+            edf_files_all = edf_files_all[:limit_files]
+            console.print(f"[yellow]Limiting to {limit_files} files (from --limit-files)[/yellow]")
+        elif env.limit_files() > 0:
+            limit_from_env = env.limit_files()
+            edf_files_all = edf_files_all[:limit_from_env]
+            console.print(f"[yellow]Limiting to {limit_from_env} files (from BGB_LIMIT_FILES)[/yellow]")
+
         if not 0.0 <= float(validation_split) <= 0.5:
             raise ValueError("validation-split must be in [0.0, 0.5]")
         val_n = int(len(edf_files_all) * float(validation_split))
@@ -377,10 +389,10 @@ def evaluate(
         # Get config
         if config:
             cfg = Config.from_yaml(config)
-        elif "config" in checkpoint:
+        elif "config" in checkpoint and checkpoint["config"] is not None:
             cfg = Config(**checkpoint["config"])
         else:
-            console.print("[red]No config found in checkpoint or provided[/red]")
+            console.print("[red]No config found in checkpoint or provided. Please provide --config[/red]")
             sys.exit(1)
 
         # Create model
@@ -394,6 +406,10 @@ def evaluate(
         # Load test data
         edf_files = list(data_path.glob("**/*.edf"))
         console.print(f"[cyan]Found {len(edf_files)} EDF files[/cyan]")
+
+        if len(edf_files) == 0:
+            console.print("[red]No EDF files found under data path[/red]")
+            sys.exit(1)
 
         dataset = EEGWindowDataset(
             edf_files,
