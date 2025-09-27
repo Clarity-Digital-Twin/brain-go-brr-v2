@@ -22,7 +22,7 @@ Start here: `docs/00-overview/overview.md`.
 Source of truth pointers
 
 - Architecture: `docs/04-model/v3-architecture.md`
-- Code: `src/brain_brr/models/detector.py`, `src/brain_brr/models/edge_features.py`, `src/brain_brr/models/gnn_pyg.py`, `src/brain_brr/models/mamba.py`, `src/brain_brr/models/tcn.py`, `src/brain_brr/train/loop.py`, `src/brain_brr/data/loader.py`, `src/brain_brr/data/dataset.py`
+- Code: `src/brain_brr/models/detector.py`, `src/brain_brr/models/gnn_pyg.py`, `src/brain_brr/models/mamba.py`, `src/brain_brr/models/tcn.py`, `src/brain_brr/train/loop.py`, `src/brain_brr/data/datasets.py`, `src/brain_brr/data/io.py`, `src/brain_brr/data/preprocess.py`, `src/brain_brr/data/windows.py`, `src/brain_brr/data/tusz_splits.py`
 
 Quick local stability tips
 

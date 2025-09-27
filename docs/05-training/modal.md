@@ -15,7 +15,7 @@ Resources
 Cache and volumes
 
 - Raw data mounted at `/data/edf/` (read‑only dataset mount)
-- Cache on persistent SSD volume at `/results/cache/tusz` (patient‑disjoint subdirs: `{train,dev}`)
+- Cache on persistent SSD volume at `/results/cache/tusz` (patient‑disjoint subdirs: `{train,val}`)
 - Results saved to `/results/` (same persistent volume)
 - Ensure `data.data_dir: /data/edf`, `data.split_policy: official_tusz`
 - Ensure `data.cache_dir: /results/cache/tusz` in configs

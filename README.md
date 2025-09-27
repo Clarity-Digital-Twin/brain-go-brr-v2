@@ -106,14 +106,22 @@ make setup-gpu  # Installs mamba-ssm==2.2.2, PyG, TCN
 # Download TUH EEG Seizure Corpus (requires agreement)
 # Place in: data_ext4/tusz/edf/
 
-# Build preprocessed cache (one-time, ~6 hours)
+# Build preprocessed caches (one-time)
+# Train split
 python -m src build-cache \
-  --data-dir data_ext4/tusz/edf \
-  --cache-dir cache/tusz
+  --data-dir data_ext4/tusz/edf/train \
+  --cache-dir cache/tusz/train \
+  --split train
 
-# Expected output:
-# ✅ 4667 train files (306GB)
-# ✅ 1832 dev files (143GB)
+# Val split (TUSZ 'dev')
+python -m src build-cache \
+  --data-dir data_ext4/tusz/edf/dev \
+  --cache-dir cache/tusz/val \
+  --split val
+
+# Build manifests
+python -m src scan-cache --cache-dir cache/tusz/train
+python -m src scan-cache --cache-dir cache/tusz/val
 ```
 
 ### Training
@@ -142,7 +150,7 @@ modal run --detach deploy/modal/app.py \
 ```yaml
 # RTX 4090 (24GB) - configs/local/train.yaml
 training:
-  batch_size: 12        # Memory-optimized
+  batch_size: 4         # Stable baseline on 24GB VRAM
   mixed_precision: false  # MUST be false (causes NaNs)
   gradient_clip: 0.1     # Aggressive for stability
 
@@ -229,12 +237,10 @@ modal app logs <id>   # Stream logs
 
 ## 📊 Expected Performance
 
-### Training Time Estimates
+Training time varies with batch size and cache locality. As a rough guide:
 
-| Hardware | Batch Size | Time/Epoch | Total Time | Cost |
-|----------|------------|------------|------------|------|
-| RTX 4090 | 12 | ~2-3 hours | ~200-300h | Power |
-| A100-80GB | 64 | ~1 hour | ~100h | ~$319 |
+- A100-80GB, batch 64: ~1 hour/epoch (~100 hours total)
+- RTX 4090, batch 4–8: several hours/epoch depending on IO and PE settings
 
 ### Memory Requirements
 

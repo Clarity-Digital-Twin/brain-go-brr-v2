@@ -7,6 +7,9 @@ Common issues
 - NaN losses on 4090: set `mixed_precision: false`
 - Modal stuck: increase CPU (24) and RAM (96GB)
 - PyG install fails: use prebuilt wheels
+- Evaluate CLI exits early:
+  - "No config found" — pass `--config` or use a checkpoint with embedded config
+  - "No EDF files found" — verify `*.edf` exist under the provided data path
 
 V3 NaN issues
 
