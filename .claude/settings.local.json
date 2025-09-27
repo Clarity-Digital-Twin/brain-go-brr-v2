@@ -180,7 +180,8 @@
       "Bash(while ! grep -q \"ERROR\\|FAIL\" train_debug.log)",
       "Bash(~/.local/bin/aws s3 rm:*)",
       "Bash(.venv/bin/ruff check src/brain_brr/cli/cli.py --fix)",
-      "Bash(.venv/bin/ruff check src/brain_brr/cli/cli.py --fix --unsafe-fixes)"
+      "Bash(.venv/bin/ruff check src/brain_brr/cli/cli.py --fix --unsafe-fixes)",
+      "Bash(BGB_LIMIT_FILES=2 .venv/bin/python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir /tmp/test_cache --split train)"
     ],
     "deny": [],
     "ask": []
