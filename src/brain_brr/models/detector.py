@@ -272,7 +272,7 @@ class SeizureDetector(nn.Module):
 
             # Edge stream: learned adjacency
             edge_metric = str(self.config.get("edge_metric", "cosine"))
-            edge_similarity_margin = self.config.get("edge_similarity_margin", 0.01)
+            edge_similarity_margin = float(self.config.get("edge_similarity_margin", 0.01))
             edge_feats = edge_scalar_series(
                 elec_feats, metric=edge_metric, edge_similarity_margin=edge_similarity_margin
             )  # (B, 171, 960, 1)
