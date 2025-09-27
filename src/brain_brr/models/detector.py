@@ -243,6 +243,10 @@ class SeizureDetector(nn.Module):
                 0, 1, 3, 2
             )  # (B, 19, 960, 64)
 
+            # PR-1: Normalize after projection to electrodes
+            if self.norm_after_proj_to_electrodes:
+                elec_feats = self.norm_after_proj_to_electrodes(elec_feats)
+
             # Node stream: per-electrode Mamba
             node_flat = (
                 elec_feats.permute(0, 1, 3, 2).reshape(batch_size * 19, 64, seq_len).contiguous()
@@ -252,6 +256,10 @@ class SeizureDetector(nn.Module):
             node_feats = node_processed.reshape(batch_size, 19, 64, seq_len).permute(
                 0, 1, 3, 2
             )  # (B, 19, 960, 64)
+
+            # PR-1: Normalize after node Mamba
+            if self.norm_after_node_mamba:
+                node_feats = self.norm_after_node_mamba(node_feats)
 
             # Edge stream: learned adjacency
             edge_metric = str(self.config.get("edge_metric", "cosine"))
@@ -274,6 +282,13 @@ class SeizureDetector(nn.Module):
             )
 
             edge_processed = self.edge_mamba(edge_in)  # (B*E, D, T)
+
+            # PR-1: Normalize after edge Mamba (permute for LayerNorm on last dim)
+            if self.norm_after_edge_mamba:
+                # edge_processed is (B*E, D, T), need to normalize over D dimension
+                edge_processed = edge_processed.transpose(1, 2)  # (B*E, T, D)
+                edge_processed = self.norm_after_edge_mamba(edge_processed)
+                edge_processed = edge_processed.transpose(1, 2)  # Back to (B*E, D, T)
             edge_out = self.edge_out_proj(edge_processed)  # (B*E, 1, T)
             edge_weights = self.edge_activate(edge_out).reshape(batch_size, 171, seq_len)  # (B,E,T)
             assert_finite("edge_weights", edge_weights)
@@ -289,9 +304,24 @@ class SeizureDetector(nn.Module):
             )  # (B, 960, 19, 19)
             assert_finite("adjacency", adj)
 
-            # Apply GNN
-            elec_enhanced = self.gnn(node_feats, adj) if self.gnn else node_feats
+            # Apply GNN with optional LayerScale residual
+            if self.gnn:
+                gnn_out = self.gnn(node_feats, adj)
+                # PR-1: Apply LayerScale to GNN residual if configured
+                if self.gnn_layerscale and self.gnn.use_residual:
+                    # GNN already adds residual internally, so we scale the increment
+                    # gnn_out = node_feats + scale * (gnn_out - node_feats)
+                    gnn_increment = gnn_out - node_feats
+                    elec_enhanced = node_feats + self.gnn_layerscale(gnn_increment)
+                else:
+                    elec_enhanced = gnn_out
+            else:
+                elec_enhanced = node_feats
             assert_finite("gnn_out", elec_enhanced)
+
+            # PR-1: Normalize after GNN
+            if self.norm_after_gnn:
+                elec_enhanced = self.norm_after_gnn(elec_enhanced)
 
             # Project back to bottleneck
             elec_flat = elec_enhanced.permute(0, 1, 3, 2).reshape(
@@ -303,6 +333,13 @@ class SeizureDetector(nn.Module):
         else:
             # Fallback to 512-dim Mamba stack if V3 components not initialized
             temporal = self.mamba(features)  # (B, 512, 960)
+
+        # PR-1: Normalize before decoder (temporal is B, 512, 960)
+        if self.norm_before_decoder:
+            # Need to permute to make 512 the last dimension for LayerNorm
+            temporal = temporal.transpose(1, 2)  # (B, 960, 512)
+            temporal = self.norm_before_decoder(temporal)
+            temporal = temporal.transpose(1, 2)  # Back to (B, 512, 960)
 
         # Optional safety clamp after temporal modeling
         if _env.safe_clamp():

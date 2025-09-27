@@ -11,6 +11,7 @@ from typing import cast
 import torch
 import torch.nn as nn
 
+from src.brain_brr.models.norms import LayerScale
 from src.brain_brr.utils.env import env
 
 # Conditional import for GPU/CPU compatibility
@@ -49,6 +50,8 @@ class BiMamba2Layer(nn.Module):
         headdim: int = 64,
         dropout: float = 0.1,
         init_gain: float = 0.2,  # Dependency injection for initialization
+        use_layerscale: bool = False,  # PR-1: Enable LayerScale on residual
+        layerscale_init: float = 0.1,  # PR-1: LayerScale initial value
     ):
         super().__init__()
         self.d_model = d_model
@@ -108,6 +111,9 @@ class BiMamba2Layer(nn.Module):
         self.output_proj = nn.Linear(d_model * 2, d_model)
         self.layer_norm = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
+
+        # PR-1: Optional LayerScale for residual connection
+        self.layerscale = LayerScale(d_model, layerscale_init) if use_layerscale else None
 
         # Initialize weights conservatively
         self._initialize_weights()
@@ -241,6 +247,10 @@ class BiMamba2Layer(nn.Module):
         # Clamp projection output to prevent explosion
         x_output = torch.clamp(x_output, min=-5.0, max=5.0)
 
+        # PR-1: Apply LayerScale if configured
+        if self.layerscale:
+            x_output = self.layerscale(x_output)
+
         # Add residual and normalize
         output = self.layer_norm(residual + self.dropout(x_output))
 
@@ -276,6 +286,8 @@ class BiMamba2(nn.Module):
         num_layers: int = 6,
         dropout: float = 0.1,
         init_gain: float = 0.2,  # Dependency injection for initialization
+        use_layerscale: bool = False,  # PR-1: Enable LayerScale on residuals
+        layerscale_init: float = 0.1,  # PR-1: LayerScale initial value
     ):
         super().__init__()
         self.d_model = d_model
@@ -294,6 +306,8 @@ class BiMamba2(nn.Module):
                     headdim=headdim,
                     dropout=dropout,
                     init_gain=init_gain,
+                    use_layerscale=use_layerscale,
+                    layerscale_init=layerscale_init,
                 )
                 for _ in range(num_layers)
             ]
