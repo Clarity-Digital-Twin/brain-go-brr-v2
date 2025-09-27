@@ -1,5 +1,122 @@
 # Release Notes
 
+## v3.1.1 - Critical Data Integrity Fix (2025-09-26)
+
+### 🚨 CRITICAL: Cache Rebuild Required
+
+**Type**: Patch Release (Critical Fixes)
+**Status**: Production Ready
+**Impact**: ALL caches built before this version have missing seizures
+
+This emergency patch fixes critical data integrity issues that were causing 44 myoclonic seizures to be mislabeled as background, along with comprehensive naming consistency fixes throughout the codebase.
+
+### ⚠️ Breaking Changes
+
+#### Cache Rebuild Required
+- **44 missing seizures**: `mysz` (myoclonic) seizure type was missing from label set
+- **Impact**: 0.1% of corpus mislabeled as background instead of seizure
+- **Action Required**: Complete cache rebuild with fixed code
+
+```bash
+# Remove old cache
+rm -rf cache/tusz
+
+# Rebuild with mysz seizures properly labeled
+python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz/train --split train
+python -m src build-cache --data-dir data_ext4/tusz/edf/dev --cache-dir cache/tusz/dev --split dev
+```
+
+### 🔧 Critical Fixes
+
+| Issue | Impact | Solution |
+|-------|--------|----------|
+| Missing `mysz` seizures | 44 seizures mislabeled | Added to seizure types |
+| Dev/val naming chaos | Confusion with TUSZ docs | Standardized on 'dev' |
+| EEG outliers causing NaNs | Training instability | Clip to ±10σ |
+| Non-finite logits | Training crashes | 3-tier clamping |
+| CLI evaluate bugs | Can't run evaluation | Fixed config handling |
+
+### 📋 Complete Fix List
+
+#### Data Integrity
+- ✅ Added `mysz` to seizure types (`src/brain_brr/data/io.py:301`)
+- ✅ Outlier clipping in preprocessing (±10σ)
+- ✅ Output sanitization in detector
+- ✅ Gradient sanitization option (`BGB_SANITIZE_GRADS=1`)
+
+#### Naming Consistency
+- ✅ ALL references now use 'dev' (not 'val') for validation
+- ✅ Created `CRITICAL-NAMING-CONVENTION.md` documentation
+- ✅ Updated 20+ files for consistency
+- ✅ S3/Modal paths all use dev naming
+
+#### CLI Improvements
+- ✅ Fixed evaluate checkpoint config=None bug
+- ✅ Added --limit-files to build-cache
+- ✅ Fixed CSV export stride timing
+- ✅ Improved error handling
+
+#### Performance
+- ✅ Adjusted test thresholds for V3 architecture
+- ✅ ~50ms inference is expected for dual-stream
+
+### 🚀 Deployment Steps
+
+1. **Update code**:
+   ```bash
+   git fetch && git checkout v3.1.1
+   ```
+
+2. **Rebuild cache** (4667 train + 1832 dev files):
+   ```bash
+   python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz/train --split train
+   python -m src build-cache --data-dir data_ext4/tusz/edf/dev --cache-dir cache/tusz/dev --split dev
+   ```
+
+3. **Upload to S3**:
+   ```bash
+   ./scripts/upload_cache_to_s3.sh
+   ```
+
+4. **Populate Modal SSD**:
+   ```bash
+   modal run deploy/modal/app.py --action populate-cache
+   ```
+
+5. **Train with gradient sanitization**:
+   ```bash
+   export BGB_SANITIZE_GRADS=1
+   python -m src train configs/local/train.yaml
+   ```
+
+### 📊 Validation
+
+After rebuild, verify:
+- Train: 4667 NPZ files with seizures present
+- Dev: 1832 NPZ files with proper labels
+- Manifest shows partial/full/no seizure categories
+- No NaN losses during training
+
+### 🎯 What This Fixes
+
+Before v3.1.1:
+- Missing 44 seizures → Poor sensitivity
+- Inconsistent naming → Confusion
+- Outlier overflow → NaN crashes
+- CLI bugs → Can't evaluate
+
+After v3.1.1:
+- ✅ All seizures properly labeled
+- ✅ Consistent 'dev' naming everywhere
+- ✅ Stable training without NaNs
+- ✅ Full CLI functionality
+
+**Tag**: `v3.1.1`
+**Commits**: 28 fixes since v3.1.0
+**Priority**: CRITICAL - Rebuild cache immediately
+
+---
+
 ## v3.1.0 - Production Deployment Ready (2025-09-25)
 
 ### 🚀 V3 Architecture Deployed to Production

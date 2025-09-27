@@ -5,6 +5,73 @@ All notable changes to the Brain-Go-Brr v2 project will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2025-09-26
+
+### 🚨 Critical Fixes: Data Integrity & Naming Consistency
+
+This patch release addresses critical data integrity issues discovered during cache rebuild, including 44 missing seizures and comprehensive naming standardization across the entire codebase.
+
+### Critical Fixes
+- **Missing Seizure Type**: Added `mysz` (myoclonic) to seizure labels set
+  - 44 seizures were being mislabeled as background (0.1% of corpus)
+  - Required complete cache rebuild for training accuracy
+  - `src/brain_brr/data/io.py:301` now includes all 9 TUSZ seizure types
+- **Naming Consistency**: Standardized on 'dev' everywhere (not 'val')
+  - Matches TUSZ official split naming: train/dev/eval
+  - Fixed in 20+ files across code, configs, and documentation
+  - Added `CRITICAL-NAMING-CONVENTION.md` for clarity
+- **Data Preprocessing Outliers**: Clip extreme values to ±10σ
+  - Prevents numerical overflow from raw EEG outliers
+  - Example: 1256µV creating 121σ outliers after z-score
+- **Output Sanitization**: Added final logit clamping
+  - Prevents non-finite values reaching loss computation
+  - 3-tier clamping system now complete
+
+### P2 Bug Fixes (CLI)
+- **Evaluate Command**: Fixed checkpoint config handling
+  - Properly handles `config=None` in checkpoints
+  - Exits gracefully when no EDF files found
+  - `src/brain_brr/cli/cli.py:382-420`
+- **Build-Cache Command**: Added `--limit-files` option
+  - Enables quick testing with subset of files
+  - Accepts 'val' as backward-compatible alias for 'dev'
+- **CSV Export**: Fixed stride-aware timing
+  - Properly accounts for 10s window stride
+  - Prevents event time inflation
+
+### Performance
+- **Test Thresholds**: Adjusted for V3 dual-stream complexity
+  - Single window latency: 50ms → 75ms base (RTX 4090)
+  - Batch per-sample: 25ms → 45ms base
+  - Reflects ~50ms actual inference time on V3 architecture
+
+### Documentation
+- **S3/Modal Upload Procedure**: Complete guide added
+  - Step-by-step cache upload and Modal population
+  - Clean state verification for S3 and Modal volumes
+- **P0-P3 Blockers Audit**: Comprehensive issue tracking
+  - All P0/P1 operational blockers documented
+  - P2 bugs with specific fixes identified
+- **CRITICAL-NAMING-CONVENTION.md**: Why we use 'dev' not 'val'
+  - Shows correct vs wrong examples
+  - Enforced everywhere in codebase
+
+### Required Actions
+1. **Rebuild Cache** (CRITICAL for mysz fix):
+   ```bash
+   rm -rf cache/tusz
+   python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz/train --split train
+   python -m src build-cache --data-dir data_ext4/tusz/edf/dev --cache-dir cache/tusz/dev --split dev
+   ```
+2. **Upload to S3**:
+   ```bash
+   ./scripts/upload_cache_to_s3.sh
+   ```
+3. **Populate Modal**:
+   ```bash
+   modal run deploy/modal/app.py --action populate-cache
+   ```
+
 ## [3.1.0] - 2025-09-25
 
 ### 🎯 Production Deployment Release: V3 Architecture Ready
@@ -48,6 +115,10 @@ This release marks the successful deployment of the V3 dual-stream architecture 
   - Corrected volume mounting in deployment
 - **Code Quality**: Comprehensive cleanup
   - All type checking errors resolved
+- **NaN Issues**: Multiple root causes identified
+  - Data preprocessing outliers
+  - Missing output sanitization
+  - TCN gradient instability
   - Linting and formatting compliance
   - Removed unused imports and dead code
 
