@@ -140,8 +140,10 @@ class GraphConfig(StrictModel):
         default="cosine", description="Edge feature metric for v3"
     )
     edge_similarity_margin: float = Field(
-        default=0.01, ge=0.0, le=0.1,
-        description="Safety margin from ±1 boundaries for edge similarities (prevents Mamba explosion)"
+        default=0.01,
+        ge=0.0,
+        le=0.1,
+        description="Safety margin from ±1 boundaries for edge similarities (prevents Mamba explosion)",
     )
     edge_top_k: int = Field(default=3, ge=1, le=18, description="Top-k edges per node for v3")
     edge_threshold: float = Field(default=1e-4, ge=0.0, description="Edge weight cutoff for v3")

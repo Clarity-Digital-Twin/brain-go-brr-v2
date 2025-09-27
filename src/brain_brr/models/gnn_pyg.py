@@ -224,9 +224,7 @@ class GraphChannelMixerPyG(nn.Module):
             except RuntimeError as e:
                 print(f"[WARNING] Eigendecomposition failed: {e}, using fallback PE")
                 pe = (
-                    torch.randn(
-                        B * T, N, self.k_eigenvectors, device=device, dtype=torch.float32
-                    )
+                    torch.randn(B * T, N, self.k_eigenvectors, device=device, dtype=torch.float32)
                     * 0.01
                 )
 
