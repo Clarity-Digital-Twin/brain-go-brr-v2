@@ -81,6 +81,10 @@ class SeizureDetector(nn.Module):
         # PR-1: LayerScale for residual connections (initialized as None)
         self.gnn_layerscale: nn.Module | None = None
 
+        # PR-2: Bounded edge stream components (initialized as None, set by from_config)
+        self.edge_lift_act: nn.Module | None = None
+        self.edge_lift_norm: nn.Module | None = None
+
         # Backwards-compat: ensure mamba_dropout has a concrete value
         if mamba_dropout is None:
             mamba_dropout = 0.1
@@ -273,11 +277,11 @@ class SeizureDetector(nn.Module):
             edge_in = self.edge_in_proj(edge_flat).contiguous()  # (B*E, D, T) where D=16
 
             # PR-2: Apply bounded activation and normalization
-            if hasattr(self, 'edge_lift_act') and self.edge_lift_act is not None:
+            if hasattr(self, "edge_lift_act") and self.edge_lift_act is not None:
                 edge_in = self.edge_lift_act(edge_in)
 
                 # Apply normalization after activation if configured
-                if hasattr(self, 'edge_lift_norm') and self.edge_lift_norm is not None:
+                if hasattr(self, "edge_lift_norm") and self.edge_lift_norm is not None:
                     # Transpose for LayerNorm on feature dimension
                     edge_in = edge_in.transpose(1, 2).contiguous()  # (B*E, T, D)
                     edge_in = self.edge_lift_norm(edge_in)

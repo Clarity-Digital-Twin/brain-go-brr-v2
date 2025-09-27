@@ -199,9 +199,12 @@ def test_pr2_with_pr1_combined():
     model.eval()
 
     # Both PR-1 and PR-2 components should exist
-    assert hasattr(model, "edge_lift_act") and model.edge_lift_act is not None
-    assert hasattr(model, "edge_lift_norm") and model.edge_lift_norm is not None
-    assert hasattr(model, "norm_after_edge_mamba") and model.norm_after_edge_mamba is not None
+    assert hasattr(model, "edge_lift_act")
+    assert model.edge_lift_act is not None
+    assert hasattr(model, "edge_lift_norm")
+    assert model.edge_lift_norm is not None
+    assert hasattr(model, "norm_after_edge_mamba")
+    assert model.norm_after_edge_mamba is not None
 
     # Test forward pass
     x = torch.randn(2, 19, 256)
