@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-The V3 dual-stream architecture contains **47 numerical stability interventions** across the forward pass, indicating fundamental architectural instability. This document provides:
+The V3 dual-stream architecture contains **43 numerical stability interventions** (27 clamps + 9 nan_to_num + 6 epsilon additions + 2 gradient sanitization paths) across the forward pass, indicating fundamental architectural instability. This document provides:
 1. Complete inventory of all stability band-aids
 2. Root cause analysis based on literature
 3. Surgical fix plan to make V3 "stable by construction"
@@ -12,7 +12,7 @@ The V3 dual-stream architecture contains **47 numerical stability interventions*
 
 ## Part 1: Complete Inventory of Stability Band-Aids
 
-### 1.1 Manual Clamps (22 instances)
+### 1.1 Manual Clamps (27 instances total: 23 in-model + 4 in loss)
 
 #### TCN Module (`src/brain_brr/models/tcn.py`)
 ```python
@@ -57,7 +57,7 @@ Line 307: decoded = torch.clamp(decoded, -50.0, 50.0)  # Decoder output
 Line 314: output = torch.clamp(output, -100.0, 100.0)  # Final logits
 ```
 
-### 1.2 NaN/Inf Replacements (10 instances)
+### 1.2 NaN/Inf Replacements (9 instances in-model)
 
 ```python
 # TCN
@@ -78,7 +78,17 @@ detector.py:306: decoded = torch.nan_to_num(decoded, nan=0.0, posinf=50.0, negin
 detector.py:313: output = torch.nan_to_num(output, nan=0.0, posinf=50.0, neginf=-50.0)
 ```
 
-### 1.3 Gradient Sanitization (4 locations)
+### 1.3 Loss-Level Clamps (4 instances in training loop)
+
+```python
+# Training loop (src/brain_brr/train/loop.py)
+Line 205: logits_clamped = logits.clamp(min=-100, max=100)  # Pre-loss logits
+Line 212: p = p.clamp(min=1e-6, max=1 - 1e-6)  # Probability bounds
+Line 218: p_t_stable = p_t.clamp(min=1e-7, max=1 - 1e-7)  # Focal term stability
+Line 223: focal_loss = focal_loss.clamp(max=100.0)  # Prevent loss explosion
+```
+
+### 1.4 Gradient Sanitization (2 paths)
 
 ```python
 # Training loop (src/brain_brr/train/loop.py)
@@ -87,7 +97,7 @@ Lines 728-745: Standard gradient sanitization
 # Mechanism: param.grad.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
 ```
 
-### 1.4 Epsilon Additions (8 instances)
+### 1.5 Epsilon Additions (6 instances)
 
 ```python
 gnn_pyg.py:159: degrees = a_flat.sum(dim=-1).clamp_min(1e-6)
@@ -97,17 +107,15 @@ gnn_pyg.py:184-185: eps = 1e-3  # Fallback regularization
 edge_features.py:73: min=1e-6  # Norm safety
 edge_features.py:86: + 1e-6  # Sqrt safety
 edge_features.py:87: min=1e-6  # Denominator safety
-
-detector.py:272: edge_threshold = 1e-4  # Sparsification threshold
 ```
 
-### 1.5 Environment Variable Controls
+### 1.6 Environment Variable Controls
 
 ```python
 BGB_SANITIZE_GRADS=1      # Gradient sanitization
 BGB_SAFE_CLAMP=1          # Activation clamping
-BGB_SAFE_CLAMP_MIN=-50    # Clamp lower bound
-BGB_SAFE_CLAMP_MAX=50     # Clamp upper bound
+BGB_SAFE_CLAMP_MIN=-10    # Clamp lower bound (default: -10.0)
+BGB_SAFE_CLAMP_MAX=10     # Clamp upper bound (default: 10.0)
 BGB_NAN_DEBUG=1           # NaN monitoring
 BGB_SKIP_OPT_STEP_ON_NAN=1  # Skip corrupted updates
 ```
@@ -289,10 +297,10 @@ fused = node_feats + gate * edge_feats
 ## Part 5: Success Metrics
 
 ### Stability Metrics
-- [ ] Zero NaN/Inf in 10,000 consecutive batches
-- [ ] Gradient norm variance < 1.0
-- [ ] No environment variables needed for training
-- [ ] Eigenvalue condition number < 100
+- [ ] Zero NaN/Inf in 10,000 consecutive batches (forward + backward)
+- [ ] Gradient norm P95 < K (set empirically per stack)
+- [ ] No reliance on BGB_SAFE_CLAMP or gradient sanitization in steady state
+- [ ] Dynamic LPE fallback rate < 0.1% (PE computation succeeds without cached fallback)
 
 ### Performance Metrics
 - [ ] Maintain or improve seizure detection sensitivity
@@ -302,25 +310,27 @@ fused = node_feats + gate * edge_feats
 
 ## Part 6: Literature References
 
-1. **Normalization Theory**:
-   - Ioffe & Szegedy (2015): "Batch Normalization: Accelerating Deep Network Training"
-   - Ba et al. (2016): "Layer Normalization"
+1. **State-Space Models & Normalization**:
+   - Gu & Dao (2023/2024): "Mamba: Linear-Time Sequence Modeling with Selective State Spaces"
+   - Gu et al. (2022): "Efficiently Modeling Long Sequences with Structured State Spaces (S4)"
    - Zhang & Sennrich (2019): "Root Mean Square Layer Normalization"
+   - Reference implementation: `reference_repos/mamba` uses RMSNorm before gates
 
-2. **Stability Analysis**:
-   - Glorot & Bengio (2010): "Understanding the Difficulty of Training Deep Networks"
-   - Saxe et al. (2013): "Exact Solutions to the Nonlinear Dynamics of Learning"
-   - Liu et al. (2020): "On the Stability of Transformers"
+2. **Graph Neural Networks & Positional Encoding**:
+   - Dwivedi et al. (2020): "Benchmarking Graph Neural Networks" (Laplacian PE)
+   - Veličković et al. (2018): "Graph Attention Networks" (row-softmax normalization)
+   - Klicpera et al. (2019): "APPNP: Predict then Propagate" (α-mixing, SSGConv)
+   - Local evidence: `literature/markdown/EVOBRAIN.md` - two-stream Mamba + LapPE
 
-3. **Architecture Design**:
+3. **Numerical Stability**:
+   - Trefethen & Bau (1997): "Numerical Linear Algebra" (conditioning, eigendecomposition)
    - Touvron et al. (2021): "Going Deeper with Image Transformers" (LayerScale)
-   - Veličković et al. (2018): "Graph Attention Networks" (row-softmax)
-   - Bruna et al. (2014): "Spectral Networks and Deep Locally Connected Networks"
+   - He et al. (2020): "Momentum Contrast" (EMA for stability)
 
-4. **Activation Functions**:
-   - Ramachandran et al. (2017): "Searching for Activation Functions"
-   - Hendrycks & Gimpel (2016): "Gaussian Error Linear Units (GELUs)"
-   - Dauphin et al. (2017): "Language Modeling with Gated Convolutional Networks"
+4. **EEG-Specific Architecture**:
+   - Local research: `literature/markdown/EVOBRAIN.md` - dual-stream architecture
+   - Local research: `literature/markdown/EEMG2` - Mamba-2 blocks with LayerNorm
+   - Implementation: Our V3 architecture implements similar concepts
 
 ## Part 7: Code Implementation Examples
 
@@ -359,15 +369,24 @@ class LayerScale(nn.Module):
 ```python
 class BoundedEdgeProjection(nn.Module):
     """Edge projection with bounded activation and normalization"""
-    def __init__(self, in_dim: int, out_dim: int):
+    def __init__(self, in_channels: int = 1, out_channels: int = 16):
         super().__init__()
-        self.proj = nn.Linear(in_dim, out_dim)
-        self.norm = RMSNorm(out_dim)
+        # Use Conv1d to match current shape handling
+        self.proj = nn.Conv1d(in_channels, out_channels, kernel_size=1)
+        # GroupNorm works on channel dimension without permutes
+        self.norm = nn.GroupNorm(1, out_channels)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.proj(x)
+        # x shape: (B, 171, 960, 1) -> reshape for Conv1d
+        B, E, T, C = x.shape
+        x = x.permute(0, 1, 3, 2).reshape(B * E, C, T)  # (B*E, 1, T)
+
+        x = self.proj(x)  # (B*E, 16, T)
         x = torch.tanh(x)  # Bounded [-1, 1]
         x = self.norm(x)    # Normalized
+
+        # Reshape back
+        x = x.reshape(B, E, -1, T).permute(0, 1, 3, 2)  # (B, 171, 960, 16)
         return x
 ```
 
@@ -376,22 +395,38 @@ class BoundedEdgeProjection(nn.Module):
 ```python
 def condition_adjacency(
     A: torch.Tensor,
+    top_k: int = 5,
     tau: float = 1.0,
     ema_beta: Optional[float] = None,
     prev_A: Optional[torch.Tensor] = None
 ) -> torch.Tensor:
-    """Condition adjacency matrix for stability"""
-    # Row-wise softmax
-    A = F.softmax(A / tau, dim=-1)
+    """Condition adjacency matrix for stability with masked row-softmax."""
+    B, T, N, _ = A.shape
 
-    # EMA smoothing if enabled
+    # Apply top-k mask first
+    topk_vals, topk_idx = torch.topk(A, k=min(top_k, N), dim=-1)
+    mask = torch.zeros_like(A)
+    mask.scatter_(-1, topk_idx, 1.0)
+    A_masked = A * mask
+
+    # Masked row-wise softmax (only over kept neighbors)
+    # Add large negative value to masked out elements
+    A_for_softmax = A_masked / tau
+    A_for_softmax = A_for_softmax.masked_fill(mask == 0, -1e9)
+    A_norm = F.softmax(A_for_softmax, dim=-1)
+
+    # EMA smoothing if enabled (for PE computation)
     if ema_beta is not None and prev_A is not None:
-        A = ema_beta * prev_A + (1 - ema_beta) * A
+        A_norm = ema_beta * prev_A + (1 - ema_beta) * A_norm
 
-    # Force symmetry
-    A = (A + A.transpose(-2, -1)) / 2
+    # Force symmetry (important for Laplacian)
+    A_sym = (A_norm + A_norm.transpose(-2, -1)) / 2
 
-    return A
+    # Add small identity to prevent singular Laplacian
+    I = torch.eye(N, device=A.device, dtype=A.dtype)
+    A_final = A_sym + 1e-4 * I.unsqueeze(0).unsqueeze(0)
+
+    return A_final
 ```
 
 ## Part 8: Testing Strategy
@@ -415,12 +450,25 @@ def test_edge_projection_bounds():
     assert y.abs().max() <= 2.0  # Bounded by tanh + norm
 
 def test_adjacency_conditioning():
-    """Verify adjacency stays well-conditioned"""
-    A = torch.randn(32, 960, 19, 19) * 10
-    A_cond = condition_adjacency(A)
-    eigenvalues = torch.linalg.eigvalsh(A_cond[0, 0])
-    condition_number = eigenvalues.max() / eigenvalues.min()
-    assert condition_number < 100
+    """Verify adjacency normalization and stability"""
+    A = torch.randn(2, 10, 19, 19) * 10  # Random adjacency
+    A_cond = condition_adjacency(A, top_k=5)
+
+    # Test row sums approximately 1 (for non-zero rows)
+    row_sums = A_cond.sum(dim=-1)
+    assert torch.allclose(row_sums[row_sums > 0.1], torch.ones_like(row_sums[row_sums > 0.1]), atol=0.1)
+
+    # Test symmetry
+    sym_error = (A_cond - A_cond.transpose(-2, -1)).abs().max()
+    assert sym_error < 1e-6
+
+    # Test finite values
+    assert torch.isfinite(A_cond).all()
+
+    # Test Laplacian can be computed without NaN
+    L = torch.eye(19).unsqueeze(0).unsqueeze(0) - A_cond
+    eigenvalues = torch.linalg.eigvalsh(L.to(torch.float32))
+    assert torch.isfinite(eigenvalues).all()
 ```
 
 ## Part 9: Rollout Checklist
@@ -446,7 +494,7 @@ def test_adjacency_conditioning():
 
 ## Conclusion
 
-The V3 architecture's 47 stability interventions are symptoms of missing architectural regularization. By adding principled bounds at component seams (RMSNorm), bounded activations (tanh), conditioned adjacency matrices (row-softmax + EMA), and gated fusion, we can retire 80%+ of manual clamps while improving stability.
+The V3 architecture's 43 stability interventions (27 clamps + 9 nan_to_num + 6 epsilon additions + 2 gradient sanitization paths) are symptoms of missing architectural regularization. By adding principled bounds at component seams (RMSNorm/LayerNorm), bounded activations (tanh), conditioned adjacency matrices (masked row-softmax + EMA), and gated fusion, we can retire ~60% of manual clamps while improving stability.
 
 This is not about removing features or reducing capacity - it's about making the existing architecture **stable by construction** using proven techniques from literature.
 
