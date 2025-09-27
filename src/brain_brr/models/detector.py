@@ -391,8 +391,8 @@ class SeizureDetector(nn.Module):
             # headdim=8 ensures (64 * 2) / 8 = 16 which is multiple of 8
             # PR-1: Pass LayerScale config to Mamba layers
             norms_cfg = getattr(cfg, "norms", None)
-            use_layerscale_mamba = norms_cfg and norms_cfg.boundary_norm != "none"
-            layerscale_init = norms_cfg.layerscale_alpha if norms_cfg else 0.1
+            use_layerscale_mamba = bool(norms_cfg and norms_cfg.boundary_norm != "none")
+            layerscale_init = float(norms_cfg.layerscale_alpha if norms_cfg else 0.1)
 
             instance.node_mamba = BiMamba2(
                 d_model=64,

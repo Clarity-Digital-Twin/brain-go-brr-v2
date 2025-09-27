@@ -186,7 +186,7 @@ def test_contiguous_memory_fix():
     # Hook to check contiguity
     contiguous_checks = []
 
-    def check_contiguous_hook(module, input, output):
+    def check_contiguous_hook(module, input_tensor, output):
         if isinstance(output, torch.Tensor):
             contiguous_checks.append(output.is_contiguous())
 
