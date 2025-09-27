@@ -283,8 +283,10 @@ class SeizureDetector(nn.Module):
             # Debug assert to verify bounds
             if __debug__:
                 lo, hi = edge_feats.amin(), edge_feats.amax()
-                assert torch.isfinite(lo) and torch.isfinite(hi), "Non-finite edge features"
-                assert lo >= -1.001 and hi <= 1.001, f"Edge features out of bounds: [{lo}, {hi}]"
+                assert torch.isfinite(lo), "Non-finite minimum in edge features"
+                assert torch.isfinite(hi), "Non-finite maximum in edge features"
+                assert lo >= -1.001, f"Edge features lower bound violation: {lo}"
+                assert hi <= 1.001, f"Edge features upper bound violation: {hi}"
 
             # Learnable lift 1→D channels for CUDA alignment & capacity
             edge_flat = edge_feats.squeeze(-1).reshape(batch_size * 171, 1, seq_len)  # (B*E,1,T)
