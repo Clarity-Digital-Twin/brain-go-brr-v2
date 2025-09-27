@@ -66,6 +66,7 @@ model:
 
     # Edge stream parameters
     edge_features: "cosine"       # or "correlation"
+    edge_similarity_margin: 0.01   # Clamp similarity to [-1+margin, 1-margin]
     edge_top_k: 3                 # Top-k edges per node
     edge_threshold: 0.0001
     edge_mamba_layers: 2

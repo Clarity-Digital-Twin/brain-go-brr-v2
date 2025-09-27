@@ -1,5 +1,11 @@
 # V3 Architectural Instability: Root Cause Analysis & Surgical Fix Plan
 
+Status note (Oct 2025)
+- Historical analysis with line-number references; the refactor series PR‑1/2/3/4/5 has since landed.
+- For the current implementation and policy, prefer:
+  - docs/10-final-refactor/NAN_CANONICAL.md
+  - docs/10-final-refactor/PR5_DEFINITIVE_CLEANUP.md
+
 ## Executive Summary
 
 The V3 dual-stream architecture contains **43 numerical stability interventions** (27 clamps + 9 nan_to_num + 6 epsilon additions + 2 gradient sanitization paths) across the forward pass, indicating fundamental architectural instability. This document provides:

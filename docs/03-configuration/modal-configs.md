@@ -23,6 +23,7 @@ Graph and V3
 - `model.architecture: v3`
 - `graph.enabled: true` with edge stream and vectorized GNN defaults
 - `graph.use_dynamic_pe: true` with `semi_dynamic_interval: 1` (full dynamic on A100)
+- `graph.edge_similarity_margin: 0.01` to bound similarity within [-1+margin, 1-margin]
 
 Commands
 
