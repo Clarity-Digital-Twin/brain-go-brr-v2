@@ -227,7 +227,6 @@ class SeizureDetector(nn.Module):
         features = self.tcn_encoder(x)  # (B, 512, 960)
         assert_finite("tcn_out", features)
         # Optional safety clamp after TCN
-        from src.brain_brr.utils.env import env as _env
 
         # PR-5: Removed conditional safe clamps (PR-1 norms provide stability)
 
