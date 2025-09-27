@@ -204,8 +204,12 @@ def train(config_path: Path, resume: bool, device: str) -> None:
 @click.option("--cache-dir", type=click.Path(path_type=Path), required=True)
 @click.option("--validation-split", type=float, default=0.2)
 @click.option("--split", type=click.Choice(["train", "val"]), default="train")
-@click.option("--limit-files", type=int, default=None, help="Limit number of files to process (for testing)")
-def build_cache_cmd(data_dir: Path, cache_dir: Path, validation_split: float, split: str, limit_files: int | None) -> None:
+@click.option(
+    "--limit-files", type=int, default=None, help="Limit number of files to process (for testing)"
+)
+def build_cache_cmd(
+    data_dir: Path, cache_dir: Path, validation_split: float, split: str, limit_files: int | None
+) -> None:
     """Build cache for a chosen split under DATA_DIR into CACHE_DIR."""
     try:
         from src.brain_brr.data import EEGWindowDataset
@@ -217,10 +221,13 @@ def build_cache_cmd(data_dir: Path, cache_dir: Path, validation_split: float, sp
         if limit_files is not None:
             edf_files_all = edf_files_all[:limit_files]
             console.print(f"[yellow]Limiting to {limit_files} files (from --limit-files)[/yellow]")
-        elif env.limit_files() > 0:
+        else:
             limit_from_env = env.limit_files()
-            edf_files_all = edf_files_all[:limit_from_env]
-            console.print(f"[yellow]Limiting to {limit_from_env} files (from BGB_LIMIT_FILES)[/yellow]")
+            if limit_from_env is not None and limit_from_env > 0:
+                edf_files_all = edf_files_all[:limit_from_env]
+                console.print(
+                    f"[yellow]Limiting to {limit_from_env} files (from BGB_LIMIT_FILES)[/yellow]"
+                )
 
         if not 0.0 <= float(validation_split) <= 0.5:
             raise ValueError("validation-split must be in [0.0, 0.5]")
@@ -392,7 +399,9 @@ def evaluate(
         elif "config" in checkpoint and checkpoint["config"] is not None:
             cfg = Config(**checkpoint["config"])
         else:
-            console.print("[red]No config found in checkpoint or provided. Please provide --config[/red]")
+            console.print(
+                "[red]No config found in checkpoint or provided. Please provide --config[/red]"
+            )
             sys.exit(1)
 
         # Create model
@@ -519,10 +528,7 @@ def evaluate(
 
             # Export to CSV_BI
             # Correct total duration calculation accounting for stride
-            if len(probs) > 0:
-                total_duration = (len(probs) - 1) * stride_s + window_s
-            else:
-                total_duration = 0.0
+            total_duration = (len(probs) - 1) * stride_s + window_s if len(probs) > 0 else 0.0
             export_csv_bi(
                 seizure_events,
                 output_csv_bi,
