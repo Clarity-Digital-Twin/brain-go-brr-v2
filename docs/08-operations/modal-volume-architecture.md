@@ -128,14 +128,14 @@ def populate_cache():
     print(f"Copying {src}/train to {dst}/train...")
     shutil.copytree(src / "train", dst / "train", dirs_exist_ok=True)
 
-    # Copy val
-    print(f"Copying {src}/val to {dst}/val...")
-    shutil.copytree(src / "val", dst / "val", dirs_exist_ok=True)
+    # Copy dev
+    print(f"Copying {src}/dev to {dst}/dev...")
+    shutil.copytree(src / "dev", dst / "dev", dirs_exist_ok=True)
 
     # Verify
     train_files = len(list((dst / "train").glob("*.npz")))
-    val_files = len(list((dst / "val").glob("*.npz")))
-    print(f"✅ Populated cache: {train_files} train, {val_files} val files")
+    dev_files = len(list((dst / "dev").glob("*.npz")))
+    print(f"✅ Populated cache: {train_files} train, {dev_files} dev files")
 ```
 
 ### Commands Reference

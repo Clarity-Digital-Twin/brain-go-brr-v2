@@ -76,7 +76,7 @@ Verification checklist
 
 - Counts present per split:
   - `ls <cache_root>/train/*.npz | wc -l` (expect thousands for full)
-  - `ls <cache_root>/val/*.npz | wc -l` (expect hundreds for full)
+  - `ls <cache_root>/dev/*.npz | wc -l` (expect hundreds for full)
 - Dataset index exists: `<cache_root>/{train,dev}/_dataset_index.json`
 - Manifest exists and non-empty: `<cache_root>/{train,dev}/manifest.json`
 - Training logs show: "BalancedSeizureDataset" and non-zero seizure ratio
