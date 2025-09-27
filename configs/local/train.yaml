@@ -71,6 +71,45 @@ model:
     semi_dynamic_interval: 5   # OPTIMAL: PE every 19.5ms (192 eigendecomps)
     pe_sign_consistency: true  # Fix eigenvector signs for stability
 
+    # PR-2: Bounded edge stream (stability fix)
+    edge_lift_activation: tanh  # Bound edge lift to [-1,1]
+    edge_lift_norm: layernorm   # Normalize after activation
+    edge_lift_init_gain: 0.1    # Conservative initialization
+
+    # PR-3: Adjacency conditioning (eigendecomp stability)
+    adj_row_softmax: true       # Row-wise softmax normalization
+    adj_softmax_tau: 1.0        # Temperature for softmax
+    adj_ema_beta: 0.9           # EMA smoothing for adjacency
+    adj_force_symmetric: true   # Force symmetric for Laplacian
+    laplacian_eps: 1.0e-3       # Regularization for eigendecomp
+    laplacian_normalize: true   # Use normalized Laplacian
+
+  # PR-1: Boundary normalization (component seams)
+  norms:
+    boundary_norm: layernorm    # Normalize at component boundaries
+    boundary_eps: 1.0e-5
+    layerscale_alpha: 0.1       # LayerScale for residual branches
+    after_tcn_proj: true        # After TCN→electrode projection
+    after_node_mamba: true      # After node stream Mamba
+    after_edge_mamba: true      # After edge stream Mamba
+    after_gnn: true             # After GNN processing
+    before_decoder: true        # Before final decoder
+
+  # PR-4: Clamp retirement & fusion
+  fusion:
+    fusion_type: gated          # Gated fusion of node/edge streams
+    fusion_heads: 4             # Multi-head fusion heads
+    fusion_dropout: 0.1         # Fusion dropout
+
+  clamp_retirement:
+    remove_intermediate_clamps: false  # Enable after monitoring shows stable
+    remove_nan_to_num: false          # Enable after confirming no NaN
+    keep_input_clamp: true            # Always keep input validation
+    keep_output_clamp: true           # Always keep output bounds
+    keep_loss_clamps: true            # Always keep loss safety
+    log_clamp_hits: false             # Set true to monitor clamp usage
+    validate_finite: true             # Validate all tensors are finite
+
   # Decoder removed in V3-only architecture
 
 data:

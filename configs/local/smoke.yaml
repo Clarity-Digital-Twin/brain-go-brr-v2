@@ -79,6 +79,21 @@ model:
     after_gnn: true
     before_decoder: true
 
+  # PR-4: CLAMP RETIREMENT & FUSION (monitoring mode)
+  fusion:
+    fusion_type: gated  # Options: add | gated | multihead
+    fusion_heads: 4
+    fusion_dropout: 0.1
+
+  clamp_retirement:
+    remove_intermediate_clamps: false  # Start false, monitor first
+    remove_nan_to_num: false  # Keep for now
+    keep_input_clamp: true  # Essential
+    keep_output_clamp: true  # Essential
+    keep_loss_clamps: true  # Essential
+    log_clamp_hits: true  # Monitor what would clamp
+    validate_finite: true  # Verify stability
+
 data:
   dataset: tuh_eeg
   data_dir: data_ext4/tusz/edf

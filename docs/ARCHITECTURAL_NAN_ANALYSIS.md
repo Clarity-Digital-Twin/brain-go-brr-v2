@@ -2,11 +2,11 @@
 
 ## Executive Summary
 
-The V3 dual-stream architecture exhibits **FUNDAMENTAL NUMERICAL INSTABILITY** requiring 15+ manual clamping operations across the forward pass. This is not a implementation bug - it's an architectural problem.
+The V3 dual-stream architecture exhibits **FUNDAMENTAL NUMERICAL INSTABILITY** requiring **40 manual stability interventions** (25 clamps + 15 nan_to_num calls) across the forward pass. This is not an implementation bug - it's an architectural problem that we've now addressed with PR-1/2/3/4.
 
 ## Evidence of Systemic Issues
 
-### 1. Excessive Manual Interventions (Count: 15+)
+### 1. Excessive Manual Interventions (Count: 40 total)
 
 ```python
 # Found in detector.py alone:
