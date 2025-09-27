@@ -307,6 +307,7 @@ class TestTrainingExplosions:
 
         print("Mixed precision training stable for 20 steps")
 
+    @pytest.mark.gpu
     def test_empty_batch_handling(self, small_model):
         """Test with zero windows in dataset."""
         device = next(small_model.parameters()).device
@@ -329,6 +330,7 @@ class TestTrainingExplosions:
         assert not torch.isnan(output).any()
         assert not torch.isinf(output).any()
 
+    @pytest.mark.gpu
     def test_checkpoint_corruption_recovery(self, small_model, tmp_path):
         """Test recovery from corrupted checkpoint."""
         checkpoint_path = tmp_path / "checkpoint.pt"
@@ -364,6 +366,7 @@ class TestTrainingExplosions:
         output = small_model(test_input)
         assert not torch.isnan(output).any()
 
+    @pytest.mark.gpu
     def test_nan_gradient_recovery(self, small_model):
         """Test NaN gradient detection and recovery."""
         device = next(small_model.parameters()).device
