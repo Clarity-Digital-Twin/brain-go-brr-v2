@@ -9,7 +9,7 @@ Core controls
 Debugging and stability
 
 - `BGB_NAN_DEBUG=1` — extra logging if loss or grads misbehave
-- `BGB_NAN_DEBUG_MAX=K` — limit debug prints per epoch (default 3)
+- `BGB_NAN_DEBUG_MAX=K` — limit debug prints per epoch (default 10)
 - `BGB_DISABLE_TQDM=1` — disable progress bars (Modal auto)
 - `BGB_DISABLE_TB=1` — disable TensorBoard writer
 - `BGB_SANITIZE_INPUTS=1` — clamp/sanitize inputs in training loop (debug)
@@ -45,3 +45,10 @@ Performance testing (tests/performance)
 
 - `BGB_PERF_ALLOW_GPU=1` — allow GPU usage in performance tests
 - `BGB_PERF_THREADS=N` — set CPU thread count in performance tests
+- `BGB_PERF_TOLERANCE_FACTOR=X.Y` — tolerance factor for perf tests (default 1.2)
+- `BGB_PERF_STRICT_MODE=1` — disable tolerance slack (strict comparisons)
+
+Important notes
+
+- Environment variables are cached at import time by `src.brain_brr.utils.env.EnvConfig` to support `torch.compile`. Restart the process to apply changes.
+- `BGB_LIMIT_FILES` is honored by both training and `build-cache` (unless `--limit-files` is passed on the CLI).

@@ -21,8 +21,8 @@ Recommended V3 profile (RTX 4090, 24GB)
 - `training.batch_size: 4`
 - `model.graph.use_dynamic_pe: true`
 - `model.graph.semi_dynamic_interval: 5`  (compute PE every 5 timesteps)
-- `training.gradient_clip: 0.5`
-- `training.warmup_ratio: 0.10`
+- `training.gradient_clip: 0.1`
+- `training.warmup_ratio: 0.01`
 
 Notes
 

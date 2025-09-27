@@ -8,7 +8,7 @@ After thorough investigation and cleanup (Sep 25, 2025), here's the **CORRECT** 
 ### Local Caches
 - **Location**: `cache/tusz/`
   - `train/`: 4,667 NPZ files (306GB)
-  - `dev/`: 1,832 NPZ files (143GB)
+  - `val/`: 1,832 NPZ files (143GB)
   - **Total**: 449GB
 - **Smoke tests**: Use SAME cache with `BGB_LIMIT_FILES=3` env var
 - **NO SEPARATE SMOKE CACHE EXISTS OR IS NEEDED**
@@ -23,7 +23,7 @@ After thorough investigation and cleanup (Sep 25, 2025), here's the **CORRECT** 
 
 ### Modal Cache Location
 - **Method**: Modal persistent volume (fast SSD)
-- **Mount point**: `/results/cache/tusz/{train,dev}`
+- **Mount point**: `/results/cache/tusz/{train,val}`
 - Populate once (e.g., by copying from local or S3), then reuse across runs.
 
 ## 2. Modal Persistence Volume
@@ -128,14 +128,14 @@ def populate_cache():
     print(f"Copying {src}/train to {dst}/train...")
     shutil.copytree(src / "train", dst / "train", dirs_exist_ok=True)
 
-    # Copy dev
-    print(f"Copying {src}/dev to {dst}/dev...")
-    shutil.copytree(src / "dev", dst / "dev", dirs_exist_ok=True)
+    # Copy val
+    print(f"Copying {src}/val to {dst}/val...")
+    shutil.copytree(src / "val", dst / "val", dirs_exist_ok=True)
 
     # Verify
     train_files = len(list((dst / "train").glob("*.npz")))
-    dev_files = len(list((dst / "dev").glob("*.npz")))
-    print(f"✅ Populated cache: {train_files} train, {dev_files} dev files")
+    val_files = len(list((dst / "val").glob("*.npz")))
+    print(f"✅ Populated cache: {train_files} train, {val_files} val files")
 ```
 
 ### Commands Reference
@@ -172,10 +172,10 @@ LOCAL                      MODAL (volume)
 ─────                      ──────────────
 cache/tusz/
   ├── train/ ──sync──► /results/cache/tusz/train/
-  └── dev/   ──sync──► /results/cache/tusz/dev/
+  └── val/   ──sync──► /results/cache/tusz/val/
 
 results/                  /results/
-  └── local_runs/           ├── cache/tusz/{train,dev}
+  └── local_runs/           ├── cache/tusz/{train,val}
                              ├── smoke/
                              └── train/
 ```
