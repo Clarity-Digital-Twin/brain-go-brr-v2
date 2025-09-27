@@ -10,21 +10,20 @@ After implementing PR-1, PR-2, and PR-3, many of the 47 manual stability interve
 
 ## Current State Analysis
 
-### The 47 Interventions Breakdown
+### The 43 Interventions Breakdown (Corrected Count)
 
-**22 Clamps** across:
+**27 Clamps** across:
 - TCN: 4 clamps
-- Mamba: 6 clamps
-- Edge features: 5 clamps
+- Mamba: 9 clamps
+- Edge features: 7 clamps
 - Detector: 6 clamps
 - GNN: 1 clamp
 
-**10 nan_to_num calls**
-**8 epsilon additions**
-**4 gradient sanitization locations**
-**3 environment variables**
+**9 nan_to_num calls**
+**6 epsilon additions**
+**2 gradient sanitization paths**
 
-After PR-1, PR-2, PR-3, we can retire ~80% of these.
+After PR-1, PR-2, PR-3, we can retire ~70% of these.
 
 ## Theoretical Foundation
 

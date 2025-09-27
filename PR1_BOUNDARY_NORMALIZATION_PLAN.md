@@ -45,27 +45,42 @@ This causes activation magnitudes to grow exponentially, requiring 27 manual cla
    - Normalize over dim=64
 
 3. After edge_mamba (before adjacency assembly)
-   - Shape: (B, 171, 960, 1)
-   - Normalize over dim=1
+   - Shape: (B, 171, 960, 16) -> projected to (B, 171, 960, 1)
+   - Normalize over dim=16 before projection (recommended)
 
 4. After GNN (before back-projection)
    - Shape: (B, 19, 960, 64)
    - Normalize over dim=64
 
-5. Before decoder head
+5. Before ProjectionHead.proj (512→19)
    - Shape: (B, 512, 960)
-   - Normalize over dim=512
+   - Normalize over channel dim=512 (requires permute to make 512 the last dim)
 ```
 
 ### 2. Add LayerScale for Residual Connections
 
 **Location Points** (2 residual merges):
 ```
-1. Node stream residual: y = x + LayerScale(α) * mamba(x)
+1. Node stream residual (inside BiMamba2Layer): y = x + LayerScale(α) * F(x)
+   - Place LayerScale on the residual branch inside `BiMamba2Layer` after the output projection and before dropout/addition.
    - Initial α = 0.1
 
 2. GNN residual: y = x + LayerScale(α) * gnn(x)
    - Initial α = 0.1
+
+Practical wiring notes
+
+- LayerNorm application by shape:
+  - (B, 19, 960, 64): last dim is 64 → apply `nn.LayerNorm(64)` directly, no permute.
+  - Edge stream after Mamba: (B*E, D, T) → permute to (B*E, T, D), apply `nn.LayerNorm(D)`, permute back before `edge_out_proj`.
+  - Temporal before ProjectionHead.proj: (B, 512, 960) → permute to (B, 960, 512), apply `nn.LayerNorm(512)`, permute back.
+
+- Suggested modules in `SeizureDetector.__init__` (behind config flags):
+  - `self.norm_after_proj_to_electrodes = nn.LayerNorm(64)`
+  - `self.norm_after_node_mamba = nn.LayerNorm(64)`
+  - `self.norm_after_edge_mamba = nn.LayerNorm(edge_d_model)`
+  - `self.norm_after_gnn = nn.LayerNorm(64)`
+  - `self.norm_before_projection = nn.LayerNorm(512)`
 ```
 
 ## Mathematical Analysis
@@ -134,15 +149,15 @@ model:
 - **Activation magnitude**: Unbounded → O(1) at boundaries
 - **NaN occurrences**: Every 10-20 batches → Zero
 
-### Clamps That Can Be Removed After PR-1
+### Clamps That Can Be Retired After PR-1 (candidates)
 ```python
-# These become redundant with boundary norms:
+# Candidates that become redundant with boundary norms; keep initially and retire only after PR‑1/2 pass stability checks:
 - tcn.py:248: x = torch.clamp(x, min=-50.0, max=50.0)  # Layer 1 output
 - tcn.py:255: x = torch.clamp(x, min=-50.0, max=50.0)  # Layer 2 output
 - tcn.py:262: x = torch.clamp(x, min=-50.0, max=50.0)  # Layer 3 output
-- mamba.py:248: output = torch.clamp(output, min=-10.0, max=10.0)  # Final output
 - detector.py:211: features = torch.clamp(features, safe_clamp_min(), safe_clamp_max())  # TCN features
 - detector.py:299: temporal = torch.clamp(temporal, safe_clamp_min(), safe_clamp_max())  # Mamba output
+# Keep internal Mamba clamps initially (mamba.py:242, 248, 324, 327); consider removing only after full-stack stability proven.
 ```
 
 ## Validation Criteria
@@ -223,7 +238,7 @@ test_layerscale_values()  # Test different α values
 
 ## Questions for Cross-Validation
 
-1. Should we use RMSNorm or LayerNorm? (RMSNorm recommended)
+1. Should we use RMSNorm or LayerNorm? (LayerNorm for consistency with existing architecture)
 2. Should LayerScale start at 0.1 or smaller (1e-4)?
 3. Should we normalize before or after residual connections?
 4. Do we need normalization inside Mamba blocks too?
@@ -248,10 +263,29 @@ test_layerscale_values()  # Test different α values
 
 ## References for Implementation
 
-- Transformer implementations: https://github.com/facebookresearch/deit
-- RMSNorm reference: https://github.com/bzhangGo/rmsnorm
+- Mamba's own use of RMSNorm: `reference_repos/mamba/mamba_ssm/modules/block.py`
 - LayerScale in timm: https://github.com/rwightman/pytorch-image-models
+- Transformer implementations: https://github.com/facebookresearch/deit
 
 ---
 
-**STATUS**: Ready for cross-validation with senior AI agent before implementation
+**STATUS**: Cross-validated and ready for implementation
+
+## Cross-Validation Results
+
+### ✅ Literature References Verified
+1. **LayerNorm (Ba et al., 2016)**: Confirmed - prevents internal covariate shift, works at boundaries
+2. **RMSNorm (Zhang & Sennrich, 2019)**: Confirmed - simpler than LayerNorm, used in Mamba itself
+3. **LayerScale (Touvron et al., 2021)**: Confirmed - uses 0.1 initialization, controls residuals
+4. **Transformer stability (Liu et al., 2020)**: Conceptually aligned
+
+### ✅ Architecture Alignment
+- **Mamba reference** (`reference_repos/mamba/mamba_ssm/modules/block.py`) uses pre-norm pattern
+- **EVOBRAIN** literature shows normalization helps dual-stream architectures
+- Shapes verified against actual code flow in `detector.py`
+
+### ✅ Specific Implementation Notes
+1. **Prefer LayerNorm** for consistency with existing V3 components
+2. **Edge stream normalization**: Can normalize either before (dim=16) or after (dim=1) projection
+3. **LayerScale init**: Start with 0.1 as per paper, tune if needed
+4. **Residual connections**: Only node stream and GNN have explicit residuals currently

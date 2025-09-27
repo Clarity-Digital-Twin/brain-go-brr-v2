@@ -212,15 +212,20 @@ model:
 
 **Theory**: Replace unbounded expansion with bounded activation (from "Searching for Activation Functions", Ramachandran et al. 2017).
 
+**CRITICAL**: The edge projection uses a 1x1 Conv1d (detector.py:377) which is part of V3's main architecture. This is NOT the Mamba fallback Conv1d (mamba.py:100-103) which uses kernel_size=d_conv and padding='same'. We keep the fused Mamba-2 CUDA kernels.
+
 **Implementation**:
 ```python
-# Replace:
-edge_in = edge_in_proj(edge_flat)  # Unbounded
-edge_in = torch.clamp(edge_in, -3, 3)  # Band-aid
+# Replace (detector.py:254-258):
+edge_in = self.edge_in_proj(edge_flat).contiguous()  # Unbounded
+edge_in = torch.clamp(edge_in, -3.0, 3.0)  # Band-aid
 
 # With:
-edge_in = torch.tanh(edge_in_proj(edge_flat))  # Bounded [-1, 1]
-edge_in = RMSNorm(D, eps=1e-5)(edge_in)  # Normalized
+edge_in = self.edge_in_proj(edge_flat).contiguous()  # Keep existing Conv1d
+edge_in = torch.tanh(edge_in)  # Bounded [-1, 1]
+# Apply a pre-declared normalization module, e.g.:
+# self.edge_lift_norm = nn.LayerNorm(D)  # defined in __init__
+edge_in = self.edge_lift_norm(edge_in.permute(0, 2, 1)).permute(0, 2, 1)
 ```
 
 **Config**:
@@ -233,6 +238,8 @@ model.graph:
 #### PR-3: Adjacency Matrix Conditioning
 
 **Theory**: Well-conditioned graph matrices from "Spectral Networks and Deep Locally Connected Networks" (Bruna et al., 2014).
+
+**NOTE**: Row-wise softmax ensures each row sums to 1, but after symmetrization (required for Laplacian), row sums will change. This is expected and correct. The Laplacian computation already adds εI regularization (gnn_pyg.py:177).
 
 **Implementation**:
 ```python
@@ -368,22 +375,32 @@ class LayerScale(nn.Module):
 
 ```python
 class BoundedEdgeProjection(nn.Module):
-    """Edge projection with bounded activation and normalization"""
+    """Edge projection with bounded activation and normalization.
+
+    IMPORTANT: This uses a 1x1 Conv1d projection (kernel_size=1) which is
+    part of V3's main architecture (see SeizureDetector.from_config where
+    edge_in_proj is defined). This is NOT the Mamba fallback Conv1d (which
+    uses kernel_size=d_conv and padding='same').
+    """
     def __init__(self, in_channels: int = 1, out_channels: int = 16):
         super().__init__()
-        # Use Conv1d to match current shape handling
-        self.proj = nn.Conv1d(in_channels, out_channels, kernel_size=1)
-        # GroupNorm works on channel dimension without permutes
-        self.norm = nn.GroupNorm(1, out_channels)
+        # 1x1 projection Conv1d - NOT the Mamba fallback!
+        self.proj = nn.Conv1d(in_channels, out_channels, kernel_size=1, padding=0)
+        # LayerNorm on feature/channel dim (D) for consistency
+        self.norm = nn.LayerNorm(out_channels)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x shape: (B, 171, 960, 1) -> reshape for Conv1d
         B, E, T, C = x.shape
         x = x.permute(0, 1, 3, 2).reshape(B * E, C, T)  # (B*E, 1, T)
 
-        x = self.proj(x)  # (B*E, 16, T)
+        x = self.proj(x)  # (B*E, 16, T) - 1x1 projection
         x = torch.tanh(x)  # Bounded [-1, 1]
-        x = self.norm(x)    # Normalized
+
+        # LayerNorm on feature dimension
+        x = x.permute(0, 2, 1)  # (B*E, T, 16)
+        x = self.norm(x)
+        x = x.permute(0, 2, 1)  # Back to (B*E, 16, T)
 
         # Reshape back
         x = x.reshape(B, E, -1, T).permute(0, 1, 3, 2)  # (B, 171, 960, 16)
@@ -422,11 +439,9 @@ def condition_adjacency(
     # Force symmetry (important for Laplacian)
     A_sym = (A_norm + A_norm.transpose(-2, -1)) / 2
 
-    # Add small identity to prevent singular Laplacian
-    I = torch.eye(N, device=A.device, dtype=A.dtype)
-    A_final = A_sym + 1e-4 * I.unsqueeze(0).unsqueeze(0)
-
-    return A_final
+    # Note: We do NOT add identity here. The Laplacian computation
+    # already adds εI regularization (gnn_pyg.py:177)
+    return A_sym
 ```
 
 ## Part 8: Testing Strategy
@@ -454,9 +469,8 @@ def test_adjacency_conditioning():
     A = torch.randn(2, 10, 19, 19) * 10  # Random adjacency
     A_cond = condition_adjacency(A, top_k=5)
 
-    # Test row sums approximately 1 (for non-zero rows)
-    row_sums = A_cond.sum(dim=-1)
-    assert torch.allclose(row_sums[row_sums > 0.1], torch.ones_like(row_sums[row_sums > 0.1]), atol=0.1)
+    # Note: After symmetrization, row sums will NOT be 1
+    # We only test that the matrix is well-formed
 
     # Test symmetry
     sym_error = (A_cond - A_cond.transpose(-2, -1)).abs().max()
@@ -494,7 +508,7 @@ def test_adjacency_conditioning():
 
 ## Conclusion
 
-The V3 architecture's 43 stability interventions (27 clamps + 9 nan_to_num + 6 epsilon additions + 2 gradient sanitization paths) are symptoms of missing architectural regularization. By adding principled bounds at component seams (RMSNorm/LayerNorm), bounded activations (tanh), conditioned adjacency matrices (masked row-softmax + EMA), and gated fusion, we can retire ~60% of manual clamps while improving stability.
+The V3 architecture's 43 stability interventions (27 clamps + 9 nan_to_num + 6 epsilon additions + 2 gradient sanitization paths) are symptoms of missing architectural regularization. By adding principled bounds at component seams (preferably LayerNorm for consistency, or RMSNorm), bounded activations (tanh), conditioned adjacency matrices (masked row-softmax + optional EMA + symmetrization), and gated fusion, we can retire ~60% of manual clamps while improving stability.
 
 This is not about removing features or reducing capacity - it's about making the existing architecture **stable by construction** using proven techniques from literature.
 
@@ -505,6 +519,8 @@ This is not about removing features or reducing capacity - it's about making the
 *"An architecture that needs 43 manual interventions is telling you something. Listen to it."*
 
 ## Appendix: Complete Intervention Inventory with File:Line References
+
+Note: Line numbers reflect the current HEAD at time of writing and may drift with future edits. Use the file anchors to locate the surrounding snippets if lines shift.
 
 ### Clamps (27 total)
 **In-Model (23):**
