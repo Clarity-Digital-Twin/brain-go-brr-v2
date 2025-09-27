@@ -166,8 +166,8 @@ class GraphChannelMixerPyG(nn.Module):
         # Use adjacency directly - gradients should flow for learning
         adj_pe = adjacency
 
-            # PR-3: Condition adjacency matrix for stability (row-softmax/EMA/symmetry)
-            if self.adj_row_softmax or self.adj_ema_beta or self.adj_force_symmetric:
+        # PR-3: Condition adjacency matrix for stability (row-softmax/EMA/symmetry)
+        if self.adj_row_softmax or self.adj_ema_beta or self.adj_force_symmetric:
                 adj_pe = condition_adjacency(
                     adj_pe,
                     tau=self.adj_softmax_tau,
