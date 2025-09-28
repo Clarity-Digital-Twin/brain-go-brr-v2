@@ -17,7 +17,7 @@ console = Console()
 
 @click.group()
 def cli() -> None:
-    """Brain-Go-Brr v2: TCN + Bi-Mamba seizure detection."""
+    """Brain-Go-Brr V3: TCN + Bi-Mamba seizure detection."""
     pass
 
 
@@ -202,13 +202,12 @@ def train(config_path: Path, resume: bool, device: str) -> None:
 @cli.command("build-cache")
 @click.option("--data-dir", type=click.Path(exists=True, path_type=Path), required=True)
 @click.option("--cache-dir", type=click.Path(path_type=Path), required=True)
-@click.option("--validation-split", type=float, default=0.2)
-@click.option("--split", type=click.Choice(["train", "dev", "val"]), default="train")
+@click.option("--split", type=click.Choice(["train", "dev"]), default="train")
 @click.option(
     "--limit-files", type=int, default=None, help="Limit number of files to process (for testing)"
 )
 def build_cache_cmd(
-    data_dir: Path, cache_dir: Path, validation_split: float, split: str, limit_files: int | None
+    data_dir: Path, cache_dir: Path, split: str, limit_files: int | None
 ) -> None:
     """Build cache for a chosen split under DATA_DIR into CACHE_DIR."""
     try:

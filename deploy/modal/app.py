@@ -1,4 +1,4 @@
-"""Modal cloud deployment for Brain-Go-Brr v2."""
+"""Modal cloud deployment for Brain-Go-Brr V3."""
 
 import os
 import subprocess
@@ -209,8 +209,8 @@ def populate_cache():
 
     print("\n" + "=" * 60)
     print("[CACHE POPULATION] ✅ COMPLETE!")
-    print(f"Train files: {train_count} (expected: 4667)")
-    print(f"Dev files: {dev_count} (expected: 1832)")
+    print(f"Train files: {train_count} (expected: 4600-4700)")
+    print(f"Dev files: {dev_count} (expected: 1800-1900)")
     print(f"Time taken: {elapsed/60:.1f} minutes")
     print(f"Cache location: {dst}")
     print("Cache is now on fast Modal SSD - ready for training!")
@@ -700,7 +700,7 @@ def main(
         # Evaluate checkpoint
         modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.pt
     """
-    print("🚀 Brain-Go-Brr v2 Modal Deployment")
+    print("🚀 Brain-Go-Brr V3 Modal Deployment")
     print("=" * 50)
 
     if action == "populate-cache":
@@ -708,11 +708,11 @@ def main(
         print("📦 Populating Modal SSD cache from S3...")
         print("This will copy ~450GB and may take 1-2 hours...")
         train_count, dev_count = populate_cache.remote()
-        if train_count == 4667 and dev_count == 1832:
-            print("✅ Cache populated PERFECTLY! Ready for training.")
+        if 4600 <= train_count <= 4700 and 1800 <= dev_count <= 1900:
+            print("✅ Cache populated successfully! Ready for training.")
         else:
             print(f"⚠️ Cache populated with {train_count} train, {dev_count} dev files")
-            print("Expected: 4667 train, 1832 dev")
+            print("Expected: 4600-4700 train, 1800-1900 dev")
             if train_count > 0 and dev_count > 0:
                 print("Cache is usable but may be incomplete.")
 

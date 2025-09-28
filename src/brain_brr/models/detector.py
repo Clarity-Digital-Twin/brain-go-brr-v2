@@ -90,8 +90,6 @@ class SeizureDetector(nn.Module):
         self.fusion: nn.Module | None = None
         self.fusion_type: str = "add"
 
-        # PR-4: Clamp retirement configuration
-        self.clamp_config: dict = {}
 
         # Backwards-compat: ensure mamba_dropout has a concrete value
         if mamba_dropout is None:
@@ -551,18 +549,6 @@ class SeizureDetector(nn.Module):
                 )
             # else: keep None for default additive fusion
 
-        # PR-4: Store clamp retirement configuration
-        clamp_cfg = getattr(cfg, "clamp_retirement", None)
-        if clamp_cfg:
-            instance.clamp_config = {
-                "remove_intermediate_clamps": clamp_cfg.remove_intermediate_clamps,
-                "remove_nan_to_num": clamp_cfg.remove_nan_to_num,
-                "keep_input_clamp": clamp_cfg.keep_input_clamp,
-                "keep_output_clamp": clamp_cfg.keep_output_clamp,
-                "keep_loss_clamps": clamp_cfg.keep_loss_clamps,
-                "log_clamp_hits": clamp_cfg.log_clamp_hits,
-                "validate_finite": clamp_cfg.validate_finite,
-            }
 
         # Optionally attach GNN components if enabled
         graph_cfg = getattr(cfg, "graph", None)

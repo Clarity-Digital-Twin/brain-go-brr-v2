@@ -1,4 +1,4 @@
-"""Weights & Biases integration for Brain-Go-Brr v2."""
+"""Weights & Biases integration for Brain-Go-Brr V3."""
 
 import os
 import uuid

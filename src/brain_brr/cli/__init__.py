@@ -1,4 +1,4 @@
-"""Command-line interface for Brain-Go-Brr v2."""
+"""Command-line interface for Brain-Go-Brr V3."""
 
 from .cli import cli, main, train
 
