@@ -17,7 +17,9 @@
       "Bash(.venv/bin/python -m pytest tests/unit/models/test_fusion_and_clamp_utils.py -xvs)",
       "Bash(modal run:*)",
       "Bash(aws s3 ls:*)",
-      "Bash(aws s3 cp:*)"
+      "Bash(aws s3 cp:*)",
+      "Bash(tmux list-sessions:*)",
+      "Bash(tmux new-session:*)"
     ],
     "deny": [],
     "ask": []
