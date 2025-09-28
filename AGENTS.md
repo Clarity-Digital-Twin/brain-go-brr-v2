@@ -4,7 +4,7 @@ This file provides critical project context for AI coding agents when working wi
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v2.6 + V3: Clinical EEG seizure detection using **TCN + BiMamba + GNN + LPE** — achieving O(N) complexity with state-space models and graph neural networks.
+Brain-Go-Brr V3: Clinical EEG seizure detection using **TCN + BiMamba + GNN + LPE** — achieving O(N) complexity with state-space models and graph neural networks. V2 heuristic paths are removed; V3 is the only supported architecture.
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
@@ -14,7 +14,7 @@ Brain-Go-Brr v2.6 + V3: Clinical EEG seizure detection using **TCN + BiMamba + G
 
 Path supported:
 - **V3 (architecture: v3)** → dual‑stream with learned adjacency (Edge Mamba) + vectorized GNN
-See V3 details: docs/architecture/V3_ACTUAL.md
+See V3 details: docs/04-model/v3-architecture.md
 
 ## 🚀 Quick Commands
 
@@ -25,7 +25,7 @@ See V3 details: docs/architecture/V3_ACTUAL.md
 | `make t` | Fast tests without coverage |
 | `make test` | Full test suite with coverage |
 | `make setup` | Initial setup with uv |
-| `make setup-gpu` | Install GPU stack (Mamba+PyG+TCN) — **REQUIRED for v2.6/V3** |
+| `make setup-gpu` | Install GPU stack (Mamba+PyG+TCN) — **REQUIRED for V3** |
 | `make s` | Smoke test (1 epoch, 3 files) |
 | `make train-local` | Full training (100 epochs, 3734 files) |
 
@@ -71,11 +71,13 @@ src/brain_brr/           # Core implementation
 │   ├── detector.py      # Main SeizureDetector orchestrator
 │   ├── tcn.py          # TCN encoder (8 layers, stride_down=16)
 │   ├── mamba.py        # Bidirectional Mamba (6 layers)
-│   ├── gnn_pyg.py      # PyG GNN with Laplacian PE
-│   └── (removed)        # Heuristic adjacency builder (V2) removed in Phase 3
+│   ├── gnn_pyg.py      # PyG GNN with Laplacian PE (dynamic by default)
+│   ├── edge_features.py # Edge similarity + adjacency assembly (clamp at source)
+│   └── fusion.py       # Gated/multihead fusion (PR-4)
 ├── data/               # EEG data pipeline
-│   ├── loader.py       # EDF processing with MNE
-│   └── dataset.py      # PyTorch Dataset with balanced sampling
+│   ├── io.py           # EDF I/O and CSV parsing
+│   ├── preprocess.py   # Preprocessing (filters, z-score, ±10σ clip)
+│   └── datasets.py     # BalancedSeizureDataset and cache integration
 ├── train/              # Training loop
 │   └── loop.py         # Main training orchestrator
 ├── post/               # Post-processing
@@ -85,14 +87,14 @@ src/brain_brr/           # Core implementation
 configs/                 # Training configurations
 ├── local/              # RTX 4090 optimized
 │   ├── smoke.yaml      # 1 epoch, 3 files (BGB_SMOKE_TEST=1)
-│   └── train.yaml      # 100 epochs, 3734 files
+│   └── train.yaml      # 100 epochs (train/dev official splits)
 └── modal/              # A100-80GB optimized
     ├── smoke.yaml      # 1 epoch, 50 files
-    └── train.yaml      # 100 epochs, 3734 files
+    └── train.yaml      # 100 epochs (train/dev official splits)
 
 cache/tusz/             # Pre-processed data (local)
-├── train/              # 3734 NPZ files + manifest.json
-└── val/                # 933 NPZ files
+├── train/              # 4,667 NPZ files + manifest.json
+└── dev/                # 1,832 NPZ files + manifest.json
 
 /results/cache/tusz/    # Modal persistent SSD cache
 ```
@@ -102,10 +104,10 @@ cache/tusz/             # Pre-processed data (local)
 ### Local Training (RTX 4090)
 ```yaml
 data:
-  cache_dir: cache/tusz          # MUST exist with 3734 files!
+  cache_dir: cache/tusz          # MUST exist: train (4667) + dev (1832)
   num_workers: 0                  # WSL2 multiprocessing fix
 training:
-  batch_size: 12                  # Conservative for 24GB VRAM
+  batch_size: 4                   # Stable baseline for 24GB VRAM
   mixed_precision: false          # DISABLED - causes NaNs
   loss: focal                     # REQUIRED for 12:1 imbalance
   use_balanced_sampling: true     # CRITICAL or no seizures in batches
@@ -225,8 +227,8 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 - Installation: `INSTALLATION.md`
 - Architecture evolution: `ARCHITECTURE_EVOLUTION.md`
 - Config details: `configs/README.md`
-- Modal deployment: `docs/03-deployment/modal/deploy.md`
-- Local setup: `docs/03-deployment/local/setup.md`
+- Modal training: `docs/05-training/modal.md`
+- Local training: `docs/05-training/local.md`
 
 ## 📊 Expected Performance
 

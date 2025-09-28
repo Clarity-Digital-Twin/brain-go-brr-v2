@@ -27,7 +27,7 @@ Current Architecture (v3.2.0):
 | `make t` | Fast tests without coverage |
 | `make test` | Full test suite with coverage |
 | `make setup` | Initial setup with uv |
-| `make setup-gpu` | Install GPU stack (Mamba+PyG+TCN) — **REQUIRED for v2.6/V3** |
+| `make setup-gpu` | Install GPU stack (Mamba+PyG+TCN) — **REQUIRED for V3** |
 | `make s` | Smoke test (1 epoch, 3 files) |
 | `make train-local` | Full training (100 epochs, 3734 files) |
 
@@ -77,8 +77,9 @@ src/brain_brr/           # Core implementation
 │   ├── edge_features.py # Edge similarity computation with margin
 │   └── fusion.py       # Multi-head gated fusion (PR-4)
 ├── data/               # EEG data pipeline
-│   ├── loader.py       # EDF processing with MNE
-│   └── dataset.py      # PyTorch Dataset with balanced sampling
+│   ├── io.py           # EDF I/O and CSV parsing
+│   ├── preprocess.py   # Preprocessing (filters, z-score, ±10σ clip)
+│   └── datasets.py     # Balanced dataset and cache integration
 ├── train/              # Training loop
 │   └── loop.py         # Main training orchestrator
 ├── post/               # Post-processing
@@ -97,9 +98,7 @@ cache/tusz/             # Pre-processed data (local)
 ├── train/              # 4667 NPZ files + manifest.json
 └── dev/                # 1832 NPZ files + manifest.json
 
-/cache/                 # Modal S3 mount (read-only)
-├── train/              # Same 4667 NPZ files from S3
-└── dev/                # Same 1832 NPZ files from S3
+/results/cache/tusz/    # Modal persistent SSD volume (preferred; not S3)
 ```
 
 ## ⚙️ Critical Configuration
@@ -225,7 +224,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 
 | Issue | Solution |
 |-------|----------|
-| Cache directory wrong | Local: `cache/tusz/`, Modal: `/cache/` (S3 mount) |
+| Cache directory wrong | Local: `cache/tusz/`, Modal: `/results/cache/tusz/` |
 | Zero seizures in batches | Enable `use_balanced_sampling: true` |
 | NaN losses on RTX 4090 | Set `mixed_precision: false` |
 | **Non-finite logits** | **Rebuild cache after Sep 26 fix + use `BGB_SANITIZE_GRADS=1`** |
@@ -237,7 +236,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 
 ### Modal-Specific Settings
 - **Resources**: 24 CPU cores + 96GB RAM (defaults are too low!)
-- **Storage**: Cache from S3 mount at `/cache/`, outputs to `/results/`
+- **Storage**: Cache on `/results/cache/tusz/` (persistent SSD), outputs to `/results/`; avoid S3 for training hot path
 - **W&B**: Set entity to team name if using team API key
 - **Detached runs**: Use `--detach` for long training sessions
 
@@ -245,8 +244,8 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 - Installation: `INSTALLATION.md`
 - Architecture evolution: `ARCHITECTURE_EVOLUTION.md`
 - Config details: `configs/README.md`
-- Modal deployment: `docs/03-deployment/modal/deploy.md`
-- Local setup: `docs/03-deployment/local/setup.md`
+- Modal training: `docs/05-training/modal.md`
+- Local training: `docs/05-training/local.md`
 
 ## 📊 Expected Performance
 
