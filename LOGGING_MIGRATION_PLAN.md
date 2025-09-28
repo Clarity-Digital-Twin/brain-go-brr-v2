@@ -8,23 +8,23 @@
 ## 📊 Current State Analysis
 
 ### Print Statement Statistics
-- **Total print statements**: 387
-  - `src/`: 247 occurrences across 11 files
-  - `deploy/`: 140 occurrences across 3 files
-- **Real-time monitoring prints**: 153 with `flush=True`
-- **Existing logging**: 5 files using `logging.getLogger(__name__)`
-- **No central logging configuration**
+- Total print statements: 338
+  - `src/`: 200 occurrences across 10 files
+  - `deploy/`: 138 occurrences across 3 files
+- Real-time prints with `flush=True`: 195
+- Files already using logging: 4 (`data/io.py`, `models/clamp_utils.py`, `models/tcn.py`, `models/mamba.py`)
+- No central logging configuration
 
 ### File Breakdown
 | File | Print Count | Priority | Category |
 |------|------------|----------|----------|
 | `src/brain_brr/train/loop.py` | 147 | CRITICAL | Training progress, metrics, NaN detection |
-| `deploy/modal/app.py` | 114 | HIGH | Deployment status, cache operations |
+| `deploy/modal/app.py` | 112 | HIGH | Deployment status, cache operations |
 | `deploy/modal/cleanup_volume.py` | 16 | MEDIUM | Volume maintenance |
 | `src/brain_brr/data/tusz_splits.py` | 13 | HIGH | Data validation, patient splits |
 | `src/brain_brr/data/datasets.py` | 11 | HIGH | Dataset loading, sampling |
 | `deploy/modal/inspect_volume.py` | 10 | LOW | Diagnostic tool |
-| `src/brain_brr/cli/cli.py` | 47 | HIGH | User-facing CLI output |
+| `src/brain_brr/cli/cli.py` | uses `rich.console.Console.print` (keep) | HIGH | User-facing CLI output |
 | `src/brain_brr/train/wandb_integration.py` | 7 | MEDIUM | W&B logging |
 | `src/brain_brr/data/cache_utils.py` | 6 | MEDIUM | Cache operations |
 | `src/brain_brr/models/tcn.py` | 5 | MEDIUM | Model initialization |
@@ -139,8 +139,8 @@ def setup_logging(
     logging.getLogger("PIL").setLevel(logging.WARNING)
     logging.getLogger("torch.nn.parallel.distributed").setLevel(logging.WARNING)
 
-# Auto-setup on import for convenience
-setup_logging()
+# IMPORTANT: Do NOT auto-configure on import.
+# Call setup_logging() explicitly from entrypoints (CLI/train/deploy).
 ```
 
 ### 2. Logging Categories & Conventions
@@ -148,9 +148,6 @@ setup_logging()
 # Standard logger pattern for all modules
 import logging
 from src.brain_brr.utils.logging_config import setup_logging
-
-# Ensure logging is configured
-setup_logging()
 
 # Get module logger
 logger = logging.getLogger(__name__)
@@ -165,7 +162,7 @@ logger = logging.getLogger(__name__)
 
 ### 3. Special Handlers
 
-#### Training Progress Logger
+#### Training Progress Logger (optional, Phase 2)
 ```python
 class TrainingLogger:
     """Specialized logger for training metrics with real-time updates."""
@@ -181,7 +178,7 @@ class TrainingLogger:
 
     def log_batch(self, batch_idx: int, loss: float, **metrics):
         """Log batch with metrics - replaces print(..., flush=True)."""
-        # Use rich for pretty terminal output
+        # Use rich for pretty terminal output (refreshing less frequently)
         self.console.print(
             f"[cyan]Batch {batch_idx}[/cyan] | "
             f"Loss: {loss:.4f} | " +
@@ -196,7 +193,7 @@ class TrainingLogger:
         )
 ```
 
-#### CLI Output Handler
+#### CLI Output Handler (optional, Phase 3)
 ```python
 class CLILogger:
     """User-facing CLI output - maintains rich formatting."""
@@ -229,11 +226,11 @@ class CLILogger:
    - `print(f"WARNING: {msg}")` → `logger.warning(msg)`
    - `print(f"ERROR: {msg}")` → `logger.error(msg)`
 
-2. **Flush=True prints** → Use specialized handlers or `logger.info()` with console handler
+2. **Flush=True prints** → Replace with logger calls; console `StreamHandler` flushes per record. For high-frequency inner-loop messages, gate by `step % N == 0` and/or log level.
 
 3. **Debug prints** → `logger.debug()` (only shown with BGB_LOG_LEVEL=DEBUG)
 
-4. **User-facing CLI** → Keep `console.print()` for rich formatting + logger.info()
+4. **User-facing CLI** → Keep `console.print()` for rich formatting; optionally mirror important messages with `logger.info()` for audit trails (avoid duplicate spam).
 
 5. **Modal/deployment** → Structured logging with context
 
@@ -242,7 +239,8 @@ class CLILogger:
 # New logging controls
 BGB_LOG_LEVEL=INFO|DEBUG|WARNING|ERROR|CRITICAL  # Default: INFO
 BGB_LOG_FILE=/path/to/logfile.log                # Optional file output
-BGB_LOG_FORMAT=rich|simple|json                  # Output format
+BGB_LOG_FORMAT=rich|simple                       # Output format (JSON optional in Phase 2)
+BGB_LOG_EVERY_N_STEPS=50                         # Gate per-batch logs (default 50)
 
 # Existing debug controls (integrate with logging)
 BGB_NAN_DEBUG=1        # Sets logger to DEBUG for NaN messages
@@ -257,7 +255,7 @@ BGB_DEBUG_FINITE=1     # Enables finite checks with DEBUG logging
 ## 📋 Validation Criteria
 
 ### Success Metrics
-- [ ] All 387 print statements migrated
+- [ ] All 338 print statements migrated or consciously retained (CLI)
 - [ ] No loss of real-time monitoring capability
 - [ ] Training progress remains visible
 - [ ] CLI output maintains rich formatting
@@ -266,12 +264,84 @@ BGB_DEBUG_FINITE=1     # Enables finite checks with DEBUG logging
 - [ ] All tests pass
 
 ### Testing Plan
-1. Unit tests for logging configuration
-2. Integration test for training loop
-3. CLI output validation
-4. Modal deployment test
-5. Log file format verification
-6. Performance benchmarking
+1. Unit tests for logging configuration (levels, file handler, warnings capture)
+2. Integration test for training loop (INFO emits epoch-level only by default; DEBUG emits per-batch when gated)
+3. CLI output validation (unchanged `console.print` output via Click runner)
+4. Modal deployment test (logs visible in Modal app logs; no excessive spam)
+5. Log file format verification (rich vs simple)
+6. Performance benchmarking (<1% overhead; `isEnabledFor` guards heavy formatting)
+
+## 🔩 Change Map (exact entrypoints and hot spots)
+
+- Configure logging from entrypoints only:
+  - `src/brain_brr/cli/cli.py:592` main(): call `setup_logging(level=os.getenv("BGB_LOG_LEVEL","INFO"), force_setup=True)` before returning `cli(...)`.
+  - `src/brain_brr/train/loop.py:1403` main(): call `setup_logging(...)` at top; also `logging.captureWarnings(True)`.
+  - `deploy/modal/app.py` for each `@app.function`: first line in the function body should call `setup_logging(...)` (Modal streams stderr to logs).
+
+- High-volume replacements (gate by N and/or DEBUG):
+  - `src/brain_brr/train/loop.py` (~147 prints, 131 with flush):
+    - Sampler creation/progress: INFO for start/end; DEBUG every N windows.
+    - Dataset stats banners: INFO once per phase.
+    - Critical “FATAL/CRITICAL/SMOKE TEST” banners: WARNING/ERROR.
+    - Per-batch metrics: DEBUG every `BGB_LOG_EVERY_N_STEPS`.
+  - `deploy/modal/app.py` (112 prints; 42 with flush):
+    - Resource/config banners: INFO.
+    - Non-fatal count deviations: WARNING (still proceed).
+    - One-time success/failure messages: INFO/ERROR.
+
+- Medium-volume replacements:
+  - `src/brain_brr/data/tusz_splits.py` (13): INFO for summaries, WARNING for violations.
+  - `src/brain_brr/data/datasets.py` (11): INFO for cache creation, WARNING on fallbacks.
+  - `src/brain_brr/train/wandb_integration.py` (7): INFO for init/success, WARNING/ERROR for failures.
+  - `src/brain_brr/data/cache_utils.py` (6): INFO/WARNING.
+
+- Low-volume replacements:
+  - `src/brain_brr/models/{tcn.py, debug_utils.py, mamba.py, gnn_pyg.py}`, `src/brain_brr/eval/metrics.py`: INFO/WARNING as appropriate.
+
+## 🧪 Test Impact & Adjustments
+
+- CLI tests (`tests/unit/cli/*`): unchanged. Continue to assert on `result.output` as CLI uses `rich.console.Console.print`.
+- Logging assertions already present (e.g., `tests/unit/models/test_interpolation.py` with `caplog`) remain valid; ensure `setup_logging()` is called in entrypoints so tests see WARNING-level logs by default.
+- Add a small test (new): verify `BGB_LOG_EVERY_N_STEPS` gates per-batch logs in `train/loop.py` when `caplog` level is DEBUG.
+- Keep performance tests stable by default (INFO level); document how to enable DEBUG locally.
+
+## 🧱 Design Guardrails (revisions to plan)
+
+- No auto-setup on import. Only entrypoints configure logging.
+- Prefer parameterized logging to avoid formatting cost when disabled:
+  - `logger.debug("Loss: %.4f", loss)` instead of f-strings in inner loops.
+- Gate noisy paths explicitly: `if logger.isEnabledFor(logging.DEBUG) and step % N == 0:`.
+- Capture Python warnings into logging: `logging.captureWarnings(True)` in entrypoints.
+- Suppress noisy third-party loggers at WARNING+ (torch/matplotlib/PIL already listed).
+- JSON logs: defer to Phase 2 (optional). If needed, use a simple custom `JsonFormatter` or add `python-json-logger` as an optional extra.
+
+## 🧰 Minimal Code Inserts (ready-to-paste snippets)
+
+- `src/brain_brr/cli/cli.py:592`:
+```python
+from src.brain_brr.utils.logging_config import setup_logging
+
+def main() -> int:
+    setup_logging()
+    return cli(standalone_mode=False) or 0
+```
+
+- `src/brain_brr/train/loop.py:1403`:
+```python
+import logging
+from src.brain_brr.utils.logging_config import setup_logging
+
+def main() -> None:
+    setup_logging()
+    logging.captureWarnings(True)
+    # ... existing code ...
+```
+
+- `deploy/modal/app.py` (first line inside each @app.function):
+```python
+from src.brain_brr.utils.logging_config import setup_logging
+setup_logging()
+```
 
 ## 🚀 Rollout Plan
 
