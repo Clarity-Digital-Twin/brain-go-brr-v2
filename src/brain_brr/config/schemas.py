@@ -251,6 +251,31 @@ class FusionConfig(StrictModel):
     )
 
 
+class ClampRetirementConfig(StrictModel):
+    """PR-4: Configuration for gradual clamp retirement."""
+
+    # Control which clamps to remove
+    remove_intermediate_clamps: bool = Field(
+        default=False, description="Remove intermediate feature clamps (after PR-1/2/3)"
+    )
+    remove_nan_to_num: bool = Field(
+        default=False, description="Remove most nan_to_num calls (keep only critical)"
+    )
+
+    # Safety guards to always keep
+    keep_input_clamp: bool = Field(default=True, description="Keep initial input validation clamp")
+    keep_output_clamp: bool = Field(
+        default=True, description="Keep final output clamp for loss stability"
+    )
+    keep_loss_clamps: bool = Field(default=True, description="Keep loss-level probability clamps")
+
+    # Monitoring during transition
+    log_clamp_hits: bool = Field(
+        default=False, description="Log when values would have been clamped"
+    )
+    validate_finite: bool = Field(default=True, description="Check for NaN/Inf during forward pass")
+
+
 class ModelConfig(StrictModel):
     """Complete model architecture configuration."""
 
@@ -279,6 +304,12 @@ class ModelConfig(StrictModel):
     fusion: FusionConfig = Field(
         default_factory=FusionConfig,
         description="Node/edge stream fusion configuration (PR-4)",
+    )
+
+    # PR-4: Clamp retirement configuration
+    clamp_retirement: ClampRetirementConfig = Field(
+        default_factory=ClampRetirementConfig,
+        description="Normalization configuration for architectural stability",
     )
 
 
