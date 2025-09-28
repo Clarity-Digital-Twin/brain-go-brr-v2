@@ -12,7 +12,8 @@
       "Bash(ruff check:*)",
       "Bash(make:*)",
       "Bash(python -m pytest tests/unit/config/test_schemas.py -xvs)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
