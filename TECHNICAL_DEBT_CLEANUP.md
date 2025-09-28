@@ -213,7 +213,8 @@ Current state:
 
 ### ClampRetirement References
 ```
-src/brain_brr/config/schemas.py:254-288 (class definition)
+src/brain_brr/config/schemas.py:254-276 (class definition)
+src/brain_brr/config/schemas.py:309-313 (ModelConfig.clamp_retirement field)
 src/brain_brr/models/detector.py:93-94, 555-565
 tests/unit/models/test_pr4_clamp_retirement.py (entire file)
 ```
