@@ -1,5 +1,10 @@
 # PR-3: Adjacency Matrix Conditioning - Detailed Planning Document
 
+Note (historical planning document)
+- Status: Implemented in code; this file captures the original plan and rationale.
+- Source of truth: See code (`src/brain_brr/models/gnn_pyg.py`) and docs (`docs/04-model/gnn.md`).
+- Verification: Behavior may evolve; validate via code/tests rather than line counts.
+
 ## Problem Statement
 
 Dynamic Laplacian PE computes eigendecomposition on a **learned, changing adjacency matrix** every forward pass, causing:
