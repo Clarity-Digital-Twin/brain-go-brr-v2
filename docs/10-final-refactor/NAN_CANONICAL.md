@@ -1,5 +1,8 @@
 # NaN Prevention & Handling: Complete Canonical Reference
 
+Note (historical reference)
+- Status: Implemented; use this as a reference guide. For current behavior, prefer model and training sources and the 04‑model/05‑training docs.
+
 **Last Updated**: September 26, 2025
 **Codebase Version**: V3 dual-stream architecture
 **Status**: CLEAN ARCHITECTURE - Refactored with 3-tier clamping system

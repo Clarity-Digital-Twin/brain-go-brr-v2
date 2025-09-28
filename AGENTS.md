@@ -27,7 +27,7 @@ See V3 details: docs/04-model/v3-architecture.md
 | `make setup` | Initial setup with uv |
 | `make setup-gpu` | Install GPU stack (Mamba+PyG+TCN) — **REQUIRED for V3** |
 | `make s` | Smoke test (1 epoch, 3 files) |
-| `make train-local` | Full training (100 epochs, 3734 files) |
+| `make train-local` | Full training (100 epochs, official train/dev splits) |
 
 ### Local Training (RTX 4090)
 ```bash

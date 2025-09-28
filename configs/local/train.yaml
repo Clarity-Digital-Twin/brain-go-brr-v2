@@ -89,7 +89,6 @@ data:
   pin_memory: true                    # Faster GPU transfer
   persistent_workers: true            # Reuse workers
   prefetch_factor: 2                  # Pre-load batches
-  validation_split: 0.2
 
 preprocessing:
   montage: "10-20"

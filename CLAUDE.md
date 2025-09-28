@@ -29,7 +29,7 @@ Current Architecture (v3.2.0):
 | `make setup` | Initial setup with uv |
 | `make setup-gpu` | Install GPU stack (Mamba+PyG+TCN) — **REQUIRED for V3** |
 | `make s` | Smoke test (1 epoch, 3 files) |
-| `make train-local` | Full training (100 epochs, 3734 files) |
+| `make train-local` | Full training (100 epochs, official train/dev splits) |
 
 ### Local Training (RTX 4090)
 ```bash
@@ -89,10 +89,10 @@ src/brain_brr/           # Core implementation
 configs/                 # Training configurations
 ├── local/              # RTX 4090 optimized
 │   ├── smoke.yaml      # 1 epoch, 3 files (BGB_SMOKE_TEST=1)
-│   └── train.yaml      # 100 epochs, 3734 files
+│   └── train.yaml      # 100 epochs (official train/dev splits)
 └── modal/              # A100-80GB optimized
     ├── smoke.yaml      # 1 epoch, 50 files
-    └── train.yaml      # 100 epochs, 3734 files
+    └── train.yaml      # 100 epochs (official train/dev splits)
 
 cache/tusz/             # Pre-processed data (local)
 ├── train/              # 4667 NPZ files + manifest.json
@@ -106,7 +106,7 @@ cache/tusz/             # Pre-processed data (local)
 ### Local Training (RTX 4090)
 ```yaml
 data:
-  cache_dir: cache/tusz          # MUST exist with 3734 files!
+  cache_dir: cache/tusz          # MUST exist: train (4667) + dev (1832)
   num_workers: 0                  # WSL2 multiprocessing fix
 training:
   batch_size: 12                  # Conservative for 24GB VRAM

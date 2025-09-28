@@ -1,5 +1,8 @@
 # V3 NaN Explosion Incident & Resolution
 
+Note (historical incident report)
+- Status: Resolved and implemented; use as background. For current behavior, see `docs/04-model/v3-architecture.md`, `docs/04-model/gnn.md`, and training configs.
+
 ## Incident Timeline
 - **Date**: September 24-26, 2025
 - **Impact**: V3 dual-stream architecture training completely broken

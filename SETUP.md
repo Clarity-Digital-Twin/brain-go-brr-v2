@@ -3,7 +3,7 @@
 ## Current Status
 - ✅ **Training running** in tmux session `train_full`
 - ✅ **GPU Mamba working** (no fallback)
-- ✅ **Processing val data** (361/933 files)
+- ✅ **Processing dev data**
 
 ## What Works vs What Doesn't
 

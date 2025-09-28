@@ -177,7 +177,7 @@ python -c "from src.brain_brr.models.detector import SeizureDetector; print('✅
 ```yaml
 # configs/local/train.yaml
 data:
-  cache_dir: cache/tusz  # Has 3734 pre-processed NPZ files
+  cache_dir: cache/tusz  # Has train/dev NPZ caches (official splits)
 ```
 
 ### Modal
@@ -231,7 +231,7 @@ export SEIZURE_MAMBA_FORCE_FALLBACK=1
 
 After installation:
 1. Run smoke test to verify setup
-2. Check cache has expected files (~3734 for full training)
+2. Check cache has expected files (train ≈4667, dev ≈1832 for full training)
 3. Start with conservative batch sizes (12 for RTX 4090, 64 for A100)
 4. Monitor first epoch carefully for NaN losses
 5. Use focal loss for class imbalance (12:1 ratio)
