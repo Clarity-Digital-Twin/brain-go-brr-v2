@@ -13,7 +13,8 @@
       "Bash(make:*)",
       "Bash(python -m pytest tests/unit/config/test_schemas.py -xvs)",
       "Bash(python:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(.venv/bin/python -m pytest tests/unit/models/test_fusion_and_clamp_utils.py -xvs)"
     ],
     "deny": [],
     "ask": []

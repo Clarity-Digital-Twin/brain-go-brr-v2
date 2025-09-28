@@ -1,4 +1,8 @@
-"""Unit tests for PR-4: Clamp retirement and gated fusion."""
+"""Unit tests for gated fusion modules and clamp utilities.
+
+Note: This file was originally test_pr4_clamp_retirement.py but was updated
+after ClampRetirementConfig was removed in the v3.2.1 cleanup.
+"""
 
 # ruff: noqa: N806  # Uppercase variable names are standard for PyTorch tensors
 
@@ -6,7 +10,6 @@ import pytest
 import torch
 
 from src.brain_brr.config.schemas import (
-    ClampRetirementConfig,
     FusionConfig,
     GraphConfig,
     ModelConfig,
@@ -61,13 +64,13 @@ def test_multihead_fusion():
     assert torch.isfinite(fused).all()
 
 
-def test_monitored_clamp_logging():
-    """Test clamp monitoring logs when values would be clamped."""
+def test_monitored_clamp_basic():
+    """Test basic clamp functionality."""
     x = torch.randn(100) * 100
     x[0] = 1000  # Would trigger clamp
     x[99] = -1000  # Would trigger clamp
 
-    config = {"log_clamp_hits": True, "remove_intermediate_clamps": False}
+    config = {"log_clamp_hits": False, "remove_intermediate_clamps": False}
 
     # Should apply clamp normally
     y = monitored_clamp(x, -50, 50, "test", config)
@@ -77,14 +80,14 @@ def test_monitored_clamp_logging():
     assert y.min() >= -50
 
 
-def test_monitored_clamp_removal():
-    """Test clamp removal when configured."""
+def test_monitored_clamp_passthrough():
+    """Test clamp can be bypassed when configured."""
     x = torch.randn(100) * 100
     x[0] = 1000  # Would normally be clamped
 
     config = {"remove_intermediate_clamps": True, "validate_finite": False}
 
-    # Should NOT apply clamp
+    # Should NOT apply clamp when configured to bypass
     y = monitored_clamp(x, -50, 50, "test", config)
 
     # Check clamp was NOT applied
@@ -122,14 +125,10 @@ def test_nan_to_num_monitoring():
     assert y[1] == 100.0
 
 
-def test_pr4_model_creation():
-    """Test model creation with PR-4 configs."""
+def test_gated_fusion_model_creation():
+    """Test model creation with gated fusion."""
     config = ModelConfig(
         fusion=FusionConfig(fusion_type="gated", fusion_dropout=0.1),
-        clamp_retirement=ClampRetirementConfig(
-            remove_intermediate_clamps=False,
-            log_clamp_hits=True,
-        ),
         graph=GraphConfig(enabled=False),  # Disable GNN for speed
         norms=NormConfig(boundary_norm="layernorm"),  # PR-1 enabled
     )
@@ -140,12 +139,8 @@ def test_pr4_model_creation():
     assert detector.fusion is not None
     assert detector.fusion_type == "gated"
 
-    # Check clamp config stored
-    assert detector.clamp_config["log_clamp_hits"] is True
-    assert detector.clamp_config["remove_intermediate_clamps"] is False
 
-
-def test_pr4_with_multihead_fusion():
+def test_multihead_fusion_integration():
     """Test multihead fusion integration."""
     config = ModelConfig(
         fusion=FusionConfig(
@@ -170,14 +165,9 @@ def test_pr4_with_multihead_fusion():
     assert torch.isfinite(output).all()
 
 
-def test_clamp_retirement_forward():
-    """Test forward pass with clamps removed."""
+def test_model_with_advanced_stabilization():
+    """Test forward pass with all stability features enabled."""
     config = ModelConfig(
-        clamp_retirement=ClampRetirementConfig(
-            remove_intermediate_clamps=True,  # Remove non-essential clamps
-            remove_nan_to_num=True,
-            validate_finite=True,
-        ),
         norms=NormConfig(boundary_norm="layernorm"),  # PR-1 for stability
         graph=GraphConfig(
             enabled=True,
@@ -198,16 +188,12 @@ def test_clamp_retirement_forward():
     assert torch.isfinite(output).all()
 
 
-def test_pr4_backward_compatibility():
-    """Test PR-4 disabled by default."""
+def test_fusion_backward_compatibility():
+    """Test fusion defaults to 'add' for backward compatibility."""
     config = ModelConfig()
 
     # Fusion should default to "add"
     assert config.fusion.fusion_type == "add"
-
-    # Clamp retirement should be disabled
-    assert config.clamp_retirement.remove_intermediate_clamps is False
-    assert config.clamp_retirement.remove_nan_to_num is False
 
     detector = SeizureDetector.from_config(config)
 
@@ -236,13 +222,13 @@ def test_fusion_with_no_gnn():
 if __name__ == "__main__":
     test_gated_fusion()
     test_multihead_fusion()
-    test_monitored_clamp_logging()
-    test_monitored_clamp_removal()
+    test_monitored_clamp_basic()
+    test_monitored_clamp_passthrough()
     test_essential_clamps_preserved()
     test_nan_to_num_monitoring()
-    test_pr4_model_creation()
-    test_pr4_with_multihead_fusion()
-    test_clamp_retirement_forward()
-    test_pr4_backward_compatibility()
+    test_gated_fusion_model_creation()
+    test_multihead_fusion_integration()
+    test_model_with_advanced_stabilization()
+    test_fusion_backward_compatibility()
     test_fusion_with_no_gnn()
-    print("All PR-4 tests passed!")
+    print("All fusion and clamp utility tests passed!")
