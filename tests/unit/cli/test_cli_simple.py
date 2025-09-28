@@ -12,7 +12,7 @@ def test_cli_help():
     runner = CliRunner()
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0
-    assert "Brain-Go-Brr v2" in result.output
+    assert "Brain-Go-Brr V3" in result.output
 
 
 def test_validate_help():
