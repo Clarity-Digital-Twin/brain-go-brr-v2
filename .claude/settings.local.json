@@ -4,7 +4,8 @@
       "Bash(git revert:*)",
       "WebSearch",
       "Bash(git pull:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git fetch:*)"
     ],
     "deny": [],
     "ask": []
