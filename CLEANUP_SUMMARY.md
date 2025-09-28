@@ -45,6 +45,15 @@
   - `src/brain_brr/models/gnn_pyg.py` line 368: "Legacy per-timestep path (v2 compatibility)" → "Per-timestep path for compatibility"
   - `src/brain_brr/models/detector.py` line 591: Simplified V3 comment
 
+### 6. Fixed Test Regression from ClampRetirementConfig Removal
+- **Issue**: `test_pr4_clamp_retirement.py` was importing removed `ClampRetirementConfig`
+- **Solution**:
+  - Renamed file to `test_fusion_and_clamp_utils.py` (better reflects current purpose)
+  - Removed all references to `ClampRetirementConfig`
+  - Updated test names to remove "pr4" references
+  - Kept valuable tests for GatedFusion, MultiHeadGatedFusion, and clamp utilities
+- **Impact**: All 11 tests now pass successfully
+
 ## ⏳ Deferred Items (Future Work)
 
 ### 1. Debug Print Statements
@@ -57,7 +66,7 @@
 - **Reason**: Useful for understanding what each PR implemented
 
 ### 3. Test Files for PR Features
-- **Decision**: KEEP (except possibly test_pr4_clamp_retirement.py)
+- **Decision**: KEEP (renamed test_pr4_clamp_retirement.py → test_fusion_and_clamp_utils.py)
 - **Reason**: Tests are for implemented features, still valuable
 
 ### 4. Historical Planning Documents
@@ -86,11 +95,12 @@ make q
 ## 📊 Impact Summary
 
 - **Lines Removed**: ~40 lines of dead code
-- **Files Modified**: 19 files
+- **Files Modified**: 20 files (19 source + 1 test renamed)
 - **Consistency Improved**: All module strings now say "V3"
 - **Brittleness Reduced**: File counts now use ranges
 - **Code Compiles**: ✅ All Python files compile successfully
 - **Quality Checks**: ✅ All passing
+- **Test Regression Fixed**: ✅ Renamed and fixed test_pr4_clamp_retirement.py
 
 ## 🚀 Next Steps
 
