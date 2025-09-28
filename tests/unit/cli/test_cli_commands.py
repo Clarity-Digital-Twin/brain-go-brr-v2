@@ -1,4 +1,4 @@
-"""Comprehensive CLI command testing for Brain-Go-Brr v2."""
+"""Comprehensive CLI command testing for Brain-Go-Brr V3."""
 
 from pathlib import Path
 from unittest.mock import patch
