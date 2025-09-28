@@ -29,6 +29,12 @@ Stability notes (dynamic PE)
 - Finite checks: enable `BGB_DEBUG_FINITE=1` to activate `assert_finite` guards in critical tensors (see `src/brain_brr/models/debug_utils.py`). Use only when diagnosing NaNs.
 - See `docs/04-model/laplacian-pe.md` for implementation details and configuration knobs, and `docs/08-operations/v3-nan-explosion-resolution.md` for incident context.
 
+Recommended stability (PR‑1/2/3)
+
+- Boundary norms at seams via `model.norms.*` (e.g., LayerNorm with `after_tcn_proj`, `after_node_mamba`, `after_edge_mamba`, `after_gnn`, `before_decoder`).
+- Bounded edge lift via `graph.edge_lift_activation` (e.g., `tanh`) and `graph.edge_lift_norm` (e.g., `layernorm`); conservative `edge_lift_init_gain: 0.1`.
+- Adjacency conditioning via `graph.adj_row_softmax`, `graph.adj_ema_beta`, `graph.adj_force_symmetric`, and regularization `graph.laplacian_eps`.
+
 Constraints and guards
 
 - CUDA alignment: `(d_model*expand)/headdim` must be integer and multiple of 8 (node headdim=8, edge headdim=4 satisfy this)

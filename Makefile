@@ -162,7 +162,7 @@ setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.1)
 	@.venv/bin/python -c "from mamba_ssm import Mamba2; print('${GREEN}✓ Mamba-SSM working${NC}')" || echo "${RED}⚠️  Mamba-SSM failed${NC}"
 	@.venv/bin/python -c "import torch_geometric; print(f'${GREEN}✓ PyG {torch_geometric.__version__} installed${NC}')" || echo "${RED}⚠️  PyG failed${NC}"
 	@.venv/bin/python -c "import pytorch_tcn; print('${GREEN}✓ TCN installed${NC}')" || echo "${RED}⚠️  TCN failed${NC}"
-	@echo "${GREEN}✓ GPU stack ready (TCN + BiMamba + GNN + LPE; V2 or V3)${NC}"
+	@echo "${GREEN}✓ GPU stack ready (TCN + BiMamba + GNN + LPE; V3)${NC}"
 
 hooks: ## Run pre-commit hooks on all files
 	@echo "${CYAN}Running pre-commit hooks...${NC}"

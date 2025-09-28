@@ -5,6 +5,40 @@ All notable changes to the Brain-Go-Brr v2 project will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.1] - 2025-09-28
+
+### 🚀 Production Training Release
+
+This patch release marks the **production-ready codebase** used for final Modal A100 training runs. All PR-1 through PR-4 experimental features have been removed, leaving only the essential v3.2.0 improvements.
+
+### Removed
+- **Legacy PR Features**: Completely removed all PR-1 through PR-4 experimental code
+  - Removed `clamp_retirement` configuration (PR-4)
+  - Removed `norms` boundary normalization (PR-1)
+  - Removed `fusion` configuration (PR-4)
+  - Removed `adj_row_softmax`, `edge_lift` fields (PR-2, PR-3)
+  - Cleaned all references from configs and documentation
+
+### Fixed
+- **Test Robustness**: Enhanced PyG-optional test handling
+  - Tests properly skip when PyTorch Geometric not installed
+  - CI/CD now passes on both GPU and CPU environments
+  - Conditional imports prevent module-level failures
+
+### Changed
+- **Documentation**: Comprehensive updates for production deployment
+  - Updated all consistency check files for v3.2.0
+  - Fixed Modal resource allocation documentation
+  - Clarified that resources are set in `app.py`, not YAML
+  - Updated batch sizes: Modal smoke=32, train=64
+
+### Verified
+- **Configuration Alignment**: All configs now consistent
+  - `edge_similarity_margin: 0.01` in all configs
+  - Proper dynamic PE settings per platform
+  - Correct batch sizes and mixed precision settings
+  - Zero legacy PR references remaining
+
 ## [3.2.0] - 2025-09-27
 
 ### 🛡️ Architectural Stability Enhancement (PR-5)

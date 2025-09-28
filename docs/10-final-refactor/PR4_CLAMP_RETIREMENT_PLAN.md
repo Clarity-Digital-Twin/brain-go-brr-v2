@@ -1,5 +1,10 @@
 # PR-4: Clamp Retirement & Gated Fusion - Detailed Planning Document
 
+Note (historical planning document)
+- Status: Implemented in code; this file captures the original plan and rationale.
+- Source of truth: See code (`src/brain_brr/models/detector.py`, `src/brain_brr/models/fusion.py`) and docs (`docs/04-model/v3-architecture.md`).
+- Verification: Behavior may evolve; validate via code/tests rather than line counts.
+
 ## Problem Statement
 
 After implementing PR-1, PR-2, and PR-3, many of the 47 manual stability interventions become redundant. This PR:

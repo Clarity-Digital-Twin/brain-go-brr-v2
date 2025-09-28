@@ -1,0 +1,284 @@
+# Technical Debt and Cleanup Plan
+
+**Created**: September 28, 2025
+**Status**: DRAFT - Pending Senior Review
+**Purpose**: Document all technical debt, cruft, and inconsistencies for systematic cleanup of v3.2.1
+
+## Executive Summary
+
+After the v3.2.0 release and documentation updates, a comprehensive audit revealed several areas of technical debt and inconsistencies. This document catalogs all findings for review before making changes.
+
+## 🔴 Critical Issues (Must Fix)
+
+### 1. Dead Code - ClampRetirementConfig
+**Location**: `src/brain_brr/config/schemas.py` lines 254-276 (class), 309-313 (ModelConfig field)
+- `ClampRetirementConfig` class still defined but never used in any configs
+- `ModelConfig.clamp_retirement` field references it (lines 309-313)
+- `src/brain_brr/models/detector.py` lines 93-94, 555-565 still check for it
+- **Impact**: Dead code that confuses readers
+- **Action**: Remove entirely from schemas.py and detector.py
+
+### 2. Module Version Inconsistencies
+**Locations (code + CLI + deploy)**:
+```
+src/__init__.py:1                         # "Brain-Go-Brr v2"
+src/brain_brr/cli/__init__.py:1          # "Brain-Go-Brr v2"
+src/brain_brr/utils/__init__.py:1        # "Brain-Go-Brr v2"
+src/brain_brr/cli/cli.py:20              # CLI help: "Brain-Go-Brr v2"
+src/brain_brr/train/wandb_integration.py:1 # "Brain-Go-Brr v2"
+deploy/modal/app.py:1                    # "Modal cloud deployment for Brain-Go-Brr v2."
+deploy/modal/app.py:703                  # Print banner: "🚀 Brain-Go-Brr v2 Modal Deployment"
+```
+**Locations (tests that will need updating when strings change)**:
+```
+tests/unit/cli/test_cli_simple.py:15     # asserts "Brain-Go-Brr v2" in CLI output
+tests/unit/cli/test_cli_commands.py:1    # module docstring mentions v2
+tests/performance/test_memory.py:1       # module docstring mentions v2
+tests/unit/events/test_export.py:1       # module docstring mentions v2
+tests/conftest.py:1                      # module docstring mentions v2
+```
+- **Impact**: Confusing version references; test failures once strings change
+- **Action**: Update strings to "Brain-Go-Brr V3" and adjust affected tests accordingly
+
+## ⚠️ Medium Priority Issues
+
+### 3. Brittle File Count Checks
+**Location**: `deploy/modal/app.py`
+- Lines 212-213: `print(f"Train files: {train_count} (expected: 4667)")`
+- Lines 711, 715: Hard-coded checks for exactly 4667/1832 files
+- **Impact**: Will fail if dataset changes slightly
+- **Action**: Change to ranges (e.g., 4600-4700, 1800-1900)
+
+### 4. Legacy V2 References in Code
+**Locations**:
+- `src/brain_brr/models/detector.py:605`: Comment about "V2 heuristic path"
+- `src/brain_brr/models/gnn_pyg.py:368`: Comment about "v2 compatibility"
+- `src/brain_brr/data/io.py:298`: Reference to "v2.0.3 data" (TUSZ dataset version; OK to keep, not a project version)
+- **Impact**: Misleading comments
+- **Action**: Update or remove references
+
+### 5. Val vs Dev Naming Inconsistency
+**Internal Code** (OK to keep):
+- `src/brain_brr/train/loop.py`: Uses `val_loader`, `val_dataset` variables
+- This is fine for internal variables
+
+**External Facing** (Should fix):
+- `src/brain_brr/cli/cli.py:206`: CLI accepts "val" as split option
+- `configs/`: All cleaned up ✅
+- `docs/`: All cleaned up ✅
+
+Note: Using `val/` as a metric prefix (e.g., `val/auroc`) is acceptable; this item is only about dataset split naming (train/dev) and paths.
+
+Additional CLI cruft:
+- `src/brain_brr/cli/cli.py:205` exposes `--validation-split` but the build-cache command no longer re-splits; the option is unused in the function body.
+- **Action**: Remove the unused `--validation-split` flag from CLI (or deprecate with a warning) to avoid confusion.
+
+### 9. Debug Print Statements
+**Location**: `src/brain_brr/train/loop.py`
+- Numerous `print(...)` calls across sampler init, preflight, training, validation, checkpointing, and diagnostics (e.g., 95, 160, 264, 486, 518, 902, 977, 1157, 1315, 1468, 1735, etc.).
+- **Impact**: Verbose output in production
+- **Action**: Convert to proper logging (with levels) or gate under a debug flag
+
+## 📝 Documentation Issues
+
+### 6. PR-1 through PR-4 References Throughout Code
+**Locations**: Found in multiple files
+- `src/brain_brr/models/detector.py`: 15+ references
+- `src/brain_brr/models/mamba.py`: 4 references
+- `src/brain_brr/models/tcn.py`: 3 references
+- `src/brain_brr/models/gnn_pyg.py`: 5 references
+- `src/brain_brr/config/schemas.py`: 8 references
+
+**Analysis**: These document what each PR implemented
+- **Recommendation**: KEEP but add header comment explaining they're historical markers
+
+### 7. Test Files for PR Features
+**Files**:
+```
+tests/unit/models/test_pr1_normalization.py
+tests/unit/models/test_pr2_bounded_edge.py
+tests/unit/models/test_pr3_adjacency_conditioning.py
+tests/unit/models/test_pr4_clamp_retirement.py
+```
+- **Status**: These test implemented features, not removed features
+- **Action**: KEEP all except possibly test_pr4_clamp_retirement.py
+
+### 8. Historical Planning Documents
+**Location**: `docs/10-final-refactor/`
+- All PR planning documents have historical notes ✅
+- **Action**: Consider moving to `docs/99-archive/` subdirectory
+
+### 10. Operational NaN Doc Needs Banner or Update
+**Location**: `docs/08-operations/nan-prevention-complete.md:1`
+- Currently presented as a “Complete Reference” with a 3‑tier clamping system.
+- PR‑1/2/3/5 have made internal clamps largely redundant; code now relies on boundary normalization + minimal output safety clamps.
+- **Action**: Add the standard “Note (historical reference)” banner and point to the current sources (model code, v3 architecture docs), or update content to reflect PR‑5 clamp retirement status.
+
+## 🔍 Dead Code Detection Strategy
+
+### Recommended Tools (2025 Research Update)
+1. **vulture** - Lightweight dead code detection (still the primary tool)
+2. **coverage.py** - More reliable than vulture but requires running all code paths
+3. **pyflakes** - Finds unused imports and variables efficiently
+4. **ruff** - Modern, fast linter with dead code rules (F401, F841)
+5. **pycln** - Auto-remove unused imports
+6. **Prospector** - Bundles multiple tools including vulture
+7. **Codacy/Qodana** - CI/CD platforms for continuous monitoring
+8. **Smart TS XL** - AI-driven static analysis (new in 2025)
+
+### Detection Commands
+```bash
+# Install tools
+pip install vulture pyflakes pycln
+
+# Find dead code
+vulture src/ --min-confidence 90
+
+# Find unused imports
+pyflakes src/
+
+# Use ruff for comprehensive checks
+ruff check src/ --select F401,F841  # unused imports, unused variables
+
+# Check test coverage
+pytest --cov=src --cov-report=html
+```
+
+## 🧹 Cleanup Priority Order
+
+### Phase 1: Critical Fixes (Do First)
+1. Remove `ClampRetirementConfig` and all references
+2. Update module docstrings from v2 to V3
+3. Fix brittle file count checks in Modal
+
+### Phase 2: Code Cleanup
+1. Update/remove legacy V2 comments
+2. Standardize val→dev in CLI
+3. Run dead code detection tools
+4. Remove any identified dead code
+
+### Phase 3: Documentation
+1. Move historical docs to archive folder
+2. Add explanatory headers to PR comments in code
+3. Update any remaining stale references
+
+## ✅ Validation Checklist
+
+Before making changes:
+- [ ] Run full test suite: `make test`
+- [ ] Run quality checks: `make q`
+- [ ] Test GPU components: `make test-gpu`
+- [ ] Verify smoke test works: `make s`
+- [ ] Check Modal deployment still works
+
+After each phase:
+- [ ] Commit with clear message
+- [ ] Run tests again
+- [ ] Document what was changed
+
+## 🚨 Risk Assessment
+
+**Low Risk**:
+- Updating docstrings
+- Fixing comments
+- Moving documentation files
+
+**Medium Risk**:
+- Removing ClampRetirementConfig (unused but referenced)
+- Changing Modal file count checks
+
+**High Risk**:
+- None identified
+
+## 📊 Metrics
+
+Current state:
+- Total Python files: ~100
+- Total lines of code: ~10,000
+- Test coverage: TBD
+- Dead code instances: TBD (run vulture)
+- DEBUG print statements: 8+ instances in train/loop.py
+- TODO/FIXME/HACK comments: 0 found
+- NOTE comments: 3 found (acceptable)
+
+## 🤝 Review Process
+
+1. **Internal Review**: This document
+2. **External AI Agent Review**: Get second opinion on cleanup plan
+3. **Senior Engineer Review**: Final approval before execution
+4. **Phased Execution**: Implement in priority order
+5. **Validation**: Test after each phase
+
+## 📎 Appendix: Full Search Results
+
+### ClampRetirement References
+```
+src/brain_brr/config/schemas.py:254-276 (class definition)
+src/brain_brr/config/schemas.py:309-313 (ModelConfig.clamp_retirement field)
+src/brain_brr/models/detector.py:93-94, 555-565
+tests/unit/models/test_pr4_clamp_retirement.py (entire file)
+```
+
+### V2 References
+```
+src/__init__.py:1
+src/brain_brr/cli/__init__.py:1
+src/brain_brr/utils/__init__.py:1
+src/brain_brr/cli/cli.py:20
+src/brain_brr/train/wandb_integration.py:1
+src/brain_brr/models/detector.py:605
+src/brain_brr/models/gnn_pyg.py:368
+src/brain_brr/data/io.py:298
+deploy/modal/app.py:1
+deploy/modal/app.py:703
+tests/unit/cli/test_cli_simple.py:15
+tests/unit/cli/test_cli_commands.py:1
+tests/performance/test_memory.py:1
+tests/unit/events/test_export.py:1
+tests/conftest.py:1
+CHANGELOG.md:3
+```
+
+### File Count References
+```
+deploy/modal/app.py:212-213, 711, 715
+Various docs (acceptable for reference)
+```
+
+## 💡 Summary and Recommendations
+
+### Key Findings
+1. **ClampRetirementConfig** is completely unused dead code that should be removed
+2. Module docstrings still reference "v2" instead of "V3"
+3. Modal deployment has brittle hardcoded file counts
+4. 8+ DEBUG print statements that should use proper logging
+5. PR-1 through PR-4 comments are useful documentation and should be kept
+
+### Estimated Effort
+- **Total cleanup time**: 2-3 hours
+- **Risk level**: Low to Medium
+- **Testing required**: Full test suite after each phase
+
+### Recommended Approach
+1. Start with low-risk changes (docstrings, comments)
+2. Remove dead code with thorough testing
+3. Convert debug prints to logging
+4. Run vulture and other tools for final sweep
+
+---
+
+**Document Status**: READY FOR REVIEW
+
+**Next Steps**:
+1. ✅ Internal documentation complete
+2. ⏳ Get external AI agent validation on this cleanup plan
+3. ⏳ Senior engineer review and approval
+4. ⏳ Execute cleanup in phases with testing
+5. ⏳ Document all changes in CHANGELOG.md
+
+**To share with external AI agent**:
+"Please review the Technical Debt Cleanup Plan in TECHNICAL_DEBT_CLEANUP.md. Focus on:
+1. Are there any risks I haven't identified?
+2. Is the cleanup priority order correct?
+3. Should any items be kept rather than removed?
+4. Are there additional dead code patterns to look for?"

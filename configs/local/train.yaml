@@ -1,4 +1,4 @@
-# Full Training: TCN + Bi-Mamba + GNN Stack (v2 or v3)
+# Full Training: TCN + Bi-Mamba + GNN Stack (V3)
 # Optimized for RTX 4090 (24GB VRAM) with NaN protections
 # Based on EvoBrain proven parameters + RTX 4090 best practices
 #
@@ -27,7 +27,7 @@ experiment:
     entity: null
 
 model:
-  # Architecture: "tcn" (v2) or "v3" (dual-stream with edge Mamba)
+  # Architecture: "v3" (dual-stream with edge Mamba)
   architecture: v3  # V3 dual-stream with learned adjacency
 
   tcn:
@@ -45,9 +45,9 @@ model:
     conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
-  # Graph configuration (works for both v2 and v3)
+  # Graph configuration (V3)
   graph:
-    enabled: true              # Required for both v2 and v3
+    enabled: true              # Required for V3
 
     # V3: Edge stream config
     edge_features: cosine      # Edge feature metric for v3
@@ -60,7 +60,7 @@ model:
 
     # V2 heuristic removed
 
-    # Shared GNN architecture (both v2.6 and v3)
+    # GNN architecture
     n_layers: 2                # 2-layer GNN
     dropout: 0.1
     use_residual: true         # Skip connections
@@ -72,44 +72,6 @@ model:
     semi_dynamic_interval: 5   # OPTIMAL: PE every 19.5ms (192 eigendecomps)
     pe_sign_consistency: true  # Fix eigenvector signs for stability
 
-    # PR-2: Bounded edge stream (stability fix)
-    edge_lift_activation: tanh  # Bound edge lift to [-1,1]
-    edge_lift_norm: layernorm   # Normalize after activation
-    edge_lift_init_gain: 0.1    # Conservative initialization
-
-    # PR-3: Adjacency conditioning (eigendecomp stability)
-    adj_row_softmax: true       # Row-wise softmax normalization
-    adj_softmax_tau: 1.0        # Temperature for softmax
-    adj_ema_beta: 0.9           # EMA smoothing for adjacency
-    adj_force_symmetric: true   # Force symmetric for Laplacian
-    laplacian_eps: 1.0e-3       # Regularization for eigendecomp
-    laplacian_normalize: true   # Use normalized Laplacian
-
-  # PR-1: Boundary normalization (component seams)
-  norms:
-    boundary_norm: layernorm    # Normalize at component boundaries
-    boundary_eps: 1.0e-5
-    layerscale_alpha: 0.1       # LayerScale for residual branches
-    after_tcn_proj: true        # After TCN→electrode projection
-    after_node_mamba: true      # After node stream Mamba
-    after_edge_mamba: true      # After edge stream Mamba
-    after_gnn: true             # After GNN processing
-    before_decoder: true        # Before final decoder
-
-  # PR-4: Clamp retirement & fusion
-  fusion:
-    fusion_type: gated          # Gated fusion of node/edge streams
-    fusion_heads: 4             # Multi-head fusion heads
-    fusion_dropout: 0.1         # Fusion dropout
-
-  clamp_retirement:
-    remove_intermediate_clamps: false  # Enable after monitoring shows stable
-    remove_nan_to_num: false          # Enable after confirming no NaN
-    keep_input_clamp: true            # Always keep input validation
-    keep_output_clamp: true           # Always keep output bounds
-    keep_loss_clamps: true            # Always keep loss safety
-    log_clamp_hits: false             # Set true to monitor clamp usage
-    validate_finite: true             # Validate all tensors are finite
 
   # Decoder removed in V3-only architecture
 
@@ -127,7 +89,6 @@ data:
   pin_memory: true                    # Faster GPU transfer
   persistent_workers: true            # Reuse workers
   prefetch_factor: 2                  # Pre-load batches
-  validation_split: 0.2
 
 preprocessing:
   montage: "10-20"

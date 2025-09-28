@@ -1,6 +1,6 @@
 # Local Configs (RTX 4090)
 
-Defaults to V3 dual‑stream (configs may still list V2 for ablations).
+Defaults to V3 dual‑stream. V2 heuristic path has been removed; only `architecture: v3` is supported.
 
 Key recommendations
 

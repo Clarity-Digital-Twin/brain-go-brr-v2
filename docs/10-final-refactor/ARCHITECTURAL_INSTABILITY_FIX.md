@@ -1,5 +1,9 @@
 # V3 Architectural Instability: Root Cause Analysis & Surgical Fix Plan
 
+Note (historical reference)
+- Status: Implemented; this document captures the analysis and audit trail.
+- Line numbers and counts can drift as code evolves; verify behavior in code/tests.
+
 Status note (Oct 2025)
 - Historical analysis with line-number references; the refactor series PR‑1/2/3/4/5 has since landed.
 - For the current implementation and policy, prefer:

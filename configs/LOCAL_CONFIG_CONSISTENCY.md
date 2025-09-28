@@ -1,6 +1,6 @@
-# Local Config Consistency (V3) ✅
+# Local Config Consistency (V3.2.0) ✅
 
-Canonical stack: TCN + Dual-Stream BiMamba + Vectorized GNN (PyG SSGConv + Static LPE)
+Canonical stack: TCN + Dual-Stream BiMamba + Vectorized GNN (PyG SSGConv + Dynamic LPE)
 
 Files
 - configs/local/smoke.yaml — 1 epoch, 3 files (via BGB_LIMIT_FILES=3), quick validation
@@ -35,6 +35,7 @@ model:
     edge_mamba_layers: 2
     edge_mamba_d_state: 8
     edge_mamba_d_model: 16  # Must be multiple of 8
+    edge_similarity_margin: 0.01  # v3.2.0: Safety margin from ±1 boundaries
 
     # GNN config:
     n_layers: 2
@@ -42,6 +43,8 @@ model:
     use_residual: true
     alpha: 0.05
     k_eigenvectors: 16
+    use_dynamic_pe: true  # Dynamic PE (recomputed per timestep)
+    semi_dynamic_interval: 5  # RTX 4090 optimized interval
 ```
 
 Shared data

@@ -30,29 +30,32 @@ model:
     edge_mamba_layers: 2
     edge_mamba_d_state: 8
     edge_mamba_d_model: 16  # multiple of 8
+    edge_similarity_margin: 0.01  # v3.2.0: Safety margin from ±1 boundaries
     # GNN
     n_layers: 2
     dropout: 0.1
     use_residual: true
     alpha: 0.05
     k_eigenvectors: 16
+    use_dynamic_pe: true  # Dynamic PE (recomputed per timestep)
+    semi_dynamic_interval: 1  # Full dynamic on A100
 ```
 
 Batch sizing
 - smoke.yaml: batch_size: 32 (reduced for V3 dual-stream)
-- train.yaml: batch_size: 48 (optimized for A100-80GB with V3)
+- train.yaml: batch_size: 64 (optimized for A100-80GB with V3)
 
 Precision & stability
 - A100: `mixed_precision: true` (Tensor Cores)
-- Gradient clipping: `gradient_clip: 1.0`
+- Gradient clipping: `gradient_clip: 0.5` (stronger for NaN protection)
 
 Paths (Modal)
 ```yaml
 data:
-  data_dir: /data/edf/train
-  cache_dir: /results/cache/tusz
+  data_dir: /data/edf  # Parent dir containing train/dev/eval
+  cache_dir: /results/cache/tusz  # Persistent SSD volume
 experiment:
-  output_dir: /results/tcn_full_100ep
+  output_dir: /results/v3_full_training  # Or /results/smoke for smoke test
   device: cuda
 ```
 
