@@ -588,7 +588,7 @@ class SeizureDetector(nn.Module):
                     "PyTorch Geometric not installed. GNN requires PyG. Install from prebuilt wheels for torch 2.2.2+cu121 (see INSTALLATION.md) or run 'make setup-gpu'"
                 ) from e
 
-            # V3 creates projections above; no V2 heuristic path remains
+            # V3 creates projections above
 
         return instance
 
