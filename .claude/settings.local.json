@@ -19,7 +19,8 @@
       "Bash(aws s3 ls:*)",
       "Bash(aws s3 cp:*)",
       "Bash(tmux list-sessions:*)",
-      "Bash(tmux new-session:*)"
+      "Bash(tmux new-session:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []
