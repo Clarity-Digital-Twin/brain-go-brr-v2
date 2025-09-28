@@ -201,7 +201,9 @@
       "Bash(env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 timeout 120 .venv/bin/python -m src train configs/local/smoke_minimal.yaml)",
       "Bash(env PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 timeout 180 .venv/bin/python -m src train configs/local/smoke.yaml)",
       "Bash(.venv/bin/ruff check:*)",
-      "Bash(git describe:*)"
+      "Bash(git describe:*)",
+      "Bash(do tail -1 train.log)",
+      "Bash(break)"
     ],
     "deny": [],
     "ask": []
