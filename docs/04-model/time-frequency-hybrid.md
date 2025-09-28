@@ -36,6 +36,5 @@ Notes
 
 Cross‑refs
 
-- See `STFT_SIDEBRANCH_IMPLEMENTATION.md` for a code‑level patch sketch.
+- See `FUTURE_WORK_STFT_ENHANCEMENT.md` for a code‑level patch sketch and plan.
 - Model context: `docs/04-model/v3-architecture.md`
-

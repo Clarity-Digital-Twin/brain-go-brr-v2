@@ -1,4 +1,4 @@
-# Configuration Consistency Check
+# Configuration Consistency Check (v3.2.0)
 
 ## Local Configs (RTX 4090 - 24GB)
 
@@ -33,23 +33,23 @@ semi_dynamic_interval: 1      # Can afford full computation
 num_workers: 8                # Cloud environment
 mixed_precision: true         # A100 tensor cores
 ```
-**Status**: ⚠️ Should verify these settings are present
+**Status**: ✅ VERIFIED and correct
 
 ### modal/smoke.yaml
 ```yaml
-batch_size: 16                # Larger than local smoke
+batch_size: 32                # Reduced for V3 dual-stream memory
 use_dynamic_pe: true
 semi_dynamic_interval: 1      # A100 can handle full
 epochs: 1
 ```
-**Status**: ⚠️ Should verify
+**Status**: ✅ VERIFIED and correct
 
 ## Key Differences by Platform
 
 | Setting | RTX 4090 | A100 | Reason |
 |---------|----------|------|--------|
 | **Batch Size (train)** | 4 | 64 | Memory: 24GB vs 80GB |
-| **Batch Size (smoke)** | 1 | 16 | Safety vs speed |
+| **Batch Size (smoke)** | 1 | 32 | Safety vs speed |
 | **Semi-dynamic Interval** | 5 | 1 | Memory constraints |
 | **Mixed Precision** | false | true | RTX 4090 NaN issues |
 | **Num Workers** | 0 | 8 | WSL2 vs cloud |
@@ -60,9 +60,10 @@ epochs: 1
 - ✅ `architecture: v3`
 - ✅ `use_dynamic_pe: true` (with appropriate interval)
 - ✅ `edge_top_k: 3` (validated by literature)
+- ✅ `edge_similarity_margin: 0.01` (v3.2.0 safety margin)
 - ✅ `focal_loss` with `alpha=0.5, gamma=2.0`
-- ✅ `learning_rate: 5.0e-5`
-- ✅ `gradient_clip: 0.5`
+- ✅ `learning_rate`: 1e-4 (local) or 3e-5 (modal)
+- ✅ `gradient_clip: 0.5` (modal) or 0.1 (local RTX 4090)
 
 ## Memory Safety Formula
 
@@ -78,5 +79,5 @@ Examples:
 
 1. **Local train.yaml**: Current settings are OPTIMAL
 2. **Local smoke.yaml**: Now FIXED with interval=10
-3. **Modal configs**: Should update to match local structure
-4. **Documentation**: Update README.md with new settings
+3. **Modal configs**: ✅ Updated and verified for v3.2.0
+4. **Documentation**: ✅ README.md updated with v3.2.0 settings

@@ -22,6 +22,13 @@ Dynamic vs static PE
 - Static PE remains available when `use_dynamic_pe: false` and is computed once from the structural 10–20 montage.
  - Gradients flow through the adjacency into the eigendecomposition (via `torch.linalg.eigh`); AMP is disabled around eigendecomp for numerical stability.
 
+Adjacency conditioning (PR‑3)
+
+- Optional row‑wise softmax normalization with temperature: `graph.adj_row_softmax`, `graph.adj_softmax_tau`.
+- Optional temporal smoothing via EMA: `graph.adj_ema_beta`.
+- Optional symmetry enforcement for Laplacian stability: `graph.adj_force_symmetric`.
+- Laplacian regularization: `graph.laplacian_eps` (default `1e‑4`) and `graph.laplacian_normalize`.
+
 Bypass edge transform
 
 - In V3, `bypass_edge_transform=True` because edge weights are already transformed by `Linear+Softplus` in the edge stream.

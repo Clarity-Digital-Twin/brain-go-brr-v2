@@ -24,6 +24,13 @@ Source of truth pointers
 - Architecture: `docs/04-model/v3-architecture.md`
 - Code: `src/brain_brr/models/detector.py`, `src/brain_brr/models/gnn_pyg.py`, `src/brain_brr/models/mamba.py`, `src/brain_brr/models/tcn.py`, `src/brain_brr/train/loop.py`, `src/brain_brr/data/datasets.py`, `src/brain_brr/data/io.py`, `src/brain_brr/data/preprocess.py`, `src/brain_brr/data/windows.py`, `src/brain_brr/data/tusz_splits.py`
 
+Stability (implemented)
+
+- PR‑1 boundary norms: `model.norms.*` toggles normalization at seams.
+- PR‑2 bounded edge lift: `graph.edge_lift_activation|edge_lift_norm`, `edge_lift_init_gain: 0.1`.
+- PR‑3 adjacency conditioning: `graph.adj_row_softmax|adj_ema_beta|adj_force_symmetric|laplacian_eps`.
+- PR‑5 clamp at source: `graph.edge_similarity_margin` keeps cosine/corr within `[-1+margin, 1‑margin]`.
+
 Quick local stability tips
 
 - If local training hangs (WSL2): set `data.num_workers: 0`.
