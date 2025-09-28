@@ -11,24 +11,34 @@ After the v3.2.0 release and documentation updates, a comprehensive audit reveal
 ## 🔴 Critical Issues (Must Fix)
 
 ### 1. Dead Code - ClampRetirementConfig
-**Location**: `src/brain_brr/config/schemas.py` lines 254-288
+**Location**: `src/brain_brr/config/schemas.py` lines 254-276 (class), 309-313 (ModelConfig field)
 - `ClampRetirementConfig` class still defined but never used in any configs
-- `ModelConfig.clamp_retirement` field references it (lines 285-288)
+- `ModelConfig.clamp_retirement` field references it (lines 309-313)
 - `src/brain_brr/models/detector.py` lines 93-94, 555-565 still check for it
 - **Impact**: Dead code that confuses readers
 - **Action**: Remove entirely from schemas.py and detector.py
 
 ### 2. Module Version Inconsistencies
-**Locations**:
+**Locations (code + CLI + deploy)**:
 ```
-src/__init__.py:1: "Brain-Go-Brr v2"
-src/brain_brr/cli/__init__.py:1: "Brain-Go-Brr v2"
-src/brain_brr/utils/__init__.py:1: "Brain-Go-Brr v2"
-src/brain_brr/cli/cli.py:20: "Brain-Go-Brr v2"
-src/brain_brr/train/wandb_integration.py:1: "Brain-Go-Brr v2"
+src/__init__.py:1                         # "Brain-Go-Brr v2"
+src/brain_brr/cli/__init__.py:1          # "Brain-Go-Brr v2"
+src/brain_brr/utils/__init__.py:1        # "Brain-Go-Brr v2"
+src/brain_brr/cli/cli.py:20              # CLI help: "Brain-Go-Brr v2"
+src/brain_brr/train/wandb_integration.py:1 # "Brain-Go-Brr v2"
+deploy/modal/app.py:1                    # "Modal cloud deployment for Brain-Go-Brr v2."
+deploy/modal/app.py:703                  # Print banner: "🚀 Brain-Go-Brr v2 Modal Deployment"
 ```
-- **Impact**: Confusing version references
-- **Action**: Update all to "Brain-Go-Brr V3"
+**Locations (tests that will need updating when strings change)**:
+```
+tests/unit/cli/test_cli_simple.py:15     # asserts "Brain-Go-Brr v2" in CLI output
+tests/unit/cli/test_cli_commands.py:1    # module docstring mentions v2
+tests/performance/test_memory.py:1       # module docstring mentions v2
+tests/unit/events/test_export.py:1       # module docstring mentions v2
+tests/conftest.py:1                      # module docstring mentions v2
+```
+- **Impact**: Confusing version references; test failures once strings change
+- **Action**: Update strings to "Brain-Go-Brr V3" and adjust affected tests accordingly
 
 ## ⚠️ Medium Priority Issues
 
@@ -43,7 +53,7 @@ src/brain_brr/train/wandb_integration.py:1: "Brain-Go-Brr v2"
 **Locations**:
 - `src/brain_brr/models/detector.py:605`: Comment about "V2 heuristic path"
 - `src/brain_brr/models/gnn_pyg.py:368`: Comment about "v2 compatibility"
-- `src/brain_brr/data/io.py:298`: Reference to "v2.0.3 data"
+- `src/brain_brr/data/io.py:298`: Reference to "v2.0.3 data" (TUSZ dataset version; OK to keep, not a project version)
 - **Impact**: Misleading comments
 - **Action**: Update or remove references
 
@@ -57,11 +67,17 @@ src/brain_brr/train/wandb_integration.py:1: "Brain-Go-Brr v2"
 - `configs/`: All cleaned up ✅
 - `docs/`: All cleaned up ✅
 
+Note: Using `val/` as a metric prefix (e.g., `val/auroc`) is acceptable; this item is only about dataset split naming (train/dev) and paths.
+
+Additional CLI cruft:
+- `src/brain_brr/cli/cli.py:205` exposes `--validation-split` but the build-cache command no longer re-splits; the option is unused in the function body.
+- **Action**: Remove the unused `--validation-split` flag from CLI (or deprecate with a warning) to avoid confusion.
+
 ### 9. Debug Print Statements
 **Location**: `src/brain_brr/train/loop.py`
-- Lines 264, 654, 660, 668, 672, 718, 752, 1157, 1515: DEBUG print statements
+- Numerous `print(...)` calls across sampler init, preflight, training, validation, checkpointing, and diagnostics (e.g., 95, 160, 264, 486, 518, 902, 977, 1157, 1315, 1468, 1735, etc.).
 - **Impact**: Verbose output in production
-- **Action**: Convert to proper logging or remove
+- **Action**: Convert to proper logging (with levels) or gate under a debug flag
 
 ## 📝 Documentation Issues
 
@@ -91,6 +107,12 @@ tests/unit/models/test_pr4_clamp_retirement.py
 **Location**: `docs/10-final-refactor/`
 - All PR planning documents have historical notes ✅
 - **Action**: Consider moving to `docs/99-archive/` subdirectory
+
+### 10. Operational NaN Doc Needs Banner or Update
+**Location**: `docs/08-operations/nan-prevention-complete.md:1`
+- Currently presented as a “Complete Reference” with a 3‑tier clamping system.
+- PR‑1/2/3/5 have made internal clamps largely redundant; code now relies on boundary normalization + minimal output safety clamps.
+- **Action**: Add the standard “Note (historical reference)” banner and point to the current sources (model code, v3 architecture docs), or update content to reflect PR‑5 clamp retirement status.
 
 ## 🔍 Dead Code Detection Strategy
 
@@ -206,6 +228,14 @@ src/brain_brr/train/wandb_integration.py:1
 src/brain_brr/models/detector.py:605
 src/brain_brr/models/gnn_pyg.py:368
 src/brain_brr/data/io.py:298
+deploy/modal/app.py:1
+deploy/modal/app.py:703
+tests/unit/cli/test_cli_simple.py:15
+tests/unit/cli/test_cli_commands.py:1
+tests/performance/test_memory.py:1
+tests/unit/events/test_export.py:1
+tests/conftest.py:1
+CHANGELOG.md:3
 ```
 
 ### File Count References
