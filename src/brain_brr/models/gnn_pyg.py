@@ -365,7 +365,7 @@ class GraphChannelMixerPyG(nn.Module):
         if self.use_vectorized:
             return self.forward_vectorized(features, adjacency)
 
-        # Legacy per-timestep path (v2 compatibility)
+        # Per-timestep path for compatibility
         batch_size, n_nodes, seq_len, _ = features.shape
         device = features.device
 
