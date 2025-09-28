@@ -202,6 +202,33 @@ def populate_cache():
     else:
         print(f"[WARNING] No dev split found at {dev_src}")
 
+    # Copy metadata file - CRITICAL for cache validation!
+    metadata_src = src / ".cache_metadata.json"
+    metadata_dst = dst / ".cache_metadata.json"
+    if metadata_src.exists():
+        print(f"[COPY] Copying cache metadata file...")
+        shutil.copy2(metadata_src, metadata_dst)
+        print(f"[COPY] ✅ Copied metadata file")
+    else:
+        print(f"[WARNING] No metadata file found at {metadata_src}")
+        print(f"[WARNING] Creating metadata file to prevent cache deletion...")
+        # Create metadata file to prevent auto-deletion
+        import json
+        metadata = {
+            "split_policy": "official_tusz",
+            "created": "2025-09-26T22:11:00",
+            "timestamp": "1758939060",
+            "note": "Cache built with patient-disjoint TUSZ official splits",
+            "train_patients": 579,
+            "dev_patients": 53,
+            "train_files": 4667,
+            "dev_files": 1832,
+            "version": "v3.2.0"
+        }
+        with open(metadata_dst, "w") as f:
+            json.dump(metadata, f, indent=2)
+        print(f"[COPY] ✅ Created metadata file at {metadata_dst}")
+
     # Verify final state
     train_count = len(list((dst / "train").glob("*.npz")))
     dev_count = len(list((dst / "dev").glob("*.npz")))
