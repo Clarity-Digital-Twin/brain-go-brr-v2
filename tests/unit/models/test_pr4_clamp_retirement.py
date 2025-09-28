@@ -15,15 +15,12 @@ from src.brain_brr.config.schemas import (
 from src.brain_brr.models.clamp_utils import monitored_clamp, monitored_nan_to_num
 from src.brain_brr.models.fusion import GatedFusion, MultiHeadGatedFusion
 
-# Import SeizureDetector only if PyG is available
-try:
-    import torch_geometric
+# Skip entire module if PyG not available
+torch_geometric = pytest.importorskip(
+    "torch_geometric", reason="PyTorch Geometric required for these tests"
+)
 
-    from src.brain_brr.models.detector import SeizureDetector
-
-    HAS_PYG = True
-except ImportError:
-    HAS_PYG = False
+from src.brain_brr.models.detector import SeizureDetector  # noqa: E402
 
 
 def test_gated_fusion():
@@ -125,7 +122,6 @@ def test_nan_to_num_monitoring():
     assert y[1] == 100.0
 
 
-@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric required")
 def test_pr4_model_creation():
     """Test model creation with PR-4 configs."""
     config = ModelConfig(
@@ -149,7 +145,6 @@ def test_pr4_model_creation():
     assert detector.clamp_config["remove_intermediate_clamps"] is False
 
 
-@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric required")
 def test_pr4_with_multihead_fusion():
     """Test multihead fusion integration."""
     config = ModelConfig(
@@ -175,7 +170,6 @@ def test_pr4_with_multihead_fusion():
     assert torch.isfinite(output).all()
 
 
-@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric required")
 def test_clamp_retirement_forward():
     """Test forward pass with clamps removed."""
     config = ModelConfig(
@@ -204,7 +198,6 @@ def test_clamp_retirement_forward():
     assert torch.isfinite(output).all()
 
 
-@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric required")
 def test_pr4_backward_compatibility():
     """Test PR-4 disabled by default."""
     config = ModelConfig()
@@ -223,7 +216,6 @@ def test_pr4_backward_compatibility():
     assert detector.fusion_type == "add"
 
 
-@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric required")
 def test_fusion_with_no_gnn():
     """Test fusion doesn't apply without GNN."""
     config = ModelConfig(

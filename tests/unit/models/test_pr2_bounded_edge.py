@@ -6,17 +6,12 @@ import torch.nn as nn
 
 from src.brain_brr.config.schemas import ModelConfig
 
-# Import SeizureDetector only if PyG is available
-try:
-    import torch_geometric
+# Skip entire module if PyG not available
+torch_geometric = pytest.importorskip(
+    "torch_geometric", reason="PyTorch Geometric required for these tests"
+)
 
-    from src.brain_brr.models.detector import SeizureDetector
-
-    HAS_PYG = True
-except ImportError:
-    HAS_PYG = False
-
-pytestmark = pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric required")
+from src.brain_brr.models.detector import SeizureDetector  # noqa: E402
 
 
 def test_edge_lift_activation():
