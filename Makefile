@@ -145,7 +145,7 @@ setup: ## Initial project setup
 	@echo "${GREEN}✓ Project ready!${NC}"
 
 setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.1)
-	@echo "${CYAN}Setting up GPU support for v2.6/V3 stack...${NC}"
+	@echo "${CYAN}Setting up GPU support for V3 stack...${NC}"
 	@echo "${YELLOW}Checking CUDA versions...${NC}"
 	@.venv/bin/python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA: {torch.version.cuda}')" || echo "${RED}PyTorch not installed${NC}"
 	@nvcc --version 2>/dev/null | grep "release" || echo "${RED}CUDA toolkit not found!${NC}"

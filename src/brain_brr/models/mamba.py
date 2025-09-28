@@ -89,13 +89,13 @@ class BiMamba2Layer(nn.Module):
                 self.backward_mamba_real = Mamba2(
                     d_model=d_model, d_state=d_state, d_conv=d_conv, expand=expand, headdim=headdim
                 )
-                print("[MAMBA] Successfully created Mamba2 layers", flush=True)
+                logger.info("[MAMBA] Successfully created Mamba2 layers")
             except Exception as e:
-                print(f"[MAMBA] Failed to create Mamba2 layers: {e}", flush=True)
+                logger.warning(f"[MAMBA] Failed to create Mamba2 layers: {e}")
                 self.forward_mamba_real = None
                 self.backward_mamba_real = None
         else:
-            print("[MAMBA] Mamba-SSM not available, using fallback", flush=True)
+            logger.warning("[MAMBA] mamba-ssm not available, using fallback")
             self.forward_mamba_real = None
             self.backward_mamba_real = None
 

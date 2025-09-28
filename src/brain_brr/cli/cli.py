@@ -226,14 +226,11 @@ def build_cache_cmd(data_dir: Path, cache_dir: Path, split: str, limit_files: in
                     f"[yellow]Limiting to {limit_from_env} files (from BGB_LIMIT_FILES)[/yellow]"
                 )
 
-        # For official TUSZ usage, point --data-dir at a single split (train/ or dev/)
-        # and select --split accordingly. We no longer re-split here; we build the
-        # cache for all files under the provided directory. 'val' is accepted as an
-        # alias for 'dev' for backward compatibility.
-        if split == "val":
-            split = "dev"
-        edf_files = edf_files_all
-        label_files = [p.with_suffix(".csv") for p in edf_files]
+    # For official TUSZ usage, point --data-dir at a single split (train/ or dev/)
+    # and select --split accordingly. We no longer re-split here; we build the
+    # cache for all files under the provided directory.
+    edf_files = edf_files_all
+    label_files = [p.with_suffix(".csv") for p in edf_files]
 
         console.print(
             f"[cyan]Building cache for {split} split ({len(edf_files)} files) from[/cyan] {data_dir}"

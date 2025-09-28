@@ -1,43 +1,29 @@
 # Changelog
 
-All notable changes to the Brain-Go-Brr v2 project will be documented in this file.
+All notable changes to the Brain-Go-Brr V3 project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [3.2.1] - 2025-09-28
 
-### 🚀 Production Training Release
+### 🚀 Stability & Consistency Cleanup
 
-This patch release marks the **production-ready codebase** used for final Modal A100 training runs. All PR-1 through PR-4 experimental features have been removed, leaving only the essential v3.2.0 improvements.
+Phase 1 of the cleanup focused on removing dead code and aligning naming across the codebase while preserving V3 architecture features (PR‑1/2/3/4) that remain in active use.
 
 ### Removed
-- **Legacy PR Features**: Completely removed all PR-1 through PR-4 experimental code
-  - Removed `clamp_retirement` configuration (PR-4)
-  - Removed `norms` boundary normalization (PR-1)
-  - Removed `fusion` configuration (PR-4)
-  - Removed `adj_row_softmax`, `edge_lift` fields (PR-2, PR-3)
-  - Cleaned all references from configs and documentation
-
-### Fixed
-- **Test Robustness**: Enhanced PyG-optional test handling
-  - Tests properly skip when PyTorch Geometric not installed
-  - CI/CD now passes on both GPU and CPU environments
-  - Conditional imports prevent module-level failures
+- Dead config: `ClampRetirementConfig` and all references (schemas and detector)
 
 ### Changed
-- **Documentation**: Comprehensive updates for production deployment
-  - Updated all consistency check files for v3.2.0
-  - Fixed Modal resource allocation documentation
-  - Clarified that resources are set in `app.py`, not YAML
-  - Updated batch sizes: Modal smoke=32, train=64
+- Branding: Updated module docstrings and CLI help from “v2” → “V3”
+- Modal cache checks: Replaced exact file count checks with resilient ranges (train: 4600–4700, dev: 1800–1900)
+- CLI: Removed unused `--validation-split` option from `build-cache`
 
-### Verified
-- **Configuration Alignment**: All configs now consistent
-  - `edge_similarity_margin: 0.01` in all configs
-  - Proper dynamic PE settings per platform
-  - Correct batch sizes and mixed precision settings
-  - Zero legacy PR references remaining
+### Fixed
+- Tests adjusted for V3 branding; renamed `test_pr4_clamp_retirement.py` → `test_fusion_and_clamp_utils.py`
+
+### Notes
+- PR‑1/2/3/4 code paths are retained and documented in code; clamps are minimized (retain essential output/decoded clamps and clamp‑at‑source for edges)
 
 ## [3.2.0] - 2025-09-27
 

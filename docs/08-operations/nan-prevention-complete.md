@@ -1,8 +1,10 @@
 # NaN Prevention & Handling: Complete Reference
 
+> Note (historical reference): This document describes the comprehensive 3‑tier clamping strategy used during V3 stabilization. As of v3.2.1, we rely on boundary normalization (PR‑1), clamp‑at‑source for edge similarities (PR‑5), and minimal safety clamps before/after the detection head. Internal “always on” clamps elsewhere have been retired or gated behind monitoring utilities. See `src/brain_brr/models/detector.py` and `docs/04-model/v3-architecture.md` for the current implementation.
+
 **Last Updated**: September 26, 2025
 **Architecture**: V3 dual-stream (TCN + BiMamba + GNN + LPE)
-**Status**: PRODUCTION-READY with 3-tier clamping system
+**Status**: Production with minimal safety clamps (see note above)
 
 ## Critical Fixes (September 26, 2025)
 
@@ -33,7 +35,7 @@ rm -rf cache/tusz
 python -m src build-cache --data-dir data_ext4/tusz/edf --cache-dir cache/tusz
 ```
 
-## 3-Tier Clamping System
+## 3-Tier Clamping System (historical overview)
 
 | Tier | Range | Purpose | Where Used |
 |------|-------|---------|------------|
