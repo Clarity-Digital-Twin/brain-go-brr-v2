@@ -203,7 +203,9 @@
       "Bash(.venv/bin/ruff check:*)",
       "Bash(git describe:*)",
       "Bash(do tail -1 train.log)",
-      "Bash(break)"
+      "Bash(break)",
+      "Bash(while ! grep -q \"test_peak_confidence\" test_output.log)",
+      "Bash(while pgrep -f \"pytest.*test\")"
     ],
     "deny": [],
     "ask": []
