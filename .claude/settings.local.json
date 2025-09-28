@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git revert:*)"
+      "Bash(git revert:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
