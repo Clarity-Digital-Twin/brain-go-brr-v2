@@ -9,7 +9,9 @@ from src.brain_brr.config.schemas import ModelConfig
 # Import SeizureDetector only if PyG is available
 try:
     import torch_geometric
+
     from src.brain_brr.models.detector import SeizureDetector
+
     HAS_PYG = True
 except ImportError:
     HAS_PYG = False

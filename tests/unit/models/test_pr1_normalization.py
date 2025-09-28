@@ -20,7 +20,9 @@ from src.brain_brr.models.norms import LayerScale, RMSNorm, create_norm_layer
 # Import SeizureDetector only if PyG is available
 try:
     import torch_geometric
+
     from src.brain_brr.models.detector import SeizureDetector
+
     HAS_PYG = True
 except ImportError:
     HAS_PYG = False
