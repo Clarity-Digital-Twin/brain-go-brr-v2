@@ -124,12 +124,14 @@ model:
     enabled: true
     # PyG is required; no separate toggle needed
     alpha: 0.05    # SSGConv mixing parameter
-    k_eigenvectors: 16  # Static Laplacian PE
+    k_eigenvectors: 16  # Laplacian PE dimension
+    use_dynamic_pe: true  # Dynamic PE (recomputed per timestep)
 
     # V3-specific edge stream config:
     edge_mamba_layers: 2
     edge_mamba_d_state: 8
     edge_mamba_d_model: 16  # Must be multiple of 8
+    edge_similarity_margin: 0.01  # v3.2.0: Safety margin from ±1 boundaries
 ```
 
 ## 📊 Expected Training Times

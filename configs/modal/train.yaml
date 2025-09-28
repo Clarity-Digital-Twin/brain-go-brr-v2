@@ -133,7 +133,3 @@ logging:
   log_every_n_steps: 25                # More frequent on fast GPU
   log_gradients: false
   log_weights: false
-
-resources:
-  max_memory_gb: 80                    # A100 has 80GB VRAM
-  distributed: false                   # Single GPU for now
