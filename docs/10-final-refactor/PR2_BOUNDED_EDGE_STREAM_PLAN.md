@@ -1,5 +1,10 @@
 # PR-2: Bounded Edge Stream - Detailed Planning Document
 
+Note (historical planning document)
+- Status: Implemented in code; this file captures the original plan and rationale.
+- Source of truth: See code (`src/brain_brr/models/detector.py`, `src/brain_brr/models/edge_features.py`) and docs (`docs/04-model/edge-features-and-adjacency.md`).
+- Verification: Behavior may evolve; validate via code/tests rather than line counts.
+
 ## Problem Statement
 
 The edge stream has a **pathological 16x dimension explosion**:
