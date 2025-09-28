@@ -57,6 +57,12 @@ src/brain_brr/train/wandb_integration.py:1: "Brain-Go-Brr v2"
 - `configs/`: All cleaned up ✅
 - `docs/`: All cleaned up ✅
 
+### 9. Debug Print Statements
+**Location**: `src/brain_brr/train/loop.py`
+- Lines 264, 654, 660, 668, 672, 718, 752, 1157, 1515: DEBUG print statements
+- **Impact**: Verbose output in production
+- **Action**: Convert to proper logging or remove
+
 ## 📝 Documentation Issues
 
 ### 6. PR-1 through PR-4 References Throughout Code
@@ -88,12 +94,15 @@ tests/unit/models/test_pr4_clamp_retirement.py
 
 ## 🔍 Dead Code Detection Strategy
 
-### Recommended Tools (2025)
-1. **vulture** - Find dead code
-2. **pyflakes** - Detect unused imports
-3. **ruff** with dead code rules
-4. **coverage.py** - Find untested code paths
+### Recommended Tools (2025 Research Update)
+1. **vulture** - Lightweight dead code detection (still the primary tool)
+2. **coverage.py** - More reliable than vulture but requires running all code paths
+3. **pyflakes** - Finds unused imports and variables efficiently
+4. **ruff** - Modern, fast linter with dead code rules (F401, F841)
 5. **pycln** - Auto-remove unused imports
+6. **Prospector** - Bundles multiple tools including vulture
+7. **Codacy/Qodana** - CI/CD platforms for continuous monitoring
+8. **Smart TS XL** - AI-driven static analysis (new in 2025)
 
 ### Detection Commands
 ```bash
@@ -166,6 +175,9 @@ Current state:
 - Total lines of code: ~10,000
 - Test coverage: TBD
 - Dead code instances: TBD (run vulture)
+- DEBUG print statements: 8+ instances in train/loop.py
+- TODO/FIXME/HACK comments: 0 found
+- NOTE comments: 3 found (acceptable)
 
 ## 🤝 Review Process
 
