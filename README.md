@@ -28,7 +28,7 @@
 └─────────────────┴──────────────┴─────────────┘
 ```
 
-**Current Status**: Building cache (4667/6499 files) → Ready to train
+Tip: Ensure train/dev caches are built and manifests exist before training.
 
 ## 🏗️ Architecture
 
@@ -62,6 +62,14 @@
                             │
                             ▼
                      Seizure Predictions
+
+Stability by construction (implemented)
+
+- Boundary normalization at seams (PR‑1): configurable via `model.norms.*`.
+- Bounded edge lift (PR‑2): `graph.edge_lift_activation` + `graph.edge_lift_norm`, init gain 0.1.
+- Adjacency conditioning (PR‑3): `graph.adj_row_softmax`, `adj_ema_beta`, `adj_force_symmetric`, `laplacian_eps`.
+- Clamp at source (PR‑5): edge similarity clamped to `[-1+margin, 1-margin]` via `edge_similarity_margin`.
+- Dynamic PE safeguards: FP32 eigens, sign consistency, regularization, fallback; `semi_dynamic_interval` for memory.
 ```
 
 ### Key Components

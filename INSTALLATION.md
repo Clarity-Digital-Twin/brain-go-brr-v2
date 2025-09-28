@@ -1,8 +1,9 @@
-# Installation Guide for Brain-Go-Brr v2.6/V3
+# Installation Guide for Brain-Go-Brr V3
 
 ## Stack Overview
 
-The stack uses **TCN + BiMamba + GNN + LPE** for O(N) seizure detection (V3 path = learned adjacency; legacy V2 heuristic graphs have been removed):
+The stack uses **TCN + BiMamba + GNN + LPE** for O(N) seizure detection.
+V3 is the only supported architecture; the legacy V2 heuristic graph path has been removed.
 - **PyTorch 2.2.2** with CUDA 12.1 (EXACT version required)
 - **Mamba-SSM 2.2.2** (bidirectional state-space model)
 - **PyTorch Geometric 2.6.1** (graph neural networks with Laplacian PE)
