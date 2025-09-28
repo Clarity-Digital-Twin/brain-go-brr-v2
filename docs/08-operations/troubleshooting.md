@@ -25,7 +25,7 @@ V3 NaN issues
 - Default configs enable dynamic PE with safeguards; on consumer GPUs (RTX 4090), prefer increasing `graph.semi_dynamic_interval` first; as a last resort set `use_dynamic_pe: false`.
 - Additional safeguards:
   - Edge similarity is clamped at the source with a configurable margin: `graph.edge_similarity_margin` (default 0.01)
-  - Edge lift uses bounded activation + normalization (tanh + LayerNorm when enabled); no hardcoded `[-3,3]` clamp remains
+  - Edge lift uses bounded activation + normalization (tanh + LayerNorm) by default (PR‑2). A conservative `[-3,3]` fallback only applies if PR‑2 is disabled.
   - Optimizer parameter groups (no weight decay on norms/bias)
   - Optional gradient sanitization (`BGB_SANITIZE_GRADS=1`)
 - Details and timeline: `docs/08-operations/v3-nan-explosion-resolution.md`
