@@ -43,10 +43,13 @@ Graph (GNN + adjacency)
 
 - Enable: `enabled: true`
 - Edge stream: `edge_features: cosine|correlation`, `edge_similarity_margin: 0.01`, `edge_top_k: 3`, `edge_threshold: 1e-4`, `edge_mamba_layers: 2`, `edge_mamba_d_state: 8`, `edge_mamba_d_model: 16`
+- Bounded edge lift (PR‑2): `edge_lift_activation: tanh|sigmoid|selu|none` (default `none`), `edge_lift_norm: layernorm|rmsnorm|none` (default `none`), `edge_lift_init_gain: 0.1`
 - GNN: `n_layers: 2`, `dropout: 0.1`, `use_residual: true`, `alpha: 0.05`, `k_eigenvectors: 16`
 - Dynamic PE: `use_dynamic_pe: true|false` (schema default true for V3)
 - Semi-dynamic update interval: `semi_dynamic_interval: 1` (1 = fully dynamic)
 - Sign consistency: `pe_sign_consistency: true` (prevent random eigenvector sign flips)
+- Adjacency conditioning (PR‑3): `adj_row_softmax: bool`, `adj_softmax_tau: 0.1..10.0`, `adj_ema_beta: 0..1 (None to disable)`, `adj_force_symmetric: bool`
+- Laplacian regularization: `laplacian_eps: 1e-6..1e-2` (default `1e-4`), `laplacian_normalize: bool` (default `true`)
 
 Postprocessing
 

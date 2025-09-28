@@ -1,4 +1,4 @@
-# Full Training: TCN + Bi-Mamba + GNN Stack (v2 or v3)
+# Full Training: TCN + Bi-Mamba + GNN Stack (V3)
 # Optimized for RTX 4090 (24GB VRAM) with NaN protections
 # Based on EvoBrain proven parameters + RTX 4090 best practices
 #
@@ -27,7 +27,7 @@ experiment:
     entity: null
 
 model:
-  # Architecture: "tcn" (v2) or "v3" (dual-stream with edge Mamba)
+  # Architecture: "v3" (dual-stream with edge Mamba)
   architecture: v3  # V3 dual-stream with learned adjacency
 
   tcn:
@@ -45,9 +45,9 @@ model:
     conv_kernel: 4  # CUDA constraint: must be 2-4
     dropout: 0.1
 
-  # Graph configuration (works for both v2 and v3)
+  # Graph configuration (V3)
   graph:
-    enabled: true              # Required for both v2 and v3
+    enabled: true              # Required for V3
 
     # V3: Edge stream config
     edge_features: cosine      # Edge feature metric for v3
@@ -60,7 +60,7 @@ model:
 
     # V2 heuristic removed
 
-    # Shared GNN architecture (both v2.6 and v3)
+    # GNN architecture
     n_layers: 2                # 2-layer GNN
     dropout: 0.1
     use_residual: true         # Skip connections
