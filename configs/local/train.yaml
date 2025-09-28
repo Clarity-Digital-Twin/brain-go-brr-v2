@@ -13,8 +13,8 @@ experiment:
   name: full_training
   description: "Full training - TCN+BiMamba+GNN on RTX 4090"
   seed: 42
-  output_dir: results/full_training
-  cache_dir: cache/full_training
+  output_dir: results/local_training
+  cache_dir: cache/tusz                # Same as data.cache_dir for consistency
   device: cuda
   log_level: INFO
   save_model: true
