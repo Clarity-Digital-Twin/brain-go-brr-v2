@@ -90,7 +90,6 @@ class SeizureDetector(nn.Module):
         self.fusion: nn.Module | None = None
         self.fusion_type: str = "add"
 
-
         # Backwards-compat: ensure mamba_dropout has a concrete value
         if mamba_dropout is None:
             mamba_dropout = 0.1
@@ -548,7 +547,6 @@ class SeizureDetector(nn.Module):
                     64, fusion_cfg.fusion_heads, fusion_cfg.fusion_dropout
                 )
             # else: keep None for default additive fusion
-
 
         # Optionally attach GNN components if enabled
         graph_cfg = getattr(cfg, "graph", None)

@@ -206,9 +206,7 @@ def train(config_path: Path, resume: bool, device: str) -> None:
 @click.option(
     "--limit-files", type=int, default=None, help="Limit number of files to process (for testing)"
 )
-def build_cache_cmd(
-    data_dir: Path, cache_dir: Path, split: str, limit_files: int | None
-) -> None:
+def build_cache_cmd(data_dir: Path, cache_dir: Path, split: str, limit_files: int | None) -> None:
     """Build cache for a chosen split under DATA_DIR into CACHE_DIR."""
     try:
         from src.brain_brr.data import EEGWindowDataset

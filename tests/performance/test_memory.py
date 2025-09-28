@@ -1,4 +1,4 @@
-"""Memory profiling tests for Brain-Go-Brr v2."""
+"""Memory profiling tests for Brain-Go-Brr V3."""
 
 import gc
 import os

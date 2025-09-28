@@ -1,4 +1,4 @@
-"""Comprehensive export functionality tests for Brain-Go-Brr v2."""
+"""Comprehensive export functionality tests for Brain-Go-Brr V3."""
 
 import csv
 import json

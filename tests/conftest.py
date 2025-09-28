@@ -1,4 +1,4 @@
-"""Root test configuration and shared fixtures for Brain-Go-Brr v2."""
+"""Root test configuration and shared fixtures for Brain-Go-Brr V3."""
 
 # Fix CUDA detection in pytest-xdist multiprocessing
 # CUDA cannot be re-initialized in forked subprocess

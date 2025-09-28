@@ -9,7 +9,9 @@
       "Bash(git checkout:*)",
       "Bash(pip install:*)",
       "Bash(vulture:*)",
-      "Bash(ruff check:*)"
+      "Bash(ruff check:*)",
+      "Bash(make:*)",
+      "Bash(python -m pytest tests/unit/config/test_schemas.py -xvs)"
     ],
     "deny": [],
     "ask": []
