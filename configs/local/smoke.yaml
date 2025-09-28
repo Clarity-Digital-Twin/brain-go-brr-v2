@@ -7,7 +7,6 @@
 #
 # Usage: BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 python -m src train configs/local/smoke.yaml
 #
-# To enable PR-1 normalization: set model.norms.boundary_norm to "layernorm" (default: "none")
 
 experiment:
   name: smoke_test
@@ -44,20 +43,6 @@ model:
     edge_mamba_d_model: 16
     edge_similarity_margin: 0.01  # PR-5: Safety margin from ±1 boundaries
 
-    # PR-2: BOUNDED EDGE STREAM (disabled by default)
-    # To enable: change edge_lift_activation from "none" to "tanh"
-    edge_lift_activation: tanh  # Options: tanh | sigmoid | selu | none  # PR-2 ENABLED
-    edge_lift_norm: layernorm  # Options: layernorm | rmsnorm | none  # PR-2 ENABLED
-    edge_lift_init_gain: 0.1
-
-    # PR-3: ADJACENCY CONDITIONING (disabled by default)
-    # To enable: set adj_row_softmax: true and adj_force_symmetric: true
-    adj_row_softmax: true  # Apply masked row-wise softmax  # PR-3 ENABLED
-    adj_softmax_tau: 1.0  # Temperature for softmax
-    adj_ema_beta: 0.9  # EMA coefficient (null=disabled, 0.9=recommended)  # PR-3 ENABLED
-    adj_force_symmetric: true  # Force symmetric adjacency  # PR-3 ENABLED
-    laplacian_eps: 1.0e-3  # Laplacian regularization  # PR-3 increased for stability
-    laplacian_normalize: true  # Use normalized Laplacian
 
     n_layers: 2
     dropout: 0.1
@@ -68,32 +53,6 @@ model:
     semi_dynamic_interval: 10
     pe_sign_consistency: true
 
-  # PR-1: BOUNDARY NORMALIZATION (disabled by default)
-  # To enable: change boundary_norm from "none" to "layernorm"
-  norms:
-    boundary_norm: layernorm  # Options: layernorm | rmsnorm | none  # PR-1 ENABLED
-    boundary_eps: 1.0e-5
-    layerscale_alpha: 0.1
-    after_tcn_proj: true
-    after_node_mamba: true
-    after_edge_mamba: true
-    after_gnn: true
-    before_decoder: true
-
-  # PR-4: CLAMP RETIREMENT & FUSION (monitoring mode)
-  fusion:
-    fusion_type: gated  # Options: add | gated | multihead
-    fusion_heads: 4
-    fusion_dropout: 0.1
-
-  clamp_retirement:
-    remove_intermediate_clamps: false  # Start false, monitor first
-    remove_nan_to_num: false  # Keep for now
-    keep_input_clamp: true  # Essential
-    keep_output_clamp: true  # Essential
-    keep_loss_clamps: true  # Essential
-    log_clamp_hits: true  # Monitor what would clamp
-    validate_finite: true  # Verify stability
 
 data:
   dataset: tuh_eeg

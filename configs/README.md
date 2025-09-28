@@ -74,6 +74,8 @@ modal app list
 modal app logs <app-id>
 ```
 
+**Note**: Modal resource allocation (24 CPU cores, 96GB RAM, A100-80GB GPU) is configured in `deploy/modal/app.py`, NOT in the YAML configs.
+
 ## 🔑 Key Configuration Differences
 
 | Setting | Local (RTX 4090) | Modal (A100-80GB) | Why Different |
