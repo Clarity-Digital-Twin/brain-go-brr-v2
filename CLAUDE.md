@@ -268,6 +268,21 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 - **Cache size**: ~50GB processed NPZ files
 - **Checkpoint size**: ~125MB per epoch
 
+### GPU-Specific Test Adjustments
+
+Due to hardware differences, integration tests have adjusted thresholds:
+
+| Test Type | RTX 4090 (Local) | A100 (CI/Modal) |
+|-----------|------------------|-----------------|
+| Batch Size | 2 (24GB VRAM) | 4-8 (80GB VRAM) |
+| TCN Speed (10 batches) | <1.5s | <0.5s |
+| Memory Usage | <4.0GB | <8.0GB |
+
+**Environment Variables:**
+- `BGB_TCN_SPEED_TARGET`: Override speed threshold (default: 1.5s local, 0.5s CI)
+- `BGB_TCN_MEM_MAX`: Override memory threshold (default: 4.0GB)
+- `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`: Reduce VRAM fragmentation
+
 ---
 
 **Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
