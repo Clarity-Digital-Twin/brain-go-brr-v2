@@ -10,7 +10,9 @@ SOLID principles applied:
 
 from __future__ import annotations
 
+import logging
 import math
+import os
 import random
 import sys
 import time
@@ -48,6 +50,7 @@ from src.brain_brr.config.schemas import (
 )
 from src.brain_brr.eval.metrics import evaluate_predictions
 from src.brain_brr.models import SeizureDetector
+from src.brain_brr.utils.training_logger import TrainingLogger
 from src.brain_brr.train.wandb_integration import WandBLogger
 from src.brain_brr.utils.env import env
 
