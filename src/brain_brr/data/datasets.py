@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Callable
 from pathlib import Path
 
@@ -10,6 +11,9 @@ import numpy as np
 import numpy.typing as npt
 import torch
 from torch.utils.data import Dataset
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from src.brain_brr import constants
 from src.brain_brr.data.cache_utils import scan_existing_cache
@@ -61,29 +65,26 @@ class EEGWindowDataset(torch.utils.data.Dataset):
                     current_files = [p.name for p in self.edf_files]
                     if cached_files == current_files:
                         self._file_window_counts = cached_index["window_counts"]
-                        print(
-                            f"[DATA] Loaded cached index: {len(self.edf_files)} files, {sum(self._file_window_counts)} windows",
-                            flush=True,
+                        logger.info(
+                            f"[DATA] Loaded cached index: {len(self.edf_files)} files, {sum(self._file_window_counts)} windows"
                         )
                         # Build index map from counts
                         for file_idx, n_windows in enumerate(self._file_window_counts):
                             for w_idx in range(n_windows):
                                 self._index_map.append((file_idx, w_idx))
-                        print(
-                            f"[DATA] Dataset ready! Total windows: {len(self._index_map)}",
-                            flush=True,
+                        logger.info(
+                            f"[DATA] Dataset ready! Total windows: {len(self._index_map)}"
                         )
                         return  # Skip the slow loading!
                 except Exception as e:
-                    print(f"[DATA] Could not load cached index: {e}", flush=True)
+                    logger.warning(f"[DATA] Could not load cached index: {e}")
 
         # Pre-compute or load window counts for each file
-        print(f"[DATA] Building dataset index for {len(self.edf_files)} files...", flush=True)
+        logger.info(f"[DATA] Building dataset index for {len(self.edf_files)} files...")
         for i, edf_path in enumerate(self.edf_files):
             if i % 10 == 0:
-                print(
-                    f"[DATA] Processing file {i + 1}/{len(self.edf_files)}: {edf_path.name}",
-                    flush=True,
+                logger.info(
+                    f"[DATA] Processing file {i + 1}/{len(self.edf_files)}: {edf_path.name}"
                 )
             cache_path = None
             if self.cache_dir is not None:
@@ -102,7 +103,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
                         else:
                             np.savez_compressed(cache_path, windows=windows_arr)
             else:
-                print(f"[DATA] Building cache for {edf_path.name}...", flush=True)
+                logger.info(f"[DATA] Building cache for {edf_path.name}...")
                 windows_arr, labels_arr = self._process_file(edf_path, i)
                 n_windows = windows_arr.shape[0]
                 if cache_path is not None:
@@ -126,11 +127,11 @@ class EEGWindowDataset(torch.utils.data.Dataset):
                 }
                 with open(index_cache_path, "w") as f:
                     json.dump(cache_data, f)
-                print(f"[DATA] Saved index cache to {index_cache_path}", flush=True)
+                logger.info(f"[DATA] Saved index cache to {index_cache_path}")
             except Exception as e:
-                print(f"[DATA] Could not save index cache: {e}", flush=True)
+                logger.warning(f"[DATA] Could not save index cache: {e}")
 
-        print(f"[DATA] Dataset ready! Total windows: {len(self._index_map)}", flush=True)
+        logger.info(f"[DATA] Dataset ready! Total windows: {len(self._index_map)}")
 
     def _process_file(
         self, edf_path: Path, file_idx: int
@@ -332,15 +333,15 @@ class BalancedSeizureDataset(Dataset):
         )
 
         base = max(1, n_partial_used)
-        print(
+        logger.info(
             f"[BalancedSeizureDataset] Created with {len(self._entries)} windows:\n"
             f"  - {n_partial_used} partial seizure (100% of available)\n"
             f"  - {n_full_used} full seizure ({n_full_used / base:.1%} of partial)\n"
             f"  - {n_bg_used} no-seizure ({n_bg_used / base:.1%} of partial)"
         )
         if missing_ref_count > 0:
-            print(
-                f"[WARNING] Skipped {missing_ref_count} manifest entries referencing missing cache files"
+            logger.warning(
+                f"Skipped {missing_ref_count} manifest entries referencing missing cache files"
             )
 
     def __len__(self) -> int:
