@@ -16,12 +16,11 @@
   - `deploy/modal/app.py`: 42 instances
   - Others: 18 instances across 5 files
 - **Rich console.print() calls**: 47 in `cli/cli.py` (DO NOT MIGRATE - user-facing)
-- **Files already using logging**: 5
+- **Files already using logging**: 4
   - `data/io.py:19` - logger = logging.getLogger(__name__)
   - `models/clamp_utils.py:12` - logger = logging.getLogger(__name__)
   - `models/tcn.py:16` - logger = logging.getLogger(__name__)
   - `models/mamba.py:19` - logger = logging.getLogger(__name__)
-  - `literature/pdf_to_markdown.py:42` - logger = logging.getLogger(__name__)
 - **No central logging configuration exists**
 
 ### File Breakdown
@@ -524,7 +523,7 @@ if math.isnan(loss):
 - **Total print() calls**: 387 (247 src + 140 deploy)
 - **Prints with flush=True**: 147 total
 - **Rich console.print()**: 47 in CLI (KEEP as-is)
-- **Files with logging**: 5 existing
+- **Files with logging**: 4 existing
 - **Environment variables**: 25+ BGB_* variables to integrate
 - **Modal functions needing setup**: 5 functions
 - **Tests using output capture**: ~10 CLI tests, 1 caplog test
@@ -532,7 +531,7 @@ if math.isnan(loss):
 ### Migration Scope
 - **Must migrate**: 340 print statements (387 - 47 CLI console.print)
 - **High priority**: 261 prints (loop.py + app.py)
-- **Already logging**: 5 files need print cleanup only
+- **Already logging**: 4 files need print cleanup only
 - **Test changes**: Minimal (CLI tests unchanged)
 
 The 387 print statements represent significant technical debt. However, with proper gating (BGB_LOG_EVERY_N_STEPS) and level control, we can maintain performance while gaining production logging capabilities. This plan provides a precise, actionable path forward.
