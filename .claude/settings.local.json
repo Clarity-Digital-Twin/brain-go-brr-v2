@@ -86,7 +86,8 @@
       "Bash(uv pip install:*)",
       "Bash(uv pip uninstall:*)",
       "Bash(.venv/bin/pip uninstall:*)",
-      "Bash(.venv/bin/pip install --no-build-isolation --no-binary=causal-conv1d causal-conv1d==1.5.2)"
+      "Bash(.venv/bin/pip install --no-build-isolation --no-binary=causal-conv1d causal-conv1d==1.5.2)",
+      "Bash(nvidia-smi:*)"
     ],
     "deny": [],
     "ask": []
