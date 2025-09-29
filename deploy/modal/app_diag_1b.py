@@ -376,9 +376,6 @@ def test_mamba_cuda():
 def train(
     config_path: str = "configs/modal/smoke.yaml",  # Default to smoke test for safety
     resume: bool = False,  # Resume training from last.pt in output_dir
-    cuda_launch_blocking: bool = False,  # Enable CUDA_LAUNCH_BLOCKING for diagnostics
-    cuda_dsa: bool = False,  # Enable TORCH_USE_CUDA_DSA for diagnostics
-    force_fallback: bool = False,  # Force Mamba Conv1d fallback
 ):
     """Run training on Modal GPU.
 
@@ -394,19 +391,6 @@ def train(
 
     import os
     import subprocess
-
-    # Set diagnostic environment variables if requested
-    if cuda_launch_blocking:
-        os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-        logger.info("[DIAGNOSTIC] CUDA_LAUNCH_BLOCKING=1 (synchronous kernel execution)")
-
-    if cuda_dsa:
-        os.environ["TORCH_USE_CUDA_DSA"] = "1"
-        logger.info("[DIAGNOSTIC] TORCH_USE_CUDA_DSA=1 (device-side assertions)")
-
-    if force_fallback:
-        os.environ["SEIZURE_MAMBA_FORCE_FALLBACK"] = "1"
-        logger.info("[DIAGNOSTIC] SEIZURE_MAMBA_FORCE_FALLBACK=1 (using Conv1d instead of Mamba CUDA)")
 
     # Test mamba-ssm import
     try:
@@ -745,9 +729,6 @@ def main(
     action: str = "train",
     config: str = "configs/modal/smoke.yaml",  # Default to smoke test for safety
     resume: bool = False,  # Resume training from last.pt
-    cuda_launch_blocking: bool = False,  # Enable CUDA_LAUNCH_BLOCKING for diagnostics
-    cuda_dsa: bool = False,  # Enable TORCH_USE_CUDA_DSA for diagnostics
-    force_fallback: bool = False,  # Force Mamba Conv1d fallback
 ):
     """Modal deployment entrypoint.
 
@@ -811,13 +792,7 @@ def main(
 
     elif action == "train":
         # Always use train.remote() - Modal's --detach flag controls app lifecycle
-        result = train.remote(
-            config_path=config,
-            resume=resume,
-            cuda_launch_blocking=cuda_launch_blocking,
-            cuda_dsa=cuda_dsa,
-            force_fallback=force_fallback,
-        )
+        result = train.remote(config_path=config, resume=resume)
         logger.info(f"✓ Training complete. Checkpoint: {result}")
 
     elif action == "evaluate":
