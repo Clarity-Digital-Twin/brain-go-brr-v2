@@ -67,3 +67,66 @@ Modal cache hygiene
 - Do not use S3 for caches; keep NPZs on Modal volume at `/results/cache/tusz/`
 - Modal persistent volume only used for results at `/results/`
 - Ensure `data.data_dir: /data/edf` and `data.split_policy: official_tusz`; app verifies patient disjointness on startup.
+
+## Emergency Recovery Procedures
+
+### Training Shows Zero Seizures
+**Symptom**: "Seizure ratio: 0%" in logs
+**Cause**: Missing or corrupted manifest file
+```bash
+# Force manifest rebuild locally
+BGB_FORCE_MANIFEST_REBUILD=1 python -m src scan-cache --cache-dir cache/tusz/train
+
+# Re-upload to S3 (including JSONs!)
+aws s3 sync cache/tusz/train/ s3://brain-go-brr-eeg-data-20250919/cache/tusz/train/ \
+  --exclude "*.log" --exclude "__pycache__/*"
+
+# Verify manifest uploaded
+aws s3 ls s3://brain-go-brr-eeg-data-20250919/cache/tusz/train/manifest.json
+
+# Re-run Modal populate-cache
+modal run --detach deploy/modal/app.py --action populate-cache
+```
+
+### Modal populate-cache Stops
+**Symptom**: Function exits after ~8 minutes
+**Cause**: Terminal disconnection without --detach
+```bash
+# Always use --detach for long-running commands
+modal run --detach deploy/modal/app.py --action populate-cache
+
+# Alternative: Use tmux for safety
+tmux new -s populate
+modal run deploy/modal/app.py --action populate-cache
+# Ctrl+B then D to detach
+tmux attach -t populate  # To reattach
+```
+
+### Cache Corruption
+**Symptom**: Unexpected errors during data loading
+```bash
+# Clean Modal cache completely
+modal run deploy/modal/app.py --action clean-cache
+
+# Delete local cache
+rm -rf cache/tusz/
+
+# Rebuild from scratch (takes 2-3 hours)
+make train-local  # Will rebuild cache automatically
+
+# Upload fixed cache to S3
+aws s3 sync cache/tusz/ s3://brain-go-brr-eeg-data-20250919/cache/tusz/ \
+  --exclude "*.log" --exclude "__pycache__/*"
+
+# Repopulate Modal
+modal run --detach deploy/modal/app.py --action populate-cache
+```
+
+### Manifest Issues Quick Reference
+| Issue | Solution |
+|-------|----------|
+| No train manifest | `python -m src scan-cache --cache-dir cache/tusz/train` |
+| No dev manifest | `python -m src scan-cache --cache-dir cache/tusz/dev` (optional) |
+| Stale manifest | `BGB_FORCE_MANIFEST_REBUILD=1` before scan-cache |
+| Upload excluded JSONs | Remove `--exclude "*.json"` from S3 sync |
+| Verify manifest size | Train: ~27MB, Dev: ~13MB |
