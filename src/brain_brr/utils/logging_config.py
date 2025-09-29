@@ -57,12 +57,16 @@ class RingBufferHandler(logging.Handler):
     def __init__(self, capacity: int = 1000):
         super().__init__()
         self.buffer: deque[logging.LogRecord] = deque(maxlen=capacity)
-        self.lock: threading.Lock = threading.Lock()
+        self.lock: threading.RLock = threading.RLock()  # Use RLock for re-entrancy
 
     def emit(self, record: logging.LogRecord) -> None:
         """Add record to ring buffer with thread safety."""
-        with self.lock:
-            self.buffer.append(record)
+        try:
+            with self.lock:
+                self.buffer.append(record)
+        except Exception:
+            # Never log here - just swallow to avoid re-entrancy
+            self.handleError(record)
 
     def get_records(self, n: int | None = None) -> list[logging.LogRecord]:
         """Get last n records (or all if n is None)."""
