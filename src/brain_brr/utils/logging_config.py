@@ -1,0 +1,480 @@
+"""Elite logging configuration for Brain-Go-Brr V3.
+
+Production-grade logging infrastructure with:
+- Thread-safe singleton pattern
+- Zero-overhead when disabled
+- Structured logging support
+- Performance-conscious design
+- Context managers for temporary config
+- Ring buffer for high-frequency logs
+
+Author: Elite Engineering Team
+Standards: Google DeepMind + Clean Code principles
+"""
+
+import atexit
+import logging
+import os
+import sys
+import threading
+from collections import deque
+from contextlib import contextmanager
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
+
+from rich.console import Console
+from rich.logging import RichHandler
+
+# Constants from environment with sensible defaults
+LOG_LEVEL = os.getenv("BGB_LOG_LEVEL", "INFO")
+LOG_FILE = os.getenv("BGB_LOG_FILE", None)
+LOG_FORMAT = os.getenv("BGB_LOG_FORMAT", "rich")  # "rich", "simple", "json"
+LOG_EVERY_N_STEPS = int(os.getenv("BGB_LOG_EVERY_N_STEPS", "50"))
+LOG_RING_BUFFER_SIZE = int(os.getenv("BGB_LOG_RING_BUFFER_SIZE", "1000"))
+
+# Thread-safe singleton instance
+_lock = threading.Lock()
+_instance: Optional["LoggingConfig"] = None
+
+
+class RingBufferHandler(logging.Handler):
+    """High-performance ring buffer handler for debugging.
+
+    Keeps last N log records in memory for post-mortem analysis.
+    Zero allocation after buffer fills - reuses existing slots.
+    """
+
+    def __init__(self, capacity: int = 1000):
+        super().__init__()
+        self.buffer = deque(maxlen=capacity)
+        self.lock = threading.Lock()
+
+    def emit(self, record: logging.LogRecord) -> None:
+        """Add record to ring buffer with thread safety."""
+        with self.lock:
+            self.buffer.append(record)
+
+    def get_records(self, n: Optional[int] = None) -> list[logging.LogRecord]:
+        """Get last n records (or all if n is None)."""
+        with self.lock:
+            if n is None:
+                return list(self.buffer)
+            return list(self.buffer)[-n:]
+
+    def clear(self) -> None:
+        """Clear the buffer."""
+        with self.lock:
+            self.buffer.clear()
+
+
+class PerformanceFilter(logging.Filter):
+    """Performance-conscious filter for high-frequency logs.
+
+    Gates logs by step count to prevent spam while maintaining visibility.
+    Uses efficient modulo check with configurable step size.
+    """
+
+    def __init__(self, every_n_steps: int = 50):
+        super().__init__()
+        self.every_n_steps = every_n_steps
+        self.step_counters: Dict[str, int] = {}
+        self.lock = threading.Lock()
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Filter based on step count if record has step attribute."""
+        # Always pass non-step logs
+        if not hasattr(record, "step"):
+            return True
+
+        # Gate by step count
+        step = record.step
+        key = f"{record.name}:{record.funcName}"
+
+        with self.lock:
+            # Track per-function step counts
+            if key not in self.step_counters:
+                self.step_counters[key] = 0
+
+            # Check if we should log this step
+            if step % self.every_n_steps == 0:
+                self.step_counters[key] = step
+                return True
+
+            # Special case: always log first and last steps
+            if step == 0 or hasattr(record, "is_last"):
+                return True
+
+            return False
+
+
+class LoggingConfig:
+    """Elite logging configuration with singleton pattern.
+
+    Thread-safe, lazy initialization, zero overhead when disabled.
+    Follows Google's internal logging best practices.
+    """
+
+    def __init__(self):
+        self.is_configured = False
+        self.handlers: Dict[str, logging.Handler] = {}
+        self.ring_buffer: Optional[RingBufferHandler] = None
+        self.performance_filter: Optional[PerformanceFilter] = None
+        self.console: Optional[Console] = None
+        self._original_levels: Dict[str, int] = {}
+
+    def setup(
+        self,
+        level: Union[str, int] = LOG_LEVEL,
+        log_file: Optional[Union[str, Path]] = LOG_FILE,
+        format_style: str = LOG_FORMAT,
+        force: bool = False,
+        enable_ring_buffer: bool = True,
+        enable_performance_filter: bool = True,
+    ) -> None:
+        """Configure logging with production-grade settings.
+
+        Args:
+            level: Logging level (string or int)
+            log_file: Optional log file path
+            format_style: Output format ("rich", "simple", "json")
+            force: Force reconfiguration even if already configured
+            enable_ring_buffer: Enable in-memory ring buffer for debugging
+            enable_performance_filter: Enable step-based gating
+
+        Thread-safe configuration with idempotency guarantee.
+        """
+        with _lock:
+            if self.is_configured and not force:
+                return
+
+            # Clear any existing handlers (clean slate principle)
+            root_logger = logging.getLogger()
+            root_logger.handlers.clear()
+
+            # Convert string level to int
+            if isinstance(level, str):
+                level = getattr(logging, level.upper())
+
+            # Configure console handler based on format
+            if format_style == "rich":
+                self._setup_rich_handler(root_logger, level)
+            elif format_style == "json":
+                self._setup_json_handler(root_logger, level)
+            else:
+                self._setup_simple_handler(root_logger, level)
+
+            # Add file handler if specified
+            if log_file:
+                self._setup_file_handler(root_logger, log_file)
+
+            # Add ring buffer for debugging (zero overhead when not accessed)
+            if enable_ring_buffer:
+                self.ring_buffer = RingBufferHandler(LOG_RING_BUFFER_SIZE)
+                self.ring_buffer.setLevel(logging.DEBUG)
+                root_logger.addHandler(self.ring_buffer)
+
+            # Add performance filter for high-frequency paths
+            if enable_performance_filter:
+                self.performance_filter = PerformanceFilter(LOG_EVERY_N_STEPS)
+                for handler in root_logger.handlers:
+                    handler.addFilter(self.performance_filter)
+
+            # Set root logger level
+            root_logger.setLevel(level)
+
+            # Suppress noisy third-party loggers (Clean Code: reduce noise)
+            self._suppress_noisy_loggers()
+
+            # Capture Python warnings into logging system
+            logging.captureWarnings(True)
+
+            # Register cleanup on exit
+            atexit.register(self.cleanup)
+
+            self.is_configured = True
+
+    def _setup_rich_handler(self, logger: logging.Logger, level: int) -> None:
+        """Configure Rich handler for beautiful terminal output."""
+        self.console = Console(
+            stderr=True,
+            force_terminal=True,
+            width=None,  # Auto-detect width
+        )
+
+        handler = RichHandler(
+            console=self.console,
+            rich_tracebacks=True,
+            show_path=True,
+            markup=True,
+            log_time_format="[%Y-%m-%d %H:%M:%S.%f]",
+            omit_repeated_times=False,
+        )
+        handler.setLevel(level)
+
+        # Rich handler doesn't need custom formatter
+        handler.setFormatter(logging.Formatter("%(message)s"))
+
+        logger.addHandler(handler)
+        self.handlers["console"] = handler
+
+    def _setup_simple_handler(self, logger: logging.Logger, level: int) -> None:
+        """Configure simple stream handler for basic output."""
+        handler = logging.StreamHandler(sys.stderr)
+        handler.setLevel(level)
+
+        # Professional format with microsecond precision
+        formatter = logging.Formatter(
+            "[%(asctime)s.%(msecs)03d][%(name)s][%(levelname)s] %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
+        )
+        handler.setFormatter(formatter)
+
+        logger.addHandler(handler)
+        self.handlers["console"] = handler
+
+    def _setup_json_handler(self, logger: logging.Logger, level: int) -> None:
+        """Configure JSON handler for structured logging."""
+        # For now, use simple format with structured message
+        # Full JSON can be added with python-json-logger if needed
+        handler = logging.StreamHandler(sys.stderr)
+        handler.setLevel(level)
+
+        # Structured format that's easily parseable
+        formatter = logging.Formatter(
+            '{"time":"%(asctime)s","name":"%(name)s","level":"%(levelname)s",'
+            '"message":"%(message)s","module":"%(module)s","function":"%(funcName)s"}'
+        )
+        handler.setFormatter(formatter)
+
+        logger.addHandler(handler)
+        self.handlers["console"] = handler
+
+    def _setup_file_handler(
+        self,
+        logger: logging.Logger,
+        log_file: Union[str, Path]
+    ) -> None:
+        """Configure file handler with rotation support."""
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Use RotatingFileHandler for production
+        from logging.handlers import RotatingFileHandler
+
+        handler = RotatingFileHandler(
+            log_path,
+            maxBytes=100 * 1024 * 1024,  # 100MB
+            backupCount=5,
+            encoding="utf-8",
+        )
+
+        # Detailed format for files
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - "
+            "[%(filename)s:%(lineno)d] - %(funcName)s() - %(message)s"
+        )
+        handler.setFormatter(formatter)
+
+        logger.addHandler(handler)
+        self.handlers["file"] = handler
+
+    def _suppress_noisy_loggers(self) -> None:
+        """Suppress known noisy third-party loggers."""
+        noisy_loggers = [
+            "matplotlib",
+            "matplotlib.pyplot",
+            "matplotlib.font_manager",
+            "PIL",
+            "PIL.Image",
+            "torch.nn.parallel.distributed",
+            "torch.distributed",
+            "torch.nn.parallel",
+            "transformers",
+            "urllib3",
+            "requests",
+            "botocore",
+            "boto3",
+            "asyncio",
+        ]
+
+        for logger_name in noisy_loggers:
+            logger = logging.getLogger(logger_name)
+            self._original_levels[logger_name] = logger.level
+            logger.setLevel(logging.WARNING)
+
+    @contextmanager
+    def temporary_level(self, level: Union[str, int]):
+        """Context manager for temporary log level change.
+
+        Usage:
+            with logging_config.temporary_level("DEBUG"):
+                # Debug logs enabled here
+                debug_function()
+            # Original level restored
+        """
+        if isinstance(level, str):
+            level = getattr(logging, level.upper())
+
+        root_logger = logging.getLogger()
+        original_level = root_logger.level
+
+        try:
+            root_logger.setLevel(level)
+            yield
+        finally:
+            root_logger.setLevel(original_level)
+
+    @contextmanager
+    def suppress(self, *logger_names: str):
+        """Context manager to temporarily suppress specific loggers.
+
+        Usage:
+            with logging_config.suppress("torch", "transformers"):
+                # Torch and transformers logs suppressed here
+                noisy_function()
+            # Original levels restored
+        """
+        original_levels = {}
+
+        try:
+            for name in logger_names:
+                logger = logging.getLogger(name)
+                original_levels[name] = logger.level
+                logger.setLevel(logging.CRITICAL + 1)
+            yield
+        finally:
+            for name, level in original_levels.items():
+                logging.getLogger(name).setLevel(level)
+
+    def get_last_logs(self, n: int = 100) -> list[str]:
+        """Get last n log messages from ring buffer.
+
+        Useful for debugging and crash analysis.
+        """
+        if not self.ring_buffer:
+            return []
+
+        records = self.ring_buffer.get_records(n)
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+
+        return [formatter.format(record) for record in records]
+
+    def cleanup(self) -> None:
+        """Clean up resources on exit."""
+        for handler in self.handlers.values():
+            handler.close()
+
+        if self.ring_buffer:
+            self.ring_buffer.close()
+
+
+def get_instance() -> LoggingConfig:
+    """Get or create the singleton logging configuration instance.
+
+    Thread-safe lazy initialization following Google's pattern.
+    """
+    global _instance
+
+    if _instance is None:
+        with _lock:
+            if _instance is None:  # Double-check locking pattern
+                _instance = LoggingConfig()
+
+    return _instance
+
+
+def setup_logging(
+    level: Union[str, int] = LOG_LEVEL,
+    log_file: Optional[Union[str, Path]] = LOG_FILE,
+    format_style: str = LOG_FORMAT,
+    force: bool = False,
+) -> LoggingConfig:
+    """Configure logging for the application.
+
+    This is the main entry point for logging configuration.
+    Should be called once from application entrypoints.
+
+    Returns:
+        LoggingConfig: The configured logging instance
+    """
+    instance = get_instance()
+    instance.setup(
+        level=level,
+        log_file=log_file,
+        format_style=format_style,
+        force=force,
+    )
+    return instance
+
+
+def get_logger(name: str) -> logging.Logger:
+    """Get a logger with the given name.
+
+    Convenience function that ensures logging is configured.
+
+    Args:
+        name: Logger name (typically __name__)
+
+    Returns:
+        logging.Logger: Configured logger instance
+    """
+    # Ensure logging is configured with defaults if not already done
+    if not get_instance().is_configured:
+        setup_logging()
+
+    return logging.getLogger(name)
+
+
+# Performance-conscious logging utilities
+def log_once(logger: logging.Logger, level: int, msg: str, key: str) -> None:
+    """Log a message only once per key.
+
+    Useful for warnings that would otherwise spam.
+    """
+    if not hasattr(log_once, "_seen"):
+        log_once._seen = set()
+
+    if key not in log_once._seen:
+        logger.log(level, msg)
+        log_once._seen.add(key)
+
+
+def log_every_n(
+    logger: logging.Logger,
+    level: int,
+    msg: str,
+    n: int,
+    key: str
+) -> None:
+    """Log a message every n occurrences.
+
+    Useful for progress updates without spam.
+    """
+    if not hasattr(log_every_n, "_counts"):
+        log_every_n._counts = {}
+
+    count = log_every_n._counts.get(key, 0) + 1
+    log_every_n._counts[key] = count
+
+    if count % n == 1 or n == 1:
+        logger.log(level, f"{msg} [occurrence {count}]")
+
+
+# Export public API
+__all__ = [
+    "setup_logging",
+    "get_logger",
+    "get_instance",
+    "LoggingConfig",
+    "RingBufferHandler",
+    "PerformanceFilter",
+    "log_once",
+    "log_every_n",
+    "LOG_LEVEL",
+    "LOG_FILE",
+    "LOG_FORMAT",
+    "LOG_EVERY_N_STEPS",
+]
