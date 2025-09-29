@@ -28,7 +28,8 @@ from rich.logging import RichHandler
 # Constants from environment with sensible defaults
 LOG_LEVEL = os.getenv("BGB_LOG_LEVEL", "INFO")
 LOG_FILE = os.getenv("BGB_LOG_FILE", None)
-LOG_FORMAT = os.getenv("BGB_LOG_FORMAT", "rich")  # "rich", "simple", "json"
+# Default to simple format if not in a TTY, rich otherwise
+LOG_FORMAT = os.getenv("BGB_LOG_FORMAT", "rich" if sys.stderr.isatty() else "simple")
 LOG_EVERY_N_STEPS = int(os.getenv("BGB_LOG_EVERY_N_STEPS", "50"))
 LOG_RING_BUFFER_SIZE = int(os.getenv("BGB_LOG_RING_BUFFER_SIZE", "1000"))
 
@@ -197,7 +198,7 @@ class LoggingConfig:
         """Configure Rich handler for beautiful terminal output."""
         self.console = Console(
             stderr=True,
-            force_terminal=True,
+            force_terminal=False,  # Don't force terminal mode
             width=None,  # Auto-detect width
         )
 
