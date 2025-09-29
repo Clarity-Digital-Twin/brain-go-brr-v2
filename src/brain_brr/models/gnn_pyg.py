@@ -3,11 +3,15 @@
 Based on EvoBrain architecture with proven EEG parameters.
 """
 
+import logging
 import warnings
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as func
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from .adjacency import compute_stable_laplacian, condition_adjacency
 
@@ -199,7 +203,7 @@ class GraphChannelMixerPyG(nn.Module):
                     or torch.isinf(eigenvalues).any()
                     or torch.isinf(eigenvectors).any()
                 ):
-                    print("[WARNING] NaN/Inf detected in eigendecomposition, using fallback PE")
+                    logger.warning("NaN/Inf detected in eigendecomposition, using fallback PE")
                     if self.last_valid_pe is not None and self.last_valid_pe.shape[0] == B:
                         pe = self.last_valid_pe.reshape(B * T, N, self.k_eigenvectors).to(
                             torch.float32
@@ -222,7 +226,7 @@ class GraphChannelMixerPyG(nn.Module):
                     pe = eigenvectors[..., : self.k_eigenvectors]  # (B*T, N, k)
 
             except RuntimeError as e:
-                print(f"[WARNING] Eigendecomposition failed: {e}, using fallback PE")
+                logger.warning(f"Eigendecomposition failed: {e}, using fallback PE")
                 pe = (
                     torch.randn(B * T, N, self.k_eigenvectors, device=device, dtype=torch.float32)
                     * 0.01
