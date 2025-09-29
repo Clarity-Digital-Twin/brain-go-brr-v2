@@ -173,6 +173,15 @@ numpy==1.26.4             # 2.x breaks mamba-ssm
 - Cache structure: `cache/tusz/{train,dev}/` NOT `{train,val}/`
 - This prevents confusion when reading TUSZ documentation
 
+### CRITICAL: Dataset Strategy (This is CORRECT, not a bug!)
+- **Training**: Uses `BalancedSeizureDataset` with manifest to oversample seizures (8% → ~30% in batches)
+  - Requires: `train/manifest.json` (auto-created if missing)
+  - Why: Model needs enough seizures to learn patterns effectively
+- **Validation**: Uses `EEGWindowDataset` with natural distribution (~8% seizures)
+  - Manifest: `dev/manifest.json` is OPTIONAL (validation doesn't use it)
+  - Why: Measures real-world performance, not inflated metrics
+- **This is standard ML practice**: Train on balanced data, validate on real distribution
+
 ### Post-Processing
 1. **Hysteresis**: τ_on=0.86, τ_off=0.78
 2. **Morphology**: Opening(11), Closing(31)
