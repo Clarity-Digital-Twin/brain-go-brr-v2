@@ -90,22 +90,29 @@ Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
 
 ## Root Cause Analysis
 
-### Hypothesis 1: Mamba-SSM CUDA Kernel Compilation Mismatch (MOST LIKELY ⭐)
+### Hypothesis 1: Modal Image Cache Poisoning with Multi-Arch Binaries (HIGHEST PROBABILITY ⭐⭐⭐)
+
+**Root Cause:** Modal caches Docker image layers between builds. When mamba-ssm/causal-conv1d are installed with `TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"`, the compiled binaries contain kernels for ALL architectures. Modal's image cache may serve binaries compiled on a DIFFERENT GPU (e.g., H100 with compute 9.0), causing runtime mismatch when deployed on A100 (compute 8.0).
 
 **Evidence:**
-1. **Mamba-SSM compiled for specific CUDA architecture:**
-   - Modal image uses `TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"`
-   - A100 is compute capability **8.0** (included in list)
-   - BUT: Kernel may have been compiled for wrong sub-architecture
-
-2. **causal-conv1d dependency critical:**
-   - Modal image installs `causal-conv1d==1.4.0` (exact version)
-   - Must be compiled with `--no-build-isolation --no-cache-dir`
-   - If binary cache used wrong version, kernels will fail
-
-3. **Mamba-SSM version 2.2.2 specifics:**
+1. **Multi-architecture compilation is the smoking gun:**
    ```python
-   # deploy/modal/app.py lines 42-46
+   # deploy/modal/app.py line 27
+   "TORCH_CUDA_ARCH_LIST": "8.0;8.6;8.9;9.0",  # Compiles for 4 different GPUs!
+   ```
+   - This creates ONE binary with 4 different kernel versions
+   - CUDA runtime picks kernel based on GPU at RUNTIME
+   - If Modal cached this binary from H100 build, A100 may get wrong kernel
+
+2. **XID 31 = Wrong CUDA Architecture Selected:**
+   - Page fault at `0x2ae1_d6600000` (invalid address)
+   - GPU MMU says "this memory doesn't exist"
+   - Classic symptom: kernel compiled for compute 9.0 running on compute 8.0 hardware
+   - Memory layout assumptions differ between GPU generations
+
+3. **Modal's caching behavior:**
+   ```python
+   # Even with --no-cache-dir, Modal caches DOCKER LAYERS
    .run_commands(
        "pip install --no-build-isolation --no-cache-dir causal-conv1d==1.4.0"
    )
@@ -113,19 +120,27 @@ Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
        "pip install --no-build-isolation --no-cache-dir mamba-ssm==2.2.2"
    )
    ```
-   - These flags force compilation from source
-   - But Modal may cache compiled binaries between image builds
-   - **Cached binaries from different GPU may be incompatible**
+   - `--no-cache-dir` only affects pip's cache
+   - Modal caches the entire image layer
+   - If this layer was built on H100, it's served to A100 runs
 
-4. **XID 31 context:**
-   - Page fault means GPU tried to access memory address that doesn't exist
-   - This happens when CUDA kernel assumes memory layout that doesn't match runtime
-   - Classic symptom of **wrong compute capability compilation**
+4. **Why it worked before (if it ever did):**
+   - May have gotten lucky with A100-built cache
+   - Or previous runs were also on same GPU that built the image
+   - Now we're hitting cache from different GPU architecture
 
-**Why this explains the failure:**
-- Import succeeds (Python bindings work)
-- Model creation succeeds (no GPU work yet)
-- **First forward pass fails** (CUDA kernel executes with wrong memory assumptions)
+**Mathematical Verification (Architecture is NOT the problem):**
+```python
+Main Mamba:  (512*2)/64 = 16.0  (multiple of 8 ✅)
+Node Mamba:  (64*2)/8   = 16.0  (multiple of 8 ✅)
+Edge Mamba:  (16*2)/4   = 8.0   (multiple of 8 ✅)
+```
+All headdim calculations are CORRECT. The problem is NOT our configuration.
+
+**Why first forward pass fails:**
+- Python import succeeds (no GPU computation)
+- Model init succeeds (just memory allocation)
+- **First CUDA kernel launch** triggers XID 31 (wrong architecture detected at runtime)
 
 ### Hypothesis 2: A100 Memory Addressing Bug in Mamba-SSM 2.2.2
 
