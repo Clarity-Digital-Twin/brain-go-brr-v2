@@ -182,7 +182,10 @@ class TestTCNPerformance:
         print(f"TCN: {tcn_time:.3f}s for 10 batches")
         # A100 target: 0.5s, RTX 4090: 1.5s (reduced batch helps but still slower)
         import os
-        threshold = float(os.getenv("BGB_TCN_SPEED_TARGET", "1.5" if not os.getenv("CI") else "0.5"))
+
+        threshold = float(
+            os.getenv("BGB_TCN_SPEED_TARGET", "1.5" if not os.getenv("CI") else "0.5")
+        )
         assert tcn_time < threshold, f"TCN inference too slow: {tcn_time:.3f}s > {threshold}s"
 
     @pytest.mark.gpu
@@ -208,6 +211,7 @@ class TestTCNPerformance:
         # V3 dual-stream uses ~3.5GB for batch=2 on RTX 4090
         # A100 with larger batch would use more but has 80GB VRAM
         import os
+
         threshold = float(os.getenv("BGB_TCN_MEM_MAX", "4.0"))
         assert tcn_memory < threshold, f"TCN memory too high: {tcn_memory:.2f}GB > {threshold}GB"
 
