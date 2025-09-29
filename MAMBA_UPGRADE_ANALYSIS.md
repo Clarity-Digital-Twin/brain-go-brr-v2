@@ -9,7 +9,9 @@
 
 **Current Status**: STUCK on mamba-ssm 2.2.2 due to dependency constraints
 **Can We Upgrade?**: YES, but requires full stack upgrade (PyTorch 2.2.2 → 2.4+)
-**Should We Upgrade?**: WAIT for Test 1A results first
+**Should We Upgrade?**: 🟡 LIKELY YES — Test 1A failed (AMP not the cause), waiting for Test 1B
+
+**🚨 UPDATE (2025-09-29 21:25 UTC)**: Test 1A (AMP OFF) FAILED with same crash. AMP is NOT the root cause. Waiting for Test 1B (Force Fallback) to confirm if Mamba CUDA kernels are the problem. If Test 1B passes, upgrading mamba-ssm 2.2.2 → 2.2.5 may fix the issue.
 
 ---
 

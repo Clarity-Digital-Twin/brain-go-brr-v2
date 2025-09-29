@@ -1,9 +1,34 @@
 # Modal A100 CUDA Memory Access Failure - Root Cause Analysis
 
-**Incident Date:** 2025-09-29 19:20:53 UTC
-**Status:** 🔴 TRAINING HALTED — Evidence-based analysis complete
+**Incident Date:** 2025-09-29 19:20:53 UTC (Initial crash)
+**Test Date:** 2025-09-29 21:25:28 UTC (Test 1A failed)
+**Status:** 🔴 DIAGNOSTIC IN PROGRESS — Waiting for Test 1B (Force Fallback)
 **Severity:** P0 BLOCKER — Cannot train on Modal A100
 **Branch:** `fix/test-suite-config` (unrelated to failure)
+
+---
+
+## 🚨 CRITICAL UPDATE: Test 1A Results (2025-09-29 21:25 UTC)
+
+**TEST 1A FAILED** — AMP is **NOT** the root cause.
+
+### Test 1A: Disable AMP (FAILED)
+- **Config**: `mixed_precision: false` (FP32 only, no autocast)
+- **Result**: ❌ **CRASHED with same XID 31 MMU Fault**
+- **Timestamp**: 21:25:28 UTC (3 minutes after preflight started)
+- **Fault address**: `0x2b36_42000000` (different address than original, but same error type)
+- **Conclusion**: **AMP is NOT the root cause** — crash happens with both AMP ON and OFF
+
+### Updated Root Cause Hypothesis (After Test 1A)
+
+**Original Hypothesis 1 (RULED OUT)**: ~~AMP-specific Mamba kernel bug~~ ❌
+- Test 1A with AMP disabled FAILED
+- Crash occurs regardless of FP16/FP32 mode
+
+**New Top Hypothesis**: Mamba-SSM 2.2.2 CUDA kernel bug (not AMP-related)
+- Crash happens with both `mixed_precision: true` AND `mixed_precision: false`
+- XID 31 page fault suggests pointer arithmetic bug in Mamba CUDA kernels
+- **Test 1B (Force Fallback) is now running** to confirm this
 
 ---
 
@@ -11,13 +36,16 @@
 
 Training failed on the **first GPU forward pass** during preflight after ~55 minutes of successful CPU-side data loading. The failure is a **GPU hardware-level MMU fault** (NVIDIA XID 31) followed by **CUDA "illegal memory access"** in the Mamba-SSM CUDA kernel.
 
+**UPDATE**: Test 1A proved crash is **NOT AMP-related** — happens with both FP16 and FP32.
+
 ### What We Know For Certain
 
 1. **Crash location**: First CUDA kernel launch in preflight test batch (not during data I/O)
 2. **Error sequence**: GPU XID 31 MMU Fault → CUDA illegal memory access → Training abort
-3. **Configuration differences**:
-   - **Modal A100**: `mixed_precision: true` (AMP enabled, FP16 autocast)
-   - **Local RTX 4090**: `mixed_precision: false` (FP32 only) — **NO CRASH**
+3. ❌ **AMP is NOT the differentiator** (Test 1A with AMP OFF failed):
+   - **Modal A100** with `mixed_precision: true` — CRASHES
+   - **Modal A100** with `mixed_precision: false` — **ALSO CRASHES**
+   - **Local RTX 4090** with `mixed_precision: false` — NO CRASH
 4. **Mamba fallback did NOT engage**:
    - Wrapper logs "using fallback" but re-raises exception (`src/brain_brr/models/mamba.py:206-216`)
    - Current filters: `"causal_conv1d"`, `"NoneType"`, `"object is not callable"`
