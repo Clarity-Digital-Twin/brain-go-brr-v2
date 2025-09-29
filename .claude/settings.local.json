@@ -66,7 +66,8 @@
       "Bash(.venv/bin/pytest tests/integration/test_tcn_integration.py::TestTCNPerformance::test_tcn_inference_speed -xvs --tb=short)",
       "Bash(CI=1 .venv/bin/pytest tests/integration/test_tcn_integration.py::TestTCNPerformance::test_tcn_inference_speed -xvs --tb=short)",
       "Bash(export CI=1)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Read(///**)"
     ],
     "deny": [],
     "ask": []

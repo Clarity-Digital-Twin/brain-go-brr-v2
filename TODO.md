@@ -141,11 +141,10 @@ def cleanup_torch_resources():
 
 **Observed:**
 - File length: 1695 lines
-- `train_epoch()` spans lines 316–832 (~517 lines)
-- `validate_epoch()` spans lines 833–963 (~131 lines)
-- `main()` spans lines 1361–1695 (~335 lines)
-- Contains duplicated tqdm setup (3x) and heartbeat logging (2x)
-  - Note: tqdm/heartbeat logic appears in both train and validate (2x), and cleanup occurs twice
+- `train_epoch()` spans lines 316–832 (516 lines)
+- `validate_epoch()` spans lines 833–1095 (262 lines)
+- `main()` spans lines 1361–1695 (335 lines)
+- Contains duplicated tqdm setup (2x in train/validate) and heartbeat logging
 - Magic numbers scattered throughout
 
 **However:**
