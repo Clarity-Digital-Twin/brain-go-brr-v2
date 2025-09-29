@@ -36,7 +36,8 @@
       "Bash(timeout 30 .venv/bin/pytest tests/unit/utils/test_logging_config.py -xvs -p no:xdist)",
       "Bash(timeout 30 .venv/bin/pytest tests/unit/utils/test_logging_config.py::TestLoggingConfig -xvs --tb=short)",
       "Bash(.venv/bin/ruff check src/brain_brr/utils/logging_config.py tests/unit/utils/test_logging_config.py --fix)",
-      "Bash(.venv/bin/pytest -q tests/unit/utils/test_logging_config.py::TestLoggingConfig::test_file_handler -n 0)"
+      "Bash(.venv/bin/pytest -q tests/unit/utils/test_logging_config.py::TestLoggingConfig::test_file_handler -n 0)",
+      "Bash(.venv/bin/pytest -q tests/unit/utils/test_logging_config.py::TestLoggingConfig::test_file_handler -n 0 -s)"
     ],
     "deny": [],
     "ask": []
