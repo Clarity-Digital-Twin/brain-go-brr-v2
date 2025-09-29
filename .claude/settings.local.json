@@ -78,7 +78,8 @@
       "Bash(xargs:*)",
       "Bash(nvcc:*)",
       "Bash(uv lock:*)",
-      "Read(//usr/local/**)"
+      "Read(//usr/local/**)",
+      "Bash(UV_LINK_MODE=copy uv sync)"
     ],
     "deny": [],
     "ask": []
