@@ -138,11 +138,11 @@ resources:
 
 ### Exact Version Lock (DO NOT CHANGE)
 ```
-PyTorch==2.2.2+cu121      # EXACT version for Mamba+PyG
-CUDA Toolkit==12.1        # Must match PyTorch
-mamba-ssm==2.2.2          # Later versions have bugs
-causal-conv1d==1.4.0      # 1.5+ needs PyTorch 2.4+
-torch-geometric==2.6.1    # Latest for torch 2.2.2
+PyTorch==2.5.0+cu124      # EXACT version for Mamba+PyG
+CUDA Toolkit==12.4        # Must match PyTorch
+mamba-ssm==2.2.5          # Includes A100 int64 indexing fix
+causal-conv1d==1.5.2      # Latest stable for PyTorch 2.5+
+torch-geometric==2.7.0    # Latest for torch 2.5.0
 numpy==1.26.4             # 2.x breaks mamba-ssm
 ```
 
@@ -151,7 +151,7 @@ numpy==1.26.4             # 2.x breaks mamba-ssm
 2. GPU components: `make setup-gpu`
 3. Verify: `.venv/bin/python -c "from mamba_ssm import Mamba2; print('✅')"`
 
-**Note**: PyG requires pre-built wheels from https://data.pyg.org/whl/torch-2.2.0+cu121.html
+**Note**: PyG requires pre-built wheels from https://data.pyg.org/whl/torch-2.5.0+cu124.html
 
 ## 🏥 Clinical Specifications
 
