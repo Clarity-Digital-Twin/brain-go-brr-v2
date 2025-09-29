@@ -121,7 +121,7 @@ class LoggingConfig:
     Follows Google's internal logging best practices.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.is_configured = False
         self.handlers: dict[str, logging.Handler] = {}
         self.ring_buffer: RingBufferHandler | None = None

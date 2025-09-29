@@ -19,7 +19,7 @@ import sys
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:  # pragma: no cover - type checking only
     pass
@@ -200,7 +200,7 @@ class TrainingLogger:
         metrics: dict[str, float] | None = None,
         lr: float | None = None,
         batch_size: int | None = None,
-        **extra,
+        **extra: Any,
     ) -> None:
         """Log batch metrics with automatic aggregation and rate limiting.
 
@@ -488,7 +488,7 @@ class TrainingLogger:
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> Literal[False]:
         """Context manager exit - ensures progress cleanup."""
         if self.progress:
             with contextlib.suppress(Exception):

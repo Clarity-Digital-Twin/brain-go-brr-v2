@@ -89,27 +89,38 @@ class TestLoggingConfig:
 
     def test_file_handler(self, tmp_path):
         """Test file handler configuration."""
+        # Create a fresh instance to avoid conflicts
+        from src.brain_brr.utils.logging_config import LoggingConfig as TestConfig
+
         log_file = tmp_path / "test.log"
-        config = LoggingConfig()
+        config = TestConfig()
 
         try:
-            config.setup(log_file=log_file, force=True)
+            # Setup with file handler
+            config.setup(log_file=str(log_file), force=True)
 
             # Check file handler exists
             assert "file" in config.handlers
 
-            # Test that log file is created
-            logger = logging.getLogger("test")
-            logger.info("Test message")
+            # Write a test message
+            test_logger = logging.getLogger(f"test.file.{id(config)}")
+            test_logger.info("Test message for file handler")
 
-            # Flush to ensure write happens
+            # Force flush to ensure write
             if "file" in config.handlers:
                 config.handlers["file"].flush()
 
+            # Check file was created
             assert log_file.exists()
+
+            # Verify content was written
+            content = log_file.read_text()
+            assert "Test message for file handler" in content
         finally:
-            # Ensure cleanup happens
+            # Clean up handlers
             config.cleanup()
+            # Remove all handlers from the test logger
+            test_logger.handlers.clear()
 
     def test_suppress_noisy_loggers(self):
         """Test suppression of third-party loggers."""
