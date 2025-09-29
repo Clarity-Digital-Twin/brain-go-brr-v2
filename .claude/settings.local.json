@@ -40,7 +40,9 @@
       "Bash(.venv/bin/pytest -q tests/unit/utils/test_logging_config.py::TestLoggingConfig::test_file_handler -n 0 -s)",
       "Bash(.venv/bin/pytest -q -m \"not performance and not gpu\" tests/unit)",
       "Bash(.venv/bin/pytest -xvs tests/unit/utils/test_logging_config.py::TestUtilityFunctions::test_log_once tests/unit/utils/test_logging_config.py::TestUtilityFunctions::test_log_every_n)",
-      "Bash(.venv/bin/pytest tests/unit/utils/test_training_logger.py::TestMetricBuffer::test_capacity_limit tests/unit/utils/test_training_logger.py::TestTrainingLogger::test_metric_aggregation tests/unit/utils/test_training_logger.py::TestPerformanceOptimizations::test_throughput_calculation -xvs)"
+      "Bash(.venv/bin/pytest tests/unit/utils/test_training_logger.py::TestMetricBuffer::test_capacity_limit tests/unit/utils/test_training_logger.py::TestTrainingLogger::test_metric_aggregation tests/unit/utils/test_training_logger.py::TestPerformanceOptimizations::test_throughput_calculation -xvs)",
+      "Read(//tmp/**)",
+      "Bash(kill:*)"
     ],
     "deny": [],
     "ask": []

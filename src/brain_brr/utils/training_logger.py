@@ -42,7 +42,7 @@ class MetricBuffer:
     values: deque = field(default_factory=deque)
     timestamps: deque = field(default_factory=deque)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize deques with correct capacity."""
         self.values = deque(maxlen=self.capacity)
         self.timestamps = deque(maxlen=self.capacity)
