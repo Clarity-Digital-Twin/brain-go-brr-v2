@@ -96,26 +96,24 @@ class PerformanceFilter(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         """Filter based on step count if record has step attribute."""
-        # Always pass non-step logs
-        if not hasattr(record, "step"):
+        # Fast path: no step attribute means pass through
+        step = getattr(record, "step", None)
+        if step is None:
             return True
 
-        # Gate by step count
-        step = record.step
-        key = f"{record.name}:{record.funcName}"
+        # Fast path: always pass first/last steps
+        if step == 0 or hasattr(record, "is_last"):
+            return True
 
-        with self.lock:
-            # Track per-function step counts
-            if key not in self.step_counters:
-                self.step_counters[key] = 0
-
-            # Check if we should log this step
-            if step % self.every_n_steps == 0:
+        # Check if we should log this step
+        if step % self.every_n_steps == 0:
+            # Only track if we're actually logging
+            with self.lock:
+                key = f"{record.name}:{getattr(record, 'funcName', '')}"
                 self.step_counters[key] = step
-                return True
+            return True
 
-            # Special case: always log first and last steps
-            return bool(step == 0 or hasattr(record, "is_last"))
+        return False
 
 
 class LoggingConfig:
