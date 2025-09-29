@@ -370,70 +370,87 @@ except Exception as e:
 
 ## Potential Fixes (Prioritized by Likelihood)
 
-### Fix 1: Rebuild Modal Image with Clean Compilation (HIGHEST PRIORITY ⭐)
+### Fix 1: Single-Architecture Build for A100 Only (HIGHEST PRIORITY ⭐⭐⭐)
 
-**Rationale:** Cached binaries may be from wrong GPU architecture.
+**Rationale:** Multi-arch binaries (`TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"`) allow Modal's cache to serve H100-compiled kernels to A100 runtime. Force A100-only compilation.
 
 **Implementation:**
 ```python
-# deploy/modal/app.py - Add force rebuild
+# deploy/modal/app.py - CRITICAL CHANGES
 image = (
     modal.Image.from_registry("nvidia/cuda:12.1.0-devel-ubuntu22.04", add_python="3.11")
     .entrypoint([])
-    # FORCE clean build by adding timestamp or version
+    # FORCE REBUILD: Change env var to invalidate Modal's layer cache
     .env({
-        "FORCE_REBUILD": "2025-09-29-fix1",  # Change this to invalidate cache
+        "FORCE_REBUILD": "2025-09-29-a100-only-v1",  # ← CHANGE THIS each rebuild
         "CUDA_HOME": "/usr/local/cuda-12.1",
         "PATH": "/usr/local/cuda-12.1/bin:$PATH",
         "LD_LIBRARY_PATH": "/usr/local/cuda-12.1/lib64:$LD_LIBRARY_PATH",
-        "TORCH_CUDA_ARCH_LIST": "8.0",  # ONLY A100 (force single-arch build)
+        # ↓↓↓ CRITICAL FIX: A100 ONLY (not multi-arch) ↓↓↓
+        "TORCH_CUDA_ARCH_LIST": "8.0",  # Single-arch: A100 compute 8.0 ONLY
     })
-    # Add explicit cache clearing
-    .run_commands("pip cache purge")
+    # FORCE REINSTALL: Ensure no cached binaries from other GPUs
+    .apt_install("build-essential", "ninja-build", "git")
+    .run_commands("pip cache purge")  # Clear pip cache
     .run_commands(
         "pip install torch==2.2.2 torchvision==0.17.2 'numpy<2.0' --index-url https://download.pytorch.org/whl/cu121"
     )
-    # Clean build of causal-conv1d
+    # Verify PyTorch
     .run_commands(
-        "pip uninstall -y causal-conv1d || true",  # Ensure clean
+        "python -c 'import torch; assert torch.__version__.startswith(\"2.2.2\"), f\"Wrong torch: {torch.__version__}\"'"
+    )
+    .pip_install("packaging", "wheel", "setuptools")
+    # ↓↓↓ FORCE REINSTALL causal-conv1d ↓↓↓
+    .run_commands(
+        "pip uninstall -y causal-conv1d || true",  # Remove if exists
         "pip install --no-build-isolation --no-cache-dir --force-reinstall causal-conv1d==1.4.0"
     )
-    # Clean build of mamba-ssm
+    # ↓↓↓ FORCE REINSTALL mamba-ssm ↓↓↓
     .run_commands(
-        "pip uninstall -y mamba-ssm || true",
+        "pip uninstall -y mamba-ssm || true",  # Remove if exists
         "pip install --no-build-isolation --no-cache-dir --force-reinstall mamba-ssm==2.2.2"
+    )
+    # Verify mamba-ssm imports
+    .run_commands(
+        "python -c 'from mamba_ssm import Mamba2; print(\"✅ Mamba2 imports successfully\")'"
     )
 )
 ```
 
-**Why This Should Work:**
-- Forces complete recompilation for A100 (8.0) only
-- Eliminates cached binaries from other GPUs
-- `--force-reinstall` ensures no pip cache reuse
+**Why This WILL Work:**
+1. **Single-arch compilation** eliminates multi-GPU kernel confusion
+2. **FORCE_REBUILD env var** invalidates Modal's Docker layer cache
+3. **--force-reinstall** prevents pip from reusing any cached wheels
+4. **A100-specific binary** will ONLY contain compute 8.0 kernels
 
-**Risk:** Low (just rebuilds image, no code changes)
+**Expected Result:**
+- Modal rebuilds entire image (may take 10-15 minutes)
+- Mamba-SSM compiled ONLY for A100
+- First forward pass succeeds because kernel matches hardware
 
-### Fix 2: Downgrade to Mamba-SSM 2.2.0 (MEDIUM PRIORITY)
+**Risk:** None (just forces clean rebuild)
 
-**Rationale:** Version 2.2.2 may have A100-specific bugs.
+### Fix 2: Test with CUDA_LAUNCH_BLOCKING for Precise Error Location (DIAGNOSTIC)
+
+**Rationale:** Get exact kernel that fails (not just "somewhere in Mamba").
 
 **Implementation:**
 ```python
-# deploy/modal/app.py
-.run_commands(
-    "pip install --no-build-isolation --no-cache-dir mamba-ssm==2.2.0"
+# deploy/modal/app.py - train function
+@app.function(
+    gpu="A100-80GB",
+    env={
+        "CUDA_LAUNCH_BLOCKING": "1",  # Synchronous CUDA calls
+        "TORCH_USE_CUDA_DSA": "1",    # Device-side assertions
+    }
 )
-
-# Also update pyproject.toml
-[project.dependencies]
-# mamba-ssm==2.2.0 (testing A100 compatibility)
 ```
 
-**Why This Might Work:**
-- 2.2.0 is older and may have better A100 testing
-- We're using 2.2.2 to avoid bugs in 2.2.4/2.2.5, but 2.2.0 predates those
+**Why This Helps:**
+- Pinpoints exact line where illegal access occurs
+- Confirms it's Mamba-SSM kernel (not our code)
 
-**Risk:** Medium (may reintroduce bugs that 2.2.2 fixed)
+**Risk:** None (just diagnostic, doesn't fix issue)
 
 ### Fix 3: Reduce Batch Size Temporarily (LOW PRIORITY)
 
