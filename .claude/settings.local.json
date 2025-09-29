@@ -27,7 +27,8 @@
       "Bash(tmux kill-session:*)",
       "Bash(.venv/bin/ruff check src/brain_brr/utils/ --fix)",
       "Bash(.venv/bin/ruff check tests/unit/utils/test_logging_config.py --fix)",
-      "Bash(.venv/bin/ruff check tests/unit/utils/test_logging_config.py --fix --unsafe-fixes)"
+      "Bash(.venv/bin/ruff check tests/unit/utils/test_logging_config.py --fix --unsafe-fixes)",
+      "Bash(.venv/bin/ruff check src/brain_brr/utils/ --statistics)"
     ],
     "deny": [],
     "ask": []
