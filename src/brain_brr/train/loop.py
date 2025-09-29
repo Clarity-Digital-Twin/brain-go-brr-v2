@@ -486,7 +486,7 @@ def train_epoch(
 
     model.eval()
     try:
-        with torch.no_grad(), autocast(enabled=(use_amp and device == "cuda")):
+        with torch.no_grad(), autocast(device_type=device, enabled=(use_amp and device == "cuda")):
             test_logits = model(test_windows)  # (B, T) raw logits
             test_loss = compute_loss(test_logits, test_labels)
             if test_loss is None:
@@ -566,7 +566,7 @@ def train_epoch(
             optimizer.zero_grad(set_to_none=True)
 
             # Forward pass with AMP (model returns raw logits)
-            with autocast(enabled=(use_amp and device == "cuda")):
+            with autocast(device_type=device, enabled=(use_amp and device == "cuda")):
                 try:
                     logits = model(windows)  # (B, T) raw logits
                     if logits is None:
