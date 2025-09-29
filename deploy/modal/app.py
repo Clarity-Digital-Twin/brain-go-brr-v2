@@ -151,7 +151,7 @@ def populate_cache():
     persistent SSD volume for fast, reliable training access.
     Run this ONCE when setting up, then reuse the cache forever.
     """
-    from brain_brr.utils.logging_config import setup_logging
+    from src.brain_brr.utils.logging_config import setup_logging
     # Use simple format for Modal (no Rich in container logs)
     setup_logging(format_style="simple", force=True)
 
@@ -259,7 +259,7 @@ def populate_cache():
 )
 def clean_cache():
     """Clean contaminated cache from before patient-disjoint fix."""
-    from brain_brr.utils.logging_config import setup_logging
+    from src.brain_brr.utils.logging_config import setup_logging
     # Use simple format for Modal (no Rich in container logs)
     setup_logging(format_style="simple", force=True)
 
@@ -304,7 +304,7 @@ def clean_cache():
 )
 def test_mamba_cuda():
     """Test that Mamba CUDA kernels work properly."""
-    from brain_brr.utils.logging_config import setup_logging
+    from src.brain_brr.utils.logging_config import setup_logging
     # Use simple format for Modal (no Rich in container logs)
     setup_logging(format_style="simple", force=True)
 
@@ -381,7 +381,7 @@ def train(
     Returns:
         Path to checkpoint file
     """
-    from brain_brr.utils.logging_config import setup_logging
+    from src.brain_brr.utils.logging_config import setup_logging
     # Use simple format for Modal (no Rich in container logs)
     setup_logging(format_style="simple", force=True)
 
@@ -676,7 +676,7 @@ def evaluate(
     Returns:
         Path to metrics JSON file
     """
-    from brain_brr.utils.logging_config import setup_logging
+    from src.brain_brr.utils.logging_config import setup_logging
     # Use simple format for Modal (no Rich in container logs)
     setup_logging(format_style="simple", force=True)
 
