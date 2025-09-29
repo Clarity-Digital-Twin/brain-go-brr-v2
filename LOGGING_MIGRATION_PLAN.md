@@ -8,23 +8,32 @@
 ## 📊 Current State Analysis
 
 ### Print Statement Statistics
-- Total print statements: 338
-  - `src/`: 200 occurrences across 10 files
-  - `deploy/`: 138 occurrences across 3 files
-- Real-time prints with `flush=True`: 195
-- Files already using logging: 4 (`data/io.py`, `models/clamp_utils.py`, `models/tcn.py`, `models/mamba.py`)
-- No central logging configuration
+- **Total print() statements**: 387
+  - `src/`: 247 occurrences across 11 files
+  - `deploy/`: 140 occurrences across 3 files
+- **Real-time prints with `flush=True`**: 147 total
+  - `train/loop.py`: 87 instances
+  - `deploy/modal/app.py`: 42 instances
+  - Others: 18 instances across 5 files
+- **Rich console.print() calls**: 47 in `cli/cli.py` (DO NOT MIGRATE - user-facing)
+- **Files already using logging**: 5
+  - `data/io.py:19` - logger = logging.getLogger(__name__)
+  - `models/clamp_utils.py:12` - logger = logging.getLogger(__name__)
+  - `models/tcn.py:16` - logger = logging.getLogger(__name__)
+  - `models/mamba.py:19` - logger = logging.getLogger(__name__)
+  - `literature/pdf_to_markdown.py:42` - logger = logging.getLogger(__name__)
+- **No central logging configuration exists**
 
 ### File Breakdown
 | File | Print Count | Priority | Category |
 |------|------------|----------|----------|
-| `src/brain_brr/train/loop.py` | 147 | CRITICAL | Training progress, metrics, NaN detection |
-| `deploy/modal/app.py` | 112 | HIGH | Deployment status, cache operations |
+| `src/brain_brr/train/loop.py` | 147 (87 flush) | CRITICAL | Training progress, metrics, NaN detection |
+| `deploy/modal/app.py` | 114 (42 flush) | HIGH | Deployment status, cache operations |
+| `src/brain_brr/cli/cli.py` | 47 print + 47 console.print | HIGH | User-facing CLI output (KEEP console.print) |
 | `deploy/modal/cleanup_volume.py` | 16 | MEDIUM | Volume maintenance |
 | `src/brain_brr/data/tusz_splits.py` | 13 | HIGH | Data validation, patient splits |
-| `src/brain_brr/data/datasets.py` | 11 | HIGH | Dataset loading, sampling |
+| `src/brain_brr/data/datasets.py` | 11 (6 flush) | HIGH | Dataset loading, sampling |
 | `deploy/modal/inspect_volume.py` | 10 | LOW | Diagnostic tool |
-| `src/brain_brr/cli/cli.py` | uses `rich.console.Console.print` (keep) | HIGH | User-facing CLI output |
 | `src/brain_brr/train/wandb_integration.py` | 7 | MEDIUM | W&B logging |
 | `src/brain_brr/data/cache_utils.py` | 6 | MEDIUM | Cache operations |
 | `src/brain_brr/models/tcn.py` | 5 | MEDIUM | Model initialization |
@@ -48,8 +57,8 @@
 4. Create logging utilities and helpers
 
 ### Phase 2: Critical Path (Day 1 Afternoon)
-1. Migrate `train/loop.py` (147 prints)
-2. Migrate `deploy/modal/app.py` (114 prints)
+1. Migrate `train/loop.py` (147 prints, 87 with flush)
+2. Migrate `deploy/modal/app.py` (114 prints, 42 with flush)
 3. Test training and deployment flows
 
 ### Phase 3: Data Pipeline (Day 2 Morning)
@@ -255,7 +264,7 @@ BGB_DEBUG_FINITE=1     # Enables finite checks with DEBUG logging
 ## 📋 Validation Criteria
 
 ### Success Metrics
-- [ ] All 338 print statements migrated or consciously retained (CLI)
+- [ ] All 387 print statements migrated or consciously retained (47 CLI console.print kept)
 - [ ] No loss of real-time monitoring capability
 - [ ] Training progress remains visible
 - [ ] CLI output maintains rich formatting
@@ -276,15 +285,21 @@ BGB_DEBUG_FINITE=1     # Enables finite checks with DEBUG logging
 - Configure logging from entrypoints only:
   - `src/brain_brr/cli/cli.py:592` main(): call `setup_logging(level=os.getenv("BGB_LOG_LEVEL","INFO"), force_setup=True)` before returning `cli(...)`.
   - `src/brain_brr/train/loop.py:1403` main(): call `setup_logging(...)` at top; also `logging.captureWarnings(True)`.
-  - `deploy/modal/app.py` for each `@app.function`: first line in the function body should call `setup_logging(...)` (Modal streams stderr to logs).
+  - `deploy/modal/app.py` for each `@app.function` (5 functions total):
+    - Line 147: `populate_cache()` - SSD cache population
+    - Line 256: `clean_cache()` - Volume cleanup
+    - Line 297: `test_mamba_cuda()` - CUDA kernel validation
+    - Line 360: `train()` - Main training function
+    - Line 650: `evaluate()` - Model evaluation
+    First line in each function body should call `setup_logging(...)` (Modal streams stderr to logs).
 
 - High-volume replacements (gate by N and/or DEBUG):
-  - `src/brain_brr/train/loop.py` (~147 prints, 131 with flush):
+  - `src/brain_brr/train/loop.py` (147 prints, 87 with flush):
     - Sampler creation/progress: INFO for start/end; DEBUG every N windows.
     - Dataset stats banners: INFO once per phase.
     - Critical “FATAL/CRITICAL/SMOKE TEST” banners: WARNING/ERROR.
     - Per-batch metrics: DEBUG every `BGB_LOG_EVERY_N_STEPS`.
-  - `deploy/modal/app.py` (112 prints; 42 with flush):
+  - `deploy/modal/app.py` (114 prints; 42 with flush):
     - Resource/config banners: INFO.
     - Non-fatal count deviations: WARNING (still proceed).
     - One-time success/failure messages: INFO/ERROR.
@@ -296,14 +311,63 @@ BGB_DEBUG_FINITE=1     # Enables finite checks with DEBUG logging
   - `src/brain_brr/data/cache_utils.py` (6): INFO/WARNING.
 
 - Low-volume replacements:
-  - `src/brain_brr/models/{tcn.py, debug_utils.py, mamba.py, gnn_pyg.py}`, `src/brain_brr/eval/metrics.py`: INFO/WARNING as appropriate.
+  - `src/brain_brr/models/tcn.py` (5 prints): Already has logger, migrate prints
+  - `src/brain_brr/models/debug_utils.py` (5 prints, 2 flush): DEBUG level for all
+  - `src/brain_brr/models/mamba.py` (2 prints): Already has logger, convert remaining
+  - `src/brain_brr/models/gnn_pyg.py` (2 prints): INFO for complexity messages
+  - `src/brain_brr/eval/metrics.py` (2 prints): INFO level
 
 ## 🧪 Test Impact & Adjustments
 
-- CLI tests (`tests/unit/cli/*`): unchanged. Continue to assert on `result.output` as CLI uses `rich.console.Console.print`.
-- Logging assertions already present (e.g., `tests/unit/models/test_interpolation.py` with `caplog`) remain valid; ensure `setup_logging()` is called in entrypoints so tests see WARNING-level logs by default.
-- Add a small test (new): verify `BGB_LOG_EVERY_N_STEPS` gates per-batch logs in `train/loop.py` when `caplog` level is DEBUG.
-- Keep performance tests stable by default (INFO level); document how to enable DEBUG locally.
+### Tests Using Output Capture
+- **CLI tests** (`tests/unit/cli/*`): Use `CliRunner` and assert on `result.output`
+  - NO CHANGES NEEDED - CLI keeps `console.print()` for user output
+  - Tests: `test_cli_simple.py`, `test_cli_commands.py` continue working
+- **Logging tests** (`tests/unit/models/test_interpolation.py:157-204`):
+  - Already uses `caplog` fixture correctly
+  - Sets level with `caplog.set_level(logging.WARNING)`
+  - Asserts on `caplog.records`
+
+### New Test Requirements
+- Add test for `BGB_LOG_EVERY_N_STEPS` gating in `train/loop.py`
+- Verify logging configuration from entrypoints
+- Test log file creation when `BGB_LOG_FILE` is set
+- Ensure performance tests run at INFO level by default
+
+## ⚠️ Critical Integration Points
+
+### W&B Integration Considerations
+- W&B captures stdout/stderr by default → potential duplicate logs
+- W&B has its own logging (wandb.log) → don't confuse with Python logging
+- Solutions:
+  1. Set W&B to not capture stdout: `wandb.init(settings=wandb.Settings(console="off"))`
+  2. OR: Use WARNING level for W&B-related logs to reduce noise
+  3. OR: Create separate logger for W&B with different handler
+
+### Files Already Using Logging (Handle Carefully)
+- `data/io.py:19` - Has logger, just remove prints
+- `models/clamp_utils.py:12` - Has logger, ensure consistency
+- `models/tcn.py:16` - Has logger, migrate 5 remaining prints
+- `models/mamba.py:19` - Has logger, migrate 2 remaining prints
+- `literature/pdf_to_markdown.py:42` - Has logger (not in main codebase)
+- DON'T break existing logger usage patterns
+
+### Smoke Test Mode Handling
+- `BGB_SMOKE_TEST=1` affects verbosity expectations
+- In smoke mode: More verbose logging acceptable (DEBUG level)
+- Production mode: INFO level with gated inner loops
+- Consider: `if env.smoke_test(): logger.setLevel(logging.DEBUG)`
+
+### Environment Variable Completeness
+All 25+ BGB_* variables from `src/brain_brr/utils/env.py`:
+- **Debug/NaN**: BGB_NAN_DEBUG, BGB_DEBUG_FINITE, BGB_NAN_DEBUG_MAX
+- **Sanitization**: BGB_SANITIZE_INPUTS, BGB_SANITIZE_GRADS, BGB_SKIP_OPT_STEP_ON_NAN
+- **Safety**: BGB_SAFE_CLAMP, BGB_SAFE_CLAMP_MIN/MAX
+- **Control**: BGB_SMOKE_TEST, BGB_LIMIT_FILES, BGB_DISABLE_TQDM, BGB_DISABLE_TB
+- **Model**: SEIZURE_MAMBA_FORCE_FALLBACK, BGB_FORCE_TCN_EXT
+- **Performance**: BGB_PERF_ALLOW_GPU, BGB_PERF_THREADS, BGB_PERF_TOLERANCE_FACTOR
+- **Training**: BGB_MID_EPOCH_MINUTES, BGB_MID_EPOCH_KEEP
+- **Other**: BGB_FORCE_MANIFEST_REBUILD, BGB_ANOMALY_DETECT
 
 ## 🧱 Design Guardrails (revisions to plan)
 
@@ -454,4 +518,21 @@ if math.isnan(loss):
 3. Implement Phase 1 infrastructure
 4. Begin systematic migration
 
-The 387 print statements represent technical debt that should be addressed before the next major release. This plan provides a clear path to production-ready logging while maintaining all current functionality.
+## 📊 Final Statistics Summary
+
+### Accurate Counts (Verified)
+- **Total print() calls**: 387 (247 src + 140 deploy)
+- **Prints with flush=True**: 147 total
+- **Rich console.print()**: 47 in CLI (KEEP as-is)
+- **Files with logging**: 5 existing
+- **Environment variables**: 25+ BGB_* variables to integrate
+- **Modal functions needing setup**: 5 functions
+- **Tests using output capture**: ~10 CLI tests, 1 caplog test
+
+### Migration Scope
+- **Must migrate**: 340 print statements (387 - 47 CLI console.print)
+- **High priority**: 261 prints (loop.py + app.py)
+- **Already logging**: 5 files need print cleanup only
+- **Test changes**: Minimal (CLI tests unchanged)
+
+The 387 print statements represent significant technical debt. However, with proper gating (BGB_LOG_EVERY_N_STEPS) and level control, we can maintain performance while gaining production logging capabilities. This plan provides a precise, actionable path forward.
