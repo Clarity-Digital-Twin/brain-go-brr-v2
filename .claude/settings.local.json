@@ -20,7 +20,8 @@
       "Bash(aws s3 cp:*)",
       "Bash(tmux list-sessions:*)",
       "Bash(tmux new-session:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(.venv/bin/python:*)"
     ],
     "deny": [],
     "ask": []
