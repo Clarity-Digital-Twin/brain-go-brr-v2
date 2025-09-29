@@ -39,8 +39,13 @@ class MetricBuffer:
     """
 
     capacity: int = 1000
-    values: deque = field(default_factory=lambda: deque(maxlen=1000))
-    timestamps: deque = field(default_factory=lambda: deque(maxlen=1000))
+    values: deque = field(default_factory=deque)
+    timestamps: deque = field(default_factory=deque)
+
+    def __post_init__(self):
+        """Initialize deques with correct capacity."""
+        self.values = deque(maxlen=self.capacity)
+        self.timestamps = deque(maxlen=self.capacity)
 
     def add(self, value: float, timestamp: float | None = None) -> None:
         """Add value with optional timestamp."""
