@@ -11,7 +11,7 @@ from collections import deque
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 # Constants from environment with sensible defaults
 LOG_LEVEL = os.getenv("BGB_LOG_LEVEL", "INFO")
@@ -57,12 +57,15 @@ class RingBufferHandler(logging.Handler):
     def __init__(self, capacity: int = 1000):
         super().__init__()
         self.buffer: deque[logging.LogRecord] = deque(maxlen=capacity)
-        self.lock = threading.RLock()  # Use RLock for re-entrancy
+        self.lock = cast(Any, threading.RLock())  # Use RLock for re-entrancy
 
     def emit(self, record: logging.LogRecord) -> None:
         """Add record to ring buffer with thread safety."""
         try:
-            with self.lock:
+            if self.lock:
+                with self.lock:
+                    self.buffer.append(record)
+            else:
                 self.buffer.append(record)
         except Exception:
             # Never log here - just swallow to avoid re-entrancy
@@ -70,14 +73,22 @@ class RingBufferHandler(logging.Handler):
 
     def get_records(self, n: int | None = None) -> list[logging.LogRecord]:
         """Get last n records (or all if n is None)."""
-        with self.lock:
+        if self.lock:
+            with self.lock:
+                if n is None:
+                    return list(self.buffer)
+                return list(self.buffer)[-n:]
+        else:
             if n is None:
                 return list(self.buffer)
             return list(self.buffer)[-n:]
 
     def clear(self) -> None:
         """Clear the buffer."""
-        with self.lock:
+        if self.lock:
+            with self.lock:
+                self.buffer.clear()
+        else:
             self.buffer.clear()
 
 
@@ -92,7 +103,7 @@ class PerformanceFilter(logging.Filter):
         super().__init__()
         self.every_n_steps = every_n_steps
         self.step_counters: dict[str, int] = {}
-        self.lock = threading.RLock()  # Use RLock for re-entrancy
+        self.lock = cast(Any, threading.RLock())  # Use RLock for re-entrancy
 
     def filter(self, record: logging.LogRecord) -> bool:
         """Filter based on step count if record has step attribute."""
@@ -108,7 +119,11 @@ class PerformanceFilter(logging.Filter):
         # Check if we should log this step
         if step % self.every_n_steps == 0:
             # Only track if we're actually logging
-            with self.lock:
+            if self.lock:
+                with self.lock:
+                    key = f"{record.name}:{getattr(record, 'funcName', '')}"
+                    self.step_counters[key] = step
+            else:
                 key = f"{record.name}:{getattr(record, 'funcName', '')}"
                 self.step_counters[key] = step
             return True
