@@ -42,4 +42,4 @@
 
 10. REEPEATED CODE 
 
-11. SERACH FOR MONOLITHS THAT NEED TO BE REFACTORED. or 1500 line files that need to be broken down / refactored if needed
+11. SERACH FOR MONOLITHS THAT NEED TO BE REFACTORED. or 1500 line files that need to be broken down / refactored if needed --> /home/jj/proj/brain-go-brr-v2/LOOP_PY_TECH_DEBT.md ???
