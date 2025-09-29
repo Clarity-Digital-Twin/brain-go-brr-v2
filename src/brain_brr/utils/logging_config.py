@@ -171,6 +171,7 @@ class LoggingConfig:
             if enable_ring_buffer:
                 self.ring_buffer = RingBufferHandler(LOG_RING_BUFFER_SIZE)
                 self.ring_buffer.setLevel(logging.DEBUG)
+                self.ring_buffer._bgb_owned = True  # type: ignore[attr-defined]
                 root_logger.addHandler(self.ring_buffer)
 
             # Add performance filter for high-frequency paths
@@ -406,9 +407,13 @@ class LoggingConfig:
         # Clear our handler registry
         self.handlers.clear()
 
-        # Clean up ring buffer
+        # Clean up ring buffer (if not already cleaned)
         if self.ring_buffer:
             with contextlib.suppress(Exception):
+                if self.ring_buffer in root_logger.handlers:
+                    root_logger.removeHandler(self.ring_buffer)
+            with contextlib.suppress(Exception):
+                self.ring_buffer.flush()
                 self.ring_buffer.close()
 
 
