@@ -301,7 +301,7 @@ def clean_cache():
 
 
 @app.function(
-    gpu="A100",
+    gpu="A100-80GB",
     timeout=300,  # 5 min test
     cpu=16,  # Safe: 16 cores for testing
     memory=32768,  # Safe: 32GB RAM for tests
@@ -677,7 +677,7 @@ def train(
 
 
 @app.function(
-    gpu="A100",  # A100 for evaluation
+    gpu="A100-80GB",  # A100 for evaluation
     timeout=3600,  # 1 hour
     volumes={
         "/data": data_mount,   # Use S3 mount for eval datasets
