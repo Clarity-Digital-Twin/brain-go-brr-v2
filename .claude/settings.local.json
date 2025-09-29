@@ -52,7 +52,8 @@
       "Bash(tmux ls:*)",
       "Bash(~/.local/bin/aws s3 cp:*)",
       "Bash(.venv/bin/pytest tests/integration/test_gnn_integration.py::TestGNNIntegration::test_gnn_gradient_flow_integration -xvs)",
-      "Bash(.venv/bin/pytest tests/integration/ -xvs --tb=short)"
+      "Bash(.venv/bin/pytest tests/integration/ -xvs --tb=short)",
+      "Bash(.venv/bin/pytest tests/integration/test_gnn_integration.py::TestGNNIntegration::test_gnn_gradient_flow_integration -xvs --tb=short)"
     ],
     "deny": [],
     "ask": []
