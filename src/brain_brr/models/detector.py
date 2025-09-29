@@ -583,7 +583,7 @@ class SeizureDetector(nn.Module):
                 )
             except ImportError as e:
                 raise ImportError(
-                    "PyTorch Geometric not installed. GNN requires PyG. Install from prebuilt wheels for torch 2.2.2+cu121 (see INSTALLATION.md) or run 'make setup-gpu'"
+                    "PyTorch Geometric not installed. GNN requires PyG. Install from prebuilt wheels for torch 2.5.0+cu124 (see INSTALLATION.md) or run 'make setup-gpu'"
                 ) from e
 
             # V3 creates projections above
