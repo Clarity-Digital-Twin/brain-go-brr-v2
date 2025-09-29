@@ -117,7 +117,7 @@ Before (train/loop.py):
     print(f"[TRAIN] Batch {i}: loss={loss:.4f}", flush=True)
 
 After:
-    from src.brain_brr.utils.logging_patterns import log_batch_metrics
+    from brain_brr.utils.logging_patterns import log_batch_metrics
     log_batch_metrics(logger, step=i, loss=loss)
 
 Before (with multiple metrics):
