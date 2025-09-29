@@ -22,7 +22,9 @@
       "Bash(tmux new-session:*)",
       "Bash(find:*)",
       "Bash(.venv/bin/python:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(tmux capture-pane:*)",
+      "Bash(tmux kill-session:*)"
     ],
     "deny": [],
     "ask": []
