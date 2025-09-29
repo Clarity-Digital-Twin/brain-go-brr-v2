@@ -1,6 +1,11 @@
+import logging
+
 import torch
 
 from src.brain_brr.utils.env import env
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # Enable finite assertions by default in smoke tests and when nan-debugging
 DEBUG_FINITE = env.debug_finite() or env.smoke_test() or env.nan_debug()
@@ -35,13 +40,12 @@ def assert_finite(tag: str, x: torch.Tensor, raise_on_fail: bool = True) -> bool
     mu = float(x_clean.mean().item())
     std = float(x_clean.std().item())
 
-    print(
+    logger.debug(
         f"[NaN-CHECK FAIL] {tag}:\n"
         f"  Shape: {x.shape}, Total: {total}\n"
         f"  NaN: {nan_count} ({100 * nan_count / total:.2f}%)\n"
         f"  Inf: {inf_count} ({100 * inf_count / total:.2f}%)\n"
-        f"  Clean stats: min={xmin:.3e}, max={xmax:.3e}, mean={mu:.3e}, std={std:.3e}",
-        flush=True,
+        f"  Clean stats: min={xmin:.3e}, max={xmax:.3e}, mean={mu:.3e}, std={std:.3e}"
     )
 
     if raise_on_fail:
@@ -70,7 +74,7 @@ def clamp_and_check(
     if torch.isnan(x).any() or torch.isinf(x).any():
         x = torch.nan_to_num(x, nan=0.0, posinf=max_val, neginf=min_val)
         if DEBUG_FINITE:
-            print(f"[NaN-CHECK] {tag}: Replaced non-finite values", flush=True)
+            logger.debug(f"[NaN-CHECK] {tag}: Replaced non-finite values")
 
     # Clamp to range
     x = torch.clamp(x, min=min_val, max=max_val)
@@ -113,9 +117,8 @@ def check_gradients(model: torch.nn.Module, max_grad_norm: float = 100.0) -> dic
                 problematic_params.append(f"{name}: norm={grad_norm:.2e} > {max_grad_norm}")
 
     if problematic_params and DEBUG_FINITE:
-        print("[GRAD-CHECK] Problematic gradients found:")
+        logger.debug("[GRAD-CHECK] Problematic gradients found:")
         for issue in problematic_params:
-            print(f"  {issue}")
-        print(flush=True)
+            logger.debug(f"  {issue}")
 
     return grad_stats
