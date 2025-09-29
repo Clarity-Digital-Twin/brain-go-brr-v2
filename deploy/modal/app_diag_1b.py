@@ -541,7 +541,7 @@ def train(
     env["PYTHONPATH"] = "/app"
     env["PYTHONUNBUFFERED"] = "1"  # CRITICAL: Force unbuffered output for real-time logs
     env["PYTHONFAULTHANDLER"] = "1"  # Enable Python fault handler for better error traces
-    # env["SEIZURE_MAMBA_FORCE_FALLBACK"] = "1"  # REMOVED - Mamba-SSM should work now!
+    env["SEIZURE_MAMBA_FORCE_FALLBACK"] = "1"  # 🔍 DIAGNOSTIC: Force Conv1d fallback (skip Mamba CUDA)
     env["PYTHONTRACEMALLOC"] = "1"  # Track memory allocations for debugging
     # Only limit files for smoke tests
     if "smoke" in config_path.lower():
