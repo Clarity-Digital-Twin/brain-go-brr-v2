@@ -92,7 +92,7 @@ class PerformanceFilter(logging.Filter):
         super().__init__()
         self.every_n_steps = every_n_steps
         self.step_counters: dict[str, int] = {}
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()  # Use RLock for re-entrancy
 
     def filter(self, record: logging.LogRecord) -> bool:
         """Filter based on step count if record has step attribute."""
