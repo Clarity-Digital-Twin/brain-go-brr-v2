@@ -240,7 +240,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 | **Edge similarity explosions** | **v3.2.0: Set `edge_similarity_margin: 0.01` in configs** |
 | Modal training stuck | Increase CPU cores (24) and RAM (96GB) |
 | PyG installation fails | Use pre-built wheels, not `uv sync -E graph` |
-| Mamba CUDA errors | Ensure CUDA 12.1 toolkit installed |
+| Mamba CUDA errors | Ensure CUDA 12.4 toolkit installed |
 | CI/CD test failures | Tests properly skip when PyG not installed (v3.2.0+) |
 
 ### Modal-Specific Settings
