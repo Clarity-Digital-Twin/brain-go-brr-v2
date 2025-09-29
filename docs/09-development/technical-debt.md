@@ -56,7 +56,7 @@
 - ✅ `make t` passes all tests
 - ✅ Integration tests pass with V3
 - ✅ V3 is default everywhere
-- ✅ No V2 references remain
+- ✅ No V2 references remain (except Modal app name kept for continuity)
 
 ## Remaining Technical Debt (September 29, 2025)
 

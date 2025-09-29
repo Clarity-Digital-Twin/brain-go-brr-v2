@@ -19,7 +19,7 @@ Validation and summary
 Notes
 
 - build-cache respects `--limit-files` first, then falls back to `BGB_LIMIT_FILES` if set.
-- Split naming: the CLI accepts `--split val` as a backward-compatible alias, but all paths and docs use the official TUSZ naming `dev`.
+- Split naming: the CLI only accepts `--split train` or `--split dev` to match official TUSZ naming.
 - scan-cache exits with code 2 when no seizure windows are found (guards bad label paths).
 - evaluate config resolution: uses `--config` if provided; else uses checkpoint-embedded config if present and not `None`; otherwise exits with an error.
 - evaluate EDF discovery: exits with an error if no `*.edf` files are found under the provided `data_path`.

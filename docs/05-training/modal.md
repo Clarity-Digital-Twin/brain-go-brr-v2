@@ -7,6 +7,8 @@ Modal functions will stop after ~8 minutes when terminal disconnects unless you 
 Commands
 
 - Populate cache (one-time, from S3): `modal run --detach deploy/modal/app.py --action populate-cache`
+  - **IMPORTANT**: This command removes existing `/results/cache/tusz/{train,dev}` before copying fresh data from S3
+  - Training uses the SSD cache and will NOT clear it unless you re-run populate-cache or clean-cache
 - Test Mamba CUDA: `modal run deploy/modal/app.py --action test-mamba`
 - Smoke: `modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml`
 - Full (detached): `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml`

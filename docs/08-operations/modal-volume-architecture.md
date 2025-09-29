@@ -28,6 +28,8 @@ After thorough investigation and cleanup (Sep 25, 2025), here's the **CORRECT** 
 - **Method**: Modal persistent volume (fast SSD)
 - **Mount point**: `/results/cache/tusz/{train,dev}`
 - Populate once (e.g., by copying from local or S3), then reuse across runs.
+- **IMPORTANT**: The `populate-cache` command intentionally removes existing cache directories before copying fresh data from S3
+- Training uses the SSD cache as-is and does NOT clear it (only populate-cache or clean-cache commands remove cache)
 
 ## 2. Modal Persistence Volume
 
