@@ -1,4 +1,4 @@
-2. examine test suite configs and overall test suite to ensure clean and not adhoc patchwork for OOM fixes, or anything esle 
+2. examine test suite configs and overall test suite to ensure clean and not adhoc patchwork for OOM fixes, or anything esle - configs, consistnet fixtures, etc 
 
 
 
@@ -42,4 +42,4 @@
 
 10. REEPEATED CODE 
 
-11. SERACH FOR MONOLITHS THAT NEED TO BE REFACTORED. 
+11. SERACH FOR MONOLITHS THAT NEED TO BE REFACTORED. or 1500 line files that need to be broken down / refactored if needed
