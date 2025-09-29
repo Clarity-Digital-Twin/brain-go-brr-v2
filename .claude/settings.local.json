@@ -45,7 +45,12 @@
       "Bash(kill:*)",
       "Bash(python3:*)",
       "Bash(timeout 30 make s)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(modal app:*)",
+      "Bash(tmux new:*)",
+      "Bash(tmux attach:*)",
+      "Bash(tmux ls:*)",
+      "Bash(~/.local/bin/aws s3 cp:*)"
     ],
     "deny": [],
     "ask": []

@@ -25,7 +25,7 @@ def cleanup_volume():
     """Clean up unnecessary directories from Modal persistence volume."""
     # Setup logging for Modal function
     from src.brain_brr.utils.logging_config import setup_logging
-    setup_logging()
+    setup_logging(format_style="simple", force=True)
 
     logger.info("=== MODAL VOLUME CLEANUP ===")
 
@@ -97,7 +97,7 @@ def main():
     """Run cleanup."""
     # Setup logging for local entrypoint
     from src.brain_brr.utils.logging_config import setup_logging
-    setup_logging()
+    setup_logging(format_style="simple", force=True)
 
     result = cleanup_volume.remote()
     logger.info(result)
