@@ -69,7 +69,9 @@
       "Bash(awk:*)",
       "Read(///**)",
       "Bash(tree:*)",
-      "Bash(sort:*)"
+      "Bash(sort:*)",
+      "Bash(git log:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []
