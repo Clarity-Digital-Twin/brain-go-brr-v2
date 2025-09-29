@@ -44,7 +44,8 @@
       "Read(//tmp/**)",
       "Bash(kill:*)",
       "Bash(python3:*)",
-      "Bash(timeout 30 make s)"
+      "Bash(timeout 30 make s)",
+      "Bash(rg:*)"
     ],
     "deny": [],
     "ask": []
