@@ -22,14 +22,17 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
-from rich.console import Console
-from rich.logging import RichHandler
+# DISABLE RICH FOR NOW - it's hanging on import
+# TODO: Re-enable when we figure out the hanging issue
+RICH_AVAILABLE = False
+Console = None
+RichHandler = None
 
 # Constants from environment with sensible defaults
 LOG_LEVEL = os.getenv("BGB_LOG_LEVEL", "INFO")
 LOG_FILE = os.getenv("BGB_LOG_FILE", None)
-# Default to simple format if not in a TTY, rich otherwise
-LOG_FORMAT = os.getenv("BGB_LOG_FORMAT", "rich" if sys.stderr.isatty() else "simple")
+# Default to simple format if not in a TTY or Rich unavailable
+LOG_FORMAT = os.getenv("BGB_LOG_FORMAT", "simple")  # FORCE SIMPLE FOR NOW
 LOG_EVERY_N_STEPS = int(os.getenv("BGB_LOG_EVERY_N_STEPS", "50"))
 LOG_RING_BUFFER_SIZE = int(os.getenv("BGB_LOG_RING_BUFFER_SIZE", "1000"))
 
@@ -196,6 +199,11 @@ class LoggingConfig:
 
     def _setup_rich_handler(self, logger: logging.Logger, level: int) -> None:
         """Configure Rich handler for beautiful terminal output."""
+        if not RICH_AVAILABLE:
+            # Fallback to simple if Rich not available
+            self._setup_simple_handler(logger, level)
+            return
+
         self.console = Console(
             stderr=True,
             force_terminal=False,  # Don't force terminal mode

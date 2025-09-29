@@ -21,7 +21,8 @@
       "Bash(tmux list-sessions:*)",
       "Bash(tmux new-session:*)",
       "Bash(find:*)",
-      "Bash(.venv/bin/python:*)"
+      "Bash(.venv/bin/python:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
