@@ -48,6 +48,16 @@ Performance testing (tests/performance)
 - `BGB_PERF_TOLERANCE_FACTOR=X.Y` — tolerance factor for perf tests (default 1.2)
 - `BGB_PERF_STRICT_MODE=1` — disable tolerance slack (strict comparisons)
 
+Logging configuration
+
+- `BGB_LOG_LEVEL=INFO|DEBUG|WARNING|ERROR` — logging verbosity (default: INFO)
+- `BGB_LOG_FILE=/path/to/file.log` — optional log file output
+- `BGB_LOG_FORMAT=rich|simple|json` — output format (default: auto-detect, simple in CI/Modal)
+- `BGB_LOG_EVERY_N_STEPS=50` — log training progress every N steps (default: 50)
+- `BGB_LOG_RING_BUFFER_SIZE=1000` — size of in-memory log buffer (default: 1000)
+- `BGB_FORCE_SIMPLE=1` — force simple logging format (no Rich)
+- `BGB_FORCE_RICH=0` — disable Rich format even if available
+
 Important notes
 
 - Environment variables are cached at import time by `src.brain_brr.utils.env.EnvConfig` to support `torch.compile`. Restart the process to apply changes.
