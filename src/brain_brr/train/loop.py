@@ -1424,7 +1424,7 @@ def main() -> None:
     # Check if we're in smoke test mode
     is_smoke_test = env.smoke_test()
     if is_smoke_test:
-        print("\n" + "=" * 60)
+        logger.warning("\n" + "=" * 60)
         logger.info("SMOKE TEST MODE ACTIVE")
         logger.info("Pipeline validation only - model will NOT learn meaningful patterns")
         logger.info("DO NOT use this for real training!")
@@ -1559,18 +1559,16 @@ def main() -> None:
             with open(manifest_path) as f:
                 manifest_data = json.load(f)
             if force_rebuild:
-                print(
-                    "[DATA] BGB_FORCE_MANIFEST_REBUILD=1 → deleting manifest for rebuild",
-                    flush=True,
+                logger.info(
+                    "[DATA] BGB_FORCE_MANIFEST_REBUILD=1 → deleting manifest for rebuild"
                 )
                 manifest_path.unlink()
             else:
                 from src.brain_brr.data.cache_utils import validate_manifest
 
                 if not validate_manifest(train_cache_dir, manifest_data):
-                    print(
-                        "[WARNING] Invalid/stale manifest detected → deleting for rebuild",
-                        flush=True,
+                    logger.warning(
+                        "Invalid/stale manifest detected → deleting for rebuild"
                     )
                     manifest_path.unlink()
         except Exception as e:
@@ -1587,9 +1585,8 @@ def main() -> None:
                 from src.brain_brr.data.cache_utils import scan_existing_cache
 
                 _ = scan_existing_cache(train_cache_dir)
-                print(
-                    f"[DATA] Built manifest from {len(existing_cache_files)} cached files",
-                    flush=True,
+                logger.info(
+                    f"[DATA] Built manifest from {len(existing_cache_files)} cached files"
                 )
             except Exception as e:
                 logger.info(f"[WARNING] Manifest build failed: {e}")
@@ -1601,9 +1598,8 @@ def main() -> None:
     if use_balanced and manifest_path.exists():
         try:
             train_dataset = BalancedSeizureDataset(train_cache_dir)
-            print(
-                f"[DATASET] BalancedSeizureDataset: {len(train_dataset)} windows from manifest",
-                flush=True,
+            logger.info(
+                f"[DATASET] BalancedSeizureDataset: {len(train_dataset)} windows from manifest"
             )
             if len(train_dataset) == 0:
                 is_smoke_test = env.smoke_test()
