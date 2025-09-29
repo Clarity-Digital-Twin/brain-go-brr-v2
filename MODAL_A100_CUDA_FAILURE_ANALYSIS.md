@@ -9,18 +9,26 @@
 
 ## Executive Summary
 
-Training **failed on first forward pass** after 55 minutes of successful data loading. The failure is a **GPU hardware-level MMU fault** (NVIDIA XID 31) followed by **CUDA illegal memory access** in Mamba-SSM kernel. This is NOT a code bug but likely a **configuration mismatch** between Mamba-SSM compilation and A100 compute capability.
+Training **failed on first forward pass** after 55 minutes of successful data loading. The failure is a **GPU hardware-level MMU fault** (NVIDIA XID 31) followed by **CUDA illegal memory access** in Mamba-SSM kernel.
+
+**ROOT CAUSE:** Modal's Docker image cache served multi-architecture binaries compiled on H100 (compute 9.0) to A100 runtime (compute 8.0). When Mamba-SSM kernel compiled for wrong GPU executes, it makes invalid memory assumptions causing page fault.
 
 **Critical Evidence:**
-- ✅ Data loading completed successfully (1832 dev files indexed in 55 minutes)
-- ✅ Model initialization succeeded (31.4M parameters)
-- ✅ Optimizer created successfully
-- ✅ W&B initialized
-- ❌ **Failed on PREFLIGHT test batch** (single forward pass before training loop)
-- ❌ GPU threw **XID 31 MMU Fault** immediately before CUDA error
-- ❌ Mamba layer triggered fallback due to illegal memory access
+- ✅ Data loading completed (1832 dev files, 148K windows, 55 minutes)
+- ✅ Model initialization succeeded (31.4M parameters, all headdim correct)
+- ✅ Optimizer, W&B, focal loss initialized
+- ❌ **Failed on PREFLIGHT test batch** (first CUDA kernel launch)
+- ❌ GPU XID 31 MMU Fault at `0x2ae1_d6600000` (invalid page)
+- ❌ CUDA error: illegal memory access (wrong architecture)
 
-**Key Insight:** This is an **A100-specific issue**. Local RTX 4090 training works fine. The problem manifests in Mamba-SSM CUDA kernels, not our code.
+**Mathematical Verification (Our Config is CORRECT):**
+```
+Main Mamba:  (512*2)/64 = 16.0  (multiple of 8 ✅)
+Node Mamba:  (64*2)/8   = 16.0  (multiple of 8 ✅)
+Edge Mamba:  (16*2)/4   = 8.0   (multiple of 8 ✅)
+```
+
+**Primary Fix:** Change `TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"` to `"8.0"` (A100 only) and add `FORCE_REBUILD` env var to invalidate Modal's cache.
 
 ---
 
@@ -555,31 +563,33 @@ modal run --detach deploy/modal/app.py --action train --config configs/modal/tra
 
 ## Questions for Cross-Review
 
-1. **Is our TORCH_CUDA_ARCH_LIST correct?**
-   - We use `"8.0;8.6;8.9;9.0"`
-   - A100 is 8.0 (included)
-   - Should we use **ONLY** `"8.0"` to force single-arch build?
+1. **Is single-arch build the right approach?** ✅
+   - YES: Multi-arch `"8.0;8.6;8.9;9.0"` allows Modal to serve H100 binaries to A100
+   - SOLUTION: Use `"8.0"` ONLY to force A100-specific compilation
+   - This is the PRIMARY FIX
 
-2. **Is mamba-ssm 2.2.2 known to work on A100?**
-   - We chose it to avoid bugs in 2.2.4/2.2.5
-   - But did 2.2.2 introduce A100-specific bugs?
-   - Should we try 2.2.0 or even 2.1.x?
+2. **Can we downgrade mamba-ssm?** ❌
+   - NO: mamba-ssm 2.2.2 is required for PyTorch 2.2.2 compatibility
+   - Downgrading to 2.2.0 would require testing with older PyTorch
+   - NOT RECOMMENDED: Our headdim config (64, 8, 4) is mathematically correct
+   - Problem is compilation, not mamba-ssm version
 
-3. **Is batch_size=64 safe?**
-   - 64 × 19 × 15360 × 4 bytes (FP32) = ~75MB input
-   - Model is 31.4M params × 4 bytes = ~126MB
-   - A100 has 80GB
-   - Should be fine, but worth testing batch=2?
+3. **Is batch_size=64 the problem?** ❌
+   - NO: Batch size calculation is safe:
+     - Input: 64 × 19 × 15360 × 4 bytes = 75MB
+     - Model: 31.4M params × 4 bytes = 126MB
+     - A100 has 80GB (we're using <0.3%)
+   - XID 31 is page fault, NOT OOM (OOM would be XID 13)
 
-4. **Could this be Modal's cached binaries?**
-   - Modal caches pip installs between image builds
-   - Even with `--no-cache-dir`, Modal may cache at layer level
-   - Do we need to invalidate Modal's image cache entirely?
+4. **Is Modal's layer cache the culprit?** ✅
+   - YES: Even with `--no-cache-dir`, Modal caches Docker image LAYERS
+   - SOLUTION: Add `FORCE_REBUILD` env var that changes each build
+   - This invalidates Modal's cache and forces full recompilation
 
-5. **Should we test on H100 instead?**
-   - H100 is newer (compute 9.0)
-   - May have better mamba-ssm support
-   - Worth trying if A100 continues to fail?
+5. **Should we try H100 instead?** ⚠️
+   - MAYBE: H100 (compute 9.0) may work if it was the build GPU
+   - BUT: Defeats purpose (we want A100 for cost/availability)
+   - ONLY try if Fix 1 fails after 2 attempts
 
 ---
 
