@@ -54,6 +54,12 @@ from src.brain_brr.utils.training_logger import TrainingLogger
 from src.brain_brr.train.wandb_integration import WandBLogger
 from src.brain_brr.utils.env import env
 
+# Module logger
+logger = logging.getLogger(__name__)
+
+# Training-specific logger with gating
+LOG_EVERY_N_STEPS = int(os.getenv("BGB_LOG_EVERY_N_STEPS", "50"))
+
 # WSL2-safe multiprocessing defaults (must be before any DataLoader creation)
 if mp.get_start_method(allow_none=True) != "spawn":
     mp.set_start_method("spawn", force=True)
