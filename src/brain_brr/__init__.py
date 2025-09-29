@@ -11,5 +11,5 @@ __version__ = "3.2.0"
 
 # NO HEAVY IMPORTS AT PACKAGE LEVEL
 # Models should be imported explicitly when needed:
-#   from brain_brr.models.detector import SeizureDetector
+#   from src.brain_brr.models.detector import SeizureDetector
 # This avoids importing torch/mamba when just accessing utilities
