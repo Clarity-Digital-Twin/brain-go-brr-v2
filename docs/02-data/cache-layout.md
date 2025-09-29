@@ -1,9 +1,20 @@
 # Cache Layout and Manifests
 
+## Dataset Strategy (CRITICAL - This is CORRECT ML practice, not a bug!)
+
+- **Training**: Uses `BalancedSeizureDataset` with manifest to oversample seizures (8% → ~30% in batches)
+  - Why: Model needs enough seizures to learn patterns effectively
+  - Requires: `train/manifest.json` (auto-created if missing)
+- **Validation**: Uses `EEGWindowDataset` with natural distribution (~8% seizures)
+  - Why: Measures real-world performance on true distribution, not inflated metrics
+  - Manifest: `dev/manifest.json` is OPTIONAL (validation doesn't use it)
+- **This is standard ML practice**: Train on balanced data to learn, validate on real distribution to measure
+
 Locations
 
 - Local: `cache/tusz/{train,dev}`  # CRITICAL: We use 'dev' to match TUSZ's official naming!
 - Modal: `/results/cache/tusz/{train,dev}` (persistent SSD volume; no S3 mount)
+- S3 (intermediate): `s3://brain-go-brr-eeg-data-20250919/cache/tusz/`
 
 NPZ schema
 
