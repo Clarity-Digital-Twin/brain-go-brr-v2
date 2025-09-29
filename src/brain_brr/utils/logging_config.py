@@ -1,29 +1,26 @@
 """Central logging configuration for Brain-Go-Brr V3."""
 
 import atexit
+import contextlib
+import importlib.util
 import logging
 import os
 import sys
 import threading
 from collections import deque
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
-
-# Optional Rich support (fallback to simple when unavailable or non-TTY)
-try:
-    from rich.console import Console
-    from rich.logging import RichHandler
-
-    RICH_AVAILABLE = True
-except Exception:  # pragma: no cover
-    RICH_AVAILABLE = False
-    Console = None  # type: ignore[assignment]
-    RichHandler = None  # type: ignore[assignment]
+from typing import Any, Optional
 
 # Constants from environment with sensible defaults
 LOG_LEVEL = os.getenv("BGB_LOG_LEVEL", "INFO")
 LOG_FILE = os.getenv("BGB_LOG_FILE", None)
+
+
+def _rich_available() -> bool:
+    """Check if Rich is importable without importing it."""
+    return importlib.util.find_spec("rich") is not None
 
 
 # Default to simple unless explicitly requested and conditions are met
@@ -36,7 +33,7 @@ def _get_default_format() -> str:
     if os.getenv("BGB_FORCE_SIMPLE") == "1":
         return "simple"
     # Only use rich if TTY and available and not forced off
-    if sys.stderr.isatty() and RICH_AVAILABLE and os.getenv("BGB_FORCE_RICH") != "0":
+    if sys.stderr.isatty() and _rich_available() and os.getenv("BGB_FORCE_RICH") != "0":
         return "rich"
     return "simple"
 
@@ -59,8 +56,8 @@ class RingBufferHandler(logging.Handler):
 
     def __init__(self, capacity: int = 1000):
         super().__init__()
-        self.buffer = deque(maxlen=capacity)
-        self.lock = threading.Lock()
+        self.buffer: deque[logging.LogRecord] = deque(maxlen=capacity)
+        self.lock: threading.Lock = threading.Lock()
 
     def emit(self, record: logging.LogRecord) -> None:
         """Add record to ring buffer with thread safety."""
@@ -129,7 +126,7 @@ class LoggingConfig:
         self.handlers: dict[str, logging.Handler] = {}
         self.ring_buffer: RingBufferHandler | None = None
         self.performance_filter: PerformanceFilter | None = None
-        self.console: Console | None = None
+        self.console: Any | None = None
         self._original_levels: dict[str, int] = {}
 
     def setup(
@@ -191,18 +188,15 @@ class LoggingConfig:
             # Capture Python warnings into logging system
             logging.captureWarnings(True)
 
-            # Register cleanup on exit
-            atexit.register(self.cleanup)
+            # Register cleanup on exit (skip in tests to avoid hangs)
+            if not os.getenv("PYTEST_CURRENT_TEST"):
+                atexit.register(self.cleanup)
 
             self.is_configured = True
 
     def _setup_rich_handler(self, logger: logging.Logger, level: int) -> None:
         """Configure Rich handler (falls back to simple when unavailable)."""
         # Multiple safety checks
-        if not RICH_AVAILABLE:
-            self._setup_simple_handler(logger, level)
-            return
-
         if not sys.stderr.isatty():
             self._setup_simple_handler(logger, level)
             return
@@ -323,7 +317,7 @@ class LoggingConfig:
             logger.setLevel(logging.WARNING)
 
     @contextmanager
-    def temporary_level(self, level: str | int):
+    def temporary_level(self, level: str | int) -> Iterator[None]:
         """Context manager for temporary log level change.
 
         Usage:
@@ -345,7 +339,7 @@ class LoggingConfig:
             root_logger.setLevel(original_level)
 
     @contextmanager
-    def suppress(self, *logger_names: str):
+    def suppress(self, *logger_names: str) -> Iterator[None]:
         """Context manager to temporarily suppress specific loggers.
 
         Usage:
@@ -382,17 +376,13 @@ class LoggingConfig:
     def cleanup(self) -> None:
         """Clean up resources on exit."""
         for handler in self.handlers.values():
-            try:
+            with contextlib.suppress(Exception):
                 handler.flush()
                 handler.close()
-            except Exception:
-                pass  # Ignore errors during cleanup
 
         if self.ring_buffer:
-            try:
+            with contextlib.suppress(Exception):
                 self.ring_buffer.close()
-            except Exception:
-                pass  # Ignore errors during cleanup
 
 
 def get_instance() -> LoggingConfig:
@@ -453,17 +443,20 @@ def get_logger(name: str) -> logging.Logger:
 
 
 # Performance-conscious logging utilities
+_LOG_ONCE_SEEN: set[str] = set()
+
+
 def log_once(logger: logging.Logger, level: int, msg: str, key: str) -> None:
     """Log a message only once per key.
 
     Useful for warnings that would otherwise spam.
     """
-    if not hasattr(log_once, "_seen"):
-        log_once._seen = set()
-
-    if key not in log_once._seen:
+    if key not in _LOG_ONCE_SEEN:
         logger.log(level, msg)
-        log_once._seen.add(key)
+        _LOG_ONCE_SEEN.add(key)
+
+
+_LOG_EVERY_N_COUNTS: dict[str, int] = {}
 
 
 def log_every_n(logger: logging.Logger, level: int, msg: str, n: int, key: str) -> None:
@@ -471,11 +464,8 @@ def log_every_n(logger: logging.Logger, level: int, msg: str, n: int, key: str) 
 
     Useful for progress updates without spam.
     """
-    if not hasattr(log_every_n, "_counts"):
-        log_every_n._counts = {}
-
-    count = log_every_n._counts.get(key, 0) + 1
-    log_every_n._counts[key] = count
+    count = _LOG_EVERY_N_COUNTS.get(key, 0) + 1
+    _LOG_EVERY_N_COUNTS[key] = count
 
     if count % n == 1 or n == 1:
         logger.log(level, f"{msg} [occurrence {count}]")

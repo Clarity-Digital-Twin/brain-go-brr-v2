@@ -11,6 +11,8 @@ Ultra-efficient logging for training with:
 Optimized for minimal overhead in tight training loops.
 """
 
+import contextlib
+import importlib.util
 import logging
 import os
 import sys
@@ -19,32 +21,13 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-# Type checking only - no runtime import
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover - type checking only
     pass
 
-# Rich is optional - lazy import when actually needed
-RICH_AVAILABLE = False
-Console = None
-Progress = None
-Table = None
 
-try:
-    # Only attempt Rich import if conditions are right
-    if sys.stderr.isatty() and os.getenv("BGB_FORCE_SIMPLE") != "1":
-        from rich.console import Console
-        from rich.progress import (
-            BarColumn,
-            Progress,
-            SpinnerColumn,
-            TextColumn,
-            TimeRemainingColumn,
-        )
-        from rich.table import Table
-
-        RICH_AVAILABLE = True
-except ImportError:
-    pass
+def _rich_available() -> bool:
+    """Check if Rich is importable without importing it."""
+    return importlib.util.find_spec("rich") is not None
 
 
 @dataclass
@@ -114,19 +97,22 @@ class TrainingLogger:
         # Console output - only use Rich if available and conditions are met
         self.use_rich = (
             use_rich
-            and RICH_AVAILABLE
+            and _rich_available()
             and sys.stderr.isatty()
             and not os.getenv("CI")
             and not os.getenv("PYTEST_CURRENT_TEST")
             and not os.getenv("MODAL_FUNCTION_ID")
         )
-        self.console = None
-        if self.use_rich and Console is not None:
+        self.console: Any | None = None
+        if self.use_rich:
             try:
-                self.console = Console(stderr=True, force_terminal=False)
+                from rich.console import Console as RichConsoleRuntime
+
+                self.console = RichConsoleRuntime(stderr=True, force_terminal=False)
             except Exception:
                 self.use_rich = False
-        self.progress = None
+                self.console = None
+        self.progress: Any | None = None
         self.task_id = None
 
         # Performance settings
@@ -160,16 +146,29 @@ class TrainingLogger:
             + (f", ~{total_steps} steps" if total_steps else "")
         )
 
-        if self.use_rich and self.console and Progress is not None:
-            self.progress = Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                TimeRemainingColumn(),
-                console=self.console,
-            )
-            self.progress.start()
+        if self.use_rich and self.console:
+            try:
+                from rich.progress import (
+                    BarColumn,
+                    SpinnerColumn,
+                    TextColumn,
+                    TimeRemainingColumn,
+                )
+                from rich.progress import (
+                    Progress as RichProgressRuntime,
+                )
+
+                self.progress = RichProgressRuntime(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    BarColumn(),
+                    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                    TimeRemainingColumn(),
+                    console=self.console,
+                )
+                self.progress.start()
+            except Exception:
+                self.progress = None
 
     def start_epoch(self, epoch: int, total_batches: int | None = None) -> None:
         """Start a new epoch.
@@ -293,15 +292,21 @@ class TrainingLogger:
         )
 
         # Rich table for interactive sessions
-        if self.console and summary and Table is not None:
-            table = Table(title=f"Epoch {self.epoch} Summary")
-            table.add_column("Metric", style="cyan")
-            table.add_column("Value", style="green")
+        if self.console and summary:
+            try:
+                from rich.table import Table as RichTableRuntime
 
-            for key, value in summary.items():
-                table.add_row(key, f"{value:.4f}")
+                table = RichTableRuntime(title=f"Epoch {self.epoch} Summary")
+                table.add_column("Metric", style="cyan")
+                table.add_column("Value", style="green")
 
-            self.console.print(table)
+                for key, value in summary.items():
+                    table.add_row(key, f"{value:.4f}")
+
+                self.console.print(table)
+            except Exception:
+                # If rich isn't available at runtime, skip pretty table
+                pass
 
         # Complete progress task
         if self.progress and self.task_id is not None:
@@ -479,14 +484,15 @@ class TrainingLogger:
                 f"Training had {self.nan_count} NaN detections at: {set(self.nan_locations)}",
             )
 
-    def __enter__(self):
+    def __enter__(self) -> "TrainingLogger":
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
         """Context manager exit - ensures progress cleanup."""
         if self.progress:
-            self.progress.stop()
+            with contextlib.suppress(Exception):
+                self.progress.stop()
         return False
 
 
@@ -567,10 +573,6 @@ def log_data_stats(
         f"imbalance 1:{imbalance_ratio:.1f}",
         extra={"dataset_stats": stats},
     )
-
-
-# Rich is already imported at the top of the file
-# No need for duplicate imports or guards since rich is a required dependency
 
 
 __all__ = [

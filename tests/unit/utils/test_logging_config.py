@@ -91,15 +91,25 @@ class TestLoggingConfig:
         """Test file handler configuration."""
         log_file = tmp_path / "test.log"
         config = LoggingConfig()
-        config.setup(log_file=log_file, force=True)
 
-        # Check file handler exists
-        assert "file" in config.handlers
+        try:
+            config.setup(log_file=log_file, force=True)
 
-        # Test that log file is created
-        logger = logging.getLogger("test")
-        logger.info("Test message")
-        assert log_file.exists()
+            # Check file handler exists
+            assert "file" in config.handlers
+
+            # Test that log file is created
+            logger = logging.getLogger("test")
+            logger.info("Test message")
+
+            # Flush to ensure write happens
+            if "file" in config.handlers:
+                config.handlers["file"].flush()
+
+            assert log_file.exists()
+        finally:
+            # Ensure cleanup happens
+            config.cleanup()
 
     def test_suppress_noisy_loggers(self):
         """Test suppression of third-party loggers."""
@@ -259,7 +269,7 @@ class TestPerformanceFilter:
 
     def test_step_filtering(self):
         """Test that filter gates by step count."""
-        filter = PerformanceFilter(every_n_steps=5)
+        perf_filter = PerformanceFilter(every_n_steps=5)
 
         # Create records with step attribute
         results = []
@@ -274,7 +284,7 @@ class TestPerformanceFilter:
                 exc_info=None,
             )
             record.step = i
-            results.append(filter.filter(record))
+            results.append(perf_filter.filter(record))
 
         # Should pass: 0, 5, 10, 15
         expected = [i % 5 == 0 for i in range(20)]
@@ -282,7 +292,7 @@ class TestPerformanceFilter:
 
     def test_non_step_logs_pass(self):
         """Test that logs without step attribute always pass."""
-        filter = PerformanceFilter(every_n_steps=10)
+        perf_filter = PerformanceFilter(every_n_steps=10)
 
         record = logging.LogRecord(
             name="test",
@@ -294,11 +304,11 @@ class TestPerformanceFilter:
             exc_info=None,
         )
         # No step attribute
-        assert filter.filter(record) is True
+        assert perf_filter.filter(record) is True
 
     def test_first_and_last_steps(self):
         """Test that first and last steps always pass."""
-        filter = PerformanceFilter(every_n_steps=100)
+        perf_filter = PerformanceFilter(every_n_steps=100)
 
         # First step (0) should pass
         record = logging.LogRecord(
@@ -311,7 +321,7 @@ class TestPerformanceFilter:
             exc_info=None,
         )
         record.step = 0
-        assert filter.filter(record) is True
+        assert perf_filter.filter(record) is True
 
         # Last step should pass
         record = logging.LogRecord(
@@ -325,11 +335,11 @@ class TestPerformanceFilter:
         )
         record.step = 99
         record.is_last = True
-        assert filter.filter(record) is True
+        assert perf_filter.filter(record) is True
 
     def test_per_function_tracking(self):
         """Test that step counts are tracked per function."""
-        filter = PerformanceFilter(every_n_steps=3)
+        perf_filter = PerformanceFilter(every_n_steps=3)
 
         # Create records from different functions
         for func_name in ["train", "validate"]:
@@ -346,11 +356,11 @@ class TestPerformanceFilter:
                 )
                 record.step = i
                 record.funcName = func_name
-                filter.filter(record)
+                perf_filter.filter(record)
 
         # Each function should have its own counter
-        assert "test:train" in filter.step_counters
-        assert "test:validate" in filter.step_counters
+        assert "test:train" in perf_filter.step_counters
+        assert "test:validate" in perf_filter.step_counters
 
 
 class TestUtilityFunctions:
