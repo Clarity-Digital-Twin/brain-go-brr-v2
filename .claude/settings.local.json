@@ -88,7 +88,9 @@
       "Bash(.venv/bin/pip uninstall:*)",
       "Bash(.venv/bin/pip install --no-build-isolation --no-binary=causal-conv1d causal-conv1d==1.5.2)",
       "Bash(nvidia-smi:*)",
-      "Bash(PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True make smoke-local)"
+      "Bash(PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True make smoke-local)",
+      "Bash(.venv/bin/pytest tests/unit/train/test_loop.py::TestTrainingSmoke::test_single_epoch -xvs)",
+      "Bash(timeout 180 make smoke-local)"
     ],
     "deny": [],
     "ask": []

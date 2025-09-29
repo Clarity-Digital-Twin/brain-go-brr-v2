@@ -191,7 +191,7 @@ class GraphChannelMixerPyG(nn.Module):
         )  # (B*T, N, N)
 
         # Eigendecomposition in fp32 without AMP for numerical stability
-        with torch.amp.autocast('cuda', enabled=False):
+        with torch.amp.autocast("cuda", enabled=False):
             l_stable = laplacian.to(torch.float32)
 
             try:

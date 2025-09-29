@@ -70,9 +70,6 @@ class MinimalTCN(nn.Module):
                 in_channels, out_channels, kernel_size, padding=padding, dilation=dilation_size
             )
 
-            # Weight normalization (using old API for torch.compile compatibility)
-            conv = nn.utils.weight_norm(conv)
-
             layers.append(conv)
             layers.append(nn.ReLU())
             layers.append(nn.Dropout(dropout))
