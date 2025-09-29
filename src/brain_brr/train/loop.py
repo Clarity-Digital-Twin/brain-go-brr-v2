@@ -375,9 +375,7 @@ def train_epoch(
     # Skip expensive sampling in smoke test mode
     is_smoke_test = env.smoke_test()
     if is_smoke_test:
-        logger.info(
-            "[SMOKE TEST MODE] Skipping dataset sampling - using default pos_weight=1.0"
-        )
+        logger.info("[SMOKE TEST MODE] Skipping dataset sampling - using default pos_weight=1.0")
         pos_weight_val = 1.0
         pos_ratio = 0.5  # Assume balanced for smoke test
 
@@ -399,9 +397,7 @@ def train_epoch(
             pos_count = 0
             total_samples = 0
 
-            logger.info(
-                f"[DATASET] Sampling {sample_size} windows to estimate distribution..."
-            )
+            logger.info(f"[DATASET] Sampling {sample_size} windows to estimate distribution...")
             for idx in sample_indices:
                 _, label = dataset[idx.item()]
                 if (label > 0).any():

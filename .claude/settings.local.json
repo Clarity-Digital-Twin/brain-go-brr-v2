@@ -43,7 +43,8 @@
       "Bash(.venv/bin/pytest tests/unit/utils/test_training_logger.py::TestMetricBuffer::test_capacity_limit tests/unit/utils/test_training_logger.py::TestTrainingLogger::test_metric_aggregation tests/unit/utils/test_training_logger.py::TestPerformanceOptimizations::test_throughput_calculation -xvs)",
       "Read(//tmp/**)",
       "Bash(kill:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(timeout 30 make s)"
     ],
     "deny": [],
     "ask": []
