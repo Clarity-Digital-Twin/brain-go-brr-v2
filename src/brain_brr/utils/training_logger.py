@@ -12,15 +12,14 @@ Optimized for minimal overhead in tight training loops.
 """
 
 import logging
-import math
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 import torch
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeRemainingColumn
 from rich.table import Table
 
 
@@ -36,12 +35,12 @@ class MetricBuffer:
     values: deque = field(default_factory=lambda: deque(maxlen=1000))
     timestamps: deque = field(default_factory=lambda: deque(maxlen=1000))
 
-    def add(self, value: float, timestamp: Optional[float] = None) -> None:
+    def add(self, value: float, timestamp: float | None = None) -> None:
         """Add value with optional timestamp."""
         self.values.append(value)
         self.timestamps.append(timestamp or time.time())
 
-    def get_stats(self) -> Dict[str, float]:
+    def get_stats(self) -> dict[str, float]:
         """Get aggregated statistics without allocation."""
         if not self.values:
             return {}
@@ -71,7 +70,7 @@ class TrainingLogger:
     def __init__(
         self,
         name: str = "train",
-        logger: Optional[logging.Logger] = None,
+        logger: logging.Logger | None = None,
         use_rich: bool = True,
         log_every_n_steps: int = 50,
         aggregate_window: int = 100,
@@ -99,7 +98,7 @@ class TrainingLogger:
         self.aggregate_window = aggregate_window
 
         # Metric buffers (pre-allocated)
-        self.metric_buffers: Dict[str, MetricBuffer] = {}
+        self.metric_buffers: dict[str, MetricBuffer] = {}
 
         # State tracking
         self.epoch = 0
@@ -110,11 +109,11 @@ class TrainingLogger:
         self.batch_start_time = 0.0
 
         # NaN detection state
-        self.nan_locations: List[str] = []
+        self.nan_locations: list[str] = []
         self.nan_count = 0
         self.last_nan_step = -1
 
-    def start_training(self, total_epochs: int, total_steps: Optional[int] = None) -> None:
+    def start_training(self, total_epochs: int, total_steps: int | None = None) -> None:
         """Initialize training session.
 
         Sets up progress tracking and logging infrastructure.
@@ -136,7 +135,7 @@ class TrainingLogger:
             )
             self.progress.start()
 
-    def start_epoch(self, epoch: int, total_batches: Optional[int] = None) -> None:
+    def start_epoch(self, epoch: int, total_batches: int | None = None) -> None:
         """Start a new epoch.
 
         Args:
@@ -163,9 +162,9 @@ class TrainingLogger:
         self,
         step: int,
         loss: float,
-        metrics: Optional[Dict[str, float]] = None,
-        lr: Optional[float] = None,
-        batch_size: Optional[int] = None,
+        metrics: dict[str, float] | None = None,
+        lr: float | None = None,
+        batch_size: int | None = None,
         **extra,
     ) -> None:
         """Log batch metrics with automatic aggregation and rate limiting.
@@ -193,11 +192,7 @@ class TrainingLogger:
                 self.metric_buffers[key].add(value)
 
         # Check if we should log this step
-        should_log = (
-            step % self.log_every_n_steps == 0
-            or step == 0
-            or self.epoch_step == 1
-        )
+        should_log = step % self.log_every_n_steps == 0 or step == 0 or self.epoch_step == 1
 
         if should_log:
             # Calculate throughput if batch_size provided
@@ -234,7 +229,7 @@ class TrainingLogger:
         # Update timing
         self.batch_start_time = time.time()
 
-    def end_epoch(self, metrics: Optional[Dict[str, float]] = None) -> None:
+    def end_epoch(self, metrics: dict[str, float] | None = None) -> None:
         """End current epoch and log summary statistics.
 
         Args:
@@ -258,7 +253,7 @@ class TrainingLogger:
         # Log epoch summary
         self.logger.info(
             f"[Epoch {self.epoch}/{self.total_epochs}] Completed in {elapsed:.1f}s",
-            extra={"epoch": self.epoch, "metrics": summary}
+            extra={"epoch": self.epoch, "metrics": summary},
         )
 
         # Rich table for interactive sessions
@@ -281,8 +276,8 @@ class TrainingLogger:
         self,
         location: str,
         tensor_name: str,
-        tensor: Optional[torch.Tensor] = None,
-        extra_context: Optional[Dict[str, Any]] = None,
+        tensor: torch.Tensor | None = None,
+        extra_context: dict[str, Any] | None = None,
     ) -> None:
         """Log NaN detection with rich context.
 
@@ -306,32 +301,39 @@ class TrainingLogger:
         }
 
         if tensor is not None and isinstance(tensor, torch.Tensor):
-            context.update({
-                "shape": list(tensor.shape),
-                "dtype": str(tensor.dtype),
-                "device": str(tensor.device),
-                "num_nans": torch.isnan(tensor).sum().item() if tensor.numel() < 1e6 else "too_large",
-                "num_infs": torch.isinf(tensor).sum().item() if tensor.numel() < 1e6 else "too_large",
-            })
+            context.update(
+                {
+                    "shape": list(tensor.shape),
+                    "dtype": str(tensor.dtype),
+                    "device": str(tensor.device),
+                    "num_nans": torch.isnan(tensor).sum().item()
+                    if tensor.numel() < 1e6
+                    else "too_large",
+                    "num_infs": torch.isinf(tensor).sum().item()
+                    if tensor.numel() < 1e6
+                    else "too_large",
+                }
+            )
 
             # Get finite statistics if tensor is small enough
             if tensor.numel() < 1e5:
                 finite_mask = torch.isfinite(tensor)
                 if finite_mask.any():
                     finite_values = tensor[finite_mask]
-                    context.update({
-                        "finite_min": finite_values.min().item(),
-                        "finite_max": finite_values.max().item(),
-                        "finite_mean": finite_values.mean().item(),
-                    })
+                    context.update(
+                        {
+                            "finite_min": finite_values.min().item(),
+                            "finite_max": finite_values.max().item(),
+                            "finite_mean": finite_values.mean().item(),
+                        }
+                    )
 
         if extra_context:
             context.update(extra_context)
 
         # Log with WARNING level for visibility
         self.logger.warning(
-            f"NaN detected at {location}: {tensor_name}",
-            extra={"nan_context": context}
+            f"NaN detected at {location}: {tensor_name}", extra={"nan_context": context}
         )
 
         # Rich console output for interactive debugging
@@ -347,7 +349,7 @@ class TrainingLogger:
         self,
         model: torch.nn.Module,
         log_histograms: bool = False,
-    ) -> Optional[Dict[str, float]]:
+    ) -> dict[str, float] | None:
         """Log gradient statistics for debugging.
 
         Args:
@@ -359,8 +361,8 @@ class TrainingLogger:
         """
         total_norm = 0.0
         num_params = 0
-        min_grad = float('inf')
-        max_grad = float('-inf')
+        min_grad = float("inf")
+        max_grad = float("-inf")
         has_nan = False
         has_inf = False
 
@@ -381,16 +383,16 @@ class TrainingLogger:
                 finite_grad = grad[torch.isfinite(grad)]
                 if finite_grad.numel() > 0:
                     param_norm = finite_grad.norm(2).item()
-                    total_norm += param_norm ** 2
+                    total_norm += param_norm**2
                     min_grad = min(min_grad, finite_grad.min().item())
                     max_grad = max(max_grad, finite_grad.max().item())
 
-        total_norm = total_norm ** 0.5
+        total_norm = total_norm**0.5
 
         stats = {
             "grad_norm": total_norm,
-            "grad_min": min_grad if min_grad != float('inf') else 0.0,
-            "grad_max": max_grad if max_grad != float('-inf') else 0.0,
+            "grad_min": min_grad if min_grad != float("inf") else 0.0,
+            "grad_max": max_grad if max_grad != float("-inf") else 0.0,
             "num_params_with_grad": num_params,
             "has_nan_grads": has_nan,
             "has_inf_grads": has_inf,
@@ -400,12 +402,12 @@ class TrainingLogger:
         if has_nan or has_inf or total_norm > 1000:
             self.logger.warning(
                 f"Gradient anomaly: norm={total_norm:.2f}, nan={has_nan}, inf={has_inf}",
-                extra={"gradient_stats": stats}
+                extra={"gradient_stats": stats},
             )
 
         return stats
 
-    def end_training(self, final_metrics: Optional[Dict[str, float]] = None) -> None:
+    def end_training(self, final_metrics: dict[str, float] | None = None) -> None:
         """End training session and log final summary.
 
         Args:
@@ -417,7 +419,7 @@ class TrainingLogger:
         # Log final summary
         self.logger.info(
             f"Training completed: {self.epoch} epochs, {self.global_step} steps",
-            extra={"final_metrics": final_metrics}
+            extra={"final_metrics": final_metrics},
         )
 
         # Log NaN summary if any occurred
@@ -440,8 +442,8 @@ class TrainingLogger:
 # Convenience functions for one-off logging
 def log_model_info(
     model: torch.nn.Module,
-    logger: Optional[logging.Logger] = None,
-) -> Dict[str, Any]:
+    logger: logging.Logger | None = None,
+) -> dict[str, Any]:
     """Log model architecture information.
 
     Args:
@@ -470,9 +472,8 @@ def log_model_info(
     }
 
     logger.info(
-        f"Model initialized: {trainable_params:,} trainable params, "
-        f"{model_size_mb:.1f} MB",
-        extra={"model_info": info}
+        f"Model initialized: {trainable_params:,} trainable params, {model_size_mb:.1f} MB",
+        extra={"model_info": info},
     )
 
     return info
@@ -482,8 +483,8 @@ def log_data_stats(
     dataset_name: str,
     num_samples: int,
     num_positive: int,
-    logger: Optional[logging.Logger] = None,
-    extra_stats: Optional[Dict[str, Any]] = None,
+    logger: logging.Logger | None = None,
+    extra_stats: dict[str, Any] | None = None,
 ) -> None:
     """Log dataset statistics.
 
@@ -511,17 +512,18 @@ def log_data_stats(
 
     logger.info(
         f"Dataset {dataset_name}: {num_samples:,} samples, "
-        f"{num_positive:,} positive ({num_positive/num_samples*100:.1f}%), "
+        f"{num_positive:,} positive ({num_positive / num_samples * 100:.1f}%), "
         f"imbalance 1:{imbalance_ratio:.1f}",
-        extra={"dataset_stats": stats}
+        extra={"dataset_stats": stats},
     )
 
 
 # Import guard for optional rich dependency
 import sys
+
 try:
     from rich.console import Console
-    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
+    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeRemainingColumn
     from rich.table import Table
 except ImportError:
     # Graceful degradation if rich not available
@@ -531,8 +533,8 @@ except ImportError:
 
 
 __all__ = [
-    "TrainingLogger",
     "MetricBuffer",
-    "log_model_info",
+    "TrainingLogger",
     "log_data_stats",
+    "log_model_info",
 ]

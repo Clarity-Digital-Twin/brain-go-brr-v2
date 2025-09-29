@@ -19,9 +19,8 @@ import sys
 import threading
 from collections import deque
 from contextlib import contextmanager
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Optional
 
 from rich.console import Console
 from rich.logging import RichHandler
@@ -55,7 +54,7 @@ class RingBufferHandler(logging.Handler):
         with self.lock:
             self.buffer.append(record)
 
-    def get_records(self, n: Optional[int] = None) -> list[logging.LogRecord]:
+    def get_records(self, n: int | None = None) -> list[logging.LogRecord]:
         """Get last n records (or all if n is None)."""
         with self.lock:
             if n is None:
@@ -78,7 +77,7 @@ class PerformanceFilter(logging.Filter):
     def __init__(self, every_n_steps: int = 50):
         super().__init__()
         self.every_n_steps = every_n_steps
-        self.step_counters: Dict[str, int] = {}
+        self.step_counters: dict[str, int] = {}
         self.lock = threading.Lock()
 
     def filter(self, record: logging.LogRecord) -> bool:
@@ -117,16 +116,16 @@ class LoggingConfig:
 
     def __init__(self):
         self.is_configured = False
-        self.handlers: Dict[str, logging.Handler] = {}
-        self.ring_buffer: Optional[RingBufferHandler] = None
-        self.performance_filter: Optional[PerformanceFilter] = None
-        self.console: Optional[Console] = None
-        self._original_levels: Dict[str, int] = {}
+        self.handlers: dict[str, logging.Handler] = {}
+        self.ring_buffer: RingBufferHandler | None = None
+        self.performance_filter: PerformanceFilter | None = None
+        self.console: Console | None = None
+        self._original_levels: dict[str, int] = {}
 
     def setup(
         self,
-        level: Union[str, int] = LOG_LEVEL,
-        log_file: Optional[Union[str, Path]] = LOG_FILE,
+        level: str | int = LOG_LEVEL,
+        log_file: str | Path | None = LOG_FILE,
         format_style: str = LOG_FORMAT,
         force: bool = False,
         enable_ring_buffer: bool = True,
@@ -226,7 +225,7 @@ class LoggingConfig:
         # Professional format with microsecond precision
         formatter = logging.Formatter(
             "[%(asctime)s.%(msecs)03d][%(name)s][%(levelname)s] %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
         handler.setFormatter(formatter)
 
@@ -250,11 +249,7 @@ class LoggingConfig:
         logger.addHandler(handler)
         self.handlers["console"] = handler
 
-    def _setup_file_handler(
-        self,
-        logger: logging.Logger,
-        log_file: Union[str, Path]
-    ) -> None:
+    def _setup_file_handler(self, logger: logging.Logger, log_file: str | Path) -> None:
         """Configure file handler with rotation support."""
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -304,7 +299,7 @@ class LoggingConfig:
             logger.setLevel(logging.WARNING)
 
     @contextmanager
-    def temporary_level(self, level: Union[str, int]):
+    def temporary_level(self, level: str | int):
         """Context manager for temporary log level change.
 
         Usage:
@@ -356,9 +351,7 @@ class LoggingConfig:
             return []
 
         records = self.ring_buffer.get_records(n)
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
         return [formatter.format(record) for record in records]
 
@@ -387,8 +380,8 @@ def get_instance() -> LoggingConfig:
 
 
 def setup_logging(
-    level: Union[str, int] = LOG_LEVEL,
-    log_file: Optional[Union[str, Path]] = LOG_FILE,
+    level: str | int = LOG_LEVEL,
+    log_file: str | Path | None = LOG_FILE,
     format_style: str = LOG_FORMAT,
     force: bool = False,
 ) -> LoggingConfig:
@@ -442,13 +435,7 @@ def log_once(logger: logging.Logger, level: int, msg: str, key: str) -> None:
         log_once._seen.add(key)
 
 
-def log_every_n(
-    logger: logging.Logger,
-    level: int,
-    msg: str,
-    n: int,
-    key: str
-) -> None:
+def log_every_n(logger: logging.Logger, level: int, msg: str, n: int, key: str) -> None:
     """Log a message every n occurrences.
 
     Useful for progress updates without spam.
@@ -465,16 +452,16 @@ def log_every_n(
 
 # Export public API
 __all__ = [
-    "setup_logging",
-    "get_logger",
-    "get_instance",
-    "LoggingConfig",
-    "RingBufferHandler",
-    "PerformanceFilter",
-    "log_once",
-    "log_every_n",
-    "LOG_LEVEL",
+    "LOG_EVERY_N_STEPS",
     "LOG_FILE",
     "LOG_FORMAT",
-    "LOG_EVERY_N_STEPS",
+    "LOG_LEVEL",
+    "LoggingConfig",
+    "PerformanceFilter",
+    "RingBufferHandler",
+    "get_instance",
+    "get_logger",
+    "log_every_n",
+    "log_once",
+    "setup_logging",
 ]

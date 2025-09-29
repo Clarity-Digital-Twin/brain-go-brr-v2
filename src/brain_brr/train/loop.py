@@ -1403,8 +1403,14 @@ def train(
 def main() -> None:
     """CLI entry point for training."""
     import argparse
+    import logging
 
     from src.brain_brr.data import BalancedSeizureDataset, EEGWindowDataset
+    from src.brain_brr.utils.logging_config import setup_logging
+
+    # Initialize elite logging infrastructure for training
+    setup_logging()
+    logging.captureWarnings(True)  # Capture Python warnings into logging system
 
     parser = argparse.ArgumentParser(description="Train seizure detection model")
     parser.add_argument(

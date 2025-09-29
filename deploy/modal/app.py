@@ -151,6 +151,9 @@ def populate_cache():
     persistent SSD volume for fast, reliable training access.
     Run this ONCE when setting up, then reuse the cache forever.
     """
+    from src.brain_brr.utils.logging_config import setup_logging
+    setup_logging()
+
     import shutil
     from pathlib import Path
     import time
@@ -255,6 +258,9 @@ def populate_cache():
 )
 def clean_cache():
     """Clean contaminated cache from before patient-disjoint fix."""
+    from src.brain_brr.utils.logging_config import setup_logging
+    setup_logging()
+
     import shutil
     from pathlib import Path
 
@@ -296,6 +302,9 @@ def clean_cache():
 )
 def test_mamba_cuda():
     """Test that Mamba CUDA kernels work properly."""
+    from src.brain_brr.utils.logging_config import setup_logging
+    setup_logging()
+
     import torch
     print(f"CUDA available: {torch.cuda.is_available()}", flush=True)
     print(f"CUDA device: {torch.cuda.get_device_name()}", flush=True)
@@ -369,6 +378,9 @@ def train(
     Returns:
         Path to checkpoint file
     """
+    from src.brain_brr.utils.logging_config import setup_logging
+    setup_logging()
+
     import os
     import subprocess
 
@@ -660,6 +672,9 @@ def evaluate(
     Returns:
         Path to metrics JSON file
     """
+    from src.brain_brr.utils.logging_config import setup_logging
+    setup_logging()
+
     import os
     import subprocess
 
