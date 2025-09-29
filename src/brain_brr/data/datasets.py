@@ -12,14 +12,14 @@ import numpy.typing as npt
 import torch
 from torch.utils.data import Dataset
 
-# Module logger
-logger = logging.getLogger(__name__)
-
 from src.brain_brr import constants
 from src.brain_brr.data.cache_utils import scan_existing_cache
 from src.brain_brr.data.io import events_to_binary_mask, load_edf_file, parse_tusz_csv
 from src.brain_brr.data.preprocess import preprocess_recording
 from src.brain_brr.data.windows import extract_windows
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 class EEGWindowDataset(torch.utils.data.Dataset):
@@ -72,9 +72,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
                         for file_idx, n_windows in enumerate(self._file_window_counts):
                             for w_idx in range(n_windows):
                                 self._index_map.append((file_idx, w_idx))
-                        logger.info(
-                            f"[DATA] Dataset ready! Total windows: {len(self._index_map)}"
-                        )
+                        logger.info(f"[DATA] Dataset ready! Total windows: {len(self._index_map)}")
                         return  # Skip the slow loading!
                 except Exception as e:
                     logger.warning(f"[DATA] Could not load cached index: {e}")
