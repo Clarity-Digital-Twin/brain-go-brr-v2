@@ -592,6 +592,8 @@ cli.add_command(list_configs, name="list-configs")
 
 def main() -> int:
     """Main entry point."""
+    # Initialize logging for CLI (INFO level by default, can be overridden by BGB_LOG_LEVEL)
+    setup_logging()
     return cli(standalone_mode=False) or 0
 
 
