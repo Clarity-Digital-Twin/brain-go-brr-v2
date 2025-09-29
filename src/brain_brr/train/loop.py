@@ -50,7 +50,6 @@ from src.brain_brr.config.schemas import (
 )
 from src.brain_brr.eval.metrics import evaluate_predictions
 from src.brain_brr.models import SeizureDetector
-from src.brain_brr.utils.training_logger import TrainingLogger
 from src.brain_brr.train.wandb_integration import WandBLogger
 from src.brain_brr.utils.env import env
 
@@ -168,9 +167,7 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
 
     logger.info(f"[SAMPLER] Seizure ratio: {seizure_ratio:.2%}")
     logger.info(f"[SAMPLER] Positive weight: {pos_weight:.2f}")
-    logger.info(
-        f"[SAMPLER] Estimated seizure windows: {(weights > 1).sum().item()}/{len(dataset)}"
-    )
+    logger.info(f"[SAMPLER] Estimated seizure windows: {(weights > 1).sum().item()}/{len(dataset)}")
 
     return WeightedRandomSampler(
         weights=weights.tolist(),
@@ -456,9 +453,7 @@ def train_epoch(
         pass_pos_weight = alpha_diff < 1e-6
         if not pass_pos_weight:
             if focal_alpha < 0.5:
-                logger.warning(
-                    "focal_alpha < 0.5 down-weights positives; ensure this is intended"
-                )
+                logger.warning("focal_alpha < 0.5 down-weights positives; ensure this is intended")
             logger.info(
                 "[INIT] FOCAL: alpha != 0.5 → disabling pos_weight to avoid double-counting"
             )
@@ -504,9 +499,7 @@ def train_epoch(
             test_loss = compute_loss(test_logits, test_labels)
             if test_loss is None:
                 raise ValueError("Loss computation returned None")
-            logger.info(
-                f"[PREFLIGHT] ✓ Model forward pass OK, loss shape: {test_loss.shape}"
-            )
+            logger.info(f"[PREFLIGHT] ✓ Model forward pass OK, loss shape: {test_loss.shape}")
     except Exception as e:
         logger.info(f"[PREFLIGHT] ✗ Failed on test batch: {e}")
         logger.info("[PREFLIGHT] Debug info:")
@@ -612,9 +605,7 @@ def train_epoch(
                     if per_element_loss is None:
                         raise ValueError("Loss computation returned None")
                 except Exception as e:
-                    logger.error(
-                        f"Forward/loss computation failed at batch {batch_idx}:"
-                    )
+                    logger.error(f"Forward/loss computation failed at batch {batch_idx}:")
                     logger.info(f"  - Error: {e}")
                     logger.info(f"  - Model: {type(model)}")
                     logger.info(f"  - Windows shape: {windows.shape}")
@@ -658,16 +649,12 @@ def train_epoch(
                             )
                             # Check batch composition
                             pos_ratio = labels.sum().item() / labels.numel()
-                            logger.debug(
-                                f"Batch {batch_idx} positive ratio: {pos_ratio:.4f}"
-                            )
+                            logger.debug(f"Batch {batch_idx} positive ratio: {pos_ratio:.4f}")
                             # Check for dead channels
                             channel_stds = windows.std(dim=[0, 2])  # std across batch and time
                             dead_channels = (channel_stds < 1e-6).sum().item()
                             if dead_channels > 0:
-                                logger.debug(
-                                    f"Batch {batch_idx} has {dead_channels} dead channels"
-                                )
+                                logger.debug(f"Batch {batch_idx} has {dead_channels} dead channels")
                     except Exception as e:
                         logger.info(f"[DEBUG] Error in NaN diagnostics: {e}")
                     nan_debug_emitted += 1
@@ -698,14 +685,10 @@ def train_epoch(
                                 param.grad.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
                         if grad_has_nan:
                             if batch_idx % LOG_EVERY_N_STEPS == 0:
-                                logger.warning(
-                                    f"Sanitized NaN gradients at batch {batch_idx}"
-                                )
+                                logger.warning(f"Sanitized NaN gradients at batch {batch_idx}")
                             if env.skip_opt_step_on_nan():
                                 skip_step = True
-                                logger.warning(
-                                    "Skipping optimizer step due to NaN gradients"
-                                )
+                                logger.warning("Skipping optimizer step due to NaN gradients")
 
                     if not skip_step:
                         if gradient_clip > 0:
@@ -731,14 +714,10 @@ def train_epoch(
                                 param.grad.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
                         if grad_has_nan:
                             if batch_idx % LOG_EVERY_N_STEPS == 0:
-                                logger.warning(
-                                    f"Sanitized NaN gradients at batch {batch_idx}"
-                                )
+                                logger.warning(f"Sanitized NaN gradients at batch {batch_idx}")
                             if env.skip_opt_step_on_nan():
                                 skip_step = True
-                                logger.warning(
-                                    "Skipping optimizer step due to NaN gradients"
-                                )
+                                logger.warning("Skipping optimizer step due to NaN gradients")
 
                     if not skip_step:
                         if gradient_clip > 0:
@@ -919,9 +898,7 @@ def validate_epoch(
                 else:
                     iterator = progress_bar
             except Exception as e:
-                logger.warning(
-                    f"tqdm failed in validation ({e}), using plain iteration"
-                )
+                logger.warning(f"tqdm failed in validation ({e}), using plain iteration")
                 iterator = dataloader
         else:
             iterator = dataloader
@@ -1205,9 +1182,7 @@ def train(
                 best_metric = _last.get("best_metric", 0.0)
             except Exception:
                 pass
-        logger.info(
-            f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}"
-        )
+        logger.info(f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}")
         # Note: This resumes from start of epoch, not exact batch
     elif (checkpoint_dir / "last.pt").exists() and config.training.resume:
         start_epoch, best_metric = load_checkpoint(
@@ -1559,17 +1534,13 @@ def main() -> None:
             with open(manifest_path) as f:
                 manifest_data = json.load(f)
             if force_rebuild:
-                logger.info(
-                    "[DATA] BGB_FORCE_MANIFEST_REBUILD=1 → deleting manifest for rebuild"
-                )
+                logger.info("[DATA] BGB_FORCE_MANIFEST_REBUILD=1 → deleting manifest for rebuild")
                 manifest_path.unlink()
             else:
                 from src.brain_brr.data.cache_utils import validate_manifest
 
                 if not validate_manifest(train_cache_dir, manifest_data):
-                    logger.warning(
-                        "Invalid/stale manifest detected → deleting for rebuild"
-                    )
+                    logger.warning("Invalid/stale manifest detected → deleting for rebuild")
                     manifest_path.unlink()
         except Exception as e:
             logger.info(f"[WARNING] Failed to read/validate manifest: {e}, deleting...")
@@ -1585,9 +1556,7 @@ def main() -> None:
                 from src.brain_brr.data.cache_utils import scan_existing_cache
 
                 _ = scan_existing_cache(train_cache_dir)
-                logger.info(
-                    f"[DATA] Built manifest from {len(existing_cache_files)} cached files"
-                )
+                logger.info(f"[DATA] Built manifest from {len(existing_cache_files)} cached files")
             except Exception as e:
                 logger.info(f"[WARNING] Manifest build failed: {e}")
         else:
@@ -1604,9 +1573,8 @@ def main() -> None:
             if len(train_dataset) == 0:
                 is_smoke_test = env.smoke_test()
                 if is_smoke_test:
-                    print(
-                        "[SMOKE TEST MODE] Balanced manifest empty - will fallback to EEGWindowDataset",
-                        flush=True,
+                    logger.info(
+                        "[SMOKE TEST MODE] Balanced manifest empty - will fallback to EEGWindowDataset"
                     )
                     raise Exception("Empty manifest in smoke test - triggering fallback")
                 else:
@@ -1615,7 +1583,9 @@ def main() -> None:
 
                     sys.exit(1)
         except Exception as e:
-            logger.info(f"[WARNING] BalancedSeizureDataset failed: {e}; falling back to EEGWindowDataset")
+            logger.info(
+                f"[WARNING] BalancedSeizureDataset failed: {e}; falling back to EEGWindowDataset"
+            )
             train_dataset = EEGWindowDataset(
                 train_files,
                 label_files=train_label_files,
@@ -1654,9 +1624,8 @@ def main() -> None:
             if manifest_path.exists():
                 # Switch to BalancedSeizureDataset now that manifest exists
                 train_dataset = BalancedSeizureDataset(train_cache_dir)
-                print(
-                    f"[DATA] Switched to BalancedSeizureDataset: {len(train_dataset)} windows",
-                    flush=True,
+                logger.info(
+                    f"[DATA] Switched to BalancedSeizureDataset: {len(train_dataset)} windows"
                 )
         except Exception as e:
             logger.info(f"[WARNING] Post-cache manifest build failed: {e}")
@@ -1680,20 +1649,18 @@ def main() -> None:
             is_smoke_test = env.smoke_test()
 
             if is_smoke_test:
-                print("=" * 60, flush=True)
+                logger.info("=" * 60)
                 logger.info("[SMOKE TEST MODE] No seizures found - continuing anyway")
-                print(
-                    "[SMOKE TEST MODE] Using uniform sampling for pipeline validation", flush=True
-                )
+                logger.info("[SMOKE TEST MODE] Using uniform sampling for pipeline validation")
                 logger.info("[SMOKE TEST MODE] This model will NOT learn - testing only!")
-                print("=" * 60, flush=True)
+                logger.info("=" * 60)
                 # Continue with default sampler for smoke testing
             else:
-                print("=" * 60, flush=True)
+                logger.info("=" * 60)
                 logger.info(f"[FATAL] No seizures found in {sample_size} windows!")
                 logger.info("[FATAL] Training will produce a USELESS model!")
                 logger.info("[FATAL] Check your data or increase sample size!")
-                print("=" * 60, flush=True)
+                logger.info("=" * 60)
                 # Fail fast - don't waste GPU hours on doomed training
                 import sys
 
