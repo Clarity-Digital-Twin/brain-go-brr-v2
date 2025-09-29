@@ -5,6 +5,7 @@ Professional test suite following Google's testing standards.
 """
 
 import logging
+import logging.handlers
 import threading
 from unittest.mock import MagicMock, patch
 
