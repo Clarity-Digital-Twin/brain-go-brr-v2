@@ -26,16 +26,28 @@ DEV_COUNT=$(ls -1 cache/tusz/dev/*.npz 2>/dev/null | wc -l)
 echo "Found $TRAIN_COUNT train files and $DEV_COUNT dev files"
 echo ""
 
-# Upload to S3
+# Upload to S3 (INCLUDING manifests!)
 echo "Uploading train split to S3..."
 ~/.local/bin/aws s3 sync cache/tusz/train/ s3://brain-go-brr-eeg-data-20250919/cache/tusz/train/ \
-    --exclude "*.json" \
-    --exclude "*.log"
+    --exclude "*.log" \
+    --exclude "__pycache__/*" \
+    --exclude ".DS_Store"
 
 echo "Uploading dev split to S3..."
 ~/.local/bin/aws s3 sync cache/tusz/dev/ s3://brain-go-brr-eeg-data-20250919/cache/tusz/dev/ \
-    --exclude "*.json" \
-    --exclude "*.log"
+    --exclude "*.log" \
+    --exclude "__pycache__/*" \
+    --exclude ".DS_Store"
+
+echo ""
+echo "Verifying manifest upload..."
+~/.local/bin/aws s3 ls s3://brain-go-brr-eeg-data-20250919/cache/tusz/train/manifest.json >/dev/null 2>&1 && \
+    echo "✅ Train manifest uploaded" || \
+    echo "⚠️  Train manifest NOT found on S3!"
+
+~/.local/bin/aws s3 ls s3://brain-go-brr-eeg-data-20250919/cache/tusz/dev/manifest.json >/dev/null 2>&1 && \
+    echo "✅ Dev manifest uploaded (optional)" || \
+    echo "ℹ️  Dev manifest not found (optional for validation)"
 
 echo ""
 echo "================================================"
@@ -45,5 +57,5 @@ echo "Dev files: $DEV_COUNT"
 echo "================================================"
 echo ""
 echo "Next steps:"
-echo "1. Run 'modal run deploy/modal/app.py --action populate-cache' to copy to Modal SSD"
-echo "2. Run Modal training with the fixed cache"
+echo "1. Run 'modal run --detach deploy/modal/app.py --action populate-cache' to copy to Modal SSD"
+echo "2. Run Modal training with the populated cache"

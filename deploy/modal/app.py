@@ -736,8 +736,8 @@ def main(
     ⚠️ NO DOUBLE DASH (--) separator needed anymore in Modal CLI!
 
     Examples:
-        # STEP 1: Populate cache from S3 to Modal SSD (ONE TIME ONLY)
-        modal run deploy/modal/app.py --action populate-cache
+        # STEP 1: Populate cache from S3 to Modal SSD (ONE TIME ONLY - use --detach!)
+        modal run --detach deploy/modal/app.py --action populate-cache
 
         # Test Mamba CUDA kernels
         modal run deploy/modal/app.py --action test-mamba

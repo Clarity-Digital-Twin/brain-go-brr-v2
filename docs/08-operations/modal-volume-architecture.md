@@ -143,11 +143,8 @@ def populate_cache():
 
 ### Commands Reference
 ```bash
-# One-time cache population from S3 to Modal SSD
-modal run deploy/modal/app.py --action populate-cache
-
-# Verify cache on Modal volume
-modal run deploy/modal/app.py --action verify-cache
+# One-time cache population from S3 to Modal SSD (use --detach!)
+modal run --detach deploy/modal/app.py --action populate-cache
 ```
 
 ### Modal Volume Management
