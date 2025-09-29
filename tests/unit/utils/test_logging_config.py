@@ -5,15 +5,12 @@ Professional test suite following Google's testing standards.
 """
 
 import logging
-import tempfile
 import threading
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.brain_brr.utils.logging_config import (
-    LOG_EVERY_N_STEPS,
     LoggingConfig,
     PerformanceFilter,
     RingBufferHandler,
@@ -37,6 +34,7 @@ class TestLoggingConfig:
     def test_thread_safe_singleton(self):
         """Test thread-safe singleton initialization."""
         instances = []
+
         def get_and_store():
             instances.append(get_instance())
 
@@ -163,9 +161,13 @@ class TestRingBufferHandler:
         # Add more records than capacity
         for i in range(10):
             record = logging.LogRecord(
-                name="test", level=logging.INFO,
-                pathname="", lineno=0, msg=f"Message {i}",
-                args=(), exc_info=None
+                name="test",
+                level=logging.INFO,
+                pathname="",
+                lineno=0,
+                msg=f"Message {i}",
+                args=(),
+                exc_info=None,
             )
             handler.emit(record)
 
@@ -182,17 +184,18 @@ class TestRingBufferHandler:
         def add_records(start, count):
             for i in range(start, start + count):
                 record = logging.LogRecord(
-                    name="test", level=logging.INFO,
-                    pathname="", lineno=0, msg=f"Message {i}",
-                    args=(), exc_info=None
+                    name="test",
+                    level=logging.INFO,
+                    pathname="",
+                    lineno=0,
+                    msg=f"Message {i}",
+                    args=(),
+                    exc_info=None,
                 )
                 handler.emit(record)
 
         # Add records from multiple threads
-        threads = [
-            threading.Thread(target=add_records, args=(i * 10, 10))
-            for i in range(5)
-        ]
+        threads = [threading.Thread(target=add_records, args=(i * 10, 10)) for i in range(5)]
         for t in threads:
             t.start()
         for t in threads:
@@ -208,9 +211,13 @@ class TestRingBufferHandler:
         # Add some records
         for i in range(5):
             record = logging.LogRecord(
-                name="test", level=logging.INFO,
-                pathname="", lineno=0, msg=f"Message {i}",
-                args=(), exc_info=None
+                name="test",
+                level=logging.INFO,
+                pathname="",
+                lineno=0,
+                msg=f"Message {i}",
+                args=(),
+                exc_info=None,
             )
             handler.emit(record)
 
@@ -227,9 +234,13 @@ class TestRingBufferHandler:
         # Add 10 records
         for i in range(10):
             record = logging.LogRecord(
-                name="test", level=logging.INFO,
-                pathname="", lineno=0, msg=f"Message {i}",
-                args=(), exc_info=None
+                name="test",
+                level=logging.INFO,
+                pathname="",
+                lineno=0,
+                msg=f"Message {i}",
+                args=(),
+                exc_info=None,
             )
             handler.emit(record)
 
@@ -251,9 +262,13 @@ class TestPerformanceFilter:
         results = []
         for i in range(20):
             record = logging.LogRecord(
-                name="test", level=logging.INFO,
-                pathname="", lineno=0, msg=f"Step {i}",
-                args=(), exc_info=None
+                name="test",
+                level=logging.INFO,
+                pathname="",
+                lineno=0,
+                msg=f"Step {i}",
+                args=(),
+                exc_info=None,
             )
             record.step = i
             results.append(filter.filter(record))
@@ -267,9 +282,13 @@ class TestPerformanceFilter:
         filter = PerformanceFilter(every_n_steps=10)
 
         record = logging.LogRecord(
-            name="test", level=logging.INFO,
-            pathname="", lineno=0, msg="Non-step message",
-            args=(), exc_info=None
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="Non-step message",
+            args=(),
+            exc_info=None,
         )
         # No step attribute
         assert filter.filter(record) is True
@@ -280,18 +299,26 @@ class TestPerformanceFilter:
 
         # First step (0) should pass
         record = logging.LogRecord(
-            name="test", level=logging.INFO,
-            pathname="", lineno=0, msg="First",
-            args=(), exc_info=None
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="First",
+            args=(),
+            exc_info=None,
         )
         record.step = 0
         assert filter.filter(record) is True
 
         # Last step should pass
         record = logging.LogRecord(
-            name="test", level=logging.INFO,
-            pathname="", lineno=0, msg="Last",
-            args=(), exc_info=None
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="Last",
+            args=(),
+            exc_info=None,
         )
         record.step = 99
         record.is_last = True
@@ -305,9 +332,14 @@ class TestPerformanceFilter:
         for func_name in ["train", "validate"]:
             for i in range(5):
                 record = logging.LogRecord(
-                    name="test", level=logging.INFO,
-                    pathname="", lineno=0, msg=f"{func_name} {i}",
-                    args=(), exc_info=None, func=func_name
+                    name="test",
+                    level=logging.INFO,
+                    pathname="",
+                    lineno=0,
+                    msg=f"{func_name} {i}",
+                    args=(),
+                    exc_info=None,
+                    func=func_name,
                 )
                 record.step = i
                 record.funcName = func_name
@@ -378,12 +410,7 @@ class TestIntegration:
         log_file = tmp_path / "integration.log"
 
         # Setup logging with all features
-        config = setup_logging(
-            level="DEBUG",
-            log_file=log_file,
-            format_style="simple",
-            force=True
-        )
+        config = setup_logging(level="DEBUG", log_file=log_file, format_style="simple", force=True)
 
         # Get a logger and log messages
         logger = get_logger("integration.test")
@@ -406,7 +433,9 @@ class TestIntegration:
 
         # Force reimport to pick up env vars
         import importlib
+
         import src.brain_brr.utils.logging_config as lc
+
         importlib.reload(lc)
 
         assert lc.LOG_LEVEL == "WARNING"

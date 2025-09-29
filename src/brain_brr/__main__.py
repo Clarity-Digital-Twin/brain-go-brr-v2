@@ -3,9 +3,9 @@
 This allows running the package with `python -m brain_brr` without warnings.
 """
 
-import sys
 
-from src.brain_brr.cli.cli import main
+# Use relative import since we're inside the package
+from .cli.cli import main
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

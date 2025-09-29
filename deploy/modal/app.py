@@ -152,7 +152,8 @@ def populate_cache():
     Run this ONCE when setting up, then reuse the cache forever.
     """
     from src.brain_brr.utils.logging_config import setup_logging
-    setup_logging()
+    # Use simple format for Modal (no Rich in container logs)
+    setup_logging(format_style="simple", force=True)
 
     import shutil
     from pathlib import Path
@@ -259,7 +260,8 @@ def populate_cache():
 def clean_cache():
     """Clean contaminated cache from before patient-disjoint fix."""
     from src.brain_brr.utils.logging_config import setup_logging
-    setup_logging()
+    # Use simple format for Modal (no Rich in container logs)
+    setup_logging(format_style="simple", force=True)
 
     import shutil
     from pathlib import Path
@@ -303,7 +305,8 @@ def clean_cache():
 def test_mamba_cuda():
     """Test that Mamba CUDA kernels work properly."""
     from src.brain_brr.utils.logging_config import setup_logging
-    setup_logging()
+    # Use simple format for Modal (no Rich in container logs)
+    setup_logging(format_style="simple", force=True)
 
     import torch
     print(f"CUDA available: {torch.cuda.is_available()}", flush=True)
@@ -379,7 +382,8 @@ def train(
         Path to checkpoint file
     """
     from src.brain_brr.utils.logging_config import setup_logging
-    setup_logging()
+    # Use simple format for Modal (no Rich in container logs)
+    setup_logging(format_style="simple", force=True)
 
     import os
     import subprocess
@@ -673,7 +677,8 @@ def evaluate(
         Path to metrics JSON file
     """
     from src.brain_brr.utils.logging_config import setup_logging
-    setup_logging()
+    # Use simple format for Modal (no Rich in container logs)
+    setup_logging(format_style="simple", force=True)
 
     import os
     import subprocess

@@ -9,6 +9,7 @@ Specifically optimized for TUSZ seizure detection.
 
 __version__ = "3.2.0"
 
-# Clean imports from new package structure
-from .constants import *  # noqa: F403
-from .models import *  # noqa: F403
+# NO HEAVY IMPORTS AT PACKAGE LEVEL
+# Models should be imported explicitly when needed:
+#   from brain_brr.models.detector import SeizureDetector
+# This avoids importing torch/mamba when just accessing utilities

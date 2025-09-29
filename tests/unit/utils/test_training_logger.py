@@ -5,8 +5,7 @@ and performance optimizations.
 """
 
 import logging
-import math
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 import torch
@@ -308,7 +307,12 @@ class TestPerformanceOptimizations:
         logger = TrainingLogger(name="throughput", use_rich=False, log_every_n_steps=1)
 
         # Mock time for consistent throughput
-        mock_time.side_effect = [0.0, 1.0, 1.0, 2.0]  # start, end of batch 1, start batch 2, end batch 2
+        mock_time.side_effect = [
+            0.0,
+            1.0,
+            1.0,
+            2.0,
+        ]  # start, end of batch 1, start batch 2, end batch 2
 
         logger.batch_start_time = 0.0
         logger.log_batch(0, loss=1.0, batch_size=32)

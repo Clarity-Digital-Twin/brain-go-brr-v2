@@ -5,13 +5,14 @@ Ultra-efficient logging for training with:
 - Batched metrics aggregation
 - NaN detection with context
 - Automatic rate limiting
-- Rich console output for interactive sessions
+- Rich console output for interactive sessions (when available)
 - Structured logging for production
 
 Optimized for minimal overhead in tight training loops.
 """
 
 import logging
+import os
 import sys
 import time
 from collections import deque
@@ -19,9 +20,29 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import torch
-from rich.console import Console
-from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeRemainingColumn
-from rich.table import Table
+
+# Rich is optional - lazy import when actually needed
+RICH_AVAILABLE = False
+Console = None
+Progress = None
+Table = None
+
+try:
+    # Only attempt Rich import if conditions are right
+    if sys.stderr.isatty() and not os.getenv("BGB_FORCE_SIMPLE") == "1":
+        from rich.console import Console
+        from rich.progress import (
+            BarColumn,
+            Progress,
+            SpinnerColumn,
+            TextColumn,
+            TimeRemainingColumn,
+        )
+        from rich.table import Table
+
+        RICH_AVAILABLE = True
+except ImportError:
+    pass
 
 
 @dataclass
@@ -88,9 +109,21 @@ class TrainingLogger:
         self.name = name
         self.logger = logger or logging.getLogger(f"brain_brr.training.{name}")
 
-        # Console output
-        self.use_rich = use_rich and sys.stderr.isatty()
-        self.console = Console(stderr=True) if self.use_rich else None
+        # Console output - only use Rich if available and conditions are met
+        self.use_rich = (
+            use_rich
+            and RICH_AVAILABLE
+            and sys.stderr.isatty()
+            and not os.getenv("CI")
+            and not os.getenv("PYTEST_CURRENT_TEST")
+            and not os.getenv("MODAL_FUNCTION_ID")
+        )
+        self.console = None
+        if self.use_rich and Console is not None:
+            try:
+                self.console = Console(stderr=True, force_terminal=False)
+            except Exception:
+                self.use_rich = False
         self.progress = None
         self.task_id = None
 
@@ -125,7 +158,7 @@ class TrainingLogger:
             + (f", ~{total_steps} steps" if total_steps else "")
         )
 
-        if self.use_rich and self.console:
+        if self.use_rich and self.console and Progress is not None:
             self.progress = Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -258,7 +291,7 @@ class TrainingLogger:
         )
 
         # Rich table for interactive sessions
-        if self.console and summary:
+        if self.console and summary and Table is not None:
             table = Table(title=f"Epoch {self.epoch} Summary")
             table.add_column("Metric", style="cyan")
             table.add_column("Value", style="green")

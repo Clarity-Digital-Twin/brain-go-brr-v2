@@ -14,6 +14,7 @@ from typing import Optional
 try:
     from rich.console import Console
     from rich.logging import RichHandler
+
     RICH_AVAILABLE = True
 except Exception:  # pragma: no cover
     RICH_AVAILABLE = False
@@ -23,9 +24,24 @@ except Exception:  # pragma: no cover
 # Constants from environment with sensible defaults
 LOG_LEVEL = os.getenv("BGB_LOG_LEVEL", "INFO")
 LOG_FILE = os.getenv("BGB_LOG_FILE", None)
-# Default: rich only when stderr is a TTY and Rich is available
-_default_format = "rich" if (sys.stderr.isatty() and RICH_AVAILABLE) else "simple"
-LOG_FORMAT = os.getenv("BGB_LOG_FORMAT", _default_format)
+
+
+# Default to simple unless explicitly requested and conditions are met
+def _get_default_format() -> str:
+    """Determine default log format based on environment."""
+    # Force simple in CI, pytest, Modal
+    if os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST") or os.getenv("MODAL_FUNCTION_ID"):
+        return "simple"
+    # Force simple if explicitly requested
+    if os.getenv("BGB_FORCE_SIMPLE") == "1":
+        return "simple"
+    # Only use rich if TTY and available and not forced off
+    if sys.stderr.isatty() and RICH_AVAILABLE and os.getenv("BGB_FORCE_RICH") != "0":
+        return "rich"
+    return "simple"
+
+
+LOG_FORMAT = os.getenv("BGB_LOG_FORMAT", _get_default_format())
 LOG_EVERY_N_STEPS = int(os.getenv("BGB_LOG_EVERY_N_STEPS", "50"))
 LOG_RING_BUFFER_SIZE = int(os.getenv("BGB_LOG_RING_BUFFER_SIZE", "1000"))
 
@@ -185,13 +201,31 @@ class LoggingConfig:
 
     def _setup_rich_handler(self, logger: logging.Logger, level: int) -> None:
         """Configure Rich handler (falls back to simple when unavailable)."""
-        if not (RICH_AVAILABLE and sys.stderr.isatty()):
+        # Multiple safety checks
+        if not RICH_AVAILABLE:
             self._setup_simple_handler(logger, level)
             return
 
-        self.console = Console(stderr=True)
+        if not sys.stderr.isatty():
+            self._setup_simple_handler(logger, level)
+            return
 
-        handler = RichHandler(
+        # Don't use Rich in CI/pytest/Modal
+        if os.getenv("CI") or os.getenv("PYTEST_CURRENT_TEST") or os.getenv("MODAL_FUNCTION_ID"):
+            self._setup_simple_handler(logger, level)
+            return
+
+        # Lazy import Rich components only when actually needed
+        try:
+            from rich.console import Console as RichConsole
+            from rich.logging import RichHandler as RichLogHandler
+        except ImportError:
+            self._setup_simple_handler(logger, level)
+            return
+
+        self.console = RichConsole(stderr=True, force_terminal=False)
+
+        handler = RichLogHandler(
             console=self.console,
             rich_tracebacks=True,
             show_path=True,
