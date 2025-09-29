@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """Clean up Modal persistence volume - remove unnecessary cache directories."""
 
-import modal
-import shutil
+import logging
 import os
+import shutil
+
+import modal
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 app = modal.App("brain-go-brr-cleanup")
 
@@ -18,8 +23,11 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
 )
 def cleanup_volume():
     """Clean up unnecessary directories from Modal persistence volume."""
+    # Setup logging for Modal function
+    from src.brain_brr.utils.logging_config import setup_logging
+    setup_logging()
 
-    print("=== MODAL VOLUME CLEANUP ===\n")
+    logger.info("=== MODAL VOLUME CLEANUP ===")
 
     # Directories to DELETE (we use S3 mount for cache now!)
     dirs_to_delete = [
@@ -29,14 +37,14 @@ def cleanup_volume():
 
     for dir_path in dirs_to_delete:
         if os.path.exists(dir_path):
-            print(f"🗑️ DELETING: {dir_path}")
+            logger.info(f"🗑️ DELETING: {dir_path}")
             try:
                 shutil.rmtree(dir_path)
-                print(f"   ✅ Deleted successfully")
+                logger.info(f"   ✅ Deleted successfully")
             except Exception as e:
-                print(f"   ❌ Error: {e}")
+                logger.error(f"   ❌ Error: {e}")
         else:
-            print(f"   ℹ️ {dir_path} does not exist (already clean)")
+            logger.info(f"   ℹ️ {dir_path} does not exist (already clean)")
 
     # Directories to KEEP
     dirs_to_keep = [
@@ -47,7 +55,7 @@ def cleanup_volume():
         "/results/wandb",      # W&B logs
     ]
 
-    print("\n=== KEEPING THESE DIRECTORIES ===")
+    logger.info("=== KEEPING THESE DIRECTORIES ===")
     for dir_path in dirs_to_keep:
         if os.path.exists(dir_path):
             # Get size
@@ -61,34 +69,38 @@ def cleanup_volume():
                         file_count += 1
                     except:
                         pass
-            print(f"✅ {dir_path}: {file_count} files, {total_size/1024/1024:.2f} MB")
+            logger.info(f"✅ {dir_path}: {file_count} files, {total_size/1024/1024:.2f} MB")
         else:
-            print(f"   {dir_path}: Will be created when needed")
+            logger.info(f"   {dir_path}: Will be created when needed")
 
     # Commit changes to volume
     results_volume.commit()
 
-    print("\n=== FINAL VOLUME STRUCTURE ===")
+    logger.info("=== FINAL VOLUME STRUCTURE ===")
     # Show what's left
     for root, dirs, files in os.walk("/results"):
         level = root.replace("/results", "").count(os.sep)
         if level <= 1:  # Only show top 2 levels
             indent = "  " * level
-            print(f"{indent}{os.path.basename(root)}/")
+            logger.info(f"{indent}{os.path.basename(root)}/")
 
-    print("\n✅ CLEANUP COMPLETE!")
-    print("\n📝 IMPORTANT NOTES:")
-    print("1. Cache is now mounted from S3 at /cache (not /results/cache)")
-    print("2. Training outputs go to /results/{smoke,train,etc}")
-    print("3. The S3 mount provides the preprocessed NPZ files")
+    logger.info("✅ CLEANUP COMPLETE!")
+    logger.info("📝 IMPORTANT NOTES:")
+    logger.info("1. Cache is now mounted from S3 at /cache (not /results/cache)")
+    logger.info("2. Training outputs go to /results/{smoke,train,etc}")
+    logger.info("3. The S3 mount provides the preprocessed NPZ files")
 
     return "Cleanup complete"
 
 @app.local_entrypoint()
 def main():
     """Run cleanup."""
+    # Setup logging for local entrypoint
+    from src.brain_brr.utils.logging_config import setup_logging
+    setup_logging()
+
     result = cleanup_volume.remote()
-    print(f"\n{result}")
+    logger.info(result)
 
 if __name__ == "__main__":
     main()
