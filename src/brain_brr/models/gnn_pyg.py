@@ -10,10 +10,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as func
 
+from .adjacency import compute_stable_laplacian, condition_adjacency
+
 # Module logger
 logger = logging.getLogger(__name__)
-
-from .adjacency import compute_stable_laplacian, condition_adjacency
 
 try:
     from torch_geometric.data import Batch, Data
