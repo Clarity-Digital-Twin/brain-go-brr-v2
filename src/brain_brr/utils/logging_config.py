@@ -273,15 +273,20 @@ class LoggingConfig:
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Use RotatingFileHandler for production
-        from logging.handlers import RotatingFileHandler
+        # Use simple FileHandler in tests to avoid xdist worker crashes
+        # RotatingFileHandler can cause issues with parallel test execution
+        if os.getenv("PYTEST_CURRENT_TEST"):
+            handler = logging.FileHandler(log_path, encoding="utf-8")
+        else:
+            # Use RotatingFileHandler for production
+            from logging.handlers import RotatingFileHandler
 
-        handler = RotatingFileHandler(
-            log_path,
-            maxBytes=100 * 1024 * 1024,  # 100MB
-            backupCount=5,
-            encoding="utf-8",
-        )
+            handler = RotatingFileHandler(
+                log_path,
+                maxBytes=100 * 1024 * 1024,  # 100MB
+                backupCount=5,
+                encoding="utf-8",
+            )
 
         # Detailed format for files
         formatter = logging.Formatter(
@@ -377,10 +382,17 @@ class LoggingConfig:
     def cleanup(self) -> None:
         """Clean up resources on exit."""
         for handler in self.handlers.values():
-            handler.close()
+            try:
+                handler.flush()
+                handler.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
 
         if self.ring_buffer:
-            self.ring_buffer.close()
+            try:
+                self.ring_buffer.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
 
 
 def get_instance() -> LoggingConfig:

@@ -30,3 +30,8 @@
     - Package is at src/brain_brr and we run from project root
 
   🔍 VERIFICATION
+
+
+7. RACE CONDITIONS????
+
+8. MEMORY LEAKS

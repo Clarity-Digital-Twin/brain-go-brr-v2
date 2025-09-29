@@ -143,12 +143,14 @@ class TestLoggingConfig:
 
         # Mock handlers to test cleanup
         for handler in config.handlers.values():
+            handler.flush = MagicMock()
             handler.close = MagicMock()
 
         config.cleanup()
 
-        # All handlers should be closed
+        # All handlers should be flushed and closed
         for handler in config.handlers.values():
+            handler.flush.assert_called_once()
             handler.close.assert_called_once()
 
 
