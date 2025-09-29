@@ -2,10 +2,11 @@
 
 Commands
 
+- Populate cache (one-time, from S3): `modal run --detach deploy/modal/app.py --action populate-cache`
 - Test Mamba CUDA: `modal run deploy/modal/app.py --action test-mamba`
-- Smoke: `modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml`
+- Smoke: `modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml`
 - Full (detached): `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml`
-- Clean old cache (run once after split fix): `modal run deploy/modal/app.py --action clean-cache`
+- Clean old cache (if needed): `modal run deploy/modal/app.py --action clean-cache`
 
 Resources
 

@@ -11,6 +11,7 @@ from rich.table import Table
 
 from src.brain_brr.config.schemas import Config
 from src.brain_brr.data.cache_utils import check_cache_completeness, scan_existing_cache
+from src.brain_brr.utils.logging_config import setup_logging
 
 console = Console()
 
@@ -591,8 +592,12 @@ cli.add_command(list_configs, name="list-configs")
 
 def main() -> int:
     """Main entry point."""
+    # Initialize logging for CLI (INFO level by default, can be overridden by BGB_LOG_LEVEL)
+    setup_logging()
     return cli(standalone_mode=False) or 0
 
 
 if __name__ == "__main__":
+    import sys
+
     sys.exit(main())

@@ -1,9 +1,13 @@
 """Weights & Biases integration for Brain-Go-Brr V3."""
 
+import logging
 import os
 import uuid
 from pathlib import Path
 from typing import Any
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 try:
     import wandb  # type: ignore[import-not-found]
@@ -27,12 +31,12 @@ class WandBLogger:
 
         # Check if W&B is installed
         if not WANDB_AVAILABLE:
-            print("W&B enabled but not installed. Install with: pip install wandb", flush=True)
+            logger.warning("W&B enabled but not installed. Install with: pip install wandb")
             return
 
         # Check for API key
         if not os.getenv("WANDB_API_KEY"):
-            print("W&B enabled but WANDB_API_KEY not set", flush=True)
+            logger.warning("W&B enabled but WANDB_API_KEY not set")
             return
 
         # Initialize W&B
@@ -100,9 +104,9 @@ class WandBLogger:
                 resume="allow",
             )
             self.enabled = True
-            print(f"W&B run initialized: {wandb.run.url}", flush=True)
+            logger.info(f"W&B run initialized: {wandb.run.url}")
         except Exception as e:
-            print(f"Failed to initialize W&B: {e}", flush=True)
+            logger.error(f"Failed to initialize W&B: {e}")
 
     def log(self, metrics: dict[str, Any], step: int | None = None) -> None:
         """Log metrics to W&B."""
@@ -110,7 +114,7 @@ class WandBLogger:
             try:
                 wandb.log(metrics, step=step)
             except Exception as e:
-                print(f"W&B logging error: {e}", flush=True)
+                logger.warning(f"W&B logging error: {e}")
 
     def log_model(self, checkpoint_path: Path, name: str = "model") -> None:
         """Log model checkpoint to W&B."""
@@ -124,7 +128,7 @@ class WandBLogger:
                 artifact.add_file(str(checkpoint_path))
                 wandb.log_artifact(artifact)
             except Exception as e:
-                print(f"W&B artifact logging error: {e}", flush=True)
+                logger.warning(f"W&B artifact logging error: {e}")
 
     def finish(self) -> None:
         """Finish W&B run."""
@@ -132,4 +136,4 @@ class WandBLogger:
             try:
                 wandb.finish()
             except Exception as e:
-                print(f"W&B finish error: {e}", flush=True)
+                logger.warning(f"W&B finish error: {e}")

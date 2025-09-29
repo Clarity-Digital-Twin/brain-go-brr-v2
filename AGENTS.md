@@ -44,11 +44,14 @@ make train-local  # or: .venv/bin/python -m src train configs/local/train.yaml
 
 ### Modal Cloud Deployment (A100-80GB)
 ```bash
+# One-time cache population from S3 (use --detach!)
+modal run --detach deploy/modal/app.py --action populate-cache
+
 # Test Mamba CUDA before training
 modal run deploy/modal/app.py --action test-mamba
 
-# Smoke test (quick validation)
-modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+# Smoke test (quick validation, use --detach)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
 
 # Full training (detached for long runs)
 modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml

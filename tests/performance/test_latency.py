@@ -25,7 +25,8 @@ skip_perf_tests = pytest.mark.skipif(
 )
 
 # Mark all tests in this module as performance tests (excluded from CI)
-pytestmark = pytest.mark.performance
+# Mark as performance tests and allow skipping via env var
+pytestmark = [pytest.mark.performance, skip_perf_tests]
 
 
 @pytest.mark.serial

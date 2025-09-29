@@ -173,6 +173,15 @@ numpy==1.26.4             # 2.x breaks mamba-ssm
 - Cache structure: `cache/tusz/{train,dev}/` NOT `{train,val}/`
 - This prevents confusion when reading TUSZ documentation
 
+### CRITICAL: Dataset Strategy (This is CORRECT, not a bug!)
+- **Training**: Uses `BalancedSeizureDataset` with manifest to oversample seizures (8% → ~30% in batches)
+  - Requires: `train/manifest.json` (auto-created if missing)
+  - Why: Model needs enough seizures to learn patterns effectively
+- **Validation**: Uses `EEGWindowDataset` with natural distribution (~8% seizures)
+  - Manifest: `dev/manifest.json` is OPTIONAL (validation doesn't use it)
+  - Why: Measures real-world performance, not inflated metrics
+- **This is standard ML practice**: Train on balanced data, validate on real distribution
+
 ### Post-Processing
 1. **Hysteresis**: τ_on=0.86, τ_off=0.78
 2. **Morphology**: Opening(11), Closing(31)
@@ -258,6 +267,21 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 - **VRAM**: 12-20GB (RTX 4090), 40-60GB (A100)
 - **Cache size**: ~50GB processed NPZ files
 - **Checkpoint size**: ~125MB per epoch
+
+### GPU-Specific Test Adjustments
+
+Due to hardware differences, integration tests have adjusted thresholds:
+
+| Test Type | RTX 4090 (Local) | A100 (CI/Modal) |
+|-----------|------------------|-----------------|
+| Batch Size | 2 (24GB VRAM) | 4-8 (80GB VRAM) |
+| TCN Speed (10 batches) | <1.5s | <0.5s |
+| Memory Usage | <4.0GB | <8.0GB |
+
+**Environment Variables:**
+- `BGB_TCN_SPEED_TARGET`: Override speed threshold (default: 1.5s local, 0.5s CI)
+- `BGB_TCN_MEM_MAX`: Override memory threshold (default: 4.0GB)
+- `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`: Reduce VRAM fragmentation
 
 ---
 

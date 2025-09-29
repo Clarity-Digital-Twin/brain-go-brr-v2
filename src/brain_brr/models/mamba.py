@@ -205,7 +205,7 @@ class BiMamba2Layer(nn.Module):
                 x_forward = self.forward_mamba_fallback(x.transpose(1, 2)).transpose(1, 2)
         except (AttributeError, RuntimeError, TypeError) as e:
             # Mamba CUDA kernel not available, fall back to Conv1d
-            print(f"[MAMBA] Forward pass error, using fallback: {e}", flush=True)
+            logger.warning(f"[MAMBA] Forward pass error, using fallback: {e}")
             if (
                 "causal_conv1d" in str(e)
                 or "NoneType" in str(e)
@@ -227,7 +227,7 @@ class BiMamba2Layer(nn.Module):
                 )
         except (AttributeError, RuntimeError, TypeError) as e:
             # Mamba CUDA kernel not available, fall back to Conv1d
-            print(f"[MAMBA] Backward pass error, using fallback: {e}", flush=True)
+            logger.warning(f"[MAMBA] Backward pass error, using fallback: {e}")
             if (
                 "causal_conv1d" in str(e)
                 or "NoneType" in str(e)

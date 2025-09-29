@@ -191,3 +191,33 @@ l: lint ## Shortcut for lint
 q: quality ## Shortcut for quality checks
 s: smoke-local ## Shortcut for smoke test
 g: setup-gpu ## Shortcut for GPU setup
+
+# Modal Pipeline Automation
+create-manifests: ## Create train and dev manifests for balanced sampling
+	@echo "${CYAN}Creating manifests...${NC}"
+	@$(PYTHON) -m src scan-cache --cache-dir cache/tusz/train || echo "${YELLOW}Train manifest creation failed${NC}"
+	@$(PYTHON) -m src scan-cache --cache-dir cache/tusz/dev || echo "${YELLOW}Dev manifest creation failed (optional)${NC}"
+	@echo "${GREEN}✓ Manifests created${NC}"
+
+upload-cache: create-manifests ## Upload cache to S3 (with manifests)
+	@echo "${CYAN}Uploading cache to S3...${NC}"
+	@./scripts/upload_cache_to_s3.sh
+	@echo "${GREEN}✓ Cache uploaded with manifests${NC}"
+
+populate-modal: ## Populate Modal cache from S3 (one-time, use --detach)
+	@echo "${CYAN}Populating Modal cache from S3...${NC}"
+	@modal run --detach deploy/modal/app.py --action populate-cache
+	@echo "${GREEN}✓ Started cache population - monitor with: modal app list${NC}"
+
+train-modal: ## Start Modal training (with --detach)
+	@echo "${CYAN}Starting Modal training...${NC}"
+	@modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+	@echo "${GREEN}✓ Training started - monitor with: modal app list${NC}"
+
+smoke-modal: ## Run Modal smoke test (with --detach)
+	@echo "${CYAN}Running Modal smoke test...${NC}"
+	@modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+	@echo "${GREEN}✓ Smoke test started - monitor with: modal app list${NC}"
+
+deploy-modal: upload-cache populate-modal train-modal ## Complete Modal deployment pipeline
+	@echo "${GREEN}✓ Full Modal deployment pipeline initiated${NC}"

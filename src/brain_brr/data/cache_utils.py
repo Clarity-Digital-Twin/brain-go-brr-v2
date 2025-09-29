@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -10,6 +11,9 @@ from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # Guard tqdm import for Modal/subprocess environments with typing-friendly fallbacks
 tqdm: Any | None
@@ -81,7 +85,7 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
     from src.brain_brr.utils.env import env
 
     disable_tqdm = env.disable_tqdm() or tqdm is None
-    print(f"[CACHE] tqdm disabled={disable_tqdm} | files={len(npz_files)}", flush=True)
+    logger.debug(f"[CACHE] tqdm disabled={disable_tqdm} | files={len(npz_files)}")
 
     if disable_tqdm:
         iterable = npz_files
@@ -104,7 +108,7 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
                 labels = data["labels"]
         except (OSError, ValueError) as e:
             # Skip corrupted or inaccessible files
-            print(f"Warning: Skipping {npz_path.name}: {e}")
+            logger.warning(f"Skipping {npz_path.name}: {e}")
             continue
 
         n_windows = int(labels.shape[0])
@@ -130,11 +134,11 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
     total = n_partial + n_full + n_none
 
     if n_partial == 0:
-        print(f"WARNING: No partial seizure windows found in {len(npz_files)} files!")
-        print(f"  Full seizure: {n_full}, No seizure: {n_none}")
+        logger.warning(f"No partial seizure windows found in {len(npz_files)} files!")
+        logger.warning(f"  Full seizure: {n_full}, No seizure: {n_none}")
     else:
-        print(f"Manifest created: {n_partial} partial, {n_full} full, {n_none} no-seizure")
-        print(f"  Seizure ratio: {(n_partial + n_full) / total:.1%}")
+        logger.info(f"Manifest created: {n_partial} partial, {n_full} full, {n_none} no-seizure")
+        logger.info(f"  Seizure ratio: {(n_partial + n_full) / total:.1%}")
 
     return manifest
 

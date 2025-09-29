@@ -53,7 +53,7 @@ class TestTrainingExplosions:
     def test_focal_loss_collapse_real_imbalance(self, small_model):
         """Train 5 epochs on REAL 99.9% negative data."""
         # Create extremely imbalanced data
-        batch_size = 4  # Reduced from 16 to prevent OOM
+        batch_size = 2  # Further reduced to prevent OOM on RTX 4090
         device = next(small_model.parameters()).device
 
         # 99.9% negative labels
@@ -131,8 +131,8 @@ class TestTrainingExplosions:
     def test_gradient_explosion_extreme_lr(self, small_model):
         """REAL training with LR=10.0 for 10 steps."""
         device = next(small_model.parameters()).device
-        data = torch.randn(4, 19, 15360, device=device)
-        labels = torch.randint(0, 2, (4, 15360), device=device).float()
+        data = torch.randn(2, 19, 15360, device=device)  # RTX 4090: max 2, A100: 4-8
+        labels = torch.randint(0, 2, (2, 15360), device=device).float()
 
         criterion = nn.BCEWithLogitsLoss()
         # Extreme learning rate that will cause explosion
@@ -266,8 +266,8 @@ class TestTrainingExplosions:
 
         # Train for multiple steps with mixed precision
         for step in range(20):
-            data = torch.randn(8, 19, 15360, device=device)
-            labels = torch.randint(0, 2, (8, 15360), device=device).float()
+            data = torch.randn(2, 19, 15360, device=device)  # RTX 4090: max 2, A100: 4-8
+            labels = torch.randint(0, 2, (2, 15360), device=device).float()
 
             optimizer.zero_grad()
 
@@ -374,8 +374,8 @@ class TestTrainingExplosions:
         optimizer = torch.optim.Adam(small_model.parameters())
 
         # Normal training step
-        data = torch.randn(4, 19, 15360, device=device)
-        labels = torch.randint(0, 2, (4, 15360), device=device).float()
+        data = torch.randn(2, 19, 15360, device=device)  # RTX 4090: max 2, A100: 4-8
+        labels = torch.randint(0, 2, (2, 15360), device=device).float()
 
         optimizer.zero_grad()
         output = small_model(data)

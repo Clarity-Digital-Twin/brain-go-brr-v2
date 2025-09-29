@@ -10,7 +10,9 @@ SOLID principles applied:
 
 from __future__ import annotations
 
+import logging
 import math
+import os
 import random
 import sys
 import time
@@ -50,6 +52,12 @@ from src.brain_brr.eval.metrics import evaluate_predictions
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.wandb_integration import WandBLogger
 from src.brain_brr.utils.env import env
+
+# Module logger
+logger = logging.getLogger(__name__)
+
+# Training-specific logger with gating
+LOG_EVERY_N_STEPS = int(os.getenv("BGB_LOG_EVERY_N_STEPS", "50"))
 
 # WSL2-safe multiprocessing defaults (must be before any DataLoader creation)
 if mp.get_start_method(allow_none=True) != "spawn":
@@ -92,13 +100,12 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
     Returns:
         WeightedRandomSampler for balanced mini-batches or None if no seizures found
     """
-    print("[SAMPLER] Creating positive-aware balanced sampler...", flush=True)
+    logger.info("[SAMPLER] Creating positive-aware balanced sampler...")
 
     # Skip expensive sampling in smoke test mode
     if env.smoke_test():
-        print(
-            "[SMOKE TEST MODE] Skipping sampler window checking - returning None for uniform sampling",
-            flush=True,
+        logger.info(
+            "[SMOKE TEST MODE] Skipping sampler window checking - returning None for uniform sampling"
         )
         return None
 
@@ -110,7 +117,7 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
     window_has_seizure = torch.zeros(len(dataset), dtype=torch.float32)
     sampled_seizure_count = 0
 
-    print(f"[SAMPLER] Checking {sample_size} windows for seizures...", flush=True)
+    logger.info(f"[SAMPLER] Checking {sample_size} windows for seizures...")
     for i, idx in enumerate(sample_indices):
         _, label = dataset[idx.item()]
         if (label > 0).any():
@@ -119,20 +126,18 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
 
         # Progress update every 1000 windows
         if (i + 1) % 1000 == 0:
-            print(
-                f"[SAMPLER] Checked {i + 1}/{sample_size} windows, found {sampled_seizure_count} with seizures",
-                flush=True,
+            logger.debug(
+                f"[SAMPLER] Checked {i + 1}/{sample_size} windows, found {sampled_seizure_count} with seizures"
             )
 
     # Estimate seizure ratio
     seizure_ratio = sampled_seizure_count / sample_size
-    print(
-        f"[SAMPLER] Final: {sampled_seizure_count}/{sample_size} windows with seizures ({seizure_ratio:.2%})",
-        flush=True,
+    logger.info(
+        f"[SAMPLER] Final: {sampled_seizure_count}/{sample_size} windows with seizures ({seizure_ratio:.2%})"
     )
 
     if seizure_ratio < 1e-8:
-        print("[SAMPLER] WARNING: No seizures found in sample! Using uniform sampling.", flush=True)
+        logger.info("[SAMPLER] WARNING: No seizures found in sample! Using uniform sampling.")
         return None
 
     # Calculate weight for positive samples (sqrt to prevent explosion)
@@ -157,12 +162,9 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
         ]
         weights[random_seizure_indices] = pos_weight
 
-    print(f"[SAMPLER] Seizure ratio: {seizure_ratio:.2%}", flush=True)
-    print(f"[SAMPLER] Positive weight: {pos_weight:.2f}", flush=True)
-    print(
-        f"[SAMPLER] Estimated seizure windows: {(weights > 1).sum().item()}/{len(dataset)}",
-        flush=True,
-    )
+    logger.info(f"[SAMPLER] Seizure ratio: {seizure_ratio:.2%}")
+    logger.info(f"[SAMPLER] Positive weight: {pos_weight:.2f}")
+    logger.info(f"[SAMPLER] Estimated seizure windows: {(weights > 1).sum().item()}/{len(dataset)}")
 
     return WeightedRandomSampler(
         weights=weights.tolist(),
@@ -261,9 +263,9 @@ def create_optimizer(model: nn.Module, config: TrainingConfig) -> Optimizer:
             {"params": no_decay_params, "weight_decay": 0.0, "lr": config.learning_rate},
         ]
 
-        print("[OPTIMIZER] Created parameter groups:", flush=True)
-        print(f"  - Decay group: {len(decay_params)} parameters", flush=True)
-        print(f"  - No-decay group: {len(no_decay_params)} parameters", flush=True)
+        logger.info("[OPTIMIZER] Created parameter groups:")
+        logger.info(f"  - Decay group: {len(decay_params)} parameters")
+        logger.info(f"  - No-decay group: {len(no_decay_params)} parameters")
 
         return AdamW(param_groups, lr=config.learning_rate, betas=(0.9, 0.999), eps=1e-8)
     else:
@@ -363,9 +365,9 @@ def train_epoch(
 
     # Calculate class weights from dataset sample (not just first batch!)
     # Sample a significant portion to get accurate statistics
-    print("\n" + "=" * 60, flush=True)
-    print("[INIT] DATASET STATISTICS", flush=True)
-    print("=" * 60, flush=True)
+    logger.info("\n" + "=" * 60)
+    logger.info("[INIT] DATASET STATISTICS")
+    logger.info("=" * 60)
 
     dataset = dataloader.dataset
     dataset_len = len(dataset)  # type: ignore[arg-type]
@@ -373,9 +375,7 @@ def train_epoch(
     # Skip expensive sampling in smoke test mode
     is_smoke_test = env.smoke_test()
     if is_smoke_test:
-        print(
-            "[SMOKE TEST MODE] Skipping dataset sampling - using default pos_weight=1.0", flush=True
-        )
+        logger.info("[SMOKE TEST MODE] Skipping dataset sampling - using default pos_weight=1.0")
         pos_weight_val = 1.0
         pos_ratio = 0.5  # Assume balanced for smoke test
 
@@ -387,8 +387,8 @@ def train_epoch(
         if isinstance(dataset, BalancedSeizureDataset):
             # Use the pre-computed ratio from manifest statistics
             pos_ratio = dataset.seizure_ratio
-            print("[DATASET] Using BalancedSeizureDataset known distribution", flush=True)
-            print(f"[DATASET] Seizure ratio: {100 * pos_ratio:.1f}% (from manifest)", flush=True)
+            logger.info("[DATASET] Using BalancedSeizureDataset known distribution")
+            logger.info(f"[DATASET] Seizure ratio: {100 * pos_ratio:.1f}% (from manifest)")
         else:
             # Fallback: sample windows for regular datasets
             sample_size = min(100, dataset_len)  # Reduced from 1000 for speed
@@ -397,9 +397,7 @@ def train_epoch(
             pos_count = 0
             total_samples = 0
 
-            print(
-                f"[DATASET] Sampling {sample_size} windows to estimate distribution...", flush=True
-            )
+            logger.info(f"[DATASET] Sampling {sample_size} windows to estimate distribution...")
             for idx in sample_indices:
                 _, label = dataset[idx.item()]
                 if (label > 0).any():
@@ -407,10 +405,9 @@ def train_epoch(
                 total_samples += 1
 
             pos_ratio = pos_count / total_samples if total_samples > 0 else 1e-8
-            print(f"[DATASET] Sampled {sample_size} windows", flush=True)
-            print(
-                f"[DATASET] Windows with seizures: {pos_count}/{sample_size} ({100 * pos_ratio:.2f}%)",
-                flush=True,
+            logger.info(f"[DATASET] Sampled {sample_size} windows")
+            logger.info(
+                f"[DATASET] Windows with seizures: {pos_count}/{sample_size} ({100 * pos_ratio:.2f}%)"
             )
 
         # Use sqrt scaling for extreme imbalance (prevents explosion)
@@ -419,16 +416,16 @@ def train_epoch(
         else:
             pos_weight_val = 1.0
 
-        print(f"[DATASET] Using pos_weight: {pos_weight_val:.2f} (sqrt scaling)", flush=True)
-    print("=" * 60 + "\n", flush=True)
+        logger.info(f"[DATASET] Using pos_weight: {pos_weight_val:.2f} (sqrt scaling)")
+    logger.info("=" * 60 + "\n")
 
     # Validate dataset has seizures
     if pos_ratio < 0.001:  # Less than 0.1% seizures
-        print("\n" + "!" * 60, flush=True)
-        print(f"[CRITICAL] Dataset has only {100 * pos_ratio:.4f}% seizures!", flush=True)
-        print("[CRITICAL] Model will likely collapse to all-negative predictions.", flush=True)
-        print("[CRITICAL] Increase BGB_LIMIT_FILES or use different data split.", flush=True)
-        print("!" * 60 + "\n", flush=True)
+        logger.critical("\n" + "!" * 60)
+        logger.critical(f"[CRITICAL] Dataset has only {100 * pos_ratio:.4f}% seizures!")
+        logger.critical("[CRITICAL] Model will likely collapse to all-negative predictions.")
+        logger.critical("[CRITICAL] Increase BGB_LIMIT_FILES or use different data split.")
+        logger.critical("!" * 60 + "\n")
 
     # Get first batch for preflight check
     first_batch = next(iter(dataloader))
@@ -448,23 +445,18 @@ def train_epoch(
         pass_pos_weight = alpha_diff < 1e-6
         if not pass_pos_weight:
             if focal_alpha < 0.5:
-                print(
-                    "[WARNING] focal_alpha < 0.5 down-weights positives; ensure this is intended",
-                    flush=True,
-                )
-            print(
-                "[INIT] FOCAL: alpha != 0.5 → disabling pos_weight to avoid double-counting",
-                flush=True,
+                logger.warning("focal_alpha < 0.5 down-weights positives; ensure this is intended")
+            logger.info(
+                "[INIT] FOCAL: alpha != 0.5 → disabling pos_weight to avoid double-counting"
             )
 
         def compute_loss(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
             pw = pos_weight_t if pass_pos_weight else None
             return cast(torch.Tensor, focal(x, y, pos_weight=pw))
 
-        print(
+        logger.info(
             f"[INIT] Using FOCAL loss (alpha={focal_alpha}, gamma={focal_gamma}, "
-            f"pos_weight={'on' if pass_pos_weight else 'off'})",
-            flush=True,
+            f"pos_weight={'on' if pass_pos_weight else 'off'})"
         )
     else:
         bce = nn.BCEWithLogitsLoss(reduction="none", pos_weight=pos_weight_t)
@@ -472,7 +464,7 @@ def train_epoch(
         def compute_loss(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
             return cast(torch.Tensor, bce(x, y))
 
-        print("[INIT] Using BCEWithLogits loss", flush=True)
+        logger.info("[INIT] Using BCEWithLogits loss")
 
     # GUARDRAILS: Validate critical components before training
     if compute_loss is None or not callable(compute_loss):
@@ -483,7 +475,7 @@ def train_epoch(
         raise TypeError(f"GradScaler expected for AMP, got {type(scaler)}")
 
     # PREFLIGHT CHECK: Test one batch to catch errors early
-    print("[PREFLIGHT] Testing one batch before training...", flush=True)
+    logger.info("[PREFLIGHT] Testing one batch before training...")
     test_windows, test_labels = first_batch
     test_windows = test_windows.to(device_obj)
     test_labels = test_labels.to(device_obj)
@@ -499,23 +491,20 @@ def train_epoch(
             test_loss = compute_loss(test_logits, test_labels)
             if test_loss is None:
                 raise ValueError("Loss computation returned None")
-            print(
-                f"[PREFLIGHT] ✓ Model forward pass OK, loss shape: {test_loss.shape}",
-                flush=True,
-            )
+            logger.info(f"[PREFLIGHT] ✓ Model forward pass OK, loss shape: {test_loss.shape}")
     except Exception as e:
-        print(f"[PREFLIGHT] ✗ Failed on test batch: {e}", flush=True)
-        print("[PREFLIGHT] Debug info:", flush=True)
-        print(f"  - Model type: {type(model)}", flush=True)
-        print(f"  - Input shape: {test_windows.shape}", flush=True)
-        print(f"  - Labels shape: {test_labels.shape}", flush=True)
-        print(f"  - Loss mode: {loss_mode}", flush=True)
-        print(f"  - Device: {device_obj}", flush=True)
+        logger.info(f"[PREFLIGHT] ✗ Failed on test batch: {e}")
+        logger.info("[PREFLIGHT] Debug info:")
+        logger.info(f"  - Model type: {type(model)}")
+        logger.info(f"  - Input shape: {test_windows.shape}")
+        logger.info(f"  - Labels shape: {test_labels.shape}")
+        logger.info(f"  - Loss mode: {loss_mode}")
+        logger.info(f"  - Device: {device_obj}")
         raise
     finally:
         model.train()
 
-    print(f"[TRAIN] Starting epoch with {len(dataloader)} batches", flush=True)
+    logger.info(f"[TRAIN] Starting epoch with {len(dataloader)} batches")
     total_loss = 0.0
     num_batches = 0
     consecutive_nans = 0
@@ -542,12 +531,12 @@ def train_epoch(
                 disable=None,  # Let tqdm auto-detect if it should disable
             )
             if progress_bar is None or not hasattr(progress_bar, "__iter__"):
-                print("[WARNING] tqdm initialization failed, using plain iteration", flush=True)
+                logger.info("[WARNING] tqdm initialization failed, using plain iteration")
                 progress = dataloader
             else:
                 progress = progress_bar
         except Exception as e:
-            print(f"[WARNING] tqdm failed ({e}), using plain iteration", flush=True)
+            logger.info(f"[WARNING] tqdm failed ({e}), using plain iteration")
             progress = dataloader
     else:
         progress = dataloader
@@ -585,10 +574,10 @@ def train_epoch(
                     # Check logits finiteness and sanitize if needed
                     if not torch.isfinite(logits).all():
                         nonfinite = (~torch.isfinite(logits)).sum().item()
-                        print(
-                            f"[WARN] Non-finite logits at batch {batch_idx}: count={nonfinite} -> sanitizing",
-                            flush=True,
-                        )
+                        if batch_idx % LOG_EVERY_N_STEPS == 0:
+                            logger.warning(
+                                f"Non-finite logits at batch {batch_idx}: count={nonfinite} -> sanitizing"
+                            )
                         # Save bad batch for debugging (best-effort)
                         try:
                             Path("debug").mkdir(parents=True, exist_ok=True)
@@ -608,14 +597,12 @@ def train_epoch(
                     if per_element_loss is None:
                         raise ValueError("Loss computation returned None")
                 except Exception as e:
-                    print(
-                        f"[ERROR] Forward/loss computation failed at batch {batch_idx}:", flush=True
-                    )
-                    print(f"  - Error: {e}", flush=True)
-                    print(f"  - Model: {type(model)}", flush=True)
-                    print(f"  - Windows shape: {windows.shape}", flush=True)
-                    print(f"  - Labels shape: {labels.shape}", flush=True)
-                    print(f"  - Device: {windows.device}", flush=True)
+                    logger.error(f"Forward/loss computation failed at batch {batch_idx}:")
+                    logger.info(f"  - Error: {e}")
+                    logger.info(f"  - Model: {type(model)}")
+                    logger.info(f"  - Windows shape: {windows.shape}")
+                    logger.info(f"  - Labels shape: {labels.shape}")
+                    logger.info(f"  - Device: {windows.device}")
                     if enable_nan_debug and nan_debug_emitted < max_nan_debug:
                         try:
                             w_min = float(windows.min().item())
@@ -624,11 +611,10 @@ def train_epoch(
                             w_std = float(windows.std().item())
                             l_min = float(labels.min().item())
                             l_max = float(labels.max().item())
-                            print(
-                                f"  - Windows stats: min={w_min:.3e} max={w_max:.3e} mean={w_mean:.3e} std={w_std:.3e}",
-                                flush=True,
+                            logger.debug(
+                                f"  - Windows stats: min={w_min:.3e} max={w_max:.3e} mean={w_mean:.3e} std={w_std:.3e}"
                             )
-                            print(f"  - Labels stats: min={l_min:.3e} max={l_max:.3e}", flush=True)
+                            logger.info(f"  - Labels stats: min={l_min:.3e} max={l_max:.3e}")
                         except Exception:
                             pass
                         nan_debug_emitted += 1
@@ -639,47 +625,39 @@ def train_epoch(
             # Check for non-finite loss before gradient update
             if not torch.isfinite(loss):
                 consecutive_nans += 1
-                print(
-                    f"[WARNING] NaN loss detected at batch {batch_idx} "
-                    f"(consecutive: {consecutive_nans}), skipping gradient update",
-                    flush=True,
-                )
+                if batch_idx % LOG_EVERY_N_STEPS == 0:
+                    logger.warning(
+                        f"NaN loss detected at batch {batch_idx} "
+                        f"(consecutive: {consecutive_nans}), skipping gradient update"
+                    )
                 if enable_nan_debug and nan_debug_emitted < max_nan_debug:
                     try:
                         with torch.no_grad():
                             # Recompute logits in full precision for diagnostics
                             logits_fp32 = model(windows.float())
                             nonfinite = (~torch.isfinite(logits_fp32)).sum().item()
-                            print(
-                                f"[DEBUG] FP32 logits non-finite count at batch {batch_idx}: {nonfinite}",
-                                flush=True,
+                            logger.debug(
+                                f"FP32 logits non-finite count at batch {batch_idx}: {nonfinite}"
                             )
                             # Check batch composition
                             pos_ratio = labels.sum().item() / labels.numel()
-                            print(
-                                f"[DEBUG] Batch {batch_idx} positive ratio: {pos_ratio:.4f}",
-                                flush=True,
-                            )
+                            logger.debug(f"Batch {batch_idx} positive ratio: {pos_ratio:.4f}")
                             # Check for dead channels
                             channel_stds = windows.std(dim=[0, 2])  # std across batch and time
                             dead_channels = (channel_stds < 1e-6).sum().item()
                             if dead_channels > 0:
-                                print(
-                                    f"[DEBUG] Batch {batch_idx} has {dead_channels} dead channels",
-                                    flush=True,
-                                )
+                                logger.debug(f"Batch {batch_idx} has {dead_channels} dead channels")
                     except Exception as e:
-                        print(f"[DEBUG] Error in NaN diagnostics: {e}", flush=True)
+                        logger.info(f"[DEBUG] Error in NaN diagnostics: {e}")
                     nan_debug_emitted += 1
                 # Clear gradients but skip update
                 optimizer.zero_grad(set_to_none=True)
 
                 # Check if we should stop training
                 if consecutive_nans >= max_consecutive_nans:
-                    print(
-                        f"[ERROR] {consecutive_nans} consecutive NaN losses detected, "
-                        "model may be corrupted. Stopping training.",
-                        flush=True,
+                    logger.critical(
+                        f"{consecutive_nans} consecutive NaN losses detected, "
+                        "model may be corrupted. Stopping training."
                     )
                     break
             else:
@@ -698,15 +676,11 @@ def train_epoch(
                                 grad_has_nan = True
                                 param.grad.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
                         if grad_has_nan:
-                            print(
-                                f"[WARN] Sanitized NaN gradients at batch {batch_idx}", flush=True
-                            )
+                            if batch_idx % LOG_EVERY_N_STEPS == 0:
+                                logger.warning(f"Sanitized NaN gradients at batch {batch_idx}")
                             if env.skip_opt_step_on_nan():
                                 skip_step = True
-                                print(
-                                    "[WARN] Skipping optimizer step due to NaN gradients",
-                                    flush=True,
-                                )
+                                logger.warning("Skipping optimizer step due to NaN gradients")
 
                     if not skip_step:
                         if gradient_clip > 0:
@@ -714,9 +688,8 @@ def train_epoch(
                                 model.parameters(), gradient_clip
                             )
                             if enable_nan_debug and grad_norm > gradient_clip * 10:
-                                print(
-                                    f"[DEBUG] Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})",
-                                    flush=True,
+                                logger.debug(
+                                    f"Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})"
                                 )
                         scaler.step(optimizer)
                         scaler.update()
@@ -732,15 +705,11 @@ def train_epoch(
                                 grad_has_nan = True
                                 param.grad.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
                         if grad_has_nan:
-                            print(
-                                f"[WARN] Sanitized NaN gradients at batch {batch_idx}", flush=True
-                            )
+                            if batch_idx % LOG_EVERY_N_STEPS == 0:
+                                logger.warning(f"Sanitized NaN gradients at batch {batch_idx}")
                             if env.skip_opt_step_on_nan():
                                 skip_step = True
-                                print(
-                                    "[WARN] Skipping optimizer step due to NaN gradients",
-                                    flush=True,
-                                )
+                                logger.warning("Skipping optimizer step due to NaN gradients")
 
                     if not skip_step:
                         if gradient_clip > 0:
@@ -748,9 +717,8 @@ def train_epoch(
                                 model.parameters(), gradient_clip
                             )
                             if enable_nan_debug and grad_norm > gradient_clip * 10:
-                                print(
-                                    f"[DEBUG] Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})",
-                                    flush=True,
+                                logger.debug(
+                                    f"Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})"
                                 )
                         optimizer.step()
 
@@ -769,10 +737,10 @@ def train_epoch(
                 total_loss += loss_val
                 num_batches += 1
             else:
-                print(
-                    f"[WARNING] Non-finite loss detected at batch {batch_idx}, skipping in average",
-                    flush=True,
-                )
+                if batch_idx % LOG_EVERY_N_STEPS == 0:
+                    logger.warning(
+                        f"Non-finite loss detected at batch {batch_idx}, skipping in average"
+                    )
 
             if use_tqdm and hasattr(progress, "set_postfix"):
                 if not torch.isfinite(torch.tensor(loss_val)):
@@ -780,36 +748,32 @@ def train_epoch(
                 else:
                     progress.set_postfix({"loss": f"{loss_val:.4f}"})
 
-            # Modal progress logging - print every 100 batches for visibility
-            if batch_idx > 0 and batch_idx % 100 == 0:
+            # Modal progress logging - log based on BGB_LOG_EVERY_N_STEPS
+            if batch_idx > 0 and batch_idx % LOG_EVERY_N_STEPS == 0:
                 current_lr = optimizer.param_groups[0]["lr"]
                 if not torch.isfinite(torch.tensor(loss_val)):
-                    print(
+                    logger.info(
                         f"[PROGRESS] Batch {batch_idx}/{len(dataloader)} | "
-                        f"Loss: nan | LR: {current_lr:.2e}",
-                        flush=True,
+                        f"Loss: nan | LR: {current_lr:.2e}"
                     )
                 else:
-                    print(
+                    logger.info(
                         f"[PROGRESS] Batch {batch_idx}/{len(dataloader)} | "
-                        f"Loss: {loss_val:.4f} | LR: {current_lr:.2e}",
-                        flush=True,
+                        f"Loss: {loss_val:.4f} | LR: {current_lr:.2e}"
                     )
 
             # Heartbeat for Modal (every 5 minutes)
             if time.time() - last_heartbeat > heartbeat_interval:
                 if num_batches > 0:
                     avg_loss = total_loss / num_batches
-                    print(
+                    logger.info(
                         f"[HEARTBEAT] Still training... Batch {batch_idx}/{len(dataloader)} | "
-                        f"Avg Loss: {avg_loss:.4f}",
-                        flush=True,
+                        f"Avg Loss: {avg_loss:.4f}"
                     )
                 else:
-                    print(
+                    logger.info(
                         f"[HEARTBEAT] Still training... Batch {batch_idx}/{len(dataloader)} | "
-                        f"Avg Loss: N/A (all NaN)",
-                        flush=True,
+                        f"Avg Loss: N/A (all NaN)"
                     )
                 last_heartbeat = time.time()
 
@@ -831,7 +795,7 @@ def train_epoch(
                         None,
                         extra={"batch_idx": batch_idx, "kind": "mid_epoch"},
                     )
-                    print(f"[CHECKPOINT] Saved mid-epoch snapshot: {mid_path.name}", flush=True)
+                    logger.info(f"[CHECKPOINT] Saved mid-epoch snapshot: {mid_path.name}")
                     last_mid_save = time.time()
                     mids = sorted(
                         checkpoint_dir.glob("mid_epoch_*.pt"), key=lambda p: p.stat().st_mtime
@@ -841,7 +805,7 @@ def train_epoch(
                             with suppress(Exception):
                                 old.unlink()
                 except Exception as e:
-                    print(f"[WARNING] Failed to save mid-epoch checkpoint: {e}", flush=True)
+                    logger.info(f"[WARNING] Failed to save mid-epoch checkpoint: {e}")
 
     except Exception as e:
         # Clean up tqdm if it exists
@@ -849,7 +813,7 @@ def train_epoch(
             with suppress(Exception):
                 progress_bar.close()
         # Re-raise the actual error with context
-        print(f"[ERROR] Training loop failed at batch {num_batches}: {e}", flush=True)
+        logger.info(f"[ERROR] Training loop failed at batch {num_batches}: {e}")
         raise
     finally:
         # Always clean up tqdm progress bar
@@ -899,7 +863,7 @@ def validate_epoch(
 
     # Print validation start message
     n_val_batches = len(dataloader)
-    print(f"[VALIDATION] Starting validation with {n_val_batches} batches...", flush=True)
+    logger.info(f"[VALIDATION] Starting validation with {n_val_batches} batches...")
 
     # Robust tqdm handling for Modal/non-TTY environments
     use_tqdm = not env.disable_tqdm()
@@ -919,17 +883,14 @@ def validate_epoch(
                     disable=None,
                 )
                 if progress_bar is None or not hasattr(progress_bar, "__iter__"):
-                    print(
-                        "[WARNING] tqdm initialization failed in validation, using plain iteration",
-                        flush=True,
+                    logger.warning(
+                        "tqdm initialization failed in validation, using plain iteration"
                     )
                     iterator = dataloader
                 else:
                     iterator = progress_bar
             except Exception as e:
-                print(
-                    f"[WARNING] tqdm failed in validation ({e}), using plain iteration", flush=True
-                )
+                logger.warning(f"tqdm failed in validation ({e}), using plain iteration")
                 iterator = dataloader
         else:
             iterator = dataloader
@@ -961,10 +922,9 @@ def validate_epoch(
                 current_time = time.time()
                 if current_time - last_heartbeat > heartbeat_interval:
                     avg_loss = total_loss / max(1, num_batches)
-                    print(
+                    logger.info(
                         f"[VAL HEARTBEAT] Batch {batch_idx}/{len(dataloader)} | "
-                        f"Avg Loss: {avg_loss:.4f}",
-                        flush=True,
+                        f"Avg Loss: {avg_loss:.4f}"
                     )
                     last_heartbeat = current_time
         finally:
@@ -974,7 +934,7 @@ def validate_epoch(
                     progress_bar.close()
 
     # Concatenate all batches
-    print(f"[VALIDATION] Completed {num_batches} batches, computing metrics...", flush=True)
+    logger.info(f"[VALIDATION] Completed {num_batches} batches, computing metrics...")
 
     all_probs_tensor = torch.cat(all_probs, dim=0)
     all_labels_tensor = torch.cat(all_labels, dim=0)
@@ -991,7 +951,7 @@ def validate_epoch(
     # Add validation loss
     metrics["val_loss"] = total_loss / max(1, num_batches)
 
-    print(f"[VALIDATION] Done! Val Loss: {metrics['val_loss']:.4f}", flush=True)
+    logger.info(f"[VALIDATION] Done! Val Loss: {metrics['val_loss']:.4f}")
 
     return metrics
 
@@ -1051,7 +1011,7 @@ def save_checkpoint(
             raise ValueError("Checkpoint missing model_state_dict")
         temp_path.rename(checkpoint_path)
     except Exception as e:
-        print(f"[ERROR] Checkpoint verification failed: {e}", flush=True)
+        logger.info(f"[ERROR] Checkpoint verification failed: {e}")
         temp_path.unlink(missing_ok=True)
         raise
 
@@ -1154,7 +1114,7 @@ def train(
     if env.anomaly_detect():
         try:
             torch.autograd.set_detect_anomaly(True)
-            print("[DEBUG] Enabled torch.autograd anomaly detection", flush=True)
+            logger.info("[DEBUG] Enabled torch.autograd anomaly detection")
         except Exception:
             pass
     set_seed(config.experiment.seed)
@@ -1183,7 +1143,7 @@ def train(
     if HAS_TENSORBOARD and not env.disable_tensorboard():
         writer = SummaryWriter(output_dir / "tensorboard")
     elif not HAS_TENSORBOARD and not env.disable_tensorboard():
-        print("TensorBoard not installed. Install with: pip install tensorboard")
+        logger.info("TensorBoard not installed. Install with: pip install tensorboard")
 
     # Initialize W&B logging
     wandb_logger = WandBLogger(config)
@@ -1199,7 +1159,7 @@ def train(
     mid_epoch_checkpoints = sorted(checkpoint_dir.glob("mid_epoch_*.pt"))
     if mid_epoch_checkpoints and config.training.resume:
         latest_mid = mid_epoch_checkpoints[-1]
-        print(f"[RESUME] Found mid-epoch checkpoint: {latest_mid.name}", flush=True)
+        logger.info(f"[RESUME] Found mid-epoch checkpoint: {latest_mid.name}")
         ckpt = torch.load(latest_mid, map_location="cpu")
         model.load_state_dict(ckpt["model_state_dict"])
         if optimizer and "optimizer_state_dict" in ckpt:
@@ -1214,22 +1174,20 @@ def train(
                 best_metric = _last.get("best_metric", 0.0)
             except Exception:
                 pass
-        print(
-            f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}", flush=True
-        )
+        logger.info(f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}")
         # Note: This resumes from start of epoch, not exact batch
     elif (checkpoint_dir / "last.pt").exists() and config.training.resume:
         start_epoch, best_metric = load_checkpoint(
             checkpoint_dir / "last.pt", model, optimizer, scheduler
         )
-        print(f"Resumed from epoch {start_epoch + 1}", flush=True)
+        logger.info(f"Resumed from epoch {start_epoch + 1}")
 
     # Training loop
     best_metrics: dict[str, Any] = {"best_epoch": 0}
     global_step = 0  # Track global step across epochs for scheduler
 
     for epoch in range(start_epoch, config.training.epochs):
-        print(f"\nEpoch {epoch + 1}/{config.training.epochs}", flush=True)
+        logger.info(f"\nEpoch {epoch + 1}/{config.training.epochs}")
 
         # Train
         result = train_epoch(
@@ -1274,16 +1232,16 @@ def train(
 
         # COLLAPSE DETECTION: Stop if model outputs all-negative
         if val_metrics["auroc"] < 0.55 and epoch > 2:
-            print(f"\n⚠️ MODEL COLLAPSE DETECTED! AUROC={val_metrics['auroc']:.3f}", flush=True)
-            print("Model is predicting all-negative. Stopping training.", flush=True)
-            print("Potential causes:", flush=True)
-            print("  1. Dataset has too few seizures (<1%)", flush=True)
-            print("  2. Class weighting is insufficient", flush=True)
-            print("  3. Learning rate too high/low", flush=True)
-            print("\nRecommendations:", flush=True)
-            print("  - Increase BGB_LIMIT_FILES to include more seizure files", flush=True)
-            print("  - Use focal loss or stronger class weighting", flush=True)
-            print("  - Check dataset statistics logged at start", flush=True)
+            logger.info(f"\n⚠️ MODEL COLLAPSE DETECTED! AUROC={val_metrics['auroc']:.3f}")
+            logger.info("Model is predicting all-negative. Stopping training.")
+            logger.info("Potential causes:")
+            logger.info("  1. Dataset has too few seizures (<1%)")
+            logger.info("  2. Class weighting is insufficient")
+            logger.info("  3. Learning rate too high/low")
+            logger.info("\nRecommendations:")
+            logger.info("  - Increase BGB_LIMIT_FILES to include more seizure files")
+            logger.info("  - Use focal loss or stronger class weighting")
+            logger.info("  - Check dataset statistics logged at start")
             break
 
         # Log metrics
@@ -1312,23 +1270,23 @@ def train(
         wandb_logger.log(wandb_metrics, step=epoch)
 
         # Print metrics with flush for Modal visibility
-        print(f"  Train Loss: {train_loss:.4f}", flush=True)
-        print(f"  Val Loss: {val_metrics['val_loss']:.4f}", flush=True)
-        print(f"  TAES: {val_metrics['taes']:.4f}", flush=True)
-        print(f"  AUROC: {val_metrics['auroc']:.4f}", flush=True)
+        logger.info(f"  Train Loss: {train_loss:.4f}")
+        logger.info(f"  Val Loss: {val_metrics['val_loss']:.4f}")
+        logger.info(f"  TAES: {val_metrics['taes']:.4f}")
+        logger.info(f"  AUROC: {val_metrics['auroc']:.4f}")
 
         # Print sensitivity at FA rates
         for fa_rate in config.evaluation.fa_rates:
             key = f"sensitivity_at_{fa_rate}fa"
             if key in val_metrics:
-                print(f"  Sensitivity@{fa_rate}FA/24h: {val_metrics[key]:.4f}", flush=True)
+                logger.info(f"  Sensitivity@{fa_rate}FA/24h: {val_metrics[key]:.4f}")
 
         # Track best model
         metric_name = config.training.early_stopping.metric
         current_metric = val_metrics.get(metric_name, 0.0)
 
         if early_stopping(current_metric, epoch):
-            print(f"Early stopping at epoch {epoch + 1}", flush=True)
+            logger.info(f"Early stopping at epoch {epoch + 1}")
             break
 
         # Save best model
@@ -1349,7 +1307,7 @@ def train(
                 "best_auroc": val_metrics["auroc"],
                 f"best_{metric_name}": current_metric,
             }
-            print(f"  New best {metric_name}: {current_metric:.4f}", flush=True)
+            logger.info(f"  New best {metric_name}: {current_metric:.4f}")
 
             # Log best model to W&B
             wandb_logger.log_model(checkpoint_dir / "best.pt", name=f"best-{metric_name}")
@@ -1371,7 +1329,7 @@ def train(
                 scheduler,
                 config,
             )
-            print(f"  Saved periodic checkpoint: {checkpoint_path.name}", flush=True)
+            logger.info(f"  Saved periodic checkpoint: {checkpoint_path.name}")
 
         # Always save last checkpoint for resume capability
         save_checkpoint(
@@ -1390,7 +1348,7 @@ def train(
     # Finish W&B run
     wandb_logger.finish()
 
-    print(f"\nTraining complete. Best epoch: {best_metrics['best_epoch']}", flush=True)
+    logger.info(f"\nTraining complete. Best epoch: {best_metrics['best_epoch']}")
 
     return best_metrics
 
@@ -1403,8 +1361,14 @@ def train(
 def main() -> None:
     """CLI entry point for training."""
     import argparse
+    import logging
 
     from src.brain_brr.data import BalancedSeizureDataset, EEGWindowDataset
+    from src.brain_brr.utils.logging_config import setup_logging
+
+    # Initialize elite logging infrastructure for training
+    setup_logging()
+    logging.captureWarnings(True)  # Capture Python warnings into logging system
 
     parser = argparse.ArgumentParser(description="Train seizure detection model")
     parser.add_argument(
@@ -1427,11 +1391,11 @@ def main() -> None:
     # Check if we're in smoke test mode
     is_smoke_test = env.smoke_test()
     if is_smoke_test:
-        print("\n" + "=" * 60)
-        print("SMOKE TEST MODE ACTIVE")
-        print("Pipeline validation only - model will NOT learn meaningful patterns")
-        print("DO NOT use this for real training!")
-        print("=" * 60 + "\n", flush=True)
+        logger.warning("\n" + "=" * 60)
+        logger.info("SMOKE TEST MODE ACTIVE")
+        logger.info("Pipeline validation only - model will NOT learn meaningful patterns")
+        logger.info("DO NOT use this for real training!")
+        logger.info("=" * 60 + "\n")
 
     # Handle split policy
     data_root = Path(config.data.data_dir)
@@ -1465,10 +1429,10 @@ def main() -> None:
                 f"  {sorted(overlap)[:10]}"
             )
 
-        print("\n[SPLIT STATS] OFFICIAL TUSZ SPLITS:")
-        print(f"  Train: {len(train_patients)} patients, {len(train_files)} files")
-        print(f"  Val:   {len(val_patients)} patients, {len(val_files)} files")
-        print("  ✅ PATIENT DISJOINTNESS VERIFIED - No leakage!")
+        logger.info("\n[SPLIT STATS] OFFICIAL TUSZ SPLITS:")
+        logger.info(f"  Train: {len(train_patients)} patients, {len(train_files)} files")
+        logger.info(f"  Val:   {len(val_patients)} patients, {len(val_files)} files")
+        logger.info("  ✅ PATIENT DISJOINTNESS VERIFIED - No leakage!")
 
     elif config.data.split_policy == "custom":
         # DEPRECATED: Old file-based split (WARNING: May cause patient leakage!)
@@ -1493,8 +1457,8 @@ def main() -> None:
         train_label_files = [p.with_suffix(".csv") for p in train_files]
         val_label_files = [p.with_suffix(".csv") for p in val_files]
 
-        print(f"Loading {len(train_files)} train, {len(val_files)} val files")
-        print("⚠️  WARNING: Custom split may have patient leakage!")
+        logger.info(f"Loading {len(train_files)} train, {len(val_files)} val files")
+        logger.info("⚠️  WARNING: Custom split may have patient leakage!")
 
     else:
         raise ValueError(f"Unknown split_policy: {config.data.split_policy}")
@@ -1511,8 +1475,8 @@ def main() -> None:
             val_limit = max(1, min(len(val_files), max(1, limit // 5)))
             val_files = val_files[:val_limit]
             val_label_files = val_label_files[:val_limit]
-            print(
-                f"[DEBUG] BGB_LIMIT_FILES={limit}: using {len(train_files)} train, {len(val_files)} val files"
+            logger.debug(
+                f"BGB_LIMIT_FILES={limit}: using {len(train_files)} train, {len(val_files)} val files"
             )
         except Exception:
             pass
@@ -1521,9 +1485,8 @@ def main() -> None:
     data_cache_root = Path(config.data.cache_dir)
     exp_cache_root = Path(config.experiment.cache_dir)
     if data_cache_root.resolve() != exp_cache_root.resolve():
-        print(
-            f"[WARNING] config.data.cache_dir ({data_cache_root}) != config.experiment.cache_dir ({exp_cache_root})",
-            flush=True,
+        logger.warning(
+            f"config.data.cache_dir ({data_cache_root}) != config.experiment.cache_dir ({exp_cache_root})"
         )
 
     try:
@@ -1534,17 +1497,15 @@ def main() -> None:
         st_train = check_cache_completeness(train_files, train_cache)
         st_val = check_cache_completeness(val_files, val_cache)
         if st_train.missing_files > 0 or st_val.missing_files > 0:
-            print(
+            logger.info(
                 "[DATA] Cache incomplete: "
                 f"train {st_train.cached_files}/{st_train.total_files}, "
-                f"val {st_val.cached_files}/{st_val.total_files}",
-                flush=True,
+                f"val {st_val.cached_files}/{st_val.total_files}"
             )
-            print(
+            logger.info(
                 "[HINT] Pre-build cache to avoid slow training:\n"
                 f"  python -m src build-cache --data-dir {config.data.data_dir} --cache-dir {data_cache_root / 'train'}\n"
-                f"  python -m src build-cache --data-dir {config.data.data_dir} --cache-dir {data_cache_root / 'dev'}",
-                flush=True,
+                f"  python -m src build-cache --data-dir {config.data.data_dir} --cache-dir {data_cache_root / 'dev'}"
             )
     except Exception:
         pass
@@ -1562,22 +1523,16 @@ def main() -> None:
             with open(manifest_path) as f:
                 manifest_data = json.load(f)
             if force_rebuild:
-                print(
-                    "[DATA] BGB_FORCE_MANIFEST_REBUILD=1 → deleting manifest for rebuild",
-                    flush=True,
-                )
+                logger.info("[DATA] BGB_FORCE_MANIFEST_REBUILD=1 → deleting manifest for rebuild")
                 manifest_path.unlink()
             else:
                 from src.brain_brr.data.cache_utils import validate_manifest
 
                 if not validate_manifest(train_cache_dir, manifest_data):
-                    print(
-                        "[WARNING] Invalid/stale manifest detected → deleting for rebuild",
-                        flush=True,
-                    )
+                    logger.warning("Invalid/stale manifest detected → deleting for rebuild")
                     manifest_path.unlink()
         except Exception as e:
-            print(f"[WARNING] Failed to read/validate manifest: {e}, deleting...", flush=True)
+            logger.info(f"[WARNING] Failed to read/validate manifest: {e}, deleting...")
             manifest_path.unlink()
 
     if use_balanced and not manifest_path.exists():
@@ -1590,39 +1545,36 @@ def main() -> None:
                 from src.brain_brr.data.cache_utils import scan_existing_cache
 
                 _ = scan_existing_cache(train_cache_dir)
-                print(
-                    f"[DATA] Built manifest from {len(existing_cache_files)} cached files",
-                    flush=True,
-                )
+                logger.info(f"[DATA] Built manifest from {len(existing_cache_files)} cached files")
             except Exception as e:
-                print(f"[WARNING] Manifest build failed: {e}", flush=True)
+                logger.info(f"[WARNING] Manifest build failed: {e}")
         else:
-            print("[DATA] Skipping manifest build - cache not yet populated", flush=True)
+            logger.info("[DATA] Skipping manifest build - cache not yet populated")
 
     # Create training dataset - either balanced (from manifest) or standard
     train_dataset: BalancedSeizureDataset | EEGWindowDataset
     if use_balanced and manifest_path.exists():
         try:
             train_dataset = BalancedSeizureDataset(train_cache_dir)
-            print(
-                f"[DATASET] BalancedSeizureDataset: {len(train_dataset)} windows from manifest",
-                flush=True,
+            logger.info(
+                f"[DATASET] BalancedSeizureDataset: {len(train_dataset)} windows from manifest"
             )
             if len(train_dataset) == 0:
                 is_smoke_test = env.smoke_test()
                 if is_smoke_test:
-                    print(
-                        "[SMOKE TEST MODE] Balanced manifest empty - will fallback to EEGWindowDataset",
-                        flush=True,
+                    logger.info(
+                        "[SMOKE TEST MODE] Balanced manifest empty - will fallback to EEGWindowDataset"
                     )
                     raise Exception("Empty manifest in smoke test - triggering fallback")
                 else:
-                    print("[FATAL] Balanced manifest produced 0 windows", flush=True)
+                    logger.info("[FATAL] Balanced manifest produced 0 windows")
                     import sys
 
                     sys.exit(1)
         except Exception as e:
-            print(f"[WARNING] BalancedSeizureDataset failed: {e}; falling back to EEGWindowDataset")
+            logger.info(
+                f"[WARNING] BalancedSeizureDataset failed: {e}; falling back to EEGWindowDataset"
+            )
             train_dataset = EEGWindowDataset(
                 train_files,
                 label_files=train_label_files,
@@ -1653,7 +1605,7 @@ def main() -> None:
         and not isinstance(train_dataset, BalancedSeizureDataset)
         and not manifest_path.exists()
     ):
-        print("[DATA] Cache built, now creating manifest for balanced sampling...", flush=True)
+        logger.info("[DATA] Cache built, now creating manifest for balanced sampling...")
         try:
             from src.brain_brr.data.cache_utils import scan_existing_cache
 
@@ -1661,12 +1613,11 @@ def main() -> None:
             if manifest_path.exists():
                 # Switch to BalancedSeizureDataset now that manifest exists
                 train_dataset = BalancedSeizureDataset(train_cache_dir)
-                print(
-                    f"[DATA] Switched to BalancedSeizureDataset: {len(train_dataset)} windows",
-                    flush=True,
+                logger.info(
+                    f"[DATA] Switched to BalancedSeizureDataset: {len(train_dataset)} windows"
                 )
         except Exception as e:
-            print(f"[WARNING] Post-cache manifest build failed: {e}", flush=True)
+            logger.info(f"[WARNING] Post-cache manifest build failed: {e}")
 
     # Create positive-aware balanced sampler (fallback if BalancedSeizureDataset not used)
     train_sampler = None
@@ -1679,7 +1630,7 @@ def main() -> None:
         # We MUST sample enough windows to guarantee finding seizures
         # Math: P(0 seizures) = (1-p)^n, for p=0.001, n=20000 → P≈0.00000002
         sample_size = min(20000, len(train_dataset))  # Sample 20k windows for safety
-        print(f"[SAMPLER] Sampling {sample_size} windows to detect seizures...", flush=True)
+        logger.info(f"[SAMPLER] Sampling {sample_size} windows to detect seizures...")
         train_sampler = create_balanced_sampler(train_dataset, sample_size=sample_size)
 
         if train_sampler is None:
@@ -1687,20 +1638,18 @@ def main() -> None:
             is_smoke_test = env.smoke_test()
 
             if is_smoke_test:
-                print("=" * 60, flush=True)
-                print("[SMOKE TEST MODE] No seizures found - continuing anyway", flush=True)
-                print(
-                    "[SMOKE TEST MODE] Using uniform sampling for pipeline validation", flush=True
-                )
-                print("[SMOKE TEST MODE] This model will NOT learn - testing only!", flush=True)
-                print("=" * 60, flush=True)
+                logger.info("=" * 60)
+                logger.info("[SMOKE TEST MODE] No seizures found - continuing anyway")
+                logger.info("[SMOKE TEST MODE] Using uniform sampling for pipeline validation")
+                logger.info("[SMOKE TEST MODE] This model will NOT learn - testing only!")
+                logger.info("=" * 60)
                 # Continue with default sampler for smoke testing
             else:
-                print("=" * 60, flush=True)
-                print(f"[FATAL] No seizures found in {sample_size} windows!", flush=True)
-                print("[FATAL] Training will produce a USELESS model!", flush=True)
-                print("[FATAL] Check your data or increase sample size!", flush=True)
-                print("=" * 60, flush=True)
+                logger.info("=" * 60)
+                logger.info(f"[FATAL] No seizures found in {sample_size} windows!")
+                logger.info("[FATAL] Training will produce a USELESS model!")
+                logger.info("[FATAL] Check your data or increase sample size!")
+                logger.info("=" * 60)
                 # Fail fast - don't waste GPU hours on doomed training
                 import sys
 
@@ -1732,14 +1681,14 @@ def main() -> None:
 
     # Create model
     model = SeizureDetector.from_config(config.model)
-    print(f"Model parameters: {model.count_parameters():,}")
+    logger.info(f"Model parameters: {model.count_parameters():,}")
 
     # Train
     best_metrics = train(model, train_loader, val_loader, config)
 
-    print("\nFinal metrics:")
+    logger.info("\nFinal metrics:")
     for key, value in best_metrics.items():
-        print(f"  {key}: {value}")
+        logger.info(f"  {key}: {value}")
 
 
 if __name__ == "__main__":

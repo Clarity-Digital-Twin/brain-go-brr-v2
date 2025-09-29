@@ -173,7 +173,10 @@ postprocessing:
 ## 🎯 Training Strategy
 
 1. **Focal Loss**: Essential for 12:1 class imbalance
-2. **Balanced Sampling**: Ensures seizures in every batch (train.yaml only)
+2. **Balanced Sampling** (`use_balanced_sampling: true`):
+   - **Training**: Uses manifest to oversample seizures (8% → ~30% in batches)
+   - **Validation**: Always uses natural distribution (~8% seizures) for real metrics
+   - **Why different**: Train on balanced data to learn, validate on real distribution
 3. **Cosine Schedule**: Smooth learning rate decay
 4. **Early Stopping**: Patience=5 on sensitivity@10FA/24h
 

@@ -36,6 +36,7 @@ class TestGNNIntegration:
                 edge_features="cosine",
                 edge_top_k=3,
                 edge_threshold=1e-4,
+                edge_similarity_margin=0.01,  # CRITICAL: Prevent NaN gradients
                 # GNN architecture
                 n_layers=2,
                 dropout=0.1,
@@ -100,6 +101,7 @@ class TestGNNIntegration:
 
     def test_gnn_gradient_flow_integration(self, config_with_gnn):
         """Gradients should flow through entire model with GNN."""
+        torch.manual_seed(42)  # Deterministic for stable testing
         detector = SeizureDetector.from_config(config_with_gnn)
         x = torch.randn(1, 19, 15360, requires_grad=True)
 
