@@ -114,10 +114,7 @@ class PerformanceFilter(logging.Filter):
                 return True
 
             # Special case: always log first and last steps
-            if step == 0 or hasattr(record, "is_last"):
-                return True
-
-            return False
+            return bool(step == 0 or hasattr(record, "is_last"))
 
 
 class LoggingConfig:

@@ -17,11 +17,11 @@ import sys
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 # Type checking only - no runtime import
 if TYPE_CHECKING:
-    import torch
+    pass
 
 # Rich is optional - lazy import when actually needed
 RICH_AVAILABLE = False
