@@ -237,9 +237,10 @@ class TrainingLogger:
         if should_log:
             # Calculate throughput if batch_size provided
             throughput = None
-            if batch_size and self.batch_start_time > 0:
+            if batch_size and self.batch_start_time >= 0:
                 elapsed = time.time() - self.batch_start_time
-                throughput = batch_size / elapsed
+                if elapsed > 0:  # Prevent division by zero
+                    throughput = batch_size / elapsed
 
             # Build log message efficiently
             msg_parts = [
