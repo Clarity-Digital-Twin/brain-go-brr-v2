@@ -384,7 +384,7 @@ class TestUtilityFunctions:
         logger.addHandler(handler)
 
         # Log every 3 occurrences
-        for i in range(10):
+        for _i in range(10):
             log_every_n(logger, logging.INFO, "Test", 3, "test_key")
 
         # Should log on: 1st, 4th, 7th, 10th
@@ -410,7 +410,7 @@ class TestIntegration:
         log_file = tmp_path / "integration.log"
 
         # Setup logging with all features
-        config = setup_logging(level="DEBUG", log_file=log_file, format_style="simple", force=True)
+        setup_logging(level="DEBUG", log_file=log_file, format_style="simple", force=True)
 
         # Get a logger and log messages
         logger = get_logger("integration.test")
