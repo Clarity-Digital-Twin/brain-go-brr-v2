@@ -1,5 +1,9 @@
 # Modal Training (A100-80GB)
 
+## CRITICAL: Always Use --detach
+Modal functions will stop after ~8 minutes when terminal disconnects unless you use `--detach`.
+**All long-running commands MUST use --detach or run in tmux!**
+
 Commands
 
 - Populate cache (one-time, from S3): `modal run --detach deploy/modal/app.py --action populate-cache`
@@ -7,6 +11,12 @@ Commands
 - Smoke: `modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml`
 - Full (detached): `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml`
 - Clean old cache (if needed): `modal run deploy/modal/app.py --action clean-cache`
+
+Monitoring
+
+- List running apps: `modal app list`
+- Stream logs: `modal app logs <app-id>`
+- Stop training: `modal app stop <app-id>`
 
 Resources
 
@@ -35,8 +45,34 @@ Resuming
 - Use `--resume` flag or set `training.resume: true`.
 - Training prioritizes `mid_epoch_*.pt` when resuming; falls back to `last.pt`.
 
+## Verification Checklist
+
+### After populate-cache
+Check logs for:
+```
+[COPY] ✅ Copied 4667 train files
+[COPY] ✅ Copied 1832 dev files
+[COPY] ✅ Copied metadata file
+✅ Cache population complete! 4667 train, 1832 dev files
+```
+
+### During training startup
+Expect to see:
+```
+[CACHE] ✅ Cache built with official_tusz policy
+[DATASET] BalancedSeizureDataset: XXXX windows from manifest
+[DATASET] Seizure ratio: XX% (from manifest)
+[DATASET] Using pos_weight: X.XX (sqrt scaling)
+```
+
+### Warning Signs
+- "Seizure ratio: 0%" → Missing manifest, rebuild and re-upload
+- "Falling back to EEGWindowDataset" → Manifest creation failed
+- Training hangs at epoch boundaries → Increase CPU/RAM allocation
+
 Troubleshooting
 
 - PyG/Mamba import issues: the image pins CUDA 12.1 + torch 2.2.2+cu121; rebuild if diverged.
 - Slow/stuck at epoch boundaries: allocate 24 CPU and 96GB RAM (see function in `deploy/modal/app.py`).
+- Zero seizures in batches: Ensure manifest exists and `use_balanced_sampling: true` in config.
 - Logs: `modal app logs <app-id>`; stop: `modal app stop <app-id>`.
