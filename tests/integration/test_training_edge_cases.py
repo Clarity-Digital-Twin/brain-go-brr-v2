@@ -266,8 +266,8 @@ class TestTrainingExplosions:
 
         # Train for multiple steps with mixed precision
         for step in range(20):
-            data = torch.randn(8, 19, 15360, device=device)
-            labels = torch.randint(0, 2, (8, 15360), device=device).float()
+            data = torch.randn(2, 19, 15360, device=device)  # Reduced batch to avoid OOM
+            labels = torch.randint(0, 2, (2, 15360), device=device).float()
 
             optimizer.zero_grad()
 
