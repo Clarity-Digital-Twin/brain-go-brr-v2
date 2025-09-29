@@ -76,7 +76,8 @@
       "Bash(git rev-parse:*)",
       "WebFetch(domain:data.pyg.org)",
       "Bash(xargs:*)",
-      "Bash(nvcc:*)"
+      "Bash(nvcc:*)",
+      "Bash(uv lock:*)"
     ],
     "deny": [],
     "ask": []
