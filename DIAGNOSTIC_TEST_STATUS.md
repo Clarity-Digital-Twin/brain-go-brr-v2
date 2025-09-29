@@ -109,8 +109,25 @@ Test 1A (AMP OFF):
 2. **Analyze failure patterns**
 3. **Update MODAL_A100_CUDA_FAILURE_ANALYSIS.md** with confirmed root cause
 4. **Implement clean fix** (not hacky workaround)
-5. **Remove diagnostic cruft** (test configs, app_single_arch.py)
-6. **Resume production training** with fix applied
+
+### 🚨 CRITICAL CLEANUP (NO REDUNDANT FILES) 🚨
+
+**If Test 2B passes (single-arch fixed it):**
+- ✅ Apply single-arch fix to **main `deploy/modal/app.py`** (change `TORCH_CUDA_ARCH_LIST="8.0"`)
+- ✅ **DELETE `deploy/modal/app_single_arch.py`** (NO REDUNDANT FILES)
+
+**If Test 2B fails (AMP is the issue):**
+- ✅ Apply AMP fix to **main `configs/modal/train.yaml`** (change `mixed_precision: false`)
+- ✅ **DELETE `deploy/modal/app_single_arch.py`** (wasn't needed)
+
+**ALWAYS DELETE:**
+- ❌ `configs/modal/diag_1a_amp_off.yaml`
+- ❌ `configs/modal/diag_1b_fallback.yaml`
+- ❌ `configs/modal/diag_2a_blocking.yaml`
+- ❌ Remove diagnostic parameters from `deploy/modal/app.py` (cuda_launch_blocking, cuda_dsa, force_fallback)
+- ❌ `DIAGNOSTIC_TEST_STATUS.md` (this file)
+
+**Result:** ONE production `app.py` file with the correct fix applied. NO SLOP.
 
 ---
 

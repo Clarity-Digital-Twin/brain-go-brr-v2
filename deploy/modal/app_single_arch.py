@@ -28,15 +28,8 @@ image = (
         "python -c 'import torch; assert torch.__version__.startswith(\"2.2.2\"), f\"Wrong torch: {torch.__version__}\"'"
     )
     .pip_install("packaging", "wheel", "setuptools")
-    .run_commands("pip cache purge")
-    .run_commands(
-        "pip uninstall -y causal-conv1d || true"
-    )
     .run_commands(
         "pip install --no-build-isolation --no-cache-dir --force-reinstall causal-conv1d==1.4.0"
-    )
-    .run_commands(
-        "pip uninstall -y mamba-ssm || true"
     )
     .run_commands(
         "pip install --no-build-isolation --no-cache-dir --force-reinstall mamba-ssm==2.2.2"
