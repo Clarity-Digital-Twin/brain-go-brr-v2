@@ -31,7 +31,7 @@ Table = None
 
 try:
     # Only attempt Rich import if conditions are right
-    if sys.stderr.isatty() and not os.getenv("BGB_FORCE_SIMPLE") == "1":
+    if sys.stderr.isatty() and os.getenv("BGB_FORCE_SIMPLE") != "1":
         from rich.console import Console
         from rich.progress import (
             BarColumn,

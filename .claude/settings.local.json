@@ -24,7 +24,8 @@
       "Bash(.venv/bin/python:*)",
       "Bash(git commit:*)",
       "Bash(tmux capture-pane:*)",
-      "Bash(tmux kill-session:*)"
+      "Bash(tmux kill-session:*)",
+      "Bash(.venv/bin/ruff check src/brain_brr/utils/ --fix)"
     ],
     "deny": [],
     "ask": []
