@@ -75,7 +75,8 @@
       "WebFetch(domain:pypi.org)",
       "Bash(git rev-parse:*)",
       "WebFetch(domain:data.pyg.org)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(nvcc:*)"
     ],
     "deny": [],
     "ask": []
