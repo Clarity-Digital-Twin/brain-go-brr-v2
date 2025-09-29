@@ -428,7 +428,7 @@ def train_epoch(
             pos_weight_val = 1.0
 
         logger.info(f"[DATASET] Using pos_weight: {pos_weight_val:.2f} (sqrt scaling)")
-    print("=" * 60 + "\n", flush=True)
+    logger.info("=" * 60 + "\n")
 
     # Validate dataset has seizures
     if pos_ratio < 0.001:  # Less than 0.1% seizures
@@ -456,23 +456,20 @@ def train_epoch(
         pass_pos_weight = alpha_diff < 1e-6
         if not pass_pos_weight:
             if focal_alpha < 0.5:
-                print(
-                    "[WARNING] focal_alpha < 0.5 down-weights positives; ensure this is intended",
-                    flush=True,
+                logger.warning(
+                    "focal_alpha < 0.5 down-weights positives; ensure this is intended"
                 )
-            print(
-                "[INIT] FOCAL: alpha != 0.5 → disabling pos_weight to avoid double-counting",
-                flush=True,
+            logger.info(
+                "[INIT] FOCAL: alpha != 0.5 → disabling pos_weight to avoid double-counting"
             )
 
         def compute_loss(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
             pw = pos_weight_t if pass_pos_weight else None
             return cast(torch.Tensor, focal(x, y, pos_weight=pw))
 
-        print(
+        logger.info(
             f"[INIT] Using FOCAL loss (alpha={focal_alpha}, gamma={focal_gamma}, "
-            f"pos_weight={'on' if pass_pos_weight else 'off'})",
-            flush=True,
+            f"pos_weight={'on' if pass_pos_weight else 'off'})"
         )
     else:
         bce = nn.BCEWithLogitsLoss(reduction="none", pos_weight=pos_weight_t)
@@ -507,9 +504,8 @@ def train_epoch(
             test_loss = compute_loss(test_logits, test_labels)
             if test_loss is None:
                 raise ValueError("Loss computation returned None")
-            print(
-                f"[PREFLIGHT] ✓ Model forward pass OK, loss shape: {test_loss.shape}",
-                flush=True,
+            logger.info(
+                f"[PREFLIGHT] ✓ Model forward pass OK, loss shape: {test_loss.shape}"
             )
     except Exception as e:
         logger.info(f"[PREFLIGHT] ✗ Failed on test batch: {e}")
@@ -593,10 +589,10 @@ def train_epoch(
                     # Check logits finiteness and sanitize if needed
                     if not torch.isfinite(logits).all():
                         nonfinite = (~torch.isfinite(logits)).sum().item()
-                        print(
-                            f"[WARN] Non-finite logits at batch {batch_idx}: count={nonfinite} -> sanitizing",
-                            flush=True,
-                        )
+                        if batch_idx % LOG_EVERY_N_STEPS == 0:
+                            logger.warning(
+                                f"Non-finite logits at batch {batch_idx}: count={nonfinite} -> sanitizing"
+                            )
                         # Save bad batch for debugging (best-effort)
                         try:
                             Path("debug").mkdir(parents=True, exist_ok=True)
@@ -616,8 +612,8 @@ def train_epoch(
                     if per_element_loss is None:
                         raise ValueError("Loss computation returned None")
                 except Exception as e:
-                    print(
-                        f"[ERROR] Forward/loss computation failed at batch {batch_idx}:", flush=True
+                    logger.error(
+                        f"Forward/loss computation failed at batch {batch_idx}:"
                     )
                     logger.info(f"  - Error: {e}")
                     logger.info(f"  - Model: {type(model)}")
@@ -632,9 +628,8 @@ def train_epoch(
                             w_std = float(windows.std().item())
                             l_min = float(labels.min().item())
                             l_max = float(labels.max().item())
-                            print(
-                                f"  - Windows stats: min={w_min:.3e} max={w_max:.3e} mean={w_mean:.3e} std={w_std:.3e}",
-                                flush=True,
+                            logger.debug(
+                                f"  - Windows stats: min={w_min:.3e} max={w_max:.3e} mean={w_mean:.3e} std={w_std:.3e}"
                             )
                             logger.info(f"  - Labels stats: min={l_min:.3e} max={l_max:.3e}")
                         except Exception:
@@ -647,34 +642,31 @@ def train_epoch(
             # Check for non-finite loss before gradient update
             if not torch.isfinite(loss):
                 consecutive_nans += 1
-                print(
-                    f"[WARNING] NaN loss detected at batch {batch_idx} "
-                    f"(consecutive: {consecutive_nans}), skipping gradient update",
-                    flush=True,
-                )
+                if batch_idx % LOG_EVERY_N_STEPS == 0:
+                    logger.warning(
+                        f"NaN loss detected at batch {batch_idx} "
+                        f"(consecutive: {consecutive_nans}), skipping gradient update"
+                    )
                 if enable_nan_debug and nan_debug_emitted < max_nan_debug:
                     try:
                         with torch.no_grad():
                             # Recompute logits in full precision for diagnostics
                             logits_fp32 = model(windows.float())
                             nonfinite = (~torch.isfinite(logits_fp32)).sum().item()
-                            print(
-                                f"[DEBUG] FP32 logits non-finite count at batch {batch_idx}: {nonfinite}",
-                                flush=True,
+                            logger.debug(
+                                f"FP32 logits non-finite count at batch {batch_idx}: {nonfinite}"
                             )
                             # Check batch composition
                             pos_ratio = labels.sum().item() / labels.numel()
-                            print(
-                                f"[DEBUG] Batch {batch_idx} positive ratio: {pos_ratio:.4f}",
-                                flush=True,
+                            logger.debug(
+                                f"Batch {batch_idx} positive ratio: {pos_ratio:.4f}"
                             )
                             # Check for dead channels
                             channel_stds = windows.std(dim=[0, 2])  # std across batch and time
                             dead_channels = (channel_stds < 1e-6).sum().item()
                             if dead_channels > 0:
-                                print(
-                                    f"[DEBUG] Batch {batch_idx} has {dead_channels} dead channels",
-                                    flush=True,
+                                logger.debug(
+                                    f"Batch {batch_idx} has {dead_channels} dead channels"
                                 )
                     except Exception as e:
                         logger.info(f"[DEBUG] Error in NaN diagnostics: {e}")
@@ -684,10 +676,9 @@ def train_epoch(
 
                 # Check if we should stop training
                 if consecutive_nans >= max_consecutive_nans:
-                    print(
-                        f"[ERROR] {consecutive_nans} consecutive NaN losses detected, "
-                        "model may be corrupted. Stopping training.",
-                        flush=True,
+                    logger.critical(
+                        f"{consecutive_nans} consecutive NaN losses detected, "
+                        "model may be corrupted. Stopping training."
                     )
                     break
             else:
@@ -706,14 +697,14 @@ def train_epoch(
                                 grad_has_nan = True
                                 param.grad.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
                         if grad_has_nan:
-                            print(
-                                f"[WARN] Sanitized NaN gradients at batch {batch_idx}", flush=True
-                            )
+                            if batch_idx % LOG_EVERY_N_STEPS == 0:
+                                logger.warning(
+                                    f"Sanitized NaN gradients at batch {batch_idx}"
+                                )
                             if env.skip_opt_step_on_nan():
                                 skip_step = True
-                                print(
-                                    "[WARN] Skipping optimizer step due to NaN gradients",
-                                    flush=True,
+                                logger.warning(
+                                    "Skipping optimizer step due to NaN gradients"
                                 )
 
                     if not skip_step:
@@ -722,9 +713,8 @@ def train_epoch(
                                 model.parameters(), gradient_clip
                             )
                             if enable_nan_debug and grad_norm > gradient_clip * 10:
-                                print(
-                                    f"[DEBUG] Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})",
-                                    flush=True,
+                                logger.debug(
+                                    f"Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})"
                                 )
                         scaler.step(optimizer)
                         scaler.update()
@@ -740,14 +730,14 @@ def train_epoch(
                                 grad_has_nan = True
                                 param.grad.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
                         if grad_has_nan:
-                            print(
-                                f"[WARN] Sanitized NaN gradients at batch {batch_idx}", flush=True
-                            )
+                            if batch_idx % LOG_EVERY_N_STEPS == 0:
+                                logger.warning(
+                                    f"Sanitized NaN gradients at batch {batch_idx}"
+                                )
                             if env.skip_opt_step_on_nan():
                                 skip_step = True
-                                print(
-                                    "[WARN] Skipping optimizer step due to NaN gradients",
-                                    flush=True,
+                                logger.warning(
+                                    "Skipping optimizer step due to NaN gradients"
                                 )
 
                     if not skip_step:
@@ -756,9 +746,8 @@ def train_epoch(
                                 model.parameters(), gradient_clip
                             )
                             if enable_nan_debug and grad_norm > gradient_clip * 10:
-                                print(
-                                    f"[DEBUG] Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})",
-                                    flush=True,
+                                logger.debug(
+                                    f"Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})"
                                 )
                         optimizer.step()
 
@@ -788,36 +777,32 @@ def train_epoch(
                 else:
                     progress.set_postfix({"loss": f"{loss_val:.4f}"})
 
-            # Modal progress logging - print every 100 batches for visibility
-            if batch_idx > 0 and batch_idx % 100 == 0:
+            # Modal progress logging - log based on BGB_LOG_EVERY_N_STEPS
+            if batch_idx > 0 and batch_idx % LOG_EVERY_N_STEPS == 0:
                 current_lr = optimizer.param_groups[0]["lr"]
                 if not torch.isfinite(torch.tensor(loss_val)):
-                    print(
+                    logger.info(
                         f"[PROGRESS] Batch {batch_idx}/{len(dataloader)} | "
-                        f"Loss: nan | LR: {current_lr:.2e}",
-                        flush=True,
+                        f"Loss: nan | LR: {current_lr:.2e}"
                     )
                 else:
-                    print(
+                    logger.info(
                         f"[PROGRESS] Batch {batch_idx}/{len(dataloader)} | "
-                        f"Loss: {loss_val:.4f} | LR: {current_lr:.2e}",
-                        flush=True,
+                        f"Loss: {loss_val:.4f} | LR: {current_lr:.2e}"
                     )
 
             # Heartbeat for Modal (every 5 minutes)
             if time.time() - last_heartbeat > heartbeat_interval:
                 if num_batches > 0:
                     avg_loss = total_loss / num_batches
-                    print(
+                    logger.info(
                         f"[HEARTBEAT] Still training... Batch {batch_idx}/{len(dataloader)} | "
-                        f"Avg Loss: {avg_loss:.4f}",
-                        flush=True,
+                        f"Avg Loss: {avg_loss:.4f}"
                     )
                 else:
-                    print(
+                    logger.info(
                         f"[HEARTBEAT] Still training... Batch {batch_idx}/{len(dataloader)} | "
-                        f"Avg Loss: N/A (all NaN)",
-                        flush=True,
+                        f"Avg Loss: N/A (all NaN)"
                     )
                 last_heartbeat = time.time()
 
@@ -927,16 +912,15 @@ def validate_epoch(
                     disable=None,
                 )
                 if progress_bar is None or not hasattr(progress_bar, "__iter__"):
-                    print(
-                        "[WARNING] tqdm initialization failed in validation, using plain iteration",
-                        flush=True,
+                    logger.warning(
+                        "tqdm initialization failed in validation, using plain iteration"
                     )
                     iterator = dataloader
                 else:
                     iterator = progress_bar
             except Exception as e:
-                print(
-                    f"[WARNING] tqdm failed in validation ({e}), using plain iteration", flush=True
+                logger.warning(
+                    f"tqdm failed in validation ({e}), using plain iteration"
                 )
                 iterator = dataloader
         else:
@@ -969,10 +953,9 @@ def validate_epoch(
                 current_time = time.time()
                 if current_time - last_heartbeat > heartbeat_interval:
                     avg_loss = total_loss / max(1, num_batches)
-                    print(
+                    logger.info(
                         f"[VAL HEARTBEAT] Batch {batch_idx}/{len(dataloader)} | "
-                        f"Avg Loss: {avg_loss:.4f}",
-                        flush=True,
+                        f"Avg Loss: {avg_loss:.4f}"
                     )
                     last_heartbeat = current_time
         finally:
@@ -1222,8 +1205,8 @@ def train(
                 best_metric = _last.get("best_metric", 0.0)
             except Exception:
                 pass
-        print(
-            f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}", flush=True
+        logger.info(
+            f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}"
         )
         # Note: This resumes from start of epoch, not exact batch
     elif (checkpoint_dir / "last.pt").exists() and config.training.resume:
@@ -1445,7 +1428,7 @@ def main() -> None:
         logger.info("SMOKE TEST MODE ACTIVE")
         logger.info("Pipeline validation only - model will NOT learn meaningful patterns")
         logger.info("DO NOT use this for real training!")
-        print("=" * 60 + "\n", flush=True)
+        logger.info("=" * 60 + "\n")
 
     # Handle split policy
     data_root = Path(config.data.data_dir)
