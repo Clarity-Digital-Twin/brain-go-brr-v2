@@ -71,7 +71,8 @@
       "Bash(tree:*)",
       "Bash(sort:*)",
       "Bash(git log:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:pypi.org)"
     ],
     "deny": [],
     "ask": []
