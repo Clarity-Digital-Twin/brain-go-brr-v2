@@ -38,7 +38,8 @@
       "Bash(.venv/bin/ruff check src/brain_brr/utils/logging_config.py tests/unit/utils/test_logging_config.py --fix)",
       "Bash(.venv/bin/pytest -q tests/unit/utils/test_logging_config.py::TestLoggingConfig::test_file_handler -n 0)",
       "Bash(.venv/bin/pytest -q tests/unit/utils/test_logging_config.py::TestLoggingConfig::test_file_handler -n 0 -s)",
-      "Bash(.venv/bin/pytest -q -m \"not performance and not gpu\" tests/unit)"
+      "Bash(.venv/bin/pytest -q -m \"not performance and not gpu\" tests/unit)",
+      "Bash(.venv/bin/pytest -xvs tests/unit/utils/test_logging_config.py::TestUtilityFunctions::test_log_once tests/unit/utils/test_logging_config.py::TestUtilityFunctions::test_log_every_n)"
     ],
     "deny": [],
     "ask": []
