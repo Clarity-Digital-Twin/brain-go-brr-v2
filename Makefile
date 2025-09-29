@@ -144,18 +144,18 @@ setup: ## Initial project setup
 	uv run pre-commit install
 	@echo "${GREEN}✓ Project ready!${NC}"
 
-setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.1)
+setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.4)
 	@echo "${CYAN}Setting up GPU support for V3 stack...${NC}"
 	@echo "${YELLOW}Checking CUDA versions...${NC}"
 	@.venv/bin/python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA: {torch.version.cuda}')" || echo "${RED}PyTorch not installed${NC}"
-	@nvcc --version 2>/dev/null | grep "release" || echo "${RED}CUDA toolkit not found!${NC}"
+	@nvcc --version 2>/dev/null | grep "release 12.4" || echo "${RED}CUDA 12.4 toolkit required!${NC}"
 	@echo "${CYAN}Installing Mamba-SSM components...${NC}"
-	@export CUDA_HOME=/usr/local/cuda-12.1 && \
-		uv pip install --no-build-isolation causal-conv1d==1.4.0 && \
-		uv pip install --no-build-isolation mamba-ssm==2.2.2
+	@export CUDA_HOME=/usr/local/cuda-12.4 && \
+		uv pip install --no-build-isolation causal-conv1d==1.5.2 && \
+		uv pip install --no-build-isolation mamba-ssm==2.2.5
 	@echo "${CYAN}Installing PyG with pre-built wheels...${NC}"
-	@uv pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.2.0+cu121.html
-	@uv pip install torch-geometric==2.6.1
+	@uv pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
+	@uv pip install torch-geometric==2.7.0
 	@echo "${CYAN}Installing TCN...${NC}"
 	@uv pip install pytorch-tcn==1.2.3
 	@echo "${CYAN}Verifying GPU stack...${NC}"
