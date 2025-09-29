@@ -12,6 +12,7 @@ Optimized for minimal overhead in tight training loops.
 """
 
 import logging
+import sys
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -518,18 +519,8 @@ def log_data_stats(
     )
 
 
-# Import guard for optional rich dependency
-import sys
-
-try:
-    from rich.console import Console
-    from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeRemainingColumn
-    from rich.table import Table
-except ImportError:
-    # Graceful degradation if rich not available
-    Console = None
-    Progress = None
-    Table = None
+# Rich is already imported at the top of the file
+# No need for duplicate imports or guards since rich is a required dependency
 
 
 __all__ = [
