@@ -9,9 +9,9 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
-from src.brain_brr.config.schemas import Config
-from src.brain_brr.data.cache_utils import check_cache_completeness, scan_existing_cache
-from src.brain_brr.utils.logging_config import setup_logging
+from brain_brr.config.schemas import Config
+from brain_brr.data.cache_utils import check_cache_completeness, scan_existing_cache
+from brain_brr.utils.logging_config import setup_logging
 
 console = Console()
 
