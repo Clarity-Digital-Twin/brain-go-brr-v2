@@ -17,9 +17,11 @@ import sys
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-import torch
+# Type checking only - no runtime import
+if TYPE_CHECKING:
+    import torch
 
 # Rich is optional - lazy import when actually needed
 RICH_AVAILABLE = False
@@ -310,7 +312,7 @@ class TrainingLogger:
         self,
         location: str,
         tensor_name: str,
-        tensor: torch.Tensor | None = None,
+        tensor: Any | None = None,  # Accept any tensor-like object
         extra_context: dict[str, Any] | None = None,
     ) -> None:
         """Log NaN detection with rich context.
@@ -334,33 +336,41 @@ class TrainingLogger:
             "nan_count": self.nan_count,
         }
 
-        if tensor is not None and isinstance(tensor, torch.Tensor):
-            context.update(
-                {
-                    "shape": list(tensor.shape),
-                    "dtype": str(tensor.dtype),
-                    "device": str(tensor.device),
-                    "num_nans": torch.isnan(tensor).sum().item()
-                    if tensor.numel() < 1e6
-                    else "too_large",
-                    "num_infs": torch.isinf(tensor).sum().item()
-                    if tensor.numel() < 1e6
-                    else "too_large",
-                }
-            )
+        if tensor is not None:
+            try:
+                # Lazy import torch only when actually processing a tensor
+                import torch
 
-            # Get finite statistics if tensor is small enough
-            if tensor.numel() < 1e5:
-                finite_mask = torch.isfinite(tensor)
-                if finite_mask.any():
-                    finite_values = tensor[finite_mask]
+                if isinstance(tensor, torch.Tensor):
                     context.update(
                         {
-                            "finite_min": finite_values.min().item(),
-                            "finite_max": finite_values.max().item(),
-                            "finite_mean": finite_values.mean().item(),
+                            "shape": list(tensor.shape),
+                            "dtype": str(tensor.dtype),
+                            "device": str(tensor.device),
+                            "num_nans": torch.isnan(tensor).sum().item()
+                            if tensor.numel() < 1e6
+                            else "too_large",
+                            "num_infs": torch.isinf(tensor).sum().item()
+                            if tensor.numel() < 1e6
+                            else "too_large",
                         }
                     )
+
+                    # Get finite statistics if tensor is small enough
+                    if tensor.numel() < 1e5:
+                        finite_mask = torch.isfinite(tensor)
+                        if finite_mask.any():
+                            finite_values = tensor[finite_mask]
+                            context.update(
+                                {
+                                    "finite_min": finite_values.min().item(),
+                                    "finite_max": finite_values.max().item(),
+                                    "finite_mean": finite_values.mean().item(),
+                                }
+                            )
+            except ImportError:
+                # Torch not available, just log basic info
+                pass
 
         if extra_context:
             context.update(extra_context)
@@ -381,7 +391,7 @@ class TrainingLogger:
 
     def log_gradient_stats(
         self,
-        model: torch.nn.Module,
+        model: Any,  # Accept any model-like object
         log_histograms: bool = False,
     ) -> dict[str, float] | None:
         """Log gradient statistics for debugging.
@@ -400,26 +410,33 @@ class TrainingLogger:
         has_nan = False
         has_inf = False
 
-        for name, param in model.named_parameters():
-            if param.grad is not None:
-                grad = param.grad.data
-                num_params += 1
+        try:
+            # Lazy import torch only when processing gradients
+            import torch
 
-                # Check for NaN/Inf
-                if torch.isnan(grad).any():
-                    has_nan = True
-                    self.log_nan_detection("gradients", name, grad)
+            for name, param in model.named_parameters():
+                if param.grad is not None:
+                    grad = param.grad.data
+                    num_params += 1
 
-                if torch.isinf(grad).any():
-                    has_inf = True
+                    # Check for NaN/Inf
+                    if torch.isnan(grad).any():
+                        has_nan = True
+                        self.log_nan_detection("gradients", name, grad)
 
-                # Compute stats on finite values
-                finite_grad = grad[torch.isfinite(grad)]
-                if finite_grad.numel() > 0:
-                    param_norm = finite_grad.norm(2).item()
-                    total_norm += param_norm**2
-                    min_grad = min(min_grad, finite_grad.min().item())
-                    max_grad = max(max_grad, finite_grad.max().item())
+                    if torch.isinf(grad).any():
+                        has_inf = True
+
+                    # Compute stats on finite values
+                    finite_grad = grad[torch.isfinite(grad)]
+                    if finite_grad.numel() > 0:
+                        param_norm = finite_grad.norm(2).item()
+                        total_norm += param_norm**2
+                        min_grad = min(min_grad, finite_grad.min().item())
+                        max_grad = max(max_grad, finite_grad.max().item())
+        except ImportError:
+            # Torch not available, can't compute gradient stats
+            return None
 
         total_norm = total_norm**0.5
 
@@ -475,7 +492,7 @@ class TrainingLogger:
 
 # Convenience functions for one-off logging
 def log_model_info(
-    model: torch.nn.Module,
+    model: Any,  # Accept any model-like object
     logger: logging.Logger | None = None,
 ) -> dict[str, Any]:
     """Log model architecture information.
