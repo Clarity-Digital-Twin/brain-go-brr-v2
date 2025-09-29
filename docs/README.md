@@ -31,6 +31,13 @@ Stability (implemented)
 - PR‑3 adjacency conditioning: `graph.adj_row_softmax|adj_ema_beta|adj_force_symmetric|laplacian_eps`.
 - PR‑5 clamp at source: `graph.edge_similarity_margin` keeps cosine/corr within `[-1+margin, 1‑margin]`.
 
+Dataset strategy (CRITICAL)
+
+- **Training**: Uses `BalancedSeizureDataset` with manifest to oversample seizures (8% → ~30%)
+- **Validation**: Uses `EEGWindowDataset` with natural distribution (~8% seizures)
+- **Why different**: Train on balanced data to learn patterns, validate on real distribution for true metrics
+- **Manifest**: train/manifest.json REQUIRED, dev/manifest.json optional (validation doesn't use it)
+
 Quick local stability tips
 
 - If local training hangs (WSL2): set `data.num_workers: 0`.

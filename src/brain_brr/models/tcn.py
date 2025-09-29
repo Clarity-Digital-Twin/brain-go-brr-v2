@@ -319,17 +319,17 @@ def count_parameters(model: nn.Module) -> int:
 
 if __name__ == "__main__":
     # Quick test
-    print(f"pytorch-tcn available: {HAS_PYTORCH_TCN}")
+    logger.info(f"pytorch-tcn available: {HAS_PYTORCH_TCN}")
 
     # Test TCN encoder
     tcn = TCNEncoder()
     x = torch.randn(2, 19, 15360)
     out = tcn(x)
-    print(f"TCN output shape: {out.shape}")
-    print(f"TCN parameters: {count_parameters(tcn) / 1e6:.2f}M")
+    logger.info(f"TCN output shape: {out.shape}")
+    logger.info(f"TCN parameters: {count_parameters(tcn) / 1e6:.2f}M")
 
     # Test projection head
     head = ProjectionHead()
     restored = head(out)
-    print(f"Projection head output: {restored.shape}")
-    print(f"Total parameters: {(count_parameters(tcn) + count_parameters(head)) / 1e6:.2f}M")
+    logger.info(f"Projection head output: {restored.shape}")
+    logger.info(f"Total parameters: {(count_parameters(tcn) + count_parameters(head)) / 1e6:.2f}M")

@@ -1,11 +1,15 @@
 """Modal cloud deployment for Brain-Go-Brr V3."""
 
+import logging
 import os
 import subprocess
 from pathlib import Path
 from typing import Optional
 
 import modal
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # Build the Modal image with CUDA development tools for mamba-ssm compilation
 # CRITICAL: Must match EXACT versions from local setup (docs/03-operations/setup-guide.md)
@@ -151,6 +155,10 @@ def populate_cache():
     persistent SSD volume for fast, reliable training access.
     Run this ONCE when setting up, then reuse the cache forever.
     """
+    from src.brain_brr.utils.logging_config import setup_logging
+    # Use simple format for Modal (no Rich in container logs)
+    setup_logging(format_style="simple", force=True)
+
     import shutil
     from pathlib import Path
     import time
@@ -158,11 +166,11 @@ def populate_cache():
     src = Path("/s3_cache")  # S3 mount
     dst = Path("/results/cache/tusz")  # SSD volume
 
-    print("\n" + "=" * 60)
-    print("[CACHE POPULATION] Starting S3 → SSD cache copy...")
-    print(f"Source: {src} (S3 mount)")
-    print(f"Destination: {dst} (Modal SSD)")
-    print("=" * 60 + "\n")
+    logger.info("\n" + "=" * 60)
+    logger.info("[CACHE POPULATION] Starting S3 → SSD cache copy...")
+    logger.info(f"Source: {src} (S3 mount)")
+    logger.info(f"Destination: {dst} (Modal SSD)")
+    logger.info("=" * 60 + "\n")
 
     start = time.time()
 
@@ -174,15 +182,15 @@ def populate_cache():
     train_dst = dst / "train"
     if train_src.exists():
         train_files = list(train_src.glob("*.npz"))
-        print(f"[COPY] Found {len(train_files)} train files to copy...")
+        logger.info(f"[COPY] Found {len(train_files)} train files to copy...")
         if train_dst.exists():
-            print(f"[COPY] Removing existing {train_dst}...")
+            logger.info(f"[COPY] Removing existing {train_dst}...")
             shutil.rmtree(train_dst)
-        print(f"[COPY] Copying {train_src} → {train_dst}...")
+        logger.info(f"[COPY] Copying {train_src} → {train_dst}...")
         shutil.copytree(train_src, train_dst)
-        print(f"[COPY] ✅ Copied {len(list(train_dst.glob('*.npz')))} train files")
+        logger.info(f"[COPY] ✅ Copied {len(list(train_dst.glob('*.npz')))} train files")
     else:
-        print(f"[WARNING] No train split found at {train_src}")
+        logger.info(f"[WARNING] No train split found at {train_src}")
 
     # Copy dev split (TUSZ 'dev' → cache 'dev')
     # CRITICAL: We use 'dev' naming to match TUSZ's official split naming!
@@ -192,26 +200,26 @@ def populate_cache():
     dev_dst = dst / "dev"
     if dev_src.exists():
         dev_files = list(dev_src.glob("*.npz"))
-        print(f"[COPY] Found {len(dev_files)} dev files to copy...")
+        logger.info(f"[COPY] Found {len(dev_files)} dev files to copy...")
         if dev_dst.exists():
-            print(f"[COPY] Removing existing {dev_dst}...")
+            logger.info(f"[COPY] Removing existing {dev_dst}...")
             shutil.rmtree(dev_dst)
-        print(f"[COPY] Copying {dev_src} → {dev_dst}...")
+        logger.info(f"[COPY] Copying {dev_src} → {dev_dst}...")
         shutil.copytree(dev_src, dev_dst)
-        print(f"[COPY] ✅ Copied {len(list(dev_dst.glob('*.npz')))} dev files")
+        logger.info(f"[COPY] ✅ Copied {len(list(dev_dst.glob('*.npz')))} dev files")
     else:
-        print(f"[WARNING] No dev split found at {dev_src}")
+        logger.info(f"[WARNING] No dev split found at {dev_src}")
 
     # Copy metadata file - CRITICAL for cache validation!
     metadata_src = src / ".cache_metadata.json"
     metadata_dst = dst / ".cache_metadata.json"
     if metadata_src.exists():
-        print(f"[COPY] Copying cache metadata file...")
+        logger.info(f"[COPY] Copying cache metadata file...")
         shutil.copy2(metadata_src, metadata_dst)
-        print(f"[COPY] ✅ Copied metadata file")
+        logger.info(f"[COPY] ✅ Copied metadata file")
     else:
-        print(f"[WARNING] No metadata file found at {metadata_src}")
-        print(f"[WARNING] Creating metadata file to prevent cache deletion...")
+        logger.info(f"[WARNING] No metadata file found at {metadata_src}")
+        logger.info(f"[WARNING] Creating metadata file to prevent cache deletion...")
         # Create metadata file to prevent auto-deletion
         import json
         metadata = {
@@ -227,21 +235,21 @@ def populate_cache():
         }
         with open(metadata_dst, "w") as f:
             json.dump(metadata, f, indent=2)
-        print(f"[COPY] ✅ Created metadata file at {metadata_dst}")
+        logger.info(f"[COPY] ✅ Created metadata file at {metadata_dst}")
 
     # Verify final state
     train_count = len(list((dst / "train").glob("*.npz")))
     dev_count = len(list((dst / "dev").glob("*.npz")))
     elapsed = time.time() - start
 
-    print("\n" + "=" * 60)
-    print("[CACHE POPULATION] ✅ COMPLETE!")
-    print(f"Train files: {train_count} (expected: 4600-4700)")
-    print(f"Dev files: {dev_count} (expected: 1800-1900)")
-    print(f"Time taken: {elapsed/60:.1f} minutes")
-    print(f"Cache location: {dst}")
-    print("Cache is now on fast Modal SSD - ready for training!")
-    print("=" * 60 + "\n")
+    logger.info("\n" + "=" * 60)
+    logger.info("[CACHE POPULATION] ✅ COMPLETE!")
+    logger.info(f"Train files: {train_count} (expected: 4600-4700)")
+    logger.info(f"Dev files: {dev_count} (expected: 1800-1900)")
+    logger.info(f"Time taken: {elapsed/60:.1f} minutes")
+    logger.info(f"Cache location: {dst}")
+    logger.info("Cache is now on fast Modal SSD - ready for training!")
+    logger.info("=" * 60 + "\n")
 
     return train_count, dev_count
 
@@ -255,12 +263,16 @@ def populate_cache():
 )
 def clean_cache():
     """Clean contaminated cache from before patient-disjoint fix."""
+    from src.brain_brr.utils.logging_config import setup_logging
+    # Use simple format for Modal (no Rich in container logs)
+    setup_logging(format_style="simple", force=True)
+
     import shutil
     from pathlib import Path
 
-    print("\n" + "=" * 60)
-    print("[CACHE CLEAN] Starting cache cleanup...")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("[CACHE CLEAN] Starting cache cleanup...")
+    logger.info("=" * 60)
 
     cache_paths = [
         Path("/results/cache/tusz"),
@@ -269,22 +281,22 @@ def clean_cache():
 
     for cache_path in cache_paths:
         if cache_path.exists():
-            print(f"[CLEAN] Removing {cache_path}...")
+            logger.info(f"[CLEAN] Removing {cache_path}...")
             shutil.rmtree(cache_path, ignore_errors=True)
-            print(f"[CLEAN] ✅ Removed {cache_path}")
+            logger.info(f"[CLEAN] ✅ Removed {cache_path}")
         else:
-            print(f"[CLEAN] Path does not exist: {cache_path}")
+            logger.info(f"[CLEAN] Path does not exist: {cache_path}")
 
     # Recreate clean directories
     for cache_path in cache_paths:
         cache_path.mkdir(parents=True, exist_ok=True)
         (cache_path / "train").mkdir(exist_ok=True)
         (cache_path / "dev").mkdir(exist_ok=True)  # Use 'dev' to match TUSZ naming!
-        print(f"[CLEAN] ✅ Created clean structure: {cache_path}/{{train,dev}}/")
+        logger.info(f"[CLEAN] ✅ Created clean structure: {cache_path}/{{train,dev}}/")
 
-    print("\n[CACHE CLEAN] ✅ Cache cleanup complete!")
-    print("Next training run will rebuild cache with patient-disjoint splits.")
-    print("=" * 60 + "\n")
+    logger.info("\n[CACHE CLEAN] ✅ Cache cleanup complete!")
+    logger.info("Next training run will rebuild cache with patient-disjoint splits.")
+    logger.info("=" * 60 + "\n")
     return True
 
 
@@ -296,24 +308,28 @@ def clean_cache():
 )
 def test_mamba_cuda():
     """Test that Mamba CUDA kernels work properly."""
+    from src.brain_brr.utils.logging_config import setup_logging
+    # Use simple format for Modal (no Rich in container logs)
+    setup_logging(format_style="simple", force=True)
+
     import torch
-    print(f"CUDA available: {torch.cuda.is_available()}", flush=True)
-    print(f"CUDA device: {torch.cuda.get_device_name()}", flush=True)
+    logger.info(f"CUDA available: {torch.cuda.is_available()}")
+    logger.info(f"CUDA device: {torch.cuda.get_device_name()}")
 
     # Test mamba-ssm import
     try:
         import mamba_ssm
-        print(f"✓ mamba-ssm version: {mamba_ssm.__version__}", flush=True)
+        logger.info(f"✓ mamba-ssm version: {mamba_ssm.__version__}")
     except ImportError as e:
-        print(f"✗ mamba-ssm import failed: {e}", flush=True)
+        logger.info(f"✗ mamba-ssm import failed: {e}")
         return False
 
     # Test causal_conv1d import (the actual CUDA kernels)
     try:
         import causal_conv1d
-        print(f"✓ causal-conv1d imported", flush=True)
+        logger.info(f"✓ causal-conv1d imported")
     except ImportError as e:
-        print(f"✗ causal-conv1d import failed: {e}", flush=True)
+        logger.info(f"✗ causal-conv1d import failed: {e}")
         return False
 
     # Test Mamba2 creation and forward pass
@@ -322,25 +338,25 @@ def test_mamba_cuda():
 
         # Create a simple Mamba2 layer
         model = Mamba2(d_model=512, d_state=16, d_conv=4, expand=2).cuda()
-        print("✓ Mamba2 model created", flush=True)
+        logger.info("✓ Mamba2 model created")
 
         # Test forward pass (no grad for speed)
         x = torch.randn(2, 100, 512).cuda()  # (batch, seq_len, d_model)
         with torch.no_grad():
             out = model(x)
-        print(f"✓ Forward pass successful! Output shape: {out.shape}", flush=True)
+        logger.info(f"✓ Forward pass successful! Output shape: {out.shape}")
 
         # Test backward pass (needs grad enabled)
         x_grad = torch.randn(2, 100, 512, requires_grad=True).cuda()
         out_grad = model(x_grad)
         loss = out_grad.sum()
         loss.backward()
-        print("✓ Backward pass successful!", flush=True)
+        logger.info("✓ Backward pass successful!")
 
         return True
 
     except Exception as e:
-        print(f"✗ Mamba2 test failed: {e}", flush=True)
+        logger.info(f"✗ Mamba2 test failed: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -369,20 +385,24 @@ def train(
     Returns:
         Path to checkpoint file
     """
+    from src.brain_brr.utils.logging_config import setup_logging
+    # Use simple format for Modal (no Rich in container logs)
+    setup_logging(format_style="simple", force=True)
+
     import os
     import subprocess
 
     # Test mamba-ssm import
     try:
         import mamba_ssm
-        print(f"✓ Mamba-SSM imported successfully: {mamba_ssm.__version__}")
+        logger.info(f"✓ Mamba-SSM imported successfully: {mamba_ssm.__version__}")
     except ImportError as e:
-        print(f"⚠️ Mamba-SSM import failed: {e}")
+        logger.info(f"⚠️ Mamba-SSM import failed: {e}")
 
     # CRITICAL: Verify patient disjointness in data
-    print("\n" + "=" * 60, flush=True)
-    print("[PATIENT DISJOINTNESS] Verifying TUSZ splits...", flush=True)
-    print("=" * 60, flush=True)
+    logger.info("\n" + "=" * 60)
+    logger.info("[PATIENT DISJOINTNESS] Verifying TUSZ splits...")
+    logger.info("=" * 60)
 
     from pathlib import Path
     train_dir = Path("/data/edf/train")
@@ -399,15 +419,15 @@ def train(
                 f"  {sorted(overlap)[:10]}"
             )
 
-        print(f"[SPLITS] ✅ VERIFIED: {len(train_patients)} train, {len(dev_patients)} dev patients")
-        print("[SPLITS] ✅ NO PATIENT OVERLAP - Data is clean!")
+        logger.info(f"[SPLITS] ✅ VERIFIED: {len(train_patients)} train, {len(dev_patients)} dev patients")
+        logger.info("[SPLITS] ✅ NO PATIENT OVERLAP - Data is clean!")
     else:
-        print("[SPLITS] WARNING: Could not verify splits (dirs not found)")
+        logger.info("[SPLITS] WARNING: Could not verify splits (dirs not found)")
 
     # Check if cache exists on Modal persistent volume
-    print("\n" + "=" * 60, flush=True)
-    print("[CACHE] Verifying cache location on Modal...", flush=True)
-    print("=" * 60, flush=True)
+    logger.info("\n" + "=" * 60)
+    logger.info("[CACHE] Verifying cache location on Modal...")
+    logger.info("=" * 60)
 
     try:
         from pathlib import Path
@@ -447,27 +467,27 @@ def train(
 
                     # Check if built with official_tusz policy
                     if metadata.get("split_policy") == "official_tusz":
-                        print(f"[CACHE] ✅ Cache built with official_tusz policy", flush=True)
+                        logger.info(f"[CACHE] ✅ Cache built with official_tusz policy")
                         cache_valid = True
                     else:
-                        print(f"[CACHE] ⚠️ Cache built with old policy: {metadata.get('split_policy', 'unknown')}", flush=True)
+                        logger.info(f"[CACHE] ⚠️ Cache built with old policy: {metadata.get('split_policy', 'unknown')}")
                         cache_valid = False
                 except Exception as e:
-                    print(f"[CACHE] ⚠️ Could not read cache metadata: {e}", flush=True)
+                    logger.info(f"[CACHE] ⚠️ Could not read cache metadata: {e}")
                     cache_valid = False
             else:
                 # No metadata = old cache from before fix
                 if len(npz_files) > 0:
-                    print(f"[CACHE] ⚠️ No metadata found - cache built before patient fix!", flush=True)
-                    print(f"[CACHE] ❌ MUST INVALIDATE {len(npz_files)} contaminated files", flush=True)
+                    logger.info(f"[CACHE] ⚠️ No metadata found - cache built before patient fix!")
+                    logger.info(f"[CACHE] ❌ MUST INVALIDATE {len(npz_files)} contaminated files")
                 else:
-                    print("[CACHE] No metadata found - cache is empty (will build fresh)", flush=True)
+                    logger.info("[CACHE] No metadata found - cache is empty (will build fresh)")
                 cache_valid = False
 
             if not cache_valid and len(npz_files) > 0:
-                print("[CACHE] 🧹 Auto-cleaning contaminated cache...", flush=True)
+                logger.info("[CACHE] 🧹 Auto-cleaning contaminated cache...")
                 shutil.rmtree(cache_dir, ignore_errors=True)
-                print("[CACHE] ✅ Old cache deleted", flush=True)
+                logger.info("[CACHE] ✅ Old cache deleted")
 
                 # Recreate clean structure
                 Path(cache_dir).mkdir(parents=True, exist_ok=True)
@@ -482,19 +502,19 @@ def train(
                 }
                 with open(cache_metadata_file, "w") as f:
                     json.dump(metadata, f, indent=2)
-                print("[CACHE] ✅ Created clean cache structure with metadata", flush=True)
+                logger.info("[CACHE] ✅ Created clean cache structure with metadata")
 
                 npz_files = []  # Reset file count
             elif cache_valid:
                 manifest = cache_path / "manifest.json"
-                print(f"[CACHE] ✅ Using valid Modal SSD cache: {len(npz_files)} NPZ files", flush=True)
+                logger.info(f"[CACHE] ✅ Using valid Modal SSD cache: {len(npz_files)} NPZ files")
                 if manifest.exists():
-                    print(f"[CACHE] ✅ Manifest found at {manifest}", flush=True)
-                print(f"[CACHE] Cache location: {cache_path}", flush=True)
-                print(f"[CACHE] This is optimal - using fast local SSD storage", flush=True)
+                    logger.info(f"[CACHE] ✅ Manifest found at {manifest}")
+                logger.info(f"[CACHE] Cache location: {cache_path}")
+                logger.info(f"[CACHE] This is optimal - using fast local SSD storage")
         else:
-            print(f"[CACHE] Cache will be built at: {cache_path}", flush=True)
-            print(f"[CACHE] First epoch will be slower while building cache", flush=True)
+            logger.info(f"[CACHE] Cache will be built at: {cache_path}")
+            logger.info(f"[CACHE] First epoch will be slower while building cache")
 
             # Create metadata for new cache
             Path(cache_dir).mkdir(parents=True, exist_ok=True)
@@ -508,12 +528,12 @@ def train(
             }
             with open(cache_metadata_file, "w") as f:
                 json.dump(metadata, f, indent=2)
-            print("[CACHE] ✅ Created cache metadata for validation", flush=True)
+            logger.info("[CACHE] ✅ Created cache metadata for validation")
 
     except Exception as e:
-        print(f"[WARNING] Could not verify cache: {e}", flush=True)
+        logger.info(f"[WARNING] Could not verify cache: {e}")
 
-    print("=" * 60 + "\n", flush=True)
+    logger.info("=" * 60 + "\n")
 
     # Set environment
     env = os.environ.copy()
@@ -533,7 +553,7 @@ def train(
 
     # Disable tqdm for Modal subprocess environments (causes issues with manifest generation)
     env["BGB_DISABLE_TQDM"] = "1"
-    print(f"[ENV] BGB_DISABLE_TQDM={env.get('BGB_DISABLE_TQDM')}", flush=True)
+    logger.info(f"[ENV] BGB_DISABLE_TQDM={env.get('BGB_DISABLE_TQDM')}")
     # For production, use full dataset (no limit)
 
     # Prepare a temp config to ensure data/output point to persistent volumes
@@ -578,10 +598,10 @@ def train(
     exp["cache_dir"] = cache_dir
     data.setdefault("data", {})["cache_dir"] = cache_dir
 
-    print(f"[CONFIG] Using cache directory: {cache_dir}", flush=True)
-    print(f"[CONFIG] Output directory: {exp['output_dir']}", flush=True)
+    logger.info(f"[CONFIG] Using cache directory: {cache_dir}")
+    logger.info(f"[CONFIG] Output directory: {exp['output_dir']}")
     if "smoke" in config_path.lower():
-        print(f"[CONFIG] BGB_LIMIT_FILES={env.get('BGB_LIMIT_FILES', 'not set')}", flush=True)
+        logger.info(f"[CONFIG] BGB_LIMIT_FILES={env.get('BGB_LIMIT_FILES', 'not set')}")
 
     Path(exp["output_dir"]).mkdir(parents=True, exist_ok=True)
     (Path(exp["output_dir"]) / "checkpoints").mkdir(parents=True, exist_ok=True)
@@ -596,15 +616,15 @@ def train(
     # Use built-in resume mechanism (relies on last.pt in output_dir/checkpoints)
     if resume:
         cmd.append("--resume")
-        print("Resuming training from last.pt if present in output_dir")
+        logger.info("Resuming training from last.pt if present in output_dir")
 
-    print(f"Running: {' '.join(cmd)}")
-    print(f"Config: {config_path}")
-    print("-" * 50)
+    logger.info(f"Running: {' '.join(cmd)}")
+    logger.info(f"Config: {config_path}")
+    logger.info("-" * 50)
 
     # Run training with REAL-TIME output streaming
-    print("Starting training process with real-time logging...")
-    print(f"Data loading from S3 may take 10-20 minutes for large datasets", flush=True)
+    logger.info("Starting training process with real-time logging...")
+    logger.info(f"Data loading from S3 may take 10-20 minutes for large datasets")
 
     # Use Popen for real-time output with proper buffering
     # bufsize=1 enables line buffering which is better for tqdm
@@ -620,9 +640,12 @@ def train(
     # Stream output in real-time with error handling
     try:
         for line in process.stdout:
-            print(line, end='', flush=True)
+            # Stream output directly to stdout for real-time logging
+            import sys
+            sys.stdout.write(line)
+            sys.stdout.flush()
     except Exception as e:
-        print(f"[ERROR] Output streaming failed: {e}", flush=True)
+        logger.info(f"[ERROR] Output streaming failed: {e}")
 
     # Wait for process to complete
     returncode = process.wait()
@@ -630,7 +653,7 @@ def train(
     if returncode != 0:
         raise RuntimeError(f"Training failed with exit code {returncode}")
 
-    print(f"Training completed successfully!", flush=True)
+    logger.info(f"Training completed successfully!")
     # Return best checkpoint path under /results
     checkpoint_dir = Path(data["experiment"]["output_dir"]) / "checkpoints"
     # Our training saves best.pt
@@ -660,6 +683,10 @@ def evaluate(
     Returns:
         Path to metrics JSON file
     """
+    from src.brain_brr.utils.logging_config import setup_logging
+    # Use simple format for Modal (no Rich in container logs)
+    setup_logging(format_style="simple", force=True)
+
     import os
     import subprocess
 
@@ -685,15 +712,15 @@ def evaluate(
         "--output-json", output_json,
     ]
 
-    print(f"Running: {' '.join(cmd)}")
-    print("-" * 50)
+    logger.info(f"Running: {' '.join(cmd)}")
+    logger.info("-" * 50)
 
     result = subprocess.run(cmd, env=env, capture_output=True, text=True)
 
     if result.returncode != 0:
         raise RuntimeError(f"Evaluation failed: {result.stderr[:500]}")
 
-    print(f"Evaluation complete. Metrics saved to: {output_json}")
+    logger.info(f"Evaluation complete. Metrics saved to: {output_json}")
     return output_json
 
 
@@ -709,8 +736,8 @@ def main(
     ⚠️ NO DOUBLE DASH (--) separator needed anymore in Modal CLI!
 
     Examples:
-        # STEP 1: Populate cache from S3 to Modal SSD (ONE TIME ONLY)
-        modal run deploy/modal/app.py --action populate-cache
+        # STEP 1: Populate cache from S3 to Modal SSD (ONE TIME ONLY - use --detach!)
+        modal run --detach deploy/modal/app.py --action populate-cache
 
         # Test Mamba CUDA kernels
         modal run deploy/modal/app.py --action test-mamba
@@ -727,56 +754,56 @@ def main(
         # Evaluate checkpoint
         modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.pt
     """
-    print("🚀 Brain-Go-Brr V3 Modal Deployment")
-    print("=" * 50)
+    logger.info("🚀 Brain-Go-Brr V3 Modal Deployment")
+    logger.info("=" * 50)
 
     if action == "populate-cache":
         # ONE-TIME: Copy cache from S3 to Modal SSD
-        print("📦 Populating Modal SSD cache from S3...")
-        print("This will copy ~450GB and may take 1-2 hours...")
+        logger.info("📦 Populating Modal SSD cache from S3...")
+        logger.info("This will copy ~450GB and may take 1-2 hours...")
         train_count, dev_count = populate_cache.remote()
         if 4600 <= train_count <= 4700 and 1800 <= dev_count <= 1900:
-            print("✅ Cache populated successfully! Ready for training.")
+            logger.info("✅ Cache populated successfully! Ready for training.")
         else:
-            print(f"⚠️ Cache populated with {train_count} train, {dev_count} dev files")
-            print("Expected: 4600-4700 train, 1800-1900 dev")
+            logger.info(f"⚠️ Cache populated with {train_count} train, {dev_count} dev files")
+            logger.info("Expected: 4600-4700 train, 1800-1900 dev")
             if train_count > 0 and dev_count > 0:
-                print("Cache is usable but may be incomplete.")
+                logger.info("Cache is usable but may be incomplete.")
 
     elif action == "clean-cache":
         # Clean contaminated cache from before patient-disjoint fix
-        print("🧹 Cleaning contaminated cache...")
+        logger.info("🧹 Cleaning contaminated cache...")
         success = clean_cache.remote()
         if success:
-            print("✅ Cache cleaned! Next training will rebuild with patient-disjoint splits.")
+            logger.info("✅ Cache cleaned! Next training will rebuild with patient-disjoint splits.")
         else:
-            print("❌ Cache cleaning failed!")
+            logger.info("❌ Cache cleaning failed!")
             raise RuntimeError("Failed to clean cache")
 
     elif action == "test-mamba":
         # Test Mamba CUDA kernels
-        print("Testing Mamba CUDA kernels...")
+        logger.info("Testing Mamba CUDA kernels...")
         success = test_mamba_cuda.remote()
         if success:
-            print("✅ Mamba CUDA test PASSED! Ready for training.")
+            logger.info("✅ Mamba CUDA test PASSED! Ready for training.")
         else:
-            print("❌ Mamba CUDA test FAILED! Fix required before training.")
+            logger.info("❌ Mamba CUDA test FAILED! Fix required before training.")
             raise RuntimeError("Mamba CUDA kernels not working")
 
     elif action == "train":
         # Always use train.remote() - Modal's --detach flag controls app lifecycle
         result = train.remote(config_path=config, resume=resume)
-        print(f"✓ Training complete. Checkpoint: {result}")
+        logger.info(f"✓ Training complete. Checkpoint: {result}")
 
     elif action == "evaluate":
         # For evaluate, config arg is actually checkpoint path
         result = evaluate.remote(checkpoint_path=config)
-        print(f"✓ Evaluation complete. Metrics: {result}")
+        logger.info(f"✓ Evaluation complete. Metrics: {result}")
 
     else:
-        print(f"Unknown action: {action}")
-        print("Available actions: populate-cache, clean-cache, test-mamba, train, evaluate")
-        print("\n📌 IMPORTANT: Run 'populate-cache' ONCE before first training!")
+        logger.info(f"Unknown action: {action}")
+        logger.info("Available actions: populate-cache, clean-cache, test-mamba, train, evaluate")
+        logger.info("\n📌 IMPORTANT: Run 'populate-cache' ONCE before first training!")
 
 
 if __name__ == "__main__":

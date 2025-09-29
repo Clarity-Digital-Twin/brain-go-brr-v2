@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from copy import deepcopy
 from typing import Any
 
@@ -16,6 +17,9 @@ from sklearn.metrics import (  # type: ignore[import-untyped]
 from src.brain_brr.config.schemas import PostprocessingConfig
 from src.brain_brr.events import batch_mask_to_events
 from src.brain_brr.post.postprocess import postprocess_predictions
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 def overlap(a: tuple[float, float], b: tuple[float, float]) -> float:
@@ -658,6 +662,6 @@ def main() -> None:
     """
     import sys
 
-    print("Please use 'run-experiment evaluate' for evaluation functionality.")
-    print("Example: run-experiment evaluate --config configs/evaluation.yaml")
+    logger.info("Please use 'run-experiment evaluate' for evaluation functionality.")
+    logger.info("Example: run-experiment evaluate --config configs/evaluation.yaml")
     sys.exit(1)
