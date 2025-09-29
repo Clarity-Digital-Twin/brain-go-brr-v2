@@ -168,9 +168,8 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
 
     print(f"[SAMPLER] Seizure ratio: {seizure_ratio:.2%}", flush=True)
     print(f"[SAMPLER] Positive weight: {pos_weight:.2f}", flush=True)
-    print(
-        f"[SAMPLER] Estimated seizure windows: {(weights > 1).sum().item()}/{len(dataset)}",
-        flush=True,
+    logger.info(
+        f"[SAMPLER] Estimated seizure windows: {(weights > 1).sum().item()}/{len(dataset)}"
     )
 
     return WeightedRandomSampler(
