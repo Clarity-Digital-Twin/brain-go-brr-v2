@@ -37,3 +37,6 @@
 8. MEMORY LEAKS
 
 9. bogus mocked tests
+
+
+10. REEPEATED CODE 

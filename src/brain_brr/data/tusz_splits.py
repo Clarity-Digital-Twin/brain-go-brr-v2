@@ -8,8 +8,12 @@ This module ensures we use TUSZ's official train/dev/eval splits correctly:
 NO PATIENT LEAKAGE ALLOWED!
 """
 
+import logging
 import warnings
 from pathlib import Path
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 
 def extract_patient_id(filepath: Path) -> str:
@@ -58,11 +62,11 @@ def get_tusz_official_splits(
 
     if verbose:
         n_with_csv = sum(1 for f in csv_files if f.exists())
-        print(f"\n[TUSZ {split.upper()} Split]")
-        print(f"  Patients: {len(patient_ids)}")
-        print(f"  EDF files: {len(edf_files)}")
-        print(f"  CSV annotations: {n_with_csv}/{len(csv_files)}")
-        print(f"  Example patients: {sorted(patient_ids)[:5]}")
+        logger.info(f"\n[TUSZ {split.upper()} Split]")
+        logger.info(f"  Patients: {len(patient_ids)}")
+        logger.info(f"  EDF files: {len(edf_files)}")
+        logger.info(f"  CSV annotations: {n_with_csv}/{len(csv_files)}")
+        logger.info(f"  Example patients: {sorted(patient_ids)[:5]}")
 
     return edf_files, csv_files, patient_ids
 
@@ -107,11 +111,11 @@ def validate_patient_disjointness(
                 f"Examples: {sorted(dev_eval_overlap)[:10]}"
             )
 
-    print("\n✅ PATIENT DISJOINTNESS VALIDATED - No leakage detected!")
-    print(f"   Train: {len(train_patients)} patients")
-    print(f"   Dev: {len(dev_patients)} patients")
+    logger.info("\n✅ PATIENT DISJOINTNESS VALIDATED - No leakage detected!")
+    logger.info(f"   Train: {len(train_patients)} patients")
+    logger.info(f"   Dev: {len(dev_patients)} patients")
     if eval_patients:
-        print(f"   Eval: {len(eval_patients)} patients")
+        logger.info(f"   Eval: {len(eval_patients)} patients")
 
 
 def load_tusz_for_training(
@@ -163,10 +167,10 @@ def load_tusz_for_training(
     )
 
     if verbose:
-        print("\n" + "=" * 60)
-        print("TUSZ OFFICIAL SPLITS LOADED SUCCESSFULLY")
-        print("Protocol: Train on train/ | Validate on dev/ | Test on eval/")
-        print("=" * 60)
+        logger.info("\n" + "=" * 60)
+        logger.info("TUSZ OFFICIAL SPLITS LOADED SUCCESSFULLY")
+        logger.info("Protocol: Train on train/ | Validate on dev/ | Test on eval/")
+        logger.info("=" * 60)
 
     return splits
 
