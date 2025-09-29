@@ -79,7 +79,11 @@
       "Bash(nvcc:*)",
       "Bash(uv lock:*)",
       "Read(//usr/local/**)",
-      "Bash(UV_LINK_MODE=copy uv sync)"
+      "Bash(UV_LINK_MODE=copy uv sync)",
+      "Bash(export:*)",
+      "Bash(export PATH=$CUDA_HOME/bin:$PATH)",
+      "Bash(tee:*)",
+      "Bash(uv pip install:*)"
     ],
     "deny": [],
     "ask": []
