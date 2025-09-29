@@ -54,13 +54,14 @@ class TestLoggingConfig:
         assert config.is_configured
 
         # Second call should not reconfigure unless forced
-        with patch.object(config, "_setup_rich_handler") as mock_handler:
+        with patch.object(config, "_setup_simple_handler") as mock_handler:
             config.setup(level="DEBUG")
             mock_handler.assert_not_called()
 
         # Force should reconfigure
-        with patch.object(config, "_setup_rich_handler") as mock_handler:
-            config.setup(level="DEBUG", force=True)
+        # Note: In pytest environment, always uses simple handler, not rich
+        with patch.object(config, "_setup_simple_handler") as mock_handler:
+            config.setup(level="DEBUG", format_style="simple", force=True)
             mock_handler.assert_called()
 
     def test_level_configuration(self):
