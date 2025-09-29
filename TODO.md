@@ -26,13 +26,20 @@
 
 ### 1.1 Test Suite Configuration Enforcement ⚠️
 
-**Issue:** Central configuration exists (`tests/test_config.py`) but 90% of tests ignore it and hardcode batch sizes.
+**Issue:** Central configuration exists (`tests/test_config.py`) but many tests ignore it and hardcode batch sizes.
 
 **Evidence:**
-- `TEST_MAX_BATCH_SIZE` defined with GPU auto-detection
-- Only used in 1 location (`sample_windows` fixture)
-- 30+ hardcoded batch sizes across test suite
-- Tests show reactive OOM fixes ("Further reduced", "Reduced from 16")
+- `TEST_MAX_BATCH_SIZE` is defined with GPU auto-detection but currently unused anywhere.
+- `sample_windows` uses `TEST_BATCH_SIZE` (env-driven), not `TEST_MAX_BATCH_SIZE`.
+- Hardcoded batch sizes found in 14 places across tests:
+  - `tests/unit/train/test_loop.py` (3) — DataLoader(batch_size=1)
+  - `tests/integration/test_tcn_integration.py` (1) — `batch_size = 4`
+  - `tests/integration/test_training_edge_cases.py` (3) — `batch_size = 2`, etc.
+  - `tests/integration/test_model_assembly.py` (1) — `batch_size=4`
+  - `tests/performance/test_memory.py` (2) — `batch_size = 4, 8`
+  - `tests/performance/test_latency.py` (2) — `batch_size = 4/8`
+  - `tests/unit/utils/test_training_logger.py` (2) — `batch_size=32`
+  - Grep: `rg -n "batch_size\s*=\s*\d+" tests` → 14 hits
 
 **Impact:**
 - Tests break on different GPUs (RTX 4090 vs A100)
@@ -45,6 +52,7 @@
 @pytest.fixture
 def test_batch_size(request) -> int:
     """Get GPU-appropriate batch size for current test."""
+    from tests.test_config import TEST_MAX_BATCH_SIZE
     return TEST_MAX_BATCH_SIZE
 
 # Replace all:
@@ -55,11 +63,13 @@ def test_something(test_batch_size):
 ```
 
 **Files to Fix:**
-- `tests/integration/test_tcn_integration.py` (4 locations)
-- `tests/integration/test_training_edge_cases.py` (3 locations)
-- `tests/integration/test_model_assembly.py` (2 locations)
-- `tests/performance/test_memory.py` (parameterized tests)
-- `tests/performance/test_latency.py` (2 locations)
+- `tests/unit/train/test_loop.py` (3)
+- `tests/unit/utils/test_training_logger.py` (2)
+- `tests/integration/test_tcn_integration.py` (1)
+- `tests/integration/test_training_edge_cases.py` (3)
+- `tests/integration/test_model_assembly.py` (1)
+- `tests/performance/test_memory.py` (2)
+- `tests/performance/test_latency.py` (2)
 
 **Estimated Effort:** 2 hours
 **Risk:** Low (pure test changes)
@@ -92,43 +102,34 @@ def cleanup_torch_resources():
 
 **Impact:**
 - Wastes test time (iterating gc.get_objects() twice per test)
-- Suggests developers don't trust cleanup (22 manual cleanups found)
+- Manual cleanups exist throughout tests: `torch.cuda.empty_cache()` (15), `gc.collect()` (27)
 - Confusion about which fixture owns cleanup
 
 **Solution:**
 1. Keep `gpu_memory_guard.pytest_runtest_teardown` (session hooks are stronger)
 2. Simplify `cleanup_torch_resources` to only `torch.cuda.empty_cache()`
 3. Document ownership clearly
-4. Remove 22 manual cleanup calls if tests still pass
+4. Remove redundant manual cleanup calls if tests still pass
 
 **Estimated Effort:** 1 hour + testing
 **Risk:** Medium (could expose hidden memory leaks)
 
 ---
 
-### 1.3 Print Statements Migration 📝
+### 1.3 Print Statements Verification 📝
 
-**Issue:** 387 print statements need conversion to proper logging (tracked in archived docs).
+**Finding:** No raw `print()` calls in core library code.
 
-**Current Status:**
-- **3 files** still have print statements in `src/`:
-  - `src/brain_brr/cli/cli.py` (10 Rich console.print calls - ACCEPTABLE)
-  - `src/brain_brr/utils/logging_patterns.py` (likely examples/docs)
-  - `src/brain_brr/utils/training_logger.py` (2 console.print for tables - ACCEPTABLE)
+**Evidence:**
+- Raw `print(` in `src/` only appears in examples: `src/brain_brr/utils/logging_patterns.py` (3 lines)
+- CLI uses `console.print(...)` intentionally for user I/O
+- Training logger prints Rich tables intentionally for UX
+- Grep: `rg -n -P "(?<!\.)print\(" src` → 3 hits (examples only)
 
-**Re-evaluation:**
-- CLI uses Rich `console.print` for user output - **this is CORRECT**
-- Training logger uses Rich tables for visual output - **this is CORRECT**
-- Only migration needed is if raw `print()` exists outside CLI/display code
+**Action:** None required beyond periodic verification.
 
-**Action Required:**
-```bash
-# Verify no raw print() calls in core logic
-grep -r "print(" src/brain_brr --include="*.py" | grep -v "console.print" | grep -v "# print"
-```
-
-**Estimated Effort:** 30 minutes (verification only)
-**Risk:** Negligible
+**Estimated Effort:** 0
+**Risk:** None
 
 ---
 
@@ -138,10 +139,13 @@ grep -r "print(" src/brain_brr --include="*.py" | grep -v "console.print" | grep
 
 **Issue:** `src/brain_brr/train/loop.py` is 1695 lines with large functions.
 
-**Analysis from `LOOP_PY_TECH_DEBT.md`:**
-- `train_epoch()`: ~400 lines (lines 752-1152)
-- `main()`: ~400 lines (lines 1412-1694)
+**Observed:**
+- File length: 1695 lines
+- `train_epoch()` spans lines 316–832 (~517 lines)
+- `validate_epoch()` spans lines 833–963 (~131 lines)
+- `main()` spans lines 1361–1695 (~335 lines)
 - Contains duplicated tqdm setup (3x) and heartbeat logging (2x)
+  - Note: tqdm/heartbeat logic appears in both train and validate (2x), and cleanup occurs twice
 - Magic numbers scattered throughout
 
 **However:**
@@ -175,7 +179,7 @@ class ResourcesConfig(StrictModel):
 
 # Only references:
 # 1. Definition in schemas.py
-# 2. Optional field in ExperimentConfig (never accessed)
+# 2. Optional field on root Config (never accessed at runtime)
 ```
 
 **Impact:**
@@ -327,10 +331,10 @@ if batch_size >= simulated_oom_batch:
 **Issue:** Old custom split policy still supported with deprecation warning.
 
 ```python
-# src/brain_brr/train/loop.py line 1534
+# src/brain_brr/train/loop.py
 # DEPRECATED: Old file-based split (WARNING: May cause patient leakage!)
 
-# src/brain_brr/config/schemas.py line 89
+# src/brain_brr/config/schemas.py
 description="DEPRECATED - Only used if split_policy='custom'. Use official TUSZ splits!"
 ```
 
@@ -350,14 +354,12 @@ description="DEPRECATED - Only used if split_policy='custom'. Use official TUSZ 
 
 ### ✅ Import Audit (COMPLETE)
 
-**Status:** Verified 100% consistent across codebase.
+**Status:** Verified consistent across codebase.
 
 **Current State:**
-- ✅ `src/brain_brr/**/*.py` → 27 files use `from src.brain_brr...`
-- ✅ `tests/**/*.py` → 69 files use `from src.brain_brr...`
-- ✅ `deploy/modal/*.py` → 5 functions use `from src.brain_brr...`
-- ✅ `__init__.py` files → Use relative imports `from .module`
-- ✅ NO FILES use `from brain_brr...` anywhere
+- ✅ All internal imports use `from src.brain_brr...` (consistent style)
+- ✅ `__init__.py` files use relative imports (`from .module`)
+- ✅ No occurrences of `from brain_brr...`
 
 **Verified Commands:**
 ```bash
@@ -429,9 +431,9 @@ grep -r "\.lock\|threading\|multiprocessing\|Queue" src/brain_brr --include="*.p
 ## Recommendations
 
 ### Immediate Actions (This Sprint)
-1. ✅ **Enforce test batch size configuration** (2 hours)
-2. ✅ **Remove redundant cleanup fixture** (1 hour)
-3. ✅ **Verify print statement usage** (30 minutes)
+1. Enforce test batch size configuration (2 hours)
+2. Simplify redundant cleanup fixture and remove manual cleanups (1 hour)
+3. Verify print statements stay confined to CLI/examples (30 minutes)
 
 ### After Modal Training (Next Sprint)
 4. Standardize test fixture naming (2 hours)
