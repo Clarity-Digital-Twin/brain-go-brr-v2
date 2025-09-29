@@ -1405,8 +1405,8 @@ def main() -> None:
     import argparse
     import logging
 
-    from brain_brr.data import BalancedSeizureDataset, EEGWindowDataset
-    from brain_brr.utils.logging_config import setup_logging
+    from src.brain_brr.data import BalancedSeizureDataset, EEGWindowDataset
+    from src.brain_brr.utils.logging_config import setup_logging
 
     # Initialize elite logging infrastructure for training
     setup_logging()
