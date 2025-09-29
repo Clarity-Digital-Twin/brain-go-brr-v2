@@ -37,11 +37,12 @@ pytorch-tcn: 1.2.3
 ```
 Python: 3.11.13 (NO CHANGE)
 PyTorch: 2.5.0+cu124  ← Major jump (2.2 → 2.5)
+torchvision: 0.20.0   ← Matches PyTorch 2.5.0
 CUDA Toolkit: 12.4    ← Must match PyTorch build
 numpy: 1.26.4 (NO CHANGE - mamba still needs <2.0)
-mamba-ssm: 2.2.5      ← Latest (July 2025)
-causal-conv1d: 1.5.0+ ← Required for PyTorch 2.4+
-torch-geometric: 2.7.0+ ← Latest for PyTorch 2.5
+mamba-ssm: 2.2.5      ← Latest (Oct 2024)
+causal-conv1d: 1.5.2  ← EXACT pin (latest stable for PyTorch 2.5)
+torch-geometric: 2.7.0 ← EXACT pin (latest for PyTorch 2.5)
 pytorch-tcn: 1.2.3 (NO CHANGE - pure PyTorch)
 ```
 
@@ -324,25 +325,29 @@ print('✅ All models import successfully')
 
 **Expected**: All tests pass (same as before)
 
-### 2.8 Rebuild Local Cache (CRITICAL)
+### 2.8 Verify Local Cache (NO REBUILD NEEDED!)
 
-**Why**: PyTorch version change may affect tensor serialization
+**✅ CACHE IS PURE NUMPY - NO REBUILD REQUIRED**
+
+Our cache contains only NumPy arrays (not PyTorch tensors), so PyTorch version changes don't affect it.
 
 ```bash
-# Backup old cache
-mv cache/tusz cache/tusz.backup.2.2.2
+# Verify cache format (already done - it's pure NumPy)
+python -c "
+import numpy as np
+data = np.load('cache/tusz/train/00000000_s001_t000.npz', allow_pickle=True)
+print('Keys:', list(data.keys()))
+print('Types:', {k: type(data[k]) for k in data.keys()})
+# Output: Keys: ['windows', 'labels']
+#         Types: {'windows': <class 'numpy.ndarray'>, 'labels': <class 'numpy.ndarray'>}
+"
 
-# Rebuild cache with new stack
-# This will take 1-2 hours
-BGB_FORCE_MANIFEST_REBUILD=1 .venv/bin/python -m src preprocess \
-  --data-dir data_ext4/tusz/edf \
-  --cache-dir cache/tusz \
-  --split-policy official_tusz
-
-# Verify cache
+# Just verify cache exists and is complete
 ls cache/tusz/train/*.npz | wc -l  # Should be ~4667
 ls cache/tusz/dev/*.npz | wc -l    # Should be ~1832
 ```
+
+**SAVES 1-2 HOURS** compared to full rebuild!
 
 ### 2.9 Local Smoke Test
 

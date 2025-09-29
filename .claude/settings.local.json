@@ -73,7 +73,9 @@
       "Bash(git log:*)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:pypi.org)",
-      "Bash(git rev-parse:*)"
+      "Bash(git rev-parse:*)",
+      "WebFetch(domain:data.pyg.org)",
+      "Bash(xargs:*)"
     ],
     "deny": [],
     "ask": []
