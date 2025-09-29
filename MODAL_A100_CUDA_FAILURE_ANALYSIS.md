@@ -1,25 +1,36 @@
 # Modal A100 CUDA Memory Access Failure - Root Cause Analysis
 
 **Incident Date:** 2025-09-29 19:20:53 UTC
-**Status:** 🔴 TRAINING HALTED - Root cause analysis in progress
-**Severity:** P0 BLOCKER - Cannot train on Modal A100
+**Status:** 🔴 TRAINING HALTED — Evidence-based analysis in progress
+**Severity:** P0 BLOCKER — Cannot train on Modal A100
 **Branch:** `fix/test-suite-config` (unrelated to failure)
 
 ---
 
 ## Executive Summary
 
-Training **failed on first forward pass** after 55 minutes of successful data loading. The failure is a **GPU hardware-level MMU fault** (NVIDIA XID 31) followed by **CUDA illegal memory access** in Mamba-SSM kernel.
+Training failed on the first GPU forward pass after ~55 minutes of successful CPU‑side data loading. We see an NVIDIA XID 31 “MMU fault” followed by a CUDA “illegal memory access” raised during the Mamba‑SSM forward.
 
-**ROOT CAUSE:** Modal's Docker image cache served multi-architecture binaries compiled on H100 (compute 9.0) to A100 runtime (compute 8.0). When Mamba-SSM kernel compiled for wrong GPU executes, it makes invalid memory assumptions causing page fault.
+What we know for sure
 
-**Critical Evidence:**
+- The crash happens on the very first CUDA kernel launch in preflight, not during data I/O.
+- Mixed precision is enabled on Modal (`training.mixed_precision: true`).
+- Our Mamba configuration satisfies headdim constraints: `(512*2)/64 = 16` (multiple of 8), etc.
+- The Mamba fallback did not engage because the error text did not match the current fallback filters; the exception was re‑raised by our wrapper.
+  - Code: `src/brain_brr/models/mamba.py:206–216` logs “using fallback” but re‑raises when the message doesn’t contain specific substrings.
+
+What we can likely rule out
+
+- “Wrong architecture picked” due to multi‑arch compilation is unlikely. CUDA fatbins embed multiple code objects and the driver selects the matching one for the runtime GPU. Building with `TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"` includes an 8.0 code object; the driver should not execute 9.0 SASS on an 8.0 GPU.
+- Modal “served an H100 build to A100” is not a meaningful failure mode for CUDA fatbins built from source; selection occurs at runtime on the target GPU.
+
+Key evidence
 - ✅ Data loading completed (1832 dev files, 148K windows, 55 minutes)
 - ✅ Model initialization succeeded (31.4M parameters, all headdim correct)
 - ✅ Optimizer, W&B, focal loss initialized
 - ❌ **Failed on PREFLIGHT test batch** (first CUDA kernel launch)
 - ❌ GPU XID 31 MMU Fault at `0x2ae1_d6600000` (invalid page)
-- ❌ CUDA error: illegal memory access (wrong architecture)
+- ❌ CUDA error: illegal memory access during Mamba forward (not a selection of “wrong architecture”)
 
 **Mathematical Verification (Our Config is CORRECT):**
 ```
@@ -28,7 +39,12 @@ Node Mamba:  (64*2)/8   = 16.0  (multiple of 8 ✅)
 Edge Mamba:  (16*2)/4   = 8.0   (multiple of 8 ✅)
 ```
 
-**Primary Fix:** Change `TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"` to `"8.0"` (A100 only) and add `FORCE_REBUILD` env var to invalidate Modal's cache.
+Immediate mitigations to validate the cause
+
+- Set `SEIZURE_MAMBA_FORCE_FALLBACK=1` to force Conv1d fallback and confirm the issue is specific to the Mamba CUDA path.
+- Temporarily set `training.mixed_precision: false` (FP32) to rule out an AMP‑specific kernel path on A100.
+- Add `CUDA_LAUNCH_BLOCKING=1` (and optionally `TORCH_USE_CUDA_DSA=1`) to get a synchronous stack where the illegal access occurs.
+- Optionally rebuild with single‑arch `TORCH_CUDA_ARCH_LIST="8.0"` to reduce variability. This is a hygiene step, not a proven fix.
 
 ---
 
@@ -98,57 +114,30 @@ Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
 
 ## Root Cause Analysis
 
-### Hypothesis 1: Modal Image Cache Poisoning with Multi-Arch Binaries (HIGHEST PROBABILITY ⭐⭐⭐)
+### Hypothesis 1: A100‑specific illegal access in Mamba‑SSM under AMP (Most likely)
 
-**Root Cause:** Modal caches Docker image layers between builds. When mamba-ssm/causal-conv1d are installed with `TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"`, the compiled binaries contain kernels for ALL architectures. Modal's image cache may serve binaries compiled on a DIFFERENT GPU (e.g., H100 with compute 9.0), causing runtime mismatch when deployed on A100 (compute 8.0).
+Summary
 
-**Evidence:**
-1. **Multi-architecture compilation is the smoking gun:**
-   ```python
-   # deploy/modal/app.py line 27
-   "TORCH_CUDA_ARCH_LIST": "8.0;8.6;8.9;9.0",  # Compiles for 4 different GPUs!
-   ```
-   - This creates ONE binary with 4 different kernel versions
-   - CUDA runtime picks kernel based on GPU at RUNTIME
-   - If Modal cached this binary from H100 build, A100 may get wrong kernel
+- With AMP enabled, the first CUDA kernel in Mamba forward triggers XID 31 and a CUDA illegal memory access. This aligns with a kernel bug or undefined behavior in `mamba-ssm==2.2.2`/`causal-conv1d==1.4.0` on A100 (sm80) when run under autocast FP16.
 
-2. **XID 31 = Wrong CUDA Architecture Selected:**
-   - Page fault at `0x2ae1_d6600000` (invalid address)
-   - GPU MMU says "this memory doesn't exist"
-   - Classic symptom: kernel compiled for compute 9.0 running on compute 8.0 hardware
-   - Memory layout assumptions differ between GPU generations
+Evidence
 
-3. **Modal's caching behavior:**
-   ```python
-   # Even with --no-cache-dir, Modal caches DOCKER LAYERS
-   .run_commands(
-       "pip install --no-build-isolation --no-cache-dir causal-conv1d==1.4.0"
-   )
-   .run_commands(
-       "pip install --no-build-isolation --no-cache-dir mamba-ssm==2.2.2"
-   )
-   ```
-   - `--no-cache-dir` only affects pip's cache
-   - Modal caches the entire image layer
-   - If this layer was built on H100, it's served to A100 runs
+- Preflight uses AMP: `src/brain_brr/train/loop.py:489` (`autocast(enabled=use_amp)`).
+- Same code path on RTX 4090 uses FP32 locally (`mixed_precision: false`) and does not crash.
+- Our wrapper logs “using fallback” but re‑raises on this error; see `src/brain_brr/models/mamba.py:206–216`. The exact message (“CUDA error: an illegal memory access…”) does not match the current fallback filters, so preflight aborts.
 
-4. **Why it worked before (if it ever did):**
-   - May have gotten lucky with A100-built cache
-   - Or previous runs were also on same GPU that built the image
-   - Now we're hitting cache from different GPU architecture
+Tests to confirm
 
-**Mathematical Verification (Architecture is NOT the problem):**
-```python
-Main Mamba:  (512*2)/64 = 16.0  (multiple of 8 ✅)
-Node Mamba:  (64*2)/8   = 16.0  (multiple of 8 ✅)
-Edge Mamba:  (16*2)/4   = 8.0   (multiple of 8 ✅)
-```
-All headdim calculations are CORRECT. The problem is NOT our configuration.
+- Set `SEIZURE_MAMBA_FORCE_FALLBACK=1` and re‑run training. If it passes preflight, the failure is isolated to the Mamba CUDA path.
+- Set `training.mixed_precision: false` and re‑run. If it passes preflight, the issue is AMP‑specific on A100.
 
-**Why first forward pass fails:**
-- Python import succeeds (no GPU computation)
-- Model init succeeds (just memory allocation)
-- **First CUDA kernel launch** triggers XID 31 (wrong architecture detected at runtime)
+### Hypothesis 2: Multi‑arch build or Modal cache issue (Unlikely)
+
+- CUDA fatbin selection is performed by the driver on the target GPU. A build with `TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"` includes an sm80 code object; the runtime should select it on A100. There is no mechanism for “executing sm90 code on sm80 hardware.” Rebuilding with `"8.0"` is reasonable to reduce variability but should be considered a hygiene measure, not a root cause fix.
+
+### Hypothesis 3: Flaky A100 hardware (Less likely)
+
+- XID 31 can occur with hardware issues, but an immediate failure on first kernel launch that reproduces strongly suggests a software/kernel path problem rather than intermittent hardware.
 
 ### Hypothesis 2: A100 Memory Addressing Bug in Mamba-SSM 2.2.2
 
@@ -316,7 +305,7 @@ env:
   TORCH_USE_CUDA_DSA: "1"            # Device-side assertions
 ```
 
-**Purpose:** Get exact line number where illegal access occurs (not just "somewhere in Mamba")
+**Purpose:** Get a synchronous stack where the illegal access occurs (not just “somewhere in Mamba”).
 
 ### 2. Reduce Batch Size to Isolate Memory Issue
 ```yaml
@@ -327,14 +316,14 @@ training:
 
 **Purpose:** If this fails, confirms it's not memory exhaustion but kernel bug
 
-### 3. Force Mamba Fallback to Conv1d
+### 3. Force Mamba Fallback to Conv1d (Strong isolator)
 ```yaml
 # Add to Modal deployment
 env:
   SEIZURE_MAMBA_FORCE_FALLBACK: "1"  # Use Conv1d instead of Mamba-SSM
 ```
 
-**Purpose:** If training succeeds, confirms Mamba-SSM is the problem
+**Purpose:** If training succeeds, confirms the problem is within the Mamba CUDA kernels.
 
 ### 4. Verify GPU Compute Capability
 ```python
@@ -378,9 +367,9 @@ except Exception as e:
 
 ## Potential Fixes (Prioritized by Likelihood)
 
-### Fix 1: Single-Architecture Build for A100 Only (HIGHEST PRIORITY ⭐⭐⭐)
+### Mitigation A: Single‑architecture build for A100 (Hygiene)
 
-**Rationale:** Multi-arch binaries (`TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0"`) allow Modal's cache to serve H100-compiled kernels to A100 runtime. Force A100-only compilation.
+**Rationale:** Reduce compile‑time variability and ensure only sm80 code objects are embedded. This is not expected to fix a kernel bug but can remove one variable.
 
 **Implementation:**
 ```python
@@ -425,20 +414,12 @@ image = (
 )
 ```
 
-**Why This WILL Work:**
-1. **Single-arch compilation** eliminates multi-GPU kernel confusion
-2. **FORCE_REBUILD env var** invalidates Modal's Docker layer cache
-3. **--force-reinstall** prevents pip from reusing any cached wheels
-4. **A100-specific binary** will ONLY contain compute 8.0 kernels
+**Notes:**
+- Keep `FORCE_REBUILD` to invalidate Modal’s image layer cache.
+- Use `--force-reinstall` for `mamba-ssm` and `causal-conv1d` to ensure a fresh compile.
+- Treat this as a supporting step while we validate AMP/fallback hypotheses.
 
-**Expected Result:**
-- Modal rebuilds entire image (may take 10-15 minutes)
-- Mamba-SSM compiled ONLY for A100
-- First forward pass succeeds because kernel matches hardware
-
-**Risk:** None (just forces clean rebuild)
-
-### Fix 2: Test with CUDA_LAUNCH_BLOCKING for Precise Error Location (DIAGNOSTIC)
+### Mitigation B: Enable CUDA_LAUNCH_BLOCKING (Diagnostic)
 
 **Rationale:** Get exact kernel that fails (not just "somewhere in Mamba").
 
@@ -460,7 +441,7 @@ image = (
 
 **Risk:** None (just diagnostic, doesn't fix issue)
 
-### Fix 3: Reduce Batch Size Temporarily (LOW PRIORITY)
+### Mitigation C: Reduce Batch Size Temporarily (Low priority)
 
 **Rationale:** Rule out memory-related triggers.
 
@@ -477,7 +458,7 @@ training:
 
 **Risk:** Low (just slower training)
 
-### Fix 4: Disable Mixed Precision (LOW PRIORITY)
+### Mitigation D: Disable Mixed Precision (High diagnostic value)
 
 **Rationale:** FP16 tensor cores may trigger different code path in Mamba.
 
@@ -494,7 +475,7 @@ training:
 
 **Risk:** Low (just slower and more VRAM usage)
 
-### Fix 5: Request Different A100 from Modal (LAST RESORT)
+### Mitigation E: Request Different A100 from Modal (Last resort)
 
 **Rationale:** Hardware may be flaky.
 
@@ -608,11 +589,11 @@ modal run --detach deploy/modal/app.py --action train --config configs/modal/tra
 **Current State:** ⏸️ Training paused, investigation in progress
 
 **Next Actions:**
-1. Create branch for Modal fix: `git checkout -b fix/modal-a100-mamba-kernel`
-2. Implement Fix 1 (clean rebuild with CUDA_ARCH=8.0 only)
-3. Cross-review this document with another AI agent
-4. Deploy fix and monitor preflight test
-5. If fails, escalate to Fix 2 (mamba-ssm 2.2.0)
+1. Run a short training with `SEIZURE_MAMBA_FORCE_FALLBACK=1` (confirm isolation to Mamba CUDA path).
+2. If (1) passes, run with `training.mixed_precision: false` to test AMP hypothesis.
+3. Add `CUDA_LAUNCH_BLOCKING=1` to capture a precise synchronous site for the illegal access.
+4. In parallel, rebuild with `TORCH_CUDA_ARCH_LIST="8.0"` and a fresh layer cache as a hygiene step.
+5. If the issue persists with FP32 and fallback disabled, escalate to investigating `mamba-ssm`/`causal-conv1d` versions or reporting upstream with the captured stack.
 
 **Do NOT Fix Reactively:** Wait for cross-review confirmation before deploying fixes.
 
