@@ -77,7 +77,8 @@
       "WebFetch(domain:data.pyg.org)",
       "Bash(xargs:*)",
       "Bash(nvcc:*)",
-      "Bash(uv lock:*)"
+      "Bash(uv lock:*)",
+      "Read(//usr/local/**)"
     ],
     "deny": [],
     "ask": []
