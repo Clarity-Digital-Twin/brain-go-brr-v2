@@ -272,7 +272,7 @@ class TestTrainingExplosions:
             optimizer.zero_grad()
 
             # Mixed precision forward pass
-            with autocast():
+            with autocast(device_type='cuda'):
                 output = small_model(data)
                 loss = criterion(output, labels)
 
