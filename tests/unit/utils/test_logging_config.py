@@ -122,6 +122,10 @@ class TestLoggingConfig:
             # Remove all handlers from the test logger
             test_logger.handlers.clear()
 
+            # Verify no bgb-owned handlers remain on root
+            for h in logging.getLogger().handlers:
+                assert not getattr(h, "_bgb_owned", False)
+
     def test_suppress_noisy_loggers(self):
         """Test suppression of third-party loggers."""
         config = LoggingConfig()

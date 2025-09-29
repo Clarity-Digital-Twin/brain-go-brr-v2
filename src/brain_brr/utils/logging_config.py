@@ -226,6 +226,7 @@ class LoggingConfig:
         )
         handler.setLevel(level)
         handler.setFormatter(logging.Formatter("%(message)s"))
+        handler._bgb_owned = True  # type: ignore[attr-defined]
 
         logger.addHandler(handler)
         self.handlers["console"] = handler
@@ -241,6 +242,7 @@ class LoggingConfig:
             datefmt="%Y-%m-%d %H:%M:%S",
         )
         handler.setFormatter(formatter)
+        handler._bgb_owned = True  # type: ignore[attr-defined]
 
         logger.addHandler(handler)
         self.handlers["console"] = handler
@@ -258,6 +260,7 @@ class LoggingConfig:
             '"message":"%(message)s","module":"%(module)s","function":"%(funcName)s"}'
         )
         handler.setFormatter(formatter)
+        handler._bgb_owned = True  # type: ignore[attr-defined]
 
         logger.addHandler(handler)
         self.handlers["console"] = handler
@@ -270,7 +273,8 @@ class LoggingConfig:
         # Use simple FileHandler in tests to avoid xdist worker crashes
         # RotatingFileHandler can cause issues with parallel test execution
         if os.getenv("PYTEST_CURRENT_TEST"):
-            handler = logging.FileHandler(log_path, encoding="utf-8")
+            # xdist/WSL-safe: lazy open, no rotation in tests
+            handler = logging.FileHandler(log_path, encoding="utf-8", delay=True)
         else:
             # Use RotatingFileHandler for production
             from logging.handlers import RotatingFileHandler
@@ -280,6 +284,7 @@ class LoggingConfig:
                 maxBytes=100 * 1024 * 1024,  # 100MB
                 backupCount=5,
                 encoding="utf-8",
+                delay=True,  # Lazy file opening prevents races
             )
 
         # Detailed format for files
@@ -288,6 +293,9 @@ class LoggingConfig:
             "[%(filename)s:%(lineno)d] - %(funcName)s() - %(message)s"
         )
         handler.setFormatter(formatter)
+
+        # Mark as owned by us for cleanup
+        handler._bgb_owned = True  # type: ignore[attr-defined]
 
         logger.addHandler(handler)
         self.handlers["file"] = handler
@@ -375,11 +383,30 @@ class LoggingConfig:
 
     def cleanup(self) -> None:
         """Clean up resources on exit."""
-        for handler in self.handlers.values():
+        root_logger = logging.getLogger()
+
+        # First, remove our handlers from root to prevent emits to closed files
+        for handler in list(root_logger.handlers):
+            if getattr(handler, "_bgb_owned", False):
+                with contextlib.suppress(Exception):
+                    root_logger.removeHandler(handler)
+                with contextlib.suppress(Exception):
+                    handler.flush()
+                    handler.close()
+
+        # Also clean up any handlers we tracked explicitly
+        for handler in list(self.handlers.values()):
+            with contextlib.suppress(Exception):
+                if handler in root_logger.handlers:
+                    root_logger.removeHandler(handler)
             with contextlib.suppress(Exception):
                 handler.flush()
                 handler.close()
 
+        # Clear our handler registry
+        self.handlers.clear()
+
+        # Clean up ring buffer
         if self.ring_buffer:
             with contextlib.suppress(Exception):
                 self.ring_buffer.close()
