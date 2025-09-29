@@ -70,20 +70,25 @@ cache/tusz/
 
 ### Phase 2: Manifest Generation
 
-**CRITICAL**: Manifests enable balanced sampling and prevent zero-seizure batches!
+**CRITICAL**: Train manifest enables balanced sampling and prevents zero-seizure batches!
+
+#### Dataset Strategy (This is CORRECT, not a bug!)
+- **Training**: Uses `BalancedSeizureDataset` with manifest to oversample seizures (learns better)
+- **Validation**: Uses `EEGWindowDataset` with natural 8% seizure distribution (measures real performance)
+- **Why different?**: Standard ML practice - train on balanced data, validate on real distribution
 
 #### Check if manifests exist
 ```bash
-ls -la cache/tusz/train/manifest.json  # Should be ~27MB
-ls -la cache/tusz/dev/manifest.json    # Should be ~13MB
+ls -la cache/tusz/train/manifest.json  # REQUIRED! Should be ~27MB
+ls -la cache/tusz/dev/manifest.json    # Optional (dev uses EEGWindowDataset) ~13MB
 ```
 
 #### Create missing manifests
 ```bash
-# Create train manifest (if missing)
+# Create train manifest (REQUIRED for training!)
 python -m src scan-cache --cache-dir cache/tusz/train
 
-# Create dev manifest (OFTEN MISSING!)
+# Create dev manifest (optional but recommended for future use)
 python -m src scan-cache --cache-dir cache/tusz/dev
 ```
 
@@ -186,8 +191,8 @@ modal run --detach deploy/modal/app.py \
 ### Before S3 Upload
 - [ ] `cache/tusz/train/` has 4667 NPZ files
 - [ ] `cache/tusz/dev/` has 1832 NPZ files
-- [ ] `cache/tusz/train/manifest.json` exists (~27MB)
-- [ ] `cache/tusz/dev/manifest.json` exists (~13MB)
+- [ ] `cache/tusz/train/manifest.json` exists (~27MB) **REQUIRED!**
+- [ ] `cache/tusz/dev/manifest.json` exists (~13MB) *Optional but upload if present*
 - [ ] Both `_dataset_index.json` files exist
 
 ### After S3 Upload

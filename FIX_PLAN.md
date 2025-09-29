@@ -6,6 +6,14 @@
 
 The cache/manifest pipeline works but requires extensive manual coordination and has several breaking points. This plan provides immediate fixes and long-term improvements to make the system production-ready.
 
+## Important: Dataset Strategy Clarification
+
+**This is CORRECT ML practice, not a bug:**
+- **Training**: Uses `BalancedSeizureDataset` (oversamples 8% seizures → ~30% in batches)
+- **Validation**: Uses `EEGWindowDataset` (natural 8% seizure distribution)
+- **Why?**: Train on balanced data to learn patterns, validate on real distribution to measure true performance
+- **Implication**: Only train manifest is REQUIRED. Dev manifest is optional.
+
 ## Critical Issues (Fix Immediately)
 
 ### 1. S3 Upload Script Excludes Manifests
@@ -19,16 +27,16 @@ aws s3 sync cache/tusz/train/ s3://... --exclude "*.json" --exclude "*.log"
 aws s3 sync cache/tusz/train/ s3://... --exclude "*.log" --include "*.json"
 ```
 
-### 2. Dev Manifest Not Auto-Generated
+### 2. Dev Manifest Not Auto-Generated (Low Priority)
 **Problem**: Training only creates train manifest, not dev
-**Impact**: Manual intervention required every time
-**Fix**: Update `src/brain_brr/train/loop.py` to scan both splits:
+**Impact**: Minimal - dev uses EEGWindowDataset which doesn't need manifest
+**Note**: This is CORRECT behavior! Validation should use real distribution, not balanced
+**Optional Fix** (for completeness):
 ```python
 # After cache building completes
-for split in ['train', 'dev']:
-    manifest_path = cache_dir / split / 'manifest.json'
-    if not manifest_path.exists():
-        scan_existing_cache(cache_dir / split)
+# Note: Dev manifest is optional since validation uses EEGWindowDataset
+if not (cache_dir / 'dev' / 'manifest.json').exists():
+    scan_existing_cache(cache_dir / 'dev')  # Optional for future use
 ```
 
 ### 3. Modal Commands Missing --detach
