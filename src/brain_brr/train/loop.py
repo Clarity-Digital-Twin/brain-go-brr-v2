@@ -104,9 +104,8 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
 
     # Skip expensive sampling in smoke test mode
     if env.smoke_test():
-        print(
-            "[SMOKE TEST MODE] Skipping sampler window checking - returning None for uniform sampling",
-            flush=True,
+        logger.info(
+            "[SMOKE TEST MODE] Skipping sampler window checking - returning None for uniform sampling"
         )
         return None
 
@@ -127,16 +126,14 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
 
         # Progress update every 1000 windows
         if (i + 1) % 1000 == 0:
-            print(
-                f"[SAMPLER] Checked {i + 1}/{sample_size} windows, found {sampled_seizure_count} with seizures",
-                flush=True,
+            logger.debug(
+                f"[SAMPLER] Checked {i + 1}/{sample_size} windows, found {sampled_seizure_count} with seizures"
             )
 
     # Estimate seizure ratio
     seizure_ratio = sampled_seizure_count / sample_size
-    print(
-        f"[SAMPLER] Final: {sampled_seizure_count}/{sample_size} windows with seizures ({seizure_ratio:.2%})",
-        flush=True,
+    logger.info(
+        f"[SAMPLER] Final: {sampled_seizure_count}/{sample_size} windows with seizures ({seizure_ratio:.2%})"
     )
 
     if seizure_ratio < 1e-8:
@@ -368,9 +365,9 @@ def train_epoch(
 
     # Calculate class weights from dataset sample (not just first batch!)
     # Sample a significant portion to get accurate statistics
-    print("\n" + "=" * 60, flush=True)
+    logger.info("\n" + "=" * 60)
     logger.info("[INIT] DATASET STATISTICS")
-    print("=" * 60, flush=True)
+    logger.info("=" * 60)
 
     dataset = dataloader.dataset
     dataset_len = len(dataset)  # type: ignore[arg-type]
@@ -378,8 +375,8 @@ def train_epoch(
     # Skip expensive sampling in smoke test mode
     is_smoke_test = env.smoke_test()
     if is_smoke_test:
-        print(
-            "[SMOKE TEST MODE] Skipping dataset sampling - using default pos_weight=1.0", flush=True
+        logger.info(
+            "[SMOKE TEST MODE] Skipping dataset sampling - using default pos_weight=1.0"
         )
         pos_weight_val = 1.0
         pos_ratio = 0.5  # Assume balanced for smoke test
@@ -402,8 +399,8 @@ def train_epoch(
             pos_count = 0
             total_samples = 0
 
-            print(
-                f"[DATASET] Sampling {sample_size} windows to estimate distribution...", flush=True
+            logger.info(
+                f"[DATASET] Sampling {sample_size} windows to estimate distribution..."
             )
             for idx in sample_indices:
                 _, label = dataset[idx.item()]
@@ -413,9 +410,8 @@ def train_epoch(
 
             pos_ratio = pos_count / total_samples if total_samples > 0 else 1e-8
             logger.info(f"[DATASET] Sampled {sample_size} windows")
-            print(
-                f"[DATASET] Windows with seizures: {pos_count}/{sample_size} ({100 * pos_ratio:.2f}%)",
-                flush=True,
+            logger.info(
+                f"[DATASET] Windows with seizures: {pos_count}/{sample_size} ({100 * pos_ratio:.2f}%)"
             )
 
         # Use sqrt scaling for extreme imbalance (prevents explosion)
@@ -429,11 +425,11 @@ def train_epoch(
 
     # Validate dataset has seizures
     if pos_ratio < 0.001:  # Less than 0.1% seizures
-        print("\n" + "!" * 60, flush=True)
-        logger.info(f"[CRITICAL] Dataset has only {100 * pos_ratio:.4f}% seizures!")
-        logger.info("[CRITICAL] Model will likely collapse to all-negative predictions.")
-        logger.info("[CRITICAL] Increase BGB_LIMIT_FILES or use different data split.")
-        print("!" * 60 + "\n", flush=True)
+        logger.critical("\n" + "!" * 60)
+        logger.critical(f"[CRITICAL] Dataset has only {100 * pos_ratio:.4f}% seizures!")
+        logger.critical("[CRITICAL] Model will likely collapse to all-negative predictions.")
+        logger.critical("[CRITICAL] Increase BGB_LIMIT_FILES or use different data split.")
+        logger.critical("!" * 60 + "\n")
 
     # Get first batch for preflight check
     first_batch = next(iter(dataloader))
@@ -745,10 +741,10 @@ def train_epoch(
                 total_loss += loss_val
                 num_batches += 1
             else:
-                print(
-                    f"[WARNING] Non-finite loss detected at batch {batch_idx}, skipping in average",
-                    flush=True,
-                )
+                if batch_idx % LOG_EVERY_N_STEPS == 0:
+                    logger.warning(
+                        f"Non-finite loss detected at batch {batch_idx}, skipping in average"
+                    )
 
             if use_tqdm and hasattr(progress, "set_postfix"):
                 if not torch.isfinite(torch.tensor(loss_val)):
@@ -1483,8 +1479,8 @@ def main() -> None:
             val_limit = max(1, min(len(val_files), max(1, limit // 5)))
             val_files = val_files[:val_limit]
             val_label_files = val_label_files[:val_limit]
-            print(
-                f"[DEBUG] BGB_LIMIT_FILES={limit}: using {len(train_files)} train, {len(val_files)} val files"
+            logger.debug(
+                f"BGB_LIMIT_FILES={limit}: using {len(train_files)} train, {len(val_files)} val files"
             )
         except Exception:
             pass
@@ -1493,9 +1489,8 @@ def main() -> None:
     data_cache_root = Path(config.data.cache_dir)
     exp_cache_root = Path(config.experiment.cache_dir)
     if data_cache_root.resolve() != exp_cache_root.resolve():
-        print(
-            f"[WARNING] config.data.cache_dir ({data_cache_root}) != config.experiment.cache_dir ({exp_cache_root})",
-            flush=True,
+        logger.warning(
+            f"config.data.cache_dir ({data_cache_root}) != config.experiment.cache_dir ({exp_cache_root})"
         )
 
     try:
@@ -1506,17 +1501,15 @@ def main() -> None:
         st_train = check_cache_completeness(train_files, train_cache)
         st_val = check_cache_completeness(val_files, val_cache)
         if st_train.missing_files > 0 or st_val.missing_files > 0:
-            print(
+            logger.info(
                 "[DATA] Cache incomplete: "
                 f"train {st_train.cached_files}/{st_train.total_files}, "
-                f"val {st_val.cached_files}/{st_val.total_files}",
-                flush=True,
+                f"val {st_val.cached_files}/{st_val.total_files}"
             )
-            print(
+            logger.info(
                 "[HINT] Pre-build cache to avoid slow training:\n"
                 f"  python -m src build-cache --data-dir {config.data.data_dir} --cache-dir {data_cache_root / 'train'}\n"
-                f"  python -m src build-cache --data-dir {config.data.data_dir} --cache-dir {data_cache_root / 'dev'}",
-                flush=True,
+                f"  python -m src build-cache --data-dir {config.data.data_dir} --cache-dir {data_cache_root / 'dev'}"
             )
     except Exception:
         pass
