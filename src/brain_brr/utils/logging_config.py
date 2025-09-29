@@ -1,16 +1,4 @@
-"""Elite logging configuration for Brain-Go-Brr V3.
-
-Production-grade logging infrastructure with:
-- Thread-safe singleton pattern
-- Zero-overhead when disabled
-- Structured logging support
-- Performance-conscious design
-- Context managers for temporary config
-- Ring buffer for high-frequency logs
-
-Author: Elite Engineering Team
-Standards: Google DeepMind + Clean Code principles
-"""
+"""Central logging configuration for Brain-Go-Brr V3."""
 
 import atexit
 import logging
@@ -22,17 +10,22 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
-# DISABLE RICH FOR NOW - it's hanging on import
-# TODO: Re-enable when we figure out the hanging issue
-RICH_AVAILABLE = False
-Console = None
-RichHandler = None
+# Optional Rich support (fallback to simple when unavailable or non-TTY)
+try:
+    from rich.console import Console
+    from rich.logging import RichHandler
+    RICH_AVAILABLE = True
+except Exception:  # pragma: no cover
+    RICH_AVAILABLE = False
+    Console = None  # type: ignore[assignment]
+    RichHandler = None  # type: ignore[assignment]
 
 # Constants from environment with sensible defaults
 LOG_LEVEL = os.getenv("BGB_LOG_LEVEL", "INFO")
 LOG_FILE = os.getenv("BGB_LOG_FILE", None)
-# Default to simple format if not in a TTY or Rich unavailable
-LOG_FORMAT = os.getenv("BGB_LOG_FORMAT", "simple")  # FORCE SIMPLE FOR NOW
+# Default: rich only when stderr is a TTY and Rich is available
+_default_format = "rich" if (sys.stderr.isatty() and RICH_AVAILABLE) else "simple"
+LOG_FORMAT = os.getenv("BGB_LOG_FORMAT", _default_format)
 LOG_EVERY_N_STEPS = int(os.getenv("BGB_LOG_EVERY_N_STEPS", "50"))
 LOG_RING_BUFFER_SIZE = int(os.getenv("BGB_LOG_RING_BUFFER_SIZE", "1000"))
 
@@ -135,18 +128,7 @@ class LoggingConfig:
         enable_ring_buffer: bool = True,
         enable_performance_filter: bool = True,
     ) -> None:
-        """Configure logging with production-grade settings.
-
-        Args:
-            level: Logging level (string or int)
-            log_file: Optional log file path
-            format_style: Output format ("rich", "simple", "json")
-            force: Force reconfiguration even if already configured
-            enable_ring_buffer: Enable in-memory ring buffer for debugging
-            enable_performance_filter: Enable step-based gating
-
-        Thread-safe configuration with idempotency guarantee.
-        """
+        """Configure logging with production-grade settings."""
         with _lock:
             if self.is_configured and not force:
                 return
@@ -157,7 +139,11 @@ class LoggingConfig:
 
             # Convert string level to int
             if isinstance(level, str):
-                level = getattr(logging, level.upper())
+                level = getattr(logging, level.upper(), logging.INFO)
+
+            # Auto-raise to DEBUG for smoke/NaN debug modes
+            if os.getenv("BGB_SMOKE_TEST", "0") == "1" or os.getenv("BGB_NAN_DEBUG", "0") == "1":
+                level = min(level, logging.DEBUG)
 
             # Configure console handler based on format
             if format_style == "rich":
@@ -198,17 +184,12 @@ class LoggingConfig:
             self.is_configured = True
 
     def _setup_rich_handler(self, logger: logging.Logger, level: int) -> None:
-        """Configure Rich handler for beautiful terminal output."""
-        if not RICH_AVAILABLE:
-            # Fallback to simple if Rich not available
+        """Configure Rich handler (falls back to simple when unavailable)."""
+        if not (RICH_AVAILABLE and sys.stderr.isatty()):
             self._setup_simple_handler(logger, level)
             return
 
-        self.console = Console(
-            stderr=True,
-            force_terminal=False,  # Don't force terminal mode
-            width=None,  # Auto-detect width
-        )
+        self.console = Console(stderr=True)
 
         handler = RichHandler(
             console=self.console,
@@ -219,8 +200,6 @@ class LoggingConfig:
             omit_repeated_times=False,
         )
         handler.setLevel(level)
-
-        # Rich handler doesn't need custom formatter
         handler.setFormatter(logging.Formatter("%(message)s"))
 
         logger.addHandler(handler)
