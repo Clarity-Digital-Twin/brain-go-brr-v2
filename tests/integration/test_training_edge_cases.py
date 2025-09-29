@@ -374,8 +374,8 @@ class TestTrainingExplosions:
         optimizer = torch.optim.Adam(small_model.parameters())
 
         # Normal training step
-        data = torch.randn(4, 19, 15360, device=device)
-        labels = torch.randint(0, 2, (4, 15360), device=device).float()
+        data = torch.randn(2, 19, 15360, device=device)  # Reduced batch to avoid OOM
+        labels = torch.randint(0, 2, (2, 15360), device=device).float()
 
         optimizer.zero_grad()
         output = small_model(data)
