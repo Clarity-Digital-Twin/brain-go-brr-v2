@@ -12,4 +12,6 @@ Planned
 
 - Edge stream refinements and potential further vectorization
 
-Historical documents: see `docs/archive/`.
+Historical notes
+
+- PR planning and implementation summaries: `docs/10-final-refactor/`
