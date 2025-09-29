@@ -4,9 +4,9 @@
 
 The stack uses **TCN + BiMamba + GNN + LPE** for O(N) seizure detection.
 V3 is the only supported architecture; the legacy V2 heuristic graph path has been removed.
-- **PyTorch 2.2.2** with CUDA 12.1 (EXACT version required)
-- **Mamba-SSM 2.2.2** (bidirectional state-space model)
-- **PyTorch Geometric 2.6.1** (graph neural networks with Laplacian PE)
+- **PyTorch 2.5.0** with CUDA 12.4 (EXACT version required)
+- **Mamba-SSM 2.2.5** (bidirectional state-space model, includes A100 int64 fix)
+- **PyTorch Geometric 2.7.0** (graph neural networks with Laplacian PE)
 - **pytorch-tcn 1.2.3** (temporal convolutional networks)
 
 ## Local Installation (WSL2/Linux with GPU)
