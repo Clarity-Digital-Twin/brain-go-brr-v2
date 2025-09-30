@@ -1170,7 +1170,9 @@ def train(
         best_metric = ckpt.get("best_metric", 0.0)
         if best_metric == 0.0 and (checkpoint_dir / "last.pt").exists():
             try:
-                _last = torch.load(checkpoint_dir / "last.pt", map_location="cpu", weights_only=False)
+                _last = torch.load(
+                    checkpoint_dir / "last.pt", map_location="cpu", weights_only=False
+                )
                 best_metric = _last.get("best_metric", 0.0)
             except Exception:
                 pass
