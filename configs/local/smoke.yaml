@@ -1,11 +1,24 @@
 # Smoke Test: TCN + Bi-Mamba + GNN Stack (V3)
 # Quick validation (1 epoch) for pipeline testing on RTX 4090
 #
-# IMPORTANT: Must run with environment variables:
-#   export BGB_LIMIT_FILES=3
-#   export BGB_SMOKE_TEST=1
+# ========================================================================
+# 🚨 CRITICAL: NaN Protection (REQUIRED for PyTorch 2.5.0+)
+# ========================================================================
+# BEFORE running smoke test, set these environment variables:
 #
-# Usage: BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 python -m src train configs/local/smoke.yaml
+#   export BGB_SANITIZE_GRADS=1  # ✅ REQUIRED - prevents gradient explosion
+#   export BGB_NAN_DEBUG=1       # ✅ RECOMMENDED - shows NaN warnings
+#   export BGB_SMOKE_TEST=1      # ✅ Enables smoke test mode (3 files)
+#
+# Usage:
+#   export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 BGB_SMOKE_TEST=1
+#   python -m src train configs/local/smoke.yaml
+#
+# Or use Makefile:
+#   make s  # Automatically sets required flags
+#
+# See: NAN-PROTECTION-REFERENCE.md (root) for complete reference
+# ========================================================================
 #
 
 experiment:

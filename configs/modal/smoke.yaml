@@ -1,8 +1,17 @@
 # Modal A100 Smoke Test: TCN + Bi-Mamba + GNN Stack (V3)
 # Quick validation (1 epoch) on Modal A100-80GB
 #
-# NOTE: app.py automatically sets BGB_LIMIT_FILES=50 for smoke tests
-# This limits to 50 files instead of the full dataset for quick validation
+# ========================================================================
+# 🚨 NaN Protection (Automatically Enabled on Modal)
+# ========================================================================
+# Modal automatically sets NaN protection via deploy/modal/app.py:
+#   BGB_SANITIZE_GRADS=1  # ✅ Prevents gradient explosion
+#   BGB_NAN_DEBUG=1       # ✅ Shows NaN warnings
+#   BGB_LIMIT_FILES=50    # ✅ Limits to 50 files for smoke test
+#
+# No manual environment setup needed for Modal!
+# See: NAN-PROTECTION-REFERENCE.md (root) for complete reference
+# ========================================================================
 #
 # Usage: modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
 data:
