@@ -5,9 +5,7 @@
 import gc
 import multiprocessing
 import os
-import tempfile
 import time
-from collections.abc import Generator
 from contextlib import suppress
 from pathlib import Path
 from unittest.mock import Mock
@@ -105,7 +103,7 @@ def mock_raw_edf(sample_edf_data):
 
 
 @pytest.fixture
-def trained_model(tmp_path):
+def trained_model():
     """Lightweight pre-trained model for testing."""
     from src.brain_brr.config.schemas import MambaConfig, ModelConfig, TCNConfig
     from src.brain_brr.models import SeizureDetector
@@ -379,7 +377,7 @@ def mock_dataloader(sample_windows):
 
 
 @pytest.fixture(autouse=True)
-def setup_test_env(monkeypatch, request):
+def setup_test_env(monkeypatch):
     """Set up test environment variables."""
     # Don't force fallback - let Mamba use optimal path
     # monkeypatch.setenv("SEIZURE_MAMBA_FORCE_FALLBACK", "1")  # Removed - may use more memory
@@ -416,47 +414,6 @@ def benchmark_timer():
 
 
 # Utility functions for tests
-def create_temp_config(**overrides) -> Generator[Path, None, None]:
-    """Create temporary config file with overrides."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-        base_config = {
-            "experiment": {"name": "test", "seed": 42},
-            "data": {"dataset": "tuh_eeg", "data_dir": "tests/fixtures/data"},
-            "model": {
-                "architecture": "v3",
-                "tcn": {
-                    "num_layers": 8,
-                    "kernel_size": 7,
-                    "dropout": 0.15,
-                    "causal": False,
-                    "stride_down": 16,
-                },
-                "mamba": {"n_layers": 6, "d_model": 512, "d_state": 16, "conv_kernel": 4},
-            },
-            "training": {"epochs": 1, "batch_size": 2},
-            "postprocessing": {
-                "hysteresis": {"tau_on": 0.86, "tau_off": 0.78},
-                "morphology": {"opening_kernel": 11, "closing_kernel": 31},
-            },
-        }
-
-        # Deep merge overrides
-        def deep_update(d, u):
-            for k, v in u.items():
-                if isinstance(v, dict):
-                    d[k] = deep_update(d.get(k, {}), v)
-                else:
-                    d[k] = v
-            return d
-
-        config = deep_update(base_config, overrides)
-        yaml.dump(config, f)
-        path = Path(f.name)
-
-    yield path
-    path.unlink()
-
-
 def assert_tensor_close(a: torch.Tensor, b: torch.Tensor, rtol: float = 1e-5, atol: float = 1e-8):
     """Helper for comparing tensors with tolerance."""
     assert a.shape == b.shape, f"Shape mismatch: {a.shape} vs {b.shape}"
