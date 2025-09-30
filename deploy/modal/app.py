@@ -271,6 +271,94 @@ def populate_cache():
     return train_count, dev_count
 
 
+@app.function(
+    timeout=300,
+    cpu=2,
+    memory=2048,
+    volumes={"/results": results_volume},
+)
+def check_cache():
+    """Verify Modal SSD cache completeness."""
+    from pathlib import Path
+    import json
+
+    cache = Path("/results/cache/tusz")
+
+    print("\n" + "=" * 70)
+    print(" " * 20 + "MODAL SSD CACHE VERIFICATION")
+    print("=" * 70 + "\n")
+
+    # Check root metadata
+    metadata_file = cache / ".cache_metadata.json"
+    print(f"[ROOT] .cache_metadata.json: ", end="")
+    if metadata_file.exists():
+        print(f"✅ EXISTS ({metadata_file.stat().st_size} bytes)")
+        with open(metadata_file) as f:
+            meta = json.load(f)
+        print(f"       Policy: {meta.get('split_policy')}")
+        print(f"       Created: {meta.get('created')}")
+        print(f"       Expected: {meta.get('train_files')} train + {meta.get('dev_files')} dev files")
+    else:
+        print("❌ MISSING")
+
+    # Check train split
+    print(f"\n[TRAIN SPLIT]")
+    train_manifest = cache / "train" / "manifest.json"
+    train_index = cache / "train" / "_dataset_index.json"
+    train_dir = cache / "train"
+
+    if train_dir.exists():
+        train_npz = list(train_dir.glob("*.npz"))
+        print(f"  manifest.json:         {'✅' if train_manifest.exists() else '❌'} ({train_manifest.stat().st_size if train_manifest.exists() else 0:,} bytes)")
+        print(f"  _dataset_index.json:   {'✅' if train_index.exists() else '❌'} ({train_index.stat().st_size if train_index.exists() else 0:,} bytes)")
+        print(f"  *.npz files:           {'✅' if len(train_npz) == 4667 else '⚠️ '} {len(train_npz):,} (expected 4667)")
+    else:
+        print(f"  ❌ train/ directory missing!")
+        train_npz = []
+
+    # Check dev split
+    print(f"\n[DEV SPLIT]")
+    dev_manifest = cache / "dev" / "manifest.json"
+    dev_index = cache / "dev" / "_dataset_index.json"
+    dev_dir = cache / "dev"
+
+    if dev_dir.exists():
+        dev_npz = list(dev_dir.glob("*.npz"))
+        print(f"  manifest.json:         {'⚠️ ' if dev_manifest.exists() else '  '} ({dev_manifest.stat().st_size if dev_manifest.exists() else 0:,} bytes) [OPTIONAL - not used]")
+        print(f"  _dataset_index.json:   {'✅' if dev_index.exists() else '❌'} ({dev_index.stat().st_size if dev_index.exists() else 0:,} bytes)")
+        print(f"  *.npz files:           {'✅' if len(dev_npz) == 1832 else '⚠️ '} {len(dev_npz):,} (expected 1832)")
+    else:
+        print(f"  ❌ dev/ directory missing!")
+        dev_npz = []
+
+    # Summary
+    print("\n" + "=" * 70)
+    print(" " * 30 + "SUMMARY")
+    print("=" * 70)
+
+    missing = []
+    if not metadata_file.exists(): missing.append(".cache_metadata.json")
+    if not train_manifest.exists(): missing.append("train/manifest.json [CRITICAL]")
+    if not train_index.exists(): missing.append("train/_dataset_index.json [OPTIONAL]")
+    if not dev_index.exists(): missing.append("dev/_dataset_index.json [CRITICAL]")
+    if len(train_npz) != 4667: missing.append(f"train/*.npz ({len(train_npz)}/4667)")
+    if len(dev_npz) != 1832: missing.append(f"dev/*.npz ({len(dev_npz)}/1832)")
+
+    if missing:
+        print("\n❌ MISSING FILES:")
+        for m in missing:
+            print(f"   - {m}")
+        print("\n💡 FIX:")
+        print("   1. Update populate_cache() to copy manifests/indexes")
+        print("   2. Run: modal run deploy/modal/app.py::populate_cache")
+        print("   OR")
+        print("   3. First training run will regenerate (~45-50 min delay)\n")
+    else:
+        print("\n✅ ALL REQUIRED FILES PRESENT - Cache is complete!\n")
+
+    print("=" * 70 + "\n")
+
+
 # CPU-only: cache cleanup should not consume a GPU
 @app.function(
     timeout=600,  # 10 min to include cache clean
