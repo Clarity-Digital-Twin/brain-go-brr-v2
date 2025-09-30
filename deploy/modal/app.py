@@ -74,10 +74,11 @@ image = (
     .run_commands(
         "python /tmp/patch_source_pr708.py --source /tmp/mamba_src/mamba_ssm-2.2.5"
     )
+    # Build and install from patched source (no wheel caching, no binaries)
     .run_commands(
-        "cd /tmp/mamba_src/mamba_ssm-2.2.5 && "
-        "python setup.py build_ext --inplace && "
-        "pip install --no-build-isolation --no-cache-dir --force-reinstall --no-deps ."
+        "pip install --no-build-isolation --no-cache-dir "
+        "--force-reinstall --no-deps --no-binary :all: "
+        "/tmp/mamba_src/mamba_ssm-2.2.5"
     )
     # Verify patch landed in installed files
     .run_commands(
