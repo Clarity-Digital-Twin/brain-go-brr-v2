@@ -1,34 +1,62 @@
-# Cache & Manifest Architecture - Complete Documentation
+# Cache & Manifest Architecture - SSOT
 
-**Status**: 2025-09-30 - Documenting current state before fixes
-**Author**: Investigation after discovering local/Modal divergence
-**Purpose**: Understand WTF is happening with manifests, indexes, and caches
+**Status**: 2025-09-30 - FINAL VERIFIED STATE
+**Author**: Systematic investigation with AWS CLI + Modal CLI
+**Purpose**: Single Source of Truth for cache/manifest/index behavior
 
 ---
 
-## 🚨 CRITICAL FINDINGS - Current State
+## ✅ VERIFIED STATE - All Systems
 
-### Local Cache State (cache/tusz/)
+### Local Cache (cache/tusz/) - VERIFIED ✅
 
-```
+```bash
+# Verified: ls, cat, wc
 cache/tusz/
-├── .cache_metadata.json          (282 bytes, Sep 26)
+├── .cache_metadata.json          (282 bytes, Sep 26) ✅
 ├── train/
-│   ├── manifest.json              (27 MB, Sep 27) ✅ EXISTS
-│   ├── _dataset_index.json        (282 bytes, Sep 28) ⚠️ STALE (3 files from smoke test)
-│   └── *.npz                      (4667 files, 306 GB)
+│   ├── manifest.json              (27 MB, Sep 27) ✅ CORRECT
+│   ├── _dataset_index.json        (282 bytes, Sep 28) ⚠️ STALE (3 files from BGB_SMOKE_TEST=1)
+│   └── *.npz                      (4667 files, 306 GB) ✅
 └── dev/
-    ├── manifest.json              (13 MB, Sep 29) ✅ EXISTS
+    ├── manifest.json              (13 MB, Sep 29) ✅ EXISTS (NOT USED by validation)
     ├── _dataset_index.json        (148 KB, Sep 30) ✅ COMPLETE (1832 files)
-    └── *.npz                      (1832 files, 143 GB)
+    └── *.npz                      (1832 files, 143 GB) ✅
 ```
 
-### Modal Cache State (/results/cache/tusz/)
+### S3 Bucket (s3://brain-go-brr-eeg-data-20250919/cache/tusz/) - VERIFIED ✅
 
-**Unknown** - Need to verify what's actually on Modal SSD volume:
-- Are manifests there?
-- Are indexes there?
-- When were they last updated?
+```bash
+# Verified: aws s3 ls --recursive
+cache/tusz/
+├── .cache_metadata.json          (294 bytes, Sep 28) ✅
+├── train/
+│   ├── manifest.json              (26.1 MB, Sep 29) ✅
+│   ├── _dataset_index.json        (282 bytes, Sep 29) ⚠️ STALE (3 files)
+│   └── *.npz                      (4667 files) ✅
+└── dev/
+    ├── manifest.json              (12.8 MB, Sep 29) ✅
+    ├── _dataset_index.json        (113 bytes, Sep 29) ⚠️ STALE (different structure)
+    └── *.npz                      (1832 files) ✅
+```
+
+### Modal SSD (/results/cache/tusz/) - VERIFIED ✅
+
+```bash
+# Verified: modal volume ls brain-go-brr-results cache/tusz/
+cache/tusz/
+├── .cache_metadata.json          ✅ EXISTS
+├── train/
+│   ├── manifest.json              ✅ EXISTS
+│   ├── _dataset_index.json        ✅ EXISTS (but stale)
+│   └── *.npz                      (4669 files total including JSONs) ✅
+└── dev/
+    ├── manifest.json              ✅ EXISTS
+    ├── _dataset_index.json        ✅ EXISTS (but stale)
+    └── *.npz                      (1834 files total including JSONs) ✅
+```
+
+**CRITICAL**: All files exist on Modal SSD, but indexes are STALE
 
 ---
 
@@ -181,17 +209,31 @@ class EEGWindowDataset:
 
 ---
 
-## 🐛 Current Bugs & Inconsistencies
+## 🐛 ACTUAL PROBLEM (Verified from Modal logs)
 
-### Bug #1: Stale `train/_dataset_index.json`
+### Problem: Modal Training Rebuilt Dev Index (40 min delay)
 
-**Problem**:
-- File created Sep 28 during smoke test (3 files)
-- Current training needs 4667 files
-- Dataset code correctly detects mismatch and rebuilds
-- **Result**: Training processes 4667 files to rebuild index ✅ CORRECT BEHAVIOR
+**Evidence from Modal logs (Sep 30, 13:21 UTC)**:
+```
+[17:21:25.255] [BalancedSeizureDataset] Created with 61616 windows  ← TRAIN: Used manifest ✅
+[17:21:25.475] [DATA] Building dataset index for 1832 files...      ← DEV: Rebuilt index ❌
+[17:21:25.476] [DATA] Processing file 1/1832: aaaaaajy_s001_t000.edf
+... (40 minutes of processing)
+[18:03:01.725] [DATA] Saved index cache to /results/cache/tusz/dev/_dataset_index.json
+```
 
-**Fix Needed**: None - working as designed
+**Why did this happen?**
+- `dev/_dataset_index.json` EXISTS on Modal SSD ✅
+- But `EEGWindowDataset.__init__()` validates index against file list
+- If mismatch detected → rebuild index
+- Possible causes:
+  1. Stale index from different file order
+  2. Stale index from different file list (smoke test vs full)
+  3. Index corruption
+
+**Cost**: 40 minutes wasted building dev index every training run
+
+**Fix Needed**: Ensure dev index on Modal SSD is valid for current file list
 
 ---
 
@@ -273,7 +315,44 @@ def populate_cache():
 
 ---
 
-## 🎯 Recommended Actions (NOT IMPLEMENTED YET)
+## 🎯 REQUIRED FIXES
+
+### Fix #1: Deploy Configs with PR1+2+3 (CRITICAL)
+
+**Problem**: Modal crashed with XID 31 despite PR #708 patch
+**Root Cause**: Configs don't have PR1+2+3 architectural fixes
+**Evidence**: Model parameters: 31,473,802 (should be 31,475,722 with PR-1)
+
+**Files to deploy**:
+- `configs/local/train.yaml` - ✅ Already has PR1+2+3 (Sep 30)
+- `configs/modal/train.yaml` - ✅ Already has PR1+2+3 (Sep 30)
+- `deploy/modal/app.py` - ✅ Already has `force_build=True` for PR #708
+
+**Action**: Redeploy Modal with updated configs
+
+---
+
+### Fix #2: Refresh Dev Index on Modal SSD (Eliminates 40 min delay)
+
+**Problem**: Dev index is stale, causes 40 min rebuild on every training run
+**Solution**: Copy fresh dev index from local to S3 to Modal
+
+```bash
+# 1. Verify local dev index is current
+wc -l cache/tusz/dev/_dataset_index.json  # Should show ~1832 entries
+
+# 2. Upload to S3
+aws s3 cp cache/tusz/dev/_dataset_index.json \
+  s3://brain-go-brr-eeg-data-20250919/cache/tusz/dev/
+
+# 3. Update Modal SSD (via populate_cache or manual copy)
+# Option A: Add to populate_cache() function
+# Option B: Run one-time sync
+```
+
+---
+
+### Fix #3: Update populate_cache() to Copy Indexes (Optional - For Next Cache Rebuild)
 
 ### Option A: Copy Manifests from Local → S3 → Modal (Fastest)
 
@@ -482,4 +561,59 @@ Usage: `modal run deploy/modal/app.py::check_cache`
 
 ---
 
-**End of Documentation - Ready for Review**
+---
+
+## 🚀 EXECUTION PLAN
+
+### Phase 1: Fix Modal Dev Index (5 minutes)
+
+```bash
+# Upload fresh dev index to S3
+aws s3 cp cache/tusz/dev/_dataset_index.json \
+  s3://brain-go-brr-eeg-data-20250919/cache/tusz/dev/_dataset_index.json
+
+# Verify upload
+aws s3 ls s3://brain-go-brr-eeg-data-20250919/cache/tusz/dev/_dataset_index.json
+```
+
+Then update Modal SSD manually or via `populate_cache()`.
+
+---
+
+### Phase 2: Deploy Training (LOCAL + MODAL)
+
+**Local**:
+```bash
+# Kill stale smoke test
+tmux kill-session -t pr1-smoke
+
+# Start full training with PR1+2+3
+tmux new -s full-train
+export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1
+.venv/bin/python -m src train configs/local/train.yaml
+# Detach: Ctrl+B then D
+```
+
+**Modal**:
+```bash
+# Deploy with PR1+2+3 + force_build PR #708
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+
+# Monitor
+modal app list
+modal app logs <app-id>
+```
+
+---
+
+### Phase 3: Monitor First 100 Batches
+
+**Success Criteria**:
+- ✅ No XID 31 crashes (PR #708 + PR1+2+3 should fix)
+- ✅ Gradient norms < 1.0 (down from 1.5-3.0)
+- ✅ Model params: 31,475,722 (confirms PR-1 active)
+- ✅ Dev index NOT rebuilt (saves 40 min)
+
+---
+
+**End of Documentation - Ready for Execution**
