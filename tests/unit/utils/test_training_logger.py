@@ -303,11 +303,14 @@ class TestPerformanceOptimizations:
         assert buffer1 is buffer2
 
     @patch("time.time")
-    def test_throughput_calculation(self, mock_time, caplog):
+    def test_throughput_calculation(self, mock_time, caplog, test_batch_size):
         """Test throughput calculation in batch logging."""
         caplog.set_level(logging.INFO)
 
         logger = TrainingLogger(name="throughput", use_rich=False, log_every_n_steps=1)
+
+        # Logger tests don't need large batches
+        batch_size = min(test_batch_size, 32)
 
         # Mock time for consistent throughput
         mock_time.side_effect = [
@@ -318,12 +321,13 @@ class TestPerformanceOptimizations:
         ]  # start, end of batch 1, start batch 2, end batch 2
 
         logger.batch_start_time = 0.0
-        logger.log_batch(0, loss=1.0, batch_size=32)
+        logger.log_batch(0, loss=1.0, batch_size=batch_size)
 
         # Check throughput was calculated
         records = [r for r in caplog.records if "Speed:" in r.message]
         assert len(records) == 1
-        assert "32.0 samples/s" in records[0].message
+        expected_throughput = f"{float(batch_size):.1f} samples/s"
+        assert expected_throughput in records[0].message
 
 
 class TestEdgeCases:
