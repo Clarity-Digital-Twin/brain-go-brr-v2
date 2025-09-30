@@ -14,7 +14,7 @@ data:
   num_workers: 8                        # A100 can handle parallel loading
   pin_memory: true                      # Fast GPU transfer
   persistent_workers: true               # Reuse workers between epochs
-  prefetch_factor: 4                     # Pre-load batches
+  prefetch_factor: 8                     # v3.4.0: Increased from 4 for A100 speed
   # ⚠️ CRITICAL: Without balanced sampling, batches may have ZERO seizures! ⚠️
   use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling
 
@@ -118,7 +118,7 @@ training:
   loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
   focal_alpha: 0.5                     # MUST BE 0.5! (neutral - let pos_weight handle imbalance)
   focal_gamma: 2.0                     # Focusing parameter (higher = more focus on hard examples)
-  learning_rate: 3e-5                  # Conservative for stability with larger batch
+  learning_rate: 8.0e-5                # v3.4.0: Increased from 3e-5 (batch-size scaled)
   weight_decay: 0.05
   optimizer: adamw
   scheduler:

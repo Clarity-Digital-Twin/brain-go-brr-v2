@@ -176,7 +176,9 @@ class SeizureDetector(nn.Module):
                 nn.init.zeros_(self.edge_in_proj.bias)
 
         if self.edge_out_proj is not None:
-            nn.init.xavier_uniform_(self.edge_out_proj.weight, gain=0.5)  # v3.4.0: restored from 0.1
+            nn.init.xavier_uniform_(
+                self.edge_out_proj.weight, gain=0.5
+            )  # v3.4.0: restored from 0.1
             if self.edge_out_proj.bias is not None:
                 nn.init.zeros_(self.edge_out_proj.bias)
 

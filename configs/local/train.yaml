@@ -151,10 +151,10 @@ training:
   focal_alpha: 0.5       # Neutral alpha (let pos_weight handle imbalance)
   focal_gamma: 2.0       # Focus on hard examples
 
-  # Learning rate schedule with shorter warmup
+  # Learning rate schedule with proper warmup
   scheduler:
     type: cosine
-    warmup_ratio: 0.01   # 1% warmup (154 steps) to avoid near-zero LR
+    warmup_ratio: 0.03   # v3.4.0: Increased from 0.01 to match Modal (3% = 462 steps)
 
   # Early stopping
   early_stopping:

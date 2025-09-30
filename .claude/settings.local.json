@@ -10,7 +10,8 @@
       "Bash(python3:*)",
       "Bash(.venv/bin/pytest --collect-only -q)",
       "Bash(xargs:*)",
-      "Bash(.venv/bin/pytest --collect-only tests/)"
+      "Bash(.venv/bin/pytest --collect-only tests/)",
+      "Bash(make:*)"
     ],
     "deny": [],
     "ask": []
