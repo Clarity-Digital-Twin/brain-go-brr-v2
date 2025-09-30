@@ -80,15 +80,39 @@ After upgrading to PyTorch 2.5.0 + mamba-ssm 2.2.5, the V3 dual-stream architect
 2. **Mamba + Normalization**: Shows Mamba benefits from explicit normalization layers
 3. **No mention of gradient explosion**: Properly normalized Mamba is stable
 
-### 0.3 Synthesis: What Literature Tells Us
+### 0.3 Critical Difference: We Use Mamba2, Not Mamba
+
+**⚠️ IMPORTANT**: Our architecture uses **Mamba2** (mamba-ssm 2.2.5), while literature uses **Mamba1**.
+
+**Mamba2 Key Differences** (from mamba-ssm docs):
+1. **SSD (Structured State-Space Duality)**: Mamba2 uses tensor cores → faster but different numerical behavior
+2. **Multi-head architecture**: Mamba2 has explicit heads (like Transformers), Mamba1 doesn't
+3. **Chunk-wise processing**: Mamba2 processes in chunks → different gradient flow patterns
+4. **Hardware-optimized**: Mamba2 CUDA kernels are more aggressive → can expose instabilities
+
+**Does Literature Still Apply?**
+
+✅ **YES - Core principles transfer**:
+1. **Normalization Need**: Mamba2 paper still recommends LayerNorm at boundaries (same as Mamba1)
+2. **Gradient flow**: Multi-head structure in Mamba2 → **even more important** to normalize between components
+3. **Dynamic PE**: Theory is architecture-agnostic (proven in EvoBrain paper Section 3.2)
+4. **Adjacency conditioning**: Applies to learned graphs regardless of temporal backbone
+
+❌ **Different - Numerical stability**:
+1. Mamba2 is **more sensitive** to numerical issues (tensor core operations are aggressive)
+2. Our 0.1 gradient clip might be **appropriate for Mamba2** (Mamba1 uses 1.0, Mamba2 needs tighter control)
+3. **BUT**: This doesn't change the need for PR-1 boundary norms → they should **reduce** the clipping need
+
+### 0.4 Synthesis: What Literature Tells Us
 
 **Our V3 Architecture**:
 - ✅ Correct design: time-then-graph with dynamic PE (EvoBrain validates)
+- ✅ Mamba2 backbone: More powerful than Mamba1 (tensor cores, multi-head)
 - ❌ **Missing normalization**: No boundary norms (PR-1), unlike all baselines
-- ❌ **10-50x more aggressive clipping**: 0.1 vs EvoBrain 5.0, TCN doesn't need any
+- ❌ **Aggressive clipping**: 0.1 is tighter than literature, likely because Mamba2 + no norms
 - ✅ Adjacency conditioning planned: PR-3 matches EvoBrain's softmax approach
 
-**Bottom Line**: We implemented the **right architecture** but **forgot the normalization layers** that make it stable. Literature confirms PR1-3 are not optional - they're standard practice.
+**Bottom Line**: We implemented the **right architecture** with an **upgraded backbone (Mamba2)** but **forgot the normalization layers** that make it stable. Mamba2's aggressive optimizations make normalization **even more critical** than for Mamba1. Literature confirms PR1-3 are not optional - they're **required for Mamba2 stability**.
 
 ---
 
