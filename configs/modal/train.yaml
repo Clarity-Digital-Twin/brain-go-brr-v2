@@ -29,6 +29,18 @@ model:
   # Architecture: "v3" (dual-stream with edge Mamba)
   architecture: v3  # V3 dual-stream with learned adjacency
 
+  # PR-1: Boundary Normalization (ENABLED)
+  # Prevents unbounded information flows between components
+  norms:
+    boundary_norm: layernorm     # LayerNorm at component boundaries
+    boundary_eps: 1.0e-5          # Epsilon for numerical stability
+    layerscale_alpha: 0.1         # Initial LayerScale value
+    after_tcn_proj: true          # Normalize after TCN projection
+    after_node_mamba: true        # Normalize after node Mamba
+    after_edge_mamba: true        # Normalize after edge Mamba
+    after_gnn: true               # Normalize after GNN
+    before_decoder: true          # Normalize before decoder
+
   tcn:
     num_layers: 8
     kernel_size: 7

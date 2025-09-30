@@ -115,7 +115,8 @@
       "Bash(.venv/bin/pytest tests/unit/data/test_cache_utils.py -xvs)",
       "Bash(.venv/bin/pytest tests/unit/data/test_cache_utils.py tests/unit/events/test_events.py -x)",
       "Bash(.venv.backup.2.2.2/bin/python -c \"import mamba_ssm; print(f''Backup mamba-ssm: {mamba_ssm.__version__}'')\")",
-      "Bash(tmux send-keys:*)"
+      "Bash(tmux send-keys:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []
