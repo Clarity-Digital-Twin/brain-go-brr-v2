@@ -112,7 +112,7 @@ data:
   use_balanced_sampling: true         # CRITICAL for imbalanced data
   num_workers: 0                      # WSL2 fix: prevents multiprocessing hangs
   pin_memory: true                    # Faster GPU transfer
-  persistent_workers: true            # Reuse workers
+  persistent_workers: false           # Must be false when num_workers=0
   prefetch_factor: 2                  # Pre-load batches
 
 preprocessing:
@@ -135,8 +135,9 @@ training:
   weight_decay: 0.01     # Reduced from 0.05 to prevent weight explosion
   optimizer: adamw
 
-  # Stronger RTX 4090 NaN protections after epoch 25 failure
-  gradient_clip: 0.1      # Much stronger clipping (was 0.5)
+  # Post-v3.3.1: Relaxed after eigendecomposition fix
+  # 0.1 was too tight and blocking learning; 0.5 is standard for transformers
+  gradient_clip: 0.5      # Increased from 0.1 (eigendecomp fix allows this)
 
   # Mixed precision OFF by default for RTX 4090 stability
   # Only enable after confirming no NaNs with a smoke test

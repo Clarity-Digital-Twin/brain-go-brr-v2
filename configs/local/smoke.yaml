@@ -31,6 +31,18 @@ experiment:
 model:
   architecture: v3  # V3 dual-stream with learned adjacency
 
+  # PR-1: Boundary Normalization (ENABLED - was missing in smoke tests!)
+  # Prevents unbounded information flows between components
+  norms:
+    boundary_norm: layernorm     # LayerNorm at component boundaries
+    boundary_eps: 1.0e-5          # Epsilon for numerical stability
+    layerscale_alpha: 0.1         # Initial LayerScale value
+    after_tcn_proj: true          # Normalize after TCN projection
+    after_node_mamba: true        # Normalize after node Mamba
+    after_edge_mamba: true        # Normalize after edge Mamba
+    after_gnn: true               # Normalize after GNN
+    before_decoder: true          # Normalize before decoder
+
   tcn:
     num_layers: 8
     kernel_size: 7
@@ -48,6 +60,13 @@ model:
 
   graph:
     enabled: true
+
+    # PR-2: Bounded Edge Stream (ENABLED - was missing in smoke tests!)
+    edge_lift_activation: tanh       # Bound edge features to [-1, 1]
+    edge_lift_norm: layernorm        # Normalize after edge lift
+    edge_lift_init_gain: 0.1         # Conservative initialization
+
+    # V3: Edge stream config
     edge_features: cosine
     edge_top_k: 3
     edge_threshold: 1.0e-4
@@ -56,14 +75,22 @@ model:
     edge_mamba_d_model: 16
     edge_similarity_margin: 0.01  # PR-5: Safety margin from ±1 boundaries
 
+    # PR-3: Adjacency Conditioning (ENABLED - was missing in smoke tests!)
+    adj_row_softmax: true            # Row-wise softmax normalization
+    adj_softmax_tau: 1.0             # Temperature for softmax
+    adj_ema_beta: 0.95               # EMA smoothing for temporal stability
+    adj_force_symmetric: true        # Force symmetric Laplacian
+    laplacian_eps: 1.0e-3            # Regularization for stable eigendecomp
+    laplacian_normalize: true        # Use normalized Laplacian
 
+    # GNN architecture
     n_layers: 2
     dropout: 0.1
     use_residual: true
     alpha: 0.05
     k_eigenvectors: 16
     use_dynamic_pe: true
-    semi_dynamic_interval: 10
+    semi_dynamic_interval: 5  # FIXED: was 10, now 5 (optimal per CLAUDE.md:97)
     pe_sign_consistency: true
 
 

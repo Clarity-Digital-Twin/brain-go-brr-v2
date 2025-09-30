@@ -175,36 +175,43 @@ class BiMamba2Layer(nn.Module):
 
 ---
 
-### 🔴 CRITICAL ISSUE #3: GNN Double Residual Application
+### 🔴 CRITICAL ISSUE #3: GNN Residual Assumption Mismatch
 
 **Severity**: MEDIUM-HIGH
 **File**: `/home/jj/proj/brain-go-brr-v2/src/brain_brr/models/detector.py:340-346`
 
 **Problem**:
+The detector assumes `gnn_out = node_feats + increment` for LayerScale application, but the GNN's internal residual structure is more complex:
+
 ```python
+# detector.py assumption:
 if self.gnn_layerscale and self.gnn.use_residual:
-    # GNN already adds residual internally, so we scale the increment
-    gnn_increment = gnn_out - node_feats
+    gnn_increment = gnn_out - node_feats  # Assumes simple residual
     elec_enhanced = node_feats + self.gnn_layerscale(gnn_increment)
-else:
-    elec_enhanced = gnn_out
 ```
 
-This assumes `gnn_out = node_feats + gnn_delta`, but the GNN **already** adds residuals internally (gnn_pyg.py:348-349). This creates a **double residual** that amplifies features excessively.
+**Reality** (gnn_pyg.py:340-351):
+- **Layer 0**: NO residual (only PE concatenation via `x_in = x_out`)
+- **Layer 1+**: Residual relative to PREVIOUS layer (`x_gnn = x_gnn + x_batch`), not original input
+
+This means `gnn_out ≠ node_feats + simple_increment`, so `detector.py:344`'s assumption `gnn_increment = gnn_out - node_feats` is mathematically incorrect. The increment extraction doesn't capture the multi-layer residual structure.
+
+**Root Cause**: Mismatch between detector's simple residual assumption and GNN's per-layer residual pattern.
 
 **Recommended Fix**:
 ```python
-# Option 1: Remove external residual since GNN handles it
-if self.gnn:
-    elec_enhanced = self.gnn(node_feats, adj)  # GNN has internal residuals
+# Option 1 (RECOMMENDED): Disable GNN internal residuals, use external LayerScale
+self.gnn = GraphChannelMixerPyG(..., use_residual=False, ...)
+# Then detector's residual+LayerScale logic works correctly
 
-# Option 2: Disable GNN internal residuals if using external LayerScale
-self.gnn = GraphChannelMixerPyG(..., use_residual=False, ...)  # Then external is fine
+# Option 2: Remove external LayerScale, trust GNN internal residuals
+if self.gnn:
+    elec_enhanced = self.gnn(node_feats, adj)  # Clean pass-through
 ```
 
 **Priority**: 🔴 **CRITICAL** - Verify which residual pattern is intended
 
-**Estimated Impact**: Prevents unbounded feature growth over layers
+**Estimated Impact**: Prevents incorrect residual math and potential feature drift over layers
 
 ---
 

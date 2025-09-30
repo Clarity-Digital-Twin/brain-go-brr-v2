@@ -248,8 +248,8 @@ class BiMamba2Layer(nn.Module):
         # Project back to d_model
         x_output = self.output_proj(x_combined)  # (B, L, D)
 
-        # Clamp projection output to prevent explosion
-        x_output = torch.clamp(x_output, min=-5.0, max=5.0)
+        # REMOVED (v3.4.0): Trust LayerNorm instead of intermediate clamp
+        # x_output = torch.clamp(x_output, min=-5.0, max=5.0)
 
         # PR-1: Apply LayerScale if configured
         if self.layerscale:
