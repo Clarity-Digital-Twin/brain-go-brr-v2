@@ -1,8 +1,18 @@
 # PR #708 Manual Application Guide
 
 **Date**: 2025-09-30
-**Status**: 🔧 APPLIED LOCALLY, PENDING MODAL
-**Context**: Modal A100 XID 31 fix - applying unmerged mamba-ssm PR #708
+**Status**: 🧪 **TESTING IN PROGRESS**
+**Context**: Modal A100 XID 31 fix - unmerged mamba-ssm PR #708 applied to local + Modal
+
+---
+
+## Current Testing Status (2025-09-30 12:17 UTC)
+
+| Environment | Status | Progress | ETA |
+|-------------|--------|----------|-----|
+| **Modal Smoke** | 🟡 RUNNING | Batch 50/114 (~44%) | ~30 min |
+| **Local Full Training** | 🟡 STARTING | Building dev index (11/1832) | ~1 hour to first batch |
+| **PR #708 Validation** | ⏳ PENDING | Awaiting smoke completion | TBD |
 
 ---
 

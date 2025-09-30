@@ -1,28 +1,30 @@
 # Mamba-SSM Upgrade Analysis (2.2.2 → 2.2.5)
 
-**Date**: 2025-09-29
-**Context**: Modal A100 XID 31 crash investigation - Mamba CUDA kernel bug confirmed
-**Status**: ✅ **UPGRADE APPROVED** - comprehensive plan ready
+**Date**: 2025-09-29 to 2025-09-30
+**Context**: Modal A100 XID 31 crash investigation - Mamba CUDA kernel bug analysis
+**Status**: ✅ **ARCHIVED** - Upgrade completed (PyTorch 2.2.2 → 2.5.0, mamba-ssm 2.2.2 → 2.2.5)
 
 ---
 
 ## Executive Summary
 
-**Current Status**: Modal A100 crashes with mamba-ssm 2.2.2 (XID 31 MMU Fault)
-**Can We Upgrade?**: ✅ YES - requires full stack upgrade (PyTorch 2.2.2 → 2.5.0)
-**Should We Upgrade?**: ✅ **YES - APPROVED** - Test 1A proved Mamba CUDA is the issue
+**Original Problem**: Modal A100 crashed with mamba-ssm 2.2.2 (XID 31 MMU Fault)
+**Decision (2025-09-29)**: Upgrade to PyTorch 2.5.0 + mamba-ssm 2.2.5
+**Outcome (2025-09-30)**: Stack upgrade completed, but XID 31 **still occurs** on Modal A100 with large batches
 
-**🚨 DECISION (2025-09-29 22:45 UTC)**:
-- Test 1A (AMP OFF) FAILED → Mamba CUDA is the problem, NOT AMP
-- GitHub Issue #387 confirms A100 + d_model=512 known issue
-- GitHub Issue #686 int64 indexing fix likely in 2.2.3+
-- **ACTION**: Proceed with full stack upgrade to v3.3.0
+**Key Findings**:
+- Mamba CUDA kernel has **first-batch initialization bug** not fixed in 2.2.5
+- PR #708 (int64 indexing) targets this bug but **not yet merged**
+- Applied PR #708 manually to local installation
+- **Testing in progress**: Modal smoke test + local full training
 
-## ⚠️ SEE COMPREHENSIVE UPGRADE PLAN
+## ⚠️ SEE CURRENT STATUS
 
-**All upgrade details moved to**: `STACK_UPGRADE_PLAN_V3.md`
+**For latest XID 31 investigation**: `MODAL_XID31_RECURRENCE.md`
+**For PR #708 application**: `PR708_APPLICATION.md`
+**For stack upgrade details**: `docs/archive/STACK_UPGRADE_PLAN_V3.md`
 
-This file now serves as historical context for the decision to upgrade.
+This file is archived as historical context for the upgrade decision.
 
 ---
 

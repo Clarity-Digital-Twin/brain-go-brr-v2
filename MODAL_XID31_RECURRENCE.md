@@ -1,8 +1,8 @@
 # Modal XID 31 Root Cause Investigation
 
-**Date**: 2025-09-30 07:50 UTC
-**Status**: 🔴 P0 BLOCKER - Kernel-level bug in mamba-ssm CUDA implementation
-**Context**: PyTorch 2.5.0 + mamba-ssm 2.2.5 upgrade did NOT fix XID 31 - exposed different manifestation
+**Date**: 2025-09-30 07:50 UTC → 12:17 UTC
+**Status**: 🟡 **TESTING IN PROGRESS** - PR #708 applied, validating fix
+**Context**: PyTorch 2.5.0 + mamba-ssm 2.2.5 upgrade did NOT fix XID 31; applied unmerged PR #708 patch
 
 ---
 
