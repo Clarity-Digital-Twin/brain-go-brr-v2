@@ -68,6 +68,12 @@ def edge_scalar_series(
     # Reorder to (B, T, N, D)
     x = elec.permute(0, 2, 1, 3)
 
+    # CRITICAL: Input sanitization at component boundary (defense-in-depth)
+    # Primary fix is BGB_SANITIZE_GRADS=1 to prevent gradient explosion
+    if torch.isnan(x).any() or torch.isinf(x).any():
+        x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+    x = torch.clamp(x, min=-10.0, max=10.0)
+
     if metric == "cosine":
         # CRITICAL: More robust normalization to prevent NaN
         # Increased epsilon from 1e-8 to 1e-6 for better stability
