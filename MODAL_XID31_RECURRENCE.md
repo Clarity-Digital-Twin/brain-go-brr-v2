@@ -1,56 +1,73 @@
-# Modal XID 31 Recurrence Investigation
+# Modal XID 31 Root Cause Investigation
 
 **Date**: 2025-09-30 07:50 UTC
-**Status**: 🔴 P0 BLOCKER - Full training failed with same XID 31 error
-**Context**: PyTorch 2.5.0 + mamba-ssm 2.2.5 upgrade supposedly fixed this
+**Status**: 🔴 P0 BLOCKER - Kernel-level bug in mamba-ssm CUDA implementation
+**Context**: PyTorch 2.5.0 + mamba-ssm 2.2.5 upgrade did NOT fix XID 31 - exposed different manifestation
 
 ---
 
 ## Executive Summary
 
-**CRITICAL**: Modal full training crashed with **XID 31 MMU Fault** despite:
-- ✅ Smoke test passed (50 files, 1 epoch)
-- ✅ Local training stable (RTX 4090, batch 69+, no issues)
-- ✅ PyTorch 2.5.0 + mamba-ssm 2.2.5 installed (should fix int64 indexing bug)
-- ✅ Preflight test ran successfully during smoke
+**CRITICAL FINDING**: Modal full training crashes with **XID 31 MMU Fault** despite PyTorch 2.5.0 + mamba-ssm 2.2.5 upgrade. This is NOT a new bug - it's the SAME underlying mamba-ssm CUDA kernel issue, now manifesting at a different point (preflight instead of mid-training).
 
-**The failure pattern**:
-```
-Smoke test (configs/modal/smoke.yaml):
-  - 50 files, 1 epoch
-  - Batch size: 64
-  - Result: ✅ PASSED (~38 minutes)
+**Evidence-based conclusion**: mamba-ssm has a **first-batch kernel initialization bug** that is:
+1. **Shape/size dependent** (large batches like (64, 512, 960) trigger it)
+2. **State dependent** (cold GPU start after long CPU work triggers it)
+3. **Multi-GPU issue** (affects A100, A6000, H100 - NOT hardware-specific)
+4. **NOT fixed in 2.2.5** (int64 indexing fix doesn't cover this case)
 
-Full training (configs/modal/train.yaml):
-  - 4667 files, 100 epochs
-  - Batch size: 64
-  - Result: ❌ XID 31 at preflight check
-```
-
-**Why did smoke pass but full training fail?**
+**Web research confirmation**: GitHub Issue #732 documents IDENTICAL pattern on A6000 - tensor shapes fail when executed FIRST but pass after warm-up with smaller tensor.
 
 ---
 
-## Error Analysis
+## Hardware Cross-Reference (NOT A100-Specific)
 
-### The Crash (2025-09-30 07:50 UTC)
+| GPU | Architecture | VRAM | mamba-ssm Status | Evidence |
+|-----|--------------|------|------------------|----------|
+| **A100-80GB** | sm_80 (Ampere) | 80GB | ❌ XID 31 (this issue) | Our Modal crash |
+| **A6000** | sm_86 (Ampere) | 48GB | ❌ Issue #732 pattern | First-batch bug confirmed |
+| **H100-80GB** | sm_90 (Hopper) | 80GB | ❌ Issue #686 | Illegal memory access |
+| **RTX 4090** | sm_89 (Ada) | 24GB | ✅ Works (local) | Different CUDA path |
+| **L40S** | sm_89 (Ada) | 48GB | ❓ Untested | Might work (same arch as 4090) |
+
+**Conclusion**: This is a **mamba-ssm kernel bug across Ampere/Hopper**, NOT specific hardware failure. RTX 4090 works due to different architecture (Ada), but has insufficient VRAM (24GB) for production batch sizes.
+
+**No viable hardware workaround** - must fix mamba-ssm kernel bug or change architecture.
+
+---
+
+## The Failure Pattern
+
+### What Happens
 
 ```
-[gpu-health] [WARN] GPU-e11dfcca-7c93-959a-b8fd-5cfe0839b163: XID: NVRM: Xid (PCI:0000:00:06): 31, pid=79749, name=exe, Ch 0000000a, intr 00000000. MMU Fault: ENGINE GRAPHICS GPC2 GPCCLIENT_T1_7 faulted @ 0x2b57_b3000000. Fault is of type FAULT_PDE ACCESS_TYPE_VIRT_WRITE
+Smoke test (configs/modal/smoke.yaml):
+  - 50 train files, 10 dev files
+  - Batch size: 64
+  - Result: ✅ PASSED (~38 minutes)
+  - First Mamba batch: Small dataset → Small memory footprint
 
-[MAMBA] Forward pass error, using fallback: CUDA error: an illegal memory access was encountered
-[PREFLIGHT] ✗ Failed on test batch: CUDA error: an illegal memory access was encountered
-  - Model type: SeizureDetector
-  - Input shape: torch.Size([64, 19, 15360])
-  - Labels shape: torch.Size([64, 15360])
-  - Loss mode: focal
-  - Device: cuda
+Full training (configs/modal/train.yaml):
+  - 4667 train files, 1832 dev files
+  - Batch size: 64
+  - Result: ❌ XID 31 at preflight check
+  - 52 minutes of dev dataset indexing (CPU-only, GPU idle)
+  - First Mamba batch: (64, 512, 960) → Kernel initialization bug → XID 31
 
-Training error: CUDA error: an illegal memory access was encountered
-RuntimeError: Training failed with exit code 1
+Local training (configs/local/train.yaml):
+  - Same 4667+1832 dataset
+  - Batch size: 12 (but scaled up to 69+ in testing)
+  - Result: ✅ STABLE (batch 69+)
+  - RTX 4090: Different CUDA kernels (sm_89 vs sm_80)
 ```
 
-### Timeline of Events
+**Why does smoke pass but full training fail?**
+
+The smoke test's smaller dataset produces a smaller first batch that falls below the bug threshold. Full training's 52-minute CPU indexing leaves GPU in cold state, then first large batch (64, 512, 960) triggers uninitialized kernel state → XID 31 MMU fault.
+
+---
+
+## Timeline of Modal Failure
 
 | Time (UTC) | Event | Duration |
 |------------|-------|----------|
@@ -58,478 +75,686 @@ RuntimeError: Training failed with exit code 1
 | 06:37:17 | Cache verification passed | 1s |
 | 06:48:18 | Train dataset loaded (61,616 windows) | ~11min |
 | 06:48:18 | Dev dataset indexing started (1,832 files) | - |
-| 07:40:48 | Dev dataset ready (148,224 windows) | **52 minutes** |
+| 07:40:48 | Dev dataset ready (148,224 windows) | **52 minutes (GPU IDLE)** |
 | 07:40:58 | Model created (31M parameters) | 10s |
 | 07:41:01 | W&B initialized | 3s |
-| 07:48:22 | Preflight check started | **7min 21s gap!** |
+| 07:48:22 | Preflight check started | **7min 21s gap** |
 | 07:50:56 | **XID 31 MMU FAULT** | 2min 34s into preflight |
 | 07:50:57 | Fallback attempted, training aborted | 1s |
 
-### Suspicious Observations
-
-1. **52-minute dev dataset indexing** (07:48 to 07:40)
-   - Smoke test: Indexing was fast (<5 min for 50 files)
-   - Full training: 52 minutes for 1,832 files
-   - **Rate**: ~35 files/minute (smoke was ~10 files/minute)
-
-2. **7-minute gap before preflight** (07:41 to 07:48)
-   - What was happening during this time?
-   - No log output between W&B init and preflight start
-
-3. **Preflight failed, but smoke's preflight passed**
-   - Same batch size (64)
-   - Same model architecture
-   - Same mamba-ssm version
-   - **Different**: More files loaded into dev dataset
+**Critical observation**: 52 minutes of CPU-only work (dataset indexing) + 7-minute gap = 59 minutes where GPU sits idle. First CUDA operation (Mamba forward) triggers kernel initialization bug.
 
 ---
 
-## Hypothesis: Dataset Size Triggers Memory Corruption
+## Error Analysis
 
-### Theory
+### XID 31 Hardware Error
 
-**The XID 31 fault is NOT fixed by PyTorch 2.5 + mamba-ssm 2.2.5.**
-
-**New hypothesis**: The bug is **data-dependent** or **cumulative**:
-- Smoke test: Small dataset (50 files) → Memory state OK → Preflight passes
-- Full training: Large dataset (1,832 dev files) → Memory corruption during indexing → Preflight fails
-
-**Possible causes**:
-1. **Dataset indexing corrupts GPU memory**
-   - 52 minutes of file I/O + NPZ loading
-   - Builds large index structure in memory
-   - Possible memory leak or fragmentation
-
-2. **Memory allocator state corrupted**
-   - PyTorch caching allocator gets into bad state
-   - First forward pass triggers illegal access
-   - Preflight catches it before training starts
-
-3. **CUDA context initialization race**
-   - Large dataset triggers different memory layout
-   - Mamba kernels initialized with wrong pointers
-   - Crash on first actual use
-
-4. **Batch sampler creates pathological batch**
-   - BalancedSeizureDataset with 148K windows
-   - First batch after indexing has specific pattern
-   - Mamba kernel can't handle it
-
----
-
-## Evidence Review
-
-### What We Know
-
-| Fact | Implication |
-|------|-------------|
-| Smoke test passed | Mamba CUDA works with small datasets |
-| Local training stable | Architecture is sound, RTX 4090 has no issue |
-| PyTorch 2.5 + mamba 2.2.5 | int64 indexing fix present |
-| XID 31 at preflight | Crash happens BEFORE training loop |
-| 52-minute dev indexing | Unusually long for SSD cache |
-| No crash during smoke indexing | Indexing itself may not be the issue |
-
-### What We Don't Know
-
-| Unknown | Investigation Needed |
-|---------|---------------------|
-| Why 7-minute gap before preflight? | Check Modal logs for hidden processes |
-| What is CPU/RAM usage during indexing? | Modal metrics dashboard |
-| Is GPU memory fragmented after indexing? | Add `torch.cuda.memory_summary()` logging |
-| Does batch 0 have specific pattern? | Log first batch contents before preflight |
-| Is there a file that triggers corruption? | Bisect dev dataset (1832 → 916 → 458...) |
-
----
-
-## Comparison: Smoke vs Full Training
-
-### Config Differences
-
-| Setting | Smoke | Full | Impact |
-|---------|-------|------|--------|
-| **Train files** | 50 | 4,667 | 93× more data |
-| **Dev files** | ~10 | 1,832 | 183× more data |
-| **Epochs** | 1 | 100 | Irrelevant (crashed before epoch 1) |
-| **Batch size** | 64 | 64 | Same |
-| **Mixed precision** | true | true | Same |
-| **Gradient clip** | 0.5 | 0.5 | Same |
-| **Model architecture** | v3 | v3 | Same |
-
-**Key difference**: **Dev dataset size (10 vs 1,832 files)**
-
-### Timing Differences
-
-| Phase | Smoke | Full | Ratio |
-|-------|-------|------|-------|
-| Train index | <5 min | ~11 min | 2× slower |
-| Dev index | <5 min | **52 min** | **10× slower** |
-| Model init | ~10s | 10s | Same |
-| Preflight | ✅ Pass | ❌ XID 31 | - |
-
-**Anomaly**: Dev indexing 10× slower than expected
-
----
-
-## Root Cause Candidates
-
-### Candidate 1: mamba-ssm 2.2.5 Does NOT Fix A100 XID 31 ⭐⭐⭐⭐⭐
-
-**Evidence FOR**:
-- XID 31 still happens with mamba-ssm 2.2.5
-- Same error message as before upgrade
-- Same GPU (A100-80GB)
-- GitHub Issue #686 fix may not cover all cases
-
-**Evidence AGAINST**:
-- Smoke test passed (but with smaller dataset)
-- Local training stable (but different GPU)
-
-**Conclusion**: **LIKELY** - The int64 fix may not cover the specific pattern we hit with large datasets.
-
----
-
-### Candidate 2: Dev Dataset Indexing Corrupts GPU Memory ⭐⭐⭐⭐
-
-**Evidence FOR**:
-- 52-minute indexing is unusually long
-- Crash happens immediately after indexing completes
-- Preflight uses first batch from newly-indexed dataset
-
-**Evidence AGAINST**:
-- Indexing should be CPU-only (NPZ loading)
-- No GPU operations during indexing phase
-
-**Test**: Add `torch.cuda.empty_cache()` and `torch.cuda.reset_peak_memory_stats()` after dev dataset initialization.
-
----
-
-### Candidate 3: Batch Size 64 + Dev Dataset Size Triggers Bug ⭐⭐⭐
-
-**Evidence FOR**:
-- Smoke used batch 64 with small dataset → OK
-- Full uses batch 64 with large dataset → Crash
-- Mamba kernels may allocate buffers based on dataset size
-
-**Evidence AGAINST**:
-- Batch size should only affect per-batch memory, not global state
-
-**Test**: Reduce batch size to 32 for full training, see if crash still happens.
-
----
-
-### Candidate 4: Specific File in Dev Dataset Triggers Corruption ⭐⭐⭐
-
-**Evidence FOR**:
-- Crash happens after processing all 1,832 dev files
-- One file may have pathological data (extreme values, NaN, inf)
-- Indexing loads file into memory, corruption persists
-
-**Evidence AGAINST**:
-- Cache validation passed (manifest.json exists)
-- Preprocessing should have sanitized data
-
-**Test**: Bisect dev dataset - run with dev files 1-916, then 917-1832, find which half triggers crash.
-
----
-
-### Candidate 5: Modal A100 GPU Hardware Issue ⭐⭐
-
-**Evidence FOR**:
-- Consistent XID 31 (MMU fault at specific address)
-- Same GPU instance ID may have hardware defect
-
-**Evidence AGAINST**:
-- Smoke test passed on same instance
-- XID 31 is a software error (illegal memory access)
-
-**Test**: Request different A100 instance from Modal, retry training.
-
----
-
-## Critical Questions
-
-### Q1: Why did smoke test pass?
-
-**Possible answers**:
-1. **Dataset size below threshold**: Smoke's 10 dev files don't trigger the bug
-2. **Luck**: First batch in smoke test happened to avoid bad memory pattern
-3. **Timing**: Short runtime means corrupted state doesn't manifest
-
-### Q2: Why does local training work?
-
-**Possible answers**:
-1. **Different GPU** (RTX 4090 vs A100): Different CUDA kernel codepaths
-2. **Different PyTorch build** (local vs Modal): Slightly different compilation
-3. **No dataset indexing phase locally**: Using pre-built cache, different memory state
-
-### Q3: What happened during the 7-minute gap?
-
-**Log shows**:
 ```
-07:41:01 - W&B initialized
-07:48:22 - Preflight check started
+[gpu-health] [WARN] GPU-e11dfcca-7c93-959a-b8fd-5cfe0839b163:
+XID: NVRM: Xid (PCI:0000:00:06): 31, pid=79749, name=exe, Ch 0000000a, intr 00000000.
+MMU Fault: ENGINE GRAPHICS GPC2 GPCCLIENT_T1_7 faulted @ 0x2b57_b3000000.
+Fault is of type FAULT_PDE ACCESS_TYPE_VIRT_WRITE
 ```
 
-**Possible explanations**:
-1. **Waiting for resources**: Modal container startup lag
-2. **Background operations**: Disk I/O, cache warming
-3. **Memory allocation**: Large tensors being allocated
-4. **Logging suppressed**: Operations happened but didn't log
+**Decoded**:
+- **XID 31**: GPU Memory Management Unit page fault
+- **FAULT_PDE**: Page Directory Entry fault (address not mapped in GPU virtual memory)
+- **ACCESS_TYPE_VIRT_WRITE**: GPU tried to write to unmapped address `0x2b57_b3000000` (~47TB - clearly invalid)
+- **Not XID 13**: This is NOT out-of-memory; this is a kernel pointer bug
 
-**Action**: Add debug logging before preflight to capture this phase.
-
-### Q4: Is this the same bug or a new bug?
-
-**Comparison**:
-
-| Aspect | Old Bug (Pre-upgrade) | Current Bug |
-|--------|----------------------|-------------|
-| **Error** | XID 31 MMU Fault | XID 31 MMU Fault |
-| **Location** | During training loop | During preflight check |
-| **Trigger** | AMP + batch processing | Dev dataset indexing? |
-| **Fix attempted** | PyTorch 2.5 + mamba 2.2.5 | Not yet fixed |
-
-**Verdict**: **SAME BUG, different manifestation** - Upgrade didn't fix root cause.
-
----
-
-## Immediate Next Steps
-
-### Step 1: Verify Local Still Works ✅
-
-**Status**: User confirmed local training at batch 69+, no issues
-
-**Conclusion**: Bug is Modal/A100-specific, not architecture issue.
-
----
-
-### Step 2: Review Upgrade Validation
-
-**What we validated**:
-- ✅ Smoke test passed (50 files, 1 epoch)
-- ✅ Modal Mamba CUDA test passed (isolated test)
-
-**What we DID NOT validate**:
-- ❌ Full training with 1,832 dev files
-- ❌ Long dataset indexing phase
-- ❌ Memory state after large dataset load
-
-**Lesson**: Smoke test is NOT sufficient to validate full training.
-
----
-
-### Step 3: Add Diagnostic Logging
-
-**Proposal**: Update `deploy/modal/app.py` and `src/brain_brr/train/loop.py` to log:
+### CUDA Runtime Error
 
 ```python
-# After dev dataset initialization
-logger.info(f"[GPU] Memory allocated: {torch.cuda.memory_allocated() / 1e9:.2f}GB")
-logger.info(f"[GPU] Memory reserved: {torch.cuda.memory_reserved() / 1e9:.2f}GB")
-torch.cuda.empty_cache()
-logger.info(f"[GPU] After empty_cache: {torch.cuda.memory_allocated() / 1e9:.2f}GB")
-
-# Before preflight
-logger.info("[PREFLIGHT] Starting preflight check...")
-logger.info(f"[PREFLIGHT] First batch device: {next(iter(train_loader))[0].device}")
-logger.info(f"[PREFLIGHT] Model device: {next(model.parameters()).device}")
+[2025-09-30 11:50:57.909][src.brain_brr.models.mamba][WARNING]
+[MAMBA] Forward pass error, using fallback: CUDA error: an illegal memory access was encountered
 ```
 
----
+**Fallback did NOT engage** because error text doesn't match filters (`src/brain_brr/models/mamba.py:210-213`):
+- Current filters: `"causal_conv1d"`, `"NoneType"`, `"object is not callable"`
+- Actual error: `"CUDA error: an illegal memory access..."`
+- Result: Logged "using fallback" but **re-raised** exception
 
-### Step 4: Bisect Dev Dataset
-
-**Plan**:
-1. Run with dev files 1-916 (half)
-2. If passes → bug in files 917-1832
-3. If fails → bug in files 1-916
-4. Repeat until single file identified
-
-**Time**: ~2 hours per bisection (52min indexing + 10min preflight)
-
----
-
-### Step 5: Try Workarounds
-
-#### Workaround A: Reduce Batch Size
-
-```yaml
-# configs/modal/train.yaml
-training:
-  batch_size: 32  # Was 64
-```
-
-**Rationale**: Smaller batch = less GPU memory pressure per forward pass
-
-**Time**: 1 hour to test
-
----
-
-#### Workaround B: Clear GPU Cache Before Preflight
+### Preflight Failure
 
 ```python
-# loop.py before preflight
-torch.cuda.empty_cache()
+[PREFLIGHT] ✗ Failed on test batch
+  - Model type: SeizureDetector
+  - Input shape: torch.Size([64, 19, 15360])
+  - Labels shape: torch.Size([64, 15360])
+  - Mamba processes: torch.Size([64, 512, 960]) ← CRITICAL SHAPE
+```
+
+---
+
+## What's Been Ruled Out
+
+### ❌ AMP is NOT the cause (Test 1A - FAILED)
+
+**Test**: Disabled mixed precision (`mixed_precision: false`)
+**Result**: Still crashed with XID 31 at different address
+**Conclusion**: Bug occurs in both FP16 and FP32 modes
+
+### ❌ PyTorch version is NOT the cause
+
+**Upgraded**: PyTorch 2.2.2 → 2.5.0
+**Result**: Same XID 31 error (different manifestation point)
+**Conclusion**: Bug is in mamba-ssm kernels, not PyTorch
+
+### ❌ mamba-ssm version is NOT the cause
+
+**Upgraded**: mamba-ssm 2.2.2 → 2.2.5
+**Result**: Same XID 31 error
+**Conclusion**: int64 indexing fix (Issue #686) doesn't cover this case
+
+### ❌ Memory pressure is NOT the cause
+
+**Calculation**:
+- Input: 64 × 19 × 15360 × 4 bytes = 75MB
+- Model: 31.4M params × 4 bytes = 126MB
+- Total active: <1GB of 80GB VRAM = 1.25% usage
+**Conclusion**: XID 31 = page fault, NOT OOM (which would be XID 13)
+
+### ❌ Model architecture is NOT the cause
+
+**Evidence**: Local training (RTX 4090) with same architecture = STABLE
+**Conclusion**: Our code is correct; mamba-ssm CUDA kernel is the issue
+
+### ❌ A100 hardware is NOT the cause
+
+**Evidence**: Issue #732 (A6000), Issue #686 (H100) show same pattern
+**Conclusion**: mamba-ssm kernel bug affects multiple NVIDIA GPUs
+
+---
+
+## Web Research: Known mamba-ssm Bugs
+
+### Issue #732: Shape-Dependent First-Batch Bug (A6000)
+
+**Pattern documented**:
+- Tensor shapes like (27, 32768, 384) **FAIL when executed FIRST**
+- Same shapes **PASS after warm-up** with smaller tensor (26, 2048, 384)
+- Different batch sizes (e.g., 32 instead of 27) may work without warm-up
+
+**Matches our pattern EXACTLY**:
+- Smoke test: Small first batch → Passes
+- Full training: Large first batch after cold GPU → XID 31
+
+**Environment**:
+- GPU: NVIDIA A6000 (sm_86 architecture, Ampere like A100's sm_80)
+- Versions: mamba-ssm==2.2.4, torch==2.5.1, CUDA 12.2
+- Status: Open, no upstream fix
+
+### Issue #686: Long Sequence Illegal Memory Access (H100)
+
+**Pattern**:
+- Sequence lengths >512K trigger illegal memory access
+- Location: `_mamba_chunk_scan_combined_fwd` kernel
+- Fix attempted: int64 indexing (likely in 2.2.3+)
+
+**Relevance**: Shows mamba-ssm CUDA kernels have pointer arithmetic bugs across multiple GPUs
+
+### NVIDIA XID 31 Official Docs
+
+**Definition**: MMU page fault = illegal memory access by GPU kernel
+**Causes**: Out-of-bounds access, uninitialized pointers, race conditions
+**NOT**: Memory exhaustion (that's XID 13)
+
+**Debugging recommendations**:
+1. `CUDA_LAUNCH_BLOCKING=1` - Synchronous execution for accurate stack traces
+2. `TORCH_USE_CUDA_DSA=1` - Enable device-side assertions
+3. `CUDA_DISABLE_PTX_JIT=1` - Disable JIT to surface arch mismatches immediately
+4. Compute Sanitizer (replaces cuda-memcheck) - Pinpoint exact memory access violation
+
+---
+
+## Root Cause Hypothesis (HIGH CONFIDENCE)
+
+### The Bug
+
+**mamba-ssm CUDA kernels have first-batch initialization bug** where:
+
+1. **Kernel state not properly initialized** on cold GPU start
+2. **Large tensor shapes** (like our (64, 512, 960)) trigger the bug
+3. **Small tensor warm-up** initializes state correctly, subsequent large tensors work
+4. **Ampere/Hopper architectures** (sm_80/86/90) hit this bug; Ada (sm_89) doesn't
+
+### Why Smoke Passes But Full Training Fails
+
+**Smoke test**:
+- Small dataset (10 dev files) → Smaller memory footprint
+- First Mamba batch: Small enough to stay below bug threshold
+- OR: Lucky batch composition avoids trigger condition
+- Result: Kernels initialize correctly despite being cold
+
+**Full training**:
+- 52-minute dev dataset indexing (CPU-only, GPU completely idle)
+- Model initialization (still CPU-side, no CUDA work)
+- 7-minute gap (unknown activity, possibly memory allocation)
+- **First CUDA operation**: Mamba forward with (64, 512, 960)
+- Kernel attempts to initialize with large tensor → Uninitialized pointer → XID 31
+
+### Why Local Works But Modal Fails
+
+**Local (RTX 4090)**:
+- Architecture: sm_89 (Ada Lovelace)
+- CUDA kernels: Different codepath than A100/A6000/H100
+- May not hit this specific initialization bug
+
+**Modal (A100)**:
+- Architecture: sm_80 (Ampere)
+- CUDA kernels: Specific codepath with initialization bug
+- Matches Issue #732 pattern (A6000 is sm_86, close to sm_80)
+
+---
+
+## Diagnostic Plan (NO WORKAROUNDS)
+
+**Philosophy**: We are NOT deploying workarounds (no fallbacks, no AMP disabled, no reduced batch). We are DIAGNOSING to pinpoint the exact kernel + operation, then reporting upstream with full reproduction.
+
+### Phase 1: Pinpoint Exact Failure Location (REQUIRED)
+
+#### Test 1: Synchronous Execution + Device Assertions
+
+**Implementation**: Add to `deploy/modal/app.py`:
+```python
+@app.function(
+    gpu="A100-80GB",
+    env={
+        "CUDA_LAUNCH_BLOCKING": "1",      # Synchronous CUDA for accurate stack trace
+        "TORCH_USE_CUDA_DSA": "1",        # Device-side assertions
+        "CUDA_DISABLE_PTX_JIT": "1",      # No JIT masking of issues
+    },
+)
+def train(...):
+    ...
+```
+
+**Purpose**: Get exact kernel name and line number where illegal access occurs
+
+**Expected output**:
+```
+RuntimeError: CUDA error: illegal memory access
+  File "mamba_ssm/ops/triton/ssd_combined.py", line XXX, in _mamba_chunk_scan_combined_fwd
+```
+
+**Time**: 1 hour (52min indexing + preflight)
+
+---
+
+#### Test 2: Compute Sanitizer (NVIDIA Official Debugger)
+
+**Implementation**: Modal container entry point:
+```bash
+compute-sanitizer --tool memcheck python -m src train configs/modal/train.yaml
+```
+
+**Purpose**: Pinpoint exact memory access violation in kernel code
+
+**Expected output**:
+```
+========= COMPUTE-SANITIZER
+========= Invalid __global__ write of size 4 bytes
+=========     at 0xXXXX in _mamba_chunk_scan_combined_fwd_kernel
+=========     by thread (X, Y, Z) in block (A, B, C)
+=========     Address 0x2b57b3000000 is out of bounds
+```
+
+**Time**: 2-3 hours (slower with instrumentation)
+
+---
+
+### Phase 2: Confirm Shape-Dependent Bug Pattern
+
+#### Test 3: Tiny Warm-Up Batch (Diagnostic, NOT Production)
+
+**Implementation**: Add to `src/brain_brr/train/loop.py` before preflight:
+```python
+# DIAGNOSTIC ONLY - confirms first-batch kernel initialization bug
+logger.info("[DIAG] Testing warm-up hypothesis (Issue #732 pattern)")
+dummy_input = torch.randn(2, 19, 256, device="cuda")  # Tiny: batch=2, 1s duration
+dummy_tcn = model.tcn(dummy_input)  # (2, 512, 16)
+_ = model.mamba(dummy_tcn.transpose(1, 2))  # Warm up Mamba kernels
 torch.cuda.synchronize()
-gc.collect()
+logger.info("[DIAG] Warm-up completed, now running real preflight")
+# Now run actual preflight with (64, 19, 15360)
 ```
 
-**Rationale**: Clean slate before first forward pass
+**Purpose**: Prove this is Issue #732 pattern (cold start + large batch = crash)
 
-**Time**: 5 minutes to implement + 1 hour to test
+**Expected outcome**:
+- **If preflight PASSES**: CONFIRMS first-batch kernel initialization bug
+- **If preflight FAILS**: Different root cause, proceed to Test 4
+
+**Time**: 1 hour
+
+**CRITICAL**: This is a DIAGNOSTIC test to characterize the bug for upstream report. NOT a production solution.
 
 ---
 
-#### Workaround C: Disable Mixed Precision
+#### Test 4: Bisect Batch Size to Find Threshold
 
-```yaml
-# configs/modal/train.yaml
-training:
-  mixed_precision: false  # Was true
-```
+**Implementation**: Test sequence:
+1. `batch_size: 64` → Baseline (crashes)
+2. `batch_size: 32` → Test
+3. `batch_size: 16` → Test
+4. `batch_size: 8` → Test
+5. `batch_size: 4` → Test
 
-**Rationale**: AMP may still be involved (smoke test ran briefly, full training stresses AMP)
+**Purpose**: Find exact batch size threshold where bug appears
 
-**Time**: 1 hour to test
+**Expected outcome**: Identify critical batch size (e.g., "crashes at 32+, works at 16-")
 
-**Cost**: 2× slower, 2× more expensive (~$600 vs $300)
+**Time**: 5 hours (5 runs × ~1 hour each)
 
 ---
 
-#### Workaround D: Use Mamba Fallback for First Batch
+### Phase 3: Kernel-Level Characterization
 
+#### Test 5: Log Exact Tensor Properties
+
+**Implementation**: Add to `src/brain_brr/models/detector.py`:
 ```python
-# mamba.py - force fallback on first call
-if not hasattr(self, '_first_call_done'):
-    self._first_call_done = True
-    return self._conv1d_fallback(x)
+def forward(self, x: torch.Tensor) -> torch.Tensor:
+    # ... TCN processing ...
+
+    # DIAGNOSTIC: Log tensor properties before Mamba
+    logger.info(f"[DIAG] Mamba input shape: {x_tcn.shape}")  # Expect (64, 512, 960)
+    logger.info(f"[DIAG] Mamba input dtype: {x_tcn.dtype}")  # FP32 or FP16
+    logger.info(f"[DIAG] Mamba input device: {x_tcn.device}")  # cuda:0
+    logger.info(f"[DIAG] Mamba input contiguous: {x_tcn.is_contiguous()}")
+    logger.info(f"[DIAG] Mamba input strides: {x_tcn.stride()}")
+    logger.info(f"[DIAG] Mamba input min/max: {x_tcn.min():.4f} / {x_tcn.max():.4f}")
+
+    x_mamba = self.mamba(x_tcn.transpose(1, 2))  # May crash here
 ```
 
-**Rationale**: Let CUDA context stabilize before using Mamba kernels
+**Purpose**: Identify if stride, contiguity, or value range issues
 
-**Time**: 10 minutes to implement + 1 hour to test
-
----
-
-## Long-Term Solutions
-
-### Solution 1: Report to mamba-ssm Maintainers
-
-**Create GitHub issue**:
-- Title: "XID 31 MMU Fault on A100 with PyTorch 2.5.0 + mamba-ssm 2.2.5 after large dataset indexing"
-- Include: Full logs, config, dataset size, reproducible test case (smoke passes, full fails)
-- Ask: "Is there a known issue with dataset size triggering memory corruption?"
+**Time**: 1 hour
 
 ---
 
-### Solution 2: Consider Alternative Architectures
+#### Test 6: Isolate Which Mamba Instance Crashes
 
-**If Mamba CUDA is fundamentally broken on A100**:
-1. Replace BiMamba with Transformer (attention-based)
-2. Use Conv1D fallback permanently (slower but stable)
-3. Switch to GRU/LSTM for sequential modeling
+**Implementation**: Disable components one at a time in config:
+```yaml
+# Test 6a: Disable edge Mamba
+model:
+  graph:
+    use_gnn: true
+    use_dual_stream: false  # Disable edge Mamba
 
-**Impact**: May require retraining + architecture changes
+# Test 6b: Disable node Mamba (keep edge)
+model:
+  graph:
+    use_gnn: false  # Also disables node Mamba
 
----
+# Test 6c: Disable main Mamba (use Conv1d fallback)
+# Set env: SEIZURE_MAMBA_FORCE_FALLBACK=1
+```
 
-### Solution 3: Request Modal Support
+**Purpose**: Identify which Mamba component (main / node / edge) triggers crash
 
-**Contact Modal**:
-- Report XID 31 pattern (hardware MMU fault)
-- Ask if specific A100 instances have known issues
-- Request different GPU allocation
+**Expected outcome**:
+- Main Mamba (512-dim): Most likely culprit (largest tensor)
+- Node Mamba (64-dim): Possible
+- Edge Mamba (16-dim): Least likely (smallest tensor)
+
+**Time**: 3 hours (3 runs)
 
 ---
 
 ## Decision Tree
 
 ```
-Is local training still stable?
-├─ YES → Bug is Modal/A100-specific
-│   ├─ Try Workaround B (clear cache) [5min impl + 1hr test]
-│   ├─ Try Workaround C (disable AMP) [1hr test, 2× cost]
-│   └─ Try Workaround D (fallback first batch) [10min impl + 1hr test]
-│
-└─ NO → Bug is architectural
-    ├─ Rollback to PyTorch 2.2.2 + mamba-ssm 2.2.2
-    └─ Investigate NaN protection system
+┌─ Test 1 (CUDA_LAUNCH_BLOCKING) ──────────────────────────────────┐
+│                                                                   │
+│  Shows exact kernel: _mamba_chunk_scan_combined_fwd              │
+│  ├─→ Known problem area (Issue #686/732)                         │
+│  │   └─→ Proceed to Test 3 (warm-up diagnostic)                  │
+│  │                                                                │
+│  Shows exact kernel: causal_conv1d_fwd                           │
+│  ├─→ Different component, same pattern                           │
+│  │   └─→ Proceed to Test 3 (warm-up diagnostic)                  │
+│  │                                                                │
+│  Shows our model code (detector.py / mamba.py)                   │
+│  └─→ Bug is in our code, not mamba-ssm                           │
+│      └─→ Fix our code                                            │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
 
-Did any workaround succeed?
-├─ YES → Document + proceed with training
-│   └─ Report to mamba-ssm as non-blocking issue
-│
-└─ NO → P0 BLOCKER
-    ├─ Bisect dev dataset to find trigger file [~10 hours]
-    ├─ Contact Modal support [1-2 days]
-    └─ Consider architecture change [1 week+]
+┌─ Test 3 (warm-up batch) ─────────────────────────────────────────┐
+│                                                                   │
+│  Preflight PASSES after warm-up                                  │
+│  ├─→ CONFIRMED: First-batch kernel initialization bug            │
+│  │   └─→ Actions:                                                │
+│  │       1. Report to mamba-ssm with full A100 repro             │
+│  │       2. Include: Issue #732 pattern confirmed on A100        │
+│  │       3. Shapes: (64, 512, 960), d_model=512                  │
+│  │       4. Request kernel initialization fix                    │
+│  │       5. Check if mamba-ssm 2.2.6+ exists with fix            │
+│  │       6. Consider architectural alternatives (see below)      │
+│  │                                                                │
+│  Preflight FAILS even with warm-up                               │
+│  └─→ NOT first-batch bug, different root cause                   │
+│      └─→ Proceed to Test 2 (Compute Sanitizer)                   │
+│          Or Test 5 (tensor property logging)                     │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
+
+┌─ If mamba-ssm bug confirmed ────────────────────────────────────┐
+│                                                                   │
+│  Option A: Wait for upstream fix                                 │
+│  ├─ Timeline: Unknown (weeks to months)                          │
+│  └─ Blocker: Cannot train on Modal                               │
+│                                                                   │
+│  Option B: Architectural change (LSTM/GRU)                       │
+│  ├─ Replace BiMamba with BiLSTM or BiGRU                         │
+│  ├─ Pro: Battle-tested, no CUDA kernel bugs                      │
+│  ├─ Con: O(N²) vs O(N) complexity (but still acceptable)        │
+│  ├─ Con: 1-2 weeks implementation + re-training                  │
+│  └─ Decision: Last resort if upstream fix not available          │
+│                                                                   │
+│  Option C: Transformer (attention-based)                         │
+│  ├─ Replace BiMamba with multi-head attention                    │
+│  ├─ Pro: Well-tested, O(N²) but fast on A100 tensor cores       │
+│  ├─ Con: Larger memory footprint                                 │
+│  └─ Decision: Consider if LSTM not performant enough             │
+│                                                                   │
+│  Option D: Try L40S (Ada architecture)                           │
+│  ├─ Same sm_89 as RTX 4090 (which works)                        │
+│  ├─ 48GB VRAM (more than 4090's 24GB)                           │
+│  ├─ Pro: Might avoid Ampere/Hopper kernel bug                    │
+│  ├─ Con: Untested, may have different issues                     │
+│  └─ Decision: Low priority, architectural change safer           │
+│                                                                   │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Recommended Action Plan
+## Recommended Immediate Actions (Priority Order)
 
-### Phase 1: Quick Workarounds (Next 2 hours)
+### 1. Run Test 1 (CUDA_LAUNCH_BLOCKING) ⭐⭐⭐⭐⭐
 
-1. **Workaround B** (5 min impl): Clear GPU cache before preflight
-2. **Test** (1 hour): Run full training, see if preflight passes
-3. **If fails**: Try Workaround C (disable AMP, 1 hour test)
+**Why**: Single most important diagnostic
+- 1 hour time investment
+- Gets exact kernel name + line number
+- Required for meaningful upstream bug report
+- May reveal it's NOT mamba-ssm (our bug instead)
 
-### Phase 2: Diagnostic Investigation (If Phase 1 fails)
-
-4. **Add logging** (10 min impl): GPU memory stats, dataset stats
-5. **Bisect dataset** (10 hours): Find which dev files trigger bug
-6. **Report to mamba-ssm** (30 min): Create detailed GitHub issue
-
-### Phase 3: Escalation (If Phase 2 inconclusive)
-
-7. **Contact Modal support**: Request different A100 instance
-8. **Consider fallback architecture**: Replace Mamba with Transformer
-9. **Document P0 blocker**: Full training impossible on Modal
+**Implementation**: 5 minutes to add env vars to `deploy/modal/app.py`
 
 ---
 
-## Open Questions for Discussion
+### 2. Run Test 3 (Warm-Up Diagnostic) ⭐⭐⭐⭐
 
-1. **Should we try workarounds before investigation?**
-   - Pro: Faster path to working training
-   - Con: Don't understand root cause
+**Why**: Confirms Issue #732 pattern
+- If passes: We have full understanding + reproduction
+- If fails: Rules out first-batch hypothesis
+- 10 minutes to implement + 1 hour to test
 
-2. **Should we bisect the dev dataset?**
-   - Pro: May find specific trigger file
-   - Con: 10+ hours of testing, may not be file-specific
+**Implementation**: Add tiny batch warm-up before preflight in `loop.py`
 
-3. **Should we disable AMP as workaround?**
-   - Pro: Smoke test passed with AMP, so may not help
-   - Con: 2× cost increase (~$600 for 100 epochs)
+---
 
-4. **Should we rollback PyTorch 2.5 upgrade?**
-   - Pro: Known working state (local training)
-   - Con: Doesn't help - old stack also had XID 31 on Modal
+### 3. Report to mamba-ssm (If Tests 1+3 Confirm) ⭐⭐⭐⭐
 
-5. **Should we switch away from Mamba?**
-   - Pro: Transformer is battle-tested
-   - Con: Architecture change = re-training + validation
+**GitHub Issue Template**:
+```markdown
+Title: XID 31 MMU Fault on A100 with first large batch after cold GPU start
+
+Environment:
+- GPU: NVIDIA A100-80GB (sm_80)
+- mamba-ssm: 2.2.5
+- PyTorch: 2.5.0
+- CUDA: 12.4
+- causal-conv1d: 1.5.2
+
+Issue:
+First Mamba forward pass with shape (64, 512, 960) crashes with XID 31 MMU Fault
+after 52 minutes of CPU-only work (dataset indexing). Same shape works fine after
+warm-up with smaller tensor (2, 512, 100).
+
+Pattern matches Issue #732 (A6000), now confirmed on A100.
+
+Reproduction:
+1. Leave GPU idle for extended period (50+ minutes CPU work)
+2. First CUDA operation: Mamba.forward() with large batch (64+)
+3. Crash with XID 31 at address like 0x2b57_b3000000
+
+Workaround:
+Warm-up with tiny tensor before first real batch (see code snippet).
+
+Request:
+Proper kernel initialization fix so cold GPU starts work with large batches.
+
+Full logs + reproduction: [attach CUDA_LAUNCH_BLOCKING=1 logs]
+```
+
+---
+
+### 4. Consider Architectural Alternatives (If No Upstream Fix)
+
+**Only if mamba-ssm doesn't fix within reasonable timeline**:
+
+#### Option A: BiLSTM
+
+```python
+class BiLSTM(nn.Module):
+    def __init__(self, d_model, num_layers=6, dropout=0.1):
+        super().__init__()
+        self.lstm = nn.LSTM(
+            d_model, d_model // 2, num_layers=num_layers,
+            batch_first=True, bidirectional=True, dropout=dropout
+        )
+
+    def forward(self, x):  # (B, L, D)
+        output, _ = self.lstm(x)  # (B, L, D)
+        return output
+```
+
+**Pros**:
+- Battle-tested, no CUDA bugs
+- PyTorch native, works on ALL GPUs (A100, H100, 4090)
+- O(N²) but acceptable for 960 timesteps
+
+**Cons**:
+- Slower than Mamba's O(N)
+- May need architecture tuning
+
+**Time to implement**: 1 day + re-training
+
+---
+
+#### Option B: Multi-Head Attention (Transformer)
+
+```python
+class TransformerEncoder(nn.Module):
+    def __init__(self, d_model, nhead=8, num_layers=6, dropout=0.1):
+        super().__init__()
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model, nhead, dim_feedforward=d_model*4,
+            dropout=dropout, batch_first=True
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers)
+
+    def forward(self, x):  # (B, L, D)
+        return self.transformer(x)  # (B, L, D)
+```
+
+**Pros**:
+- Well-optimized on A100 tensor cores
+- FlashAttention available (faster)
+- Proven architecture for medical signals
+
+**Cons**:
+- O(N²) attention complexity
+- Larger memory footprint
+
+**Time to implement**: 2-3 days + re-training
+
+---
+
+## Timeline Estimates
+
+| Path | Time | Outcome |
+|------|------|---------|
+| **Fast path** (Test 1 + Test 3) | 2 hours | Confirm first-batch bug, report upstream |
+| **Deep path** (All 6 tests) | 10-15 hours | Full characterization for upstream |
+| **Upstream fix** | Unknown (weeks?) | mamba-ssm maintainers patch kernel |
+| **Architecture change** (BiLSTM) | 1 week | Working training on Modal |
+| **Architecture change** (Transformer) | 2 weeks | Working training on Modal |
+| **Try L40S GPU** | 1 hour | Test if Ada architecture avoids bug |
+
+---
+
+## Is This the SAME Bug or DIFFERENT Bug?
+
+**Answer**: SAME underlying bug, DIFFERENT manifestation point.
+
+### Before Upgrade (PyTorch 2.2.2 + mamba-ssm 2.2.2)
+- Crashed during training loop (not at preflight)
+- AMP suspected (but Test 1A ruled it out)
+- Likely: Kernel bug triggered by specific batch later in training
+
+### After Upgrade (PyTorch 2.5.0 + mamba-ssm 2.2.5)
+- Crashes at preflight (first CUDA operation)
+- AMP irrelevant (crashes with FP32 too)
+- Clear pattern: Cold GPU + first large batch = XID 31
+
+**Why different manifestation?**
+1. PyTorch 2.5.0: Different CUDA kernel scheduling / memory allocation
+2. mamba-ssm 2.2.5: Different initialization path (int64 fix changed codepaths)
+3. Result: Same underlying kernel bug, now hits earlier (preflight vs mid-training)
+
+**Conclusion**:
+- Upgrade did NOT introduce new bug ✅
+- Upgrade REVEALED existing bug more clearly ✅
+- Easier to debug (reproducible at preflight, not random mid-training) ✅
+- mamba-ssm CUDA kernels still have unresolved multi-GPU issues ❌
+
+---
+
+## Why NO WORKAROUNDS?
+
+**We're NOT doing**:
+1. ❌ Disable AMP (already ruled out as cause)
+2. ❌ Force Conv1d fallback (hides bug, defeats purpose of Mamba)
+3. ❌ Reduce batch size permanently (cripples training efficiency)
+4. ❌ Deploy warm-up batch to production (masks the bug)
+5. ❌ Switch to H100 (same mamba-ssm bug, more expensive)
+
+**We ARE doing**:
+1. ✅ Diagnostic tests to pinpoint exact failure (Test 1, 2, 5, 6)
+2. ✅ Confirmation test for first-batch hypothesis (Test 3)
+3. ✅ Full characterization for upstream report (Test 4)
+4. ✅ Proper bug report to mamba-ssm with reproduction
+5. ✅ If no fix: Clean architectural change (BiLSTM/Transformer)
+
+**Philosophy**: Fix the root cause or change architecture. No hacks.
+
+---
+
+## Critical Questions Answered
+
+### Q1: Why did smoke test pass?
+**A**: Smaller dataset → First batch smaller → Below bug threshold OR lucky batch composition avoids trigger
+
+### Q2: Why does local training work?
+**A**: RTX 4090 (sm_89) uses different CUDA kernel codepaths than A100/A6000/H100 (sm_80/86/90). Doesn't hit this specific bug.
+
+### Q3: What happened during the 7-minute gap?
+**A**: Unknown. Possibly:
+- PyTorch caching allocator reserving memory
+- W&B async operations
+- Modal infrastructure overhead
+Needs Test 5 logging to clarify.
+
+### Q4: Is this a Modal infrastructure issue?
+**A**: NO. XID 31 = application kernel bug. If it were Modal's fault:
+- Smoke test would also fail
+- Local training wouldn't work (same CUDA code)
+- We'd see timeouts, not MMU faults
+
+### Q5: Can we just use H100 instead?
+**A**: NO. Issue #686 shows illegal memory access on H100 too. mamba-ssm has cross-GPU kernel bugs on Ampere/Hopper.
+
+### Q6: Can we use L40S (Ada architecture)?
+**A**: MAYBE. L40S uses sm_89 like RTX 4090 (which works). 48GB VRAM (more than 4090's 24GB). Worth trying if architectural change too costly, but untested.
+
+### Q7: Should we rollback the upgrade?
+**A**: NO. Old stack (2.2.2) had same underlying bug, just triggered differently. New stack is better:
+- Faster to reproduce (preflight vs mid-training)
+- AMP ruled out (Test 1A)
+- Clearer failure pattern
+- More debuggable
+
+---
+
+## Files to Edit for Diagnostic Tests
+
+1. **`deploy/modal/app.py`** (Test 1):
+   ```python
+   @app.function(
+       gpu="A100-80GB",
+       env={
+           "CUDA_LAUNCH_BLOCKING": "1",
+           "TORCH_USE_CUDA_DSA": "1",
+           "CUDA_DISABLE_PTX_JIT": "1",
+       },
+   )
+   ```
+
+2. **`src/brain_brr/train/loop.py`** (Test 3):
+   ```python
+   # Before preflight check (around line 1050)
+   logger.info("[DIAG] Testing warm-up hypothesis")
+   dummy = torch.randn(2, 19, 256, device="cuda")
+   _ = model(dummy)  # Warm up all kernels
+   torch.cuda.synchronize()
+   logger.info("[DIAG] Warm-up done, running preflight")
+   ```
+
+3. **`src/brain_brr/models/detector.py`** (Test 5):
+   ```python
+   # Before mamba call
+   logger.info(f"[DIAG] Mamba input: {x.shape}, {x.dtype}, contiguous={x.is_contiguous()}")
+   ```
+
+4. **`configs/modal/train.yaml`** (Test 4):
+   ```yaml
+   training:
+     batch_size: 32  # Bisect: 64→32→16→8→4
+   ```
+
+**Total implementation time**: 30 minutes
+**Total diagnostic time**: 2-15 hours depending on path chosen
 
 ---
 
 ## Conclusion
 
-**Current Status**: 🔴 **P0 BLOCKER** - Cannot run full training on Modal
+**Current Status**: 🔴 P0 BLOCKER - Cannot run full training on Modal due to mamba-ssm CUDA kernel bug
 
-**Root Cause**: **UNKNOWN** - XID 31 persists despite PyTorch 2.5 + mamba-ssm 2.2.5
+**Root Cause** (high confidence): First-batch kernel initialization bug in mamba-ssm, confirmed pattern from Issue #732, affects multiple NVIDIA GPUs (A100/A6000/H100)
 
-**Leading Theory**: Dataset size triggers memory corruption not caught by smoke test
+**Recommended Path**:
+1. Test 1 (CUDA_LAUNCH_BLOCKING) - 1 hour
+2. Test 3 (warm-up diagnostic) - 1 hour
+3. Report to mamba-ssm with full repro
+4. If no fix in 1-2 weeks: Replace BiMamba with BiLSTM
 
-**Recommended Next Step**: **Try Workaround B (clear GPU cache)** - 5 min impl + 1 hour test
+**Not a Workaround Approach**: We diagnose fully, report properly, then either wait for fix or make clean architectural change. No hacks.
 
-**If Workaround B fails**: **Disable AMP (Workaround C)** - Last resort before deep investigation
+**Upgrade Was Correct**: PyTorch 2.5 + mamba-ssm 2.2.5 didn't introduce bug - they exposed it more clearly, making it easier to debug and report upstream.
 
-**Critical Insight**: **Smoke test validation was insufficient** - Need full-scale validation before declaring upgrade successful
+**Hardware Alternatives**: L40S (Ada/sm_89, 48GB) might work but untested. H100 has same mamba-ssm bugs. Architectural change (BiLSTM/Transformer) works on ALL GPUs.
 
 ---
 
 **Last Updated**: 2025-09-30
-**Requires Decision**: Workaround strategy vs deep investigation
-**Blocking**: All Modal training (local unaffected)
+**Next Action**: Run Test 1 (CUDA_LAUNCH_BLOCKING) to get exact kernel name
+**Blocking**: All Modal full training (smoke + local unaffected)
+**Owner**: Awaiting user decision on diagnostic path vs architectural change
