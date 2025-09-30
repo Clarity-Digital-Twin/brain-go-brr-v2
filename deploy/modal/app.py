@@ -25,7 +25,7 @@ image = (
         "PATH": "/usr/local/cuda-12.4/bin:$PATH",
         "LD_LIBRARY_PATH": "/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH",
         "TORCH_CUDA_ARCH_LIST": "8.0;8.6;8.9;9.0",  # A100 is 8.0
-        "FORCE_REBUILD": "2025-09-30-pr708-src",  # Bump to defeat Modal layer cache
+        "FORCE_REBUILD": "2025-09-30-pr708-fix-cache",  # Bump to defeat Modal layer cache
         "TRITON_CACHE_DIR": "/tmp/triton_cache",
         "TORCHINDUCTOR_CACHE_DIR": "/tmp/torchinductor_cache",
     })
@@ -536,10 +536,14 @@ def train(
         os.environ["SEIZURE_MAMBA_FORCE_FALLBACK"] = "1"
         logger.info("[DIAGNOSTIC] SEIZURE_MAMBA_FORCE_FALLBACK=1 (using Conv1d instead of Mamba CUDA)")
 
-    # CRITICAL: Clear Triton/Inductor caches for first run after patch
-    # This ensures we don't use stale cached kernels
-    os.environ["TRITON_CACHE_DIR"] = "/tmp/triton_cache_run"
-    os.environ["TORCHINDUCTOR_CACHE_DIR"] = "/tmp/tii_cache_run"
+    # CRITICAL: Force recompilation with UNIQUE cache dirs per run
+    # Modal can reuse containers, so we MUST use random cache dirs to ensure
+    # newly patched Triton kernels are compiled fresh (not using old int32 caches)
+    import uuid
+    run_id = str(uuid.uuid4())[:8]
+    os.environ["TRITON_CACHE_DIR"] = f"/tmp/triton_cache_run_{run_id}"
+    os.environ["TORCHINDUCTOR_CACHE_DIR"] = f"/tmp/tii_cache_run_{run_id}"
+    logger.info(f"[CACHE] Using fresh compile cache: triton_cache_run_{run_id}")
 
     # Test mamba-ssm import
     try:
