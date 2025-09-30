@@ -66,32 +66,28 @@ image = (
         "print(f'✅ Extracted to {dest}/mamba_ssm-2.2.5')"
         "\""
     )
-    .add_local_file(
-        str(Path(__file__).parent / "patch_mamba_pr708.py"),
-        "/tmp/patch_source_pr708.py",
-        copy=True
-    )
-    .run_commands(
-        "python /tmp/patch_source_pr708.py --source /tmp/mamba_src/mamba_ssm-2.2.5"
-    )
-    # Build and install from patched source (no wheel caching, no binaries)
+    # Build and install from source (will patch AFTER install)
     .run_commands(
         "pip install --no-build-isolation --no-cache-dir "
         "--force-reinstall --no-deps --no-binary :all: "
         "/tmp/mamba_src/mamba_ssm-2.2.5"
     )
+    # Now patch the INSTALLED files (this is the only reliable way)
+    .add_local_file(
+        str(Path(__file__).parent / "patch_mamba_pr708.py"),
+        "/tmp/patch_installed.py",
+        copy=True
+    )
+    .run_commands(
+        "python /tmp/patch_installed.py"
+    )
     # Verify patch landed in ALL installed Triton kernel files
     .run_commands(
-        "python -c \""
+        "python -c '"
         "from pathlib import Path; "
-        "import mamba_ssm; "
-        "files = ['ssd_chunk_scan.py', 'ssd_chunk_state.py', 'ssd_state_passing.py', 'ssd_combined.py']; "
-        "for f in files: "
-        "  p = Path(mamba_ssm.__file__).parent / 'ops' / 'triton' / f; "
-        "  s = p.read_text(); "
-        "  assert '.to(tl.int64)' in s, f'Missing int64 cast in {f}'; "
-        "  print(f'✅ {f}'); "
-        "\""
+        "tri_dir = Path(\"/usr/local/lib/python3.11/site-packages/mamba_ssm/ops/triton\"); "
+        "[print(f\"✅ {f}\") for f in [\"ssd_chunk_scan.py\", \"ssd_chunk_state.py\", \"ssd_state_passing.py\", \"ssd_combined.py\"] "
+        "if \".to(tl.int64)\" in (tri_dir / f).read_text() or exit(f\"❌ Missing int64 cast in {f}\")]'"
     )
     # Core dependencies
     .pip_install(
