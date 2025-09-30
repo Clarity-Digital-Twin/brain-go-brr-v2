@@ -67,9 +67,9 @@ image = (
         "\""
     )
     # Build and install from source (will patch AFTER install)
+    # Already building from source since we point to extracted tarball
     .run_commands(
         "pip install --no-build-isolation --no-cache-dir "
-        "--force-reinstall --no-deps --no-binary :all: "
         "/tmp/mamba_src/mamba_ssm-2.2.5"
     )
     # Now patch the INSTALLED files (this is the only reliable way)
