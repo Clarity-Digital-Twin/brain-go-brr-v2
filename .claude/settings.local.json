@@ -113,7 +113,8 @@
       "Bash(git branch:*)",
       "Bash(.venv/bin/pytest tests/test_config.py -xvs)",
       "Bash(.venv/bin/pytest tests/unit/data/test_cache_utils.py -xvs)",
-      "Bash(.venv/bin/pytest tests/unit/data/test_cache_utils.py tests/unit/events/test_events.py -x)"
+      "Bash(.venv/bin/pytest tests/unit/data/test_cache_utils.py tests/unit/events/test_events.py -x)",
+      "Bash(.venv.backup.2.2.2/bin/python -c \"import mamba_ssm; print(f''Backup mamba-ssm: {mamba_ssm.__version__}'')\")"
     ],
     "deny": [],
     "ask": []
