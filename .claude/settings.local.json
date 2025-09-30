@@ -90,7 +90,9 @@
       "Bash(nvidia-smi:*)",
       "Bash(PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True make smoke-local)",
       "Bash(.venv/bin/pytest tests/unit/train/test_loop.py::TestTrainingSmoke::test_single_epoch -xvs)",
-      "Bash(timeout 180 make smoke-local)"
+      "Bash(timeout 180 make smoke-local)",
+      "Bash(ps:*)",
+      "Bash(sed:*)"
     ],
     "deny": [],
     "ask": []

@@ -6,7 +6,7 @@ The stack uses **TCN + BiMamba + GNN + LPE** for O(N) seizure detection.
 V3 is the only supported architecture; the legacy V2 heuristic graph path has been removed.
 - **PyTorch 2.5.0** with CUDA 12.4 (EXACT version required)
 - **Mamba-SSM 2.2.5** (bidirectional state-space model, includes A100 int64 fix)
-- **PyTorch Geometric 2.7.0** (graph neural networks with Laplacian PE)
+- **PyTorch Geometric 2.6.1** (graph neural networks with Laplacian PE)
 - **pytorch-tcn 1.2.3** (temporal convolutional networks)
 
 ## Local Installation (WSL2/Linux with GPU)
@@ -55,7 +55,7 @@ uv pip install --no-build-isolation mamba-ssm==2.2.5
 # 3. Install PyG with pre-built wheels (AVOID COMPILATION)
 .venv/bin/pip install torch_scatter torch_sparse torch_cluster torch_spline_conv \
   -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
-.venv/bin/pip install torch-geometric==2.7.0
+.venv/bin/pip install torch-geometric==2.6.1
 
 # 4. Install TCN
 uv pip install pytorch-tcn==1.2.3
@@ -86,7 +86,7 @@ image = (
     .run_commands("""
         pip install torch_scatter torch_sparse torch_cluster torch_spline_conv \
           -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
-        pip install torch-geometric==2.7.0
+        pip install torch-geometric==2.6.1
     """)
 
     # TCN and project
@@ -105,7 +105,7 @@ image = (
 | numpy | 1.26.4 | numpy 2.x breaks mamba-ssm |
 | mamba-ssm | 2.2.5 | Latest, includes A100 int64 indexing fix |
 | causal-conv1d | 1.5.2 | Latest stable for PyTorch 2.5+ |
-| torch-geometric | 2.7.0 | Latest stable for torch 2.5.0 |
+| torch-geometric | 2.6.1 | Latest (Sep 2024) stable for torch 2.5.0 |
 | pytorch-tcn | 1.2.3 | Pure PyTorch, any version works |
 
 ## Common Issues

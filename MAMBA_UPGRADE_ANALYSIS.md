@@ -91,7 +91,7 @@ causal-conv1d 1.4.0 → 1.5.0+
     ↓
 mamba-ssm 2.2.2 → 2.2.5
     ↓
-torch-geometric 2.6.1 → 2.7.0+ (check compatibility with PyTorch 2.4+)
+torch-geometric 2.6.1 → 2.6.1 (check compatibility with PyTorch 2.4+)
     ↓
 CUDA 12.1 → 12.4 (PyTorch 2.4+ build target)
 ```

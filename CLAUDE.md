@@ -142,7 +142,7 @@ PyTorch==2.5.0+cu124      # EXACT version for Mamba+PyG
 CUDA Toolkit==12.4        # Must match PyTorch
 mamba-ssm==2.2.5          # Includes A100 int64 indexing fix
 causal-conv1d==1.5.2      # Latest stable for PyTorch 2.5+
-torch-geometric==2.7.0    # Latest for torch 2.5.0
+torch-geometric==2.6.1    # Latest for torch 2.5.0
 numpy==1.26.4             # 2.x breaks mamba-ssm
 ```
 

@@ -72,7 +72,7 @@ image = (
         "pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html"
     )
     .run_commands(
-        "pip install torch-geometric==2.7.0"
+        "pip install torch-geometric==2.6.1"
     )
     # Verify PyG imports correctly
     .run_commands(

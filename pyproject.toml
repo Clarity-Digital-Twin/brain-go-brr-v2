@@ -77,7 +77,7 @@ tcn = [
 # Graph extras CANNOT be installed via uv due to PyTorch build dependency
 # Install manually with pre-built wheels:
 #   pip install torch_scatter torch_sparse torch_cluster -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
-#   pip install torch-geometric==2.7.0
+#   pip install torch-geometric==2.6.1
 graph = []  # Placeholder - see installation instructions above
 
 [tool.uv]

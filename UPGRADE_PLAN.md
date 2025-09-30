@@ -26,7 +26,7 @@ PyTorch: 2.4.0+cu121 OR 2.5.0+cu124
 CUDA: 12.4 (if PyTorch 2.5)
 mamba-ssm: 2.2.5
 causal-conv1d: 1.5.0+
-torch-geometric: 2.7.0+
+torch-geometric: 2.6.1+
 numpy: 1.26.4 (no change - mamba-ssm still needs <2.0)
 ```
 
@@ -144,7 +144,7 @@ uv pip uninstall torch-geometric torch-scatter torch-sparse torch-cluster torch-
 # Install new PyG
 .venv/bin/pip install torch-scatter torch-sparse torch-cluster torch-spline-conv \
   -f https://data.pyg.org/whl/torch-2.4.0+cu121.html
-.venv/bin/pip install torch-geometric==2.7.0
+.venv/bin/pip install torch-geometric==2.6.1
 
 # Verify
 .venv/bin/python -c "import torch_geometric as tg; print(f'✅ PyG {tg.__version__}')"
@@ -257,12 +257,12 @@ image = (
     .run_commands(
         "pip install --no-build-isolation --no-cache-dir mamba-ssm==2.2.5"
     )
-    # PyG 2.7.0
+    # PyG 2.6.1
     .run_commands(
         "pip install torch-scatter torch-sparse torch-cluster torch-spline-conv "
         "-f https://data.pyg.org/whl/torch-2.4.0+cu121.html"
     )
-    .run_commands("pip install torch-geometric==2.7.0")
+    .run_commands("pip install torch-geometric==2.6.1")
     .run_commands("pip install pytorch-tcn==1.2.3")
     .pip_install_from_pyproject("./pyproject.toml")
 )

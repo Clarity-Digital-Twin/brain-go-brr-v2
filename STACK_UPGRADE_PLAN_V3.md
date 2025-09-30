@@ -42,7 +42,7 @@ CUDA Toolkit: 12.4    ← Must match PyTorch build
 numpy: 1.26.4 (NO CHANGE - mamba still needs <2.0)
 mamba-ssm: 2.2.5      ← Latest (Oct 2024)
 causal-conv1d: 1.5.2  ← EXACT pin (latest stable for PyTorch 2.5)
-torch-geometric: 2.7.0 ← EXACT pin (latest for PyTorch 2.5)
+torch-geometric: 2.6.1 ← EXACT pin (latest for PyTorch 2.5)
 pytorch-tcn: 1.2.3 (NO CHANGE - pure PyTorch)
 ```
 
@@ -80,7 +80,7 @@ src/brain_brr/train/loop.py:234-478         # Training loop
 
 ### 1.2 torch-geometric Compatibility
 
-**Task**: Verify PyG 2.7.0+ works with PyTorch 2.5 + CUDA 12.4
+**Task**: Verify PyG 2.6.1+ works with PyTorch 2.5 + CUDA 12.4
 
 **Check**:
 ```bash
@@ -92,7 +92,7 @@ https://data.pyg.org/whl/torch-2.5.0+cu124.html
 - `torch_scatter` for PyTorch 2.5 + CUDA 12.4
 - `torch_sparse` for PyTorch 2.5 + CUDA 12.4
 - `torch_cluster` for PyTorch 2.5 + CUDA 12.4
-- `torch-geometric==2.7.0` or latest
+- `torch-geometric==2.6.1` or latest
 
 **Action**: Document exact wheel URLs in upgrade plan
 
@@ -211,7 +211,7 @@ dependencies = [
 - **Mamba-SSM 2.2.5** (was: 2.2.2)
 
 # Line 9: Update PyG
-- **PyTorch Geometric 2.7.0** (was: 2.6.1)
+- **PyTorch Geometric 2.6.1** (was: 2.6.1)
 
 # Lines 16-17: Update CUDA check
 nvcc --version  # Need 12.4 (was: 12.1)
@@ -226,14 +226,14 @@ uv pip install --no-build-isolation mamba-ssm==2.2.5      # Was: 2.2.2
 # Lines 56-58: Update PyG wheels URL and version
 .venv/bin/pip install torch_scatter torch_sparse torch_cluster torch_spline_conv \
   -f https://data.pyg.org/whl/torch-2.5.0+cu124.html  # Was: torch-2.2.0+cu121
-.venv/bin/pip install torch-geometric==2.7.0           # Was: 2.6.1
+.venv/bin/pip install torch-geometric==2.6.1           # Was: 2.6.1
 
 # Lines 100-109: Update compatibility matrix
 | PyTorch | 2.5.0 | Latest, A100 fixes | (was: 2.2.2)
 | CUDA | 12.4 | PyTorch 2.5.0 build | (was: 12.1)
 | mamba-ssm | 2.2.5 | Latest with int64 fix | (was: 2.2.2 - bugs comment removed)
 | causal-conv1d | 1.5.0 | Required for PyTorch 2.5 | (was: 1.4.0)
-| torch-geometric | 2.7.0 | Latest for PyTorch 2.5 | (was: 2.6.1)
+| torch-geometric | 2.6.1 | Latest (Sep 2024) for PyTorch 2.5 | (was: 2.6.1)
 ```
 
 ### 2.5 Update Makefile
@@ -254,7 +254,7 @@ setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.4)
 		uv pip install --no-build-isolation mamba-ssm==2.2.5
 	@echo "${CYAN}Installing PyG with pre-built wheels...${NC}"
 	@uv pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
-	@uv pip install torch-geometric==2.7.0
+	@uv pip install torch-geometric==2.6.1
 ```
 
 ### 2.6 Upgrade Local Environment
@@ -423,7 +423,7 @@ image = (
         "pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html"
     )
     .run_commands(
-        "pip install torch-geometric==2.7.0"
+        "pip install torch-geometric==2.6.1"
     )
     .run_commands(
         "python -c 'import torch_geometric; print(f\"✅ PyG {torch_geometric.__version__} installed\")'"
@@ -634,7 +634,7 @@ git commit -m "feat: Upgrade to PyTorch 2.5.0 + mamba-ssm 2.2.5 (fixes A100 XID 
 - PyTorch 2.2.2 → 2.5.0 (+CUDA 12.4)
 - mamba-ssm 2.2.2 → 2.2.5 (includes int64 indexing fix)
 - causal-conv1d 1.4.0 → 1.5.0
-- torch-geometric 2.6.1 → 2.7.0
+- torch-geometric 2.6.1 (NO CHANGE)
 - Rebuilt cache with new serialization format
 - Modal A100 training now stable with AMP enabled
 - Fixes: XID 31 MMU Fault, illegal memory access errors

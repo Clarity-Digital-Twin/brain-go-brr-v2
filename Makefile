@@ -155,7 +155,7 @@ setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.4)
 		uv pip install --no-build-isolation mamba-ssm==2.2.5
 	@echo "${CYAN}Installing PyG with pre-built wheels...${NC}"
 	@uv pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
-	@uv pip install torch-geometric==2.7.0
+	@uv pip install torch-geometric==2.6.1
 	@echo "${CYAN}Installing TCN...${NC}"
 	@uv pip install pytorch-tcn==1.2.3
 	@echo "${CYAN}Verifying GPU stack...${NC}"
