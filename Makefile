@@ -59,17 +59,23 @@ test-integration: ## Run only integration tests (serial for V3)
 	@echo "${CYAN}Running GPU integration tests (if available)...${NC}"
 	$(PYTEST) -n 1 -m "integration and gpu and not performance" -v || true
 
-test-performance: ## Run only performance benchmarks (serial)
+test-performance: ## Run only performance benchmarks (serial; skip during training)
 	@echo "${CYAN}Running performance benchmarks (serial)...${NC}"
+	@echo "${YELLOW}WARNING: Performance tests require GPU memory. Use 'make test-safe' during training.${NC}"
 	$(PYTEST) -n 0 -m performance -v
 
 test-gpu: ## Run tests optimized for GPU (serial)
 	@echo "${CYAN}Running GPU tests (serial)...${NC}"
 	$(PYTEST) -n 1 -v -k "mamba or cuda"
 
-test-cpu: ## Run CPU tests (serial for V3 safety)
-	@echo "${CYAN}Running CPU tests (serial)...${NC}"
+test-cpu: ## Run CPU tests (serial; safe during training)
+	@echo "${CYAN}Running CPU tests (serial; safe during training)...${NC}"
 	$(PYTEST) -n 1 -k "not (mamba or cuda)" -q
+
+test-safe: ## Run tests safe for concurrent training (CPU + unit only)
+	@echo "${CYAN}Running training-safe tests (CPU + unit tests only)...${NC}"
+	@echo "${YELLOW}Use this target when training is running in tmux${NC}"
+	$(PYTEST) -n 1 -m "not performance and not gpu" tests/unit -q
 
 test-edge: ## Run edge case tests for data robustness
 	@echo "${CYAN}Running edge case tests...${NC}"
@@ -144,17 +150,17 @@ setup: ## Initial project setup
 	uv run pre-commit install
 	@echo "${GREEN}✓ Project ready!${NC}"
 
-setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.1)
+setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.4)
 	@echo "${CYAN}Setting up GPU support for V3 stack...${NC}"
 	@echo "${YELLOW}Checking CUDA versions...${NC}"
 	@.venv/bin/python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA: {torch.version.cuda}')" || echo "${RED}PyTorch not installed${NC}"
-	@nvcc --version 2>/dev/null | grep "release" || echo "${RED}CUDA toolkit not found!${NC}"
+	@nvcc --version 2>/dev/null | grep "release 12.4" || echo "${RED}CUDA 12.4 toolkit required!${NC}"
 	@echo "${CYAN}Installing Mamba-SSM components...${NC}"
-	@export CUDA_HOME=/usr/local/cuda-12.1 && \
-		uv pip install --no-build-isolation causal-conv1d==1.4.0 && \
-		uv pip install --no-build-isolation mamba-ssm==2.2.2
+	@export CUDA_HOME=/usr/local/cuda-12.4 && \
+		uv pip install --no-build-isolation causal-conv1d==1.5.2 && \
+		uv pip install --no-build-isolation mamba-ssm==2.2.5
 	@echo "${CYAN}Installing PyG with pre-built wheels...${NC}"
-	@uv pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.2.0+cu121.html
+	@uv pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
 	@uv pip install torch-geometric==2.6.1
 	@echo "${CYAN}Installing TCN...${NC}"
 	@uv pip install pytorch-tcn==1.2.3
@@ -184,6 +190,7 @@ tensorboard: ## Start TensorBoard
 
 # Development shortcuts
 t: test-fast ## Shortcut for test-fast
+ts: test-safe ## Shortcut for training-safe tests
 ti: test-integration ## Shortcut for integration tests
 tp: test-performance ## Shortcut for performance benchmarks
 f: format ## Shortcut for format

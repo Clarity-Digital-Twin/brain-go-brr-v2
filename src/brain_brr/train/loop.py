@@ -26,7 +26,7 @@ import torch
 import torch.multiprocessing as mp
 import torch.nn as nn
 import torch.nn.functional as tnf
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 from torch.utils.data import DataLoader, WeightedRandomSampler
@@ -486,7 +486,7 @@ def train_epoch(
 
     model.eval()
     try:
-        with torch.no_grad(), autocast(enabled=(use_amp and device == "cuda")):
+        with torch.no_grad(), autocast(device, enabled=(use_amp and device == "cuda")):
             test_logits = model(test_windows)  # (B, T) raw logits
             test_loss = compute_loss(test_logits, test_labels)
             if test_loss is None:
@@ -566,7 +566,7 @@ def train_epoch(
             optimizer.zero_grad(set_to_none=True)
 
             # Forward pass with AMP (model returns raw logits)
-            with autocast(enabled=(use_amp and device == "cuda")):
+            with autocast(device, enabled=(use_amp and device == "cuda")):
                 try:
                     logits = model(windows)  # (B, T) raw logits
                     if logits is None:
@@ -1006,7 +1006,7 @@ def save_checkpoint(
 
     # Verify the checkpoint can be loaded
     try:
-        test_ckpt = torch.load(temp_path, map_location="cpu")
+        test_ckpt = torch.load(temp_path, map_location="cpu", weights_only=False)
         if "model_state_dict" not in test_ckpt:
             raise ValueError("Checkpoint missing model_state_dict")
         temp_path.rename(checkpoint_path)
@@ -1033,7 +1033,7 @@ def load_checkpoint(
     Returns:
         (epoch, best_metric)
     """
-    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
 
     model.load_state_dict(checkpoint["model_state_dict"])
 
@@ -1160,7 +1160,7 @@ def train(
     if mid_epoch_checkpoints and config.training.resume:
         latest_mid = mid_epoch_checkpoints[-1]
         logger.info(f"[RESUME] Found mid-epoch checkpoint: {latest_mid.name}")
-        ckpt = torch.load(latest_mid, map_location="cpu")
+        ckpt = torch.load(latest_mid, map_location="cpu", weights_only=False)
         model.load_state_dict(ckpt["model_state_dict"])
         if optimizer and "optimizer_state_dict" in ckpt:
             optimizer.load_state_dict(ckpt["optimizer_state_dict"])
@@ -1170,7 +1170,9 @@ def train(
         best_metric = ckpt.get("best_metric", 0.0)
         if best_metric == 0.0 and (checkpoint_dir / "last.pt").exists():
             try:
-                _last = torch.load(checkpoint_dir / "last.pt", map_location="cpu")
+                _last = torch.load(
+                    checkpoint_dir / "last.pt", map_location="cpu", weights_only=False
+                )
                 best_metric = _last.get("best_metric", 0.0)
             except Exception:
                 pass

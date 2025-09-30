@@ -4,7 +4,7 @@ This file provides critical project context for Claude Code (claude.ai/code) whe
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.2.0: Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with edge similarity clamping — achieving O(N) complexity with state-space models and graph neural networks.
+Brain-Go-Brr v3.3.0: Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with edge similarity clamping — achieving O(N) complexity with state-space models and graph neural networks.
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
@@ -25,6 +25,7 @@ Current Architecture (v3.2.0):
 |---------|---------|
 | `make q` | Quality check (lint+format+mypy) — **RUN AFTER EVERY CHANGE** ✅ |
 | `make t` | Fast tests without coverage |
+| `make ts` | Training-safe tests (CPU only) — **USE DURING TRAINING** 🏃 |
 | `make test` | Full test suite with coverage |
 | `make setup` | Initial setup with uv |
 | `make setup-gpu` | Install GPU stack (Mamba+PyG+TCN) — **REQUIRED for V3** |
@@ -115,7 +116,7 @@ training:
   use_balanced_sampling: true     # CRITICAL or no seizures in batches
 model:
   graph:
-    edge_similarity_margin: 0.01  # v3.2.0: Safety margin from ±1 boundaries
+    edge_similarity_margin: 0.01  # v3.3.0: Safety margin from ±1 boundaries
 ```
 
 ### Modal Cloud (A100-80GB)
@@ -128,7 +129,7 @@ training:
   mixed_precision: true           # A100 tensor cores
 model:
   graph:
-    edge_similarity_margin: 0.01  # v3.2.0: Safety margin from ±1 boundaries
+    edge_similarity_margin: 0.01  # v3.3.0: Safety margin from ±1 boundaries
 resources:
   cpu: 24                         # Avoid bottlenecks (default: 0.125!)
   memory: 98304                   # 96GB RAM
@@ -138,11 +139,11 @@ resources:
 
 ### Exact Version Lock (DO NOT CHANGE)
 ```
-PyTorch==2.2.2+cu121      # EXACT version for Mamba+PyG
-CUDA Toolkit==12.1        # Must match PyTorch
-mamba-ssm==2.2.2          # Later versions have bugs
-causal-conv1d==1.4.0      # 1.5+ needs PyTorch 2.4+
-torch-geometric==2.6.1    # Latest for torch 2.2.2
+PyTorch==2.5.0+cu124      # EXACT version for Mamba+PyG
+CUDA Toolkit==12.4        # Must match PyTorch
+mamba-ssm==2.2.5          # Includes A100 int64 indexing fix
+causal-conv1d==1.5.2      # Latest stable for PyTorch 2.5+
+torch-geometric==2.6.1    # Latest for torch 2.5.0
 numpy==1.26.4             # 2.x breaks mamba-ssm
 ```
 
@@ -151,7 +152,7 @@ numpy==1.26.4             # 2.x breaks mamba-ssm
 2. GPU components: `make setup-gpu`
 3. Verify: `.venv/bin/python -c "from mamba_ssm import Mamba2; print('✅')"`
 
-**Note**: PyG requires pre-built wheels from https://data.pyg.org/whl/torch-2.2.0+cu121.html
+**Note**: PyG requires pre-built wheels from https://data.pyg.org/whl/torch-2.5.0+cu124.html
 
 ## 🏥 Clinical Specifications
 
@@ -207,9 +208,17 @@ numpy==1.26.4             # 2.x breaks mamba-ssm
 ### Testing Strategy
 ```bash
 make t              # Quick tests for development
+make ts             # Safe tests during training (CPU only)
 make test           # Full coverage before commits
-make test-gpu       # GPU-specific tests
+make test-gpu       # GPU-specific tests (stop training first)
 ```
+
+**CRITICAL: Testing During Training**
+- Training uses ~12GB GPU memory on RTX 4090
+- Performance tests (`make test-performance`) will OOM during training
+- **Solution**: Use `make ts` or `make test-cpu` for concurrent testing
+- Test suite auto-detects training and limits GPU usage to 3GB
+- Set `BGB_SKIP_GPU_TESTS=1` to force-skip all GPU tests
 
 ### Environment Variables
 ```bash
@@ -222,6 +231,9 @@ export BGB_FORCE_MANIFEST_REBUILD=1   # Rebuild cache manifest
 # Data limits
 export BGB_SMOKE_TEST=1              # Limit to 3 files
 export BGB_LIMIT_FILES=50            # Custom file limit
+
+# Testing
+export BGB_SKIP_GPU_TESTS=1          # Skip GPU tests during training
 
 # WSL2 fixes
 export UV_LINK_MODE=copy             # Prevent permission issues
@@ -237,11 +249,11 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 | Zero seizures in batches | Enable `use_balanced_sampling: true` |
 | NaN losses on RTX 4090 | Set `mixed_precision: false` |
 | **Non-finite logits** | **Rebuild cache after Sep 26 fix + use `BGB_SANITIZE_GRADS=1`** |
-| **Edge similarity explosions** | **v3.2.0: Set `edge_similarity_margin: 0.01` in configs** |
+| **Edge similarity explosions** | **v3.3.0: Set `edge_similarity_margin: 0.01` in configs** |
 | Modal training stuck | Increase CPU cores (24) and RAM (96GB) |
 | PyG installation fails | Use pre-built wheels, not `uv sync -E graph` |
-| Mamba CUDA errors | Ensure CUDA 12.1 toolkit installed |
-| CI/CD test failures | Tests properly skip when PyG not installed (v3.2.0+) |
+| Mamba CUDA errors | Ensure CUDA 12.4 toolkit installed |
+| CI/CD test failures | Tests properly skip when PyG not installed (v3.3.0+) |
 
 ### Modal-Specific Settings
 - **Resources**: 24 CPU cores + 96GB RAM (defaults are too low!)
@@ -287,7 +299,8 @@ Due to hardware differences, integration tests have adjusted thresholds:
 
 **Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
 
-**Current Status (v3.2.0)**:
+**Current Status (v3.3.0)**:
+- PyTorch 2.5.0 + mamba-ssm 2.2.5 (fixes A100 XID 31 crashes)
 - V3 dual-stream architecture with edge similarity clamping (PR-5)
 - Training stable on both RTX 4090 (local) and A100 (Modal)
 - All NaN issues resolved with 3-tier protection system

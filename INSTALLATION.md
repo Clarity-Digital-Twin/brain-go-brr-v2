@@ -4,8 +4,8 @@
 
 The stack uses **TCN + BiMamba + GNN + LPE** for O(N) seizure detection.
 V3 is the only supported architecture; the legacy V2 heuristic graph path has been removed.
-- **PyTorch 2.2.2** with CUDA 12.1 (EXACT version required)
-- **Mamba-SSM 2.2.2** (bidirectional state-space model)
+- **PyTorch 2.5.0** with CUDA 12.4 (EXACT version required)
+- **Mamba-SSM 2.2.5** (bidirectional state-space model, includes A100 int64 fix)
 - **PyTorch Geometric 2.6.1** (graph neural networks with Laplacian PE)
 - **pytorch-tcn 1.2.3** (temporal convolutional networks)
 
@@ -13,7 +13,7 @@ V3 is the only supported architecture; the legacy V2 heuristic graph path has be
 
 ### Prerequisites
 ```bash
-# Check CUDA version (need 12.1)
+# Check CUDA version (need 12.4)
 nvcc --version
 
 # Install uv if not present
@@ -48,13 +48,13 @@ print('✅ TCN imported')
 uv sync
 
 # 2. Install Mamba-SSM (requires build tools)
-export CUDA_HOME=/usr/local/cuda-12.1
-uv pip install --no-build-isolation causal-conv1d==1.4.0
-uv pip install --no-build-isolation mamba-ssm==2.2.2
+export CUDA_HOME=/usr/local/cuda-12.4
+uv pip install --no-build-isolation causal-conv1d==1.5.2
+uv pip install --no-build-isolation mamba-ssm==2.2.5
 
 # 3. Install PyG with pre-built wheels (AVOID COMPILATION)
 .venv/bin/pip install torch_scatter torch_sparse torch_cluster torch_spline_conv \
-  -f https://data.pyg.org/whl/torch-2.2.0+cu121.html
+  -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
 .venv/bin/pip install torch-geometric==2.6.1
 
 # 4. Install TCN
@@ -70,22 +70,22 @@ image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install(["build-essential", "git", "wget"])
 
-    # CUDA 12.1 runtime
+    # CUDA 12.4 runtime
     .run_commands("wget https://developer.download.nvidia.com/...")
 
-    # PyTorch 2.2.2 + CUDA 12.1
-    .run_commands("pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cu121")
+    # PyTorch 2.5.0 + CUDA 12.4
+    .run_commands("pip install torch==2.5.0 torchvision==0.20.0 --index-url https://download.pytorch.org/whl/cu124")
 
     # Mamba-SSM (compile from source)
     .run_commands("""
-        export CUDA_HOME=/usr/local/cuda-12.1
-        pip install --no-build-isolation causal-conv1d==1.4.0 mamba-ssm==2.2.2
+        export CUDA_HOME=/usr/local/cuda-12.4
+        pip install --no-build-isolation causal-conv1d==1.5.2 mamba-ssm==2.2.5
     """)
 
     # PyG with pre-built wheels
     .run_commands("""
         pip install torch_scatter torch_sparse torch_cluster torch_spline_conv \
-          -f https://data.pyg.org/whl/torch-2.2.0+cu121.html
+          -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
         pip install torch-geometric==2.6.1
     """)
 
@@ -100,12 +100,12 @@ image = (
 | Component | Version | Why This Version |
 |-----------|---------|------------------|
 | Python | 3.11+ | Required for modern type hints |
-| PyTorch | 2.2.2 | Mamba-SSM + PyG compatibility |
-| CUDA | 12.1 | PyTorch 2.2.2 build target |
+| PyTorch | 2.5.0 | Latest stable with CUDA 12.4 support |
+| CUDA | 12.4 | PyTorch 2.5.0 build target |
 | numpy | 1.26.4 | numpy 2.x breaks mamba-ssm |
-| mamba-ssm | 2.2.2 | 2.2.5 has bugs, 2.2.4 has issues |
-| causal-conv1d | 1.4.0 | 1.5+ requires PyTorch 2.4+ |
-| torch-geometric | 2.6.1 | Latest stable for torch 2.2.2 |
+| mamba-ssm | 2.2.5 | Latest, includes A100 int64 indexing fix |
+| causal-conv1d | 1.5.2 | Latest stable for PyTorch 2.5+ |
+| torch-geometric | 2.6.1 | Latest (Sep 2024) stable for torch 2.5.0 |
 | pytorch-tcn | 1.2.3 | Pure PyTorch, any version works |
 
 ## Common Issues
@@ -116,19 +116,19 @@ image = (
 **Solution**: PyG extensions need PyTorch at build time. Use pre-built wheels:
 ```bash
 .venv/bin/pip install torch_scatter torch_sparse torch_cluster torch_spline_conv \
-  -f https://data.pyg.org/whl/torch-2.2.0+cu121.html
+  -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
 ```
 
 ### 2. Mamba-SSM CUDA Errors
 **Error**: `RuntimeError: CUDA error: no kernel image is available`
 
-**Solution**: Ensure CUDA 12.1 toolkit installed and:
+**Solution**: Ensure CUDA 12.4 toolkit installed and:
 ```bash
-export CUDA_HOME=/usr/local/cuda-12.1
+export CUDA_HOME=/usr/local/cuda-12.4
 export PATH=$CUDA_HOME/bin:$PATH
 # Rebuild mamba-ssm
 uv pip uninstall mamba-ssm causal-conv1d
-uv pip install --no-build-isolation causal-conv1d==1.4.0 mamba-ssm==2.2.2
+uv pip install --no-build-isolation causal-conv1d==1.5.2 mamba-ssm==2.2.5
 ```
 
 ### 3. WSL2 Permission Issues

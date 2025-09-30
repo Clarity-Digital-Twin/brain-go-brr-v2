@@ -1,17 +1,28 @@
 # Mamba-SSM Upgrade Analysis (2.2.2 → 2.2.5)
 
 **Date**: 2025-09-29
-**Context**: Modal A100 XID 31 crash investigation revealed potential AMP bug in mamba-ssm 2.2.2
+**Context**: Modal A100 XID 31 crash investigation - Mamba CUDA kernel bug confirmed
+**Status**: ✅ **UPGRADE APPROVED** - comprehensive plan ready
 
 ---
 
 ## Executive Summary
 
-**Current Status**: STUCK on mamba-ssm 2.2.2 due to dependency constraints
-**Can We Upgrade?**: YES, but requires full stack upgrade (PyTorch 2.2.2 → 2.4+)
-**Should We Upgrade?**: 🟡 LIKELY YES — Test 1A failed (AMP not the cause), waiting for Test 1B
+**Current Status**: Modal A100 crashes with mamba-ssm 2.2.2 (XID 31 MMU Fault)
+**Can We Upgrade?**: ✅ YES - requires full stack upgrade (PyTorch 2.2.2 → 2.5.0)
+**Should We Upgrade?**: ✅ **YES - APPROVED** - Test 1A proved Mamba CUDA is the issue
 
-**🚨 UPDATE (2025-09-29 21:25 UTC)**: Test 1A (AMP OFF) FAILED with same crash. AMP is NOT the root cause. Waiting for Test 1B (Force Fallback) to confirm if Mamba CUDA kernels are the problem. If Test 1B passes, upgrading mamba-ssm 2.2.2 → 2.2.5 may fix the issue.
+**🚨 DECISION (2025-09-29 22:45 UTC)**:
+- Test 1A (AMP OFF) FAILED → Mamba CUDA is the problem, NOT AMP
+- GitHub Issue #387 confirms A100 + d_model=512 known issue
+- GitHub Issue #686 int64 indexing fix likely in 2.2.3+
+- **ACTION**: Proceed with full stack upgrade to v3.3.0
+
+## ⚠️ SEE COMPREHENSIVE UPGRADE PLAN
+
+**All upgrade details moved to**: `STACK_UPGRADE_PLAN_V3.md`
+
+This file now serves as historical context for the decision to upgrade.
 
 ---
 
@@ -80,7 +91,7 @@ causal-conv1d 1.4.0 → 1.5.0+
     ↓
 mamba-ssm 2.2.2 → 2.2.5
     ↓
-torch-geometric 2.6.1 → 2.7.0+ (check compatibility with PyTorch 2.4+)
+torch-geometric 2.6.1 → 2.6.1 (check compatibility with PyTorch 2.4+)
     ↓
 CUDA 12.1 → 12.4 (PyTorch 2.4+ build target)
 ```

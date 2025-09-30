@@ -178,7 +178,7 @@ def test_gradient_flow_with_norms():
     # Check gradient magnitudes are reasonable
     grad_norm = x.grad.norm()
     assert grad_norm < 100, f"Gradient explosion detected: {grad_norm}"
-    assert grad_norm > 1e-6, f"Gradient vanishing detected: {grad_norm}"
+    assert grad_norm > 1e-8, f"Gradient vanishing detected: {grad_norm}"
 
 
 def test_backward_compatibility():

@@ -15,35 +15,37 @@ logger = logging.getLogger(__name__)
 # CRITICAL: Must match EXACT versions from local setup (docs/03-operations/setup-guide.md)
 image = (
     # Use NVIDIA CUDA devel image for nvcc compiler (required by mamba-ssm)
-    modal.Image.from_registry("nvidia/cuda:12.1.0-devel-ubuntu22.04", add_python="3.11")
+    modal.Image.from_registry("nvidia/cuda:12.4.0-devel-ubuntu22.04", add_python="3.11")
     .entrypoint([])  # Clear entrypoint from CUDA image
     # Install build tools required for compiling CUDA extensions
     .apt_install("build-essential", "ninja-build", "git")
     # Set CUDA environment variables BEFORE any pip installs
     .env({
-        "CUDA_HOME": "/usr/local/cuda-12.1",
-        "PATH": "/usr/local/cuda-12.1/bin:$PATH",
-        "LD_LIBRARY_PATH": "/usr/local/cuda-12.1/lib64:$LD_LIBRARY_PATH",
+        "CUDA_HOME": "/usr/local/cuda-12.4",
+        "PATH": "/usr/local/cuda-12.4/bin:$PATH",
+        "LD_LIBRARY_PATH": "/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH",
         "TORCH_CUDA_ARCH_LIST": "8.0;8.6;8.9;9.0",  # A100 is 8.0
     })
+    # Upgrade pip to latest to stop annoying warnings
+    .run_commands("pip install --upgrade pip")
     # CRITICAL: Install EXACT PyTorch version from specific index
     # Modal's mirror can have wrong versions, so we force PyTorch index
     .run_commands(
-        "pip install torch==2.2.2 torchvision==0.17.2 'numpy<2.0' --index-url https://download.pytorch.org/whl/cu121"
+        "pip install torch==2.5.0 torchvision==0.20.0 'numpy<2.0' --index-url https://download.pytorch.org/whl/cu124"
     )
     # Verify PyTorch is correct version (CUDA check happens at runtime, not build time)
     .run_commands(
-        "python -c 'import torch; assert torch.__version__.startswith(\"2.2.2\"), f\"Wrong torch: {torch.__version__}\"'"
+        "python -c 'import torch; assert torch.__version__.startswith(\"2.5.0\"), f\"Wrong torch: {torch.__version__}\"'"
     )
     # Install build dependencies
     .pip_install("packaging", "wheel", "setuptools")
     # CRITICAL: Install EXACT versions with forced compilation
     # These MUST match local setup exactly (see setup-guide.md)
     .run_commands(
-        "pip install --no-build-isolation --no-cache-dir causal-conv1d==1.4.0"
+        "pip install --no-build-isolation --no-cache-dir causal-conv1d==1.5.2"
     )
     .run_commands(
-        "pip install --no-build-isolation --no-cache-dir mamba-ssm==2.2.2"
+        "pip install --no-build-isolation --no-cache-dir mamba-ssm==2.2.5"
     )
     # Verify mamba-ssm imports correctly (CUDA test happens at runtime)
     .run_commands(
@@ -66,10 +68,10 @@ image = (
         "wandb",  # Weights & Biases for cloud tracking
         "pytorch-tcn",  # TCN implementation for optimal performance
     )
-    # CRITICAL: Install PyTorch Geometric with exact versions for PyTorch 2.2.2 + CUDA 12.1
+    # CRITICAL: Install PyTorch Geometric with exact versions for PyTorch 2.5.0 + CUDA 12.4
     # These MUST match our local setup exactly!
     .run_commands(
-        "pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.2.0+cu121.html"
+        "pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html"
     )
     .run_commands(
         "pip install torch-geometric==2.6.1"
@@ -640,7 +642,7 @@ def train(
 
     # Run training with REAL-TIME output streaming
     logger.info("Starting training process with real-time logging...")
-    logger.info(f"Data loading from S3 may take 10-20 minutes for large datasets")
+    logger.info(f"Loading from Modal SSD cache - dataset indices building...")
 
     # Use Popen for real-time output with proper buffering
     # bufsize=1 enables line buffering which is better for tqdm

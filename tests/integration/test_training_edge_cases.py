@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import torch
 import torch.nn as nn
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 
 from src.brain_brr.config.schemas import Config, ModelConfig
 from src.brain_brr.models import SeizureDetector
@@ -272,7 +272,7 @@ class TestTrainingExplosions:
             optimizer.zero_grad()
 
             # Mixed precision forward pass
-            with autocast():
+            with autocast("cuda"):
                 output = small_model(data)
                 loss = criterion(output, labels)
 
