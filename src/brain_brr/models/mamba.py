@@ -179,8 +179,8 @@ class BiMamba2Layer(nn.Module):
             x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
             logger.warning("Non-finite values in Mamba input replaced with zeros")
 
-        # Clamp inputs to reasonable range (essential guard)
-        x = torch.clamp(x, min=-10.0, max=10.0)
+        # Clamp inputs to reasonable range (widened v3.4.0: trust normalization more)
+        x = torch.clamp(x, min=-50.0, max=50.0)
 
         residual = x
 
@@ -258,8 +258,8 @@ class BiMamba2Layer(nn.Module):
         # Add residual and normalize
         output = self.layer_norm(residual + self.dropout(x_output))
 
-        # Final safety clamp
-        output = torch.clamp(output, min=-10.0, max=10.0)
+        # Final safety clamp (widened v3.4.0: trust normalization more)
+        output = torch.clamp(output, min=-50.0, max=50.0)
 
         return cast(torch.Tensor, output)
 
@@ -331,8 +331,8 @@ class BiMamba2(nn.Module):
             x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
             logger.warning("Non-finite values in BiMamba input replaced with zeros")
 
-        # Clamp inputs to reasonable range (essential guard)
-        x = torch.clamp(x, min=-10.0, max=10.0)
+        # Clamp inputs to reasonable range (widened v3.4.0: trust normalization more)
+        x = torch.clamp(x, min=-50.0, max=50.0)
 
         # Transpose for sequence processing: (B, L, C)
         x = x.transpose(1, 2).contiguous()  # Ensure contiguous for CUDA kernels

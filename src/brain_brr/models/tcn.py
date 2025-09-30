@@ -70,6 +70,9 @@ class MinimalTCN(nn.Module):
                 in_channels, out_channels, kernel_size, padding=padding, dilation=dilation_size
             )
 
+            # Add weight normalization (2025 TCN best practice for deep networks)
+            conv = nn.utils.weight_norm(conv)
+
             layers.append(conv)
             layers.append(nn.ReLU())
             layers.append(nn.Dropout(dropout))
