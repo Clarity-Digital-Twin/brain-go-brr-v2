@@ -25,6 +25,9 @@ image = (
         "PATH": "/usr/local/cuda-12.4/bin:$PATH",
         "LD_LIBRARY_PATH": "/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH",
         "TORCH_CUDA_ARCH_LIST": "8.0;8.6;8.9;9.0",  # A100 is 8.0
+        "FORCE_REBUILD": "2025-09-30-pr708-src",  # Bump to defeat Modal layer cache
+        "TRITON_CACHE_DIR": "/tmp/triton_cache",
+        "TORCHINDUCTOR_CACHE_DIR": "/tmp/torchinductor_cache",
     })
     # Upgrade pip to latest to stop annoying warnings
     .run_commands("pip install --upgrade pip")
@@ -39,32 +42,47 @@ image = (
     )
     # Install build dependencies
     .pip_install("packaging", "wheel", "setuptools")
-    # CRITICAL: Install EXACT versions with forced compilation
-    # These MUST match local setup exactly (see setup-guide.md)
-    # force_build=True on mamba-ssm to ensure PR #708 patch applies correctly
+    # CRITICAL: Install causal-conv1d first
     .run_commands(
         "pip install --no-build-isolation --no-cache-dir causal-conv1d==1.5.2"
     )
-    .run_commands(
-        "pip install --no-build-isolation --no-cache-dir mamba-ssm==2.2.5",
-        force_build=True  # Force rebuild to apply PR #708 patch
-    )
-    # Verify mamba-ssm imports correctly (CUDA test happens at runtime)
-    .run_commands(
-        "python -c 'from mamba_ssm import Mamba2; print(\"✅ Mamba2 imports successfully\")'"
-    )
-    # 🔧 CRITICAL: Apply PR #708 fix to mamba-ssm Triton kernels
+    # 🔧 CRITICAL: Patch mamba-ssm SOURCE before building
     # This fixes XID 31 MMU Fault on A100 with large batches (batch=64, d_model=512)
     # PR #708: https://github.com/state-spaces/mamba/pull/708
-    # REMOVE THIS once PR #708 is merged into mamba-ssm upstream release
-    # NOTE: copy=True required because we run commands after adding local files
+    # Strategy: Download sdist → Patch source → Build from patched source
+    # This ensures Triton kernels compile from patched code, not cached wheels
+    .run_commands(
+        "pip cache purge",
+        "pip uninstall -y mamba-ssm || true",
+    )
+    .run_commands(
+        "mkdir -p /tmp/mamba_src && cd /tmp/mamba_src && "
+        "pip download --no-binary=:all: --no-deps mamba-ssm==2.2.5"
+    )
+    .run_commands(
+        "cd /tmp/mamba_src && "
+        "tar -xzf mamba_ssm-2.2.5.tar.gz"
+    )
     .add_local_file(
         str(Path(__file__).parent / "patch_mamba_pr708.py"),
-        "/tmp/patch_mamba_pr708.py",
+        "/tmp/patch_source_pr708.py",
         copy=True
     )
     .run_commands(
-        "python /tmp/patch_mamba_pr708.py"
+        "python /tmp/patch_source_pr708.py --source /tmp/mamba_src/mamba_ssm-2.2.5"
+    )
+    .run_commands(
+        "pip install --no-build-isolation --no-cache-dir /tmp/mamba_src/mamba_ssm-2.2.5"
+    )
+    # Verify patch landed in installed files
+    .run_commands(
+        "python -c '"
+        "import mamba_ssm; "
+        "from pathlib import Path; "
+        "p = Path(mamba_ssm.__file__).parent / \"ops\" / \"triton\" / \"ssd_chunk_scan.py\"; "
+        "s = p.read_text(); "
+        "assert \".to(tl.int64)\" in s, \"PR-708 casts missing in installed ssd_chunk_scan.py\"; "
+        "print(f\"✅ Verified PR-708 casts present in {p}\")'"
     )
     # Core dependencies
     .pip_install(
@@ -512,6 +530,11 @@ def train(
     if force_fallback:
         os.environ["SEIZURE_MAMBA_FORCE_FALLBACK"] = "1"
         logger.info("[DIAGNOSTIC] SEIZURE_MAMBA_FORCE_FALLBACK=1 (using Conv1d instead of Mamba CUDA)")
+
+    # CRITICAL: Clear Triton/Inductor caches for first run after patch
+    # This ensures we don't use stale cached kernels
+    os.environ["TRITON_CACHE_DIR"] = "/tmp/triton_cache_run"
+    os.environ["TORCHINDUCTOR_CACHE_DIR"] = "/tmp/tii_cache_run"
 
     # Test mamba-ssm import
     try:
