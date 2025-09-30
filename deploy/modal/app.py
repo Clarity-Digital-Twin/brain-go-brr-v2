@@ -52,16 +52,19 @@ image = (
     # Strategy: Download sdist → Patch source → Build from patched source
     # This ensures Triton kernels compile from patched code, not cached wheels
     .run_commands(
-        "pip cache purge",
-        "pip uninstall -y mamba-ssm || true",
-    )
-    .run_commands(
-        "mkdir -p /tmp/mamba_src && cd /tmp/mamba_src && "
-        "pip download --no-binary=:all: --no-deps mamba-ssm==2.2.5"
-    )
-    .run_commands(
-        "cd /tmp/mamba_src && "
-        "tar -xzf mamba_ssm-2.2.5.tar.gz"
+        "python -c \""
+        "import urllib.request, tarfile; "
+        "from pathlib import Path; "
+        "url = 'https://files.pythonhosted.org/packages/ba/2d/fbd909f6e6d48c491a9ed7ae68e8a890d8409aba4a6356741e2a9c6adad5/mamba_ssm-2.2.5.tar.gz'; "
+        "dest = Path('/tmp/mamba_src'); "
+        "dest.mkdir(parents=True, exist_ok=True); "
+        "tgz = dest / 'mamba_ssm-2.2.5.tar.gz'; "
+        "print(f'Downloading {url}...'); "
+        "urllib.request.urlretrieve(url, tgz); "
+        "print(f'Extracting {tgz}...'); "
+        "tarfile.open(tgz, 'r:gz').extractall(dest); "
+        "print(f'✅ Extracted to {dest}/mamba_ssm-2.2.5')"
+        "\""
     )
     .add_local_file(
         str(Path(__file__).parent / "patch_mamba_pr708.py"),
