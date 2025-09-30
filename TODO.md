@@ -1,5 +1,7 @@
 # Technical Debt Priority List
 
+-- LOOK AT SRC ULTILS MAKE SURE UTILS ARE ORGANIZED AND IN THE RIGHT LOCATION
+
 **Last Updated:** 2025-09-29
 **Status:** Full codebase audit completed
 **Training Status:** V3 architecture running on Modal A100 (100 epochs in progress)
