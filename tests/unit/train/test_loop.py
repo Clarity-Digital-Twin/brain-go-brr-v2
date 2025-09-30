@@ -42,7 +42,7 @@ class TestTrainingSmoke:
         return SeizureDetector.from_config(config)
 
     @pytest.fixture
-    def synthetic_data(self) -> tuple[DataLoader, DataLoader]:
+    def synthetic_data(self, test_batch_size) -> tuple[DataLoader, DataLoader]:
         """Create synthetic balanced dataset."""
         # Create balanced dataset (10 windows)
         windows = torch.randn(10, 19, 15360)
@@ -55,9 +55,10 @@ class TestTrainingSmoke:
         train_dataset = TensorDataset(windows[:8], labels[:8])
         val_dataset = TensorDataset(windows[8:], labels[8:])
 
-        # Use batch_size=1 to minimize memory usage
-        train_loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
-        val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False)
+        # Use GPU-appropriate batch size
+        batch_size = min(test_batch_size, 2)  # Cap at 2 for these quick tests
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
         return train_loader, val_loader
 

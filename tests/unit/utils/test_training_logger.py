@@ -83,11 +83,14 @@ class TestTrainingLogger:
             aggregate_window=5,
         )
 
-    def test_training_lifecycle(self, logger):
+    def test_training_lifecycle(self, logger, test_batch_size):
         """Test complete training lifecycle."""
         # Start training
         logger.start_training(total_epochs=2, total_steps=10)
         assert logger.total_epochs == 2
+
+        # Logger tests don't need large batches
+        batch_size = min(test_batch_size, 32)
 
         # Run epochs
         for epoch in range(1, 3):
@@ -100,7 +103,7 @@ class TestTrainingLogger:
                     loss=1.0 / (step + 1),
                     metrics={"accuracy": 0.5 + step * 0.1},
                     lr=1e-3,
-                    batch_size=32,
+                    batch_size=batch_size,
                 )
 
             logger.end_epoch(metrics={"val_loss": 0.5})

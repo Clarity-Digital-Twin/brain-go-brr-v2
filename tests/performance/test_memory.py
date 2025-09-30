@@ -17,6 +17,7 @@ pytestmark = pytest.mark.performance
 
 
 @pytest.mark.serial
+@pytest.mark.gpu
 class TestMemoryUsage:
     """Profile memory consumption across different scenarios."""
 

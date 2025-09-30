@@ -30,6 +30,7 @@ pytestmark = [pytest.mark.performance, skip_perf_tests]
 
 
 @pytest.mark.serial
+@pytest.mark.gpu
 class TestInferenceLatency:
     """Test inference latency for real-time processing requirements."""
 
@@ -349,6 +350,7 @@ class TestInferenceLatency:
 
 
 @pytest.mark.serial
+@pytest.mark.gpu
 class TestThroughput:
     """Test throughput for batch processing scenarios."""
 
@@ -452,6 +454,7 @@ class TestThroughput:
 
 
 @pytest.mark.serial
+@pytest.mark.gpu
 class TestLatencyUnderLoad:
     """Test latency stability under various load conditions."""
 

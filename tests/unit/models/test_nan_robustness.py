@@ -15,6 +15,7 @@ from src.brain_brr.train.loop import FocalLoss
 HAS_PYG = importlib.util.find_spec("torch_geometric") is not None
 
 
+@pytest.mark.gpu
 class TestNaNRobustness:
     """Test suite to ensure 100% NaN robustness across all components."""
 

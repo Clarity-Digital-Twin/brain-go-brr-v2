@@ -214,11 +214,29 @@ def valid_config_yaml(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def test_batch_size() -> int:
+    """
+    GPU-appropriate batch size for tests.
+
+    Returns batch size based on available GPU:
+    - RTX 4090: 4
+    - A100: 8
+    - Unknown GPU: 2
+    - CPU: 1
+
+    Can be overridden with TEST_BATCH_SIZE environment variable.
+    """
+    from tests.test_config import TEST_MAX_BATCH_SIZE
+
+    return TEST_MAX_BATCH_SIZE
+
+
+@pytest.fixture
 def sample_windows():
     """Sample window data for testing."""
-    from tests.test_config import TEST_BATCH_SIZE, TEST_WINDOW_SIZE
+    from tests.test_config import TEST_MAX_BATCH_SIZE, TEST_WINDOW_SIZE
 
-    batch_size = min(TEST_BATCH_SIZE, 2)  # Use small batch for tests
+    batch_size = min(TEST_MAX_BATCH_SIZE, 2)  # Use small batch for tests
     n_channels = 19
     window_samples = TEST_WINDOW_SIZE  # 60s at 256Hz
 
