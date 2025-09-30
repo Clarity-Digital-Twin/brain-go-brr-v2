@@ -14,7 +14,17 @@
       "Bash(make:*)",
       "Bash(export BGB_SANITIZE_GRADS=1)",
       "Bash(export BGB_NAN_DEBUG=1)",
-      "Bash(export BGB_SMOKE_TEST=1)"
+      "Bash(export BGB_SMOKE_TEST=1)",
+      "Bash(tmux ls:*)",
+      "Bash(nvidia-smi:*)",
+      "Bash(tmux kill-session:*)",
+      "Bash(find:*)",
+      "Bash(tmux new-session:*)",
+      "Bash(modal run:*)",
+      "Bash(tee:*)",
+      "Bash(tmux capture-pane:*)",
+      "Bash(modal app:*)",
+      "Bash(tmux list-sessions:*)"
     ],
     "deny": [],
     "ask": []
