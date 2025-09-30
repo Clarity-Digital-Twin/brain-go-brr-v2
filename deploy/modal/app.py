@@ -80,15 +80,18 @@ image = (
         "--force-reinstall --no-deps --no-binary :all: "
         "/tmp/mamba_src/mamba_ssm-2.2.5"
     )
-    # Verify patch landed in installed files
+    # Verify patch landed in ALL installed Triton kernel files
     .run_commands(
-        "python -c '"
-        "import mamba_ssm; "
+        "python -c \""
         "from pathlib import Path; "
-        "p = Path(mamba_ssm.__file__).parent / \"ops\" / \"triton\" / \"ssd_chunk_scan.py\"; "
-        "s = p.read_text(); "
-        "assert \".to(tl.int64)\" in s, \"PR-708 casts missing in installed ssd_chunk_scan.py\"; "
-        "print(f\"✅ Verified PR-708 casts present in {p}\")'"
+        "import mamba_ssm; "
+        "files = ['ssd_chunk_scan.py', 'ssd_chunk_state.py', 'ssd_state_passing.py', 'ssd_combined.py']; "
+        "for f in files: "
+        "  p = Path(mamba_ssm.__file__).parent / 'ops' / 'triton' / f; "
+        "  s = p.read_text(); "
+        "  assert '.to(tl.int64)' in s, f'Missing int64 cast in {f}'; "
+        "  print(f'✅ {f}'); "
+        "\""
     )
     # Core dependencies
     .pip_install(
