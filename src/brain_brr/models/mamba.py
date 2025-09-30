@@ -173,10 +173,10 @@ class BiMamba2Layer(nn.Module):
         if self.backward_mamba_fallback.bias is not None:
             nn.init.zeros_(self.backward_mamba_fallback.bias)
 
-        # LayerNorm: standard initialization
-        if self.layer_norm.weight is not None:
+        # LayerNorm/RMSNorm: standard initialization
+        if hasattr(self.layer_norm, "weight") and self.layer_norm.weight is not None:
             nn.init.constant_(self.layer_norm.weight, 1)
-        if self.layer_norm.bias is not None:
+        if hasattr(self.layer_norm, "bias") and self.layer_norm.bias is not None:
             nn.init.constant_(self.layer_norm.bias, 0)
 
     @property

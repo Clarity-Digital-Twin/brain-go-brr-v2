@@ -11,7 +11,10 @@
       "Bash(.venv/bin/pytest --collect-only -q)",
       "Bash(xargs:*)",
       "Bash(.venv/bin/pytest --collect-only tests/)",
-      "Bash(make:*)"
+      "Bash(make:*)",
+      "Bash(export BGB_SANITIZE_GRADS=1)",
+      "Bash(export BGB_NAN_DEBUG=1)",
+      "Bash(export BGB_SMOKE_TEST=1)"
     ],
     "deny": [],
     "ask": []
