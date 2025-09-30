@@ -51,6 +51,19 @@ image = (
     .run_commands(
         "python -c 'from mamba_ssm import Mamba2; print(\"✅ Mamba2 imports successfully\")'"
     )
+    # 🔧 CRITICAL: Apply PR #708 fix to mamba-ssm Triton kernels
+    # This fixes XID 31 MMU Fault on A100 with large batches (batch=64, d_model=512)
+    # PR #708: https://github.com/state-spaces/mamba/pull/708
+    # REMOVE THIS once PR #708 is merged into mamba-ssm upstream release
+    # NOTE: copy=True required because we run commands after adding local files
+    .add_local_file(
+        str(Path(__file__).parent / "patch_mamba_pr708.py"),
+        "/tmp/patch_mamba_pr708.py",
+        copy=True
+    )
+    .run_commands(
+        "python /tmp/patch_mamba_pr708.py"
+    )
     # Core dependencies
     .pip_install(
         "scipy>=1.10.0",

@@ -154,3 +154,6 @@ literature/pdfs/
 # Tracked mirrors live under reference_repos/; this ignore prevents accidental
 # additions of large files. Existing tracked files remain unaffected.
 reference_repos/
+
+# Claude Code local settings
+.claude/settings.local.json

@@ -72,10 +72,10 @@ test-cpu: ## Run CPU tests (serial; safe during training)
 	@echo "${CYAN}Running CPU tests (serial; safe during training)...${NC}"
 	$(PYTEST) -n 1 -k "not (mamba or cuda)" -q
 
-test-safe: ## Run tests safe for concurrent training (CPU + unit only)
-	@echo "${CYAN}Running training-safe tests (CPU + unit tests only)...${NC}"
-	@echo "${YELLOW}Use this target when training is running in tmux${NC}"
-	$(PYTEST) -n 1 -m "not performance and not gpu" tests/unit -q
+test-safe: ## Run tests safe for concurrent training (CPU only, all tests)
+	@echo "${CYAN}Running training-safe tests (CPU only, all tests)...${NC}"
+	@echo "${YELLOW}Excludes ALL performance and GPU tests - safe during training${NC}"
+	$(PYTEST) -n 1 -m "not performance and not gpu" tests/ -q
 
 test-edge: ## Run edge case tests for data robustness
 	@echo "${CYAN}Running edge case tests...${NC}"

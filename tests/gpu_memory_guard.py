@@ -49,9 +49,18 @@ def pytest_runtest_setup(item):
 
 
 def pytest_runtest_teardown(item):
-    """Teardown after each test - aggressive GPU cleanup."""
+    """
+    Teardown after each test - aggressive GPU cleanup.
+
+    This session hook performs the DEFINITIVE cleanup by iterating
+    gc.get_objects() and deleting CUDA tensors. This is the ONLY place
+    where this expensive operation should happen.
+
+    The conftest.py cleanup_torch_resources() fixture performs lightweight
+    cache clearing only, to avoid duplicate iterations.
+    """
     if torch.cuda.is_available():
-        # Clear all GPU tensors
+        # Clear all GPU tensors (DEFINITIVE CLEANUP - only here!)
         for obj in gc.get_objects():
             if torch.is_tensor(obj) and obj.is_cuda:
                 del obj
@@ -73,14 +82,18 @@ def gpu_memory_limit():
 
         if training_active or available_memory < 10:
             # Training detected or low memory: use minimal allocation (2-3GB)
-            torch.cuda.set_per_process_memory_fraction(0.12, 0)  # 12% of 24GB = ~3GB
+            # Can override with BGB_TEST_GPU_FRACTION_TRAIN env var
+            fraction = float(os.getenv("BGB_TEST_GPU_FRACTION_TRAIN", "0.12"))
+            torch.cuda.set_per_process_memory_fraction(fraction, 0)
             print(
                 f"\n⚠️  Training detected or low GPU memory ({available_memory:.1f}GB free)"
-                f"\n   Tests limited to 3GB VRAM. Use BGB_SKIP_GPU_TESTS=1 to skip GPU tests."
+                f"\n   Tests limited to {fraction * 100:.0f}% VRAM. Use BGB_SKIP_GPU_TESTS=1 to skip GPU tests."
             )
         else:
             # Normal test mode: conservative limit (10GB)
-            torch.cuda.set_per_process_memory_fraction(0.4, 0)  # 40% of 24GB = ~10GB
+            # Can override with BGB_TEST_GPU_FRACTION env var
+            fraction = float(os.getenv("BGB_TEST_GPU_FRACTION", "0.4"))
+            torch.cuda.set_per_process_memory_fraction(fraction, 0)
 
     yield
     if torch.cuda.is_available():

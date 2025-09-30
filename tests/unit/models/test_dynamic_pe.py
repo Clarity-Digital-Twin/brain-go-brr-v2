@@ -18,6 +18,7 @@ except ImportError:
 
 
 @pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
+@pytest.mark.gpu
 class TestDynamicPE:
     """Test suite for dynamic PE implementation."""
 

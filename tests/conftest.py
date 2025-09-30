@@ -5,9 +5,7 @@
 import gc
 import multiprocessing
 import os
-import tempfile
 import time
-from collections.abc import Generator
 from contextlib import suppress
 from pathlib import Path
 from unittest.mock import Mock
@@ -105,7 +103,7 @@ def mock_raw_edf(sample_edf_data):
 
 
 @pytest.fixture
-def trained_model(tmp_path):
+def trained_model():
     """Lightweight pre-trained model for testing."""
     from src.brain_brr.config.schemas import MambaConfig, ModelConfig, TCNConfig
     from src.brain_brr.models import SeizureDetector
@@ -214,11 +212,29 @@ def valid_config_yaml(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def test_batch_size() -> int:
+    """
+    GPU-appropriate batch size for tests.
+
+    Returns batch size based on available GPU:
+    - RTX 4090: 4
+    - A100: 8
+    - Unknown GPU: 2
+    - CPU: 1
+
+    Can be overridden with TEST_BATCH_SIZE environment variable.
+    """
+    from tests.test_config import TEST_MAX_BATCH_SIZE
+
+    return TEST_MAX_BATCH_SIZE
+
+
+@pytest.fixture
 def sample_windows():
     """Sample window data for testing."""
-    from tests.test_config import TEST_BATCH_SIZE, TEST_WINDOW_SIZE
+    from tests.test_config import TEST_MAX_BATCH_SIZE, TEST_WINDOW_SIZE
 
-    batch_size = min(TEST_BATCH_SIZE, 2)  # Use small batch for tests
+    batch_size = min(TEST_MAX_BATCH_SIZE, 2)  # Use small batch for tests
     n_channels = 19
     window_samples = TEST_WINDOW_SIZE  # 60s at 256Hz
 
@@ -361,7 +377,7 @@ def mock_dataloader(sample_windows):
 
 
 @pytest.fixture(autouse=True)
-def setup_test_env(monkeypatch, request):
+def setup_test_env(monkeypatch):
     """Set up test environment variables."""
     # Don't force fallback - let Mamba use optimal path
     # monkeypatch.setenv("SEIZURE_MAMBA_FORCE_FALLBACK", "1")  # Removed - may use more memory
@@ -398,77 +414,31 @@ def benchmark_timer():
 
 
 # Utility functions for tests
-def create_temp_config(**overrides) -> Generator[Path, None, None]:
-    """Create temporary config file with overrides."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-        base_config = {
-            "experiment": {"name": "test", "seed": 42},
-            "data": {"dataset": "tuh_eeg", "data_dir": "tests/fixtures/data"},
-            "model": {
-                "architecture": "v3",
-                "tcn": {
-                    "num_layers": 8,
-                    "kernel_size": 7,
-                    "dropout": 0.15,
-                    "causal": False,
-                    "stride_down": 16,
-                },
-                "mamba": {"n_layers": 6, "d_model": 512, "d_state": 16, "conv_kernel": 4},
-            },
-            "training": {"epochs": 1, "batch_size": 2},
-            "postprocessing": {
-                "hysteresis": {"tau_on": 0.86, "tau_off": 0.78},
-                "morphology": {"opening_kernel": 11, "closing_kernel": 31},
-            },
-        }
-
-        # Deep merge overrides
-        def deep_update(d, u):
-            for k, v in u.items():
-                if isinstance(v, dict):
-                    d[k] = deep_update(d.get(k, {}), v)
-                else:
-                    d[k] = v
-            return d
-
-        config = deep_update(base_config, overrides)
-        yaml.dump(config, f)
-        path = Path(f.name)
-
-    yield path
-    path.unlink()
-
-
 def assert_tensor_close(a: torch.Tensor, b: torch.Tensor, rtol: float = 1e-5, atol: float = 1e-8):
     """Helper for comparing tensors with tolerance."""
     assert a.shape == b.shape, f"Shape mismatch: {a.shape} vs {b.shape}"
     assert torch.allclose(a, b, rtol=rtol, atol=atol)
 
 
-# Single consolidated cleanup fixture to avoid conflicts
+# Lightweight cleanup fixture - heavy cleanup is in gpu_memory_guard.py
 @pytest.fixture(autouse=True)
 def cleanup_torch_resources():
-    """Consolidated cleanup for PyTorch resources."""
-    # Pre-test cleanup
+    """
+    Lightweight GPU cleanup for tests.
+
+    Note: Heavy cleanup (tensor deletion via gc.get_objects()) is handled
+    by gpu_memory_guard.pytest_runtest_teardown() session hook to avoid
+    duplicate expensive iterations.
+    """
+    # Pre-test: Quick cache clear and stats reset
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.synchronize()
         torch.cuda.reset_peak_memory_stats()
-    gc.collect()
 
     yield
 
-    # Post-test cleanup
-    # Clear all GPU tensors
-    if torch.cuda.is_available():
-        for obj in gc.get_objects():
-            try:
-                if torch.is_tensor(obj) and obj.is_cuda:
-                    del obj
-            except (AttributeError, RuntimeError):
-                pass
-
-    gc.collect()
+    # Post-test: Quick cache clear only (no gc.get_objects() iteration)
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.synchronize()
