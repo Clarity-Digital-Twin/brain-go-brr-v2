@@ -91,19 +91,29 @@ def apply_pr708_fix(source_dir: Path = None):
 
     else:
         print(f"\n📦 Patching INSTALLED package")
-        try:
-            import mamba_ssm
-            mamba_dir = Path(mamba_ssm.__file__).parent
-            triton_dir = mamba_dir / "ops" / "triton"
-            print(f"✓ Found mamba_ssm: {mamba_dir}")
-            print(f"✓ Triton kernels:  {triton_dir}")
-        except ImportError as e:
-            print(f"❌ mamba_ssm not installed: {e}")
+        # Find mamba_ssm without importing (to avoid einops dependency)
+        import sys
+        import site
+
+        # Check standard site-packages locations
+        possible_dirs = [
+            Path(p) / "mamba_ssm"
+            for p in site.getsitepackages() + [site.getusersitepackages()]
+        ]
+
+        mamba_dir = None
+        for d in possible_dirs:
+            if d.exists() and (d / "ops" / "triton").exists():
+                mamba_dir = d
+                break
+
+        if not mamba_dir:
+            print(f"❌ mamba_ssm not found in: {[str(p) for p in possible_dirs]}")
             return False
 
-        if not triton_dir.exists():
-            print(f"❌ Triton directory not found: {triton_dir}")
-            return False
+        triton_dir = mamba_dir / "ops" / "triton"
+        print(f"✓ Found mamba_ssm: {mamba_dir}")
+        print(f"✓ Triton kernels:  {triton_dir}")
 
     total_changes = patch_triton_files(triton_dir)
 
@@ -113,25 +123,8 @@ def apply_pr708_fix(source_dir: Path = None):
     else:
         print(f"\n✅ Successfully patched ~{total_changes} pointer operations!")
 
-    if not source_dir:
-        print("\n🧪 Verifying patched mamba_ssm imports...")
-        try:
-            modules_to_reload = [
-                'mamba_ssm.ops.triton.ssd_chunk_scan',
-                'mamba_ssm.ops.triton.ssd_chunk_state',
-                'mamba_ssm.ops.triton.ssd_state_passing',
-                'mamba_ssm.ops.triton.ssd_combined',
-            ]
-            for mod in modules_to_reload:
-                if mod in sys.modules:
-                    del sys.modules[mod]
-
-            from mamba_ssm import Mamba2
-            print("✅ mamba_ssm reimports successfully with PR #708 fix!")
-
-        except ImportError as e:
-            print(f"❌ Failed to reimport mamba_ssm: {e}")
-            return False
+    # Skip import verification when patching installed package
+    # (mamba_ssm depends on einops which may not be installed yet)
 
     print("\n" + "=" * 70)
     print("✅ PR #708 APPLICATION COMPLETE")
