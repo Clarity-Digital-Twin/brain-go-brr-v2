@@ -59,17 +59,23 @@ test-integration: ## Run only integration tests (serial for V3)
 	@echo "${CYAN}Running GPU integration tests (if available)...${NC}"
 	$(PYTEST) -n 1 -m "integration and gpu and not performance" -v || true
 
-test-performance: ## Run only performance benchmarks (serial)
+test-performance: ## Run only performance benchmarks (serial; skip during training)
 	@echo "${CYAN}Running performance benchmarks (serial)...${NC}"
+	@echo "${YELLOW}WARNING: Performance tests require GPU memory. Use 'make test-safe' during training.${NC}"
 	$(PYTEST) -n 0 -m performance -v
 
 test-gpu: ## Run tests optimized for GPU (serial)
 	@echo "${CYAN}Running GPU tests (serial)...${NC}"
 	$(PYTEST) -n 1 -v -k "mamba or cuda"
 
-test-cpu: ## Run CPU tests (serial for V3 safety)
-	@echo "${CYAN}Running CPU tests (serial)...${NC}"
+test-cpu: ## Run CPU tests (serial; safe during training)
+	@echo "${CYAN}Running CPU tests (serial; safe during training)...${NC}"
 	$(PYTEST) -n 1 -k "not (mamba or cuda)" -q
+
+test-safe: ## Run tests safe for concurrent training (CPU + unit only)
+	@echo "${CYAN}Running training-safe tests (CPU + unit tests only)...${NC}"
+	@echo "${YELLOW}Use this target when training is running in tmux${NC}"
+	$(PYTEST) -n 1 -m "not performance and not gpu" tests/unit -q
 
 test-edge: ## Run edge case tests for data robustness
 	@echo "${CYAN}Running edge case tests...${NC}"
@@ -184,6 +190,7 @@ tensorboard: ## Start TensorBoard
 
 # Development shortcuts
 t: test-fast ## Shortcut for test-fast
+ts: test-safe ## Shortcut for training-safe tests
 ti: test-integration ## Shortcut for integration tests
 tp: test-performance ## Shortcut for performance benchmarks
 f: format ## Shortcut for format

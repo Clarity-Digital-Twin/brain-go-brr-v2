@@ -25,6 +25,7 @@ Current Architecture (v3.2.0):
 |---------|---------|
 | `make q` | Quality check (lint+format+mypy) — **RUN AFTER EVERY CHANGE** ✅ |
 | `make t` | Fast tests without coverage |
+| `make ts` | Training-safe tests (CPU only) — **USE DURING TRAINING** 🏃 |
 | `make test` | Full test suite with coverage |
 | `make setup` | Initial setup with uv |
 | `make setup-gpu` | Install GPU stack (Mamba+PyG+TCN) — **REQUIRED for V3** |
@@ -207,9 +208,17 @@ numpy==1.26.4             # 2.x breaks mamba-ssm
 ### Testing Strategy
 ```bash
 make t              # Quick tests for development
+make ts             # Safe tests during training (CPU only)
 make test           # Full coverage before commits
-make test-gpu       # GPU-specific tests
+make test-gpu       # GPU-specific tests (stop training first)
 ```
+
+**CRITICAL: Testing During Training**
+- Training uses ~12GB GPU memory on RTX 4090
+- Performance tests (`make test-performance`) will OOM during training
+- **Solution**: Use `make ts` or `make test-cpu` for concurrent testing
+- Test suite auto-detects training and limits GPU usage to 3GB
+- Set `BGB_SKIP_GPU_TESTS=1` to force-skip all GPU tests
 
 ### Environment Variables
 ```bash
@@ -222,6 +231,9 @@ export BGB_FORCE_MANIFEST_REBUILD=1   # Rebuild cache manifest
 # Data limits
 export BGB_SMOKE_TEST=1              # Limit to 3 files
 export BGB_LIMIT_FILES=50            # Custom file limit
+
+# Testing
+export BGB_SKIP_GPU_TESTS=1          # Skip GPU tests during training
 
 # WSL2 fixes
 export UV_LINK_MODE=copy             # Prevent permission issues
