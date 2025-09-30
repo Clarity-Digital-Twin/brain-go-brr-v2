@@ -87,7 +87,7 @@ def gpu_memory_limit():
             torch.cuda.set_per_process_memory_fraction(fraction, 0)
             print(
                 f"\n⚠️  Training detected or low GPU memory ({available_memory:.1f}GB free)"
-                f"\n   Tests limited to {fraction*100:.0f}% VRAM. Use BGB_SKIP_GPU_TESTS=1 to skip GPU tests."
+                f"\n   Tests limited to {fraction * 100:.0f}% VRAM. Use BGB_SKIP_GPU_TESTS=1 to skip GPU tests."
             )
         else:
             # Normal test mode: conservative limit (10GB)
