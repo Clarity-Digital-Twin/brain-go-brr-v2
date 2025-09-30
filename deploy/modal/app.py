@@ -26,6 +26,8 @@ image = (
         "LD_LIBRARY_PATH": "/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH",
         "TORCH_CUDA_ARCH_LIST": "8.0;8.6;8.9;9.0",  # A100 is 8.0
     })
+    # Upgrade pip to latest to stop annoying warnings
+    .run_commands("pip install --upgrade pip")
     # CRITICAL: Install EXACT PyTorch version from specific index
     # Modal's mirror can have wrong versions, so we force PyTorch index
     .run_commands(
