@@ -4,7 +4,7 @@ This file provides critical project context for Claude Code (claude.ai/code) whe
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.2.0: Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with edge similarity clamping — achieving O(N) complexity with state-space models and graph neural networks.
+Brain-Go-Brr v3.3.0: Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with edge similarity clamping — achieving O(N) complexity with state-space models and graph neural networks.
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
@@ -115,7 +115,7 @@ training:
   use_balanced_sampling: true     # CRITICAL or no seizures in batches
 model:
   graph:
-    edge_similarity_margin: 0.01  # v3.2.0: Safety margin from ±1 boundaries
+    edge_similarity_margin: 0.01  # v3.3.0: Safety margin from ±1 boundaries
 ```
 
 ### Modal Cloud (A100-80GB)
@@ -128,7 +128,7 @@ training:
   mixed_precision: true           # A100 tensor cores
 model:
   graph:
-    edge_similarity_margin: 0.01  # v3.2.0: Safety margin from ±1 boundaries
+    edge_similarity_margin: 0.01  # v3.3.0: Safety margin from ±1 boundaries
 resources:
   cpu: 24                         # Avoid bottlenecks (default: 0.125!)
   memory: 98304                   # 96GB RAM
@@ -237,11 +237,11 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 | Zero seizures in batches | Enable `use_balanced_sampling: true` |
 | NaN losses on RTX 4090 | Set `mixed_precision: false` |
 | **Non-finite logits** | **Rebuild cache after Sep 26 fix + use `BGB_SANITIZE_GRADS=1`** |
-| **Edge similarity explosions** | **v3.2.0: Set `edge_similarity_margin: 0.01` in configs** |
+| **Edge similarity explosions** | **v3.3.0: Set `edge_similarity_margin: 0.01` in configs** |
 | Modal training stuck | Increase CPU cores (24) and RAM (96GB) |
 | PyG installation fails | Use pre-built wheels, not `uv sync -E graph` |
 | Mamba CUDA errors | Ensure CUDA 12.4 toolkit installed |
-| CI/CD test failures | Tests properly skip when PyG not installed (v3.2.0+) |
+| CI/CD test failures | Tests properly skip when PyG not installed (v3.3.0+) |
 
 ### Modal-Specific Settings
 - **Resources**: 24 CPU cores + 96GB RAM (defaults are too low!)
@@ -287,7 +287,8 @@ Due to hardware differences, integration tests have adjusted thresholds:
 
 **Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
 
-**Current Status (v3.2.0)**:
+**Current Status (v3.3.0)**:
+- PyTorch 2.5.0 + mamba-ssm 2.2.5 (fixes A100 XID 31 crashes)
 - V3 dual-stream architecture with edge similarity clamping (PR-5)
 - Training stable on both RTX 4090 (local) and A100 (Modal)
 - All NaN issues resolved with 3-tier protection system

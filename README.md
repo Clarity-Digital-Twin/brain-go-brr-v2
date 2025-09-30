@@ -3,8 +3,8 @@
 **State-of-the-art seizure detection using TCN + BiMamba + GNN with Dynamic Laplacian PE**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
-[![PyTorch 2.2.2](https://img.shields.io/badge/pytorch-2.2.2-red.svg)](https://pytorch.org)
-[![CUDA 12.1](https://img.shields.io/badge/cuda-12.1-green.svg)](https://developer.nvidia.com/cuda-toolkit)
+[![PyTorch 2.5.0](https://img.shields.io/badge/pytorch-2.5.0-red.svg)](https://pytorch.org)
+[![CUDA 12.4](https://img.shields.io/badge/cuda-12.4-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
 
 ## 🚀 Highlights
@@ -89,7 +89,7 @@ Stability by construction (implemented)
 ```bash
 # System requirements
 - Ubuntu 20.04+ or WSL2
-- CUDA 12.1+ with cuDNN 8.9+
+- CUDA 12.4+ with cuDNN 8.9+
 - 24GB+ GPU memory (RTX 4090 or better)
 - 32GB+ system RAM
 ```
@@ -106,7 +106,7 @@ cd brain-go-brr-v2
 make setup
 
 # 3. Install GPU components (CRITICAL: exact versions matter!)
-make setup-gpu  # Installs mamba-ssm==2.2.2, PyG, TCN
+make setup-gpu  # Installs mamba-ssm==2.2.5, PyG, TCN
 ```
 
 ### Data Preparation
@@ -243,7 +243,7 @@ modal app logs <id>   # Stream logs
 | NaN losses | Enable `BGB_SANITIZE_GRADS=1` and rebuild cache |
 | OOM errors | Reduce batch_size or increase semi_dynamic_interval |
 | Slow training | Verify cache on SSD, not network mount |
-| Import errors | Exact versions: torch==2.2.2, mamba-ssm==2.2.2 |
+| Import errors | Exact versions: torch==2.5.0, mamba-ssm==2.2.5 |
 
 ## 📊 Expected Performance
 
