@@ -642,7 +642,7 @@ def train(
 
     # Run training with REAL-TIME output streaming
     logger.info("Starting training process with real-time logging...")
-    logger.info(f"Data loading from S3 may take 10-20 minutes for large datasets")
+    logger.info(f"Loading from Modal SSD cache - dataset indices building...")
 
     # Use Popen for real-time output with proper buffering
     # bufsize=1 enables line buffering which is better for tqdm
