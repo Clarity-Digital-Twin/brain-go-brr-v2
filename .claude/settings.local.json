@@ -93,7 +93,8 @@
       "Bash(timeout 180 make smoke-local)",
       "Bash(ps:*)",
       "Bash(sed:*)",
-      "Bash(.venv/bin/pytest tests/unit/models/test_pr1_normalization.py::test_gradient_flow_with_norms -xvs)"
+      "Bash(.venv/bin/pytest tests/unit/models/test_pr1_normalization.py::test_gradient_flow_with_norms -xvs)",
+      "Bash(.venv/bin/mypy src/)"
     ],
     "deny": [],
     "ask": []
