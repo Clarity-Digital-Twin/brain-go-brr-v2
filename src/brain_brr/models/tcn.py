@@ -18,9 +18,8 @@ logger = logging.getLogger(__name__)
 # Suppress deprecation warning for weight_norm - we use old API for torch.compile compat
 warnings.filterwarnings(
     "ignore",
-    message=".*weight_norm is deprecated.*",
-    category=UserWarning,
-    module="torch.nn.utils.weight_norm",
+    message=".*weight_norm.*deprecated.*",
+    category=FutureWarning,
 )
 
 # Try to import pytorch-tcn (optional dependency)
