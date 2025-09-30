@@ -167,9 +167,12 @@ Fault is of type FAULT_PDE ACCESS_TYPE_VIRT_WRITE
 
 ---
 
-## Web Research: Known mamba-ssm Bugs
+## Deep Web Research: Known mamba-ssm Bugs & Fixes
 
-### Issue #732: Shape-Dependent First-Batch Bug (A6000)
+### 🔴 Issue #732: Shape-Dependent First-Batch Bug (A6000) - **STILL OPEN**
+
+**Opened**: May 23, 2025
+**Status**: ❌ **OPEN** (no fix released as of Sept 2025)
 
 **Pattern documented**:
 - Tensor shapes like (27, 32768, 384) **FAIL when executed FIRST**
@@ -182,19 +185,70 @@ Fault is of type FAULT_PDE ACCESS_TYPE_VIRT_WRITE
 
 **Environment**:
 - GPU: NVIDIA A6000 (sm_86 architecture, Ampere like A100's sm_80)
-- Versions: mamba-ssm==2.2.4, torch==2.5.1, CUDA 12.2
-- Status: Open, no upstream fix
+- Versions: mamba-ssm==2.2.4, causal-conv1d==1.5.0.post8, torch==2.5.1, CUDA 12.2
+- Status: **OPEN** - no upstream fix available
 
-### Issue #686: Long Sequence Illegal Memory Access (H100)
+**Workaround documented**: Run small tensor first (26, 2048, 384) before large tensors
+
+---
+
+### 🟡 PR #708: "fix: fix large batch size & prefill size issue" - **NOT MERGED**
+
+**Author**: younesbelkada
+**Target**: Fixes Issue #503
+**Status**: ⏸️ **OPEN** (not merged into main as of Sept 2025)
+
+**The Fix**: **Casts all pointers to tl.int64** in Triton kernels
+
+**Why this matters**: This is EXACTLY the fix we need! Pointer casting to int64 prevents illegal memory access with large batch sizes and prefill sizes. However, **this fix is NOT in mamba-ssm 2.2.5**.
+
+**Impact if applied**: Would likely fix our XID 31 crash on A100 with batch=64
+
+**Location**: `state-spaces/mamba` PR #708
+
+---
+
+### ✅ PR #537: "Fix Incorrect Gradients and Illegal Memory Access Error in Mamba2" - **MERGED**
+
+**Author**: Hprairie
+**Merged by**: tridao into state-spaces:main
+**Status**: ✅ **MERGED** (included in mamba-ssm 2.2.5)
+
+**The Fix**: Fixed bug in backward pass for gradient calculations in `_chunk_scan_bwd_ddAcs_stable_kernel`
+
+**Relevance**: This fixed SOME illegal memory access issues, but not the first-batch / large batch size issue we're hitting
+
+---
+
+### 🟡 Issue #686: Long Sequence Illegal Memory Access (H100) - **OPEN**
 
 **Pattern**:
 - Sequence lengths >512K trigger illegal memory access
-- Location: `_mamba_chunk_scan_combined_fwd` kernel
-- Fix attempted: int64 indexing (likely in 2.2.3+)
+- Location: `_mamba_chunk_scan_combined_fwd` kernel in Triton
+- Specifically in `_chunk_cumsum_fwd` function
+- Fix attempted: int64 indexing (mentioned but unclear if fully resolved)
 
-**Relevance**: Shows mamba-ssm CUDA kernels have pointer arithmetic bugs across multiple GPUs
+**Relevance**: Shows mamba-ssm CUDA kernels have pointer arithmetic bugs across multiple GPUs (A100, A6000, H100)
 
-### NVIDIA XID 31 Official Docs
+---
+
+### 📦 mamba-ssm Version Status (Sept 2025)
+
+**Latest version**: 2.2.5 (released July 19, 2025)
+**Previous**: 2.2.4 (released Dec 6, 2024)
+**Newer versions**: ❌ No 2.2.6 or 2.3.0 exists
+
+**What's in 2.2.5**:
+- ✅ PR #537 fix (gradient/memory access in backward pass)
+- ❌ PR #708 fix (large batch size pointer casting) - **NOT INCLUDED**
+- ❌ Issue #732 (first-batch bug) - **STILL OPEN**
+- ❌ Issue #686 (long sequence H100) - **STILL OPEN**
+
+**Release notes**: Minimal ("Bump to v2.2.5") - no detailed changelog
+
+---
+
+### 💡 NVIDIA XID 31 Official Docs
 
 **Definition**: MMU page fault = illegal memory access by GPU kernel
 **Causes**: Out-of-bounds access, uninitialized pointers, race conditions
@@ -205,6 +259,22 @@ Fault is of type FAULT_PDE ACCESS_TYPE_VIRT_WRITE
 2. `TORCH_USE_CUDA_DSA=1` - Enable device-side assertions
 3. `CUDA_DISABLE_PTX_JIT=1` - Disable JIT to surface arch mismatches immediately
 4. Compute Sanitizer (replaces cuda-memcheck) - Pinpoint exact memory access violation
+
+---
+
+## 🚨 CRITICAL DISCOVERY
+
+**The fix we need (PR #708) EXISTS but is NOT MERGED into any released version!**
+
+This explains everything:
+1. Why mamba-ssm 2.2.5 doesn't fix our issue (PR #708 not included)
+2. Why Issue #732 is still open (same root cause, no fix released)
+3. Why our pattern matches exactly (first-batch large batch bug)
+
+**Options**:
+1. **Apply PR #708 manually** to our local mamba-ssm installation (fastest)
+2. **Wait for PR #708 to be merged** upstream (timeline unknown)
+3. **Architectural change** (BiLSTM/Transformer) - bypasses mamba-ssm entirely
 
 ---
 
@@ -474,32 +544,101 @@ model:
 
 ---
 
+## Solution Options (After Web Research)
+
+### 🚀 Option A: Apply PR #708 Manually (FASTEST) ⭐⭐⭐⭐⭐
+
+**What**: Manually apply the int64 pointer casting fix from PR #708 to our mamba-ssm installation
+
+**Why this is best**:
+- Fix already exists (proven code from younesbelkada)
+- Addresses exact root cause (large batch pointer overflow)
+- No architecture change needed
+- Can deploy immediately
+
+**Implementation**:
+1. Clone mamba-ssm fork with PR #708 changes
+2. Install from source in our environments (local + Modal)
+3. Test with full training
+4. If works: Training proceeds
+5. If fails: Fall back to Option B or C
+
+**Risk**: Low - PR #708 is targeted fix, well-defined changes
+**Time**: 2-4 hours (implementation + testing)
+**Success probability**: 80%+ (directly targets the bug)
+
+---
+
+### 🐛 Option B: Report to mamba-ssm & Request PR #708 Merge ⭐⭐⭐
+
+**What**: Open detailed issue on mamba-ssm asking maintainers to merge PR #708
+
+**Why**:
+- Gets official fix into releases
+- Helps entire mamba community
+- Creates permanent solution
+
+**Implementation**:
+1. Run Test 1 (CUDA_LAUNCH_BLOCKING) to get exact stack trace
+2. Run Test 3 (warm-up diagnostic) to confirm pattern
+3. Open GitHub issue with:
+   - Full reproduction (A100 + batch 64 + cold start)
+   - Link to Issue #732 (A6000 same pattern)
+   - Request: Merge PR #708 or provide alternative fix
+4. Wait for upstream response
+
+**Risk**: Medium - timeline depends on maintainers
+**Time**: 1-2 days (testing) + unknown wait time
+**Success probability**: Unknown (depends on maintainer response)
+
+---
+
+### 🔧 Option C: Architectural Change (SAFE FALLBACK) ⭐⭐⭐⭐
+
+**What**: Replace BiMamba with BiLSTM or Transformer
+
+**Why**:
+- Bypasses mamba-ssm entirely
+- Battle-tested architectures
+- Works on ALL GPUs (A100, H100, 4090)
+- No kernel bugs
+
+**Implementation**: See "Architectural Alternatives" section below
+
+**Risk**: Low - LSTM/Transformer are proven
+**Time**: 1 week (BiLSTM) or 2 weeks (Transformer)
+**Success probability**: 95%+ (known working solutions)
+
+---
+
 ## Recommended Immediate Actions (Priority Order)
 
-### 1. Run Test 1 (CUDA_LAUNCH_BLOCKING) ⭐⭐⭐⭐⭐
+### 1. Try Option A: Apply PR #708 Manually ⭐⭐⭐⭐⭐
 
-**Why**: Single most important diagnostic
-- 1 hour time investment
-- Gets exact kernel name + line number
-- Required for meaningful upstream bug report
-- May reveal it's NOT mamba-ssm (our bug instead)
+**Fastest path to working training**:
+1. Fetch PR #708 branch: `git fetch origin pull/708/head:pr-708`
+2. Apply changes to our mamba-ssm install (local + Modal)
+3. Test full training (1 hour)
+4. If works: We're done
+5. If fails: Proceed to Option B
 
-**Implementation**: 5 minutes to add env vars to `deploy/modal/app.py`
-
----
-
-### 2. Run Test 3 (Warm-Up Diagnostic) ⭐⭐⭐⭐
-
-**Why**: Confirms Issue #732 pattern
-- If passes: We have full understanding + reproduction
-- If fails: Rules out first-batch hypothesis
-- 10 minutes to implement + 1 hour to test
-
-**Implementation**: Add tiny batch warm-up before preflight in `loop.py`
+**Time**: 2-4 hours total
+**Success probability**: 80%+
 
 ---
 
-### 3. Report to mamba-ssm (If Tests 1+3 Confirm) ⭐⭐⭐⭐
+### 2. Run Diagnostics (Parallel with Option A) ⭐⭐⭐⭐
+
+**Why**: Need data for upstream report regardless
+
+**Test 1**: CUDA_LAUNCH_BLOCKING to get exact kernel name (1 hour)
+**Test 3**: Warm-up diagnostic to confirm Issue #732 pattern (1 hour)
+
+**Use for**: GitHub issue if Option A fails or for documentation
+
+---
+
+### 3. Report to mamba-ssm with PR #708 request ⭐⭐⭐⭐
 
 **GitHub Issue Template**:
 ```markdown

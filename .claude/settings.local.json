@@ -103,7 +103,8 @@
       "Bash(uv run pytest:*)",
       "Bash(for f in tests/unit/models/test_tcn.py tests/unit/models/test_nan_robustness.py tests/unit/models/test_dynamic_pe.py)",
       "Bash(do echo \"=== $f ===\")",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(BGB_SMOKE_TEST=1 timeout 600 .venv/bin/python -m src train configs/local/smoke.yaml)"
     ],
     "deny": [],
     "ask": []
