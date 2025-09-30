@@ -34,16 +34,23 @@ Current Architecture (v3.2.0):
 
 ### Local Training (RTX 4090)
 ```bash
+# 🚨 CRITICAL: Set NaN protection flags (REQUIRED for PyTorch 2.5.0+)
+export BGB_SANITIZE_GRADS=1  # Prevents gradient explosion
+export BGB_NAN_DEBUG=1       # Shows NaN warnings
+
 # Smoke test (quick validation)
 make s  # or: python -m src train configs/local/smoke.yaml
 
 # Full training in tmux (recommended)
 tmux new -s train
+export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1
 make train-local  # or: .venv/bin/python -m src train configs/local/train.yaml
 # Detach: Ctrl+B then D
 # Reattach: tmux attach -t train
 # List sessions: tmux ls
 ```
+
+**NOTE**: See `NAN-PROTECTION-REFERENCE.md` for complete NaN protection documentation.
 
 ### Modal Cloud Deployment (A100-80GB)
 ```bash
@@ -65,6 +72,8 @@ modal app stop <app-id>          # Stop training
 modal run --detach deploy/modal/app.py --action train \
   --config configs/modal/train.yaml --resume true
 ```
+
+**NOTE**: Modal automatically sets `BGB_SANITIZE_GRADS=1` and `BGB_NAN_DEBUG=1` via `deploy/modal/app.py`.
 
 ## 📁 Project Structure
 

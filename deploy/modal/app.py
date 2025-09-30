@@ -582,6 +582,11 @@ def train(
         # EXPLICITLY UNSET for full training to avoid inheritance
         env.pop("BGB_LIMIT_FILES", None)
 
+    # 🚨 CRITICAL: NaN protection (REQUIRED for PyTorch 2.5.0+)
+    env["BGB_SANITIZE_GRADS"] = "1"  # Prevent gradient explosion
+    env["BGB_NAN_DEBUG"] = "1"        # Show NaN warnings
+    logger.info("[ENV] BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 (NaN protection enabled)")
+
     # Disable tqdm for Modal subprocess environments (causes issues with manifest generation)
     env["BGB_DISABLE_TQDM"] = "1"
     logger.info(f"[ENV] BGB_DISABLE_TQDM={env.get('BGB_DISABLE_TQDM')}")
