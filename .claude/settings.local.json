@@ -92,7 +92,8 @@
       "Bash(.venv/bin/pytest tests/unit/train/test_loop.py::TestTrainingSmoke::test_single_epoch -xvs)",
       "Bash(timeout 180 make smoke-local)",
       "Bash(ps:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(.venv/bin/pytest tests/unit/models/test_pr1_normalization.py::test_gradient_flow_with_norms -xvs)"
     ],
     "deny": [],
     "ask": []
