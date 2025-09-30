@@ -117,7 +117,8 @@
       "Bash(.venv.backup.2.2.2/bin/python -c \"import mamba_ssm; print(f''Backup mamba-ssm: {mamba_ssm.__version__}'')\")",
       "Bash(tmux send-keys:*)",
       "Bash(timeout:*)",
-      "Bash(modal volume ls:*)"
+      "Bash(modal volume ls:*)",
+      "WebFetch(domain:pytorch-geometric.readthedocs.io)"
     ],
     "deny": [],
     "ask": []
