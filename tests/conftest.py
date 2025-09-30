@@ -463,30 +463,25 @@ def assert_tensor_close(a: torch.Tensor, b: torch.Tensor, rtol: float = 1e-5, at
     assert torch.allclose(a, b, rtol=rtol, atol=atol)
 
 
-# Single consolidated cleanup fixture to avoid conflicts
+# Lightweight cleanup fixture - heavy cleanup is in gpu_memory_guard.py
 @pytest.fixture(autouse=True)
 def cleanup_torch_resources():
-    """Consolidated cleanup for PyTorch resources."""
-    # Pre-test cleanup
+    """
+    Lightweight GPU cleanup for tests.
+
+    Note: Heavy cleanup (tensor deletion via gc.get_objects()) is handled
+    by gpu_memory_guard.pytest_runtest_teardown() session hook to avoid
+    duplicate expensive iterations.
+    """
+    # Pre-test: Quick cache clear and stats reset
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.synchronize()
         torch.cuda.reset_peak_memory_stats()
-    gc.collect()
 
     yield
 
-    # Post-test cleanup
-    # Clear all GPU tensors
-    if torch.cuda.is_available():
-        for obj in gc.get_objects():
-            try:
-                if torch.is_tensor(obj) and obj.is_cuda:
-                    del obj
-            except (AttributeError, RuntimeError):
-                pass
-
-    gc.collect()
+    # Post-test: Quick cache clear only (no gc.get_objects() iteration)
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.synchronize()

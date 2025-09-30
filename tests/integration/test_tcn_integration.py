@@ -11,7 +11,7 @@ import torch
 class TestTCNFullPipeline:
     """End-to-end tests for TCN integration."""
 
-    def test_full_pipeline_with_tcn(self):
+    def test_full_pipeline_with_tcn(self, test_batch_size):
         """TCN path should work end-to-end: EEG → TCN → Mamba → Output."""
         from src.brain_brr.config.schemas import ModelConfig
         from src.brain_brr.models.detector import SeizureDetector
@@ -36,7 +36,7 @@ class TestTCNFullPipeline:
         detector.eval()
 
         # Simulate batch of EEG data
-        batch_size = 4
+        batch_size = test_batch_size
         x = torch.randn(batch_size, 19, 15360)  # 60s @ 256Hz
 
         with torch.no_grad():

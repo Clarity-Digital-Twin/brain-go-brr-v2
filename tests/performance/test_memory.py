@@ -172,9 +172,9 @@ class TestMemoryUsage:
             assert gpu_growth < 10, f"GPU memory grew by {gpu_growth:.1f}MB (possible leak)"
 
     @pytest.mark.performance
-    def test_gradient_memory(self, minimal_model):
+    def test_gradient_memory(self, minimal_model, test_batch_size):
         """Test memory usage during training (with gradients)."""
-        batch_size = 4
+        batch_size = test_batch_size
         device = next(minimal_model.parameters()).device
         window = torch.randn(batch_size, 19, 15360, requires_grad=False, device=device)
         labels = torch.randn(batch_size, 15360, device=device)
@@ -315,12 +315,12 @@ class TestMemoryUsage:
         )
 
     @pytest.mark.performance
-    def test_peak_memory_tracking(self, minimal_model):
+    def test_peak_memory_tracking(self, minimal_model, test_batch_size):
         """Track peak memory usage during inference."""
         if not torch.cuda.is_available():
             pytest.skip("Peak memory tracking requires CUDA")
 
-        batch_size = 8
+        batch_size = test_batch_size
         window = torch.randn(batch_size, 19, 15360).cuda()
         minimal_model = minimal_model.cuda()
 

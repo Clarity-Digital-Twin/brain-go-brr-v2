@@ -50,10 +50,10 @@ class TestTrainingExplosions:
 
     @pytest.mark.gpu
     @pytest.mark.timeout(60)  # 60 second timeout
-    def test_focal_loss_collapse_real_imbalance(self, small_model):
+    def test_focal_loss_collapse_real_imbalance(self, small_model, test_batch_size):
         """Train 5 epochs on REAL 99.9% negative data."""
         # Create extremely imbalanced data
-        batch_size = 2  # Further reduced to prevent OOM on RTX 4090
+        batch_size = min(test_batch_size, 2)  # Keep small to prevent OOM
         device = next(small_model.parameters()).device
 
         # 99.9% negative labels
@@ -182,7 +182,7 @@ class TestTrainingExplosions:
                 assert not torch.isnan(test_output).any(), f"NaN in output at step {step}"
 
     @pytest.mark.gpu
-    def test_cuda_oom_recovery(self, small_model):
+    def test_cuda_oom_recovery(self, small_model, test_batch_size):
         """Test OOM recovery with SAFE memory limits."""
         if not torch.cuda.is_available():
             pytest.skip("CUDA required for OOM test")
@@ -192,8 +192,8 @@ class TestTrainingExplosions:
         optimizer = torch.optim.Adam(small_model.parameters())
 
         # MUCH smaller test - simulate OOM without actually causing it
-        batch_size = 2
-        max_batch_size = 4  # Reduced from 16 to prevent real OOM
+        batch_size = min(test_batch_size, 2)  # Start small
+        max_batch_size = test_batch_size  # GPU-appropriate limit
         simulated_oom_batch = 8  # Simulate OOM at this batch size
 
         # Use smaller window size for testing to reduce memory usage

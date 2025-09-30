@@ -49,9 +49,18 @@ def pytest_runtest_setup(item):
 
 
 def pytest_runtest_teardown(item):
-    """Teardown after each test - aggressive GPU cleanup."""
+    """
+    Teardown after each test - aggressive GPU cleanup.
+
+    This session hook performs the DEFINITIVE cleanup by iterating
+    gc.get_objects() and deleting CUDA tensors. This is the ONLY place
+    where this expensive operation should happen.
+
+    The conftest.py cleanup_torch_resources() fixture performs lightweight
+    cache clearing only, to avoid duplicate iterations.
+    """
     if torch.cuda.is_available():
-        # Clear all GPU tensors
+        # Clear all GPU tensors (DEFINITIVE CLEANUP - only here!)
         for obj in gc.get_objects():
             if torch.is_tensor(obj) and obj.is_cuda:
                 del obj

@@ -356,7 +356,7 @@ class TestThroughput:
 
     @pytest.mark.performance
     @pytest.mark.timeout(600)
-    def test_hourly_throughput(self, minimal_model):
+    def test_hourly_throughput(self, minimal_model, test_batch_size):
         """Test processing throughput for 1 hour of data.
 
         Vectorize into mini-batches to reflect realistic batch inference and
@@ -369,8 +369,8 @@ class TestThroughput:
         device = next(minimal_model.parameters()).device
         is_cpu = device.type == "cpu"
 
-        # Choose conservative batch size to prevent OOM
-        batch_size = 4 if is_cpu else 8  # Reduced from 16/32
+        # Use GPU-appropriate batch size
+        batch_size = test_batch_size
 
         # On CPU, evaluate a subset and extrapolate to avoid long walltime
         eval_windows = total_windows if not is_cpu else 96
@@ -408,12 +408,12 @@ class TestThroughput:
 
     @pytest.mark.performance
     @pytest.mark.timeout(300)  # 5 minutes max
-    def test_daily_batch_throughput(self, minimal_model):
+    def test_daily_batch_throughput(self, minimal_model, test_batch_size):
         """Test throughput for processing 24 hours of data."""
         # Simulate batch processing of daily data
         hours_per_day = 24
         windows_per_hour = 354  # With 10s stride
-        batch_size = 8
+        batch_size = test_batch_size
 
         total_windows = hours_per_day * windows_per_hour
         n_batches = total_windows // batch_size
