@@ -24,7 +24,8 @@
       "Bash(tee:*)",
       "Bash(tmux capture-pane:*)",
       "Bash(modal app:*)",
-      "Bash(tmux list-sessions:*)"
+      "Bash(tmux list-sessions:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
