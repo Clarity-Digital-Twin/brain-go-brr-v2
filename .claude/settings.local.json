@@ -105,7 +105,12 @@
       "Bash(do echo \"=== $f ===\")",
       "Bash(git rm:*)",
       "Bash(BGB_SMOKE_TEST=1 timeout 600 .venv/bin/python -m src train configs/local/smoke.yaml)",
-      "Bash(dmesg:*)"
+      "Bash(dmesg:*)",
+      "Bash(.venv/bin/pytest tests/unit/train/test_loop.py::TestTrainingSmoke::test_single_epoch -xvs --tb=short)",
+      "Bash(.venv/bin/pytest --collect-only -q -m \"gpu\")",
+      "Bash(.venv/bin/pytest --collect-only -q -m \"not performance and not gpu\" tests/)",
+      "Bash(.venv/bin/pytest --collect-only -q)",
+      "Bash(git branch:*)"
     ],
     "deny": [],
     "ask": []
