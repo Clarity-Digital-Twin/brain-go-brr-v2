@@ -1,5 +1,7 @@
 # Technical Debt Priority List
 
+***Investigate test suite configs**** for GPU tests, testing perforamance during trianing, etc, from optimization with confusion before
+
 -- LOOK AT SRC ULTILS MAKE SURE UTILS ARE ORGANIZED AND IN THE RIGHT LOCATION
 
 **Last Updated:** 2025-09-29

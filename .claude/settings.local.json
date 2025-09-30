@@ -94,7 +94,15 @@
       "Bash(ps:*)",
       "Bash(sed:*)",
       "Bash(.venv/bin/pytest tests/unit/models/test_pr1_normalization.py::test_gradient_flow_with_norms -xvs)",
-      "Bash(.venv/bin/mypy src/)"
+      "Bash(.venv/bin/mypy src/)",
+      "Bash(pytest:*)",
+      "Bash(.venv/bin/pytest tests/ --collect-only -q)",
+      "Bash(.venv/bin/pytest tests/ --collect-only -q -m \"not performance and not gpu\")",
+      "Bash(.venv/bin/pytest tests/ --collect-only -q -m \"performance\")",
+      "Bash(.venv/bin/pytest tests/ --collect-only -q -m \"gpu\")",
+      "Bash(uv run pytest:*)",
+      "Bash(for f in tests/unit/models/test_tcn.py tests/unit/models/test_nan_robustness.py tests/unit/models/test_dynamic_pe.py)",
+      "Bash(do echo \"=== $f ===\")"
     ],
     "deny": [],
     "ask": []
