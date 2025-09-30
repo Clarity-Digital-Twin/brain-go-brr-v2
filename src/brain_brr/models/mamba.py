@@ -33,6 +33,37 @@ except ImportError:
     )
 
 
+class RMSNorm(nn.Module):
+    """Root Mean Square Layer Normalization (reference Mamba2).
+
+    More efficient than LayerNorm as it doesn't subtract the mean.
+    Used in modern transformers (LLaMA, Falcon) and Mamba2.
+
+    Args:
+        d_model: Feature dimension
+        eps: Epsilon for numerical stability
+    """
+
+    def __init__(self, d_model: int, eps: float = 1e-5):
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(d_model))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply RMS normalization.
+
+        Args:
+            x: Input tensor (..., d_model)
+
+        Returns:
+            Normalized tensor with same shape
+        """
+        # Compute RMS (root mean square)
+        norm = torch.sqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+        # Normalize and scale
+        return x / norm * self.weight
+
+
 class BiMamba2Layer(nn.Module):
     """Single bidirectional Mamba-2 layer.
 
