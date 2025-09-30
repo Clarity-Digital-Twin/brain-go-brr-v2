@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(for f in ssd_chunk_scan.py ssd_combined.py ssd_chunk_state.py ssd_state_passing.py selective_state_update.py ssd_bmm.py)",
-      "Read(//home/jj/**)"
+      "Read(//home/jj/**)",
+      "WebSearch",
+      "Bash(.venv/bin/pytest --collect-only)",
+      "Bash(du:*)",
+      "Bash(awk:*)",
+      "Bash(python3:*)",
+      "Bash(.venv/bin/pytest --collect-only -q)",
+      "Bash(xargs:*)",
+      "Bash(.venv/bin/pytest --collect-only tests/)"
     ],
     "deny": [],
     "ask": []
