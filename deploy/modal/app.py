@@ -41,11 +41,13 @@ image = (
     .pip_install("packaging", "wheel", "setuptools")
     # CRITICAL: Install EXACT versions with forced compilation
     # These MUST match local setup exactly (see setup-guide.md)
+    # force_build=True on mamba-ssm to ensure PR #708 patch applies correctly
     .run_commands(
         "pip install --no-build-isolation --no-cache-dir causal-conv1d==1.5.2"
     )
     .run_commands(
-        "pip install --no-build-isolation --no-cache-dir mamba-ssm==2.2.5"
+        "pip install --no-build-isolation --no-cache-dir mamba-ssm==2.2.5",
+        force_build=True  # Force rebuild to apply PR #708 patch
     )
     # Verify mamba-ssm imports correctly (CUDA test happens at runtime)
     .run_commands(

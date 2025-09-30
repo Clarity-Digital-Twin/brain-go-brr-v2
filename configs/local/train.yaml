@@ -61,6 +61,11 @@ model:
   graph:
     enabled: true              # Required for V3
 
+    # PR-2: Bounded Edge Stream (ENABLED)
+    edge_lift_activation: tanh       # Bound edge features to [-1, 1]
+    edge_lift_norm: layernorm        # Normalize after edge lift
+    edge_lift_init_gain: 0.1         # Conservative initialization
+
     # V3: Edge stream config
     edge_features: cosine      # Edge feature metric for v3
     edge_top_k: 3              # Top-k edges per node for v3
@@ -69,6 +74,14 @@ model:
     edge_mamba_d_state: 8      # Edge Mamba state dim for v3
     edge_mamba_d_model: 16     # Edge Mamba model dim (learned lift 1→16→1)
     edge_similarity_margin: 0.01  # PR-5: Safety margin from ±1 boundaries
+
+    # PR-3: Adjacency Conditioning (ENABLED)
+    adj_row_softmax: true            # Row-wise softmax normalization
+    adj_softmax_tau: 1.0             # Temperature for softmax
+    adj_ema_beta: 0.95               # EMA smoothing for temporal stability
+    adj_force_symmetric: true        # Force symmetric Laplacian
+    laplacian_eps: 1.0e-3            # Regularization for stable eigendecomp
+    laplacian_normalize: true        # Use normalized Laplacian
 
     # V2 heuristic removed
 
