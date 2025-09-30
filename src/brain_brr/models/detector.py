@@ -335,17 +335,17 @@ class SeizureDetector(nn.Module):
             )  # (B, 960, 19, 19)
             assert_finite("adjacency", adj)
 
-            # Apply GNN with optional LayerScale residual
+            # Apply GNN with external LayerScale residual (v3.4.0)
             if self.gnn:
                 gnn_out = self.gnn(node_feats, adj)
-                # PR-1: Apply LayerScale to GNN residual if configured
-                if self.gnn_layerscale and self.gnn.use_residual:
-                    # GNN already adds residual internally, so we scale the increment
-                    # gnn_out = node_feats + scale * (gnn_out - node_feats)
-                    gnn_increment = gnn_out - node_feats
-                    elec_enhanced = node_feats + self.gnn_layerscale(gnn_increment)
+                # v3.4.0: GNN has no internal residuals; add clean residual here
+                if self.gnn_layerscale:
+                    # Apply LayerScale to GNN output
+                    gnn_out_scaled = self.gnn_layerscale(gnn_out)
+                    elec_enhanced = node_feats + gnn_out_scaled
                 else:
-                    elec_enhanced = gnn_out
+                    # Simple residual addition
+                    elec_enhanced = node_feats + gnn_out
             else:
                 elec_enhanced = node_feats
             assert_finite("gnn_out", elec_enhanced)
@@ -568,7 +568,8 @@ class SeizureDetector(nn.Module):
                     k_hops=2,  # 2-hop neighborhood
                     n_layers=graph_cfg.n_layers,
                     dropout=graph_cfg.dropout,
-                    use_residual=graph_cfg.use_residual,
+                    # v3.4.0: Disable internal residuals; external LayerScale handles it
+                    use_residual=False,  # Changed from graph_cfg.use_residual
                     use_vectorized=is_v3,  # V3: vectorized batching
                     use_dynamic_pe=graph_cfg.use_dynamic_pe,  # Configurable PE mode
                     bypass_edge_transform=is_v3,  # V3: skip since we have Softplus upstream
