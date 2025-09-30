@@ -110,7 +110,10 @@
       "Bash(.venv/bin/pytest --collect-only -q -m \"gpu\")",
       "Bash(.venv/bin/pytest --collect-only -q -m \"not performance and not gpu\" tests/)",
       "Bash(.venv/bin/pytest --collect-only -q)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(.venv/bin/pytest tests/test_config.py -xvs)",
+      "Bash(.venv/bin/pytest tests/unit/data/test_cache_utils.py -xvs)",
+      "Bash(.venv/bin/pytest tests/unit/data/test_cache_utils.py tests/unit/events/test_events.py -x)"
     ],
     "deny": [],
     "ask": []
