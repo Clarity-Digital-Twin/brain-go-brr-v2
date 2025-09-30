@@ -3,7 +3,8 @@
 **Created:** 2025-09-30
 **Branch:** `fix/upgrade-mamba`
 **Investigation:** Deep audit of test markers, GPU usage, and Make target behavior
-**Status:** ✅ COMPLETED - All issues fixed (commits 6cf555f-3ac753b)
+**Status:** ✅ ARCHIVED - All issues fixed (commits 6cf555f-3ac753b)
+**Superseded by:** `tests/TEST_SUITE_CURRENT_STATE.md` (as-built documentation)
 
 ---
 

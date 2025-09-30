@@ -2,8 +2,9 @@
 
 **Created:** 2025-09-29
 **Branch:** `fix/upgrade-mamba` (merged from fix/test-suite-config)
-**Status:** ✅ COMPLETED (2025-09-30)
+**Status:** ✅ ARCHIVED (2025-09-30)
 **Actual Effort:** ~3.5 hours (as estimated)
+**Superseded by:** `tests/TEST_SUITE_CURRENT_STATE.md` (as-built documentation)
 
 ---
 

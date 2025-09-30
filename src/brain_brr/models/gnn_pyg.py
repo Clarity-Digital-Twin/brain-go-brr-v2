@@ -197,6 +197,13 @@ class GraphChannelMixerPyG(nn.Module):
             try:
                 eigenvalues, eigenvectors = torch.linalg.eigh(l_stable)
 
+                # CRITICAL FIX: Detach eigenvectors to prevent gradient explosion
+                # PyTorch eigendecomposition backward uses 1/(λᵢ - λⱼ) which explodes
+                # when eigenvalues are close (near-degenerate from row-softmax/EMA/symmetry)
+                # Best practice 2025: Eigenvectors are FIXED positional coordinates
+                # Learning happens in GNN layers that PROCESS PE, not in PE itself
+                eigenvectors = eigenvectors.detach()
+
                 if (
                     torch.isnan(eigenvalues).any()
                     or torch.isnan(eigenvectors).any()

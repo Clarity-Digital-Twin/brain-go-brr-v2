@@ -4,7 +4,7 @@ This file provides critical project context for Claude Code (claude.ai/code) whe
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.3.0: Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with edge similarity clamping — achieving O(N) complexity with state-space models and graph neural networks.
+Brain-Go-Brr v3.3.1: Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks.
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
@@ -12,10 +12,11 @@ Brain-Go-Brr v3.3.0: Clinical EEG seizure detection using **TCN + BiMamba + GNN 
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-Current Architecture (v3.2.0):
+Current Architecture (v3.3.1 - September 30, 2025):
 - **V3 dual-stream** → Node (19×) and Edge (171×) parallel processing
 - **Edge similarity clamping** → Prevents ±1.0 boundary explosions (PR-5)
-- **Dynamic Laplacian PE** → Time-evolving graph structure without heuristics
+- **Dynamic Laplacian PE** → Time-evolving graph structure, fully dynamic every timestep
+- **Detached eigenvectors** → Prevents gradient explosion through eigendecomposition (gnn_pyg.py:205)
 - **3-tier NaN protection** → Gradient sanitization + clamping + monitoring
 
 ## 🚀 Quick Commands
@@ -34,16 +35,23 @@ Current Architecture (v3.2.0):
 
 ### Local Training (RTX 4090)
 ```bash
+# 🚨 CRITICAL: Set NaN protection flags (REQUIRED for PyTorch 2.5.0+)
+export BGB_SANITIZE_GRADS=1  # Prevents gradient explosion
+export BGB_NAN_DEBUG=1       # Shows NaN warnings
+
 # Smoke test (quick validation)
 make s  # or: python -m src train configs/local/smoke.yaml
 
 # Full training in tmux (recommended)
 tmux new -s train
+export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1
 make train-local  # or: .venv/bin/python -m src train configs/local/train.yaml
 # Detach: Ctrl+B then D
 # Reattach: tmux attach -t train
 # List sessions: tmux ls
 ```
+
+**NOTE**: See `ARCHITECTURAL_STABILITY_INVESTIGATION.md` for gradient explosion fix details and `NAN-PROTECTION-REFERENCE.md` for complete NaN protection documentation.
 
 ### Modal Cloud Deployment (A100-80GB)
 ```bash
@@ -65,6 +73,8 @@ modal app stop <app-id>          # Stop training
 modal run --detach deploy/modal/app.py --action train \
   --config configs/modal/train.yaml --resume true
 ```
+
+**NOTE**: Modal automatically sets `BGB_SANITIZE_GRADS=1` and `BGB_NAN_DEBUG=1` via `deploy/modal/app.py`.
 
 ## 📁 Project Structure
 
@@ -250,6 +260,8 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 | NaN losses on RTX 4090 | Set `mixed_precision: false` |
 | **Non-finite logits** | **Rebuild cache after Sep 26 fix + use `BGB_SANITIZE_GRADS=1`** |
 | **Edge similarity explosions** | **v3.3.0: Set `edge_similarity_margin: 0.01` in configs** |
+| **Gradient spikes (7.03+)** | **v3.3.1: FIXED - eigenvectors detached in gnn_pyg.py:205 (see ARCHITECTURAL_STABILITY_INVESTIGATION.md)** |
+| **Modal XID 31 GPU crashes** | **v3.3.1: FIXED - unique Triton cache dirs in deploy/modal/app.py:539-546** |
 | Modal training stuck | Increase CPU cores (24) and RAM (96GB) |
 | PyG installation fails | Use pre-built wheels, not `uv sync -E graph` |
 | Mamba CUDA errors | Ensure CUDA 12.4 toolkit installed |
@@ -299,10 +311,12 @@ Due to hardware differences, integration tests have adjusted thresholds:
 
 **Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
 
-**Current Status (v3.3.0)**:
+**Current Status (v3.3.1 - September 30, 2025)**:
+- ✅ **Gradient explosion FIXED** - eigenvectors detached to prevent eigendecomposition gradient instability
 - PyTorch 2.5.0 + mamba-ssm 2.2.5 (fixes A100 XID 31 crashes)
 - V3 dual-stream architecture with edge similarity clamping (PR-5)
-- Training stable on both RTX 4090 (local) and A100 (Modal)
+- Training ROCK SOLID on both RTX 4090 (local) and A100 (Modal)
 - All NaN issues resolved with 3-tier protection system
-- Dynamic PE memory-optimized with configurable update intervals
+- Dynamic PE fully functional with stable gradients (detached eigenvectors)
 - Edge features clamped at source with safety margin
+- Gradient norms expected <1.0 P95 (down from 7.03 spikes)

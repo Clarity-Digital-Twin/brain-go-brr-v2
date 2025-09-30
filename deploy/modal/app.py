@@ -25,6 +25,9 @@ image = (
         "PATH": "/usr/local/cuda-12.4/bin:$PATH",
         "LD_LIBRARY_PATH": "/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH",
         "TORCH_CUDA_ARCH_LIST": "8.0;8.6;8.9;9.0",  # A100 is 8.0
+        "FORCE_REBUILD": "2025-09-30-pr708-fix-cache",  # Bump to defeat Modal layer cache
+        "TRITON_CACHE_DIR": "/tmp/triton_cache",
+        "TORCHINDUCTOR_CACHE_DIR": "/tmp/torchinductor_cache",
     })
     # Upgrade pip to latest to stop annoying warnings
     .run_commands("pip install --upgrade pip")
@@ -39,30 +42,52 @@ image = (
     )
     # Install build dependencies
     .pip_install("packaging", "wheel", "setuptools")
-    # CRITICAL: Install EXACT versions with forced compilation
-    # These MUST match local setup exactly (see setup-guide.md)
+    # CRITICAL: Install causal-conv1d first
     .run_commands(
         "pip install --no-build-isolation --no-cache-dir causal-conv1d==1.5.2"
     )
-    .run_commands(
-        "pip install --no-build-isolation --no-cache-dir mamba-ssm==2.2.5"
-    )
-    # Verify mamba-ssm imports correctly (CUDA test happens at runtime)
-    .run_commands(
-        "python -c 'from mamba_ssm import Mamba2; print(\"✅ Mamba2 imports successfully\")'"
-    )
-    # 🔧 CRITICAL: Apply PR #708 fix to mamba-ssm Triton kernels
+    # 🔧 CRITICAL: Patch mamba-ssm SOURCE before building
     # This fixes XID 31 MMU Fault on A100 with large batches (batch=64, d_model=512)
     # PR #708: https://github.com/state-spaces/mamba/pull/708
-    # REMOVE THIS once PR #708 is merged into mamba-ssm upstream release
-    # NOTE: copy=True required because we run commands after adding local files
+    # Strategy: Download sdist → Patch source → Build from patched source
+    # This ensures Triton kernels compile from patched code, not cached wheels
+    .run_commands(
+        "python -c \""
+        "import urllib.request, tarfile; "
+        "from pathlib import Path; "
+        "url = 'https://files.pythonhosted.org/packages/ba/2d/fbd909f6e6d48c491a9ed7ae68e8a890d8409aba4a6356741e2a9c6adad5/mamba_ssm-2.2.5.tar.gz'; "
+        "dest = Path('/tmp/mamba_src'); "
+        "dest.mkdir(parents=True, exist_ok=True); "
+        "tgz = dest / 'mamba_ssm-2.2.5.tar.gz'; "
+        "print(f'Downloading {url}...'); "
+        "urllib.request.urlretrieve(url, tgz); "
+        "print(f'Extracting {tgz}...'); "
+        "tarfile.open(tgz, 'r:gz').extractall(dest); "
+        "print(f'✅ Extracted to {dest}/mamba_ssm-2.2.5')"
+        "\""
+    )
+    # Build and install from source (will patch AFTER install)
+    # Already building from source since we point to extracted tarball
+    .run_commands(
+        "pip install --no-build-isolation --no-cache-dir "
+        "/tmp/mamba_src/mamba_ssm-2.2.5"
+    )
+    # Now patch the INSTALLED files (this is the only reliable way)
     .add_local_file(
         str(Path(__file__).parent / "patch_mamba_pr708.py"),
-        "/tmp/patch_mamba_pr708.py",
+        "/tmp/patch_installed.py",
         copy=True
     )
     .run_commands(
-        "python /tmp/patch_mamba_pr708.py"
+        "python /tmp/patch_installed.py"
+    )
+    # Verify patch landed in ALL installed Triton kernel files
+    .run_commands(
+        "python -c '"
+        "from pathlib import Path; "
+        "tri_dir = Path(\"/usr/local/lib/python3.11/site-packages/mamba_ssm/ops/triton\"); "
+        "[print(f\"✅ {f}\") for f in [\"ssd_chunk_scan.py\", \"ssd_chunk_state.py\", \"ssd_state_passing.py\", \"ssd_combined.py\"] "
+        "if \".to(tl.int64)\" in (tri_dir / f).read_text() or exit(f\"❌ Missing int64 cast in {f}\")]'"
     )
     # Core dependencies
     .pip_install(
@@ -269,6 +294,94 @@ def populate_cache():
     return train_count, dev_count
 
 
+@app.function(
+    timeout=300,
+    cpu=2,
+    memory=2048,
+    volumes={"/results": results_volume},
+)
+def check_cache():
+    """Verify Modal SSD cache completeness."""
+    from pathlib import Path
+    import json
+
+    cache = Path("/results/cache/tusz")
+
+    print("\n" + "=" * 70)
+    print(" " * 20 + "MODAL SSD CACHE VERIFICATION")
+    print("=" * 70 + "\n")
+
+    # Check root metadata
+    metadata_file = cache / ".cache_metadata.json"
+    print(f"[ROOT] .cache_metadata.json: ", end="")
+    if metadata_file.exists():
+        print(f"✅ EXISTS ({metadata_file.stat().st_size} bytes)")
+        with open(metadata_file) as f:
+            meta = json.load(f)
+        print(f"       Policy: {meta.get('split_policy')}")
+        print(f"       Created: {meta.get('created')}")
+        print(f"       Expected: {meta.get('train_files')} train + {meta.get('dev_files')} dev files")
+    else:
+        print("❌ MISSING")
+
+    # Check train split
+    print(f"\n[TRAIN SPLIT]")
+    train_manifest = cache / "train" / "manifest.json"
+    train_index = cache / "train" / "_dataset_index.json"
+    train_dir = cache / "train"
+
+    if train_dir.exists():
+        train_npz = list(train_dir.glob("*.npz"))
+        print(f"  manifest.json:         {'✅' if train_manifest.exists() else '❌'} ({train_manifest.stat().st_size if train_manifest.exists() else 0:,} bytes)")
+        print(f"  _dataset_index.json:   {'✅' if train_index.exists() else '❌'} ({train_index.stat().st_size if train_index.exists() else 0:,} bytes)")
+        print(f"  *.npz files:           {'✅' if len(train_npz) == 4667 else '⚠️ '} {len(train_npz):,} (expected 4667)")
+    else:
+        print(f"  ❌ train/ directory missing!")
+        train_npz = []
+
+    # Check dev split
+    print(f"\n[DEV SPLIT]")
+    dev_manifest = cache / "dev" / "manifest.json"
+    dev_index = cache / "dev" / "_dataset_index.json"
+    dev_dir = cache / "dev"
+
+    if dev_dir.exists():
+        dev_npz = list(dev_dir.glob("*.npz"))
+        print(f"  manifest.json:         {'⚠️ ' if dev_manifest.exists() else '  '} ({dev_manifest.stat().st_size if dev_manifest.exists() else 0:,} bytes) [OPTIONAL - not used]")
+        print(f"  _dataset_index.json:   {'✅' if dev_index.exists() else '❌'} ({dev_index.stat().st_size if dev_index.exists() else 0:,} bytes)")
+        print(f"  *.npz files:           {'✅' if len(dev_npz) == 1832 else '⚠️ '} {len(dev_npz):,} (expected 1832)")
+    else:
+        print(f"  ❌ dev/ directory missing!")
+        dev_npz = []
+
+    # Summary
+    print("\n" + "=" * 70)
+    print(" " * 30 + "SUMMARY")
+    print("=" * 70)
+
+    missing = []
+    if not metadata_file.exists(): missing.append(".cache_metadata.json")
+    if not train_manifest.exists(): missing.append("train/manifest.json [CRITICAL]")
+    if not train_index.exists(): missing.append("train/_dataset_index.json [OPTIONAL]")
+    if not dev_index.exists(): missing.append("dev/_dataset_index.json [CRITICAL]")
+    if len(train_npz) != 4667: missing.append(f"train/*.npz ({len(train_npz)}/4667)")
+    if len(dev_npz) != 1832: missing.append(f"dev/*.npz ({len(dev_npz)}/1832)")
+
+    if missing:
+        print("\n❌ MISSING FILES:")
+        for m in missing:
+            print(f"   - {m}")
+        print("\n💡 FIX:")
+        print("   1. Update populate_cache() to copy manifests/indexes")
+        print("   2. Run: modal run deploy/modal/app.py::populate_cache")
+        print("   OR")
+        print("   3. First training run will regenerate (~45-50 min delay)\n")
+    else:
+        print("\n✅ ALL REQUIRED FILES PRESENT - Cache is complete!\n")
+
+    print("=" * 70 + "\n")
+
+
 # CPU-only: cache cleanup should not consume a GPU
 @app.function(
     timeout=600,  # 10 min to include cache clean
@@ -422,6 +535,15 @@ def train(
     if force_fallback:
         os.environ["SEIZURE_MAMBA_FORCE_FALLBACK"] = "1"
         logger.info("[DIAGNOSTIC] SEIZURE_MAMBA_FORCE_FALLBACK=1 (using Conv1d instead of Mamba CUDA)")
+
+    # CRITICAL: Force recompilation with UNIQUE cache dirs per run
+    # Modal can reuse containers, so we MUST use random cache dirs to ensure
+    # newly patched Triton kernels are compiled fresh (not using old int32 caches)
+    import uuid
+    run_id = str(uuid.uuid4())[:8]
+    os.environ["TRITON_CACHE_DIR"] = f"/tmp/triton_cache_run_{run_id}"
+    os.environ["TORCHINDUCTOR_CACHE_DIR"] = f"/tmp/tii_cache_run_{run_id}"
+    logger.info(f"[CACHE] Using fresh compile cache: triton_cache_run_{run_id}")
 
     # Test mamba-ssm import
     try:
@@ -581,6 +703,11 @@ def train(
     else:
         # EXPLICITLY UNSET for full training to avoid inheritance
         env.pop("BGB_LIMIT_FILES", None)
+
+    # 🚨 CRITICAL: NaN protection (REQUIRED for PyTorch 2.5.0+)
+    env["BGB_SANITIZE_GRADS"] = "1"  # Prevent gradient explosion
+    env["BGB_NAN_DEBUG"] = "1"        # Show NaN warnings
+    logger.info("[ENV] BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 (NaN protection enabled)")
 
     # Disable tqdm for Modal subprocess environments (causes issues with manifest generation)
     env["BGB_DISABLE_TQDM"] = "1"

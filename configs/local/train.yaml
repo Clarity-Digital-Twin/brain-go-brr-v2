@@ -30,6 +30,18 @@ model:
   # Architecture: "v3" (dual-stream with edge Mamba)
   architecture: v3  # V3 dual-stream with learned adjacency
 
+  # PR-1: Boundary Normalization (ENABLED)
+  # Prevents unbounded information flows between components
+  norms:
+    boundary_norm: layernorm     # LayerNorm at component boundaries
+    boundary_eps: 1.0e-5          # Epsilon for numerical stability
+    layerscale_alpha: 0.1         # Initial LayerScale value
+    after_tcn_proj: true          # Normalize after TCN projection
+    after_node_mamba: true        # Normalize after node Mamba
+    after_edge_mamba: true        # Normalize after edge Mamba
+    after_gnn: true               # Normalize after GNN
+    before_decoder: true          # Normalize before decoder
+
   tcn:
     num_layers: 8
     kernel_size: 7
@@ -49,6 +61,11 @@ model:
   graph:
     enabled: true              # Required for V3
 
+    # PR-2: Bounded Edge Stream (ENABLED)
+    edge_lift_activation: tanh       # Bound edge features to [-1, 1]
+    edge_lift_norm: layernorm        # Normalize after edge lift
+    edge_lift_init_gain: 0.1         # Conservative initialization
+
     # V3: Edge stream config
     edge_features: cosine      # Edge feature metric for v3
     edge_top_k: 3              # Top-k edges per node for v3
@@ -57,6 +74,14 @@ model:
     edge_mamba_d_state: 8      # Edge Mamba state dim for v3
     edge_mamba_d_model: 16     # Edge Mamba model dim (learned lift 1→16→1)
     edge_similarity_margin: 0.01  # PR-5: Safety margin from ±1 boundaries
+
+    # PR-3: Adjacency Conditioning (ENABLED)
+    adj_row_softmax: true            # Row-wise softmax normalization
+    adj_softmax_tau: 1.0             # Temperature for softmax
+    adj_ema_beta: 0.95               # EMA smoothing for temporal stability
+    adj_force_symmetric: true        # Force symmetric Laplacian
+    laplacian_eps: 1.0e-3            # Regularization for stable eigendecomp
+    laplacian_normalize: true        # Use normalized Laplacian
 
     # V2 heuristic removed
 
@@ -87,7 +112,7 @@ data:
   use_balanced_sampling: true         # CRITICAL for imbalanced data
   num_workers: 0                      # WSL2 fix: prevents multiprocessing hangs
   pin_memory: true                    # Faster GPU transfer
-  persistent_workers: true            # Reuse workers
+  persistent_workers: false           # Must be false when num_workers=0
   prefetch_factor: 2                  # Pre-load batches
 
 preprocessing:
@@ -110,8 +135,9 @@ training:
   weight_decay: 0.01     # Reduced from 0.05 to prevent weight explosion
   optimizer: adamw
 
-  # Stronger RTX 4090 NaN protections after epoch 25 failure
-  gradient_clip: 0.1      # Much stronger clipping (was 0.5)
+  # Post-v3.3.1: Relaxed after eigendecomposition fix
+  # 0.1 was too tight and blocking learning; 0.5 is standard for transformers
+  gradient_clip: 0.5      # Increased from 0.1 (eigendecomp fix allows this)
 
   # Mixed precision OFF by default for RTX 4090 stability
   # Only enable after confirming no NaNs with a smoke test
@@ -125,10 +151,10 @@ training:
   focal_alpha: 0.5       # Neutral alpha (let pos_weight handle imbalance)
   focal_gamma: 2.0       # Focus on hard examples
 
-  # Learning rate schedule with shorter warmup
+  # Learning rate schedule with proper warmup
   scheduler:
     type: cosine
-    warmup_ratio: 0.01   # 1% warmup (154 steps) to avoid near-zero LR
+    warmup_ratio: 0.03   # v3.4.0: Increased from 0.01 to match Modal (3% = 462 steps)
 
   # Early stopping
   early_stopping:
@@ -164,8 +190,24 @@ logging:
   log_gradients: false
   log_weights: false
 
-# Debug environment variables (set these for troubleshooting):
-# export BGB_NAN_DEBUG=1          # Enable NaN debugging
-# export BGB_SANITIZE_INPUTS=1    # Replace NaN/Inf with zeros
-# export BGB_ANOMALY_DETECT=1     # PyTorch anomaly detection (slow!)
+# ========================================================================
+# 🚨 CRITICAL: NaN Protection (REQUIRED for PyTorch 2.5.0+)
+# ========================================================================
+# BEFORE running training, set these environment variables:
+#
+#   export BGB_SANITIZE_GRADS=1  # ✅ REQUIRED - prevents gradient explosion
+#   export BGB_NAN_DEBUG=1       # ✅ RECOMMENDED - shows NaN warnings
+#
+# Example:
+#   tmux new -s train
+#   export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1
+#   .venv/bin/python -m src train configs/local/train.yaml
+#
+# See: NAN-PROTECTION-REFERENCE.md (root) for complete reference
+# ========================================================================
+#
+# Additional debug variables (optional):
+# export BGB_DEBUG_FINITE=1       # Enable assert_finite() checks (slower)
+# export BGB_SANITIZE_INPUTS=1    # Input sanitization (usually not needed)
+# export BGB_ANOMALY_DETECT=1     # PyTorch anomaly detection (very slow!)
 # export BGB_DISABLE_TQDM=0       # Keep progress bars locally

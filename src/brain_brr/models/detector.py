@@ -152,8 +152,8 @@ class SeizureDetector(nn.Module):
         - Careful normalization layer init
         - Special handling for projections
         """
-        # Detection head (1x1 conv): very small to prevent saturation
-        nn.init.xavier_uniform_(self.detection_head.weight, gain=0.01)
+        # Detection head (1x1 conv): increased gain (v3.4.0 - trust normalization)
+        nn.init.xavier_uniform_(self.detection_head.weight, gain=0.1)  # Was 0.01
         if self.detection_head.bias is not None:
             nn.init.constant_(self.detection_head.bias, 0)
 
@@ -171,12 +171,14 @@ class SeizureDetector(nn.Module):
 
         # Edge projection initialization (if present)
         if self.edge_in_proj is not None:
-            nn.init.xavier_uniform_(self.edge_in_proj.weight, gain=0.1)  # Reduced from 0.5
+            nn.init.xavier_uniform_(self.edge_in_proj.weight, gain=0.5)  # v3.4.0: restored from 0.1
             if hasattr(self.edge_in_proj, "bias") and self.edge_in_proj.bias is not None:
                 nn.init.zeros_(self.edge_in_proj.bias)
 
         if self.edge_out_proj is not None:
-            nn.init.xavier_uniform_(self.edge_out_proj.weight, gain=0.1)  # Reduced from 0.5
+            nn.init.xavier_uniform_(
+                self.edge_out_proj.weight, gain=0.5
+            )  # v3.4.0: restored from 0.1
             if self.edge_out_proj.bias is not None:
                 nn.init.zeros_(self.edge_out_proj.bias)
 
@@ -195,9 +197,10 @@ class SeizureDetector(nn.Module):
                 continue
 
             if isinstance(m, (nn.Conv1d, nn.ConvTranspose1d)):
-                # Conservative initialization for conv layers
+                # v3.4.0: Trust Kaiming init (designed for ReLU)
+                # Removed 5x scale-down; normalization layers handle stability
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
-                m.weight.data *= 0.2  # Scale down by 5x
+                # REMOVED: m.weight.data *= 0.2
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
             elif isinstance(m, (nn.BatchNorm1d, nn.LayerNorm, nn.GroupNorm)):
@@ -334,17 +337,17 @@ class SeizureDetector(nn.Module):
             )  # (B, 960, 19, 19)
             assert_finite("adjacency", adj)
 
-            # Apply GNN with optional LayerScale residual
+            # Apply GNN with external LayerScale residual (v3.4.0)
             if self.gnn:
                 gnn_out = self.gnn(node_feats, adj)
-                # PR-1: Apply LayerScale to GNN residual if configured
-                if self.gnn_layerscale and self.gnn.use_residual:
-                    # GNN already adds residual internally, so we scale the increment
-                    # gnn_out = node_feats + scale * (gnn_out - node_feats)
-                    gnn_increment = gnn_out - node_feats
-                    elec_enhanced = node_feats + self.gnn_layerscale(gnn_increment)
+                # v3.4.0: GNN has no internal residuals; add clean residual here
+                if self.gnn_layerscale:
+                    # Apply LayerScale to GNN output
+                    gnn_out_scaled = self.gnn_layerscale(gnn_out)
+                    elec_enhanced = node_feats + gnn_out_scaled
                 else:
-                    elec_enhanced = gnn_out
+                    # Simple residual addition
+                    elec_enhanced = node_feats + gnn_out
             else:
                 elec_enhanced = node_feats
             assert_finite("gnn_out", elec_enhanced)
@@ -567,7 +570,8 @@ class SeizureDetector(nn.Module):
                     k_hops=2,  # 2-hop neighborhood
                     n_layers=graph_cfg.n_layers,
                     dropout=graph_cfg.dropout,
-                    use_residual=graph_cfg.use_residual,
+                    # v3.4.0: Disable internal residuals; external LayerScale handles it
+                    use_residual=False,  # Changed from graph_cfg.use_residual
                     use_vectorized=is_v3,  # V3: vectorized batching
                     use_dynamic_pe=graph_cfg.use_dynamic_pe,  # Configurable PE mode
                     bypass_edge_transform=is_v3,  # V3: skip since we have Softplus upstream

@@ -14,7 +14,7 @@ data:
   num_workers: 8                        # A100 can handle parallel loading
   pin_memory: true                      # Fast GPU transfer
   persistent_workers: true               # Reuse workers between epochs
-  prefetch_factor: 4                     # Pre-load batches
+  prefetch_factor: 8                     # v3.4.0: Increased from 4 for A100 speed
   # ⚠️ CRITICAL: Without balanced sampling, batches may have ZERO seizures! ⚠️
   use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling
 
@@ -28,6 +28,18 @@ preprocessing:
 model:
   # Architecture: "v3" (dual-stream with edge Mamba)
   architecture: v3  # V3 dual-stream with learned adjacency
+
+  # PR-1: Boundary Normalization (ENABLED)
+  # Prevents unbounded information flows between components
+  norms:
+    boundary_norm: layernorm     # LayerNorm at component boundaries
+    boundary_eps: 1.0e-5          # Epsilon for numerical stability
+    layerscale_alpha: 0.1         # Initial LayerScale value
+    after_tcn_proj: true          # Normalize after TCN projection
+    after_node_mamba: true        # Normalize after node Mamba
+    after_edge_mamba: true        # Normalize after edge Mamba
+    after_gnn: true               # Normalize after GNN
+    before_decoder: true          # Normalize before decoder
 
   tcn:
     num_layers: 8
@@ -48,6 +60,11 @@ model:
   graph:
     enabled: true              # Required for V3
 
+    # PR-2: Bounded Edge Stream (ENABLED)
+    edge_lift_activation: tanh       # Bound edge features to [-1, 1]
+    edge_lift_norm: layernorm        # Normalize after edge lift
+    edge_lift_init_gain: 0.1         # Conservative initialization
+
     # V3: Edge stream config
     edge_features: cosine      # Edge feature metric for v3
     edge_top_k: 3              # Top-k edges per node for v3
@@ -56,6 +73,14 @@ model:
     edge_mamba_d_state: 8      # Edge Mamba state dim for v3
     edge_mamba_d_model: 16     # Edge Mamba model dim (learned lift 1→16→1)
     edge_similarity_margin: 0.01  # PR-5: Safety margin from ±1 boundaries
+
+    # PR-3: Adjacency Conditioning (ENABLED)
+    adj_row_softmax: true            # Row-wise softmax normalization
+    adj_softmax_tau: 1.0             # Temperature for softmax
+    adj_ema_beta: 0.95               # EMA smoothing for temporal stability
+    adj_force_symmetric: true        # Force symmetric Laplacian
+    laplacian_eps: 1.0e-3            # Regularization for stable eigendecomp
+    laplacian_normalize: true        # Use normalized Laplacian
 
     # V2 heuristic removed
 
@@ -68,7 +93,7 @@ model:
 
     # Dynamic PE config (v3) - ALWAYS ENABLED
     use_dynamic_pe: true       # ALWAYS use dynamic PE (EvoBrain approach)
-    semi_dynamic_interval: 1   # Update PE every N timesteps (1=fully dynamic)
+    semi_dynamic_interval: 5   # OPTIMAL: 192 eigendecomps, 19.5ms updates (CLAUDE.md:97)
     pe_sign_consistency: true  # Fix eigenvector signs for stability
 
 postprocessing:
@@ -93,7 +118,7 @@ training:
   loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
   focal_alpha: 0.5                     # MUST BE 0.5! (neutral - let pos_weight handle imbalance)
   focal_gamma: 2.0                     # Focusing parameter (higher = more focus on hard examples)
-  learning_rate: 3e-5                  # Conservative for stability with larger batch
+  learning_rate: 8.0e-5                # v3.4.0: Increased from 3e-5 (batch-size scaled)
   weight_decay: 0.05
   optimizer: adamw
   scheduler:

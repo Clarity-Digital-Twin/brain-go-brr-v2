@@ -14,14 +14,14 @@ mixed_precision: false        # RTX 4090 stability
 
 ### smoke.yaml (Quick Test)
 ```yaml
-batch_size: 1                  # Minimal for 3 files
+batch_size: 4                  # Fast smoke test (8-12 iterations)
 use_dynamic_pe: true          # ENABLED
 semi_dynamic_interval: 10     # Reduced for smoke test (96 eigendecomps)
 num_workers: 0                # WSL2 fix
 mixed_precision: false        # RTX 4090 stability
 epochs: 1                     # Quick validation
 ```
-**Status**: ✅ UPDATED for smoke test safety
+**Status**: ✅ CORRECT - batch_size=4 for fast validation
 
 ## Modal Configs (A100 - 80GB)
 
@@ -49,7 +49,7 @@ epochs: 1
 | Setting | RTX 4090 | A100 | Reason |
 |---------|----------|------|--------|
 | **Batch Size (train)** | 4 | 64 | Memory: 24GB vs 80GB |
-| **Batch Size (smoke)** | 1 | 32 | Safety vs speed |
+| **Batch Size (smoke)** | 4 | 32 | Fast validation vs speed |
 | **Semi-dynamic Interval** | 5 | 1 | Memory constraints |
 | **Mixed Precision** | false | true | RTX 4090 NaN issues |
 | **Num Workers** | 0 | 8 | WSL2 vs cloud |
@@ -65,15 +65,23 @@ epochs: 1
 - ✅ `learning_rate`: 1e-4 (local) or 3e-5 (modal)
 - ✅ `gradient_clip: 0.5` (modal) or 0.1 (local RTX 4090)
 
-## Memory Safety Formula
+## Memory Safety Formula (APPROXIMATE - FP32 only)
 
 ```
-Memory (GB) = batch_size × (3.5 + 0.94 × (960/semi_dynamic_interval))
+Memory (GB) ≈ batch_size × (3.5 + 0.94 × (960/semi_dynamic_interval))
 ```
 
-Examples:
-- batch=4, interval=5: 4 × (3.5 + 0.94×192) = 14 + 3.6 = 17.6 GB ✅
-- batch=8, interval=1: 8 × (3.5 + 0.94×960) = 28 + 7.5 = 35.5 GB ❌
+**⚠️ WARNING**: This formula is APPROXIMATE and does NOT account for:
+- `mixed_precision=true` (FP16 uses ~50% less memory)
+- PyTorch 2.5.0 memory optimizations
+- Actual empirical usage may be significantly lower
+
+**Examples (FP32 prediction)**:
+- batch=4, interval=5: 4 × (3.5 + 0.94×192) = 17.6 GB ✅ (Local)
+- batch=64, interval=1: 64 × (3.5 + 0.94×960) = 284 GB ❌ (Predicts failure)
+
+**Reality**: Modal configs with mixed_precision=true work fine on 80GB A100!
+**Recommendation**: Use empirical testing over formula for mixed_precision configs.
 
 ## Recommendations
 

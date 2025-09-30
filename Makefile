@@ -113,15 +113,16 @@ type-check: ## Run mypy type checking
 quality: lint format type-check ## Run all code quality checks
 	@echo "${GREEN}✓ All quality checks passed${NC}"
 
-train-local: ## Train model with V3 local config (100 epochs; official train/dev splits)
+train-local: ## Train model with V3 local config (100 epochs) with NaN protection
 	@echo "${CYAN}Training with V3 dual-stream architecture...${NC}"
 	@echo "${YELLOW}Full training: 100 epochs using official TUSZ train/dev splits${NC}"
-	.venv/bin/python -m src train configs/local/train.yaml
+	@echo "${YELLOW}🚨 NaN protection: BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1${NC}"
+	BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 .venv/bin/python -m src train configs/local/train.yaml
 
-smoke-local: ## Run local smoke test (1 epoch, 3 files)
-	@echo "${CYAN}Running V3 smoke test (3 files only)...${NC}"
-	@echo "${YELLOW}Limited to 3 files with BGB_LIMIT_FILES=3${NC}"
-	BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 .venv/bin/python -m src train configs/local/smoke.yaml
+smoke-local: ## Run local smoke test (1 epoch, 3 files) with NaN protection
+	@echo "${CYAN}Running V3 smoke test (3 files only) with NaN protection...${NC}"
+	@echo "${YELLOW}NaN protection: BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1${NC}"
+	BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 BGB_SMOKE_TEST=1 .venv/bin/python -m src train configs/local/smoke.yaml
 
 train: train-prod ## Alias: full training with production config
 

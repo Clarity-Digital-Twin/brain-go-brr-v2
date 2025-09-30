@@ -61,11 +61,12 @@ data:
 Smoke (safe + fast)
 ```yaml
 epochs: 1
-batch_size: 1  # Minimal for 3-file smoke test
+batch_size: 4  # Fast smoke test (8-12 iterations for 3 files)
 use_balanced_sampling: false  # MUST be false for BGB_LIMIT_FILES
 mixed_precision: false
-# Requires: BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1
-# Or use: ./run_smoke_test.sh
+# CRITICAL: Requires NaN protection flags
+# export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 BGB_SMOKE_TEST=1
+# Or use: make s (sets flags automatically)
 ```
 
 Train (RTX 4090 optimized)

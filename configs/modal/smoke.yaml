@@ -1,8 +1,17 @@
 # Modal A100 Smoke Test: TCN + Bi-Mamba + GNN Stack (V3)
 # Quick validation (1 epoch) on Modal A100-80GB
 #
-# NOTE: app.py automatically sets BGB_LIMIT_FILES=50 for smoke tests
-# This limits to 50 files instead of the full dataset for quick validation
+# ========================================================================
+# 🚨 NaN Protection (Automatically Enabled on Modal)
+# ========================================================================
+# Modal automatically sets NaN protection via deploy/modal/app.py:
+#   BGB_SANITIZE_GRADS=1  # ✅ Prevents gradient explosion
+#   BGB_NAN_DEBUG=1       # ✅ Shows NaN warnings
+#   BGB_LIMIT_FILES=50    # ✅ Limits to 50 files for smoke test
+#
+# No manual environment setup needed for Modal!
+# See: NAN-PROTECTION-REFERENCE.md (root) for complete reference
+# ========================================================================
 #
 # Usage: modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
 data:
@@ -30,6 +39,18 @@ model:
   # Architecture: "v3" (dual-stream with edge Mamba)
   architecture: v3  # V3 dual-stream with learned adjacency
 
+  # PR-1: Boundary Normalization (ENABLED - was missing in smoke tests!)
+  # Prevents unbounded information flows between components
+  norms:
+    boundary_norm: layernorm     # LayerNorm at component boundaries
+    boundary_eps: 1.0e-5          # Epsilon for numerical stability
+    layerscale_alpha: 0.1         # Initial LayerScale value
+    after_tcn_proj: true          # Normalize after TCN projection
+    after_node_mamba: true        # Normalize after node Mamba
+    after_edge_mamba: true        # Normalize after edge Mamba
+    after_gnn: true               # Normalize after GNN
+    before_decoder: true          # Normalize before decoder
+
   tcn:
     num_layers: 8
     kernel_size: 7
@@ -49,6 +70,11 @@ model:
   graph:
     enabled: true              # Required for V3
 
+    # PR-2: Bounded Edge Stream (ENABLED - was missing in smoke tests!)
+    edge_lift_activation: tanh       # Bound edge features to [-1, 1]
+    edge_lift_norm: layernorm        # Normalize after edge lift
+    edge_lift_init_gain: 0.1         # Conservative initialization
+
     # V3: Edge stream config
     edge_features: cosine      # Edge feature metric for v3
     edge_top_k: 3              # Top-k edges per node for v3
@@ -58,7 +84,13 @@ model:
     edge_mamba_d_model: 16     # Edge Mamba model dim (learned lift 1→16→1)
     edge_similarity_margin: 0.01  # PR-5: Safety margin from ±1 boundaries
 
-    # V2 heuristic removed
+    # PR-3: Adjacency Conditioning (ENABLED - was missing in smoke tests!)
+    adj_row_softmax: true            # Row-wise softmax normalization
+    adj_softmax_tau: 1.0             # Temperature for softmax
+    adj_ema_beta: 0.95               # EMA smoothing for temporal stability
+    adj_force_symmetric: true        # Force symmetric Laplacian
+    laplacian_eps: 1.0e-3            # Regularization for stable eigendecomp
+    laplacian_normalize: true        # Use normalized Laplacian
 
     # GNN architecture
     n_layers: 2                # 2-layer GNN
@@ -69,7 +101,7 @@ model:
 
     # Dynamic PE config (v3) - ALWAYS ENABLED
     use_dynamic_pe: true       # ALWAYS use dynamic PE (EvoBrain approach)
-    semi_dynamic_interval: 1   # Update PE every N timesteps (1=fully dynamic)
+    semi_dynamic_interval: 5   # FIXED: was 1, now 5 (optimal per CLAUDE.md:97)
     pe_sign_consistency: true  # Fix eigenvector signs for stability
 
 postprocessing:

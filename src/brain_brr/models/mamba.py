@@ -33,6 +33,37 @@ except ImportError:
     )
 
 
+class RMSNorm(nn.Module):
+    """Root Mean Square Layer Normalization (reference Mamba2).
+
+    More efficient than LayerNorm as it doesn't subtract the mean.
+    Used in modern transformers (LLaMA, Falcon) and Mamba2.
+
+    Args:
+        d_model: Feature dimension
+        eps: Epsilon for numerical stability
+    """
+
+    def __init__(self, d_model: int, eps: float = 1e-5):
+        super().__init__()
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(d_model))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Apply RMS normalization.
+
+        Args:
+            x: Input tensor (..., d_model)
+
+        Returns:
+            Normalized tensor with same shape
+        """
+        # Compute RMS (root mean square)
+        norm = torch.sqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+        # Normalize and scale
+        return x / norm * self.weight
+
+
 class BiMamba2Layer(nn.Module):
     """Single bidirectional Mamba-2 layer.
 
@@ -113,7 +144,8 @@ class BiMamba2Layer(nn.Module):
 
         # Fusion and normalization
         self.output_proj = nn.Linear(d_model * 2, d_model)
-        self.layer_norm = nn.LayerNorm(d_model)
+        # v3.4.0: Switch to RMSNorm (reference Mamba2 uses this)
+        self.layer_norm = RMSNorm(d_model, eps=1e-5)
         self.dropout = nn.Dropout(dropout)
 
         # PR-1: Optional LayerScale for residual connection
@@ -141,10 +173,10 @@ class BiMamba2Layer(nn.Module):
         if self.backward_mamba_fallback.bias is not None:
             nn.init.zeros_(self.backward_mamba_fallback.bias)
 
-        # LayerNorm: standard initialization
-        if self.layer_norm.weight is not None:
+        # LayerNorm/RMSNorm: standard initialization
+        if hasattr(self.layer_norm, "weight") and self.layer_norm.weight is not None:
             nn.init.constant_(self.layer_norm.weight, 1)
-        if self.layer_norm.bias is not None:
+        if hasattr(self.layer_norm, "bias") and self.layer_norm.bias is not None:
             nn.init.constant_(self.layer_norm.bias, 0)
 
     @property
@@ -179,10 +211,13 @@ class BiMamba2Layer(nn.Module):
             x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
             logger.warning("Non-finite values in Mamba input replaced with zeros")
 
-        # Clamp inputs to reasonable range (essential guard)
-        x = torch.clamp(x, min=-10.0, max=10.0)
+        # Clamp inputs to reasonable range (widened v3.4.0: trust normalization more)
+        x = torch.clamp(x, min=-50.0, max=50.0)
 
-        residual = x
+        residual = x  # Save original for residual connection
+
+        # v3.4.0: PRE-NORM - normalize BEFORE processing (2025 best practice)
+        x = self.layer_norm(x)
 
         # Use real Mamba only if:
         # 1. Library is available
@@ -248,18 +283,19 @@ class BiMamba2Layer(nn.Module):
         # Project back to d_model
         x_output = self.output_proj(x_combined)  # (B, L, D)
 
-        # Clamp projection output to prevent explosion
-        x_output = torch.clamp(x_output, min=-5.0, max=5.0)
+        # REMOVED (v3.4.0): Trust RMSNorm instead of intermediate clamp
+        # x_output = torch.clamp(x_output, min=-5.0, max=5.0)
 
         # PR-1: Apply LayerScale if configured
         if self.layerscale:
             x_output = self.layerscale(x_output)
 
-        # Add residual and normalize
-        output = self.layer_norm(residual + self.dropout(x_output))
+        # v3.4.0: Add residual WITHOUT post-norm (pre-norm pattern)
+        # Normalization happens BEFORE processing (above), not after
+        output = residual + self.dropout(x_output)
 
-        # Final safety clamp
-        output = torch.clamp(output, min=-10.0, max=10.0)
+        # Final safety clamp (widened v3.4.0: trust RMSNorm more)
+        output = torch.clamp(output, min=-50.0, max=50.0)
 
         return cast(torch.Tensor, output)
 
@@ -331,8 +367,8 @@ class BiMamba2(nn.Module):
             x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
             logger.warning("Non-finite values in BiMamba input replaced with zeros")
 
-        # Clamp inputs to reasonable range (essential guard)
-        x = torch.clamp(x, min=-10.0, max=10.0)
+        # Clamp inputs to reasonable range (widened v3.4.0: trust normalization more)
+        x = torch.clamp(x, min=-50.0, max=50.0)
 
         # Transpose for sequence processing: (B, L, C)
         x = x.transpose(1, 2).contiguous()  # Ensure contiguous for CUDA kernels
