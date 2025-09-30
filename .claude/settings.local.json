@@ -118,7 +118,9 @@
       "Bash(tmux send-keys:*)",
       "Bash(timeout:*)",
       "Bash(modal volume ls:*)",
-      "WebFetch(domain:pytorch-geometric.readthedocs.io)"
+      "WebFetch(domain:pytorch-geometric.readthedocs.io)",
+      "Bash(.venv/bin/ruff format src/ tests/)",
+      "Bash(.venv/bin/ruff check src/ tests/ --fix)"
     ],
     "deny": [],
     "ask": []
