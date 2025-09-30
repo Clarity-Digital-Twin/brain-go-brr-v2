@@ -102,7 +102,8 @@
       "Bash(.venv/bin/pytest tests/ --collect-only -q -m \"gpu\")",
       "Bash(uv run pytest:*)",
       "Bash(for f in tests/unit/models/test_tcn.py tests/unit/models/test_nan_robustness.py tests/unit/models/test_dynamic_pe.py)",
-      "Bash(do echo \"=== $f ===\")"
+      "Bash(do echo \"=== $f ===\")",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []
