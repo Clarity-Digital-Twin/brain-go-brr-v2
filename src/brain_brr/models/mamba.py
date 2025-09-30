@@ -144,7 +144,8 @@ class BiMamba2Layer(nn.Module):
 
         # Fusion and normalization
         self.output_proj = nn.Linear(d_model * 2, d_model)
-        self.layer_norm = nn.LayerNorm(d_model)
+        # v3.4.0: Switch to RMSNorm (reference Mamba2 uses this)
+        self.layer_norm = RMSNorm(d_model, eps=1e-5)
         self.dropout = nn.Dropout(dropout)
 
         # PR-1: Optional LayerScale for residual connection
@@ -213,7 +214,10 @@ class BiMamba2Layer(nn.Module):
         # Clamp inputs to reasonable range (widened v3.4.0: trust normalization more)
         x = torch.clamp(x, min=-50.0, max=50.0)
 
-        residual = x
+        residual = x  # Save original for residual connection
+
+        # v3.4.0: PRE-NORM - normalize BEFORE processing (2025 best practice)
+        x = self.layer_norm(x)
 
         # Use real Mamba only if:
         # 1. Library is available
@@ -279,17 +283,18 @@ class BiMamba2Layer(nn.Module):
         # Project back to d_model
         x_output = self.output_proj(x_combined)  # (B, L, D)
 
-        # REMOVED (v3.4.0): Trust LayerNorm instead of intermediate clamp
+        # REMOVED (v3.4.0): Trust RMSNorm instead of intermediate clamp
         # x_output = torch.clamp(x_output, min=-5.0, max=5.0)
 
         # PR-1: Apply LayerScale if configured
         if self.layerscale:
             x_output = self.layerscale(x_output)
 
-        # Add residual and normalize
-        output = self.layer_norm(residual + self.dropout(x_output))
+        # v3.4.0: Add residual WITHOUT post-norm (pre-norm pattern)
+        # Normalization happens BEFORE processing (above), not after
+        output = residual + self.dropout(x_output)
 
-        # Final safety clamp (widened v3.4.0: trust normalization more)
+        # Final safety clamp (widened v3.4.0: trust RMSNorm more)
         output = torch.clamp(output, min=-50.0, max=50.0)
 
         return cast(torch.Tensor, output)

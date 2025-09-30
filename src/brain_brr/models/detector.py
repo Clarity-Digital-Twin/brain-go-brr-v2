@@ -152,8 +152,8 @@ class SeizureDetector(nn.Module):
         - Careful normalization layer init
         - Special handling for projections
         """
-        # Detection head (1x1 conv): very small to prevent saturation
-        nn.init.xavier_uniform_(self.detection_head.weight, gain=0.01)
+        # Detection head (1x1 conv): increased gain (v3.4.0 - trust normalization)
+        nn.init.xavier_uniform_(self.detection_head.weight, gain=0.1)  # Was 0.01
         if self.detection_head.bias is not None:
             nn.init.constant_(self.detection_head.bias, 0)
 
@@ -171,12 +171,12 @@ class SeizureDetector(nn.Module):
 
         # Edge projection initialization (if present)
         if self.edge_in_proj is not None:
-            nn.init.xavier_uniform_(self.edge_in_proj.weight, gain=0.1)  # Reduced from 0.5
+            nn.init.xavier_uniform_(self.edge_in_proj.weight, gain=0.5)  # v3.4.0: restored from 0.1
             if hasattr(self.edge_in_proj, "bias") and self.edge_in_proj.bias is not None:
                 nn.init.zeros_(self.edge_in_proj.bias)
 
         if self.edge_out_proj is not None:
-            nn.init.xavier_uniform_(self.edge_out_proj.weight, gain=0.1)  # Reduced from 0.5
+            nn.init.xavier_uniform_(self.edge_out_proj.weight, gain=0.5)  # v3.4.0: restored from 0.1
             if self.edge_out_proj.bias is not None:
                 nn.init.zeros_(self.edge_out_proj.bias)
 
@@ -195,9 +195,10 @@ class SeizureDetector(nn.Module):
                 continue
 
             if isinstance(m, (nn.Conv1d, nn.ConvTranspose1d)):
-                # Conservative initialization for conv layers
+                # v3.4.0: Trust Kaiming init (designed for ReLU)
+                # Removed 5x scale-down; normalization layers handle stability
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
-                m.weight.data *= 0.2  # Scale down by 5x
+                # REMOVED: m.weight.data *= 0.2
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
             elif isinstance(m, (nn.BatchNorm1d, nn.LayerNorm, nn.GroupNorm)):
