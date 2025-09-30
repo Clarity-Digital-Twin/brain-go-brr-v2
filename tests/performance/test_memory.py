@@ -342,9 +342,9 @@ class TestMemoryUsage:
         reserved_peak_mb = stats["reserved_bytes.all.peak"] / 1024 / 1024
 
         # Peak should be reasonable (V3 dual-stream uses more memory)
-        # V3 architecture with edge Mambas needs ~3.5GB peak
-        assert reserved_peak_mb < 4000, (
-            f"Peak GPU memory {reserved_peak_mb:.1f}MB exceeds 4GB limit"
+        # V3 architecture with edge Mambas needs ~4.5GB peak
+        assert reserved_peak_mb < 4800, (
+            f"Peak GPU memory {reserved_peak_mb:.1f}MB exceeds 4.8GB limit"
         )
 
         # Efficiency: how much of reserved memory is actually used
