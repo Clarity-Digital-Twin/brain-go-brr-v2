@@ -27,6 +27,7 @@ def patch_triton_files(triton_dir: Path) -> int:
         triton_dir / "ssd_chunk_scan.py",
         triton_dir / "ssd_chunk_state.py",
         triton_dir / "ssd_state_passing.py",
+        triton_dir / "ssd_combined.py",
     ]
 
     print(f"\n📝 Patching {len(files_to_patch)} Triton kernel files...")
