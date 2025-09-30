@@ -2,7 +2,8 @@
 
 **Branch**: `fix/upgrade-mamba` ✅ SAFE - can delete if fails
 **Created**: 2025-09-29
-**Status**: READY TO EXECUTE (waiting for Test 1B confirmation)
+**Status**: 🔥 PHASE 4 IN PROGRESS - Local training running, Modal smoke test running
+**Last Updated**: 2025-09-29 21:11 (Phase 1-3 complete, validating now)
 **Context**: Modal A100 XID 31 MMU Fault confirmed as Mamba CUDA kernel bug (Test 1A proved AMP not the cause)
 
 ---
@@ -16,6 +17,74 @@
 4. Safe branch - can revert if needed
 5. Upgrade takes 3-7 days - start research while Test 1B runs
 6. Even if issue isn't fully Mamba, latest versions are best practice
+
+---
+
+## 🔥 PROGRESS STATUS (Updated 2025-09-29 21:11)
+
+### ✅ PHASE 1: PRE-FLIGHT RESEARCH - COMPLETE
+- PyTorch 2.5 breaking changes analyzed → **Found: weight_norm behavior change**
+- torch-geometric 2.6.1 compatibility verified
+- mamba-ssm 2.2.5 wheels confirmed available
+- CUDA 12.4 toolkit availability confirmed
+
+### ✅ PHASE 2: LOCAL UPGRADE - COMPLETE (19:59:58)
+- CUDA 12.4 toolkit installed ✅
+- pyproject.toml updated to PyTorch 2.5.0 ✅
+- INSTALLATION.md updated with PyG 2.6.1 ✅
+- Makefile setup-gpu target updated ✅
+- Local environment rebuilt with new stack ✅
+- Test suite passed (with gradient threshold adjustment) ✅
+- Cache verified (no rebuild needed - pure NumPy) ✅
+- **Local smoke test PASSED** (1 epoch, 3 files, no NaN) ✅
+
+**Critical fix applied**: Removed weight_norm from TCN due to PyTorch 2.5 behavior change
+
+### ✅ PHASE 3: MODAL UPGRADE - COMPLETE (21:03:32)
+- deploy/modal/app.py updated (CUDA 12.4 + PyTorch 2.5.0) ✅
+- Modal configs verified (no changes needed) ✅
+- **Modal image build PASSED** ✅
+- **Modal Mamba CUDA test PASSED** on A100 80GB ✅
+  - Output: `torch.Size([2, 100, 512])` validated
+  - mamba-ssm 2.2.5 working on A100
+- Modal cache rebuild: SKIPPED (persistent SSD, no PyTorch serialization) ✅
+
+**Commits**:
+- `329b470` - Remove weight_norm from TCN (PyTorch 2.5 fix)
+- `4b66ff9` - Update torch-geometric to 2.6.1
+- `b5dc1d7` - Adjust gradient vanishing threshold
+- `b591136` - Enhance local testing commands
+- `6bfe9be` - Upgrade pip in Modal deployment
+
+### 🔥 PHASE 4: VALIDATION - IN PROGRESS (Started 21:11:50)
+- **Local full training: RUNNING** (tmux: local-train)
+  - Config: 100 epochs + early stopping (patience=5)
+  - Dataset: 4667 train files, 1832 dev files
+  - Status: Dataset loaded, building dev index
+  - Expected: ~2-3 hours/epoch, ~200-300 hours total or early stop
+- **Modal smoke test: RUNNING** (tmux: modal-smoke)
+  - Config: 1 epoch, 50 files
+  - Status: Image building with new stack
+  - Expected: ~10-15 min total
+  - **THIS IS THE CRITICAL XID 31 TEST!** 🎯
+- Modal full training: PENDING (after smoke test passes)
+- Performance comparison: PENDING (need 5+ epochs data)
+- Checkpoint compatibility: NOT TESTED (likely incompatible, will retrain)
+
+### ⏳ PHASE 5: CLEANUP - PENDING
+- README.md: TODO
+- CLAUDE.md: TODO
+- ARCHITECTURE_EVOLUTION.md: TODO (add v3.3.0 section)
+- CHANGELOG.md: TODO (create v3.3.0 entry)
+- Tag v3.3.0: PENDING (after validation)
+- Merge to branches: PENDING (after validation)
+
+### 🎯 NEXT MILESTONES
+1. **Modal smoke test completes** (~10 min) → Validates XID 31 fix
+2. **Local training epoch 1 completes** (~2-3 hours) → Validates local stability
+3. **5 epochs stable** (both platforms) → Phase 4 complete
+4. **Documentation updates** → Phase 5 complete
+5. **Tag v3.3.0 and merge** → UPGRADE COMPLETE 🚀
 
 ---
 
