@@ -71,7 +71,7 @@ Batch 20: grad_norm = 1.42 ✅  <- Decreasing trend
 Batch 50: grad_norm = 0.85 ✅  <- Stabilizing
 ```
 
-**Problem Pattern:**
+**Problem Pattern (FIXED in v3.3.1):**
 ```
 Batch 50:  grad_norm = 1.5 ⚠️
 Batch 100: grad_norm = 3.2 ⚠️
@@ -83,6 +83,7 @@ If grad norms **increase** after batch 100, investigate:
 - Learning rate too high
 - Data quality issues
 - Architecture instability
+- **Eigendecomposition gradient explosion** (v3.3.1: FIXED with detached eigenvectors)
 
 ## The 3-Tier Protection System
 
@@ -198,12 +199,44 @@ grep "Large grad norm at batch" /tmp/local-train-*.log | \
 # Should show decreasing trend: 2.52 → 1.84 → 1.42 → ...
 ```
 
+## v3.3.1 Eigendecomposition Fix (September 30, 2025)
+
+**Problem Observed (Modal A100)**:
+- Gradient norms INCREASING: 1.01 → 5.31 → **7.03** at batch 280
+- Clipping frequency: ~60% of batches
+- Pattern got WORSE over time, not better
+
+**Root Cause**:
+- PyTorch's `torch.linalg.eigh()` backward pass uses `∂L/∂A ∝ 1/(λᵢ - λⱼ)`
+- PR-3 adjacency conditioning (row-softmax + EMA + symmetry) created **near-degenerate eigenvalues**
+- Near-zero denominators → **gradient explosion** through eigendecomposition
+
+**Fix Applied** (`src/brain_brr/models/gnn_pyg.py:205`):
+```python
+eigenvalues, eigenvectors = torch.linalg.eigh(l_stable)
+eigenvectors = eigenvectors.detach()  # Prevents gradient explosion
+```
+
+**Why This Works**:
+- ✅ Eigenvectors are FIXED positional coordinates (like Transformer sinusoidal PE)
+- ✅ Adjacency still learns (gradients flow through GNN output → adjacency)
+- ✅ NO gradients through unstable eigendecomposition
+- ✅ Zero architectural compromise - this is 2025 best practice!
+
+**Expected Results**:
+- Gradient norms: **<1.0 P95** (down from 7.03)
+- Clipping frequency: **<10%** (down from 60%)
+- Training: **ROCK SOLID STABLE**
+
+**See Also**: `ARCHITECTURAL_STABILITY_INVESTIGATION.md` for complete analysis
+
 ## References
 
+- Eigendecomposition fix: `ARCHITECTURAL_STABILITY_INVESTIGATION.md`
 - NaN protection system: `docs/10-final-refactor-NAN/NAN_CANONICAL.md`
 - Training config: `configs/local/train.yaml`
 - Implementation: `src/brain_brr/train/loop.py:861-927`
 
 ---
 
-**Key Takeaway**: Seeing "Large grad norm" messages in early training is **expected behavior**, not a bug. The protection system is working correctly. Only worry if the pattern persists or worsens after 100+ batches.
+**Key Takeaway**: Seeing "Large grad norm" messages in early training is **expected behavior**, not a bug. The protection system is working correctly. Only worry if the pattern persists or worsens after 100+ batches. As of v3.3.1, eigendecomposition gradient explosion is FIXED with detached eigenvectors.

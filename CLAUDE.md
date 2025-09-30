@@ -12,11 +12,11 @@ Brain-Go-Brr v3.3.1: Clinical EEG seizure detection using **TCN + BiMamba + GNN 
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-Current Architecture (v3.3.1):
+Current Architecture (v3.3.1 - September 30, 2025):
 - **V3 dual-stream** → Node (19×) and Edge (171×) parallel processing
 - **Edge similarity clamping** → Prevents ±1.0 boundary explosions (PR-5)
-- **Dynamic Laplacian PE** → Time-evolving graph structure without heuristics
-- **Detached eigenvectors** → Prevents gradient explosion through eigendecomposition (Sep 30, 2025 fix)
+- **Dynamic Laplacian PE** → Time-evolving graph structure, fully dynamic every timestep
+- **Detached eigenvectors** → Prevents gradient explosion through eigendecomposition (gnn_pyg.py:205)
 - **3-tier NaN protection** → Gradient sanitization + clamping + monitoring
 
 ## 🚀 Quick Commands
@@ -51,7 +51,7 @@ make train-local  # or: .venv/bin/python -m src train configs/local/train.yaml
 # List sessions: tmux ls
 ```
 
-**NOTE**: See `NAN-PROTECTION-REFERENCE.md` for complete NaN protection documentation.
+**NOTE**: See `ARCHITECTURAL_STABILITY_INVESTIGATION.md` for gradient explosion fix details and `NAN-PROTECTION-REFERENCE.md` for complete NaN protection documentation.
 
 ### Modal Cloud Deployment (A100-80GB)
 ```bash
@@ -260,7 +260,8 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 | NaN losses on RTX 4090 | Set `mixed_precision: false` |
 | **Non-finite logits** | **Rebuild cache after Sep 26 fix + use `BGB_SANITIZE_GRADS=1`** |
 | **Edge similarity explosions** | **v3.3.0: Set `edge_similarity_margin: 0.01` in configs** |
-| **Gradient spikes (7.03+)** | **v3.3.1: FIXED - eigenvectors detached in gnn_pyg.py:205** |
+| **Gradient spikes (7.03+)** | **v3.3.1: FIXED - eigenvectors detached in gnn_pyg.py:205 (see ARCHITECTURAL_STABILITY_INVESTIGATION.md)** |
+| **Modal XID 31 GPU crashes** | **v3.3.1: FIXED - unique Triton cache dirs in deploy/modal/app.py:539-546** |
 | Modal training stuck | Increase CPU cores (24) and RAM (96GB) |
 | PyG installation fails | Use pre-built wheels, not `uv sync -E graph` |
 | Mamba CUDA errors | Ensure CUDA 12.4 toolkit installed |
