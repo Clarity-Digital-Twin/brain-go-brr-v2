@@ -536,6 +536,11 @@ def train(
         os.environ["SEIZURE_MAMBA_FORCE_FALLBACK"] = "1"
         logger.info("[DIAGNOSTIC] SEIZURE_MAMBA_FORCE_FALLBACK=1 (using Conv1d instead of Mamba CUDA)")
 
+    # CRITICAL: PyTorch memory allocator - prevent fragmentation on A100-80GB
+    # Fixes "reserved but unallocated" OOM during first backward pass
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:512"
+    logger.info("[MEMORY] PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True (prevent fragmentation)")
+
     # CRITICAL: Force recompilation with UNIQUE cache dirs per run
     # Modal can reuse containers, so we MUST use random cache dirs to ensure
     # newly patched Triton kernels are compiled fresh (not using old int32 caches)
