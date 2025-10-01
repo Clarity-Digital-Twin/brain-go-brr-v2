@@ -39,7 +39,8 @@
       "Bash(.venv/bin/pip install:*)",
       "Bash(.venv/bin/python:*)",
       "Bash(git clone:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(tmux send-keys:*)"
     ],
     "deny": [],
     "ask": []
