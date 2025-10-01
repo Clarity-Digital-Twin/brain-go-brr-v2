@@ -62,7 +62,9 @@
       "Bash(uv pip list:*)",
       "Bash(uv sync:*)",
       "Bash(uv lock:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(uv build:*)",
+      "Bash(gh release edit:*)"
     ],
     "deny": [],
     "ask": []
