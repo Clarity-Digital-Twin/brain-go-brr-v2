@@ -33,7 +33,13 @@
       "Bash(git pull:*)",
       "Bash(dmesg:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(python:*)",
+      "Bash(../.venv/bin/python pdf_to_markdown.py:*)",
+      "Bash(.venv/bin/pip install:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(git clone:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []
