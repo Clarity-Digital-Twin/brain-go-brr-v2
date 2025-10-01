@@ -8,7 +8,7 @@ Brain-Go-Brr v3.3.1: Clinical EEG seizure detection using **TCN + BiMamba + GNN 
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
-- **BiMamba**: Bidirectional SSM for O(N) global context (6 layers, d_model=512)
+- **BiMamba**: Bidirectional SSM for O(N) global context (6 layers, d_model=64 per electrode)
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 

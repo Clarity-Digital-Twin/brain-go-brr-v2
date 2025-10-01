@@ -29,12 +29,12 @@
 
 ## Data Flow
 
-- Input `(B,19,15360)` → TCN `(B,512,960)` → Electrode features `(B,19,960,512)`
-- **Node stream**: BiMamba2 over `(B*19,512,960)` → `(B,19,960,512)`
+- Input `(B,19,15360)` → TCN `(B,512,960)` → Electrode features `(B,19,960,64)`
+- **Node stream**: BiMamba2 over `(B*19,64,960)` → `(B,19,960,64)`
 - **Edge stream**: Cosine similarity with margin `(B,171,960,1)` → Edge Mamba (1→16→1 + Softplus) → weights `(B,171,960)`
 - **Adjacency assembly**: `(B,960,19,19)` with top‑k=3, threshold, symmetry, identity fallback
-- **GNN processing**: Vectorized SSGConv×2 + Laplacian PE over all timesteps → `(B,19,960,512)`
-- **Fusion**: Multi-head gated fusion (node + GNN) → `(B,19,960,512)`
+- **GNN processing**: Vectorized SSGConv×2 + Laplacian PE over all timesteps → `(B,19,960,64)`
+- **Fusion**: Multi-head gated fusion (node + GNN) → `(B,19,960,64)`
 - **Decoder**: Back‑project to `(B,512,960)` → ProjectionHead to `(B,19,15360)` → Conv1d(19→1) logits `(B,15360)`
 
 ## Optional Enhancement
@@ -44,12 +44,12 @@
 ## Key Parameters
 
 ### Node Stream (Per-Electrode Processing)
-- **d_model**: 512 (per-electrode feature dimension)
+- **d_model**: 64 (per-electrode feature dimension)
 - **n_layers**: 6
 - **d_state**: 16
 - **d_conv**: 4 (CUDA constraint: 2-4)
 - **expand**: 2
-- **headdim**: 64
+- **headdim**: 8
 - **Pattern**: Pre-norm BiMamba2 (v3.4.0+)
 
 ### Edge Stream (Pairwise Relationships)
