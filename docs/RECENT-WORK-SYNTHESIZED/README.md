@@ -24,7 +24,7 @@ Each document here is:
 01-nan-and-stability/      # Core stability documentation (3 docs)
 02-warmup-schedules/       # Warmup schedule guide (1 doc)
 03-incidents/              # Historical incident reports (3 docs, copied as-is)
-04-development/            # Upgrade history & testing (8 docs, copied as-is)
+04-development/            # Upgrade history, PR plans, & testing (13 docs, copied as-is)
 05-meta/                   # Documentation process (2 docs, copied as-is)
 ```
 
@@ -90,11 +90,16 @@ Each document here is:
 
 ### 04-development/ (Copied AS-IS)
 
-**Upgrade history & testing** - kept for reference:
+**Upgrade history, PR implementation plans, & testing** - kept for reference:
 - LOCAL_VS_CLOUD_TRAINING.md (6KB)
 - MAMBA_UPGRADE_ANALYSIS.md (11KB)
 - NAN-REGRESSION-POST-DEPENDENCY-UPGRADE.md (14KB)
 - POST-DEPENDENCY-UPGRADE-ARCHITECTURAL-REVIEW.md (39KB)
+- **PR1_BOUNDARY_NORMALIZATION_PLAN.md (11KB)** - Step-by-step PR1 implementation
+- **PR1_IMPLEMENTATION_SUMMARY.md (6KB)** - PR1 summary
+- **PR2_BOUNDED_EDGE_STREAM_PLAN.md (10KB)** - Step-by-step PR2 implementation
+- **PR4_CLAMP_RETIREMENT_PLAN.md (12KB)** - Clamp retirement details
+- **PR708_APPLICATION.md (18KB)** - Modal allocator fix playbook
 - STACK_UPGRADE_PLAN_V3.md (26KB)
 - TEST_SUITE_CONFIG_SSOT.md (16KB)
 - TEST_SUITE_FIX_PLAN.md (24KB)
@@ -133,9 +138,9 @@ Each document here is:
 ✅ **All 31 source documents processed**:
 - 4 docs synthesized into new comprehensive guides
 - 3 incident reports copied as-is
-- 8 development docs copied as-is
+- 13 development docs copied as-is (includes 5 PR plan docs after external review)
 - 2 meta docs copied as-is
-- Remaining 14 docs: Information extracted and integrated into synthesized docs
+- Remaining 9 docs: Information extracted and integrated into synthesized docs
 
 ✅ **Accuracy verified**:
 - All synthesized docs reflect v3.4.1 codebase (Oct 1, 2025)
@@ -191,8 +196,14 @@ Leave RECENT-WORK-SYNTHESIZED as standalone clean documentation directory.
 ## Summary
 
 **Created**: 4 comprehensive synthesized docs (51KB total)
-**Copied**: 13 historical docs (254KB total) for reference
-**Verified**: All 31 source documents processed
-**Status**: ✅ READY for integration into main docs
+**Copied**: 18 historical docs (377KB total) for reference
+**Total**: 23 markdown files (428KB)
+**Verified**: All 31 source documents from COMBINED processed
+**Status**: ✅ COMPLETE - Ready for integration into main docs
 
-**Key Achievement**: Transformed 31 raw investigation logs (500KB+) into 4 clean, validated, production-ready guides that accurately reflect the current state of the codebase.
+**Key Achievement**: Transformed 31 raw investigation logs (500KB+) into 4 clean, validated, production-ready guides + 18 preserved historical docs that accurately reflect the current state of the codebase.
+
+**Updates after external review**:
+- Added PR708_APPLICATION.md (Modal allocator fix playbook)
+- Added PR1, PR2, PR4 plan docs (step-by-step implementation details)
+- All critical content now extracted and preserved
