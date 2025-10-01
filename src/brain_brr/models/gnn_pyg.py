@@ -145,6 +145,13 @@ class GraphChannelMixerPyG(nn.Module):
         """
         self.global_step = step
 
+    def set_warmup_config(self, config: WarmupScheduleConfig | None) -> None:
+        """Update warmup configuration (v3.4.1).
+
+        Safe to call at runtime when schedules change or are disabled.
+        """
+        self.warmup_config = config
+
     def _compute_static_pe(self) -> torch.Tensor:
         """Compute static Laplacian PE from 10-20 structural graph."""
         from .edge_features import get_structural_adjacency

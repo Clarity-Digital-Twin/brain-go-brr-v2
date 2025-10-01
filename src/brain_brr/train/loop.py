@@ -1347,6 +1347,7 @@ def train(
                 )
             ),
             mid_epoch_keep=int(env.mid_epoch_keep()),
+            warmup_schedule=config.training.warmup_schedule,
         )
 
         # Type narrowing for mypy
