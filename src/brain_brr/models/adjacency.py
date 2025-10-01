@@ -34,7 +34,11 @@ def get_adj_temperature(
     Returns:
         Effective temperature for current step
     """
-    if warmup_config is None or not warmup_config.adj_temperature_enabled:
+    if (
+        warmup_config is None
+        or not warmup_config.enabled
+        or not warmup_config.adj_temperature_enabled
+    ):
         return target_tau
 
     if global_step >= warmup_config.warmup_steps:

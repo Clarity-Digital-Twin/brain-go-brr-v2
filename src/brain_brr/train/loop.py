@@ -89,7 +89,11 @@ def get_focal_gamma(
     Returns:
         Effective gamma for current step
     """
-    if warmup_config is None or not warmup_config.focal_gamma_enabled:
+    if (
+        warmup_config is None
+        or not warmup_config.enabled
+        or not warmup_config.focal_gamma_enabled
+    ):
         return target_gamma
 
     if global_step >= warmup_config.warmup_steps:
@@ -427,6 +431,13 @@ def train_epoch(
     # Only construct GradScaler when actually using CUDA AMP
     scaler = GradScaler(enabled=(use_amp and device == "cuda"))
 
+    supports_training_state = hasattr(model, "set_training_state")
+    if supports_training_state:
+        try:
+            model.set_training_state(global_step, warmup_schedule)
+        except TypeError:
+            supports_training_state = False
+
     # Heartbeat timer for Modal visibility
     last_heartbeat = time.time()
     heartbeat_interval = 300  # 5 minutes
@@ -508,6 +519,8 @@ def train_epoch(
     pos_weight_t = torch.as_tensor(pos_weight_val, device=device_obj, dtype=torch.float32)
     use_focal = (loss_mode or "bce").lower() == "focal"
 
+    current_step_ref: dict[str, int] = {"value": global_step}
+
     if use_focal:
         focal = FocalLoss(alpha=focal_alpha, gamma=focal_gamma)
 
@@ -523,6 +536,14 @@ def train_epoch(
             )
 
         def compute_loss(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+            if warmup_schedule and warmup_schedule.enabled:
+                effective_gamma = get_focal_gamma(
+                    current_step_ref["value"],
+                    warmup_schedule,
+                    focal_gamma,
+                )
+                if focal.gamma != effective_gamma:
+                    focal.gamma = effective_gamma
             pw = pos_weight_t if pass_pos_weight else None
             return cast(torch.Tensor, focal(x, y, pos_weight=pw))
 
@@ -566,6 +587,8 @@ def train_epoch(
     model.eval()
     try:
         with torch.no_grad(), autocast(device, enabled=(use_amp and device == "cuda")):
+            if supports_training_state:
+                model.set_training_state(global_step, warmup_schedule)
             test_logits = model(test_windows)  # (B, T) raw logits
             test_loss = compute_loss(test_logits, test_labels)
             if test_loss is None:
@@ -656,6 +679,10 @@ def train_epoch(
             # Clamp labels to [0,1] for numerical safety
             if (labels.min() < 0) or (labels.max() > 1):
                 labels = labels.clamp_(0.0, 1.0)
+
+            if supports_training_state:
+                model.set_training_state(global_step, warmup_schedule)
+            current_step_ref["value"] = global_step
 
             optimizer.zero_grad(set_to_none=True)
 
@@ -1812,8 +1839,8 @@ def main() -> None:
         val_loader_kwargs["prefetch_factor"] = int(config.data.prefetch_factor)
     val_loader = DataLoader(val_dataset, **val_loader_kwargs)
 
-    # Create model
-    model = SeizureDetector.from_config(config.model)
+    # Create model (v3.4.1: pass warmup_schedule for gradient stabilization)
+    model = SeizureDetector.from_config(config.model, warmup_schedule=config.training.warmup_schedule)
     logger.info(f"Model parameters: {model.count_parameters():,}")
 
     # Train

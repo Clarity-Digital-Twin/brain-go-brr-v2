@@ -450,9 +450,17 @@ class SeizureDetector(nn.Module):
             self.gnn.set_global_step(global_step)
 
     @classmethod
-    def from_config(cls, cfg: "_ModelConfig") -> "SeizureDetector":
-        """Instantiate from validated schema config (V3)."""
+    def from_config(
+        cls,
+        cfg: "_ModelConfig",
+        warmup_schedule: "WarmupScheduleConfig | None" = None,
+    ) -> "SeizureDetector":
+        """Instantiate from validated schema config (V3).
 
+        Args:
+            cfg: Model configuration
+            warmup_schedule: Optional warmup schedule for gradient stabilization
+        """
         instance = cls(
             tcn_layers=cfg.tcn.num_layers,
             tcn_kernel_size=cfg.tcn.kernel_size,
@@ -631,6 +639,7 @@ class SeizureDetector(nn.Module):
                     adj_force_symmetric=graph_cfg.adj_force_symmetric,
                     laplacian_eps=graph_cfg.laplacian_eps,
                     laplacian_normalize=graph_cfg.laplacian_normalize,
+                    warmup_config=warmup_schedule,
                 )
             except ImportError as e:
                 raise ImportError(
