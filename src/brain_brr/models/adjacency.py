@@ -57,6 +57,8 @@ def condition_adjacency(
     row_softmax: bool = False,
     ema_beta: float | None = None,
     prev_adjacency: torch.Tensor | None = None,
+    global_step: int = 0,
+    warmup_config: WarmupScheduleConfig | None = None,
 ) -> torch.Tensor:
     """Condition adjacency matrix for stable eigendecomposition.
 
@@ -68,6 +70,8 @@ def condition_adjacency(
         row_softmax: Whether to apply masked row-wise softmax
         ema_beta: EMA coefficient for temporal smoothing (None=disabled)
         prev_adjacency: Previous adjacency for EMA (None for first call)
+        global_step: Current training step (for warmup schedules)
+        warmup_config: Warmup schedule configuration (optional)
 
     Returns:
         Conditioned adjacency matrix (B, T, N, N)
@@ -88,7 +92,9 @@ def condition_adjacency(
         mask = adjacency != 0
 
         # Apply softmax only to non-zero entries
-        adjacency_for_softmax = adjacency / tau
+        # Use warmup temperature if enabled, otherwise use target tau
+        effective_tau = get_adj_temperature(global_step, warmup_config, target_tau=tau)
+        adjacency_for_softmax = adjacency / effective_tau
         # Mask out zeros with large negative value
         adjacency_for_softmax = adjacency_for_softmax.masked_fill(~mask, -1e9)
         adjacency = func.softmax(adjacency_for_softmax, dim=-1)
