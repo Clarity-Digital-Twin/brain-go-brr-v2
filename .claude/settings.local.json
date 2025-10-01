@@ -57,7 +57,10 @@
       "Bash(tree:*)",
       "Bash(head:*)",
       "Bash(do echo \"\")",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(uv run:*)",
+      "Bash(uv pip list:*)",
+      "Bash(uv sync:*)"
     ],
     "deny": [],
     "ask": []
