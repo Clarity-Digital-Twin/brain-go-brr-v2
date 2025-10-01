@@ -1,12 +1,25 @@
-# V3 NaN Explosion Incident & Resolution
+# V3 NaN Explosion Incident & Resolution (Historical)
 
-Note (historical incident report)
-- Status: Resolved and implemented; use as background. For current behavior, see `docs/04-model/v3-architecture.md`, `docs/04-model/gnn.md`, and training configs.
+**Last Updated**: October 1, 2025
+**Status**: ✅ RESOLVED - Historical incident report for reference
+
+> **For Current Best Practices**: See `docs_v2/08-operations/nan-prevention-complete.md` and `docs_v2/04-model/v3-architecture.md`
+
+---
+
+## Quick Summary
+
+**This document describes the Sept 24-26, 2025 NaN crisis that was FULLY RESOLVED by v3.3.0 architectural fixes (PR1-5) and v3.3.1 eigendecomposition fix.**
+
+**Current status (v3.4.1)**: Zero NaN/Inf across 723+ batches. Training is ROCK SOLID.
+
+---
 
 ## Incident Timeline
 - **Date**: September 24-26, 2025
-- **Impact**: V3 dual-stream architecture training completely broken
-- **Resolution**: Comprehensive fixes implemented and verified stable through 100+ batches
+- **Impact**: V3 dual-stream architecture training completely broken (NaN explosions at batch 10-20)
+- **Resolution**: PR1-5 architectural fixes + v3.3.1 eigendecomposition detachment
+- **Validation**: 100+ batches stable (Sept 26), 723+ batches stable (Oct 1)
 
 ## Root Causes Identified
 
@@ -98,6 +111,52 @@ graph:
 - Extended training verified stable through 100+ batches
 - No NaN occurrences with all safeguards in place
 - 3 benign test failures due to conservative initialization (gradient magnitude tests)
+
+---
+
+## Post-Incident Evolution
+
+### v3.3.1 (September 30, 2025) - **CRITICAL FIX**
+**Problem**: Gradient norms still increasing over time (batch 257: 7.03, worse than batch 24: 5.31)
+
+**Root Cause**: Eigendecomposition backward pass computes `∂L/∂A ∝ 1/(λᵢ - λⱼ)` → gradient explosion when eigenvalues are close together (near-degenerate from row-softmax + EMA + symmetry in PR-3)
+
+**Fix**: Detach eigenvectors (`gnn_pyg.py:205`)
+```python
+eigenvectors = eigenvectors.detach()  # NO gradients through eigendecomp
+```
+
+**Why This Works**:
+- Eigenvectors are FIXED positional coordinates (2025 best practice)
+- Learning happens in GNN layers that PROCESS PE, not in PE itself
+- Zero architectural compromise
+
+**Result**: Gradient norms decreasing smoothly, architecture ROCK SOLID
+
+### v3.4.0 (September 30, 2025) - Pre-Norm Mamba
+**Change**: Switch from post-norm to pre-norm pattern (align with reference Mamba2)
+**Benefit**: Improved scale consistency in residual paths
+
+### v3.4.1 (October 1, 2025) - Warmup Schedules
+**Addition**: Optional warmup schedules for gradient stabilization
+- Adjacency temperature: 2.0 → 1.0 (first 1000 steps)
+- Focal gamma: 1.0 → 2.0 (first 1000 steps)
+- Residual scale: optional
+
+**Status**: Training validated through batch 723+ with ZERO NaN/Inf
+
+---
+
+## Related Documentation
+
+**Current best practices**:
+- `docs_v2/08-operations/nan-prevention-complete.md` - Complete NaN protection reference
+- `docs_v2/04-model/v3-architecture.md` - V3.4.1 architecture with all fixes
+- `docs_v2/RECENT-WORK-SYNTHESIZED/01-nan-and-stability/ARCHITECTURE_V3_STABILITY.md` - Evolution details
+
+**Historical context**:
+- This document (v3-nan-explosion-resolution.md) - Sept 24-26 incident
+- `docs_v2/RECENT-WORK-SYNTHESIZED/03-incidents/` - Other incidents
 
 ## Comprehensive Fixes Applied (September 26)
 

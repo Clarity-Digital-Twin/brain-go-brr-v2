@@ -591,9 +591,9 @@ export BGB_NAN_DEBUG=1       # RECOMMENDED
 **Last Verified**: October 1, 2025 - Batch 723 on local RTX 4090 training
 
 **Critical Fixes**:
-- **v3.3.1** (Sept 30): Eigendecomposition gradient detachment (`gnn_pyg.py:232`)
-- **v3.4.0** (Sept 30): Pre-norm Mamba (`mamba.py:220`)
-- **v3.4.1** (Oct 1): Warmup schedules (`gnn_pyg.py:206-207`)
+- **v3.3.1** (Sept 30): Eigendecomposition gradient detachment (`gnn_pyg.py:205`)
+- **v3.4.0** (Sept 30): Pre-norm Mamba (pre-norm pattern in `mamba.py`)
+- **v3.4.1** (Oct 1): Warmup schedules (optional gradient stabilization)
 
 **Related Docs**:
 - `GRADIENT_MONITORING_GUIDE.md` - Realistic gradient expectations

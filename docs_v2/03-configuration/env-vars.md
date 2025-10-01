@@ -1,6 +1,21 @@
 # Environment Variables
 
-Core controls
+**Last Updated**: October 1, 2025 (v3.4.1)
+**Source**: `src/brain_brr/utils/env.py`
+
+## Critical for Production (v3.4.1)
+
+**REQUIRED for stable training**:
+```bash
+export BGB_SANITIZE_GRADS=1  # Gradient NaN protection (REQUIRED)
+export BGB_NAN_DEBUG=1       # Loss monitoring (RECOMMENDED)
+```
+
+**These are automatically set by Modal** (`deploy/modal/app.py:720-723`)
+
+---
+
+## Core Controls
 
 - `BGB_SMOKE_TEST=1` — enable smoke shortcuts (skip sampling, relax checks)
 - `BGB_LIMIT_FILES=N` — limit file count for quick runs
@@ -36,10 +51,10 @@ Model and stability toggles
 - `BGB_SAFE_CLAMP_MIN=-10.0` — minimum clamp value when safe_clamp enabled
 - `BGB_SAFE_CLAMP_MAX=10.0` — maximum clamp value when safe_clamp enabled
 
-Training safety/debug
+## Training Safety/Debug (CRITICAL)
 
-- `BGB_SANITIZE_GRADS=1` — clamp/replace NaN/Inf gradients (**RECOMMENDED for TCN stability**)
-- `BGB_SKIP_OPT_STEP_ON_NAN=1` — skip optimizer step if NaN detected (debug only)
+- `BGB_SANITIZE_GRADS=1` — **REQUIRED** for v3.4.1 stability (clamp/replace NaN/Inf gradients)
+- `BGB_SKIP_OPT_STEP_ON_NAN=1` — skip optimizer step if NaN detected (optional, debug only)
 
 Performance testing (tests/performance)
 
@@ -58,7 +73,28 @@ Logging configuration
 - `BGB_FORCE_SIMPLE=1` — force simple logging format (no Rich)
 - `BGB_FORCE_RICH=0` — disable Rich format even if available
 
-Important notes
+## Modal-Specific (Auto-Set)
 
-- Environment variables are cached at import time by `src.brain_brr.utils.env.EnvConfig` to support `torch.compile`. Restart the process to apply changes.
+Modal automatically sets these in `deploy/modal/app.py`:
+
+```python
+# Memory allocator (XID 31 fix)
+PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True,max_split_size_mb:512"
+
+# Unique Triton cache per run (prevents stale kernels)
+TRITON_CACHE_DIR=f"/tmp/triton_cache_run_{run_id}"
+TORCHINDUCTOR_CACHE_DIR=f"/tmp/tii_cache_run_{run_id}"
+
+# Enhanced logging
+BGB_LOG_EVERY_N_STEPS=10
+
+# NaN protection
+BGB_SANITIZE_GRADS=1
+BGB_NAN_DEBUG=1
+```
+
+## Important Notes
+
+- Environment variables are **cached at import time** by `src.brain_brr.utils.env.EnvConfig` to support `torch.compile`. Restart the process to apply changes.
 - `BGB_LIMIT_FILES` is honored by both training and `build-cache` (unless `--limit-files` is passed on the CLI).
+- **v3.4.1**: `BGB_SANITIZE_GRADS=1` is **REQUIRED** for stable training on PyTorch 2.5.0.
