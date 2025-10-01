@@ -93,6 +93,7 @@ def get_memory_stats() -> dict[str, float]:
 
     try:
         import psutil
+
         process = psutil.Process()
         mem_info = process.memory_info()
         stats["ram_used_gb"] = mem_info.rss / 1e9
@@ -542,6 +543,10 @@ def train_epoch(
     nan_debug_emitted = 0
     max_nan_debug = env.nan_debug_max()
 
+    from collections import deque
+
+    gradient_norms: deque[float] = deque(maxlen=100)
+
     # Robust tqdm handling for Modal/non-TTY environments
     use_tqdm = not env.disable_tqdm()
     progress_bar = None  # Initialize to None for cleanup
@@ -716,6 +721,7 @@ def train_epoch(
                             grad_norm = torch.nn.utils.clip_grad_norm_(
                                 model.parameters(), gradient_clip
                             )
+                            gradient_norms.append(float(grad_norm))
                             if enable_nan_debug and grad_norm > gradient_clip * 10:
                                 logger.debug(
                                     f"Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})"
@@ -745,6 +751,7 @@ def train_epoch(
                             grad_norm = torch.nn.utils.clip_grad_norm_(
                                 model.parameters(), gradient_clip
                             )
+                            gradient_norms.append(float(grad_norm))
                             if enable_nan_debug and grad_norm > gradient_clip * 10:
                                 logger.debug(
                                     f"Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})"
@@ -815,9 +822,22 @@ def train_epoch(
                     if "ram_used_gb" in mem_stats:
                         mem_log += f" | RAM: {mem_stats['ram_used_gb']:.2f}GB used"
                         mem_log += f" / {mem_stats['ram_available_gb']:.2f}GB avail"
-                    if "swap_used_gb" in mem_stats and mem_stats['swap_used_gb'] > 0.1:
+                    if "swap_used_gb" in mem_stats and mem_stats["swap_used_gb"] > 0.1:
                         mem_log += f" | SWAP: {mem_stats['swap_used_gb']:.2f}GB"
                     logger.info(mem_log)
+
+                if len(gradient_norms) > 10:
+                    sorted_norms = sorted(gradient_norms)
+                    n = len(sorted_norms)
+                    grad_mean = sum(sorted_norms) / n
+                    grad_p50 = sorted_norms[n // 2]
+                    grad_p95 = sorted_norms[int(n * 0.95)]
+                    grad_max = sorted_norms[-1]
+                    logger.info(
+                        f"[GRADIENTS] Last {n} batches: "
+                        f"Mean={grad_mean:.2f} | P50={grad_p50:.2f} | "
+                        f"P95={grad_p95:.2f} | Max={grad_max:.2f}"
+                    )
 
             if (
                 checkpoint_dir is not None
