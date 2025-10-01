@@ -437,7 +437,7 @@ def train_epoch(
 
     # Heartbeat timer for Modal visibility
     last_heartbeat = time.time()
-    heartbeat_interval = 300  # 5 minutes
+    heartbeat_interval = 120  # 2 minutes (reduced from 5 for faster hang detection)
     last_mid_save = time.time()
     mid_interval_s = (
         None if mid_epoch_minutes is None else float(max(0.0, mid_epoch_minutes)) * 60.0
@@ -659,6 +659,10 @@ def train_epoch(
     # But track global_step separately for proper scheduler behavior
     try:
         for batch_idx, (windows, labels) in enumerate(progress):
+            # CRITICAL: Log batch start BEFORE any processing (detect hangs)
+            if batch_idx == 0 or (batch_idx > 0 and batch_idx % LOG_EVERY_N_STEPS == 0):
+                logger.info(f"[BATCH START] Processing batch {batch_idx}/{len(dataloader)}")
+
             windows = windows.to(device_obj)
             labels = labels.to(device_obj)
 
@@ -719,6 +723,13 @@ def train_epoch(
                             pass
                         # Sanitize logits to allow training to continue
                         logits = torch.nan_to_num(logits, nan=0.0, posinf=20.0, neginf=-20.0)
+
+                    # Log forward pass completion for batch 0 (critical for hang detection)
+                    if batch_idx == 0:
+                        logger.info(
+                            f"[BATCH 0] Forward pass completed, logits shape: {logits.shape}"
+                        )
+
                     per_element_loss = compute_loss(logits, labels)
                     if per_element_loss is None:
                         raise ValueError("Loss computation returned None")

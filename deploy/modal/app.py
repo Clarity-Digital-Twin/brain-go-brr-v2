@@ -717,6 +717,11 @@ def train(
     # Disable tqdm for Modal subprocess environments (causes issues with manifest generation)
     env["BGB_DISABLE_TQDM"] = "1"
     logger.info(f"[ENV] BGB_DISABLE_TQDM={env.get('BGB_DISABLE_TQDM')}")
+
+    # CRITICAL: Log more frequently on Modal to detect hangs early
+    env["BGB_LOG_EVERY_N_STEPS"] = "10"  # Log every 10 batches (vs default 50)
+    logger.info(f"[ENV] BGB_LOG_EVERY_N_STEPS=10 (faster Modal logging)")
+
     # For production, use full dataset (no limit)
 
     # Prepare a temp config to ensure data/output point to persistent volumes
