@@ -4,7 +4,7 @@ Files: `src/brain_brr/models/mamba.py`, `src/brain_brr/models/detector.py`
 
 Node stream
 
-- d_model=64, n_layers=6, d_state=16, expand=2, headdim=8
+- d_model=512, n_layers=6, d_state=16, expand=2, headdim=64
 
 Edge stream
 
@@ -13,7 +13,7 @@ Edge stream
 CUDA alignment
 
 - `(d_model*expand)/headdim` must be an integer multiple of 8
-- Node: `(64*2)/8 = 16` → aligned
+- Node: `(512*2)/64 = 16` → aligned
 - Edge: `(16*2)/4 = 8` → aligned
 
 Fallback behavior

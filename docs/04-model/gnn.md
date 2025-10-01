@@ -12,9 +12,9 @@
 
 ## Vectorized Path (V3)
 
-1. Flatten `(B,19,T,D)` → `(B*T,19,D)` and `(B,T,19,19)` → `(B*T,19,19)`
+1. Flatten `(B,19,T,D)` → `(B*T,19,D)` where D=512 (node d_model) and `(B,T,19,19)` → `(B*T,19,19)`
 2. Build disjoint batch for PyG; construct `edge_index`/`edge_weight` from adjacency
-3. Concatenate Laplacian PE (k=16) to node features on first GNN layer only
+3. Concatenate Laplacian PE (k=16) to node features on first GNN layer only (becomes D+16=528)
 4. Apply SSGConv → LayerNorm → Dropout; residuals from layer 2 onward
 5. Reshape back to `(B,19,T,D)` from batched result
 

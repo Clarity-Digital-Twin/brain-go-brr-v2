@@ -34,9 +34,10 @@ cpu: 24        # 24 cores (avoids CPU bottleneck during data loading)
 ### Model Parameters (configs/modal/train.yaml)
 ```yaml
 training:
-  batch_size: 64                # A100-80GB optimized
+  batch_size: 32                # v3.4.1: Reduced from 64 (OOM fix)
+  gradient_accumulation_steps: 2  # v3.4.1: Maintain effective batch=64
   mixed_precision: true         # CRITICAL: 3.8x faster on A100
-  learning_rate: 8.0e-5         # Batch-scaled from 3e-5
+  learning_rate: 8.0e-5         # Batch-scaled
   gradient_clip: 0.5            # Gradient protection
   loss: focal                   # REQUIRED for 12:1 imbalance
   focal_gamma: 2.0             # Warmup from 1.0 → 2.0 (v3.4.1)
@@ -87,22 +88,22 @@ BGB_SANITIZE_GRADS=1     # Sanitize NaN gradients
 BGB_NAN_DEBUG=1          # Debug NaN losses
 ```
 
-## Initialization Timeline (Full Training)
+## Initialization Timeline (v3.4.1)
 
-**Total initialization: ~75 minutes** before first epoch starts
+**Total initialization: ~10-15 minutes** before first epoch starts
 
 | Phase | Duration | What's Happening |
 |-------|----------|------------------|
 | Startup | ~1 min | Container launch, env setup |
-| Train manifest load | ~11 min | Load 61,616 windows from manifest.json |
-| Dev manifest load | **~54 min** | Load 148,224 windows from manifest.json |
+| Train manifest load | ~2-3 min | Load 61,616 windows from manifest.json (cached) |
+| Dev manifest load | ~2-3 min | Load 148,224 windows from manifest.json (cached) |
 | Model creation | ~10 sec | Initialize 31M parameters |
 | W&B initialization | ~3 sec | Connect to Weights & Biases |
-| **Total to W&B** | **~65 min** | When you'll see W&B dashboard |
-| Preflight batch | ~10 min | Test forward/backward pass |
-| **Total to epoch start** | **~75 min** | When training actually begins |
+| Worker spawn | **~3-5 min** | DataLoader workers (v3.4.1: fixed from 1h+) |
+| Preflight batch | ~2 min | Test forward/backward pass |
+| **Total to epoch start** | **~10-15 min** | When training actually begins |
 
-**NOTE**: The long initialization is expected and NOT a hang. The dataset loading is single-threaded Python parsing of 61,616 + 148,224 windows from manifest files.
+**v3.4.1 Fix**: Worker spawn reduced from 1h+ to <5 min by setting `persistent_workers: false` and `num_workers: 4` (see MODAL_TRAINING_HANG_INVESTIGATION.md).
 
 ## Cache and Volumes
 
