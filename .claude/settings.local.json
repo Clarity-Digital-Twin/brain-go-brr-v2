@@ -51,7 +51,9 @@
       "Bash(ls:*)",
       "Bash(done)",
       "Bash(for:*)",
-      "Bash(do cp \"$file\" ../../RECENT-WORK-SYNTHESIZED/04-development/)"
+      "Bash(do cp \"$file\" ../../RECENT-WORK-SYNTHESIZED/04-development/)",
+      "Bash(cp:*)",
+      "Bash(do cp \"$file\" /home/jj/proj/brain-go-brr-v2/docs/RECENT-WORK-SYNTHESIZED/04-development/)"
     ],
     "deny": [],
     "ask": []
