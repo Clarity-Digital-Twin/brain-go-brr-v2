@@ -25,6 +25,7 @@ from .tcn import ProjectionHead, TCNEncoder
 
 if TYPE_CHECKING:  # Only for type checkers; avoids runtime import cycle
     from src.brain_brr.config.schemas import ModelConfig as _ModelConfig
+    from src.brain_brr.config.schemas import WarmupScheduleConfig
 
 
 class SeizureDetector(nn.Module):
@@ -90,6 +91,10 @@ class SeizureDetector(nn.Module):
         self.fusion: nn.Module | None = None
         self.fusion_type: str = "add"
 
+        # Warmup schedule state (updated by training loop)
+        self.global_step: int = 0
+        self.warmup_config: WarmupScheduleConfig | None = None
+
         # Backwards-compat: ensure mamba_dropout has a concrete value
         if mamba_dropout is None:
             mamba_dropout = 0.1
@@ -142,6 +147,31 @@ class SeizureDetector(nn.Module):
         self.detection_head = nn.Conv1d(19, 1, kernel_size=1)
 
         self._initialize_weights()
+
+    def set_training_state(
+        self,
+        global_step: int,
+        warmup_config: "WarmupScheduleConfig | None" = None,
+    ) -> None:
+        """Update training state for warmup schedules (v3.4.1).
+
+        Propagates state to submodules that rely on warmup configuration.
+        Safe to call every iteration; no-ops when components are absent.
+        """
+
+        self.global_step = global_step
+        self.warmup_config = warmup_config
+
+        if self.use_gnn and self.gnn is not None:
+            if hasattr(self.gnn, "set_global_step"):
+                self.gnn.set_global_step(global_step)
+            else:  # Defensive fallback (legacy modules)
+                object.__setattr__(self.gnn, "global_step", global_step)
+
+            if hasattr(self.gnn, "set_warmup_config"):
+                self.gnn.set_warmup_config(warmup_config)
+            else:
+                object.__setattr__(self.gnn, "warmup_config", warmup_config)
 
     def _initialize_weights(self) -> None:
         """Initialize weights with conservative gains to prevent NaN/explosion.
@@ -403,9 +433,17 @@ class SeizureDetector(nn.Module):
         return cast(torch.Tensor, output.squeeze(1))
 
     @classmethod
-    def from_config(cls, cfg: "_ModelConfig") -> "SeizureDetector":
-        """Instantiate from validated schema config (V3)."""
+    def from_config(
+        cls,
+        cfg: "_ModelConfig",
+        warmup_schedule: "WarmupScheduleConfig | None" = None,
+    ) -> "SeizureDetector":
+        """Instantiate from validated schema config (V3).
 
+        Args:
+            cfg: Model configuration
+            warmup_schedule: Optional warmup schedule for gradient stabilization
+        """
         instance = cls(
             tcn_layers=cfg.tcn.num_layers,
             tcn_kernel_size=cfg.tcn.kernel_size,
@@ -584,6 +622,7 @@ class SeizureDetector(nn.Module):
                     adj_force_symmetric=graph_cfg.adj_force_symmetric,
                     laplacian_eps=graph_cfg.laplacian_eps,
                     laplacian_normalize=graph_cfg.laplacian_normalize,
+                    warmup_config=warmup_schedule,
                 )
             except ImportError as e:
                 raise ImportError(

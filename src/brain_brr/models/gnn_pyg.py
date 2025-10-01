@@ -3,14 +3,20 @@
 Based on EvoBrain architecture with proven EEG parameters.
 """
 
+from __future__ import annotations
+
 import logging
 import warnings
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as func
 
 from .adjacency import compute_stable_laplacian, condition_adjacency
+
+if TYPE_CHECKING:
+    from src.brain_brr.config.schemas import WarmupScheduleConfig
 
 # Module logger
 logger = logging.getLogger(__name__)
@@ -60,6 +66,7 @@ class GraphChannelMixerPyG(nn.Module):
         adj_ema_beta: float | None = None,
         adj_force_symmetric: bool = False,
         laplacian_eps: float = 1e-4,
+        warmup_config: WarmupScheduleConfig | None = None,  # v3.4.1: Warmup schedules
         laplacian_normalize: bool = True,
     ):
         super().__init__()
@@ -87,6 +94,10 @@ class GraphChannelMixerPyG(nn.Module):
         self.adj_force_symmetric = adj_force_symmetric
         self.laplacian_eps = laplacian_eps
         self.laplacian_normalize = laplacian_normalize
+
+        # v3.4.1: Warmup schedules (stored config)
+        self.warmup_config = warmup_config
+        self.global_step = 0  # Updated from training loop
 
         # ROBUST: Cache last valid PE for fallback
         self.register_buffer("last_valid_pe", None)
@@ -126,6 +137,20 @@ class GraphChannelMixerPyG(nn.Module):
         # Normalization and dropout
         self.layer_norms = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(n_layers)])
         self.dropout = nn.Dropout(dropout)
+
+    def set_global_step(self, step: int) -> None:
+        """Update global step for warmup schedules (v3.4.1).
+
+        Called from training loop before each forward pass.
+        """
+        self.global_step = step
+
+    def set_warmup_config(self, config: WarmupScheduleConfig | None) -> None:
+        """Update warmup configuration (v3.4.1).
+
+        Safe to call at runtime when schedules change or are disabled.
+        """
+        self.warmup_config = config
 
     def _compute_static_pe(self) -> torch.Tensor:
         """Compute static Laplacian PE from 10-20 structural graph."""
@@ -178,6 +203,8 @@ class GraphChannelMixerPyG(nn.Module):
                 force_symmetric=self.adj_force_symmetric,
                 row_softmax=self.adj_row_softmax,
                 ema_beta=self.adj_ema_beta,
+                global_step=self.global_step,  # v3.4.1: Warmup support
+                warmup_config=self.warmup_config,  # v3.4.1: Warmup support
             )
 
         # Reshape to process all (B*T) graphs at once

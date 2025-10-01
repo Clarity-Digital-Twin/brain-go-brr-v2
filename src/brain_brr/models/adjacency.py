@@ -4,9 +4,53 @@ This module implements well-conditioned adjacency matrix operations
 to prevent eigendecomposition failures in dynamic Laplacian PE.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as func
+
+if TYPE_CHECKING:
+    from src.brain_brr.config.schemas import WarmupScheduleConfig
+
+
+def get_adj_temperature(
+    global_step: int,
+    warmup_config: WarmupScheduleConfig | None,
+    target_tau: float = 1.0,
+) -> float:
+    """Compute adjacency softmax temperature for current step.
+
+    Linear interpolation from start_tau → end_tau over warmup_steps.
+    Used for gradient stabilization during early training.
+
+    Args:
+        global_step: Current training step
+        warmup_config: Warmup schedule configuration
+        target_tau: Target temperature (from config adj_softmax_tau)
+
+    Returns:
+        Effective temperature for current step
+    """
+    if (
+        warmup_config is None
+        or not warmup_config.enabled
+        or not warmup_config.adj_temperature_enabled
+    ):
+        return target_tau
+
+    if global_step >= warmup_config.warmup_steps:
+        return target_tau
+
+    # Linear interpolation: start → end over warmup_steps
+    progress = global_step / warmup_config.warmup_steps
+    start_tau = warmup_config.adj_temperature_start
+    end_tau = warmup_config.adj_temperature_end
+    current_tau = start_tau - progress * (start_tau - end_tau)
+
+    return current_tau
 
 
 def condition_adjacency(
@@ -17,6 +61,8 @@ def condition_adjacency(
     row_softmax: bool = False,
     ema_beta: float | None = None,
     prev_adjacency: torch.Tensor | None = None,
+    global_step: int = 0,
+    warmup_config: WarmupScheduleConfig | None = None,
 ) -> torch.Tensor:
     """Condition adjacency matrix for stable eigendecomposition.
 
@@ -28,6 +74,8 @@ def condition_adjacency(
         row_softmax: Whether to apply masked row-wise softmax
         ema_beta: EMA coefficient for temporal smoothing (None=disabled)
         prev_adjacency: Previous adjacency for EMA (None for first call)
+        global_step: Current training step (for warmup schedules)
+        warmup_config: Warmup schedule configuration (optional)
 
     Returns:
         Conditioned adjacency matrix (B, T, N, N)
@@ -48,7 +96,9 @@ def condition_adjacency(
         mask = adjacency != 0
 
         # Apply softmax only to non-zero entries
-        adjacency_for_softmax = adjacency / tau
+        # Use warmup temperature if enabled, otherwise use target tau
+        effective_tau = get_adj_temperature(global_step, warmup_config, target_tau=tau)
+        adjacency_for_softmax = adjacency / effective_tau
         # Mask out zeros with large negative value
         adjacency_for_softmax = adjacency_for_softmax.masked_fill(~mask, -1e9)
         adjacency = func.softmax(adjacency_for_softmax, dim=-1)

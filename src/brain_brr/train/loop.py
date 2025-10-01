@@ -47,6 +47,7 @@ from src.brain_brr.config.schemas import (
     PostprocessingConfig,
     SchedulerConfig,
     TrainingConfig,
+    WarmupScheduleConfig,
 )
 from src.brain_brr.eval.metrics import evaluate_predictions
 from src.brain_brr.models import SeizureDetector
@@ -64,6 +65,46 @@ if mp.get_start_method(allow_none=True) != "spawn":
     mp.set_start_method("spawn", force=True)
 
 # ============================================================================
+# Warmup Schedule Utilities (Production ML Best Practice)
+# ============================================================================
+
+
+def get_focal_gamma(
+    global_step: int,
+    warmup_config: WarmupScheduleConfig | None,
+    target_gamma: float = 2.0,
+) -> float:
+    """Compute focal loss gamma for current step.
+
+    Linear interpolation from start_gamma → end_gamma over warmup_steps.
+    Reduces loss amplification during early training for gradient stabilization.
+
+    Standard practice in production ML (OpenAI, Google, Meta).
+
+    Args:
+        global_step: Current training step
+        warmup_config: Warmup schedule configuration
+        target_gamma: Target gamma (from config focal_gamma)
+
+    Returns:
+        Effective gamma for current step
+    """
+    if warmup_config is None or not warmup_config.enabled or not warmup_config.focal_gamma_enabled:
+        return target_gamma
+
+    if global_step >= warmup_config.warmup_steps:
+        return target_gamma
+
+    # Linear interpolation: start → end over warmup_steps
+    progress = global_step / warmup_config.warmup_steps
+    start_gamma = warmup_config.focal_gamma_start
+    end_gamma = warmup_config.focal_gamma_end
+    current_gamma = start_gamma + progress * (end_gamma - start_gamma)
+
+    return current_gamma
+
+
+# ============================================================================
 # Reproducibility utilities (Single Responsibility)
 # ============================================================================
 
@@ -76,6 +117,36 @@ def set_seed(seed: int) -> None:
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+
+def get_memory_stats() -> dict[str, float]:
+    """Get current memory usage statistics (GPU + system RAM).
+
+    Returns:
+        Dictionary with memory stats in GB.
+    """
+    stats = {}
+
+    if torch.cuda.is_available():
+        stats["gpu_allocated_gb"] = torch.cuda.memory_allocated() / 1e9
+        stats["gpu_reserved_gb"] = torch.cuda.memory_reserved() / 1e9
+        stats["gpu_max_allocated_gb"] = torch.cuda.max_memory_allocated() / 1e9
+
+    try:
+        import psutil
+
+        process = psutil.Process()
+        mem_info = process.memory_info()
+        stats["ram_used_gb"] = mem_info.rss / 1e9
+
+        sys_mem = psutil.virtual_memory()
+        stats["ram_total_gb"] = sys_mem.total / 1e9
+        stats["ram_available_gb"] = sys_mem.available / 1e9
+        stats["swap_used_gb"] = psutil.swap_memory().used / 1e9
+    except ImportError:
+        pass
+
+    return stats
 
 
 def worker_init_fn(worker_id: int) -> None:
@@ -331,6 +402,7 @@ def train_epoch(
     epoch_index: int | None = None,
     mid_epoch_minutes: float | None = None,
     mid_epoch_keep: int = 3,
+    warmup_schedule: WarmupScheduleConfig | None = None,
 ) -> float | tuple[float, int]:
     """Train for one epoch.
 
@@ -344,6 +416,7 @@ def train_epoch(
         scheduler: Optional LR scheduler (per-iteration)
         global_step: Global step counter for scheduler
         return_step: If True, return (loss, global_step). If False, return just loss.
+        warmup_schedule: Optional warmup schedule configuration for gradient stabilization
 
     Returns:
         Average training loss (default) or tuple of (loss, global_step) if return_step=True
@@ -354,6 +427,13 @@ def train_epoch(
     device_obj = torch.device(device)
     # Only construct GradScaler when actually using CUDA AMP
     scaler = GradScaler(enabled=(use_amp and device == "cuda"))
+
+    supports_training_state = hasattr(model, "set_training_state")
+    if supports_training_state:
+        try:
+            model.set_training_state(global_step, warmup_schedule)
+        except TypeError:
+            supports_training_state = False
 
     # Heartbeat timer for Modal visibility
     last_heartbeat = time.time()
@@ -436,6 +516,8 @@ def train_epoch(
     pos_weight_t = torch.as_tensor(pos_weight_val, device=device_obj, dtype=torch.float32)
     use_focal = (loss_mode or "bce").lower() == "focal"
 
+    current_step_ref: dict[str, int] = {"value": global_step}
+
     if use_focal:
         focal = FocalLoss(alpha=focal_alpha, gamma=focal_gamma)
 
@@ -451,6 +533,14 @@ def train_epoch(
             )
 
         def compute_loss(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+            if warmup_schedule and warmup_schedule.enabled:
+                effective_gamma = get_focal_gamma(
+                    current_step_ref["value"],
+                    warmup_schedule,
+                    focal_gamma,
+                )
+                if focal.gamma != effective_gamma:
+                    focal.gamma = effective_gamma
             pw = pos_weight_t if pass_pos_weight else None
             return cast(torch.Tensor, focal(x, y, pos_weight=pw))
 
@@ -458,6 +548,13 @@ def train_epoch(
             f"[INIT] Using FOCAL loss (alpha={focal_alpha}, gamma={focal_gamma}, "
             f"pos_weight={'on' if pass_pos_weight else 'off'})"
         )
+
+        # v3.4.1: Warmup schedules for gradient stabilization
+        if warmup_schedule and warmup_schedule.focal_gamma_enabled:
+            logger.info(
+                f"[WARMUP] Focal gamma warmup enabled: {warmup_schedule.focal_gamma_start:.2f} → "
+                f"{warmup_schedule.focal_gamma_end:.2f} over {warmup_schedule.warmup_steps} steps"
+            )
     else:
         bce = nn.BCEWithLogitsLoss(reduction="none", pos_weight=pos_weight_t)
 
@@ -487,6 +584,8 @@ def train_epoch(
     model.eval()
     try:
         with torch.no_grad(), autocast(device, enabled=(use_amp and device == "cuda")):
+            if supports_training_state:
+                model.set_training_state(global_step, warmup_schedule)
             test_logits = model(test_windows)  # (B, T) raw logits
             test_loss = compute_loss(test_logits, test_labels)
             if test_loss is None:
@@ -505,6 +604,17 @@ def train_epoch(
         model.train()
 
     logger.info(f"[TRAIN] Starting epoch with {len(dataloader)} batches")
+
+    # v3.4.1: Initialize warmup schedules if enabled
+    if warmup_schedule and warmup_schedule.enabled:
+        model.set_training_state(global_step, warmup_schedule)
+        if warmup_schedule.adj_temperature_enabled:
+            logger.info(
+                f"[WARMUP] Adjacency temperature warmup enabled: "
+                f"{warmup_schedule.adj_temperature_start:.2f} → {warmup_schedule.adj_temperature_end:.2f} "
+                f"over {warmup_schedule.warmup_steps} steps"
+            )
+
     total_loss = 0.0
     num_batches = 0
     consecutive_nans = 0
@@ -512,6 +622,10 @@ def train_epoch(
     enable_nan_debug = env.nan_debug()
     nan_debug_emitted = 0
     max_nan_debug = env.nan_debug_max()
+
+    from collections import deque
+
+    gradient_norms: deque[float] = deque(maxlen=100)
 
     # Robust tqdm handling for Modal/non-TTY environments
     use_tqdm = not env.disable_tqdm()
@@ -563,7 +677,19 @@ def train_epoch(
             if (labels.min() < 0) or (labels.max() > 1):
                 labels = labels.clamp_(0.0, 1.0)
 
+            if supports_training_state:
+                model.set_training_state(global_step, warmup_schedule)
+            current_step_ref["value"] = global_step
+
             optimizer.zero_grad(set_to_none=True)
+
+            # v3.4.1: Update warmup schedules before forward pass
+            if warmup_schedule and warmup_schedule.enabled:
+                model.set_training_state(global_step, warmup_schedule)
+                # Update focal gamma dynamically if enabled
+                if use_focal and warmup_schedule.focal_gamma_enabled:
+                    effective_gamma = get_focal_gamma(global_step, warmup_schedule, focal_gamma)
+                    focal.gamma = effective_gamma
 
             # Forward pass with AMP (model returns raw logits)
             with autocast(device, enabled=(use_amp and device == "cuda")):
@@ -687,6 +813,7 @@ def train_epoch(
                             grad_norm = torch.nn.utils.clip_grad_norm_(
                                 model.parameters(), gradient_clip
                             )
+                            gradient_norms.append(float(grad_norm))
                             if enable_nan_debug and grad_norm > gradient_clip * 10:
                                 logger.debug(
                                     f"Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})"
@@ -716,6 +843,7 @@ def train_epoch(
                             grad_norm = torch.nn.utils.clip_grad_norm_(
                                 model.parameters(), gradient_clip
                             )
+                            gradient_norms.append(float(grad_norm))
                             if enable_nan_debug and grad_norm > gradient_clip * 10:
                                 logger.debug(
                                     f"Large grad norm at batch {batch_idx}: {grad_norm:.2e} (clipped to {gradient_clip})"
@@ -776,6 +904,32 @@ def train_epoch(
                         f"Avg Loss: N/A (all NaN)"
                     )
                 last_heartbeat = time.time()
+
+                mem_stats = get_memory_stats()
+                if mem_stats:
+                    mem_log = "[MEMORY]"
+                    if "gpu_allocated_gb" in mem_stats:
+                        mem_log += f" GPU: {mem_stats['gpu_allocated_gb']:.2f}GB alloc"
+                        mem_log += f" / {mem_stats['gpu_reserved_gb']:.2f}GB res"
+                    if "ram_used_gb" in mem_stats:
+                        mem_log += f" | RAM: {mem_stats['ram_used_gb']:.2f}GB used"
+                        mem_log += f" / {mem_stats['ram_available_gb']:.2f}GB avail"
+                    if "swap_used_gb" in mem_stats and mem_stats["swap_used_gb"] > 0.1:
+                        mem_log += f" | SWAP: {mem_stats['swap_used_gb']:.2f}GB"
+                    logger.info(mem_log)
+
+                if len(gradient_norms) > 10:
+                    sorted_norms = sorted(gradient_norms)
+                    n = len(sorted_norms)
+                    grad_mean = sum(sorted_norms) / n
+                    grad_p50 = sorted_norms[n // 2]
+                    grad_p95 = sorted_norms[int(n * 0.95)]
+                    grad_max = sorted_norms[-1]
+                    logger.info(
+                        f"[GRADIENTS] Last {n} batches: "
+                        f"Mean={grad_mean:.2f} | P50={grad_p50:.2f} | "
+                        f"P95={grad_p95:.2f} | Max={grad_max:.2f}"
+                    )
 
             if (
                 checkpoint_dir is not None
@@ -1217,6 +1371,7 @@ def train(
                 )
             ),
             mid_epoch_keep=int(env.mid_epoch_keep()),
+            warmup_schedule=config.training.warmup_schedule,
         )
 
         # Type narrowing for mypy
@@ -1681,8 +1836,10 @@ def main() -> None:
         val_loader_kwargs["prefetch_factor"] = int(config.data.prefetch_factor)
     val_loader = DataLoader(val_dataset, **val_loader_kwargs)
 
-    # Create model
-    model = SeizureDetector.from_config(config.model)
+    # Create model (v3.4.1: pass warmup_schedule for gradient stabilization)
+    model = SeizureDetector.from_config(
+        config.model, warmup_schedule=config.training.warmup_schedule
+    )
     logger.info(f"Model parameters: {model.count_parameters():,}")
 
     # Train

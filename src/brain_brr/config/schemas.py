@@ -395,6 +395,52 @@ class EarlyStoppingConfig(StrictModel):
     mode: Literal["max", "min"] = Field(default="max", description="Maximize or minimize metric")
 
 
+class WarmupScheduleConfig(StrictModel):
+    """Warmup schedule configuration for gradient stabilization.
+
+    Production-grade warmup schedules used by major ML labs (OpenAI, Google, Meta).
+    All schedules linear interpolation over warmup_steps.
+    """
+
+    enabled: bool = Field(
+        default=False, description="Enable warmup schedules (default: False for backward compat)"
+    )
+    warmup_steps: int = Field(
+        default=1000, ge=100, le=10000, description="Number of steps for warmup schedules"
+    )
+
+    # Adjacency temperature schedule
+    adj_temperature_enabled: bool = Field(
+        default=False, description="Enable adjacency softmax temperature annealing"
+    )
+    adj_temperature_start: float = Field(
+        default=2.0, ge=1.0, le=5.0, description="Starting temperature (smoother softmax)"
+    )
+    adj_temperature_end: float = Field(
+        default=1.0, ge=0.5, le=2.0, description="Ending temperature (target adj_softmax_tau)"
+    )
+
+    # Focal loss gamma schedule
+    focal_gamma_enabled: bool = Field(default=False, description="Enable focal loss gamma warmup")
+    focal_gamma_start: float = Field(
+        default=1.0, ge=0.0, le=3.0, description="Starting gamma (less focusing)"
+    )
+    focal_gamma_end: float = Field(
+        default=2.0, ge=1.0, le=5.0, description="Ending gamma (target focal_gamma)"
+    )
+
+    # Residual scaling (optional, for very deep nets)
+    residual_scale_enabled: bool = Field(
+        default=False, description="Enable residual scaling in early blocks (OPTIONAL)"
+    )
+    residual_scale_blocks: list[int] = Field(
+        default_factory=lambda: [0, 1], description="Which blocks to scale (0-indexed)"
+    )
+    residual_scale_factor: float = Field(
+        default=0.5, ge=0.1, le=0.9, description="Scaling factor for residuals during warmup"
+    )
+
+
 class TrainingConfig(StrictModel):
     """Training loop configuration."""
 
@@ -427,8 +473,22 @@ class TrainingConfig(StrictModel):
     checkpoint_interval: int = Field(
         default=1, ge=0, le=100, description="Save checkpoint every N epochs (0 = disabled)"
     )
+    mid_checkpoint_interval_s: int | None = Field(
+        default=None,
+        ge=60,
+        description="Save mid-epoch checkpoint every N seconds (None = disabled)",
+    )
+    mid_epoch_keep: int | None = Field(
+        default=None, ge=1, le=10, description="Keep last N mid-epoch checkpoints (None = keep all)"
+    )
     gradient_accumulation_steps: int = Field(
         default=1, ge=1, le=100, description="Number of gradient accumulation steps"
+    )
+
+    # NEW: Warmup schedules for gradient stabilization (OPTIONAL)
+    warmup_schedule: WarmupScheduleConfig | None = Field(
+        default=None,
+        description="Optional warmup schedules (disable with null for backward compat)",
     )
 
 
