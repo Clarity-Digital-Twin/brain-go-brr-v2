@@ -40,7 +40,9 @@
       "Bash(.venv/bin/python:*)",
       "Bash(git clone:*)",
       "Bash(rm:*)",
-      "Bash(tmux send-keys:*)"
+      "Bash(tmux send-keys:*)",
+      "Bash(.venv/bin/ruff check src/brain_brr/models/detector.py src/brain_brr/train/loop.py --output-format=concise)",
+      "Bash(.venv/bin/mypy:*)"
     ],
     "deny": [],
     "ask": []
