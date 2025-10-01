@@ -138,6 +138,13 @@ class GraphChannelMixerPyG(nn.Module):
         self.layer_norms = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(n_layers)])
         self.dropout = nn.Dropout(dropout)
 
+    def set_global_step(self, step: int) -> None:
+        """Update global step for warmup schedules (v3.4.1).
+
+        Called from training loop before each forward pass.
+        """
+        self.global_step = step
+
     def _compute_static_pe(self) -> torch.Tensor:
         """Compute static Laplacian PE from 10-20 structural graph."""
         from .edge_features import get_structural_adjacency
@@ -189,6 +196,8 @@ class GraphChannelMixerPyG(nn.Module):
                 force_symmetric=self.adj_force_symmetric,
                 row_softmax=self.adj_row_softmax,
                 ema_beta=self.adj_ema_beta,
+                global_step=self.global_step,  # v3.4.1: Warmup support
+                warmup_config=self.warmup_config,  # v3.4.1: Warmup support
             )
 
         # Reshape to process all (B*T) graphs at once
