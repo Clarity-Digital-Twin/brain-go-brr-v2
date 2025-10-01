@@ -32,7 +32,7 @@ V3 implements a **dual-stream architecture** grounded in state-space models and 
 
 **Status**: v3.4.1 validated on RTX 4090 and A100-80GB. See [training docs](docs/05-training/) for implementation details.
 
-## Architecture: Theory & Design
+## 🏗️ Architecture: Theory & Design
 
 ### Why Time-Then-Graph?
 
@@ -46,7 +46,7 @@ V3 implements a **dual-stream architecture** grounded in state-space models and 
 
 **Empirical**: EvoBrain achieves 95% AUROC on TUSZ (+23% over baselines).
 
-### Why O(N) Complexity?
+### ⚡ Why O(N) Complexity?
 
 **Problem scale**: 60-second EEG windows at 256Hz = **15,360 samples per channel**. Traditional Transformers:
 - **Attention cost**: O(N²) = 236M operations per layer
@@ -58,7 +58,7 @@ V3 implements a **dual-stream architecture** grounded in state-space models and 
 - **Memory**: O(N) = 60KB per layer
 - **Inference**: 128 Hz/batch ([EEG-Mamba 2024](literature/markdown/EEG-BIMAMBA)) vs 8 Hz/batch for Transformers
 
-### Architecture Flow
+### 🔄 Architecture Flow
 
 ```
 EEG Input (B, 19 channels, 15360 samples @ 256Hz = 60s)
@@ -116,7 +116,7 @@ EEG Input (B, 19 channels, 15360 samples @ 256Hz = 60s)
          (B, 15360) predictions
 ```
 
-## Component Justification
+## ⚙️ Component Justification
 
 ### 1. TCN Encoder: Why Not RNNs?
 
@@ -134,7 +134,7 @@ EEG Input (B, 19 channels, 15360 samples @ 256Hz = 60s)
 
 **Mamba State-Space Models** ([Gu & Dao 2023](https://arxiv.org/abs/2312.00752)):
 
-**Core innovation**: Selective state propagation with data-dependent gates:
+**✨ Core innovation**: Selective state propagation with data-dependent gates:
 ```
 S_t = α_t ⊙ S_{t-1} + v_t ⊗ k_t^T    # Forget + update
 o_t = S_t q_t                          # Retrieve
@@ -177,7 +177,7 @@ This allows the model to emphasize:
 - **Node features** when electrodes evolve independently (early seizure)
 - **GNN features** when spatial synchronization dominates (propagated seizure)
 
-## Model Statistics
+## 📊 Model Statistics
 
 | Component | Parameters | Complexity | Motivation |
 |-----------|-----------|------------|------------|
@@ -190,7 +190,7 @@ This allows the model to emphasize:
 
 *Note: GNN is O(N·k²) but k=19 (fixed electrode count) makes it O(N) in sequence length.*
 
-## Dataset & Clinical Targets
+## 🏥 Dataset & Clinical Targets
 
 ### TUH EEG Seizure Corpus
 
@@ -212,29 +212,29 @@ Based on [Temple Any-Event Scoring (TAES)](literature/markdown/picone-2021-NEDC-
 
 **Note**: At 10 FA/24h, alarm fatigue leads to system abandonment. <1 FA/24h enables sustained clinical use.
 
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
-# 1. Install UV package manager
+# 1️⃣ Install UV package manager
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 2. Clone and setup
+# 2️⃣ Clone and setup
 git clone https://github.com/clarity-digital-twin/brain-go-brr-v2.git
 cd brain-go-brr-v2
 make setup
 make setup-gpu  # Installs mamba-ssm==2.2.5, PyG
 
-# 3. Download TUH corpus (requires agreement)
+# 3️⃣ Download TUH corpus (requires agreement)
 # Place in: data_ext4/tusz/edf/
 
-# 4. Build preprocessing cache (one-time)
+# 4️⃣ Build preprocessing cache (one-time)
 python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz/train --split train
 python -m src build-cache --data-dir data_ext4/tusz/edf/dev --cache-dir cache/tusz/dev --split dev
 
-# 5. Run smoke test (5 minutes)
+# 5️⃣ Run smoke test (5 minutes)
 make s
 
-# 6. Full training (RTX 4090)
+# 6️⃣ Full training (RTX 4090)
 export BGB_SANITIZE_GRADS=1  # Enables gradient protection
 tmux new -s train
 make train-local
@@ -248,9 +248,9 @@ modal run --detach deploy/modal/app.py --action train --config configs/modal/tra
 
 See [installation guide](docs/01-installation/) and [training docs](docs/05-training/) for details.
 
-## Future Research Directions
+## 🔮 Future Research Directions
 
-### 1. Gated Delta Networks (Next-Gen SSM)
+### 1. 🎯 Gated Delta Networks (Next-Gen SSM)
 
 **Current**: BiMamba2 uses gated memory (α_t) but lacks targeted updates.
 
@@ -262,7 +262,7 @@ See [installation guide](docs/01-installation/) and [training docs](docs/05-trai
 
 **Implementation**: Available in [FLA (Flash Linear Attention)](https://github.com/fla-org/flash-linear-attention) library. Drop-in replacement for current Mamba layers.
 
-### 2. Frequency-Aware Enhancement
+### 2. 🌊 Frequency-Aware Enhancement
 
 **Current limitation**: TCN learns implicit frequency decomposition, but lacks explicit seizure-critical bands.
 
@@ -273,13 +273,13 @@ See [installation guide](docs/01-installation/) and [training docs](docs/05-trai
 
 **Expected gain**: +2-3% AUROC, <10% compute overhead (based on EvoBrain, EEGM2 results).
 
-### 3. Multi-Resolution Temporal Modeling
+### 3. 📐 Multi-Resolution Temporal Modeling
 
 **Current**: Fixed 16× downsampling (960 timesteps).
 
 **Future**: Multi-scale processing at [960, 480, 240] timesteps with late fusion. Captures seizure features at different temporal granularities without increasing complexity.
 
-### 4. Hybrid Architectures
+### 4. 🔗 Hybrid Architectures
 
 **Idea**: Replace some Mamba layers with sliding window attention (like Gated DeltaNet paper).
 
@@ -287,7 +287,7 @@ See [installation guide](docs/01-installation/) and [training docs](docs/05-trai
 
 **Hypothesis**: Improved training efficiency and short-duration seizure detection.
 
-## Documentation
+## 📚 Documentation
 
 **Getting Started**:
 - [Quickstart](docs/getting-started/quickstart.md) - 5-minute smoke test
