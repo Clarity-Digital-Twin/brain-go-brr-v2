@@ -2,8 +2,8 @@
 
 GPU and CUDA
 
-- `.venv/bin/python -c "import torch; print(torch.cuda.is_available(), torch.version.cuda)"` → True, 12.1
-- `nvcc --version` → release 12.1
+- `.venv/bin/python -c "import torch; print(torch.cuda.is_available(), torch.version.cuda)"` → True, 12.4
+- `nvcc --version` → release 12.4
 - `.venv/bin/python -c "from mamba_ssm import Mamba2; print('✅ Mamba')"`
 - `.venv/bin/python -c "import torch_geometric as tg; print('✅ PyG', tg.__version__)"`
 

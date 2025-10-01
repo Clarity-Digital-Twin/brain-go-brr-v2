@@ -14,7 +14,7 @@ Model size and stack
 
 - ~31M parameters overall
 - TCN: 8 layers, channels [64,128,256,512]
-- Node Mamba: 6 layers, d_model=64, headdim=8, d_state=16, expand=2
+- Node Mamba: 6 layers, d_model=512, headdim=64, d_state=16, expand=2
 - Edge Mamba: 2 layers, d_model=16, headdim=4, d_state=8, expand=2
 - GNN: SSGConv×2, α=0.05, Laplacian PE k=16 (dynamic by default; static optional)
 
@@ -42,7 +42,7 @@ Training quick start
 
 Environment and versions (exact)
 
-- PyTorch `2.5.0+cu124`, CUDA Toolkit `12.4`, mamba‑ssm `2.2.5`, causal‑conv1d `1.5.2`, torch‑geometric `2.6.1`, numpy `1.26.4`
+- PyTorch `2.5.0+cu124`, CUDA Toolkit `12.4`, mamba‑ssm `2.2.5` (A100 fix), causal‑conv1d `1.5.2`, torch‑geometric `2.6.1`, numpy `1.26.4`
 
 Where to go next
 

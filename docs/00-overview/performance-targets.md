@@ -8,13 +8,13 @@ Targets (TAES)
 
 Training times (typical)
 
-- Local (RTX 4090): ~2–3 hours/epoch; 100 epochs ~200–300 hours
+- Local (RTX 4090): ~3–4 hours/epoch; 100 epochs ~300–400 hours
 - Modal (A100‑80GB): ~1 hour/epoch; 100 epochs ~100 hours (~$319)
 - Smoke test: ~5 minutes
 
 Resource usage
 
-- VRAM: ~16GB (RTX 4090 with V3, batch 4, semi‑dynamic interval 5); 40–60GB (A100 with full dynamic, batch 64)
+- VRAM: ~10-16GB (RTX 4090 with V3, batch 4); 60–75GB (A100 with batch 32, grad_accum 2)
 - Cache size: ~50GB processed NPZ files
 - Checkpoint: ~125MB per epoch
 

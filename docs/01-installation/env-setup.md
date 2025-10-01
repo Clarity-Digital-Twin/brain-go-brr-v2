@@ -10,10 +10,10 @@ System requirements
 
 Exact versions (do not change)
 
-- PyTorch 2.2.2+cu121
-- CUDA Toolkit 12.1 (must match PyTorch CUDA)
-- mamba‑ssm 2.2.2
-- causal‑conv1d 1.4.0
+- PyTorch 2.5.0+cu124
+- CUDA Toolkit 12.4 (must match PyTorch CUDA)
+- mamba‑ssm 2.2.5 (includes A100 int64 indexing fix)
+- causal‑conv1d 1.5.2 (latest stable for PyTorch 2.5+)
 - torch‑geometric 2.6.1
 - numpy 1.26.4
 
@@ -26,15 +26,15 @@ Install steps
 - `make setup-gpu`
 
 3) Verify toolchain
-- `.venv/bin/python -c "import torch; print(f'CUDA: {torch.version.cuda}')"`  → 12.1
-- `nvcc --version` → release 12.1
+- `.venv/bin/python -c "import torch; print(f'CUDA: {torch.version.cuda}')"`  → 12.4
+- `nvcc --version` → release 12.4
 - `.venv/bin/python -c "from mamba_ssm import Mamba2; print('✅ Mamba')"`
 - `.venv/bin/python -c "import torch_geometric as tg; print('✅ PyG', tg.__version__)"`
 
 PyG prebuilt wheels
 
 - If needed, install explicitly with prebuilt wheels:
-- `.venv/bin/pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.2.0+cu121.html`
+- `.venv/bin/pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html`
 - `.venv/bin/pip install torch-geometric==2.6.1`
 
 UV build isolation note
@@ -51,7 +51,7 @@ WSL2 specifics
 Common pitfalls
 
 - PyG fails to build: use prebuilt wheels (see link above).
-- Mamba CUDA errors: ensure CUDA 12.1 toolkit and rebuild mamba‑ssm with `--no-build-isolation`.
+- Mamba CUDA errors: ensure CUDA 12.4 toolkit and rebuild mamba‑ssm with `--no-build-isolation`.
 - Modal stuck: allocate 24 CPU cores and 96GB RAM.
 
 Quick smoke check
