@@ -402,6 +402,7 @@ def train_epoch(
     epoch_index: int | None = None,
     mid_epoch_minutes: float | None = None,
     mid_epoch_keep: int = 3,
+    warmup_schedule: WarmupScheduleConfig | None = None,
 ) -> float | tuple[float, int]:
     """Train for one epoch.
 
@@ -529,6 +530,13 @@ def train_epoch(
             f"[INIT] Using FOCAL loss (alpha={focal_alpha}, gamma={focal_gamma}, "
             f"pos_weight={'on' if pass_pos_weight else 'off'})"
         )
+
+        # v3.4.1: Warmup schedules for gradient stabilization
+        if warmup_schedule and warmup_schedule.focal_gamma_enabled:
+            logger.info(
+                f"[WARMUP] Focal gamma warmup enabled: {warmup_schedule.focal_gamma_start:.2f} → "
+                f"{warmup_schedule.focal_gamma_end:.2f} over {warmup_schedule.warmup_steps} steps"
+            )
     else:
         bce = nn.BCEWithLogitsLoss(reduction="none", pos_weight=pos_weight_t)
 
@@ -576,6 +584,17 @@ def train_epoch(
         model.train()
 
     logger.info(f"[TRAIN] Starting epoch with {len(dataloader)} batches")
+
+    # v3.4.1: Initialize warmup schedules if enabled
+    if warmup_schedule and warmup_schedule.enabled:
+        model.set_training_state(global_step, warmup_schedule)
+        if warmup_schedule.adj_temperature_enabled:
+            logger.info(
+                f"[WARMUP] Adjacency temperature warmup enabled: "
+                f"{warmup_schedule.adj_temperature_start:.2f} → {warmup_schedule.adj_temperature_end:.2f} "
+                f"over {warmup_schedule.warmup_steps} steps"
+            )
+
     total_loss = 0.0
     num_batches = 0
     consecutive_nans = 0
@@ -639,6 +658,14 @@ def train_epoch(
                 labels = labels.clamp_(0.0, 1.0)
 
             optimizer.zero_grad(set_to_none=True)
+
+            # v3.4.1: Update warmup schedules before forward pass
+            if warmup_schedule and warmup_schedule.enabled:
+                model.set_training_state(global_step, warmup_schedule)
+                # Update focal gamma dynamically if enabled
+                if use_focal and warmup_schedule.focal_gamma_enabled:
+                    effective_gamma = get_focal_gamma(global_step, warmup_schedule, focal_gamma)
+                    focal.gamma = effective_gamma
 
             # Forward pass with AMP (model returns raw logits)
             with autocast(device, enabled=(use_amp and device == "cuda")):
