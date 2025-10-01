@@ -377,24 +377,45 @@ Training time varies with batch size and cache locality. As a rough guide:
 4. Add tests for new features
 5. Submit a pull request
 
-## 📈 Roadmap
+## Results & Validation
 
-### ✅ Completed (v3.4.1 - October 2025)
-- [x] V3 dual-stream architecture (Node + Edge Mamba)
-- [x] Dynamic Laplacian PE with detached eigenvectors
-- [x] Rock-solid training stability (all P0 blockers resolved)
-- [x] Modal XID 31 crash elimination
-- [x] PyTorch 2.5.0 gradient explosion fixes
-- [x] Production-ready training on RTX 4090 and A100-80GB
+### v3.4.1 Training Status (October 1, 2025)
 
-### 🔄 In Progress
-- [ ] Complete 100-epoch training run (currently at batch 2900+)
-- [ ] Clinical performance validation (<1 FA/24h target)
+**RTX 4090 (24GB VRAM)**:
+- **2900+ batches**: Zero NaN/Inf issues
+- **Loss convergence**: 68% reduction (0.3050 → 0.0976)
+- **Gradient stability**: P95 decreased 82% (52.06 → 5.84)
+- **Config**: batch_size=4, mixed_precision=false, gradient_clip=0.1
 
-### 🎯 Future Work
-- [ ] Real-time inference optimization
-- [ ] Multi-dataset validation (CHB-MIT, SIENA)
-- [ ] Clinical deployment and regulatory review
+**Modal A100-80GB**:
+- **100+ batches**: XID 31 crashes eliminated
+- **Triton cache fix**: Fresh kernel compilation per run
+- **Config**: batch_size=64, mixed_precision=true
+
+**Critical Fixes Applied**:
+1. Triton cache isolation (deploy/modal/app.py:539-546)
+2. Gradient sanitization with `BGB_SANITIZE_GRADS=1`
+3. Detached eigenvectors (gnn_pyg.py:205)
+4. Edge similarity margin (0.01 safety from ±1 boundaries)
+5. Adjacency conditioning (row-softmax + EMA + symmetry)
+
+See [v3.4.1 release notes](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.4.1) for complete details.
+
+### Roadmap
+
+**✅ Completed (v3.4.1)**:
+- V3 dual-stream architecture with dynamic LPE
+- Production-ready training stability (all P0 blockers resolved)
+- RTX 4090 and A100-80GB validated
+
+**🔄 In Progress**:
+- 100-epoch training run (currently at batch 2900+)
+- Clinical performance validation (<1 FA/24h target)
+
+**🎯 Future**:
+- Real-time inference optimization
+- Multi-dataset validation (CHB-MIT, SIENA)
+- Clinical deployment pathway
 
 ## 📝 Citation
 
@@ -413,11 +434,21 @@ Apache 2.0 - See [LICENSE](LICENSE)
 
 ## 🙏 Acknowledgments
 
-- **TUH EEG Seizure Corpus** - Temple University Hospital
-- **CHB-MIT** - Children's Hospital Boston & MIT
-- **Modal.com** - Cloud GPU infrastructure
-- **Mamba** - Gu & Dao for SSM architecture
-- **PyG Team** - PyTorch Geometric library
+### Datasets
+- **TUH EEG Seizure Corpus** - Temple University Hospital ([Picone et al. 2021](literature/markdown/TUSZ-DATA))
+- **CHB-MIT Scalp EEG Database** - Children's Hospital Boston & MIT
+
+### Key References
+- **Mamba** - Gu & Dao 2023: Selective state-space models ([paper](https://arxiv.org/abs/2312.00752))
+- **EEG-Mamba** - BiMamba for EEG classification ([EEG-BIMAMBA](literature/markdown/EEG-BIMAMBA))
+- **EvoBrain** - Dynamic graph theory for EEG ([NeurIPS 2025](literature/markdown/EVOBRAIN.md))
+- **TCN** - Bai et al. 2018: Temporal convolutional networks ([TCN](literature/markdown/TCN))
+- **Focal Loss** - Lin et al. 2017: Class imbalance ([FOCAL_LOSS](literature/markdown/FOCAL_LOSS))
+
+### Infrastructure
+- **Modal.com** - Cloud GPU infrastructure for A100-80GB training
+- **PyTorch Geometric** - Graph neural network library
+- **mamba-ssm** - Tri Dao's optimized CUDA implementation
 
 ---
 
