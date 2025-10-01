@@ -427,6 +427,12 @@ class TrainingConfig(StrictModel):
     checkpoint_interval: int = Field(
         default=1, ge=0, le=100, description="Save checkpoint every N epochs (0 = disabled)"
     )
+    mid_checkpoint_interval_s: int | None = Field(
+        default=None, ge=60, description="Save mid-epoch checkpoint every N seconds (None = disabled)"
+    )
+    mid_epoch_keep: int | None = Field(
+        default=None, ge=1, le=10, description="Keep last N mid-epoch checkpoints (None = keep all)"
+    )
     gradient_accumulation_steps: int = Field(
         default=1, ge=1, le=100, description="Number of gradient accumulation steps"
     )
