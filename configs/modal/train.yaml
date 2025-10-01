@@ -112,7 +112,7 @@ postprocessing:
 
 training:
   epochs: 100                          # full training - will early stop if converged
-  batch_size: 32                       # TEMPORARY: Reduced from 64 to debug XID 31 crash
+  batch_size: 64                       # A100-80GB optimized (XID 31 fixed with expanded Mamba patch)
   # ⚠️ CRITICAL: MUST use focal loss for 12:1 class imbalance! ⚠️
   # Without this, model WILL collapse to AUROC=0.5 (useless)
   loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
