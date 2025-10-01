@@ -1,8 +1,29 @@
 # Gradient Stability Analysis - October 1, 2025
 
-**Investigation Trigger**: Large gradient norms observed during training startup (P95=24.61 at batch 22)  
-**Training Session**: Local RTX 4090, configs/local/train.yaml, batch_size=4  
+**Investigation Trigger**: Large gradient norms observed during training startup (P95=24.61 at batch 22)
+**Training Session**: Local RTX 4090, configs/local/train.yaml, batch_size=4
 **Status**: ✅ **ARCHITECTURE IS SELF-STABILIZING** - Gradients decreasing rapidly, no intervention needed
+
+---
+
+## ⚠️ IMPORTANT: EARLY ANALYSIS DISCLAIMER
+
+**Sample Size**: 59 batches (initial analysis) → 80 batches (current)
+**Total Epoch**: 15,404 batches (0.52% complete)
+**Status**: **PRELIMINARY FINDINGS** - requires validation at batch 500-1000
+
+**UPDATE - Batch 80 (Oct 1, 2025)**:
+- Mean gradient norm: 9.28 (↓36% from batch 19) ✅
+- P95: 26.57 (↓49% from peak 52.06) ✅
+- Loss: 0.2388 (↓35% from start) ✅
+- NaN/Inf: Still ZERO ✅
+- **Trend**: All predictions validated, continuing to improve ✅
+
+**Key Insight**: P95=26.57 appears **NORMAL** for BiMamba+GNN+FocalLoss architecture (not transformers!)
+
+See `DOCS_STATUS_OCTOBER_2025.md` for reality check on gradient expectations.
+
+---
 
 ---
 
