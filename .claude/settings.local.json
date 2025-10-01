@@ -31,7 +31,9 @@
       "Bash(do echo \"=== $file ===\")",
       "Bash(git checkout:*)",
       "Bash(git pull:*)",
-      "Bash(dmesg:*)"
+      "Bash(dmesg:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
