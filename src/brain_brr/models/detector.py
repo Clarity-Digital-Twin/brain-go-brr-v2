@@ -25,6 +25,7 @@ from .tcn import ProjectionHead, TCNEncoder
 
 if TYPE_CHECKING:  # Only for type checkers; avoids runtime import cycle
     from src.brain_brr.config.schemas import ModelConfig as _ModelConfig
+    from src.brain_brr.config.schemas import WarmupScheduleConfig
 
 
 class SeizureDetector(nn.Module):
@@ -402,6 +403,23 @@ class SeizureDetector(nn.Module):
 
         return cast(torch.Tensor, output.squeeze(1))
 
+    def set_training_state(
+        self,
+        global_step: int,
+        warmup_config: "WarmupScheduleConfig | None" = None,
+    ) -> None:
+        """Update training state for warmup schedules (v3.4.1).
+
+        Standard PyTorch pattern for managing training-time state (like .train()/.eval()).
+        Called from training loop before each forward pass when warmup schedules enabled.
+
+        Args:
+            global_step: Current training step (for schedule interpolation)
+            warmup_config: Warmup schedule configuration (None=disabled)
+        """
+        if hasattr(self, "gnn") and self.gnn is not None:
+            self.gnn.set_global_step(global_step)
+
     @classmethod
     def from_config(cls, cfg: "_ModelConfig") -> "SeizureDetector":
         """Instantiate from validated schema config (V3)."""
@@ -584,6 +602,8 @@ class SeizureDetector(nn.Module):
                     adj_force_symmetric=graph_cfg.adj_force_symmetric,
                     laplacian_eps=graph_cfg.laplacian_eps,
                     laplacian_normalize=graph_cfg.laplacian_normalize,
+                    # v3.4.1: Warmup schedules for gradient stabilization
+                    warmup_config=cfg.training.warmup_schedule,
                 )
             except ImportError as e:
                 raise ImportError(
