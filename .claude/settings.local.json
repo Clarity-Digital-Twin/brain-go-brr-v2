@@ -56,7 +56,8 @@
       "Bash(do cp \"$file\" /home/jj/proj/brain-go-brr-v2/docs/RECENT-WORK-SYNTHESIZED/04-development/)",
       "Bash(tree:*)",
       "Bash(head:*)",
-      "Bash(do echo \"\")"
+      "Bash(do echo \"\")",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []

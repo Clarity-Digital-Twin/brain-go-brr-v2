@@ -11,10 +11,10 @@ data:
   n_channels: 19
   window_size: 60
   stride: 10
-  num_workers: 8                        # A100 can handle parallel loading
+  num_workers: 4                        # Reduced to prevent spawn delays
   pin_memory: true                      # Fast GPU transfer
-  persistent_workers: true               # Reuse workers between epochs
-  prefetch_factor: 8                     # v3.4.0: Increased from 4 for A100 speed
+  persistent_workers: false             # FIX: Prevents 1h spawn delay + memory leaks
+  prefetch_factor: 2                    # FIX: Prevents excessive memory prefetching (was 8)
   # ⚠️ CRITICAL: Without balanced sampling, batches may have ZERO seizures! ⚠️
   use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling
 
@@ -112,7 +112,7 @@ postprocessing:
 
 training:
   epochs: 100                          # full training - will early stop if converged
-  batch_size: 64                       # A100-80GB optimized (XID 31 fixed with expanded Mamba patch)
+  batch_size: 32                       # FIX: Reduced from 64 to prevent OOM (77GB usage)
   # ⚠️ CRITICAL: MUST use focal loss for 12:1 class imbalance! ⚠️
   # Without this, model WILL collapse to AUROC=0.5 (useless)
   loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
@@ -140,7 +140,7 @@ training:
 
   gradient_clip: 0.5                   # Stronger clipping for NaN protection
   mixed_precision: true                # A100 is 3.8x faster at FP16! Critical for performance
-  gradient_accumulation_steps: 1       # Can increase if needed
+  gradient_accumulation_steps: 2       # FIX: Maintain effective batch_size=64
   early_stopping:
     patience: 5
     metric: sensitivity_at_10fa
