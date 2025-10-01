@@ -126,18 +126,17 @@ training:
     warmup_ratio: 0.03
 
   # 🔥 NEW (v3.4.1): Warmup Schedules for Gradient Stabilization
-  # Recommended for A100 with batch_size=64 to smooth early training
-  # USAGE: Uncomment to enable for next training run
-  #
-  # warmup_schedule:
-  #   enabled: true
-  #   warmup_steps: 1000
-  #   adj_temperature_enabled: true
-  #   adj_temperature_start: 2.0
-  #   adj_temperature_end: 1.0
-  #   focal_gamma_enabled: true
-  #   focal_gamma_start: 1.0
-  #   focal_gamma_end: 2.0
+  # ENABLED for gradient stabilization testing
+  warmup_schedule:
+    enabled: true
+    warmup_steps: 1000
+    adj_temperature_enabled: true
+    adj_temperature_start: 2.0
+    adj_temperature_end: 1.0
+    focal_gamma_enabled: true
+    focal_gamma_start: 1.0
+    focal_gamma_end: 2.0
+    residual_scale_enabled: false
 
   gradient_clip: 0.5                   # Stronger clipping for NaN protection
   mixed_precision: true                # A100 is 3.8x faster at FP16! Critical for performance
