@@ -7,7 +7,7 @@ First architecture to combine:
 Specifically optimized for TUSZ seizure detection.
 """
 
-__version__ = "3.2.0"
+__version__ = "3.4.1"
 
 # NO HEAVY IMPORTS AT PACKAGE LEVEL
 # Models should be imported explicitly when needed:
