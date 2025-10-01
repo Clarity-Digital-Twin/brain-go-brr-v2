@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply PR #708 fix to mamba-ssm Triton kernels.
+"""Apply PR #708 fix + ADDITIONAL files to mamba-ssm Triton kernels.
 
 This patches mamba-ssm source OR installed package to fix the int32 pointer overflow
 bug that causes XID 31 crashes on A100 with large batch sizes.
@@ -10,6 +10,14 @@ Issue: https://github.com/state-spaces/mamba/issues/503
 
 The fix: Cast all `tl.program_id()` calls to `tl.int64` to prevent pointer overflow
 when computing memory addresses for large batches (e.g., batch=64, d_model=512).
+
+EXTENDED BEYOND PR #708:
+PR #708 only patches 3 files (ssd_chunk_scan, ssd_chunk_state, ssd_state_passing).
+We also patch:
+- ssd_combined.py (4 tl.program_id() calls)
+- selective_state_update.py (3 tl.program_id() calls)
+- ssd_bmm.py (8 tl.program_id() calls)
+Total: 15 additional pointer casts to prevent XID 31 GPU faults.
 """
 
 import argparse
@@ -28,6 +36,8 @@ def patch_triton_files(triton_dir: Path) -> int:
         triton_dir / "ssd_chunk_state.py",
         triton_dir / "ssd_state_passing.py",
         triton_dir / "ssd_combined.py",
+        triton_dir / "selective_state_update.py",
+        triton_dir / "ssd_bmm.py",
     ]
 
     print(f"\n📝 Patching {len(files_to_patch)} Triton kernel files...")
