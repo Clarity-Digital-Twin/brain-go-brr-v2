@@ -163,6 +163,8 @@ training:
 
   # Checkpointing
   checkpoint_interval: 1  # Save every epoch for safety
+  mid_checkpoint_interval_s: 1800  # Save every 30 minutes (safety for long epochs)
+  mid_epoch_keep: 3  # Keep last 3 mid-epoch checkpoints
   gradient_accumulation_steps: 1  # Can increase if batch_size too small
 
 postprocessing:

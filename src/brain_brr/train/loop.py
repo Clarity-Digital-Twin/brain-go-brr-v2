@@ -78,6 +78,35 @@ def set_seed(seed: int) -> None:
     torch.backends.cudnn.benchmark = False
 
 
+def get_memory_stats() -> dict[str, float]:
+    """Get current memory usage statistics (GPU + system RAM).
+
+    Returns:
+        Dictionary with memory stats in GB.
+    """
+    stats = {}
+
+    if torch.cuda.is_available():
+        stats["gpu_allocated_gb"] = torch.cuda.memory_allocated() / 1e9
+        stats["gpu_reserved_gb"] = torch.cuda.memory_reserved() / 1e9
+        stats["gpu_max_allocated_gb"] = torch.cuda.max_memory_allocated() / 1e9
+
+    try:
+        import psutil
+        process = psutil.Process()
+        mem_info = process.memory_info()
+        stats["ram_used_gb"] = mem_info.rss / 1e9
+
+        sys_mem = psutil.virtual_memory()
+        stats["ram_total_gb"] = sys_mem.total / 1e9
+        stats["ram_available_gb"] = sys_mem.available / 1e9
+        stats["swap_used_gb"] = psutil.swap_memory().used / 1e9
+    except ImportError:
+        pass
+
+    return stats
+
+
 def worker_init_fn(worker_id: int) -> None:
     """Initialize worker seeds for DataLoader determinism."""
     worker_seed = torch.initial_seed() % 2**32
@@ -776,6 +805,19 @@ def train_epoch(
                         f"Avg Loss: N/A (all NaN)"
                     )
                 last_heartbeat = time.time()
+
+                mem_stats = get_memory_stats()
+                if mem_stats:
+                    mem_log = "[MEMORY]"
+                    if "gpu_allocated_gb" in mem_stats:
+                        mem_log += f" GPU: {mem_stats['gpu_allocated_gb']:.2f}GB alloc"
+                        mem_log += f" / {mem_stats['gpu_reserved_gb']:.2f}GB res"
+                    if "ram_used_gb" in mem_stats:
+                        mem_log += f" | RAM: {mem_stats['ram_used_gb']:.2f}GB used"
+                        mem_log += f" / {mem_stats['ram_available_gb']:.2f}GB avail"
+                    if "swap_used_gb" in mem_stats and mem_stats['swap_used_gb'] > 0.1:
+                        mem_log += f" | SWAP: {mem_stats['swap_used_gb']:.2f}GB"
+                    logger.info(mem_log)
 
             if (
                 checkpoint_dir is not None

@@ -30,7 +30,8 @@
       "Bash(for file in ssd_chunk_scan.py ssd_chunk_state.py ssd_state_passing.py selective_state_update.py ssd_bmm.py)",
       "Bash(do echo \"=== $file ===\")",
       "Bash(git checkout:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(dmesg:*)"
     ],
     "deny": [],
     "ask": []
