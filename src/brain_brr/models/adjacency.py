@@ -4,9 +4,49 @@ This module implements well-conditioned adjacency matrix operations
 to prevent eigendecomposition failures in dynamic Laplacian PE.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as func
+
+if TYPE_CHECKING:
+    from src.brain_brr.config.schemas import WarmupScheduleConfig
+
+
+def get_adj_temperature(
+    global_step: int,
+    warmup_config: WarmupScheduleConfig | None,
+    target_tau: float = 1.0,
+) -> float:
+    """Compute adjacency softmax temperature for current step.
+
+    Linear interpolation from start_tau → end_tau over warmup_steps.
+    Used for gradient stabilization during early training.
+
+    Args:
+        global_step: Current training step
+        warmup_config: Warmup schedule configuration
+        target_tau: Target temperature (from config adj_softmax_tau)
+
+    Returns:
+        Effective temperature for current step
+    """
+    if warmup_config is None or not warmup_config.adj_temperature_enabled:
+        return target_tau
+
+    if global_step >= warmup_config.warmup_steps:
+        return target_tau
+
+    # Linear interpolation: start → end over warmup_steps
+    progress = global_step / warmup_config.warmup_steps
+    start_tau = warmup_config.adj_temperature_start
+    end_tau = warmup_config.adj_temperature_end
+    current_tau = start_tau - progress * (start_tau - end_tau)
+
+    return current_tau
 
 
 def condition_adjacency(

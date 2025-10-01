@@ -47,6 +47,7 @@ from src.brain_brr.config.schemas import (
     PostprocessingConfig,
     SchedulerConfig,
     TrainingConfig,
+    WarmupScheduleConfig,
 )
 from src.brain_brr.eval.metrics import evaluate_predictions
 from src.brain_brr.models import SeizureDetector
@@ -62,6 +63,46 @@ LOG_EVERY_N_STEPS = int(os.getenv("BGB_LOG_EVERY_N_STEPS", "50"))
 # WSL2-safe multiprocessing defaults (must be before any DataLoader creation)
 if mp.get_start_method(allow_none=True) != "spawn":
     mp.set_start_method("spawn", force=True)
+
+# ============================================================================
+# Warmup Schedule Utilities (Production ML Best Practice)
+# ============================================================================
+
+
+def get_focal_gamma(
+    global_step: int,
+    warmup_config: WarmupScheduleConfig | None,
+    target_gamma: float = 2.0,
+) -> float:
+    """Compute focal loss gamma for current step.
+
+    Linear interpolation from start_gamma → end_gamma over warmup_steps.
+    Reduces loss amplification during early training for gradient stabilization.
+
+    Standard practice in production ML (OpenAI, Google, Meta).
+
+    Args:
+        global_step: Current training step
+        warmup_config: Warmup schedule configuration
+        target_gamma: Target gamma (from config focal_gamma)
+
+    Returns:
+        Effective gamma for current step
+    """
+    if warmup_config is None or not warmup_config.focal_gamma_enabled:
+        return target_gamma
+
+    if global_step >= warmup_config.warmup_steps:
+        return target_gamma
+
+    # Linear interpolation: start → end over warmup_steps
+    progress = global_step / warmup_config.warmup_steps
+    start_gamma = warmup_config.focal_gamma_start
+    end_gamma = warmup_config.focal_gamma_end
+    current_gamma = start_gamma + progress * (end_gamma - start_gamma)
+
+    return current_gamma
+
 
 # ============================================================================
 # Reproducibility utilities (Single Responsibility)
