@@ -166,12 +166,12 @@ class SeizureDetector(nn.Module):
             if hasattr(self.gnn, "set_global_step"):
                 self.gnn.set_global_step(global_step)
             else:  # Defensive fallback (legacy modules)
-                setattr(self.gnn, "global_step", global_step)
+                self.gnn.global_step = global_step
 
             if hasattr(self.gnn, "set_warmup_config"):
                 self.gnn.set_warmup_config(warmup_config)
             else:
-                setattr(self.gnn, "warmup_config", warmup_config)
+                self.gnn.warmup_config = warmup_config
 
     def _initialize_weights(self) -> None:
         """Initialize weights with conservative gains to prevent NaN/explosion.

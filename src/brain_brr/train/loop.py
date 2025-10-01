@@ -89,11 +89,7 @@ def get_focal_gamma(
     Returns:
         Effective gamma for current step
     """
-    if (
-        warmup_config is None
-        or not warmup_config.enabled
-        or not warmup_config.focal_gamma_enabled
-    ):
+    if warmup_config is None or not warmup_config.enabled or not warmup_config.focal_gamma_enabled:
         return target_gamma
 
     if global_step >= warmup_config.warmup_steps:
@@ -420,6 +416,7 @@ def train_epoch(
         scheduler: Optional LR scheduler (per-iteration)
         global_step: Global step counter for scheduler
         return_step: If True, return (loss, global_step). If False, return just loss.
+        warmup_schedule: Optional warmup schedule configuration for gradient stabilization
 
     Returns:
         Average training loss (default) or tuple of (loss, global_step) if return_step=True
@@ -1840,7 +1837,9 @@ def main() -> None:
     val_loader = DataLoader(val_dataset, **val_loader_kwargs)
 
     # Create model (v3.4.1: pass warmup_schedule for gradient stabilization)
-    model = SeizureDetector.from_config(config.model, warmup_schedule=config.training.warmup_schedule)
+    model = SeizureDetector.from_config(
+        config.model, warmup_schedule=config.training.warmup_schedule
+    )
     logger.info(f"Model parameters: {model.count_parameters():,}")
 
     # Train
