@@ -67,7 +67,7 @@ EEG Input (B, 19 channels, 15360 samples @ 256Hz = 60s window)
   │   NODE   │  │   EDGE   │  │  ADJACENCY   │
   │  MAMBA   │  │  MAMBA   │  │ CONSTRUCTION │
   │  (19×)   │  │ (171×)   │  │ (cosine sim) │
-  └────┬─────┘  └────┬─────┘  └──────┬───────┘
+  └────┬─────┘  └────┬─────┘  └───────┬──────┘
        │             │                │
        └─────────────┴────────────────┘
                      ▼
@@ -217,21 +217,26 @@ python -m src scan-cache --cache-dir cache/tusz/dev
 
 ### Training
 
+**Data Strategy**: To handle 12:1 class imbalance:
+- **Training**: Uses `BalancedSeizureDataset` to oversample seizures (8% → ~30% in batches)
+- **Validation**: Uses natural distribution (~8% seizures) for realistic performance measurement
+- **Loss**: Focal Loss ([Lin et al. 2017](literature/markdown/FOCAL_LOSS)) with γ=2 down-weights well-classified examples
+
+**Gradient Stability**: Set `BGB_SANITIZE_GRADS=1` to enable 3-tier NaN protection (v3.4.1 requirement).
+
 ```bash
 # Quick smoke test (5 minutes)
 make s
 
 # Full local training (RTX 4090)
-# CRITICAL: Set gradient sanitization (v3.4.1 stability fix)
-export BGB_SANITIZE_GRADS=1  # RECOMMENDED for all training
-export BGB_NAN_DEBUG=1        # Optional: Shows NaN warnings
+export BGB_SANITIZE_GRADS=1  # REQUIRED for v3.4.1 stability
+export BGB_NAN_DEBUG=1        # Optional: verbose NaN warnings
 tmux new -s train
 make train-local
-# Ctrl+B, D to detach
-# tmux attach -t train to resume
+# Ctrl+B, D to detach | tmux attach -t train to resume
 
-# Cloud training (Modal A100)
-# Note: Modal automatically sets BGB_SANITIZE_GRADS=1 and BGB_NAN_DEBUG=1
+# Cloud training (Modal A100-80GB)
+# Note: Modal automatically sets BGB_SANITIZE_GRADS=1
 modal run --detach deploy/modal/app.py \
   --action train \
   --config configs/modal/train.yaml
@@ -321,19 +326,20 @@ modal app list         # List running apps
 modal app logs <id>   # Stream logs
 ```
 
-### Common Issues & Solutions
+### Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| **Modal XID 31 crashes** | ✅ **FIXED in v3.4.1** - Triton cache isolation (see `docs/reference/incidents/modal-xid31-recurrence.md`) |
-| **Gradient explosion** | ✅ **FIXED in v3.4.1** - Enable `BGB_SANITIZE_GRADS=1` (see `docs/reference/incidents/pytorch-2.5-upgrade-incident.md`) |
-| **Increasing gradient norms** | ✅ **FIXED in v3.4.1** - Eigenvector detachment (see `docs/04-model/v3-stability-evolution.md`) |
-| NaN losses | Enable `BGB_SANITIZE_GRADS=1` and rebuild cache if pre-Sept 26 |
-| OOM errors | Reduce batch_size or increase semi_dynamic_interval |
-| Slow training | Verify cache on SSD, not network mount |
-| Import errors | Exact versions: torch==2.5.0, mamba-ssm==2.2.5 |
+**v3.4.1 Stability**: All P0 blockers resolved. Key fixes:
+- **Modal XID 31 crashes**: Triton cache isolation → [incident report](docs/reference/incidents/modal-xid31-recurrence.md)
+- **Gradient explosion**: Set `BGB_SANITIZE_GRADS=1` → [incident report](docs/reference/incidents/pytorch-2.5-upgrade-incident.md)
+- **Eigendecomposition instability**: Detached eigenvectors → [stability evolution](docs/04-model/v3-stability-evolution.md)
 
-**Note**: v3.4.1 resolved all known P0 blockers. If you encounter training instability, ensure you're using the latest version and have `BGB_SANITIZE_GRADS=1` set.
+**Common Issues**:
+- **NaN losses**: Enable `BGB_SANITIZE_GRADS=1`; rebuild cache if pre-Sept 26
+- **OOM errors**: Reduce `batch_size` or increase `semi_dynamic_interval`
+- **Slow training**: Verify cache on SSD (not network mount)
+- **Import errors**: Verify exact versions: torch==2.5.0, mamba-ssm==2.2.5
+
+See [NaN prevention guide](docs/08-operations/nan-prevention-complete.md) for comprehensive troubleshooting.
 
 ## 📊 Expected Performance
 
