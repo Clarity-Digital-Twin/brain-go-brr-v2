@@ -42,7 +42,7 @@ Training quick start
 
 Environment and versions (exact)
 
-- PyTorch `2.2.2+cu121`, CUDA Toolkit `12.1`, mamba‑ssm `2.2.2`, causal‑conv1d `1.4.0`, torch‑geometric `2.6.1`, numpy `1.26.4`
+- PyTorch `2.5.0+cu124`, CUDA Toolkit `12.4`, mamba‑ssm `2.2.5`, causal‑conv1d `1.5.2`, torch‑geometric `2.6.1`, numpy `1.26.4`
 
 Where to go next
 

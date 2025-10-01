@@ -802,3 +802,4 @@ export BGB_NAN_DEBUG=1       # RECOMMENDED
 - `gradient-monitoring.md` - Realistic gradient expectations
 - `../04-model/v3-stability-evolution.md` - v3.3.1 eigendecomposition fix
 - `../05-training/warmup-schedules.md` - v3.4.1 gradient stabilization
+- `../reference/incidents-historical/v3-nan-explosion-resolution.md` - Sept 24-26 incident report (historical)
