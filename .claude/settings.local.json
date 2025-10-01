@@ -60,7 +60,8 @@
       "WebFetch(domain:github.com)",
       "Bash(uv run:*)",
       "Bash(uv pip list:*)",
-      "Bash(uv sync:*)"
+      "Bash(uv sync:*)",
+      "Bash(uv lock:*)"
     ],
     "deny": [],
     "ask": []
