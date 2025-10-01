@@ -11,12 +11,14 @@ V3 dual-stream architecture optimized for A100-80GB with critical XID 31 and han
 
 | Setting | Local (RTX 4090) | Modal (A100) | Reason |
 |---------|------------------|--------------|--------|
-| **Batch size** | 12 | 64 | 80GB vs 24GB VRAM |
+| **Batch size** | 4 | 32 | 80GB vs 24GB VRAM |
+| **Gradient accumulation** | 1 | 2 | Effective batch: 4 vs 64 |
 | **Mixed precision** | false | true | A100 tensor cores (3.8x faster) |
-| **Learning rate** | 3.0e-5 | 8.0e-5 | Batch-size scaled |
+| **Learning rate** | 1.0e-4 | 8.0e-5 | Batch-size scaled |
 | **Gradient clip** | 0.5 | 0.5 | Same (both stable) |
-| **Num workers** | 0 (WSL2) | 8 | Parallel I/O on cloud |
-| **Prefetch factor** | 8 | 8 | v3.4.0: Both increased |
+| **Num workers** | 0 (WSL2) | 4 | WSL2 fix vs parallel I/O |
+| **Prefetch factor** | 2 | 2 | v3.4.1: Reduced from 8 (OOM fix) |
+| **Persistent workers** | false | false | v3.4.1: Prevents 1h spawn delay |
 | **CPU cores** | N/A | 24 | CRITICAL: Avoid bottleneck |
 | **Memory** | N/A | 98304 MB (96 GB) | CRITICAL: 3x safety margin |
 
@@ -41,22 +43,23 @@ data:
   data_dir: /data/edf                    # Read-only dataset mount
   cache_dir: /results/cache/tusz         # Persistent SSD volume
   split_policy: official_tusz            # Patient-disjoint splits
-  num_workers: 8                         # Parallel loading
+  num_workers: 4                         # v3.4.1: Reduced from 8 (spawn delay fix)
   pin_memory: true                       # Fast GPU transfer
-  persistent_workers: true               # Reuse workers
-  prefetch_factor: 8                     # v3.4.0: Increased from 4
+  persistent_workers: false              # v3.4.1: Prevents 1h spawn delay + memory leaks
+  prefetch_factor: 2                     # v3.4.1: Reduced from 8 (OOM fix)
   use_balanced_sampling: true            # CRITICAL: Oversample seizures
 ```
 
 ### Training Configuration
 ```yaml
 training:
-  batch_size: 64                         # A100-80GB optimized
+  batch_size: 32                         # v3.4.1: Reduced from 64 (OOM fix)
+  gradient_accumulation_steps: 2         # v3.4.1: Maintain effective batch=64
   mixed_precision: true                  # CRITICAL: 3.8x faster
   loss: focal                            # REQUIRED for 12:1 imbalance
   focal_alpha: 0.5
   focal_gamma: 2.0                       # Warmup from 1.0 in v3.4.1
-  learning_rate: 8.0e-5                  # Batch-scaled from 3e-5
+  learning_rate: 8.0e-5                  # Batch-scaled
   gradient_clip: 0.5
 
   # v3.4.1: Warmup Schedules (Enabled)
@@ -185,22 +188,22 @@ modal app logs <app-id>
 modal app stop <app-id>
 ```
 
-## Initialization Timeline
+## Initialization Timeline (v3.4.1)
 
-**Total: ~75 minutes** before first epoch starts. This is **NORMAL**, not a hang.
+**Total: ~10-15 minutes** before first epoch starts.
 
 | Phase | Duration | Description |
 |-------|----------|-------------|
 | Startup | ~1 min | Container launch |
-| Train manifest | ~11 min | Load 61,616 windows |
-| Dev manifest | **~54 min** | Load 148,224 windows (single-threaded Python) |
+| Train manifest | ~2-3 min | Load 61,616 windows (cached) |
+| Dev manifest | ~2-3 min | Load 148,224 windows (cached) |
 | Model init | ~10 sec | Create 31M parameters |
 | W&B init | ~3 sec | Connect to dashboard |
-| **W&B appears** | **~65 min** | When dashboard shows up |
-| Preflight | ~10 min | Test forward/backward |
-| **Epoch starts** | **~75 min** | Training begins |
+| Worker spawn | **~3-5 min** | DataLoader workers (v3.4.1: was 1h+ before fix) |
+| Preflight | ~2 min | Test forward/backward |
+| **Epoch starts** | **~10-15 min** | Training begins |
 
-**Patience required**: Don't cancel before 75 minutes!
+**v3.4.1 Fix**: Worker spawn reduced from 1h+ to <5 min by disabling `persistent_workers`.
 
 ## Expected Performance
 
@@ -210,7 +213,8 @@ modal app stop <app-id>
 | **Total training** | ~100 hours (100 epochs) |
 | **Cost** | ~$319 (at $3.19/hour A100) |
 | **Smoke test** | ~5 minutes |
-| **VRAM usage** | ~40-60 GB (out of 80 GB) |
+| **VRAM usage** | ~60-75 GB (out of 80 GB) |
+| **Worker startup** | ~3-5 minutes (v3.4.1: was 1h+ before fix) |
 
 ## Stack Versions
 

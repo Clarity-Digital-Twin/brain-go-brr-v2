@@ -13,15 +13,15 @@ V3 dual-stream architecture is the **only supported** architecture. V2 heuristic
 - `data.cache_dir: cache/tusz` (local SSD)
 - `data.num_workers: 0` (WSL2 stability) or `4` (native Linux with `pin_memory: true`)
 - `data.use_balanced_sampling: true` (CRITICAL for full training)
-- `data.prefetch_factor: 8` (v3.4.0: increased from 4)
+- `data.prefetch_factor: 2` (conservative for memory stability)
 
 ### Training
-- `training.batch_size: 12` (conservative for 24GB VRAM)
+- `training.batch_size: 4` (conservative for 24GB VRAM)
 - `training.mixed_precision: false` (DISABLED - causes NaNs on RTX 4090)
 - `training.loss: focal` (REQUIRED for 12:1 imbalance)
 - `training.focal_gamma: 2.0` (with warmup in v3.4.1)
 - `training.gradient_clip: 0.5` (v3.4.0: increased from 0.1)
-- `training.learning_rate: 3.0e-5` (baseline for batch_size=12)
+- `training.learning_rate: 1.0e-4` (increased from 1e-5 for warmup stability)
 
 ### Model - V3 Dual-Stream
 - `model.architecture: v3`
@@ -58,9 +58,9 @@ data:
   window_size: 60
   stride: 10
   num_workers: 0                   # WSL2: MUST be 0
-  pin_memory: false                # WSL2: MUST be false
-  persistent_workers: false        # WSL2: MUST be false
-  prefetch_factor: 8               # v3.4.0: Increased from 4
+  pin_memory: true                 # Fast GPU transfer
+  persistent_workers: false        # Must be false when num_workers=0
+  prefetch_factor: 2               # Conservative for memory stability
   use_balanced_sampling: true      # CRITICAL: Oversample seizures
 
 preprocessing:
@@ -138,12 +138,12 @@ model:
 
 training:
   epochs: 100
-  batch_size: 12                   # Conservative for 24GB VRAM
+  batch_size: 4                    # Conservative for 24GB VRAM
   loss: focal                      # REQUIRED for class imbalance
   focal_alpha: 0.5
   focal_gamma: 2.0                 # Warmup from 1.0 in v3.4.1
-  learning_rate: 3.0e-5
-  weight_decay: 0.05
+  learning_rate: 1.0e-4            # Increased from 1e-5 for warmup stability
+  weight_decay: 0.01               # Reduced from 0.05 to prevent weight explosion
   optimizer: adamw
   scheduler:
     type: cosine
@@ -218,21 +218,23 @@ data:
 
 | Platform | Batch Size | Time/Epoch | Total Training |
 |----------|-----------|------------|----------------|
-| RTX 4090 (WSL2) | 12 | ~2-3 hours | ~200-300 hours |
-| RTX 4090 (Linux) | 12 | ~1.5-2 hours | ~150-200 hours |
+| RTX 4090 (WSL2) | 4 | ~3-4 hours | ~300-400 hours |
+| RTX 4090 (Linux) | 4 | ~2-3 hours | ~200-300 hours |
 
 **Smoke test**: ~5 minutes
+
+**Note**: Smaller batch size is more stable but slower. Can experiment with batch_size=8-12 if no OOM occurs.
 
 ## VRAM Usage
 
 | Component | VRAM |
 |-----------|------|
-| Model (31M params) | ~6-8 GB |
-| Batch (12 samples) | ~8-10 GB |
-| Gradients + Optimizer | ~4-6 GB |
-| **Total** | **~18-24 GB** |
+| Model (31M params) | ~0.12 GB (FP32) |
+| Batch (4 samples) | ~2.5-5 GB |
+| Gradients + Optimizer | ~5-8 GB |
+| **Total** | **~10-16 GB** |
 
-**NOTE**: Batch size=12 is conservative. Some users report success with batch_size=16-18.
+**NOTE**: Batch size=4 leaves plenty of headroom. Can experiment with batch_size=8-12 for faster training if VRAM allows.
 
 ## Reference Configs
 
@@ -249,10 +251,16 @@ export BGB_NAN_DEBUG=1
 ```
 
 ### Out of memory
-**Solution**: Reduce batch size
+**Solution**: Reduce batch size (already conservative at 4)
 ```yaml
 training:
-  batch_size: 8  # or 6 if still OOM
+  batch_size: 2  # If batch_size=4 still causes OOM
+```
+
+**Alternative**: Increase batch size if you have headroom
+```yaml
+training:
+  batch_size: 8   # or 12 if VRAM allows
 ```
 
 ### Zero seizures in batches

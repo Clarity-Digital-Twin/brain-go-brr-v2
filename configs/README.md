@@ -80,10 +80,13 @@ modal app logs <app-id>
 
 | Setting | Local (RTX 4090) | Modal (A100-80GB) | Why Different |
 |---------|------------------|-------------------|---------------|
-| Batch Size | 4 | 64 | A100 has much more VRAM |
+| Batch Size | 4 | 32 | 24GB vs 80GB VRAM |
+| Gradient Accumulation | 1 | 2 | Effective batch: 4 vs 64 |
 | Mixed Precision | false | true | RTX 4090 FP16 can cause NaNs |
-| Learning Rate | 1e-4 | 3e-5 | Stability vs. large batch size |
-| Workers | 0 | 8 | WSL2 vs. cloud parallel IO |
+| Learning Rate | 1.0e-4 | 8.0e-5 | Stability vs. large batch scaling |
+| Workers | 0 | 4 | WSL2 fix vs parallel IO |
+| Prefetch Factor | 2 | 2 | Conservative for memory |
+| Persistent Workers | false | false | Prevents spawn delay + memory leaks |
 | Cache Location | `cache/tusz/` | `/results/cache/tusz/` | Filesystem differences |
 
 ## ⚠️ Common Pitfalls
@@ -140,9 +143,11 @@ model:
 
 | Config | Platform | Time/Epoch | Total Time | Cost |
 |--------|----------|------------|------------|------|
-| Local Train | RTX 4090 | ~2-3 hours | ~200-300 hours | Electricity |
+| Local Train | RTX 4090 | ~3-4 hours | ~300-400 hours | Electricity |
 | Modal Train | A100-80GB | ~1 hour | ~100 hours | ~$319 |
 | Smoke Test | Both | ~5 mins | 5 mins | Minimal |
+
+**Note**: Local is slower due to smaller batch size (4 vs 32) but more stable on 24GB VRAM.
 
 ## 🔧 Environment Variables
 
