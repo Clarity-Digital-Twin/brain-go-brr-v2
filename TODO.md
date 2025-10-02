@@ -122,7 +122,7 @@ torch.cuda.set_per_process_memory_fraction(fraction, 0)
 
 **Issue:** `ResourcesConfig` defined but never used at runtime
 
-**Status:** ✅ **RESOLVED** (Commit: pending)
+**Status:** ✅ **RESOLVED** (Commit: 318f4dc)
 
 **What Was Done:**
 1. Removed `ResourcesConfig` class definition from `src/brain_brr/config/schemas.py`
@@ -146,7 +146,7 @@ $ make q
 
 **Issue:** Redundant `trained_model` fixture nearly identical to `minimal_model`
 
-**Status:** ✅ **PARTIALLY RESOLVED** (Commit: pending)
+**Status:** ✅ **PARTIALLY RESOLVED** (Commit: f7b8fc3)
 
 **What Was Done:**
 1. Removed `trained_model` fixture from `tests/conftest.py` (duplicate of `minimal_model`)
@@ -155,9 +155,9 @@ $ make q
 4. Only difference was xavier init in `trained_model` (not needed for tests)
 
 **Remaining Work (Deferred):**
-- `minimal_model_no_leak` (performance/conftest.py): 2 Mamba layers, d_model=256 (41 usages)
+- `minimal_model_no_leak`: ✅ Already removed (no longer exists in codebase)
 - `small_model` (test_training_edge_cases.py): graph disabled variant (2 usages)
-- Can standardize further but requires 43 test updates (defer until after training)
+- No further standardization needed - core duplicates resolved
 
 **Actual Effort:** 20 minutes
 
