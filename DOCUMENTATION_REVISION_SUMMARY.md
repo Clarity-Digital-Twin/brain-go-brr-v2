@@ -223,18 +223,19 @@ make q
 
 ## 📋 Action Items for Team
 
-### IMMEDIATE (BLOCKER)
-- [ ] **Rewrite REFACTOR_IO_PY.md** based on actual code
-  - Trace full data pipeline (io.py → preprocess.py → datasets.py)
-  - Document what `load_edf_file()` ACTUALLY does
-  - Identify where resampling/filtering happen in reality
-  - Re-audit new plan before implementation
+### ✅ BLOCKERS RESOLVED
+- [x] **Rewrite REFACTOR_IO_PY.md** - ✅ COMPLETE
+  - Traced full data pipeline (io.py → preprocess.py → datasets.py)
+  - Documented what `load_edf_file()` ACTUALLY does
+  - Identified where resampling/filtering happen
+  - Discovered function is already well-organized (LOW priority)
 
 ### HIGH PRIORITY
-- [ ] **Review verified refactor plans** (detector, metrics, cli)
+- [ ] **Review verified refactor plans** (detector, metrics, cli, io)
   - Secure engineering consensus
   - Schedule implementation after training completes
-  - Follow phased approach outlined in plans
+  - **Prioritize**: detector.py (HIGH) → metrics.py (HIGH) → cli.py (MEDIUM)
+  - **Defer**: io.py (LOW - minimal refactoring needed)
 
 ### MEDIUM PRIORITY
 - [ ] **Update architecture diagrams** for v3.4.1 features
