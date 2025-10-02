@@ -2,7 +2,7 @@
 Status: Draft for consensus (2025-10-02)
 Priority: MEDIUM
 Owner: Senior ML auditor (Codex)
-Scope: EDF loading pipeline (`load_edf_file` ~152 lines)
+Scope: EDF loading pipeline (`load_edf_file` ≈153 lines)
 
 ## 1. Context & Problem Statement
 `load_edf_file` (≈153 lines, current span 54–206) performs multiple stages in a single function:
