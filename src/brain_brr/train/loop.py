@@ -13,10 +13,7 @@ from __future__ import annotations
 import logging
 import math
 import os
-import sys
-import time
 import warnings
-from contextlib import suppress
 from pathlib import Path
 from typing import Any, cast
 
@@ -28,7 +25,6 @@ import torch.nn.functional as tnf
 from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 from torch.utils.data import DataLoader, WeightedRandomSampler
-from tqdm import tqdm  # type: ignore[import-untyped]
 
 # Make TensorBoard optional
 try:
@@ -42,7 +38,6 @@ except ImportError:
 from src.brain_brr.config.schemas import (
     Config,
     EarlyStoppingConfig,
-    PostprocessingConfig,
     SchedulerConfig,
     TrainingConfig,
     WarmupScheduleConfig,
@@ -332,152 +327,6 @@ def create_scheduler(
         return sched
     else:
         raise ValueError(f"Unknown scheduler: {config.type}")
-
-
-# ============================================================================
-# ============================================================================
-# Validation epoch (Single Responsibility)
-# ============================================================================
-
-
-def validate_epoch(
-    model: nn.Module,
-    dataloader: DataLoader,
-    post_config: PostprocessingConfig,
-    device: str = "cpu",
-    fa_rates: list[float] | None = None,
-) -> dict[str, Any]:
-    """Validate model and compute metrics.
-
-    Args:
-        model: SeizureDetector model
-        dataloader: Validation DataLoader
-        post_config: Post-processing configuration
-        device: Device to evaluate on
-        fa_rates: FA/24h targets for sensitivity
-
-    Returns:
-        Dictionary of metrics
-    """
-    if fa_rates is None:
-        fa_rates = [10, 5, 1]
-
-    model.eval()
-    device_obj = torch.device(device)
-    criterion = nn.BCEWithLogitsLoss()  # Use BCEWithLogitsLoss for raw logits
-
-    # Accumulate all predictions and metadata
-    all_probs = []
-    all_labels = []
-    all_file_ids = []
-    all_window_starts = []
-    total_loss = 0.0
-    num_batches = 0
-
-    # Print validation start message
-    n_val_batches = len(dataloader)
-    logger.info(f"[VALIDATION] Starting validation with {n_val_batches} batches...")
-
-    # Robust tqdm handling for Modal/non-TTY environments
-    use_tqdm = not env.disable_tqdm()
-    progress_bar = None  # Initialize for cleanup
-
-    with torch.no_grad():
-        if use_tqdm:
-            try:
-                # Use same safe tqdm settings as training
-                progress_bar = tqdm(
-                    dataloader,
-                    desc="Validating",
-                    leave=False,
-                    file=sys.stderr,
-                    ascii=True,
-                    ncols=80,
-                    disable=None,
-                )
-                if progress_bar is None or not hasattr(progress_bar, "__iter__"):
-                    logger.warning(
-                        "tqdm initialization failed in validation, using plain iteration"
-                    )
-                    iterator = dataloader
-                else:
-                    iterator = progress_bar
-            except Exception as e:
-                logger.warning(f"tqdm failed in validation ({e}), using plain iteration")
-                iterator = dataloader
-        else:
-            iterator = dataloader
-
-        try:
-            last_heartbeat = time.time()
-            heartbeat_interval = 120  # Print progress every 2 minutes
-
-            for batch_idx, batch in enumerate(iterator):
-                # Unpack dict format
-                windows = batch["window"].to(device_obj)
-                labels = batch["label"].to(device_obj)
-                file_ids = batch["file_id"]
-                window_starts = batch["window_start_s"]
-
-                # Handle multi-channel labels
-                if labels.dim() == 3:
-                    labels = labels.max(dim=1)[0]
-
-                logits = model(windows)  # Model now outputs raw logits
-                loss = criterion(logits, labels)
-
-                # Convert logits to probabilities for evaluation
-                probs = torch.sigmoid(logits)
-
-                # Accumulate on CPU to avoid GPU memory buildup
-                all_probs.append(probs.cpu())
-                all_labels.append(labels.cpu())
-                all_file_ids.extend(file_ids)
-                all_window_starts.extend(window_starts)
-
-                total_loss += loss.item()
-                num_batches += 1
-
-                # Print heartbeat for long validation loops
-                current_time = time.time()
-                if current_time - last_heartbeat > heartbeat_interval:
-                    avg_loss = total_loss / max(1, num_batches)
-                    logger.info(
-                        f"[VAL HEARTBEAT] Batch {batch_idx}/{len(dataloader)} | "
-                        f"Avg Loss: {avg_loss:.4f}"
-                    )
-                    last_heartbeat = current_time
-        finally:
-            # Clean up tqdm progress bar
-            if progress_bar is not None and hasattr(progress_bar, "close"):
-                with suppress(Exception):
-                    progress_bar.close()
-
-    # Concatenate accumulated data
-    logger.info(f"[VALIDATION] Completed {num_batches} batches, computing metrics...")
-
-    probs_tensor = torch.cat(all_probs, dim=0)
-    labels_tensor = torch.cat(all_labels, dim=0)
-
-    # Call evaluate_predictions (single source of truth for all metrics)
-    from src.brain_brr.eval.metrics import evaluate_predictions
-
-    metrics = evaluate_predictions(
-        probs=probs_tensor,
-        labels=labels_tensor,
-        file_ids=all_file_ids,
-        window_starts=all_window_starts,
-        fa_rates=fa_rates,
-        post_cfg=post_config,
-        sampling_rate=256,
-    )
-
-    # Add validation loss
-    metrics["val_loss"] = total_loss / max(1, num_batches)
-
-    logger.info(f"[VALIDATION] Done! Val Loss: {metrics['val_loss']:.4f}")
-
-    return metrics
 
 
 # ============================================================================
