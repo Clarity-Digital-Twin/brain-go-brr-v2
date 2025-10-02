@@ -133,10 +133,12 @@ model:
 ```yaml
 data:
   cache_dir: /results/cache/tusz  # Persistent SSD volume (Modal)
-  num_workers: 8                  # A100 handles parallel IO
+  num_workers: 4                  # SAFE: 8 caused overhead
+  prefetch_factor: 2              # SAFE: 4/8 caused OOM
 training:
-  batch_size: 64                  # Larger batch for 80GB
-  mixed_precision: true           # A100 tensor cores
+  batch_size: 32                  # CRITICAL: 64 causes 77GB OOM (see below)
+  gradient_accumulation_steps: 2  # Maintains effective batch=64
+  mixed_precision: true           # A100 tensor cores (3.8x faster)
 model:
   graph:
     edge_similarity_margin: 0.01  # v3.3.0: Safety margin from ±1 boundaries
@@ -144,6 +146,13 @@ resources:
   cpu: 24                         # Avoid bottlenecks (default: 0.125!)
   memory: 98304                   # 96GB RAM
 ```
+
+**🚨 CRITICAL A100 Memory Lesson (Oct 2025)**:
+- `batch_size=64` + `gradient_accumulation_steps=1` → **77GB peak → OOM ❌**
+- `batch_size=32` + `gradient_accumulation_steps=2` → **50GB peak → SAFE ✅**
+- Both configurations have **identical effective batch (64)** and **same learning dynamics**
+- Key insight: **batch_size controls peak memory**, **grad_accum splits backward** into chunks
+- See `configs/README.md` for full OOM analysis
 
 ## 🔧 Installation Requirements
 

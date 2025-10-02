@@ -80,14 +80,54 @@ modal app logs <app-id>
 
 | Setting | Local (RTX 4090) | Modal (A100-80GB) | Why Different |
 |---------|------------------|-------------------|---------------|
-| Batch Size | 4 | 32 | 24GB vs 80GB VRAM |
-| Gradient Accumulation | 1 | 2 | Effective batch: 4 vs 64 |
+| **Batch Size** | **4** | **32** | 24GB vs 80GB VRAM |
+| **Gradient Accumulation** | **1** | **2** | Effective batch: 4 vs 64 |
+| **Effective Batch** | **4** | **64** | Local: small, Modal: scaled for A100 |
 | Mixed Precision | false | true | RTX 4090 FP16 can cause NaNs |
 | Learning Rate | 1.0e-4 | 8.0e-5 | Stability vs. large batch scaling |
 | Workers | 0 | 4 | WSL2 fix vs parallel IO |
 | Prefetch Factor | 2 | 2 | Conservative for memory |
 | Persistent Workers | false | false | Prevents spawn delay + memory leaks |
 | Cache Location | `cache/tusz/` | `/results/cache/tusz/` | Filesystem differences |
+
+## 🚨 CRITICAL: A100 OOM Lessons Learned
+
+### The Oct 2025 Crash (batch_size=64 + grad_accum=1)
+
+**What Happened**: Modal training OOM'd at batch 0 backward pass
+**Error**: `CUDA out of memory. Tried to allocate 10.69 GiB. GPU 0 has total capacity of 79.25 GiB of which 2.04 GiB is free. Process 1 has 77.20 GiB memory in use.`
+
+**Root Cause**:
+- `batch_size=64` + `gradient_accumulation_steps=1` → forward+backward processes **64 samples at once**
+- Peak memory during backward: **~77GB** (exceeds A100-80GB capacity)
+
+**Why batch_size Matters More Than You Think**:
+```
+batch_size=64, grad_accum=1:  Peak = 77GB (CRASH ❌)
+batch_size=32, grad_accum=2:  Peak = 50GB (SAFE ✅)
+```
+Both have **same effective batch** (64) and **same learning dynamics**, but:
+- **batch_size** controls **peak memory** (forward+backward activations)
+- **grad_accum** splits backward into smaller chunks, reducing peak
+
+**The Fix**:
+```yaml
+# BROKEN (causes OOM):
+batch_size: 64
+gradient_accumulation_steps: 1
+
+# SAFE (proven stable):
+batch_size: 32
+gradient_accumulation_steps: 2
+# Effective batch still 64, peak memory reduced by ~35%
+```
+
+**Key Takeaway**: On A100-80GB with V3 architecture (31M params, deep TCN+Mamba+GNN):
+- ✅ **batch_size ≤ 32** is SAFE
+- ❌ **batch_size = 64** causes OOM during backward
+- ✅ Use **gradient_accumulation** to increase effective batch without OOM
+
+See `docs/05-training/modal.md` for full memory profiling.
 
 ## ⚠️ Common Pitfalls
 
@@ -98,6 +138,10 @@ modal app logs <app-id>
 2. **Modal Cache Misconception**:
    - ❌ "Cache is on S3 causing slowdowns"
    - ✅ Cache is on Modal SSD from first run
+
+3. **A100 OOM from Large Batch Size**:
+   - ❌ `batch_size=64` + `gradient_accumulation_steps=1` → 77GB peak (CRASH)
+   - ✅ `batch_size=32` + `gradient_accumulation_steps=2` → 50GB peak (SAFE)
 
 3. **Mixed Precision on RTX 4090**:
    - ❌ `mixed_precision: true` causes NaN losses

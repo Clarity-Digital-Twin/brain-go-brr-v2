@@ -23,10 +23,10 @@ data:
   n_channels: 19
   window_size: 60
   stride: 10
-  num_workers: 8                       # OPTIMIZED: Full utilization of 24 CPU cores
+  num_workers: 4                       # SAFE: Prevents spawn delays (8 caused overhead)
   pin_memory: true                     # Fast GPU transfer
-  persistent_workers: false            # Keep false to prevent 1h spawn delay
-  prefetch_factor: 4                   # OPTIMIZED: Increased from 2
+  persistent_workers: false            # CRITICAL: Prevents 1h spawn delay + memory leaks
+  prefetch_factor: 2                   # SAFE: Prevents memory pressure (4/8 caused OOM)
   use_balanced_sampling: false         # Must be false for BGB_LIMIT_FILES to work
 
 preprocessing:
@@ -120,7 +120,8 @@ postprocessing:
 
 training:
   epochs: 1                            # Just 1 epoch for smoke test
-  batch_size: 64                       # OPTIMIZED: Full batch size (OOM was from prefetch_factor=8)
+  batch_size: 32                       # SAFE: Peak memory ~50GB (64 causes 77GB OOM during backward)
+  gradient_accumulation_steps: 2       # CRITICAL: Maintains effective batch=64, reduces peak memory
   loss: focal
   focal_alpha: 0.5
   focal_gamma: 2.0
