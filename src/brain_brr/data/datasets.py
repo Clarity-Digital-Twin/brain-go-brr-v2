@@ -6,6 +6,7 @@ import json
 import logging
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -186,12 +187,18 @@ class EEGWindowDataset(torch.utils.data.Dataset):
     def __len__(self) -> int:
         return len(self._index_map)
 
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
-        """Return window and label as tuple. Always returns tuple for consistency.
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Return window with metadata dict for timeline stitching.
 
         Loads data on-demand from cache or computes if needed.
         When no labels exist, returns zero tensor of correct shape as label.
-        This ensures train_epoch always gets (window, label) tuple.
+
+        Returns:
+            Dictionary with keys:
+                - window: (C, T) tensor
+                - label: (T,) tensor
+                - file_id: str (EDF filename stem)
+                - window_start_s: float (start time in seconds)
         """
         file_idx, window_idx = self._index_map[idx]
         edf_path = self.edf_files[file_idx]
@@ -226,11 +233,20 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         if label is not None:
             label_tensor = torch.from_numpy(label)
         else:
-            # ALWAYS return tuple with zero labels when none exist
+            # ALWAYS return dict with zero labels when none exist
             # Shape matches window's time dimension for per-timestep labels
             label_tensor = torch.zeros(window_tensor.shape[-1], dtype=torch.float32)
 
-        return window_tensor, label_tensor
+        # Add metadata for timeline reconstruction
+        file_id = edf_path.stem
+        window_start_s = window_idx * constants.STRIDE_SIZE_SEC
+
+        return {
+            "window": window_tensor,
+            "label": label_tensor,
+            "file_id": file_id,
+            "window_start_s": float(window_start_s),
+        }
 
 
 class BalancedSeizureDataset(Dataset):
@@ -353,7 +369,16 @@ class BalancedSeizureDataset(Dataset):
         """
         return self._seizure_ratio
 
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Return window with metadata dict for timeline stitching.
+
+        Returns:
+            Dictionary with keys:
+                - window: (C, T) tensor
+                - label: (T,) tensor
+                - file_id: str (cache filename stem without _windows suffix)
+                - window_start_s: float (start time in seconds)
+        """
         cache_file, w_idx = self._entries[idx]
         with np.load(cache_file) as data:
             window = data["windows"][w_idx].astype(np.float32)
@@ -361,4 +386,14 @@ class BalancedSeizureDataset(Dataset):
                 label = data["labels"][w_idx].astype(np.float32)
             else:
                 label = np.zeros((window.shape[-1],), dtype=np.float32)
-        return torch.from_numpy(window), torch.from_numpy(label)
+
+        # Extract file_id from cache filename (remove _windows suffix)
+        file_id = cache_file.stem.replace("_windows", "")
+        window_start_s = w_idx * constants.STRIDE_SIZE_SEC
+
+        return {
+            "window": torch.from_numpy(window),
+            "label": torch.from_numpy(label),
+            "file_id": file_id,
+            "window_start_s": float(window_start_s),
+        }
