@@ -58,6 +58,37 @@ model:
 
 ## Critical Fixes (v3.4.1)
 
+### A100 OOM Fix (October 2025)
+**Problem**: Training crashed at batch 0 backward pass with OOM
+**Error**: `CUDA out of memory. Tried to allocate 10.69 GiB. GPU 0 has total capacity of 79.25 GiB of which 2.04 GiB is free. Process 1 has 77.20 GiB memory in use.`
+
+**Root Cause**:
+- `batch_size=64` + `gradient_accumulation_steps=1` processes **64 samples in forward+backward**
+- Peak memory during backward: **~77GB** (exceeds A100-80GB capacity)
+
+**Memory Profile**:
+```
+batch_size=64, grad_accum=1:  Peak = 77GB (CRASH ❌)
+batch_size=32, grad_accum=2:  Peak = 50GB (SAFE ✅)
+```
+
+**Fix Applied**:
+```yaml
+# configs/modal/train.yaml
+training:
+  batch_size: 32                # Reduced from 64
+  gradient_accumulation_steps: 2  # Increased from 1
+  # Effective batch still 64, peak memory reduced by ~35%
+```
+
+**Key Insight**:
+- **batch_size** controls **peak memory** (forward+backward activations stored simultaneously)
+- **gradient_accumulation** splits backward into smaller chunks, reducing peak
+- Both configs have **identical effective batch** (64) and **same learning dynamics**
+- Only difference: memory footprint
+
+See `configs/README.md` for full OOM analysis.
+
 ### Hang Detection & Logging (deploy/modal/app.py:722-723, loop.py:440)
 **Problem**: Training appeared to hang for 60+ minutes during initialization
 **Fix**: Enhanced logging and faster heartbeats
