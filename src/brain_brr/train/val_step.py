@@ -67,7 +67,7 @@ def _process_recording(
     all_labels_flat.append(timeline_labels.flatten())
 
     recording_end_s = windows[-1]["start_s"] + constants.WINDOW_SIZE_SEC
-    recording_hours = recording_end_s / 3600.0
+    recording_hours: float = recording_end_s / 3600.0
 
     del timeline_probs, timeline_labels
 
