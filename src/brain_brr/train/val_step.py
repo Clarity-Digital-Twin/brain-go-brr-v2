@@ -29,7 +29,7 @@ def validate_epoch(
     device: str = "cpu",
     fa_rates: list[float] | None = None,
 ) -> dict[str, Any]:
-    """Validate model and compute metrics.
+    """Validate model with streaming per-recording metrics (low memory).
 
     Args:
         model: SeizureDetector model
@@ -41,6 +41,8 @@ def validate_epoch(
     Returns:
         Dictionary of metrics
     """
+    from collections import defaultdict
+
     if fa_rates is None:
         fa_rates = [10, 5, 1]
 
@@ -48,15 +50,12 @@ def validate_epoch(
     device_obj = torch.device(device)
     criterion = nn.BCEWithLogitsLoss()
 
-    all_probs = []
-    all_labels = []
-    all_file_ids = []
-    all_window_starts = []
+    recordings: dict[str, list[dict[str, Any]]] = defaultdict(list)
     total_loss = 0.0
     num_batches = 0
 
     n_val_batches = len(dataloader)
-    logger.info(f"[VALIDATION] Starting validation with {n_val_batches} batches...")
+    logger.info(f"[VALIDATION] Starting streaming validation with {n_val_batches} batches...")
 
     use_tqdm = not env.disable_tqdm()
     progress_bar = None
@@ -104,10 +103,14 @@ def validate_epoch(
 
                 probs = torch.sigmoid(logits)
 
-                all_probs.append(probs.cpu())
-                all_labels.append(labels.cpu())
-                all_file_ids.extend(file_ids)
-                all_window_starts.extend(window_starts)
+                for i, fid in enumerate(file_ids):
+                    recordings[fid].append(
+                        {
+                            "start_s": float(window_starts[i]),
+                            "probs": probs[i].cpu(),
+                            "labels": labels[i].cpu(),
+                        }
+                    )
 
                 total_loss += loss.item()
                 num_batches += 1
@@ -117,7 +120,7 @@ def validate_epoch(
                     avg_loss = total_loss / max(1, num_batches)
                     logger.info(
                         f"[VAL HEARTBEAT] Batch {batch_idx}/{len(dataloader)} | "
-                        f"Avg Loss: {avg_loss:.4f}"
+                        f"Avg Loss: {avg_loss:.4f} | Recordings: {len(recordings)}"
                     )
                     last_heartbeat = current_time
         finally:
@@ -125,18 +128,14 @@ def validate_epoch(
                 with suppress(Exception):
                     progress_bar.close()
 
-    logger.info(f"[VALIDATION] Completed {num_batches} batches, computing metrics...")
+    logger.info(
+        f"[VALIDATION] Completed {num_batches} batches, processing {len(recordings)} recordings..."
+    )
 
-    probs_tensor = torch.cat(all_probs, dim=0)
-    labels_tensor = torch.cat(all_labels, dim=0)
+    from src.brain_brr.eval.metrics import evaluate_predictions_streaming
 
-    from src.brain_brr.eval.metrics import evaluate_predictions
-
-    metrics = evaluate_predictions(
-        probs=probs_tensor,
-        labels=labels_tensor,
-        file_ids=all_file_ids,
-        window_starts=all_window_starts,
+    metrics = evaluate_predictions_streaming(
+        recordings=recordings,
         fa_rates=fa_rates,
         post_cfg=post_config,
         sampling_rate=256,

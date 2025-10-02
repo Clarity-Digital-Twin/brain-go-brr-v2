@@ -632,6 +632,170 @@ def evaluate_predictions(
     return results
 
 
+def evaluate_predictions_streaming(
+    recordings: dict[str, list[dict[str, Any]]],
+    fa_rates: list[float],
+    post_cfg: PostprocessingConfig,
+    sampling_rate: int = 256,
+) -> dict[str, Any]:
+    """Streaming evaluation that processes recordings one at a time (low memory).
+
+    Args:
+        recordings: Dict mapping file_id to list of window dicts with keys:
+            - start_s: Window start time in seconds
+            - probs: (T,) tensor of probabilities
+            - labels: (T,) tensor of binary labels
+        fa_rates: FA/24h targets for sensitivity calculation
+        post_cfg: Post-processing configuration
+        sampling_rate: Sampling rate (Hz)
+
+    Returns:
+        Dict with all metrics (same format as evaluate_predictions)
+    """
+    all_ref_events: list[tuple[float, float]] = []
+    all_pred_events: list[tuple[float, float]] = []
+    total_hours = 0.0
+
+    all_probs_flat: list[torch.Tensor] = []
+    all_labels_flat: list[torch.Tensor] = []
+
+    for _fid, windows in recordings.items():
+        timeline_probs, timeline_labels = stitch_recording_timeline(windows, sampling_rate)
+        recording_end_s = windows[-1]["start_s"] + constants.WINDOW_SIZE_SEC
+
+        ref_events_list = batch_mask_to_events(timeline_labels.unsqueeze(0), sampling_rate)
+        pred_events_list = batch_probs_to_events(
+            timeline_probs.unsqueeze(0), post_cfg, sampling_rate
+        )
+
+        if ref_events_list:
+            for event_obj in ref_events_list[0]:
+                all_ref_events.append((float(event_obj.start_s), float(event_obj.end_s)))
+        if pred_events_list:
+            for pred_tuple in pred_events_list[0]:
+                all_pred_events.append(pred_tuple)
+
+        total_hours += recording_end_s / 3600.0
+
+        all_probs_flat.append(timeline_probs.flatten())
+        all_labels_flat.append(timeline_labels.flatten())
+
+        del timeline_probs, timeline_labels, windows
+
+    taes = calculate_taes(all_pred_events, all_ref_events) if all_ref_events else 0.0
+
+    probs_flat = torch.cat(all_probs_flat).cpu().numpy()
+    labels_flat = torch.cat(all_labels_flat).cpu().numpy()
+
+    if np.unique(labels_flat).size < 2:
+        auroc = 0.5
+    else:
+        auroc = float(roc_auc_score(labels_flat, probs_flat))
+
+    if (labels_flat == 1).sum() == 0:
+        pr_auc = 0.0
+    else:
+        pr_auc = float(average_precision_score(labels_flat, probs_flat))
+
+    ece = calculate_ece(probs_flat, labels_flat, n_bins=10)
+
+    fa_curve = []
+    for tau in np.linspace(0.5, 0.99, 50):
+        cfg = deepcopy(post_cfg)
+        cfg.hysteresis.tau_on = tau
+        cfg.hysteresis.tau_off = max(0.0, tau - 0.08)
+
+        num_pred_events = 0
+        for _fid, windows in recordings.items():
+            timeline_probs, _ = stitch_recording_timeline(windows, sampling_rate)
+            pred_events = batch_probs_to_events(timeline_probs.unsqueeze(0), cfg, sampling_rate)
+            num_pred_events += len(pred_events[0]) if pred_events else 0
+            del timeline_probs
+
+        fa_24h = (num_pred_events / total_hours) * 24.0 if total_hours > 0 else 0.0
+        fa_curve.append((tau, fa_24h))
+
+    thresholds: dict[str, float] = {}
+    sensitivity_results: dict[str, float] = {}
+
+    for fa in fa_rates:
+        low, high = 0.1, 1.0
+        best_tau_on = 0.86
+
+        for _ in range(10):
+            mid_tau_on = (low + high) / 2
+            mid_tau_off = max(0.0, mid_tau_on - 0.08)
+
+            cfg_for_search = deepcopy(post_cfg)
+            cfg_for_search.hysteresis.tau_on = mid_tau_on
+            cfg_for_search.hysteresis.tau_off = mid_tau_off
+
+            num_pred_events = 0
+            for _fid, windows in recordings.items():
+                timeline_probs, _ = stitch_recording_timeline(windows, sampling_rate)
+                pred_events = batch_probs_to_events(
+                    timeline_probs.unsqueeze(0), cfg_for_search, sampling_rate
+                )
+                num_pred_events += len(pred_events[0]) if pred_events else 0
+                del timeline_probs
+
+            fa_24h = (num_pred_events / total_hours) * 24.0 if total_hours > 0 else 0.0
+
+            if fa_24h > fa:
+                low = mid_tau_on
+            else:
+                high = mid_tau_on
+
+        thresholds[f"{fa}fa"] = best_tau_on
+
+        cfg_for_eval = deepcopy(post_cfg)
+        cfg_for_eval.hysteresis.tau_on = best_tau_on
+        cfg_for_eval.hysteresis.tau_off = max(0.0, best_tau_on - 0.08)
+
+        total_ref_events = len(all_ref_events)
+        tp_count = 0
+
+        for _fid, windows in recordings.items():
+            timeline_probs, timeline_labels = stitch_recording_timeline(windows, sampling_rate)
+
+            ref_events_list = batch_mask_to_events(timeline_labels.unsqueeze(0), sampling_rate)
+            pred_events_list = batch_probs_to_events(
+                timeline_probs.unsqueeze(0), cfg_for_eval, sampling_rate
+            )
+
+            refs: list[tuple[float, float]] = []
+            if ref_events_list:
+                for event_obj in ref_events_list[0]:
+                    refs.append((float(event_obj.start_s), float(event_obj.end_s)))
+
+            preds: list[tuple[float, float]] = []
+            if pred_events_list:
+                preds = pred_events_list[0]
+
+            for ref_start, ref_end in refs:
+                if any(overlap((ref_start, ref_end), (ps, pe)) > 0 for (ps, pe) in preds):
+                    tp_count += 1
+
+            del timeline_probs, timeline_labels
+
+        sensitivity = tp_count / max(total_ref_events, 1)
+        sensitivity_results[f"sensitivity_at_{fa}fa"] = sensitivity
+
+    results = {
+        "taes": taes,
+        "auroc": auroc,
+        "pr_auc": pr_auc,
+        "ece": ece,
+        "fa_curve": fa_curve,
+        "num_recordings": len(recordings),
+        "total_hours": total_hours,
+    }
+    results.update(sensitivity_results)
+    results["thresholds"] = thresholds
+
+    return results
+
+
 # Compatibility wrappers for tests
 def compute_roc_curve(
     predictions: torch.Tensor | np.ndarray, labels: torch.Tensor | np.ndarray
