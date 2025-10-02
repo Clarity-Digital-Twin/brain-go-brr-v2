@@ -536,27 +536,7 @@ def evaluate_predictions(
     stitched_timelines: list[tuple[torch.Tensor, torch.Tensor]] = []
 
     for _fid, windows in recordings.items():
-        windows.sort(key=lambda x: x["start_s"])
-        recording_end_s = windows[-1]["start_s"] + constants.WINDOW_SIZE_SEC
-        timeline_length = int(recording_end_s * sampling_rate)
-
-        timeline_probs = torch.zeros(timeline_length, dtype=torch.float32)
-        timeline_labels = torch.zeros(timeline_length, dtype=torch.float32)
-        timeline_counts = torch.zeros(timeline_length, dtype=torch.float32)
-
-        for w in windows:
-            start_idx = int(w["start_s"] * sampling_rate)
-            end_idx = min(start_idx + len(w["probs"]), timeline_length)
-            window_len = end_idx - start_idx
-
-            timeline_probs[start_idx:end_idx] += w["probs"][:window_len]
-            timeline_labels[start_idx:end_idx] += w["labels"][:window_len]
-            timeline_counts[start_idx:end_idx] += 1.0
-
-        mask = timeline_counts > 0
-        timeline_probs[mask] /= timeline_counts[mask]
-        timeline_labels[mask] /= timeline_counts[mask]
-
+        timeline_probs, timeline_labels = stitch_recording_timeline(windows, sampling_rate)
         stitched_timelines.append((timeline_probs, timeline_labels))
 
     thresholds: dict[str, float] = {}
