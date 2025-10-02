@@ -683,71 +683,40 @@ def main() -> None:
         logger.info("DO NOT use this for real training!")
         logger.info("=" * 60 + "\n")
 
-    # Handle split policy
+    # Load TUSZ official splits (PATIENT-DISJOINT!)
+    # For TUSZ: train on train/, validate on dev/, never touch eval/
+    from src.brain_brr.data.tusz_splits import load_tusz_for_training
+
     data_root = Path(config.data.data_dir)
 
-    if config.data.split_policy == "official_tusz":
-        # Use TUSZ official splits (PATIENT-DISJOINT!)
-        # For TUSZ: train on train/, validate on dev/, never touch eval/
-        from src.brain_brr.data.tusz_splits import load_tusz_for_training
+    # Get the parent directory that contains train/, dev/, eval/
+    if data_root.name in ["train", "dev", "eval"]:
+        # If pointing to a specific split, go up to parent
+        data_root = data_root.parent
 
-        # Get the parent directory that contains train/, dev/, eval/
-        if data_root.name in ["train", "dev", "eval"]:
-            # If pointing to a specific split, go up to parent
-            data_root = data_root.parent
+    # Load official TUSZ splits with patient disjointness validation
+    splits = load_tusz_for_training(data_root, use_eval=False, verbose=True)
+    train_files, train_label_files = splits["train"]
+    val_files, val_label_files = splits["dev"]  # Use dev for validation
 
-        # Load official TUSZ splits with patient disjointness validation
-        splits = load_tusz_for_training(data_root, use_eval=False, verbose=True)
-        train_files, train_label_files = splits["train"]
-        val_files, val_label_files = splits["dev"]  # Use dev for validation
+    # Extract and validate patient IDs for transparency
+    from src.brain_brr.data.tusz_splits import extract_patient_id
 
-        # Extract and validate patient IDs for transparency
-        from src.brain_brr.data.tusz_splits import extract_patient_id
+    train_patients = {extract_patient_id(f) for f in train_files}
+    val_patients = {extract_patient_id(f) for f in val_files}
 
-        train_patients = {extract_patient_id(f) for f in train_files}
-        val_patients = {extract_patient_id(f) for f in val_files}
-
-        # Final paranoid check - should never trigger if tusz_splits.py works
-        overlap = train_patients & val_patients
-        if overlap:
-            raise ValueError(
-                f"CRITICAL: Patient leakage detected! {len(overlap)} patients in both splits:\n"
-                f"  {sorted(overlap)[:10]}"
-            )
-
-        logger.info("\n[SPLIT STATS] OFFICIAL TUSZ SPLITS:")
-        logger.info(f"  Train: {len(train_patients)} patients, {len(train_files)} files")
-        logger.info(f"  Val:   {len(val_patients)} patients, {len(val_files)} files")
-        logger.info("  ✅ PATIENT DISJOINTNESS VERIFIED - No leakage!")
-
-    elif config.data.split_policy == "custom":
-        # DEPRECATED: Old file-based split (WARNING: May cause patient leakage!)
-        warnings.warn(
-            "⚠️  Using CUSTOM split policy - this may cause patient leakage!\n"
-            "   Strongly recommend using split_policy='official_tusz' instead!",
-            stacklevel=2,
+    # Final paranoid check - should never trigger if tusz_splits.py works
+    overlap = train_patients & val_patients
+    if overlap:
+        raise ValueError(
+            f"CRITICAL: Patient leakage detected! {len(overlap)} patients in both splits:\n"
+            f"  {sorted(overlap)[:10]}"
         )
-        edf_files = sorted(data_root.glob("**/*.edf"))
 
-        # Apply seed for reproducibility
-        rng = np.random.RandomState(config.data.split_seed)
-        indices = np.arange(len(edf_files))
-        rng.shuffle(indices)
-        edf_files = [edf_files[i] for i in indices]
-
-        val_split = int(len(edf_files) * config.data.validation_split)
-        val_files = edf_files[:val_split]
-        train_files = edf_files[val_split:]
-
-        # Pair label files
-        train_label_files = [p.with_suffix(".csv") for p in train_files]
-        val_label_files = [p.with_suffix(".csv") for p in val_files]
-
-        logger.info(f"Loading {len(train_files)} train, {len(val_files)} val files")
-        logger.info("⚠️  WARNING: Custom split may have patient leakage!")
-
-    else:
-        raise ValueError(f"Unknown split_policy: {config.data.split_policy}")
+    logger.info("\n[SPLIT STATS] OFFICIAL TUSZ SPLITS:")
+    logger.info(f"  Train: {len(train_patients)} patients, {len(train_files)} files")
+    logger.info(f"  Val:   {len(val_patients)} patients, {len(val_files)} files")
+    logger.info("  ✅ PATIENT DISJOINTNESS VERIFIED - No leakage!")
 
     # Optional file limit for fast bring-up via env var (does not change config)
     limit_env_val = env.limit_files()
@@ -875,8 +844,8 @@ def main() -> None:
             allow_on_demand=True,
         )
 
-    # Align validation cache subdir name with split policy for clarity
-    val_split_name = "dev" if config.data.split_policy == "official_tusz" else "val"
+    # Validation cache uses "dev" subdir (TUSZ official naming)
+    val_split_name = "dev"
     val_dataset = EEGWindowDataset(
         val_files,
         label_files=val_label_files,
