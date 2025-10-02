@@ -5,7 +5,7 @@ Owner: Senior ML auditor (Codex)
 Scope: EDF loading pipeline (`load_edf_file` ~152 lines)
 
 ## 1. Context & Problem Statement
-`load_edf_file` performs multiple stages in a single function:
+`load_edf_file` (≈153 lines, current span 54–206) performs multiple stages in a single function:
 1. Path resolution / file validation
 2. EDF reading via pyEDFlib
 3. Resampling to 256 Hz
