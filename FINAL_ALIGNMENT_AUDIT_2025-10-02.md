@@ -27,7 +27,7 @@ make test
 # Total: 428 tests, 5 skips ✅
 ```
 
-### ❌ FOUND AND FIXED
+### ❌ FOUND AND FIXED (2 Issues)
 
 **2. SETUP.md Referenced Non-Existent Makefile Target**
 
@@ -52,6 +52,28 @@ make setup-gpu:
 3. ✅ "What Gets Installed" section - merged PyG into GPU Extensions
 4. ✅ Critical DON'Ts section - updated PyG installation guidance
 
+**3. Main Docs Referenced Archived Stability Documents**
+
+**Problem:**
+- STATUS.md, CLAUDE.md, CHANGELOG.md referenced:
+  - `ARCHITECTURAL_STABILITY_INVESTIGATION.md` (archived)
+  - `NAN-PROTECTION-REFERENCE.md` (archived)
+- These docs exist in `archived_docs/` but not in root or current docs/
+
+**Current Versions Found:**
+```
+✅ docs/04-model/v3-stability-evolution.md (replaces ARCHITECTURAL_STABILITY_INVESTIGATION.md)
+✅ docs/08-operations/nan-prevention-complete.md (replaces NAN-PROTECTION-REFERENCE.md)
+```
+
+**Locations Fixed:**
+1. ✅ STATUS.md - Updated 2 references to point to docs/
+2. ✅ CLAUDE.md - Updated 2 references to point to docs/
+3. ✅ CHANGELOG.md - Updated 2 references to point to docs/
+4. ✅ docs/04-model/laplacian-pe.md - Updated 1 reference
+5. ✅ docs/08-operations/nan-prevention-complete.md - Updated 1 reference
+6. ✅ Historical docs - Added notes pointing to current locations
+
 ---
 
 ## 📊 Complete Verification Matrix
@@ -62,6 +84,8 @@ make setup-gpu:
 | 5 skips | STATUS.md | Test output shows 2+3 = 5 skips | ✅ ACCURATE |
 | `make setup-pyg` exists | SETUP.md | Searched Makefile → NOT FOUND | ❌ FIXED |
 | PyG installed by `setup-gpu` | SETUP.md | Checked Makefile → CONFIRMED | ✅ NOW ACCURATE |
+| Stability docs in root | STATUS.md, CLAUDE.md | Found in docs/, not root | ❌ FIXED |
+| Current doc paths | Multiple files | All updated to docs/ paths | ✅ NOW ACCURATE |
 | v3.4.1 release exists | Multiple | GitHub tag/release verified | ✅ ACCURATE |
 | All refactor plans verified | STATUS.md | Deep code audit completed | ✅ ACCURATE |
 
@@ -155,18 +179,23 @@ make test  # Should show 428 tests passing
 ### What Was Wrong
 1. ❌ SETUP.md told users to run non-existent `make setup-pyg`
 2. ❌ Documentation implied PyG needed separate installation step
+3. ❌ Main docs referenced archived stability documents (wrong paths)
+4. ❌ STATUS.md, CLAUDE.md pointed to root files that were in docs/
 
 ### What Was Right
 1. ✅ Test count (428) was accurate
 2. ✅ Skip count (5) was accurate
 3. ✅ v3.4.1 release documentation was correct
 4. ✅ Refactor plan audits were accurate
+5. ✅ Current stability docs exist and are up-to-date
 
 ### What We Fixed
 1. ✅ Removed all references to `make setup-pyg`
 2. ✅ Updated SETUP.md to reflect actual `make setup-gpu` behavior
 3. ✅ Clarified that PyG is included in GPU setup (not separate)
-4. ✅ Verified installation flow matches Makefile reality
+4. ✅ Fixed all archived doc references to point to current locations
+5. ✅ Updated 9 files with correct documentation paths
+6. ✅ Verified installation flow matches Makefile reality
 
 ---
 
