@@ -134,7 +134,6 @@ class TestFocalGammaWarmup:
         assert gamma_at_100 == 1.0
 
 
-
 class TestWarmupEdgeCases:
     """Test edge cases and boundary conditions."""
 
