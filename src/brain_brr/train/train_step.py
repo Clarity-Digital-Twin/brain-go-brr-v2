@@ -168,7 +168,7 @@ def train_epoch(
 
             optimizer.zero_grad(set_to_none=True)
 
-            with torch.amp.autocast(device_type=device, enabled=use_amp):  # type: ignore[attr-defined]
+            with torch.amp.autocast(device_type=device, enabled=(use_amp and device == "cuda")):  # type: ignore[attr-defined]
                 logits = model(windows)
 
                 if loss_mode == "focal":
