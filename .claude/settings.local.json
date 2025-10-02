@@ -68,5 +68,6 @@
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "outputStyle": "default"
 }
