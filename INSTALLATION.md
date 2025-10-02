@@ -34,7 +34,14 @@ sudo apt-get install -y cuda-toolkit-12-4
 
 **Note**: PyTorch 2.5.0+cu124 includes CUDA 12.4 **runtime** but not the **toolkit**. The toolkit is needed to compile CUDA extensions like mamba-ssm.
 
-#### 2. Install UV Package Manager
+#### 2. Install Build Tools
+```bash
+# Required for compiling CUDA extensions
+sudo apt-get update
+sudo apt-get install -y build-essential ninja-build cmake
+```
+
+#### 3. Install UV Package Manager
 ```bash
 # Install uv if not present
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -64,29 +71,32 @@ print('✅ TCN imported')
 
 ### Manual Installation (if make fails)
 ```bash
-# 1. Create venv with uv
+# 1. Ensure build tools are installed
+sudo apt-get install -y build-essential ninja-build cmake
+
+# 2. Create venv with uv
 uv sync
 
-# 2. Set CUDA environment for building extensions
+# 3. Set CUDA environment for building extensions
 export CUDA_HOME=/usr/local/cuda-12.4
 export PATH=$CUDA_HOME/bin:$PATH
 export LD_LIBRARY_PATH=$CUDA_HOME/lib64:${LD_LIBRARY_PATH:-}
 export TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9"  # A100/RTX 3000/4000 series
 
-# 3. Install Mamba-SSM (FORCE SOURCE BUILD to avoid cached wrong-CUDA wheels)
+# 4. Install Mamba-SSM (FORCE SOURCE BUILD to avoid cached wrong-CUDA wheels)
 rm -rf ~/.cache/uv ~/.cache/pip  # Clear caches to avoid stale wheels
 uv pip install --no-build-isolation --no-binary causal-conv1d causal-conv1d==1.5.2
 uv pip install --no-build-isolation --no-binary mamba-ssm mamba-ssm==2.2.5
 
-# 4. Install PyG with pre-built wheels (AVOID COMPILATION)
+# 5. Install PyG with pre-built wheels (AVOID COMPILATION)
 .venv/bin/pip install torch_scatter torch_sparse torch_cluster torch_spline_conv \
   -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
 .venv/bin/pip install torch-geometric==2.6.1
 
-# 5. Install TCN
+# 6. Install TCN
 uv pip install pytorch-tcn==1.2.3
 
-# 6. Verify CUDA kernels are working
+# 7. Verify CUDA kernels are working
 python -c "import torch; from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; print('✅ Mamba CUDA kernels working!')"
 ```
 

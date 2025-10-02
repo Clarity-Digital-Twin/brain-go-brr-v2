@@ -161,6 +161,9 @@ setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.4)
 		echo "${YELLOW}See INSTALLATION.md for full instructions${NC}"; \
 		exit 1; \
 	fi
+	@echo "${CYAN}Checking build toolchain...${NC}"
+	@command -v gcc >/dev/null 2>&1 || { echo "${RED}gcc not found! Install: sudo apt-get install -y build-essential${NC}"; exit 1; }
+	@command -v ninja >/dev/null 2>&1 || { echo "${YELLOW}ninja not found (recommended). Install: sudo apt-get install -y ninja-build${NC}"; }
 	@echo "${CYAN}Clearing UV/pip caches (prevents stale CUDA wheels)...${NC}"
 	@rm -rf ~/.cache/uv ~/.cache/pip 2>/dev/null || true
 	@echo "${CYAN}Installing Mamba-SSM components (building from source)...${NC}"
@@ -176,9 +179,9 @@ setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.4)
 	@echo "${CYAN}Installing TCN...${NC}"
 	@uv pip install pytorch-tcn==1.2.3
 	@echo "${CYAN}Verifying GPU stack...${NC}"
-	@.venv/bin/python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; print('${GREEN}✓ Mamba-SSM CUDA kernels working${NC}')" || echo "${RED}⚠️  Mamba-SSM CUDA failed${NC}"
-	@.venv/bin/python -c "import torch_geometric; print(f'${GREEN}✓ PyG {torch_geometric.__version__} installed${NC}')" || echo "${RED}⚠️  PyG failed${NC}"
-	@.venv/bin/python -c "import pytorch_tcn; print('${GREEN}✓ TCN installed${NC}')" || echo "${RED}⚠️  TCN failed${NC}"
+	@.venv/bin/python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; print('${GREEN}✓ Mamba-SSM CUDA kernels working${NC}')"
+	@.venv/bin/python -c "import torch_geometric; print(f'${GREEN}✓ PyG {torch_geometric.__version__} installed${NC}')"
+	@.venv/bin/python -c "import pytorch_tcn; print('${GREEN}✓ TCN installed${NC}')"
 	@echo "${GREEN}✓ GPU stack ready (TCN + BiMamba + GNN + LPE; V3)${NC}"
 
 hooks: ## Run pre-commit hooks on all files
