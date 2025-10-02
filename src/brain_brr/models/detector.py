@@ -17,10 +17,14 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn as nn
 
+from .builders import (
+    build_edge_stream,
+    build_fusion_head,
+    build_node_stream,
+    build_regularizers,
+)
 from .debug_utils import assert_finite
-from .fusion import GatedFusion, MultiHeadGatedFusion
 from .mamba import BiMamba2
-from .norms import LayerScale, create_norm_layer
 from .tcn import ProjectionHead, TCNEncoder
 
 if TYPE_CHECKING:  # Only for type checkers; avoids runtime import cycle
@@ -440,9 +444,20 @@ class SeizureDetector(nn.Module):
     ) -> "SeizureDetector":
         """Instantiate from validated schema config (V3).
 
+        Refactored to use builder helpers for SRP compliance.
+        Each builder encapsulates construction of one component family.
+
         Args:
             cfg: Model configuration
             warmup_schedule: Optional warmup schedule for gradient stabilization
+
+        Returns:
+            Configured SeizureDetector instance
+
+        Notes:
+            - from_config reduced from 199 → ~100 lines via builder extraction
+            - Builders maintain identical behavior, just better organization
+            - All attribute names unchanged (checkpoint compatibility preserved)
         """
         instance = cls(
             tcn_layers=cfg.tcn.num_layers,
@@ -455,167 +470,64 @@ class SeizureDetector(nn.Module):
             mamba_dropout=cfg.mamba.dropout,
         )
 
-        # Set architecture
         instance.architecture = cfg.architecture
         instance.config["architecture"] = cfg.architecture
 
-        # Build v3-specific components if v3 architecture
         if cfg.architecture == "v3":
-            # V3: Dual-stream architecture
-            graph_cfg = cfg.graph  # Required for v3
+            graph_cfg = cfg.graph
 
-            # Node stream: per-electrode Mamba
-            # headdim=8 ensures (64 * 2) / 8 = 16 which is multiple of 8
-            # PR-1: Pass LayerScale config to Mamba layers
-            norms_cfg = getattr(cfg, "norms", None)
-            use_layerscale_mamba = bool(norms_cfg and norms_cfg.boundary_norm != "none")
-            layerscale_init = float(norms_cfg.layerscale_alpha if norms_cfg else 0.1)
+            instance.node_mamba = build_node_stream(cfg)
 
-            instance.node_mamba = BiMamba2(
-                d_model=64,
-                d_state=16,  # Fixed for node stream
-                d_conv=4,
-                expand=2,
-                headdim=8,  # Critical: (64*2)/8 = 16 is multiple of 8
-                num_layers=6,  # Fixed for node stream
-                dropout=cfg.mamba.dropout,
-                use_layerscale=use_layerscale_mamba,
-                layerscale_init=layerscale_init,
-            )
+            edge_components = build_edge_stream(cfg)
+            instance.edge_mamba = edge_components.edge_mamba
+            instance.edge_in_proj = edge_components.edge_in_proj
+            instance.edge_out_proj = edge_components.edge_out_proj
+            instance.edge_activate = edge_components.edge_activate
+            instance.edge_lift_act = edge_components.edge_lift_act
+            instance.edge_lift_norm = edge_components.edge_lift_norm
 
-            # Edge stream: per-edge Mamba (learned lift 1→D→1)
-            edge_layers = graph_cfg.edge_mamba_layers if graph_cfg else 2
-            edge_d_state = graph_cfg.edge_mamba_d_state if graph_cfg else 8
-            edge_d_model = graph_cfg.edge_mamba_d_model if graph_cfg else 16
-
-            # Safety assertions for CUDA kernel alignment
-            assert edge_d_model % 8 == 0, (
-                f"edge_mamba_d_model must be multiple of 8 for CUDA, got {edge_d_model}"
-            )
-            assert edge_d_model > 0, f"edge_mamba_d_model must be positive, got {edge_d_model}"
-
-            # headdim=4 ensures (16 * 2) / 4 = 8 which is multiple of 8
-            instance.edge_mamba = BiMamba2(
-                d_model=edge_d_model,
-                d_state=edge_d_state,
-                d_conv=4,
-                expand=2,
-                headdim=4,  # Critical: (16*2)/4 = 8 is multiple of 8
-                num_layers=edge_layers,
-                dropout=cfg.mamba.dropout,
-                use_layerscale=use_layerscale_mamba,
-                layerscale_init=layerscale_init,
-            )
-
-            # Edge stream projections (learned lift/project) + activation
-            instance.edge_in_proj = nn.Conv1d(1, edge_d_model, kernel_size=1, bias=False)
-            instance.edge_out_proj = nn.Conv1d(edge_d_model, 1, kernel_size=1, bias=True)
-            instance.edge_activate = nn.Softplus()
-
-            # PR-2: Bounded edge stream components
-            edge_lift_activation = graph_cfg.edge_lift_activation if graph_cfg else "none"
-            edge_lift_norm = graph_cfg.edge_lift_norm if graph_cfg else "none"
-            edge_lift_gain = graph_cfg.edge_lift_init_gain if graph_cfg else 0.1
-
-            # Create activation function
-            if edge_lift_activation == "tanh":
-                instance.edge_lift_act = nn.Tanh()
-            elif edge_lift_activation == "sigmoid":
-                instance.edge_lift_act = nn.Sigmoid()
-            elif edge_lift_activation == "selu":
-                instance.edge_lift_act = nn.SELU()
-            else:
-                instance.edge_lift_act = None
-
-            # Create normalization layer
-            instance.edge_lift_norm = create_norm_layer(edge_lift_norm, edge_d_model)
-
-            # Initialize edge projections with configured gain
-            nn.init.xavier_uniform_(instance.edge_in_proj.weight, gain=edge_lift_gain)
-            if instance.edge_out_proj.bias is not None:
-                nn.init.zeros_(instance.edge_out_proj.bias)
-            nn.init.xavier_uniform_(instance.edge_out_proj.weight, gain=edge_lift_gain)
-
-            # Projections for electrode space
             instance.proj_to_electrodes = nn.Conv1d(512, 19 * 64, kernel_size=1)
             instance.proj_from_electrodes = nn.Conv1d(19 * 64, 512, kernel_size=1)
 
-            # Store edge config in instance.config
             if graph_cfg:
                 instance.config["edge_metric"] = graph_cfg.edge_features
                 instance.config["edge_similarity_margin"] = graph_cfg.edge_similarity_margin
                 instance.config["edge_top_k"] = graph_cfg.edge_top_k
                 instance.config["edge_threshold"] = graph_cfg.edge_threshold
 
-            # PR-1: Initialize boundary normalization layers if configured
-            norms_cfg = getattr(cfg, "norms", None)
-            if norms_cfg and norms_cfg.boundary_norm != "none":
-                # Create normalization layers at component boundaries
-                if norms_cfg.after_tcn_proj:
-                    instance.norm_after_proj_to_electrodes = create_norm_layer(
-                        norms_cfg.boundary_norm, 64, norms_cfg.boundary_eps
-                    )
-                if norms_cfg.after_node_mamba:
-                    instance.norm_after_node_mamba = create_norm_layer(
-                        norms_cfg.boundary_norm, 64, norms_cfg.boundary_eps
-                    )
-                if norms_cfg.after_edge_mamba:
-                    # Edge stream has 16 dimensions
-                    instance.norm_after_edge_mamba = create_norm_layer(
-                        norms_cfg.boundary_norm, edge_d_model, norms_cfg.boundary_eps
-                    )
-                if norms_cfg.after_gnn:
-                    instance.norm_after_gnn = create_norm_layer(
-                        norms_cfg.boundary_norm, 64, norms_cfg.boundary_eps
-                    )
-                if norms_cfg.before_decoder:
-                    instance.norm_before_decoder = create_norm_layer(
-                        norms_cfg.boundary_norm, 512, norms_cfg.boundary_eps
-                    )
+            edge_d_model = graph_cfg.edge_mamba_d_model if graph_cfg else 16
+            reg_components = build_regularizers(cfg, edge_d_model)
+            instance.norm_after_proj_to_electrodes = reg_components.norm_after_proj_to_electrodes
+            instance.norm_after_node_mamba = reg_components.norm_after_node_mamba
+            instance.norm_after_edge_mamba = reg_components.norm_after_edge_mamba
+            instance.norm_after_gnn = reg_components.norm_after_gnn
+            instance.norm_before_decoder = reg_components.norm_before_decoder
+            instance.gnn_layerscale = reg_components.gnn_layerscale
 
-                # Initialize LayerScale for GNN residual if configured
-                if graph_cfg and graph_cfg.use_residual:
-                    instance.gnn_layerscale = LayerScale(64, norms_cfg.layerscale_alpha)
+        instance.fusion_type, instance.fusion = build_fusion_head(cfg)
 
-        # PR-4: Initialize fusion module if configured
-        fusion_cfg = getattr(cfg, "fusion", None)
-        if fusion_cfg:
-            instance.fusion_type = fusion_cfg.fusion_type
-            if fusion_cfg.fusion_type == "gated":
-                instance.fusion = GatedFusion(64, fusion_cfg.fusion_dropout)
-            elif fusion_cfg.fusion_type == "multihead":
-                instance.fusion = MultiHeadGatedFusion(
-                    64, fusion_cfg.fusion_heads, fusion_cfg.fusion_dropout
-                )
-            # else: keep None for default additive fusion
-
-        # Optionally attach GNN components if enabled
         graph_cfg = getattr(cfg, "graph", None)
         instance.use_gnn = bool(graph_cfg and graph_cfg.enabled)
 
         if instance.use_gnn and graph_cfg is not None:
-            # ONLY PyG implementation with Laplacian PE is supported
             try:
                 from .gnn_pyg import GraphChannelMixerPyG
 
-                # V3 uses vectorized GNN with configurable PE
                 is_v3 = True
                 instance.gnn = GraphChannelMixerPyG(
-                    d_model=64,  # Per-electrode feature dimension
+                    d_model=64,
                     n_electrodes=19,
                     k_eigenvectors=graph_cfg.k_eigenvectors,
                     alpha=graph_cfg.alpha,
-                    k_hops=2,  # 2-hop neighborhood
+                    k_hops=2,
                     n_layers=graph_cfg.n_layers,
                     dropout=graph_cfg.dropout,
-                    # v3.4.0: Disable internal residuals; external LayerScale handles it
-                    use_residual=False,  # Changed from graph_cfg.use_residual
-                    use_vectorized=is_v3,  # V3: vectorized batching
-                    use_dynamic_pe=graph_cfg.use_dynamic_pe,  # Configurable PE mode
-                    bypass_edge_transform=is_v3,  # V3: skip since we have Softplus upstream
+                    use_residual=False,
+                    use_vectorized=is_v3,
+                    use_dynamic_pe=graph_cfg.use_dynamic_pe,
+                    bypass_edge_transform=is_v3,
                     semi_dynamic_interval=graph_cfg.semi_dynamic_interval,
                     pe_sign_consistency=graph_cfg.pe_sign_consistency,
-                    # PR-3: Adjacency conditioning parameters
                     adj_row_softmax=graph_cfg.adj_row_softmax,
                     adj_softmax_tau=graph_cfg.adj_softmax_tau,
                     adj_ema_beta=graph_cfg.adj_ema_beta,
@@ -626,10 +538,10 @@ class SeizureDetector(nn.Module):
                 )
             except ImportError as e:
                 raise ImportError(
-                    "PyTorch Geometric not installed. GNN requires PyG. Install from prebuilt wheels for torch 2.5.0+cu124 (see INSTALLATION.md) or run 'make setup-gpu'"
+                    "PyTorch Geometric not installed. GNN requires PyG. "
+                    "Install from prebuilt wheels for torch 2.5.0+cu124 "
+                    "(see INSTALLATION.md) or run 'make setup-gpu'"
                 ) from e
-
-            # V3 creates projections above
 
         return instance
 
