@@ -1,63 +1,66 @@
 # Structural Debt Audit — 2025-10-02
 
-Senior auditor sweep for oversized/monolithic Python modules. No code was modified; this document records refactor targets for future sprints.
+Senior auditor sweep for oversized/monolithic Python modules. No code was modified; this document records refactor targets for future sprints and links to detailed action plans.
 
 ## Summary
-- Originally identified five hotspots where function length or responsibility density violates our SOLID/clean-code bar.
-- **Status Update (2025-10-02):** ✅ loop.py refactoring COMPLETED (958 → 640 lines, 33% reduction)
-- **Remaining:** 4 hotspots (detector.py, metrics.py, cli.py, io.py)
-- Individual refactoring plans created for each remaining file (see root directory)
+- Originally identified five hotspots where function length or responsibility density violated our SOLID/clean-code bar.
+- **Status Update (2025-10-02):** ✅ loop.py refactoring completed (958 → 640 lines, 33% reduction) with Sequence 4 documentation updated.
+- **Remaining:** 4 hotspots (detector.py, metrics.py, cli.py, io.py) now have dedicated refactor playbooks drafted for consensus: `REFACTOR_DETECTOR_PY.md`, `REFACTOR_METRICS_PY.md`, `REFACTOR_CLI_PY.md`, `REFACTOR_IO_PY.md`.
+- Next step: secure agreement on each plan, then execute one refactor at a time with regression gates defined in the playbooks.
 
 ## Hotspot Details
 
-### ✅ 1. `src/brain_brr/train/loop.py` (COMPLETED 2025-10-02)
-- **Original State:** `train_epoch` 606 lines, `train` 260 lines, `main` 332 lines — total 958 lines
-- **Final State:** loop.py reduced to 640 lines (33% reduction)
-- **What Was Done:**
-  - ✅ Extracted utilities to focused modules (warmup.py, sampling.py, losses.py, optimizer_factory.py, early_stopping.py)
-  - ✅ train_epoch/validate_epoch already in train_step.py/val_step.py
-  - ✅ Checkpoint management in checkpoint.py
-  - ✅ 100% test pass rate maintained
-  - ✅ Full SOLID compliance achieved
-- **Status:** PRODUCTION READY - No further refactoring needed
-- **Commit:** 36055df
+### ✅ 1. `src/brain_brr/train/loop.py` — COMPLETED 2025-10-02
+- **Original:** `train_epoch` 606 lines, `train` 260 lines, `main` 332 lines — total 958 lines.
+- **Final:** loop.py reduced to 640 lines (33% reduction) after extracting warmup, sampling, losses, optimizer, early-stopping utilities, and keeping train/validate logic in dedicated modules.
+- **Verification:** Full suite (unit, integration, clinical) plus type and lint checks pass; streaming validation retains 77% memory reduction.
+- **Reference:** Commit `36055df`, EXECUTION_PLAN_2025-10-02.md Sequence 4 marked complete.
 
-### 2. `src/brain_brr/models/detector.py` (PLANNED - See REFACTOR_DETECTOR_PY.md)
-- **Functions:** `forward` 186 lines (#247) and `from_config` 198 lines (#436).
-- **Why it matters:** `forward` interleaves feature extraction, sanitisation, fusion, and multiple tiers of clamping; `from_config` instantiates every optional component (TCN, Mamba, GNN, fusion, LayerScale) in one method. This breaches SRP and obscures invariants for future architecture tweaks.
-- **Action:** Introduce helper builders (e.g., `_build_node_stream`, `_build_edge_stream`) and decompose the forward pass into composable stages. Add targeted unit tests around each stage before refactor.
+### 2. `src/brain_brr/models/detector.py` — PLAN READY (see `REFACTOR_DETECTOR_PY.md`)
+- **Pain Points:** `forward` (≈186 lines) blends preprocessing, dual-stream fusion, monitoring, and clamping; `from_config` (≈198 lines) instantiates TCN, BiMamba, GNN, fusion heads, and PR toggles in one block.
+- **Refactor Strategy:**
+  - Phase 1 extracts builder helpers (`_build_node_stream`, `_build_edge_stream`, `_build_fusion_head`, `_build_regularizers`).
+  - Phase 2 decomposes `forward` into pipeline helpers (`_prepare_inputs`, `_run_node_stream`, `_run_edge_stream`, `_apply_fusion`, `_apply_postprocess`).
+  - Includes baseline state_dict snapshot, regression tests for helper outputs, and rollback plan.
+- **Status:** Awaiting consensus prior to implementation.
 
-### 3. `src/brain_brr/eval/metrics.py` (PLANNED - See REFACTOR_METRICS_PY.md)
-- **Function:** `evaluate_predictions` 159 lines (#408).
-- **Why it matters:** Bloated evaluation routine couples hysteresis thresholds, FA sweeps, AUROC, and timeline stitching. This combines multiple concerns (timeline reconstruction, threshold search, metric computation) that should be separated.
-- **Action:** Carve out timeline assembly and metric reducers into discrete helpers. Add regression tests for multi-record evaluation to prevent recurrence.
+### 3. `src/brain_brr/eval/metrics.py` — PLAN READY (see `REFACTOR_METRICS_PY.md`)
+- **Pain Point:** `evaluate_predictions` (≈159 lines) couples timeline assembly, FA sweeps, scalar metrics, and output formatting, hindering testability.
+- **Refactor Strategy:**
+  - Timeline helpers isolate hysteresis/morphology/merge logic.
+  - False-alarm sweep helper preserves current conservative counting while documenting TODO for unique FA logic.
+  - Scalar reducers and output formatter provide composable stages with dedicated unit tests.
+  - Regression uses golden JSON fixtures from integration tests.
+- **Status:** Awaiting consensus before code changes.
 
-### 4. `src/brain_brr/cli/cli.py` (PLANNED - See REFACTOR_CLI_PY.md)
-- **Function:** `evaluate` 223 lines (#316).
-- **Why it matters:** CLI command handles dry-run scaffolding, checkpoint IO, dataset creation, inference, metric display, and CSV export in one function. Difficult to reuse and nearly impossible to unit test.
-- **Action:** Extract service-layer helpers (`load_checkpoint`, `run_inference`, `export_reports`) and keep the Click command thin. Cover with integration tests invoking these helpers directly.
+### 4. `src/brain_brr/cli/cli.py` — PLAN READY (see `REFACTOR_CLI_PY.md`)
+- **Pain Point:** `evaluate` command (≈223 lines) intermixes CLI parsing, checkpoint IO, dataloader creation, inference, metrics, and export logic.
+- **Refactor Strategy:**
+  - Introduce `src/brain_brr/cli/services/` with evaluation/training helpers.
+  - Thin Click commands to parse-and-delegate while preserving UX.
+  - New service-layer unit tests plus existing CLI tests ensure parity.
+- **Status:** Plan drafted; waiting on alignment before extracting helpers.
 
-### 5. `src/brain_brr/data/io.py` (PLANNED - See REFACTOR_IO_PY.md)
-- **Function:** `load_edf_file` 152 lines (#54).
-- **Why it matters:** Performs file resolution, EDF reading, resampling, filtering, channel ordering, and label alignment in a single block. Violates SRP and complicates targeted instrumentation (e.g., profiling individual stages).
-- **Action:** Split into pipeline steps (read → resample → filter → normalise → label sync). Add unit tests per stage using lightweight synthetic signals.
+### 5. `src/brain_brr/data/io.py` — PLAN READY (see `REFACTOR_IO_PY.md`)
+- **Pain Point:** `load_edf_file` (≈152 lines) performs path resolution, EDF read, resample, filtering, channel reordering, interpolation, and label alignment inline.
+- **Refactor Strategy:**
+  - Break pipeline into helpers for path resolution, EDF read, resample, filters, channel ordering/interpolation, label alignment, and output packaging.
+  - Add synthetic-signal unit tests per stage; regression compares cached outputs with `numpy.allclose`.
+- **Status:** Plan drafted; execution scheduled post-consensus.
 
 ## Progress Summary
 
 | File | Status | Plan Document | Priority |
 |------|--------|---------------|----------|
-| ✅ loop.py | COMPLETED | ✅ Done (640 lines, 33% reduction) | N/A |
-| detector.py | PLANNED | REFACTOR_DETECTOR_PY.md | HIGH |
-| metrics.py | PLANNED | REFACTOR_METRICS_PY.md | HIGH |
-| cli.py | PLANNED | REFACTOR_CLI_PY.md | MEDIUM |
-| io.py | PLANNED | REFACTOR_IO_PY.md | MEDIUM |
+| `train/loop.py` | ✅ Completed | EXECUTION_PLAN_2025-10-02.md (Sequence 4) | N/A |
+| `models/detector.py` | 📝 Planned | `REFACTOR_DETECTOR_PY.md` | High |
+| `eval/metrics.py` | 📝 Planned | `REFACTOR_METRICS_PY.md` | High |
+| `cli/cli.py` | 📝 Planned | `REFACTOR_CLI_PY.md` | Medium |
+| `data/io.py` | 📝 Planned | `REFACTOR_IO_PY.md` | Medium |
 
-## Notes
-- ✅ loop.py refactoring completed 2025-10-02 (Sequence 4)
-- Individual refactoring plans created for each remaining file
-- Each plan includes explicit steps, validation criteria, and rollback strategy
-- Other large files (`utils/training_logger.py`, `utils/logging_config.py`, `models/gnn_pyg.py`) are long due to multiple short helpers and currently read clean; no immediate action.
-- Wait for AI agent consensus on refactoring plans before implementation
+## Next Actions
+- Review each refactor plan with engineering leads; capture sign-off in STATUS.md.
+- Once approved, schedule refactors sequentially (detector → metrics → CLI → IO) with regression checkpoints outlined in each document.
+- Update TODO.md as phases begin/complete to keep debt tracker current.
 
-Document owner: Codex senior auditor (2025-10-02).
-Last updated: 2025-10-02 (loop.py completion)
+Document owner: Codex senior auditor (updated 2025-10-02 after drafting refactor playbooks).
