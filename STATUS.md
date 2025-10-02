@@ -30,12 +30,14 @@
 | `REFACTOR_DETECTOR_PY.md` | ✅ VERIFIED | 100% accurate, ready to implement |
 | `REFACTOR_METRICS_PY.md` | ✅ VERIFIED | 100% accurate, ready to implement |
 | `REFACTOR_CLI_PY.md` | ✅ VERIFIED | Minor fix applied, ready to implement |
-| `REFACTOR_IO_PY.md` | ❌ BLOCKED | Critically flawed - AI hallucinated operations that don't exist |
+| `REFACTOR_IO_PY.md` | ✅ REWRITTEN | Complete rewrite based on actual code - LOW PRIORITY |
 
 **Critical Discovery**:
-- `REFACTOR_IO_PY.md` incorrectly claimed `load_edf_file()` does resampling, filtering, and label alignment
-- **Reality**: Function only does EDF reading, channel normalization, and interpolation
-- Plan marked as BLOCKED, requires complete rewrite before implementation
+- Original `REFACTOR_IO_PY.md` was COMPLETELY WRONG (AI hallucinated operations)
+- Traced ACTUAL pipeline: io.py → preprocess.py → datasets.py
+- Resampling/filtering happen in `preprocess.py`, NOT in `load_edf_file()`
+- **Reality**: Function is already well-organized (94% coverage, 153 lines)
+- Plan rewritten based on real code - minimal refactoring needed, if any
 
 **Documentation Created**:
 - `REFACTOR_AUDIT_REPORT_2025-10-02.md` - Full audit findings
