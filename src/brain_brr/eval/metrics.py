@@ -719,7 +719,7 @@ def calculate_taes_metrics(
     # Create dummy metadata: treat all windows as from single recording
     n_windows = predictions.shape[0]
     file_ids = ["test_recording"] * n_windows
-    window_starts = [i * constants.STRIDE_SIZE_SEC for i in range(n_windows)]
+    window_starts = [float(i * constants.STRIDE_SIZE_SEC) for i in range(n_windows)]
     metrics = evaluate_predictions(
         predictions,
         labels,
