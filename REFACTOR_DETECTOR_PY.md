@@ -5,8 +5,8 @@ Owner: Senior ML auditor (Codex)
 Scope: SeizureDetector construction + forward orchestration
 
 ## 1. Context & Problem Statement
-- `forward` (~186 lines) interleaves feature extraction, dual-stream fusion, residual safety rails, and multiple clamping paths. Mixing tensor sanitisation with fusion logic obscures invariants and complicates future architecture changes.
-- `from_config` (~198 lines) constructs every optional component (TCN, BiMamba, GNN, fusion heads, LayerScale, PR toggles) within a single method, with nested branching and duplicated defaults.
+- `forward` (≈187 lines, current span 247–433) interleaves feature extraction, dual-stream fusion, residual safety rails, and multiple clamping paths. Mixing tensor sanitisation with fusion logic obscures invariants and complicates future architecture changes.
+- `from_config` (≈199 lines, current span 436–634) constructs every optional component (TCN, BiMamba, GNN, fusion heads, LayerScale, PR toggles) within a single method, with nested branching and duplicated defaults.
 - Cross-cutting responsibilities make the module risky to modify, hard to unit test in isolation, and difficult to extend for V4 features.
 
 ## 2. Goals
