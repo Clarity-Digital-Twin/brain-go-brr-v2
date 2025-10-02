@@ -51,6 +51,7 @@ from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.checkpoint import load_checkpoint, save_checkpoint
 from src.brain_brr.train.train_step import train_epoch
 from src.brain_brr.train.train_utils import set_seed, worker_init_fn
+from src.brain_brr.train.val_step import validate_epoch
 from src.brain_brr.train.wandb_integration import WandBLogger
 from src.brain_brr.utils.env import env
 
