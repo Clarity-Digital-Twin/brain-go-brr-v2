@@ -248,23 +248,208 @@ class SeizureDetector(nn.Module):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
+    def _run_node_stream(self, features: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Run node stream: project to electrodes → BiMamba → normalize.
+
+        Args:
+            features: TCN output (B, 512, T)
+
+        Returns:
+            Tuple of (electrode_features, node_processed_features)
+            - electrode_features: (B, 19, T, 64) for edge stream input
+            - node_processed_features: (B, 19, T, 64) BiMamba output
+
+        Notes:
+            - Extracts per-electrode features from TCN bottleneck
+            - Applies per-electrode BiMamba temporal modeling
+            - Applies boundary normalization if configured
+        """
+        batch_size, _, seq_len = features.shape
+
+        elec_flat = self.proj_to_electrodes(features)
+        assert_finite("proj_to_electrodes", elec_flat)
+        elec_feats = elec_flat.reshape(batch_size, 19, 64, seq_len).permute(0, 1, 3, 2)
+
+        if self.norm_after_proj_to_electrodes:
+            elec_feats = self.norm_after_proj_to_electrodes(elec_feats)
+
+        node_flat = (
+            elec_feats.permute(0, 1, 3, 2).reshape(batch_size * 19, 64, seq_len).contiguous()
+        )
+        node_processed = self.node_mamba(node_flat)
+        assert_finite("node_mamba", node_processed)
+        node_feats = node_processed.reshape(batch_size, 19, 64, seq_len).permute(0, 1, 3, 2)
+
+        if self.norm_after_node_mamba:
+            node_feats = self.norm_after_node_mamba(node_feats)
+
+        return elec_feats, node_feats
+
+    def _run_edge_stream(self, elec_feats: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Run edge stream: compute similarities → BiMamba → adjacency.
+
+        Args:
+            elec_feats: Electrode features (B, 19, T, 64)
+
+        Returns:
+            Tuple of (edge_weights, adjacency_matrix)
+            - edge_weights: (B, 171, T) learned edge importances
+            - adjacency_matrix: (B, T, 19, 19) assembled adjacency
+
+        Notes:
+            - Computes pairwise electrode similarities (171 edges)
+            - Applies learned lift/project via BiMamba
+            - Assembles adjacency via top-k + threshold
+        """
+        from .edge_features import assemble_adjacency, edge_scalar_series
+
+        batch_size, _, seq_len, _ = elec_feats.shape
+
+        edge_metric = str(self.config.get("edge_metric", "cosine"))
+        edge_similarity_margin = 0.01
+        if "edge_similarity_margin" in self.config:
+            margin_val = self.config["edge_similarity_margin"]
+            if isinstance(margin_val, (int, float)):
+                edge_similarity_margin = float(margin_val)
+
+        edge_feats = edge_scalar_series(
+            elec_feats, metric=edge_metric, edge_similarity_margin=edge_similarity_margin
+        )
+
+        if __debug__:
+            lo, hi = edge_feats.amin(), edge_feats.amax()
+            assert torch.isfinite(lo), "Non-finite minimum in edge features"
+            assert torch.isfinite(hi), "Non-finite maximum in edge features"
+            assert lo >= -1.001, f"Edge features lower bound violation: {lo}"
+            assert hi <= 1.001, f"Edge features upper bound violation: {hi}"
+
+        edge_flat = edge_feats.squeeze(-1).reshape(batch_size * 171, 1, seq_len)
+        edge_in = self.edge_in_proj(edge_flat).contiguous()
+
+        if hasattr(self, "edge_lift_act") and self.edge_lift_act is not None:
+            edge_in = self.edge_lift_act(edge_in)
+            if hasattr(self, "edge_lift_norm") and self.edge_lift_norm is not None:
+                edge_in = edge_in.transpose(1, 2).contiguous()
+                edge_in = self.edge_lift_norm(edge_in)
+                edge_in = edge_in.transpose(1, 2).contiguous()
+        else:
+            edge_in = torch.clamp(edge_in, -3.0, 3.0)
+
+        assert edge_in.is_contiguous(), "edge_in must be contiguous for Mamba"
+        edge_processed = self.edge_mamba(edge_in)
+
+        if self.norm_after_edge_mamba:
+            edge_processed = edge_processed.transpose(1, 2).contiguous()
+            edge_processed = self.norm_after_edge_mamba(edge_processed)
+            edge_processed = edge_processed.transpose(1, 2).contiguous()
+
+        edge_out = self.edge_out_proj(edge_processed)
+        edge_weights = self.edge_activate(edge_out).reshape(batch_size, 171, seq_len)
+        assert_finite("edge_weights", edge_weights)
+
+        edge_top_k = cast(int, self.config.get("edge_top_k", 3))
+        edge_threshold = cast(float, self.config.get("edge_threshold", 1e-4))
+        adj = assemble_adjacency(
+            edge_weights, n_nodes=19, top_k=edge_top_k, threshold=edge_threshold
+        )
+        assert_finite("adjacency", adj)
+
+        return edge_weights, adj
+
+    def _apply_gnn_fusion(self, node_feats: torch.Tensor, adj: torch.Tensor) -> torch.Tensor:
+        """Apply GNN with LayerScale residual and fusion.
+
+        Args:
+            node_feats: Node features (B, 19, T, 64)
+            adj: Adjacency matrix (B, T, 19, 19)
+
+        Returns:
+            Enhanced features (B, 19, T, 64) after GNN + fusion
+
+        Notes:
+            - Applies GNN spatial mixing if enabled
+            - Adds LayerScale residual connection
+            - Applies gated fusion if configured
+            - Normalizes after GNN if configured
+        """
+        if self.gnn:
+            gnn_out = self.gnn(node_feats, adj)
+            if self.gnn_layerscale:
+                gnn_out_scaled = self.gnn_layerscale(gnn_out)
+                elec_enhanced = node_feats + gnn_out_scaled
+            else:
+                elec_enhanced = node_feats + gnn_out
+        else:
+            elec_enhanced = node_feats
+
+        assert_finite("gnn_out", elec_enhanced)
+
+        if self.norm_after_gnn:
+            elec_enhanced = self.norm_after_gnn(elec_enhanced)
+
+        if (
+            self.fusion is not None
+            and elec_enhanced is not node_feats
+            and self.fusion_type in ("gated", "multihead")
+        ):
+            elec_enhanced = self.fusion(node_feats, elec_enhanced)
+
+        return elec_enhanced
+
+    def _decode_and_sanitize(self, temporal: torch.Tensor) -> torch.Tensor:
+        """Decode to logits and apply final sanitization.
+
+        Args:
+            temporal: Temporal features (B, 512, T)
+
+        Returns:
+            Seizure logits (B, T) with NaN/Inf sanitization
+
+        Notes:
+            - Applies boundary normalization if configured
+            - Projects to 19 channels and upsamples to original resolution
+            - Clamps decoder features (tier 2) and logits (tier 3)
+            - Applies nan_to_num for robust training
+        """
+        if self.norm_before_decoder:
+            temporal = temporal.transpose(1, 2).contiguous()
+            temporal = self.norm_before_decoder(temporal)
+            temporal = temporal.transpose(1, 2).contiguous()
+
+        decoded = self.proj_head(temporal)
+        assert_finite("decoder_prelogits", decoded)
+
+        decoded = torch.nan_to_num(decoded, nan=0.0, posinf=50.0, neginf=-50.0)
+        decoded = torch.clamp(decoded, -50.0, 50.0)
+
+        output = self.detection_head(decoded)
+        assert_finite("final_logits", output)
+
+        output = torch.nan_to_num(output, nan=0.0, posinf=50.0, neginf=-50.0)
+        output = torch.clamp(output, -100.0, 100.0)
+
+        return output.squeeze(1)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass through TCN + Bi-Mamba architecture.
+
+        Refactored to use pipeline helpers for clarity and maintainability.
+        Each helper encapsulates one processing stage.
 
         Args:
             x: (B, 19, 15360) EEG window tensor
 
         Returns:
-            (B, 15360) per-sample seizure logits (raw scores).
+            (B, 15360) per-sample seizure logits
+
+        Notes:
+            - forward reduced from 187 → ~60 lines via pipeline extraction
+            - Helpers maintain identical behavior, just better organization
+            - All intermediate assertions preserved for stability monitoring
         """
-        # TCN encoder: extract multi-scale temporal features
-        features = self.tcn_encoder(x)  # (B, 512, 960)
+        features = self.tcn_encoder(x)
         assert_finite("tcn_out", features)
-        # Optional safety clamp after TCN
 
-        # PR-5: Removed conditional safe clamps (PR-1 norms provide stability)
-
-        # V3 dual-stream if components are present
         if (
             self.node_mamba
             and self.edge_mamba
@@ -274,167 +459,19 @@ class SeizureDetector(nn.Module):
             and self.edge_out_proj
             and self.edge_activate
         ):
-            # V3: Dual-stream architecture with learned adjacency
-            from .edge_features import assemble_adjacency, edge_scalar_series
-
             batch_size, _, seq_len = features.shape
 
-            # Project to electrode features
-            elec_flat = self.proj_to_electrodes(features)  # (B, 19*64, 960)
-            assert_finite("proj_to_electrodes", elec_flat)
-            elec_feats = elec_flat.reshape(batch_size, 19, 64, seq_len).permute(
-                0, 1, 3, 2
-            )  # (B, 19, 960, 64)
+            elec_feats, node_feats = self._run_node_stream(features)
+            _, adj = self._run_edge_stream(elec_feats)
+            elec_enhanced = self._apply_gnn_fusion(node_feats, adj)
 
-            # PR-1: Normalize after projection to electrodes
-            if self.norm_after_proj_to_electrodes:
-                elec_feats = self.norm_after_proj_to_electrodes(elec_feats)
-
-            # Node stream: per-electrode Mamba
-            node_flat = (
-                elec_feats.permute(0, 1, 3, 2).reshape(batch_size * 19, 64, seq_len).contiguous()
-            )  # (B*19, 64, 960) - ensure contiguous for CUDA
-            node_processed = self.node_mamba(node_flat)  # (B*19, 64, 960)
-            assert_finite("node_mamba", node_processed)
-            node_feats = node_processed.reshape(batch_size, 19, 64, seq_len).permute(
-                0, 1, 3, 2
-            )  # (B, 19, 960, 64)
-
-            # PR-1: Normalize after node Mamba
-            if self.norm_after_node_mamba:
-                node_feats = self.norm_after_node_mamba(node_feats)
-
-            # Edge stream: learned adjacency
-            edge_metric = str(self.config.get("edge_metric", "cosine"))
-            # Type-safe extraction with explicit cast
-            edge_similarity_margin = 0.01  # default
-            if "edge_similarity_margin" in self.config:
-                margin_val = self.config["edge_similarity_margin"]
-                if isinstance(margin_val, (int, float)):
-                    edge_similarity_margin = float(margin_val)
-            edge_feats = edge_scalar_series(
-                elec_feats, metric=edge_metric, edge_similarity_margin=edge_similarity_margin
-            )  # (B, 171, 960, 1)
-
-            # Edge clamping now handled at source in edge_scalar_series with configurable margin
-            # Debug assert to verify bounds
-            if __debug__:
-                lo, hi = edge_feats.amin(), edge_feats.amax()
-                assert torch.isfinite(lo), "Non-finite minimum in edge features"
-                assert torch.isfinite(hi), "Non-finite maximum in edge features"
-                assert lo >= -1.001, f"Edge features lower bound violation: {lo}"
-                assert hi <= 1.001, f"Edge features upper bound violation: {hi}"
-
-            # Learnable lift 1→D channels for CUDA alignment & capacity
-            edge_flat = edge_feats.squeeze(-1).reshape(batch_size * 171, 1, seq_len)  # (B*E,1,T)
-            edge_in = self.edge_in_proj(edge_flat).contiguous()  # (B*E, D, T) where D=16
-
-            # PR-2: Apply bounded activation and normalization
-            if hasattr(self, "edge_lift_act") and self.edge_lift_act is not None:
-                edge_in = self.edge_lift_act(edge_in)
-
-                # Apply normalization after activation if configured
-                if hasattr(self, "edge_lift_norm") and self.edge_lift_norm is not None:
-                    # Transpose for LayerNorm on feature dimension
-                    edge_in = edge_in.transpose(1, 2).contiguous()  # (B*E, T, D)
-                    edge_in = self.edge_lift_norm(edge_in)
-                    edge_in = edge_in.transpose(1, 2).contiguous()  # Back to (B*E, D, T)
-            else:
-                # Safety fallback if PR-2 not enabled
-                edge_in = torch.clamp(edge_in, -3.0, 3.0)
-
-            # Safety assertion for Mamba CUDA kernel
-            assert edge_in.is_contiguous(), (
-                "edge_in tensor must be contiguous for Mamba CUDA kernels"
-            )
-
-            edge_processed = self.edge_mamba(edge_in)  # (B*E, D, T)
-
-            # PR-1: Normalize after edge Mamba (permute for LayerNorm on last dim)
-            if self.norm_after_edge_mamba:
-                # edge_processed is (B*E, D, T), need to normalize over D dimension
-                edge_processed = edge_processed.transpose(1, 2).contiguous()  # (B*E, T, D)
-                edge_processed = self.norm_after_edge_mamba(edge_processed)
-                edge_processed = edge_processed.transpose(1, 2).contiguous()  # Back to (B*E, D, T)
-            edge_out = self.edge_out_proj(edge_processed)  # (B*E, 1, T)
-            edge_weights = self.edge_activate(edge_out).reshape(batch_size, 171, seq_len)  # (B,E,T)
-            assert_finite("edge_weights", edge_weights)
-
-            # Assemble adjacency
-            edge_top_k = cast(int, self.config.get("edge_top_k", 3))
-            edge_threshold = cast(float, self.config.get("edge_threshold", 1e-4))
-            adj = assemble_adjacency(
-                edge_weights,
-                n_nodes=19,
-                top_k=edge_top_k,
-                threshold=edge_threshold,
-            )  # (B, 960, 19, 19)
-            assert_finite("adjacency", adj)
-
-            # Apply GNN with external LayerScale residual (v3.4.0)
-            if self.gnn:
-                gnn_out = self.gnn(node_feats, adj)
-                # v3.4.0: GNN has no internal residuals; add clean residual here
-                if self.gnn_layerscale:
-                    # Apply LayerScale to GNN output
-                    gnn_out_scaled = self.gnn_layerscale(gnn_out)
-                    elec_enhanced = node_feats + gnn_out_scaled
-                else:
-                    # Simple residual addition
-                    elec_enhanced = node_feats + gnn_out
-            else:
-                elec_enhanced = node_feats
-            assert_finite("gnn_out", elec_enhanced)
-
-            # PR-1: Normalize after GNN
-            if self.norm_after_gnn:
-                elec_enhanced = self.norm_after_gnn(elec_enhanced)
-
-            # PR-4: Apply fusion between node and edge-enhanced features
-            if (
-                self.fusion is not None
-                and elec_enhanced is not node_feats
-                and self.fusion_type in ("gated", "multihead")
-            ):
-                # elec_enhanced has edge information from GNN, node_feats is pure node
-                elec_enhanced = self.fusion(node_feats, elec_enhanced)
-
-            # Project back to bottleneck
-            elec_flat = elec_enhanced.permute(0, 1, 3, 2).reshape(
-                batch_size, 19 * 64, seq_len
-            )  # (B, 19*64, 960)
-            temporal = self.proj_from_electrodes(elec_flat)  # (B, 512, 960)
+            elec_flat = elec_enhanced.permute(0, 1, 3, 2).reshape(batch_size, 19 * 64, seq_len)
+            temporal = self.proj_from_electrodes(elec_flat)
             assert_finite("backproj", temporal)
-
         else:
-            # Fallback to 512-dim Mamba stack if V3 components not initialized
-            temporal = self.mamba(features)  # (B, 512, 960)
+            temporal = self.mamba(features)
 
-        # PR-1: Normalize before decoder (temporal is B, 512, 960)
-        if self.norm_before_decoder:
-            # Need to permute to make 512 the last dimension for LayerNorm
-            temporal = temporal.transpose(1, 2).contiguous()  # (B, 960, 512)
-            temporal = self.norm_before_decoder(temporal)
-            temporal = temporal.transpose(1, 2).contiguous()  # Back to (B, 512, 960)
-
-        # PR-5: Removed conditional temporal clamps (PR-1 norms provide stability)
-
-        # Project back to 19 channels and upsample to original resolution
-        decoded = self.proj_head(temporal)  # (B, 19, 15360)
-        assert_finite("decoder_prelogits", decoded)
-
-        # Internal tier clamping for features before final projection
-        decoded = torch.nan_to_num(decoded, nan=0.0, posinf=50.0, neginf=-50.0)
-        decoded = torch.clamp(decoded, -50.0, 50.0)
-
-        output = self.detection_head(decoded)  # (B, 1, 15360)
-        assert_finite("final_logits", output)
-
-        # Final output sanitization to prevent non-finite logits
-        output = torch.nan_to_num(output, nan=0.0, posinf=50.0, neginf=-50.0)
-        output = torch.clamp(output, -100.0, 100.0)  # Tier 3: Output clamping for loss
-
-        return cast(torch.Tensor, output.squeeze(1))
+        return self._decode_and_sanitize(temporal)
 
     @classmethod
     def from_config(
