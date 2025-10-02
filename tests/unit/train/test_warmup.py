@@ -164,10 +164,16 @@ class TestWarmupEdgeCases:
             focal_gamma_start=0.5,
             focal_gamma_end=2.0,
         )
-        # At step 0 with 0 warmup steps, we're past warmup
+        # At step 0 with 0 warmup steps, step 0 >= 0 means past warmup
         result = get_focal_gamma(global_step=0, warmup_config=config, target_gamma=2.0)
-        # Should return target gamma (past warmup)
+        # Should return target gamma (0 >= 0, so past warmup)
         assert result == 2.0
+
+        # Even negative steps should work (past warmup)
+        result = get_focal_gamma(global_step=-1, warmup_config=config, target_gamma=2.0)
+        # -1 < 0, so division by zero avoided, returns end_gamma via interpolation
+        # But this is implementation-dependent - just ensure it doesn't crash
+        assert isinstance(result, float)
 
     def test_negative_step_number(self):
         """Negative step should not crash (though invalid in practice)."""
