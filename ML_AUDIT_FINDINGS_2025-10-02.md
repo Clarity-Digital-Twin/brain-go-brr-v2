@@ -1,38 +1,39 @@
 # Brain-Go-Brr V3 — ML Audit Findings (2025-10-02)
 
-Senior auditor review of the current training stack. No code changes were made; this document records issues and follow-ups for coordinating parallel agents.
+Senior auditor review of the current training stack. No code changes were made; this document records issues and follow-ups so parallel agents stay aligned.
 
 ## ✅ Context
 - Architecture: TCN + BiMamba + GNN (V3 only)
-- Training runs in progress (Modal smoke + local full run); avoid destabilising edits.
+- Long-running Modal + local trainings are in flight; avoid destabilising edits.
 - Audit scope: numerical stability, data loading, evaluation correctness, and pipeline technical debt.
 
 ## 🔴 P0 — Blocking Issues
 - **Event timeline corruption** (`src/brain_brr/eval/metrics.py:427-498`, `src/brain_brr/data/datasets.py:200-233`)
-  - Window-level datasets do not expose file IDs or absolute start indices. Evaluation flattens all window masks to a shared 0–60 s clock, so TAES, FA/24h thresholds, and sensitivity scores are computed on overlapping, misaligned time axes.
-  - Consequence: validation metrics, early-stopping decisions, and clinical target tracking are currently unreliable.
-  - Needed fix: propagate `record_id` and `window_start` from datasets through loaders; stitch timelines before calling `batch_*_to_events`; recompute metrics on true patient chronology.
+  - Datasets return `(window, label)` only; evaluation assumes all windows belong to a single continuous recording: `total_duration_s = (n_windows - 1) * 10.0 + 60.0` regardless of file boundaries.
+  - Result: TAES, FA/24 h, and sensitivity collapse windows from different patients onto the same 0–60 s axis. Clinical metrics, early-stopping signals, and threshold sweeps are therefore invalid even though gradient updates remain correct.
+  - Fix: propagate `record_id`/`window_start` (or equivalent metadata) through the dataloaders, stitch per-record timelines prior to calling `batch_*_to_events`, and recompute metrics on the true chronology. Retraining will be required once corrected.
 
-## 🟠 P1 — High-Severity Risks
-- **Cache I/O bottleneck** (`src/brain_brr/data/datasets.py:204-233`, `src/brain_brr/data/datasets.py:256-320`)
-  - Every minibatch loads compressed NPZ files and decompresses whole window tensors to retrieve a single slice. This creates tens of MB of transient allocations per sample and is the dominant factor in 20 h Modal epochs.
-  - Recommendation: migrate caches to shard-per-window or memory-mapped arrays; ensure loaders fetch only the requested window without rehydrating entire files.
-- **Validation memory blow-up** (`src/brain_brr/train/loop.py:1024-1078`)
-  - Validation collects every probability/label tensor in RAM before scoring. The dev split exceeds capacity on long runs, leading to process OOMs or swap thrash.
-  - Recommendation: stream metrics per batch or per record; avoid concatenating the entire dataset.
+## 🟠 P1 — High-Severity Risks (Nuanced)
+- **Cache I/O inefficiency** (`src/brain_brr/data/datasets.py:204-233`, `src/brain_brr/data/datasets.py:256-320`)
+  - `np.load(..., allow_pickle=False)` is invoked for every sample; the compressed NPZ is fully decompressed to pull a single window, so each minibatch repeatedly hydrates ~50–60 MB files. OS page cache and DataLoader prefetching soften the hit, but we still pay unnecessary CPU time and transient allocations.
+  - This is *a* contributor to long epochs (Modal ≈18–22 h) but not the sole bottleneck—forward/backward compute dominates once data is resident. Plan a cache-format update (memory-mapped arrays or per-window shards) after the P0 fix.
+- **Validation memory pressure** (`src/brain_brr/train/loop.py:1024-1078`)
+  - Validation accumulates all logits/labels before scoring: the full dev split (~183 k windows × 15 360 timesteps) occupies ~22 GB. Modal (96 GB RAM) is safe; local 64 GB hosts can OOM or swap.
+  - Mitigation: stream evaluation (per-record aggregation) after the timeline fix, or temporarily limit dev set locally.
 
 ## 🟡 P2 — Medium Priority
-- **Sampler bootstrap load** (`src/brain_brr/train/loop.py:1778-1810`)
-  - When the balanced manifest is absent, the fallback sampler probes 20 000 windows, triggering the same heavy NPZ decompressions before epoch 1. Once manifest generation is fixed, reduce this probe or rely on manifest stats to recover startup time.
+- **Sampler bootstrap probe** (`src/brain_brr/train/loop.py:1778-1810`) — *currently dormant*
+  - The expensive 20 k-window bootstrap only runs when the balanced manifest is missing. With the existing manifests (train ≈27 MB, dev ≈13 MB) the fallback path does **not** execute. Keep the safeguard but no action required unless manifest generation fails.
 
-## 📌 Observations & Follow-Ups
-- Mixed-precision guardrails, gradient sanitisation, and warm-up scheduling look robust (no immediate action).
-- GNN/adjacency stack already clamps eigenvectors and enforces LayerScale; no new stability risks spotted.
-- Keep refactoring plan targeted: do not attempt loop.py split or cache rebuild until running jobs finish.
+## 📌 Observations & Notes
+- Mixed-precision, gradient sanitisation, and warm-up schedules look solid; no new numerical hazards identified.
+- GNN/adjacency stack already clamps eigenvectors, enforces LayerScale, and caches valid positional encodings.
+- Continue to defer high-risk refactors (loop.py split, cache rebuild) until current training jobs finish and P0 is addressed.
 
 ## 📋 Recommended Sequence (post-training window)
-1. Fix evaluation timeline (P0).
-2. Redesign cache format/loader access (P1) and introduce streaming validation (P1).
-3. Trim sampler bootstrap + follow-up refactors once above issues land.
+1. Ship the evaluation timeline fix (P0), add metadata plumbing, and validate metrics on a small subset. 
+2. Introduce streaming/record-aware validation to remove the 22 GB accumulation (P1) while keeping Modal runs safe.
+3. Redesign cache access (P1) once profiling confirms the new format yields worthwhile gains.
+4. Revisit remaining refactors and legacy cleanup afterwards.
 
-Document owner: Codex senior auditor (2025-10-02).
+Document owner: Codex senior auditor (2025-10-02). Latest update incorporates cross-agent verification of claims.
