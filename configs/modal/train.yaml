@@ -112,7 +112,7 @@ postprocessing:
 
 training:
   epochs: 100                          # full training - will early stop if converged
-  batch_size: 32                       # SAFE: Peak memory ~50GB (64 causes 77GB OOM during backward)
+  batch_size: 48                       # EXPERIMENT: ~58GB peak (testing if faster than 32×2)
   # ⚠️ CRITICAL: MUST use focal loss for 12:1 class imbalance! ⚠️
   # Without this, model WILL collapse to AUROC=0.5 (useless)
   loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
@@ -140,7 +140,7 @@ training:
 
   gradient_clip: 0.5                   # Stronger clipping for NaN protection
   mixed_precision: true                # A100 is 3.8x faster at FP16! Critical for performance
-  gradient_accumulation_steps: 2       # CRITICAL: Maintains effective batch=64, reduces peak memory
+  gradient_accumulation_steps: 1       # EXPERIMENT: No accumulation with batch_size=48
   early_stopping:
     patience: 5
     metric: sensitivity_at_10fa
