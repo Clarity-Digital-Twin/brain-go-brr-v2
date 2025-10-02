@@ -548,14 +548,6 @@ class LoggingConfig(StrictModel):
     log_weights: bool = Field(default=False, description="Log weight histograms")
 
 
-class ResourcesConfig(StrictModel):
-    """Compute resource configuration."""
-
-    max_memory_gb: float | None = Field(default=None, gt=0, description="Maximum GPU memory to use")
-    distributed: bool = Field(default=False, description="Use distributed training")
-    mixed_precision: bool = Field(default=True, description="Use mixed precision training")
-
-
 class Config(StrictModel):
     """Complete configuration schema for seizure detection pipeline."""
 
@@ -567,7 +559,6 @@ class Config(StrictModel):
     evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
     experiment: ExperimentConfig = Field(default_factory=ExperimentConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
-    resources: ResourcesConfig | None = Field(default=None)
 
     @model_validator(mode="after")
     def validate_device_resources(self) -> "Config":
