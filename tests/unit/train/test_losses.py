@@ -6,9 +6,6 @@ Real tensors, no mocks - verify mathematical properties.
 
 from __future__ import annotations
 
-import math
-
-import pytest
 import torch
 
 from src.brain_brr.train.losses import FocalLoss
