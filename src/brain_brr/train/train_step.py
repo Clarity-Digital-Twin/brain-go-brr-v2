@@ -1,0 +1,319 @@
+"""Training epoch implementation extracted from loop.py.
+
+Single Responsibility: Execute one training epoch with proper logging and checkpointing.
+"""
+
+from __future__ import annotations
+
+import logging
+import sys
+import time
+from contextlib import suppress
+from pathlib import Path
+
+import torch
+import torch.nn as nn
+from torch.amp import GradScaler
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
+from torch.utils.data import DataLoader
+from tqdm import tqdm  # type: ignore[import-untyped]
+
+from src.brain_brr.config.schemas import WarmupScheduleConfig
+from src.brain_brr.train.checkpoint import save_checkpoint
+from src.brain_brr.train.train_utils import get_memory_stats
+from src.brain_brr.utils.env import env
+
+logger = logging.getLogger(__name__)
+LOG_EVERY_N_STEPS = 50
+
+
+def train_epoch(
+    model: nn.Module,
+    dataloader: DataLoader,
+    optimizer: Optimizer,
+    device: str = "cpu",
+    use_amp: bool = False,
+    gradient_clip: float = 1.0,
+    scheduler: LRScheduler | None = None,
+    global_step: int = 0,
+    *,
+    loss_mode: str = "bce",
+    focal_alpha: float = 0.25,
+    focal_gamma: float = 2.0,
+    return_step: bool = False,
+    checkpoint_dir: Path | None = None,
+    epoch_index: int | None = None,
+    mid_epoch_minutes: float | None = None,
+    mid_epoch_keep: int = 3,
+    warmup_schedule: WarmupScheduleConfig | None = None,
+) -> float | tuple[float, int]:
+    """Train for one epoch.
+
+    Args:
+        model: SeizureDetector model
+        dataloader: Training DataLoader
+        optimizer: Optimizer instance
+        device: Device to train on
+        use_amp: Use automatic mixed precision
+        gradient_clip: Max gradient norm
+        scheduler: Optional LR scheduler (per-iteration)
+        global_step: Global step counter for scheduler
+        return_step: If True, return (loss, global_step). If False, return just loss.
+        warmup_schedule: Optional warmup schedule configuration for gradient stabilization
+
+    Returns:
+        Average training loss (default) or tuple of (loss, global_step) if return_step=True
+    """
+    model.train()
+    device_obj = torch.device(device)
+    scaler = GradScaler(enabled=(use_amp and device == "cuda"))
+
+    supports_training_state = hasattr(model, "set_training_state")
+    if supports_training_state:
+        try:
+            model.set_training_state(global_step, warmup_schedule)
+        except TypeError:
+            supports_training_state = False
+
+    last_heartbeat = time.time()
+    heartbeat_interval = 120
+    last_mid_save = time.time()
+    mid_interval_s = (
+        None if mid_epoch_minutes is None else float(max(0.0, mid_epoch_minutes)) * 60.0
+    )
+
+    logger.info("\n" + "=" * 60)
+    logger.info("[INIT] DATASET STATISTICS")
+    logger.info("=" * 60)
+
+    dataset = dataloader.dataset
+    dataset_len = len(dataset)  # type: ignore[arg-type]
+
+    is_smoke_test = env.smoke_test()
+    if is_smoke_test:
+        logger.info("[SMOKE TEST MODE] Skipping dataset sampling - using default pos_weight=1.0")
+        pos_weight_val = 1.0
+        pos_ratio = 0.5
+
+    else:
+        from src.brain_brr.data.datasets import BalancedSeizureDataset
+
+        if isinstance(dataset, BalancedSeizureDataset):
+            pos_ratio = dataset.seizure_ratio
+            logger.info("[DATASET] Using BalancedSeizureDataset known distribution")
+            logger.info(f"[DATASET] Seizure ratio: {100 * pos_ratio:.1f}% (from manifest)")
+        else:
+            sample_size = min(100, dataset_len)
+            sample_indices = torch.randperm(dataset_len)[:sample_size]
+
+            pos_count = 0
+            total_samples = 0
+
+            logger.info(f"[DATASET] Sampling {sample_size} windows to estimate distribution...")
+            for idx in sample_indices:
+                batch = dataset[idx.item()]
+                label = batch["label"]
+                if (label > 0).any():
+                    pos_count += 1
+                total_samples += 1
+
+            pos_ratio = pos_count / max(total_samples, 1)
+            logger.info(f"[DATASET] Estimated seizure ratio: {100 * pos_ratio:.1f}%")
+
+        pos_weight_val = (1.0 - pos_ratio) / max(pos_ratio, 1e-6)
+        pos_weight_val = float(min(pos_weight_val, 20.0))
+
+    logger.info(f"[DATASET] Positive weight for loss: {pos_weight_val:.2f}")
+    logger.info("=" * 60 + "\n")
+
+    if loss_mode == "focal":
+        logger.info(f"[LOSS] Using focal loss (alpha={focal_alpha}, gamma={focal_gamma})")
+    else:
+        logger.info(f"[LOSS] Using BCE loss (pos_weight={pos_weight_val:.2f})")
+
+    pos_weight_tensor = torch.tensor([pos_weight_val], device=device_obj)
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight_tensor)
+
+    gradient_norms = []
+    total_loss = 0.0
+    num_batches = 0
+
+    use_tqdm = not env.disable_tqdm()
+    progress_bar = None
+
+    try:
+        if use_tqdm:
+            try:
+                progress_bar = tqdm(
+                    dataloader, desc="Training", leave=False, file=sys.stderr, ascii=True, ncols=80
+                )
+                if progress_bar is None or not hasattr(progress_bar, "__iter__"):
+                    logger.warning("tqdm initialization failed, using plain iteration")
+                    progress = dataloader
+                else:
+                    progress = progress_bar
+            except Exception as e:
+                logger.warning(f"tqdm failed ({e}), using plain iteration")
+                progress = dataloader
+        else:
+            progress = dataloader
+
+        for batch_idx, batch in enumerate(progress):
+            windows = batch["window"].to(device_obj)
+            labels = batch["label"].to(device_obj)
+
+            if labels.dim() == 3:
+                labels = labels.max(dim=1)[0]
+
+            optimizer.zero_grad(set_to_none=True)
+
+            with torch.amp.autocast(device_type=device, enabled=use_amp):  # type: ignore[attr-defined]
+                logits = model(windows)
+
+                if loss_mode == "focal":
+                    probs = torch.sigmoid(logits)
+                    pt = labels * probs + (1 - labels) * (1 - probs)
+                    at = labels * focal_alpha + (1 - labels) * (1 - focal_alpha)
+                    focal_weight = at * ((1 - pt) ** focal_gamma)
+                    bce = nn.functional.binary_cross_entropy_with_logits(
+                        logits, labels, reduction="none"
+                    )
+                    loss = (focal_weight * bce).mean()
+                else:
+                    loss = criterion(logits, labels)
+
+            if scaler.is_enabled():
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                grad_norm = nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                loss.backward()
+                grad_norm = nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+                optimizer.step()
+
+            gradient_norms.append(float(grad_norm))
+
+            if scheduler is not None:
+                scheduler.step()
+                global_step += 1
+
+            if supports_training_state:
+                with suppress(Exception):
+                    model.set_training_state(global_step, warmup_schedule)
+
+            loss_val = loss.item()
+
+            if torch.isfinite(torch.tensor(loss_val)):
+                total_loss += loss_val
+                num_batches += 1
+            else:
+                if batch_idx % LOG_EVERY_N_STEPS == 0:
+                    logger.warning(
+                        f"Non-finite loss detected at batch {batch_idx}, skipping in average"
+                    )
+
+            if use_tqdm and hasattr(progress, "set_postfix"):
+                if not torch.isfinite(torch.tensor(loss_val)):
+                    progress.set_postfix({"loss": "NaN"})
+                else:
+                    progress.set_postfix({"loss": f"{loss_val:.4f}"})
+
+            if batch_idx > 0 and batch_idx % LOG_EVERY_N_STEPS == 0:
+                current_lr = optimizer.param_groups[0]["lr"]
+                if not torch.isfinite(torch.tensor(loss_val)):
+                    logger.info(
+                        f"[PROGRESS] Batch {batch_idx}/{len(dataloader)} | "
+                        f"Loss: nan | LR: {current_lr:.2e}"
+                    )
+                else:
+                    logger.info(
+                        f"[PROGRESS] Batch {batch_idx}/{len(dataloader)} | "
+                        f"Loss: {loss_val:.4f} | LR: {current_lr:.2e}"
+                    )
+
+            if time.time() - last_heartbeat > heartbeat_interval:
+                if num_batches > 0:
+                    avg_loss = total_loss / num_batches
+                    logger.info(
+                        f"[HEARTBEAT] Still training... Batch {batch_idx}/{len(dataloader)} | "
+                        f"Avg Loss: {avg_loss:.4f}"
+                    )
+                else:
+                    logger.info(
+                        f"[HEARTBEAT] Still training... Batch {batch_idx}/{len(dataloader)} | "
+                        f"Avg Loss: N/A (all NaN)"
+                    )
+                last_heartbeat = time.time()
+
+                mem_stats = get_memory_stats()
+                if mem_stats:
+                    mem_log = "[MEMORY]"
+                    if "gpu_allocated_gb" in mem_stats:
+                        mem_log += f" GPU: {mem_stats['gpu_allocated_gb']:.2f}GB alloc"
+                        mem_log += f" / {mem_stats['gpu_reserved_gb']:.2f}GB res"
+                    if "ram_used_gb" in mem_stats:
+                        mem_log += f" | RAM: {mem_stats['ram_used_gb']:.2f}GB used"
+                        mem_log += f" / {mem_stats['ram_available_gb']:.2f}GB avail"
+                    if "swap_used_gb" in mem_stats and mem_stats["swap_used_gb"] > 0.1:
+                        mem_log += f" | SWAP: {mem_stats['swap_used_gb']:.2f}GB"
+                    logger.info(mem_log)
+
+                if len(gradient_norms) > 10:
+                    sorted_norms = sorted(gradient_norms)
+                    n = len(sorted_norms)
+                    grad_mean = sum(sorted_norms) / n
+                    grad_p50 = sorted_norms[n // 2]
+                    grad_p95 = sorted_norms[int(n * 0.95)]
+                    grad_max = sorted_norms[-1]
+                    logger.info(
+                        f"[GRADIENTS] Last {n} batches: "
+                        f"Mean={grad_mean:.2f} | P50={grad_p50:.2f} | "
+                        f"P95={grad_p95:.2f} | Max={grad_max:.2f}"
+                    )
+
+            if (
+                checkpoint_dir is not None
+                and epoch_index is not None
+                and mid_interval_s is not None
+                and (time.time() - last_mid_save) >= mid_interval_s
+            ):
+                mid_path = checkpoint_dir / f"mid_epoch_{epoch_index + 1:03d}_{batch_idx:06d}.pt"
+                try:
+                    save_checkpoint(
+                        model,
+                        optimizer,
+                        epoch_index,
+                        0.0,
+                        mid_path,
+                        scheduler,
+                        None,
+                        extra={"batch_idx": batch_idx, "kind": "mid_epoch"},
+                    )
+                    logger.info(f"[CHECKPOINT] Saved mid-epoch snapshot: {mid_path.name}")
+                    last_mid_save = time.time()
+                    mids = sorted(
+                        checkpoint_dir.glob("mid_epoch_*.pt"), key=lambda p: p.stat().st_mtime
+                    )
+                    if len(mids) > int(max(0, mid_epoch_keep)):
+                        for old in mids[: len(mids) - int(mid_epoch_keep)]:
+                            with suppress(Exception):
+                                old.unlink()
+                except Exception as e:
+                    logger.info(f"[WARNING] Failed to save mid-epoch checkpoint: {e}")
+
+    except Exception as e:
+        if progress_bar is not None and hasattr(progress_bar, "close"):
+            with suppress(Exception):
+                progress_bar.close()
+        logger.info(f"[ERROR] Training loop failed at batch {num_batches}: {e}")
+        raise
+    finally:
+        if progress_bar is not None and hasattr(progress_bar, "close"):
+            with suppress(Exception):
+                progress_bar.close()
+
+    avg_loss = total_loss / max(1, num_batches)
+    return (avg_loss, global_step) if return_step else avg_loss
