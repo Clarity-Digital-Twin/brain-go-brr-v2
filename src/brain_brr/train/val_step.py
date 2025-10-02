@@ -154,7 +154,7 @@ def _compute_final_metrics(
             else:
                 high = mid_tau_on
 
-        thresholds[f"sensitivity_at_{fa}fa"] = best_tau_on
+        thresholds[f"{fa}"] = best_tau_on
 
         cfg_for_eval = deepcopy(post_cfg)
         cfg_for_eval.hysteresis.tau_on = best_tau_on
