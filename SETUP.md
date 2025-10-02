@@ -305,7 +305,7 @@ UV tries to rebuild GPU packages and fails. Use `.venv/bin/python` directly.
 CUDA 12.4 is required to match PyTorch 2.5.0+cu124 build.
 
 ### ❌ DON'T install PyG with `uv sync -E graph`
-Must use pre-built wheels via `make setup-pyg`.
+Must use pre-built wheels. `make setup-gpu` handles this correctly.
 
 ### ❌ DON'T skip CUDA toolkit installation
 PyTorch includes runtime but NOT toolkit. Toolkit required for mamba-ssm compilation.
