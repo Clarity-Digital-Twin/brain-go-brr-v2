@@ -8,7 +8,7 @@ from torch.amp import GradScaler, autocast
 
 from src.brain_brr.config.schemas import Config, ModelConfig
 from src.brain_brr.models import SeizureDetector
-from src.brain_brr.train.loop import FocalLoss
+from src.brain_brr.train.losses import FocalLoss
 
 
 @pytest.mark.integration
