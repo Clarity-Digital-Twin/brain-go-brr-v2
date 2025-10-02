@@ -249,7 +249,9 @@ class TestEvaluatePredictions:
         probs = torch.rand(2, 15360)
         labels = (probs > 0.7).float()
 
-        results = evaluate_predictions(probs, labels, [10, 5, 1], post_cfg)
+        file_ids = ["test_file"] * 2
+        window_starts = [0.0, 10.0]
+        results = evaluate_predictions(probs, labels, file_ids, window_starts, [10, 5, 1], post_cfg)
 
         # All metrics should be in [0, 1]
         assert 0 <= results["taes"] <= 1
