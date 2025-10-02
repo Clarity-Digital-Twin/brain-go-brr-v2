@@ -557,13 +557,16 @@ def evaluate_predictions(
             cfg_for_search.hysteresis.tau_off = mid_tau_off
 
             # Count FAs across all stitched timelines
+            # TODO(v4): Conservative FA counting - counts ALL predicted events as FAs
+            #           Should check overlap with reference events to get true FA count.
+            #           This makes threshold search more conservative (higher thresholds).
+            #           Fix: For each pred event, check if it overlaps ANY ref event.
+            #           Only count as FA if no overlap exists.
             total_fa = 0
             for timeline_probs_rec, _ in stitched_timelines:
                 pred_events_list = batch_probs_to_events(
                     timeline_probs_rec.unsqueeze(0), cfg_for_search, sampling_rate
                 )
-                # Count events not overlapping with reference (FAs)
-                # For simplicity, count all events (conservative)
                 total_fa += len(pred_events_list[0]) if pred_events_list else 0
 
             fa_rate = (total_fa / total_hours) * 24.0 if total_hours > 0 else 0.0
