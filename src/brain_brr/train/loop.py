@@ -144,7 +144,8 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
 
     logger.info(f"[SAMPLER] Checking {sample_size} windows for seizures...")
     for i, idx in enumerate(sample_indices):
-        _, label = dataset[idx.item()]
+        batch = dataset[idx.item()]
+        label = batch["label"]
         if (label > 0).any():
             window_has_seizure[idx] = 1.0
             sampled_seizure_count += 1
