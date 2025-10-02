@@ -51,7 +51,7 @@ make train-local  # or: .venv/bin/python -m src train configs/local/train.yaml
 # List sessions: tmux ls
 ```
 
-**NOTE**: See `ARCHITECTURAL_STABILITY_INVESTIGATION.md` for gradient explosion fix details and `NAN-PROTECTION-REFERENCE.md` for complete NaN protection documentation.
+**NOTE**: See `docs/04-model/v3-stability-evolution.md` for gradient explosion fix details and `docs/08-operations/nan-prevention-complete.md` for complete NaN protection documentation.
 
 ### Modal Cloud Deployment (A100-80GB)
 ```bash
@@ -284,7 +284,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 | NaN losses on RTX 4090 | Set `mixed_precision: false` |
 | **Non-finite logits** | **Rebuild cache after Sep 26 fix + use `BGB_SANITIZE_GRADS=1`** |
 | **Edge similarity explosions** | **v3.3.0: Set `edge_similarity_margin: 0.01` in configs** |
-| **Gradient spikes (7.03+)** | **v3.3.1: FIXED - eigenvectors detached in gnn_pyg.py:205 (see ARCHITECTURAL_STABILITY_INVESTIGATION.md)** |
+| **Gradient spikes (7.03+)** | **v3.3.1: FIXED - eigenvectors detached in gnn_pyg.py:205 (see docs/04-model/v3-stability-evolution.md)** |
 | **Modal XID 31 GPU crashes** | **v3.3.1: FIXED - unique Triton cache dirs in deploy/modal/app.py:539-546** |
 | Modal training stuck | Increase CPU cores (24) and RAM (96GB) |
 | PyG installation fails | Use pre-built wheels, not `uv sync -E graph` |

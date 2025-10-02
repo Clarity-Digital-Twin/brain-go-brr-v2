@@ -280,7 +280,7 @@ eigenvectors = eigenvectors.detach()  # Prevent gradient explosion
 
 **Impact**: Eliminated gradient spikes (P95 dropped from 52.06 → 9.74 over 700 batches)
 
-**Reference**: See `ARCHITECTURAL_STABILITY_INVESTIGATION.md` for full analysis
+**Reference**: See `docs/04-model/v3-stability-evolution.md` for full analysis
 
 ---
 

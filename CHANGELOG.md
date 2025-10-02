@@ -130,7 +130,7 @@ DEPRECATED: See v3.4.1 for complete stability solution. This release only fixed 
 ### Changed
 - **Gradient Flow Philosophy**: Eigenvectors now treated as positional coordinates (detached), adjacency still learns via GNN output gradients
 - **Triton Cache Strategy**: Dynamic cache directories prevent stale kernel reuse on Modal
-- **Documentation**: Comprehensive update to ARCHITECTURAL_STABILITY_INVESTIGATION.md with root cause analysis
+- **Documentation**: Comprehensive update to `docs/04-model/v3-stability-evolution.md` with root cause analysis
 
 ### Added
 - **Validation**: Full training started on RTX 4090 (local) and A100 (Modal) with eigendecomposition fix
@@ -151,7 +151,7 @@ DEPRECATED: See v3.4.1 for complete stability solution. This release only fixed 
 - Modal deployment fixes for Triton cache persistence
 
 ### References
-- Root cause analysis: `ARCHITECTURAL_STABILITY_INVESTIGATION.md`
+- Root cause analysis: `docs/04-model/v3-stability-evolution.md`
 - Gradient behavior: `docs/10-major-NAN-refactor/GRADIENT_BEHAVIOR_GUIDE.md`
 - Laplacian PE: `docs/04-model/laplacian-pe.md`
 

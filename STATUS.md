@@ -144,9 +144,8 @@ All P0 and P1 issues resolved. System is production-ready.
 
 ### Architecture & Stability
 - `docs/04-model/v3-architecture.md` - V3 dual-stream architecture
-- `docs/04-model/v3-stability-evolution.md` - Complete stability timeline
-- `ARCHITECTURAL_STABILITY_INVESTIGATION.md` - Gradient explosion fixes
-- `NAN-PROTECTION-REFERENCE.md` - 3-tier protection system
+- `docs/04-model/v3-stability-evolution.md` - Complete stability timeline & gradient explosion fixes
+- `docs/08-operations/nan-prevention-complete.md` - 3-tier NaN protection system
 
 ### Refactoring
 - `STRUCTURAL_DEBT_AUDIT_2025-10-02.md` - Audit summary + verified plans
