@@ -11,10 +11,10 @@ data:
   n_channels: 19
   window_size: 60
   stride: 10
-  num_workers: 8                        # OPTIMIZED: Full utilization of 24 CPU cores
+  num_workers: 4                        # SAFE: Prevents spawn delays (8 caused overhead)
   pin_memory: true                      # Fast GPU transfer
-  persistent_workers: false             # Keep false to prevent 1h spawn delay
-  prefetch_factor: 4                    # OPTIMIZED: Increased from 2 (was 8, caused OOM)
+  persistent_workers: false             # CRITICAL: Prevents 1h spawn delay + memory leaks
+  prefetch_factor: 2                    # SAFE: Prevents memory pressure (4/8 caused OOM)
   # ⚠️ CRITICAL: Without balanced sampling, batches may have ZERO seizures! ⚠️
   use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling
 
@@ -112,7 +112,7 @@ postprocessing:
 
 training:
   epochs: 100                          # full training - will early stop if converged
-  batch_size: 64                       # OPTIMIZED: Restored to 64 (OOM was from prefetch_factor=8)
+  batch_size: 32                       # SAFE: Peak memory ~50GB (64 causes 77GB OOM during backward)
   # ⚠️ CRITICAL: MUST use focal loss for 12:1 class imbalance! ⚠️
   # Without this, model WILL collapse to AUROC=0.5 (useless)
   loss: focal                          # USE FOCAL LOSS FOR EXTREME IMBALANCE!
@@ -140,7 +140,7 @@ training:
 
   gradient_clip: 0.5                   # Stronger clipping for NaN protection
   mixed_precision: true                # A100 is 3.8x faster at FP16! Critical for performance
-  gradient_accumulation_steps: 1       # OPTIMIZED: No accumulation needed with batch_size=64
+  gradient_accumulation_steps: 2       # CRITICAL: Maintains effective batch=64, reduces peak memory
   early_stopping:
     patience: 5
     metric: sensitivity_at_10fa
