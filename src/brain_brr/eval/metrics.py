@@ -687,7 +687,11 @@ def select_threshold_for_fa_rate(
     cfg = PostprocessingConfig()
     # One-hour default if we cannot infer duration from shapes
     n_windows = labels.shape[0]
-    total_duration_s = (n_windows - 1) * 10.0 + 60.0 if n_windows > 0 else 3600.0
+    total_duration_s = (
+        (n_windows - 1) * constants.STRIDE_SIZE_SEC + constants.WINDOW_SIZE_SEC
+        if n_windows > 0
+        else 3600.0
+    )
     total_hours = total_duration_s / 3600.0
     ref_events = batch_masks_to_events(labels > 0.5, sample_rate)
     return float(
