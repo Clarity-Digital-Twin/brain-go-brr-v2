@@ -406,6 +406,43 @@ def sensitivity_at_fa_rates(
     return results
 
 
+def stitch_recording_timeline(
+    windows: list[dict[str, Any]], sampling_rate: int
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Stitch overlapping windows into a single timeline for one recording.
+
+    Args:
+        windows: List of window dicts with keys 'start_s', 'probs', 'labels'
+        sampling_rate: Sampling rate in Hz
+
+    Returns:
+        (timeline_probs, timeline_labels) - Stitched timelines with averaged overlaps
+    """
+    windows.sort(key=lambda x: x["start_s"])
+
+    recording_end_s = windows[-1]["start_s"] + constants.WINDOW_SIZE_SEC
+    timeline_length = int(recording_end_s * sampling_rate)
+
+    timeline_probs = torch.zeros(timeline_length, dtype=torch.float32)
+    timeline_labels = torch.zeros(timeline_length, dtype=torch.float32)
+    timeline_counts = torch.zeros(timeline_length, dtype=torch.float32)
+
+    for w in windows:
+        start_idx = int(w["start_s"] * sampling_rate)
+        end_idx = min(start_idx + len(w["probs"]), timeline_length)
+        window_len = end_idx - start_idx
+
+        timeline_probs[start_idx:end_idx] += w["probs"][:window_len]
+        timeline_labels[start_idx:end_idx] += w["labels"][:window_len]
+        timeline_counts[start_idx:end_idx] += 1.0
+
+    mask = timeline_counts > 0
+    timeline_probs[mask] /= timeline_counts[mask]
+    timeline_labels[mask] /= timeline_counts[mask]
+
+    return timeline_probs, timeline_labels
+
+
 def evaluate_predictions(
     probs: torch.Tensor,
     labels: torch.Tensor,
