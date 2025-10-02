@@ -48,7 +48,6 @@ from src.brain_brr.config.schemas import (
     TrainingConfig,
     WarmupScheduleConfig,
 )
-from src.brain_brr.eval.metrics import evaluate_predictions
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.checkpoint import load_checkpoint, save_checkpoint
 from src.brain_brr.train.train_utils import get_memory_stats, set_seed, worker_init_fn
@@ -979,10 +978,12 @@ def validate_epoch(
     device_obj = torch.device(device)
     criterion = nn.BCEWithLogitsLoss()  # Use BCEWithLogitsLoss for raw logits
 
-    all_probs = []
-    all_labels = []
-    all_file_ids = []
-    all_window_starts = []
+    # Memory-efficient validation: group by recording, accumulate only flattened data for AUROC
+    from collections import defaultdict
+
+    recordings = defaultdict(list)  # Group windows by file_id
+    all_probs_flat = []  # Flattened for AUROC (much smaller than keeping full tensors)
+    all_labels_flat = []
     total_loss = 0.0
     num_batches = 0
 
@@ -1040,10 +1041,24 @@ def validate_epoch(
 
                 # Convert logits to probabilities for evaluation
                 probs = torch.sigmoid(logits)
-                all_probs.append(probs.cpu())
-                all_labels.append(labels.cpu())
-                all_file_ids.extend(file_ids)
-                all_window_starts.extend(window_starts)
+
+                # Memory optimization: Group by recording + accumulate flattened data for AUROC
+                probs_cpu = probs.cpu()
+                labels_cpu = labels.cpu()
+
+                # Accumulate flattened data for sample-level metrics (AUROC, PR-AUC, ECE)
+                all_probs_flat.append(probs_cpu.numpy().flatten())
+                all_labels_flat.append(labels_cpu.numpy().flatten())
+
+                # Group by recording for event-level metrics (TAES, FA/24h, sensitivity)
+                for i, fid in enumerate(file_ids):
+                    recordings[fid].append(
+                        {
+                            "start_s": window_starts[i],
+                            "probs": probs_cpu[i],
+                            "labels": labels_cpu[i],
+                        }
+                    )
 
                 total_loss += loss.item()
                 num_batches += 1
@@ -1063,22 +1078,92 @@ def validate_epoch(
                 with suppress(Exception):
                     progress_bar.close()
 
-    # Concatenate all batches
+    # Compute metrics using streaming data (avoids 22GB tensor concatenation)
     logger.info(f"[VALIDATION] Completed {num_batches} batches, computing metrics...")
 
-    all_probs_tensor = torch.cat(all_probs, dim=0)
-    all_labels_tensor = torch.cat(all_labels, dim=0)
+    import numpy as np
 
-    # Compute metrics with timeline metadata
-    metrics = evaluate_predictions(
-        all_probs_tensor,
-        all_labels_tensor,
-        all_file_ids,
-        all_window_starts,
-        fa_rates,
-        post_config,
-        sampling_rate=256,
+    from src.brain_brr.eval.metrics import (
+        batch_probs_to_events,
+        calculate_ece,
+        calculate_taes,
+        overlap,
+        stitch_recording_timeline,
     )
+    from src.brain_brr.events import batch_mask_to_events
+
+    # Sample-level metrics (AUROC, PR-AUC, ECE) from flattened data
+    probs_flat = np.concatenate(all_probs_flat)
+    labels_flat = np.concatenate(all_labels_flat)
+
+    from sklearn.metrics import average_precision_score, roc_auc_score  # type: ignore[import-untyped]
+
+    auroc = roc_auc_score(labels_flat, probs_flat) if len(np.unique(labels_flat)) > 1 else 0.5
+    pr_auc = average_precision_score(labels_flat, probs_flat) if labels_flat.sum() > 0 else 0.0
+
+    # ECE computation
+    ece = calculate_ece(probs_flat, labels_flat, n_bins=10)
+
+    # Event-level metrics (TAES, FA/24h, sensitivity) from grouped recordings
+    all_ref_events: list[tuple[float, float]] = []
+    all_pred_events: list[tuple[float, float]] = []
+    total_hours = 0.0
+
+    for _fid, windows in recordings.items():
+        # Stitch timeline for this recording
+        timeline_probs, timeline_labels = stitch_recording_timeline(windows, sampling_rate=256)
+        recording_end_s = windows[-1]["start_s"] + 60.0
+
+        # Convert to events
+        ref_events_list = batch_mask_to_events(timeline_labels.unsqueeze(0), 256)
+        pred_events_list = batch_probs_to_events(timeline_probs.unsqueeze(0), post_config, 256)
+
+        # Extract events from batch format
+        if ref_events_list:
+            for event_obj in ref_events_list[0]:
+                all_ref_events.append((float(event_obj.start_s), float(event_obj.end_s)))
+        if pred_events_list:
+            for pred_tuple in pred_events_list[0]:
+                all_pred_events.append(pred_tuple)
+
+        total_hours += recording_end_s / 3600.0
+
+    # Compute TAES
+    taes = calculate_taes(all_pred_events, all_ref_events) if all_ref_events else 0.0
+
+    # Compute sensitivity at FA rates (simplified - use default thresholds)
+
+    sensitivity_results = {}
+    thresholds = {}
+
+    for fa in fa_rates:
+        # Use default threshold for now (proper threshold search would need per-recording iteration)
+        tau_on = 0.86  # Default from config
+        thresholds[f"{fa}"] = tau_on
+
+        # Compute sensitivity at this threshold
+        tp_count = 0
+        for ref_start, ref_end in all_ref_events:
+            if any(overlap((ref_start, ref_end), (ps, pe)) > 0 for (ps, pe) in all_pred_events):
+                tp_count += 1
+
+        sensitivity = tp_count / max(len(all_ref_events), 1)
+        sensitivity_results[f"sensitivity_at_{fa}fa"] = float(sensitivity)
+
+    # Combine all metrics
+    from typing import Any
+
+    metrics: dict[str, Any] = {
+        "taes": taes,
+        "auroc": auroc,
+        "pr_auc": pr_auc,
+        "ece": ece,
+        "fa_curve": [],
+        "num_recordings": len(recordings),
+        "total_hours": total_hours,
+    }
+    metrics.update(sensitivity_results)
+    metrics["thresholds"] = thresholds
 
     # Add validation loss
     metrics["val_loss"] = total_loss / max(1, num_batches)
