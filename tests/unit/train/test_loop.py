@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 import torch
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader
 
 from src.brain_brr.config.schemas import Config, EarlyStoppingConfig, TrainingConfig
 from src.brain_brr.models import SeizureDetector
