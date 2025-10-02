@@ -147,6 +147,8 @@ class TestFocalGammaWarmup:
         gamma_at_1 = get_focal_gamma(1, config, target_gamma=2.0)
 
         assert gamma_at_0 == 0.5
+        # At step 1, progress = 1/1 = 1.0 → end_gamma OR past warmup → target_gamma
+        # Since step 1 >= warmup_steps (1), returns target_gamma
         assert gamma_at_1 == 2.0
 
 
