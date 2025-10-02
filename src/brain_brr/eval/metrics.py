@@ -14,6 +14,7 @@ from sklearn.metrics import (  # type: ignore[import-untyped]
     roc_curve,
 )
 
+from src.brain_brr import constants
 from src.brain_brr.config.schemas import PostprocessingConfig
 from src.brain_brr.events import batch_mask_to_events
 from src.brain_brr.post.postprocess import postprocess_predictions
