@@ -64,7 +64,19 @@
       "Bash(uv lock:*)",
       "Bash(git log:*)",
       "Bash(uv build:*)",
-      "Bash(gh release edit:*)"
+      "Bash(gh release edit:*)",
+      "Bash(.venv/bin/pip:*)",
+      "Bash(cat:*)",
+      "Bash(uv pip install:*)",
+      "Bash(uv pip uninstall:*)",
+      "Bash(export:*)",
+      "Read(//usr/local/**)",
+      "Bash(nvcc:*)",
+      "Read(//usr/lib/**)",
+      "Read(//tmp/**)",
+      "Bash(sudo sh:*)",
+      "Bash(/usr/local/cuda-12.4/bin/nvcc:*)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []

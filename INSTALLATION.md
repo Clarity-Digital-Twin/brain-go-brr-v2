@@ -12,10 +12,30 @@ V3 is the only supported architecture; the legacy V2 heuristic graph path has be
 ## Local Installation (WSL2/Linux with GPU)
 
 ### Prerequisites
-```bash
-# Check CUDA version (need 12.4)
-nvcc --version
 
+**CRITICAL**: CUDA 12.4 toolkit is **required** to build mamba-ssm from source.
+
+#### 1. Install CUDA 12.4 Toolkit (Ubuntu/WSL2)
+```bash
+# Check current CUDA version
+nvcc --version  # Should show "release 12.4" after installation
+
+# If CUDA 12.4 not installed, install it:
+cd /tmp
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
+sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
+sudo apt-get update
+sudo apt-get install -y cuda-toolkit-12-4
+
+# Verify installation
+/usr/local/cuda-12.4/bin/nvcc --version
+# Should output: "Cuda compilation tools, release 12.4, V12.4.131"
+```
+
+**Note**: PyTorch 2.5.0+cu124 includes CUDA 12.4 **runtime** but not the **toolkit**. The toolkit is needed to compile CUDA extensions like mamba-ssm.
+
+#### 2. Install UV Package Manager
+```bash
 # Install uv if not present
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
@@ -47,18 +67,27 @@ print('✅ TCN imported')
 # 1. Create venv with uv
 uv sync
 
-# 2. Install Mamba-SSM (requires build tools)
+# 2. Set CUDA environment for building extensions
 export CUDA_HOME=/usr/local/cuda-12.4
-uv pip install --no-build-isolation causal-conv1d==1.5.2
-uv pip install --no-build-isolation mamba-ssm==2.2.5
+export PATH=$CUDA_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:${LD_LIBRARY_PATH:-}
+export TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9"  # A100/RTX 3000/4000 series
 
-# 3. Install PyG with pre-built wheels (AVOID COMPILATION)
+# 3. Install Mamba-SSM (FORCE SOURCE BUILD to avoid cached wrong-CUDA wheels)
+rm -rf ~/.cache/uv ~/.cache/pip  # Clear caches to avoid stale wheels
+uv pip install --no-build-isolation --no-binary causal-conv1d causal-conv1d==1.5.2
+uv pip install --no-build-isolation --no-binary mamba-ssm mamba-ssm==2.2.5
+
+# 4. Install PyG with pre-built wheels (AVOID COMPILATION)
 .venv/bin/pip install torch_scatter torch_sparse torch_cluster torch_spline_conv \
   -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
 .venv/bin/pip install torch-geometric==2.6.1
 
-# 4. Install TCN
+# 5. Install TCN
 uv pip install pytorch-tcn==1.2.3
+
+# 6. Verify CUDA kernels are working
+python -c "import torch; from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; print('✅ Mamba CUDA kernels working!')"
 ```
 
 ## Modal Cloud Installation
@@ -110,7 +139,48 @@ image = (
 
 ## Common Issues
 
-### 1. PyG Installation Fails with uv
+### 1. Symbol Mismatch Error (Most Common)
+**Error**: `undefined symbol: _ZN3c104cuda9SetDeviceEab` when importing mamba_ssm
+
+**Root Cause**: mamba-ssm was compiled against wrong CUDA version (UV cached a wheel built with wrong toolkit)
+
+**Solution**: Force rebuild from source with CUDA 12.4
+```bash
+# Set CUDA 12.4 environment
+export CUDA_HOME=/usr/local/cuda-12.4
+export PATH=$CUDA_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:${LD_LIBRARY_PATH:-}
+export TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9"
+
+# Purge all caches and stale artifacts
+uv pip uninstall mamba-ssm causal-conv1d
+rm -rf ~/.cache/uv ~/.cache/pip
+rm -rf .venv/lib/python3.11/site-packages/mamba_ssm*
+rm -rf .venv/lib/python3.11/site-packages/causal_conv1d*
+rm -rf .venv/lib/python3.11/site-packages/selective_scan*
+
+# Force source build (--no-binary prevents using cached wheels)
+uv pip install --no-build-isolation --no-binary causal-conv1d causal-conv1d==1.5.2
+uv pip install --no-build-isolation --no-binary mamba-ssm mamba-ssm==2.2.5
+
+# Verify CUDA kernels work
+python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; print('✅ OK')"
+```
+
+### 2. CUDA 12.4 Toolkit Not Installed
+**Error**: Makefile warns "CUDA 12.4 toolkit required!" or nvcc not found
+
+**Solution**: Install CUDA 12.4 toolkit (see Prerequisites section above)
+```bash
+# Ubuntu/WSL2
+sudo apt-get update
+sudo apt-get install -y cuda-toolkit-12-4
+
+# Verify
+/usr/local/cuda-12.4/bin/nvcc --version
+```
+
+### 3. PyG Installation Fails with uv
 **Error**: `ModuleNotFoundError: No module named 'torch'`
 
 **Solution**: PyG extensions need PyTorch at build time. Use pre-built wheels:
@@ -119,19 +189,17 @@ image = (
   -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
 ```
 
-### 2. Mamba-SSM CUDA Errors
+### 4. Mamba-SSM CUDA Runtime Errors
 **Error**: `RuntimeError: CUDA error: no kernel image is available`
 
-**Solution**: Ensure CUDA 12.4 toolkit installed and:
+**Solution**: Verify CUDA 12.4 in PATH and rebuild:
 ```bash
 export CUDA_HOME=/usr/local/cuda-12.4
 export PATH=$CUDA_HOME/bin:$PATH
-# Rebuild mamba-ssm
-uv pip uninstall mamba-ssm causal-conv1d
-uv pip install --no-build-isolation causal-conv1d==1.5.2 mamba-ssm==2.2.5
+# Rebuild mamba-ssm (see issue #1 for full steps)
 ```
 
-### 3. WSL2 Permission Issues
+### 5. WSL2 Permission Issues
 **Error**: `OSError: [Errno 1] Operation not permitted`
 
 **Solution**: Use copy mode for uv:
@@ -139,7 +207,7 @@ uv pip install --no-build-isolation causal-conv1d==1.5.2 mamba-ssm==2.2.5
 export UV_LINK_MODE=copy
 ```
 
-### 4. Modal CPU Bottlenecks
+### 6. Modal CPU Bottlenecks
 **Symptom**: Training stuck at epoch boundaries
 
 **Solution**: Increase CPU/RAM allocation in `deploy/modal/app.py`:

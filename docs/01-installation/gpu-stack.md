@@ -2,17 +2,39 @@
 
 Exact versions (locked)
 
-- PyTorch: 2.5.0+cu124
-- CUDA Toolkit: 12.4
+- PyTorch: 2.5.0+cu124 (includes CUDA 12.4 **runtime**)
+- **CUDA Toolkit: 12.4** (REQUIRED for building mamba-ssm)
 - mamba‑ssm: 2.2.5 (includes A100 int64 indexing fix)
 - causal‑conv1d: 1.5.2 (latest stable for PyTorch 2.5+)
 - torch‑geometric: 2.6.1
 - numpy: 1.26.4
 
+## CRITICAL: CUDA Toolkit Installation
+
+**PyTorch 2.5.0+cu124 includes the CUDA 12.4 runtime, but NOT the toolkit.** The toolkit is required to compile CUDA extensions like mamba-ssm.
+
+### Install CUDA 12.4 Toolkit (Ubuntu/WSL2)
+```bash
+# Check if already installed
+/usr/local/cuda-12.4/bin/nvcc --version
+
+# If not found, install it:
+cd /tmp
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
+sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
+sudo apt-get update
+sudo apt-get install -y cuda-toolkit-12-4
+
+# Verify
+/usr/local/cuda-12.4/bin/nvcc --version
+# Should output: "Cuda compilation tools, release 12.4, V12.4.131"
+```
+
 Install order
 
-1) `make setup` — base env + PyTorch 2.5.0+cu124
-2) `make setup-gpu` — CUDA extensions (mamba‑ssm, causal‑conv1d) and PyG wheels
+1) Install CUDA 12.4 toolkit (see above)
+2) `make setup` — base env + PyTorch 2.5.0+cu124
+3) `make setup-gpu` — CUDA extensions (mamba‑ssm, causal‑conv1d) and PyG wheels
 
 What `make setup-gpu` does
 
@@ -33,6 +55,29 @@ Manual verification
 
 Troubleshooting
 
-- PyG install error: ensure correct wheel index URL for torch 2.5.0+cu124; install scatter/sparse/cluster/spline, then `torch-geometric==2.6.1`.
-- `RuntimeError: no kernel image` for mamba‑ssm: confirm CUDA 12.4 toolkit in PATH/LD_LIBRARY_PATH, rebuild with `--no-build-isolation`.
-- WSL2: set `UV_LINK_MODE=copy`; keep project on ext4 (avoid `/mnt/c`).
+### Symbol Mismatch (Most Common)
+**Error**: `undefined symbol: _ZN3c104cuda9SetDeviceEab`
+
+**Root Cause**: mamba-ssm compiled against wrong CUDA version (cached wheel)
+
+**Solution**: Force rebuild from source
+```bash
+export CUDA_HOME=/usr/local/cuda-12.4
+export PATH=$CUDA_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:${LD_LIBRARY_PATH:-}
+export TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9"
+
+# Purge caches and rebuild
+rm -rf ~/.cache/uv ~/.cache/pip
+uv pip uninstall mamba-ssm causal-conv1d
+uv pip install --no-build-isolation --no-binary causal-conv1d causal-conv1d==1.5.2
+uv pip install --no-build-isolation --no-binary mamba-ssm mamba-ssm==2.2.5
+
+# Verify
+python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; print('✅')"
+```
+
+### Other Issues
+- **PyG install error**: ensure correct wheel index URL for torch 2.5.0+cu124; install scatter/sparse/cluster/spline, then `torch-geometric==2.6.1`.
+- **`RuntimeError: no kernel image`**: confirm CUDA 12.4 toolkit installed, rebuild with `--no-build-isolation` and `--no-binary`.
+- **WSL2**: set `UV_LINK_MODE=copy`; keep project on ext4 (avoid `/mnt/c`).

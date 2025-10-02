@@ -158,9 +158,22 @@ numpy==1.26.4             # 2.x breaks mamba-ssm
 ```
 
 ### Installation Order (CRITICAL)
-1. Base environment: `make setup`
-2. GPU components: `make setup-gpu`
-3. Verify: `.venv/bin/python -c "from mamba_ssm import Mamba2; print('✅')"`
+**PREREQUISITE**: Install CUDA 12.4 toolkit BEFORE running make commands:
+```bash
+# Ubuntu/WSL2 - Install CUDA 12.4 toolkit
+sudo apt-get update
+sudo apt-get install -y cuda-toolkit-12-4
+
+# Verify
+/usr/local/cuda-12.4/bin/nvcc --version
+```
+
+**Why?** PyTorch 2.5.0+cu124 includes CUDA 12.4 **runtime** but NOT the **toolkit**. The toolkit is required to compile mamba-ssm from source.
+
+1. Install CUDA 12.4 toolkit (see above)
+2. Base environment: `make setup`
+3. GPU components: `make setup-gpu` (clears caches, builds from source)
+4. Verify: `.venv/bin/python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; print('✅')"`
 
 **Note**: PyG requires pre-built wheels from https://data.pyg.org/whl/torch-2.5.0+cu124.html
 
@@ -255,6 +268,8 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 
 | Issue | Solution |
 |-------|----------|
+| **Symbol mismatch: `_ZN3c104cuda9SetDeviceEab`** | **Rebuild mamba-ssm from source with `--no-binary` flag (see INSTALLATION.md#1)** |
+| **CUDA 12.4 toolkit not found** | **Install: `sudo apt-get install -y cuda-toolkit-12-4`** |
 | Cache directory wrong | Local: `cache/tusz/`, Modal: `/results/cache/tusz/` |
 | Zero seizures in batches | Enable `use_balanced_sampling: true` |
 | NaN losses on RTX 4090 | Set `mixed_precision: false` |
@@ -264,7 +279,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 | **Modal XID 31 GPU crashes** | **v3.3.1: FIXED - unique Triton cache dirs in deploy/modal/app.py:539-546** |
 | Modal training stuck | Increase CPU cores (24) and RAM (96GB) |
 | PyG installation fails | Use pre-built wheels, not `uv sync -E graph` |
-| Mamba CUDA errors | Ensure CUDA 12.4 toolkit installed |
+| Mamba CUDA errors | Ensure CUDA 12.4 toolkit installed, rebuild from source |
 | CI/CD test failures | Tests properly skip when PyG not installed (v3.3.0+) |
 
 ### Modal-Specific Settings

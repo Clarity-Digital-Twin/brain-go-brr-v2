@@ -155,18 +155,28 @@ setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.4)
 	@echo "${CYAN}Setting up GPU support for V3 stack...${NC}"
 	@echo "${YELLOW}Checking CUDA versions...${NC}"
 	@.venv/bin/python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA: {torch.version.cuda}')" || echo "${RED}PyTorch not installed${NC}"
-	@nvcc --version 2>/dev/null | grep "release 12.4" || echo "${RED}CUDA 12.4 toolkit required!${NC}"
-	@echo "${CYAN}Installing Mamba-SSM components...${NC}"
+	@if ! /usr/local/cuda-12.4/bin/nvcc --version 2>/dev/null | grep -q "release 12.4"; then \
+		echo "${RED}CUDA 12.4 toolkit required but not found!${NC}"; \
+		echo "${YELLOW}Install with: sudo apt-get install -y cuda-toolkit-12-4${NC}"; \
+		echo "${YELLOW}See INSTALLATION.md for full instructions${NC}"; \
+		exit 1; \
+	fi
+	@echo "${CYAN}Clearing UV/pip caches (prevents stale CUDA wheels)...${NC}"
+	@rm -rf ~/.cache/uv ~/.cache/pip 2>/dev/null || true
+	@echo "${CYAN}Installing Mamba-SSM components (building from source)...${NC}"
 	@export CUDA_HOME=/usr/local/cuda-12.4 && \
-		uv pip install --no-build-isolation causal-conv1d==1.5.2 && \
-		uv pip install --no-build-isolation mamba-ssm==2.2.5
+		export PATH=$$CUDA_HOME/bin:$$PATH && \
+		export LD_LIBRARY_PATH=$$CUDA_HOME/lib64:$${LD_LIBRARY_PATH:-} && \
+		export TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9" && \
+		uv pip install --no-build-isolation --no-binary causal-conv1d causal-conv1d==1.5.2 && \
+		uv pip install --no-build-isolation --no-binary mamba-ssm mamba-ssm==2.2.5
 	@echo "${CYAN}Installing PyG with pre-built wheels...${NC}"
 	@uv pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
 	@uv pip install torch-geometric==2.6.1
 	@echo "${CYAN}Installing TCN...${NC}"
 	@uv pip install pytorch-tcn==1.2.3
 	@echo "${CYAN}Verifying GPU stack...${NC}"
-	@.venv/bin/python -c "from mamba_ssm import Mamba2; print('${GREEN}✓ Mamba-SSM working${NC}')" || echo "${RED}⚠️  Mamba-SSM failed${NC}"
+	@.venv/bin/python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; print('${GREEN}✓ Mamba-SSM CUDA kernels working${NC}')" || echo "${RED}⚠️  Mamba-SSM CUDA failed${NC}"
 	@.venv/bin/python -c "import torch_geometric; print(f'${GREEN}✓ PyG {torch_geometric.__version__} installed${NC}')" || echo "${RED}⚠️  PyG failed${NC}"
 	@.venv/bin/python -c "import pytorch_tcn; print('${GREEN}✓ TCN installed${NC}')" || echo "${RED}⚠️  TCN failed${NC}"
 	@echo "${GREEN}✓ GPU stack ready (TCN + BiMamba + GNN + LPE; V3)${NC}"
