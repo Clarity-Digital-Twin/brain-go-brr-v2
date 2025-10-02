@@ -80,9 +80,9 @@ modal app logs <app-id>
 
 | Setting | Local (RTX 4090) | Modal (A100-80GB) | Why Different |
 |---------|------------------|-------------------|---------------|
-| **Batch Size** | **4** | **32** | 24GB vs 80GB VRAM |
-| **Gradient Accumulation** | **1** | **2** | Effective batch: 4 vs 64 |
-| **Effective Batch** | **4** | **64** | Local: small, Modal: scaled for A100 |
+| **Batch Size** | **8** (was 4) | **48** (testing) | 24GB vs 80GB VRAM |
+| **Gradient Accumulation** | **1** | **1** | No accumulation needed |
+| **Effective Batch** | **8** | **48** | Local: 2× faster, Modal: testing for OOM |
 | Mixed Precision | false | true | RTX 4090 FP16 can cause NaNs |
 | Learning Rate | 1.0e-4 | 8.0e-5 | Stability vs. large batch scaling |
 | Workers | 0 | 4 | WSL2 fix vs parallel IO |
@@ -90,7 +90,31 @@ modal app logs <app-id>
 | Persistent Workers | false | false | Prevents spawn delay + memory leaks |
 | Cache Location | `cache/tusz/` | `/results/cache/tusz/` | Filesystem differences |
 
-## 🚨 CRITICAL: A100 OOM Lessons Learned
+## ⚡ Oct 2025 Speed Optimizations
+
+### Local (RTX 4090): batch_size 4 → 8
+**Discovered**: Actual VRAM usage was only 10GB @ batch_size=4 (not the expected 16GB)
+**Change**: Doubled batch_size to 8 for 2× speed improvement
+**Expected Impact**:
+- Epoch time: **50h → 25h** (2× faster)
+- Full training (20 epochs): **42 days → 21 days**
+- VRAM usage: **10GB → ~20GB** (4GB safety buffer)
+- **OOM test**: Will crash at batch 0 if too large (know in 2 minutes)
+
+### Modal (A100-80GB): batch_size 32×2 → 48×1
+**Previous safe config**: batch_size=32, gradient_accumulation_steps=2
+**New experiment**: batch_size=48, gradient_accumulation_steps=1
+**Expected Impact**:
+- Batches/epoch: **1926 → 1283** (33% fewer)
+- Epoch time: **24h → 15h** (37% faster)
+- Full training (20 epochs): **20 days → 12.5 days**, **$1,531 → $958**
+- Peak memory: **~58-60GB** (linear extrapolation from 64×1=77GB OOM)
+- **OOM test**: Will crash at batch 0 if too large (know in 10 minutes)
+
+**Risk**: Medium - linear extrapolation may underestimate memory spikes
+**Fallback**: Revert to batch_size=42 or 32 if OOM occurs
+
+## 🚨 CRITICAL: A100 OOM Lessons Learned (Original Crash)
 
 ### The Oct 2025 Crash (batch_size=64 + grad_accum=1)
 
