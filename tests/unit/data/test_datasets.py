@@ -189,8 +189,13 @@ def test_dataset_len_and_item_shapes(monkeypatch: pytest.MonkeyPatch, tmp_path: 
 
     # 3 windows per file → 6 total
     assert len(ds) == 6
-    x0 = ds[0]
-    if isinstance(x0, tuple):
-        x0 = x0[0]
+    batch = ds[0]
+    # Dataset now returns dict with metadata
+    assert isinstance(batch, dict)
+    assert "window" in batch
+    assert "label" in batch
+    assert "file_id" in batch
+    assert "window_start_s" in batch
+    x0 = batch["window"]
     assert isinstance(x0, torch.Tensor)
     assert x0.shape == (19, constants.WINDOW_SAMPLES)
