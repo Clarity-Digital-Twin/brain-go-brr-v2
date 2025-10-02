@@ -178,32 +178,48 @@ torch.cuda.set_per_process_memory_fraction(fraction, 0)
 
 ---
 
-### ❌ 2.7 EDF IO Pipeline Decomposition (BLOCKED - Plan Critically Flawed)
+### ✅ 2.7 EDF IO Pipeline - Actually Clean! (Verified - LOW PRIORITY)
 
 **Scope:** `src/brain_brr/data/io.py`
 
-**Status:** ⚠️ **BLOCKED** - Current plan is CRITICALLY FLAWED and must not be implemented
+**Status:** ✅ **VERIFIED** - Plan rewritten based on actual code (2025-10-02)
 
-**Critical Issues Found (2025-10-02 Audit):**
-- ❌ Plan claims `load_edf_file` does resampling → **FALSE** (not in function)
-- ❌ Plan claims function does bandpass/notch filtering → **FALSE** (not in function)
-- ❌ Plan claims function does label alignment → **FALSE** (not in function)
+**Audit Discovery:**
+- ❌ Original AI-generated plan was COMPLETELY WRONG (hallucinated operations)
+- ✅ Traced ACTUAL pipeline: io.py → preprocess.py → datasets.py
+- ✅ Resampling/filtering happen in `preprocess.py`, NOT in `load_edf_file()`
+- ✅ Function is actually well-organized (153 lines, 94% test coverage)
 
-**What function ACTUALLY does:**
+**What function ACTUALLY does (verified):**
 1. ✅ Read EDF with MNE (with header repair fallback)
 2. ✅ Normalize channel names (TUSZ-specific cleaning)
 3. ✅ Apply channel synonyms (T7→T3, etc.)
 4. ✅ Filter to target channels
 5. ✅ Interpolate missing midline (Fz/Pz) if possible
 6. ✅ Apply montage (best-effort)
+7. ✅ Return RAW microvolts (NO preprocessing)
 
-**Required Actions:**
-1. Trace actual data pipeline: io.py → preprocess.py → datasets.py
-2. Document where resampling/filtering ACTUALLY happen
-3. Completely rewrite `REFACTOR_IO_PY.md` based on real code
-4. Re-audit new plan before implementation
+**Actual Data Pipeline (documented in new plan):**
+```
+1. load_edf_file() → raw µV data [io.py]
+2. preprocess_recording() → filtered/resampled [preprocess.py]
+3. parse_tusz_csv() → events [io.py]
+4. events_to_binary_mask() → labels [io.py]
+5. extract_windows() → windowed data [windows.py]
+```
 
-**Details:** See `REFACTOR_AUDIT_REPORT_2025-10-02.md` for full analysis
+**Refactor Plan:** Minimal helper extraction (optional)
+- Extract channel normalization helper
+- Extract interpolation helper
+- Keep in same file (313 lines total is fine)
+
+**Priority:** **LOW** - Defer unless specific need arises
+- Already working reliably in production
+- 94% test coverage
+- Clean separation of concerns across modules
+- Focus on detector.py and metrics.py first (real complexity issues)
+
+**Details:** See rewritten `REFACTOR_IO_PY.md` for complete analysis
 
 ---
 
