@@ -6,8 +6,6 @@ No mocking config objects - use real dataclasses.
 
 from __future__ import annotations
 
-import pytest
-
 from src.brain_brr.config.schemas import WarmupScheduleConfig
 from src.brain_brr.train.warmup import get_focal_gamma
 
