@@ -107,6 +107,8 @@ def _compute_final_metrics(
 
     probs_flat = torch.cat(all_probs_flat).cpu().numpy()
     labels_flat = torch.cat(all_labels_flat).cpu().numpy()
+
+    # Binarize labels (threshold at 0.5, matches original evaluate_predictions behavior)
     labels_flat = (labels_flat > 0.5).astype(np.float32)
 
     if np.unique(labels_flat).size < 2:
