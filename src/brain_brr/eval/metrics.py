@@ -423,9 +423,11 @@ def stitch_recording_timeline(
     recording_end_s = windows[-1]["start_s"] + constants.WINDOW_SIZE_SEC
     timeline_length = int(recording_end_s * sampling_rate)
 
-    timeline_probs = torch.zeros(timeline_length, dtype=torch.float32)
-    timeline_labels = torch.zeros(timeline_length, dtype=torch.float32)
-    timeline_counts = torch.zeros(timeline_length, dtype=torch.float32)
+    # Detect device from first window to handle CUDA tensors
+    device = windows[0]["probs"].device
+    timeline_probs = torch.zeros(timeline_length, dtype=torch.float32, device=device)
+    timeline_labels = torch.zeros(timeline_length, dtype=torch.float32, device=device)
+    timeline_counts = torch.zeros(timeline_length, dtype=torch.float32, device=device)
 
     for w in windows:
         start_idx = int(w["start_s"] * sampling_rate)
