@@ -37,11 +37,11 @@ PYTEST := $(if $(wildcard .venv/bin/pytest),.venv/bin/pytest,uv run pytest)
 
 test: ## Run tests with coverage (serial to avoid OOM with V3 models)
 	@echo "${CYAN}Running unit tests (serial for V3 safety)...${NC}"
-	$(PYTEST) -n 1 -m "not performance and not gpu" tests/unit --cov=src --cov-append --cov-report=term-missing:skip-covered
+	$(PYTEST) -n 1 -m "not performance and not gpu" tests/unit --cov=src --cov-append
 	@echo "${CYAN}Running integration tests (serial)...${NC}"
-	$(PYTEST) -n 1 -m "not performance and not gpu" tests/integration --cov=src --cov-append --cov-report=term-missing:skip-covered
+	$(PYTEST) -n 1 -m "not performance and not gpu" tests/integration --cov=src --cov-append
 	@echo "${CYAN}Running clinical tests...${NC}"
-	$(PYTEST) -n 1 tests/clinical --cov=src --cov-append --cov-report=term-missing:skip-covered --cov-report=html
+	$(PYTEST) -n 1 tests/clinical --cov=src --cov-append --cov-report=term-missing:skip-covered --cov-report=html --cov-fail-under=80
 
 test-fast: ## Run tests without coverage (serial to avoid OOM)
 	@echo "${CYAN}Running fast tests (serial for V3 safety)...${NC}"
