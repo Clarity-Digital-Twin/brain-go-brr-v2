@@ -699,7 +699,9 @@ def main() -> None:
 
     # Sort validation files by stem for streaming validation
     # (Grouped windows from same recording enable incremental processing)
-    val_files_sorted = sorted(zip(val_files, val_label_files), key=lambda x: x[0].stem)
+    val_files_sorted = sorted(
+        zip(val_files, val_label_files, strict=False), key=lambda x: x[0].stem
+    )
     val_files = [f for f, _ in val_files_sorted]
     val_label_files = [lf for _, lf in val_files_sorted]
 
