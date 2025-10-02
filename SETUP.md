@@ -74,25 +74,22 @@ This installs:
 ### Step 4: GPU Extensions Setup
 
 ```bash
-# Install mamba-ssm and causal-conv1d with --no-build-isolation
+# Install mamba-ssm, causal-conv1d, PyG, and TCN (all-in-one)
 make setup-gpu
 ```
 
-**Why `--no-build-isolation`?**
-- mamba-ssm and causal-conv1d require PyTorch at **build time**
-- UV's build isolation prevents access to installed PyTorch
-- Must use `--no-build-isolation` flag to access pre-installed PyTorch
+**What this does:**
+- Installs mamba-ssm and causal-conv1d with `--no-build-isolation` (required for PyTorch access)
+- Installs PyG from pre-built wheels (torch-scatter, torch-sparse, torch-geometric)
+- Installs pytorch-tcn for temporal modeling
+- Verifies all components working
 
-### Step 5: Install PyTorch Geometric
+**Why not `uv sync -E graph`?**
+- Would try to build from source and fail
+- Must use pre-built wheels from https://data.pyg.org/whl/torch-2.5.0+cu124.html
+- `make setup-gpu` handles this correctly
 
-```bash
-# Install PyG from pre-built wheels (REQUIRED)
-make setup-pyg
-```
-
-**DO NOT use** `uv sync -E graph` - it will try to build from source and fail. Must use pre-built wheels from https://data.pyg.org/whl/torch-2.5.0+cu124.html
-
-### Step 6: Verify Installation
+### Step 5: Verify Installation
 
 ```bash
 # Verify mamba-ssm CUDA
@@ -190,7 +187,7 @@ Could not find a version that satisfies the requirement torch-geometric
 
 **Cause**: Trying to install from PyPI instead of pre-built wheels
 
-**Fix**: Use `make setup-pyg` (NOT `uv sync -E graph`)
+**Fix**: Use `make setup-gpu` which includes PyG pre-built wheels (NOT `uv sync -E graph`)
 
 ### Issue 4: Mamba CUDA errors during training
 ```
