@@ -99,10 +99,10 @@ numpy==1.26.4             # 2.x breaks mamba-ssm
 - [ ] Prepare production deployment artifacts
 
 ### Refactoring Queue (After Training Completion)
-1. **detector.py** - Extract builder helpers and pipeline stages (✅ plan verified)
-2. **metrics.py** - Decompose evaluation pipeline (✅ plan verified)
-3. **cli.py** - Create service layer (✅ plan verified)
-4. **io.py** - BLOCKED - requires plan rewrite (❌ current plan flawed)
+1. **detector.py** - Extract builder helpers and pipeline stages (✅ plan verified - HIGH)
+2. **metrics.py** - Decompose evaluation pipeline (✅ plan verified - HIGH)
+3. **cli.py** - Create service layer (✅ plan verified - MEDIUM)
+4. **io.py** - Minimal helper extraction (✅ plan rewritten - LOW, defer)
 
 ### Documentation Debt
 - [ ] Update architecture diagrams for v3.4.1 stability features
