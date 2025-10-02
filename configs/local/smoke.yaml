@@ -118,7 +118,7 @@ preprocessing:
 
 training:
   epochs: 1
-  batch_size: 4  # Reduced for PyTorch 2.5 higher VRAM usage
+  batch_size: 8  # OPTIMIZED: 2x faster (matches train.yaml)
   learning_rate: 5.0e-5
   weight_decay: 0.05
   optimizer: adamw

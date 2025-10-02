@@ -120,8 +120,8 @@ postprocessing:
 
 training:
   epochs: 1                            # Just 1 epoch for smoke test
-  batch_size: 32                       # SAFE: Peak memory ~50GB (64 causes 77GB OOM during backward)
-  gradient_accumulation_steps: 2       # CRITICAL: Maintains effective batch=64, reduces peak memory
+  batch_size: 48                       # EXPERIMENT: ~58GB peak (matches train.yaml)
+  gradient_accumulation_steps: 1       # EXPERIMENT: No accumulation with batch_size=48
   loss: focal
   focal_alpha: 0.5
   focal_gamma: 2.0
