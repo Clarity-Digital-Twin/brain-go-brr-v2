@@ -1,8 +1,16 @@
 # Refactor Plan — src/brain_brr/data/io.py
-Status: Draft for consensus (2025-10-02)
-Priority: MEDIUM
+⚠️ **AUDIT FAILED - DO NOT IMPLEMENT** ⚠️
+Status: BLOCKED - Requires complete rewrite (2025-10-02)
+Priority: MEDIUM (after rewrite)
 Owner: Senior ML auditor (Codex)
 Scope: EDF loading pipeline (`load_edf_file` ≈153 lines)
+
+**CRITICAL ISSUE:** This plan incorrectly describes operations that do NOT exist in `load_edf_file`.
+- Claims function does resampling → FALSE (not in function)
+- Claims function does filtering → FALSE (not in function)
+- Claims function does label alignment → FALSE (not in function)
+
+See `REFACTOR_AUDIT_REPORT_2025-10-02.md` for details. Plan must be rewritten based on actual code.
 
 ## 1. Context & Problem Statement
 `load_edf_file` (≈153 lines, current span 54–206) performs multiple stages in a single function:

@@ -5,7 +5,7 @@ Owner: Senior ML auditor (Codex)
 Scope: Click command orchestration (`train`, `evaluate`, `validate`, etc.)
 
 ## 1. Context & Problem Statement
-- `evaluate` command (≈222 lines, current span 316–537) currently orchestrates option parsing, checkpoint resolution, dataset construction, model loading, inference, metric computation, and export in a single function.
+- `evaluate` command (≈223 lines, current span 316–539) currently orchestrates option parsing, checkpoint resolution, dataset construction, model loading, inference, metric computation, and export in a single function.
 - `train` command shares similar issues (~160 lines) though less extreme.
 - Lack of separation makes unit testing difficult (requires Click runner + heavy mocking) and blocks reuse of evaluation flow in other contexts (e.g., automated pipelines).
 

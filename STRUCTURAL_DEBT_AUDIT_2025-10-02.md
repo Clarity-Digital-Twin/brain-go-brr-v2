@@ -41,22 +41,24 @@ Senior auditor sweep for oversized/monolithic Python modules. No code was modifi
   - New service-layer unit tests plus existing CLI tests ensure parity.
 - **Status:** Plan drafted; waiting on alignment before extracting helpers.
 
-### 5. `src/brain_brr/data/io.py` — PLAN READY (see `REFACTOR_IO_PY.md`)
-- **Pain Point:** `load_edf_file` (≈153 lines, span 54–206) performs path resolution, EDF read, resample, filtering, channel reordering, interpolation, and label alignment inline.
-- **Refactor Strategy:**
-  - Break pipeline into helpers for path resolution, EDF read, resample, filters, channel ordering/interpolation, label alignment, and output packaging.
-  - Add synthetic-signal unit tests per stage; regression compares cached outputs with `numpy.allclose`.
-- **Status:** Plan drafted; execution scheduled post-consensus.
+### 5. `src/brain_brr/data/io.py` — ❌ PLAN BLOCKED (see `REFACTOR_IO_PY.md`)
+- **Pain Point:** `load_edf_file` (≈153 lines, span 54–206) handles EDF reading, channel normalization/ordering, and midline interpolation.
+- **CRITICAL AUDIT FINDING (2025-10-02):**
+  - ❌ Original plan incorrectly claimed function does resampling (NOT in function)
+  - ❌ Original plan incorrectly claimed function does filtering (NOT in function)
+  - ❌ Original plan incorrectly claimed function does label alignment (NOT in function)
+  - These operations happen elsewhere in pipeline (likely preprocess.py/datasets.py)
+- **Status:** ⚠️ BLOCKED - Plan requires complete rewrite based on actual code. See `REFACTOR_AUDIT_REPORT_2025-10-02.md` for full analysis.
 
 ## Progress Summary
 
 | File | Status | Plan Document | Priority |
 |------|--------|---------------|----------|
 | `train/loop.py` | ✅ Completed | EXECUTION_PLAN_2025-10-02.md (Sequence 4) | N/A |
-| `models/detector.py` | 📝 Planned | `REFACTOR_DETECTOR_PY.md` | High |
-| `eval/metrics.py` | 📝 Planned | `REFACTOR_METRICS_PY.md` | High |
-| `cli/cli.py` | 📝 Planned | `REFACTOR_CLI_PY.md` | Medium |
-| `data/io.py` | 📝 Planned | `REFACTOR_IO_PY.md` | Medium |
+| `models/detector.py` | ✅ Verified | `REFACTOR_DETECTOR_PY.md` | High |
+| `eval/metrics.py` | ✅ Verified | `REFACTOR_METRICS_PY.md` | High |
+| `cli/cli.py` | ✅ Verified (minor fix applied) | `REFACTOR_CLI_PY.md` | Medium |
+| `data/io.py` | ❌ BLOCKED (plan flawed) | `REFACTOR_IO_PY.md` (needs rewrite) | N/A |
 
 ## Test Coverage Debt (added 2025-10-02)
 
@@ -107,8 +109,18 @@ This is **expected** and **healthy**: we traded implicit integration coverage fo
   - **Verdict:** Still maintains excellent real-time performance (55ms << 1000ms requirement)
 
 ## Next Actions
-- Review each refactor plan with engineering leads; capture sign-off in STATUS.md.
-- Once approved, schedule refactors sequentially (detector → metrics → CLI → IO) with regression checkpoints outlined in each document.
-- Update TODO.md as phases begin/complete to keep debt tracker current.
+- ⚠️ **PRIORITY 1:** Rewrite REFACTOR_IO_PY.md based on actual code (see audit report)
+- Review verified refactor plans (detector, metrics, cli) with engineering leads
+- Once approved, schedule refactors sequentially (detector → metrics → CLI) with regression checkpoints
+- Update TODO.md as phases begin/complete to keep debt tracker current
+- **DO NOT proceed with io.py refactor until plan is rewritten and re-verified**
 
-Document owner: Codex senior auditor (updated 2025-10-02 after drafting refactor playbooks and documenting test coverage debt).
+## Audit Trail
+- **2025-10-02 (PM):** Deep audit completed by Claude Code
+  - ✅ detector.py plan verified accurate
+  - ✅ metrics.py plan verified accurate
+  - ✅ cli.py plan verified accurate (minor line number fix applied)
+  - ❌ io.py plan found critically flawed - BLOCKED pending rewrite
+  - See `REFACTOR_AUDIT_REPORT_2025-10-02.md` for full findings
+
+Document owner: Codex senior auditor (updated 2025-10-02 after drafting refactor playbooks, documenting test coverage debt, and completing verification audit).
