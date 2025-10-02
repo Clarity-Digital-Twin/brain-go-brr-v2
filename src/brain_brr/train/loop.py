@@ -13,7 +13,6 @@ from __future__ import annotations
 import logging
 import math
 import os
-import random
 import sys
 import time
 import warnings
@@ -109,8 +108,6 @@ def get_focal_gamma(
 # ============================================================================
 # Reproducibility utilities (Single Responsibility)
 # ============================================================================
-
-
 
 
 # ============================================================================
