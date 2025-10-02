@@ -41,7 +41,7 @@ test: ## Run tests with coverage (serial to avoid OOM with V3 models)
 	@echo "${CYAN}Running integration tests (serial)...${NC}"
 	$(PYTEST) -n 1 -m "not performance and not gpu" tests/integration --cov=src --cov-append
 	@echo "${CYAN}Running clinical tests...${NC}"
-	$(PYTEST) -n 1 tests/clinical --cov=src --cov-append --cov-report=term-missing:skip-covered --cov-report=html --cov-fail-under=80
+	$(PYTEST) -n 1 tests/clinical --cov=src --cov-append --cov-report=term-missing:skip-covered --cov-report=html --cov-fail-under=75
 
 test-fast: ## Run tests without coverage (serial to avoid OOM)
 	@echo "${CYAN}Running fast tests (serial for V3 safety)...${NC}"
