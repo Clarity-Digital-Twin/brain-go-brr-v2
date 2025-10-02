@@ -17,7 +17,7 @@ Senior auditor sweep for oversized/monolithic Python modules. No code was modifi
 - **Reference:** Commit `36055df`, EXECUTION_PLAN_2025-10-02.md Sequence 4 marked complete.
 
 ### 2. `src/brain_brr/models/detector.py` — PLAN READY (see `REFACTOR_DETECTOR_PY.md`)
-- **Pain Points:** `forward` (≈186 lines) blends preprocessing, dual-stream fusion, monitoring, and clamping; `from_config` (≈198 lines) instantiates TCN, BiMamba, GNN, fusion heads, and PR toggles in one block.
+- **Pain Points:** `forward` (≈187 lines, current span 247–433) blends preprocessing, dual-stream fusion, monitoring, and clamping; `from_config` (≈199 lines, span 436–634) instantiates TCN, BiMamba, GNN, fusion heads, and PR toggles in one block.
 - **Refactor Strategy:**
   - Phase 1 extracts builder helpers (`_build_node_stream`, `_build_edge_stream`, `_build_fusion_head`, `_build_regularizers`).
   - Phase 2 decomposes `forward` into pipeline helpers (`_prepare_inputs`, `_run_node_stream`, `_run_edge_stream`, `_apply_fusion`, `_apply_postprocess`).
@@ -25,7 +25,7 @@ Senior auditor sweep for oversized/monolithic Python modules. No code was modifi
 - **Status:** Awaiting consensus prior to implementation.
 
 ### 3. `src/brain_brr/eval/metrics.py` — PLAN READY (see `REFACTOR_METRICS_PY.md`)
-- **Pain Point:** `evaluate_predictions` (≈159 lines) couples timeline assembly, FA sweeps, scalar metrics, and output formatting, hindering testability.
+- **Pain Point:** `evaluate_predictions` (≈185 lines, span 448–632) couples timeline assembly, FA sweeps, scalar metrics, and output formatting, hindering testability.
 - **Refactor Strategy:**
   - Timeline helpers isolate hysteresis/morphology/merge logic.
   - False-alarm sweep helper preserves current conservative counting while documenting TODO for unique FA logic.
@@ -34,7 +34,7 @@ Senior auditor sweep for oversized/monolithic Python modules. No code was modifi
 - **Status:** Awaiting consensus before code changes.
 
 ### 4. `src/brain_brr/cli/cli.py` — PLAN READY (see `REFACTOR_CLI_PY.md`)
-- **Pain Point:** `evaluate` command (≈223 lines) intermixes CLI parsing, checkpoint IO, dataloader creation, inference, metrics, and export logic.
+- **Pain Point:** `evaluate` command (≈222 lines, span 316–537) intermixes CLI parsing, checkpoint IO, dataloader creation, inference, metrics, and export logic.
 - **Refactor Strategy:**
   - Introduce `src/brain_brr/cli/services/` with evaluation/training helpers.
   - Thin Click commands to parse-and-delegate while preserving UX.
@@ -42,7 +42,7 @@ Senior auditor sweep for oversized/monolithic Python modules. No code was modifi
 - **Status:** Plan drafted; waiting on alignment before extracting helpers.
 
 ### 5. `src/brain_brr/data/io.py` — PLAN READY (see `REFACTOR_IO_PY.md`)
-- **Pain Point:** `load_edf_file` (≈152 lines) performs path resolution, EDF read, resample, filtering, channel reordering, interpolation, and label alignment inline.
+- **Pain Point:** `load_edf_file` (≈153 lines, span 54–206) performs path resolution, EDF read, resample, filtering, channel reordering, interpolation, and label alignment inline.
 - **Refactor Strategy:**
   - Break pipeline into helpers for path resolution, EDF read, resample, filters, channel ordering/interpolation, label alignment, and output packaging.
   - Add synthetic-signal unit tests per stage; regression compares cached outputs with `numpy.allclose`.

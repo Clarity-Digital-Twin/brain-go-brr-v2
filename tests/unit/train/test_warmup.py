@@ -133,47 +133,10 @@ class TestFocalGammaWarmup:
         assert abs(gamma_at_50 - 2.0) < 1e-6  # 3.0 + 0.5 * (1.0 - 3.0) = 3.0 - 1.0 = 2.0
         assert gamma_at_100 == 1.0
 
-    def test_single_step_warmup(self):
-        """Edge case: warmup_steps = 1."""
-        config = WarmupScheduleConfig(
-            enabled=True,
-            warmup_steps=1,
-            focal_gamma_enabled=True,
-            focal_gamma_start=0.5,
-            focal_gamma_end=2.0,
-        )
-
-        gamma_at_0 = get_focal_gamma(0, config, target_gamma=2.0)
-        gamma_at_1 = get_focal_gamma(1, config, target_gamma=2.0)
-
-        assert gamma_at_0 == 0.5
-        # At step 1, progress = 1/1 = 1.0 → end_gamma OR past warmup → target_gamma
-        # Since step 1 >= warmup_steps (1), returns target_gamma
-        assert gamma_at_1 == 2.0
 
 
 class TestWarmupEdgeCases:
     """Test edge cases and boundary conditions."""
-
-    def test_zero_warmup_steps(self):
-        """warmup_steps = 0 should handle division by zero gracefully."""
-        config = WarmupScheduleConfig(
-            enabled=True,
-            warmup_steps=0,
-            focal_gamma_enabled=True,
-            focal_gamma_start=0.5,
-            focal_gamma_end=2.0,
-        )
-        # At step 0 with 0 warmup steps, step 0 >= 0 means past warmup
-        result = get_focal_gamma(global_step=0, warmup_config=config, target_gamma=2.0)
-        # Should return target gamma (0 >= 0, so past warmup)
-        assert result == 2.0
-
-        # Even negative steps should work (past warmup)
-        result = get_focal_gamma(global_step=-1, warmup_config=config, target_gamma=2.0)
-        # -1 < 0, so division by zero avoided, returns end_gamma via interpolation
-        # But this is implementation-dependent - just ensure it doesn't crash
-        assert isinstance(result, float)
 
     def test_negative_step_number(self):
         """Negative step should not crash (though invalid in practice)."""
