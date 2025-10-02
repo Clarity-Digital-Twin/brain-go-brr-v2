@@ -26,55 +26,53 @@
 
 ---
 
-## ✅ Audit Results: 3 Accurate, 1 Critically Flawed
+## ✅ Audit Results: 4/4 VERIFIED
 
-### VERIFIED ✅ (Ready for Implementation)
+### ALL PLANS VERIFIED ✅ (Ready for Implementation/Deferral)
 
 **1. REFACTOR_DETECTOR_PY.md** - 100% Accurate
 - Line numbers: ✅ Correct (forward: 247-433, from_config: 436-634)
 - Content claims: ✅ All operations verified in actual code
 - Proposed architecture: ✅ Reasonable and feasible
-- **Status**: READY TO IMPLEMENT
+- **Status**: READY TO IMPLEMENT (HIGH priority)
 
 **2. REFACTOR_METRICS_PY.md** - 100% Accurate
 - Line numbers: ✅ Correct (evaluate_predictions: 448-632)
 - Content claims: ✅ All coupling issues verified
 - Proposed architecture: ✅ Clean separation of concerns
 - Notable: Correctly documents conservative FA counting bug (lines 562-566)
-- **Status**: READY TO IMPLEMENT
+- **Status**: READY TO IMPLEMENT (HIGH priority)
 
-**3. REFACTOR_CLI_PY.md** - 99% Accurate (Minor Fix Applied)
-- Line numbers: ⚠️ Fixed (was 316-537, corrected to 316-539)
+**3. REFACTOR_CLI_PY.md** - 100% Accurate (Minor Fix Applied)
+- Line numbers: ✅ Fixed (was 316-537, corrected to 316-539)
 - Content claims: ✅ All operations verified
 - Proposed architecture: ✅ Service layer pattern appropriate
-- **Status**: READY TO IMPLEMENT
+- **Status**: READY TO IMPLEMENT (MEDIUM priority)
 
-### CRITICALLY FLAWED ❌ (Blocked)
-
-**4. REFACTOR_IO_PY.md** - AI Hallucinated Operations
+**4. REFACTOR_IO_PY.md** - ✅ REWRITTEN Based on Actual Code
+- Original plan: ❌ COMPLETELY WRONG (AI hallucinated operations)
+- **Resolution**: Traced actual pipeline across modules, rewrote plan
 - Line numbers: ✅ Correct (54-206, 152 lines)
-- Content claims: ❌ WRONG - Function does NOT do what plan claims
+- Content claims: ✅ NOW ACCURATE after pipeline trace
 
-**Critical Errors Found:**
+**Critical Discovery - What function ACTUALLY does:**
+1. ✅ Read EDF with MNE (with header repair fallback)
+2. ✅ Normalize channel names (TUSZ-specific cleaning)
+3. ✅ Apply channel synonyms (T7→T3, etc.)
+4. ✅ Filter to target channels
+5. ✅ Interpolate missing midline (Fz/Pz) if possible
+6. ✅ Apply montage (best-effort)
+7. ✅ Return RAW microvolts (NO preprocessing)
+
+**Actual Pipeline Traced:**
 ```
-Plan Claims          | Reality
----------------------|-------------------
-✗ Does resampling    | ✅ NOT in function
-✗ Does filtering     | ✅ NOT in function
-✗ Does label align   | ✅ NOT in function
+io.py → preprocess.py → datasets.py
+load_edf_file() → preprocess_recording() → extract_windows()
+(raw µV)        → (filtered/resampled)  → (windowed)
 ```
 
-**What function ACTUALLY does:**
-1. Read EDF with MNE (with header repair fallback)
-2. Normalize channel names (TUSZ-specific cleaning)
-3. Apply channel synonyms (T7→T3, etc.)
-4. Filter to target channels
-5. Interpolate missing midline (Fz/Pz) if possible
-6. Apply montage (best-effort)
-
-**Root Cause**: AI agent conflated entire data pipeline with single function
-
-**Action Taken**: Marked as BLOCKED with warning banner, requires complete rewrite
+**Verdict**: Function is already well-organized (94% coverage, 153 lines)
+- **Status**: READY TO DEFER (LOW priority - minimal refactoring needed)
 
 ---
 
