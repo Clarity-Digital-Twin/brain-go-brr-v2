@@ -295,6 +295,43 @@ data:
 
 ---
 
+### 6.2 Conservative FA Counting in Threshold Search
+
+**Finding:** During P0 evaluation fix (Sequence 2), introduced binary search for FA thresholds but counts ALL predicted events as FAs without checking overlap with reference events.
+
+**File:** `src/brain_brr/eval/metrics.py:560-570`
+
+**Issue:**
+- Threshold search counts `len(pred_events)` as FA count
+- Should only count pred events that DON'T overlap ANY reference event
+- Makes threshold search more conservative (safer but less accurate)
+- Not breaking, just suboptimal
+
+**Impact:**
+- Thresholds are higher than necessary (more false negatives)
+- Clinical targets still achievable, just requires lower raw scores
+- Not a correctness bug, optimization opportunity
+
+**Fix Strategy:**
+```python
+# For each predicted event in threshold search:
+for pred_start, pred_end in pred_events:
+    has_overlap = any(
+        overlap((pred_start, pred_end), (ref_start, ref_end)) > 0
+        for ref_start, ref_end in ref_events
+    )
+    if not has_overlap:
+        total_fa += 1
+```
+
+**Recommendation:** Defer to v4.0 - Document with TODO(v4) (DONE in commit 35be735)
+
+**Effort:** 2-3 hours (needs stitched ref events per recording in search loop)
+**Risk:** LOW (optimization, not correctness fix)
+**Priority:** P3 - Nice to have, not blocking
+
+---
+
 ## Prioritized Execution Plan
 
 ### Phase 1: Quick Wins (3-4 hours) - CAN DO NOW
