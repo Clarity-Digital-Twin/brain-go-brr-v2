@@ -687,6 +687,8 @@ def evaluate_predictions_streaming(
     probs_flat = torch.cat(all_probs_flat).cpu().numpy()
     labels_flat = torch.cat(all_labels_flat).cpu().numpy()
 
+    labels_flat = (labels_flat > 0.5).astype(np.float32)
+
     if np.unique(labels_flat).size < 2:
         auroc = 0.5
     else:
