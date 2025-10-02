@@ -279,15 +279,11 @@ export UV_LINK_MODE=copy         # Prevent permission issues
 - CLI: click, rich
 - Monitoring: wandb, tensorboard
 
-### GPU Extensions (`make setup-gpu`)
-- mamba-ssm 2.2.5 (with PR #708 patch)
-- causal-conv1d 1.5.2
-- Built with `--no-build-isolation` flag
-
-### PyTorch Geometric (`make setup-pyg`)
-- torch-geometric 2.6.1
-- torch-scatter, torch-sparse, torch-cluster
-- Pre-built wheels for torch 2.5.0+cu124
+### GPU Extensions (`make setup-gpu`) - All-in-One
+- **Mamba components**: mamba-ssm 2.2.5, causal-conv1d 1.5.2 (built with `--no-build-isolation`)
+- **PyTorch Geometric**: torch-geometric 2.6.1, torch-scatter, torch-sparse, torch-cluster (pre-built wheels)
+- **TCN**: pytorch-tcn 1.2.3
+- **Verification**: Auto-checks all components after install
 
 ### Development Tools (included in base)
 - Testing: pytest, pytest-cov
