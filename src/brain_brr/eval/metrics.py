@@ -486,32 +486,9 @@ def evaluate_predictions(
     total_hours = 0.0
 
     for _fid, windows in recordings.items():
-        # Sort windows by start time
-        windows.sort(key=lambda x: x["start_s"])
-
-        # Reconstruct timeline for this recording
-        # Window is 60s, stride is 10s → 50s overlap
+        # Stitch overlapping windows into continuous timeline
+        timeline_probs, timeline_labels = stitch_recording_timeline(windows, sampling_rate)
         recording_end_s = windows[-1]["start_s"] + constants.WINDOW_SIZE_SEC
-        timeline_length = int(recording_end_s * sampling_rate)
-
-        # Create timeline by averaging overlapping windows
-        timeline_probs = torch.zeros(timeline_length, dtype=torch.float32)
-        timeline_labels = torch.zeros(timeline_length, dtype=torch.float32)
-        timeline_counts = torch.zeros(timeline_length, dtype=torch.float32)
-
-        for w in windows:
-            start_idx = int(w["start_s"] * sampling_rate)
-            end_idx = min(start_idx + len(w["probs"]), timeline_length)
-            window_len = end_idx - start_idx
-
-            timeline_probs[start_idx:end_idx] += w["probs"][:window_len]
-            timeline_labels[start_idx:end_idx] += w["labels"][:window_len]
-            timeline_counts[start_idx:end_idx] += 1.0
-
-        # Average overlapping regions
-        mask = timeline_counts > 0
-        timeline_probs[mask] /= timeline_counts[mask]
-        timeline_labels[mask] /= timeline_counts[mask]
 
         # Convert to events for this recording
         # Reshape to (1, T) for batch processing
