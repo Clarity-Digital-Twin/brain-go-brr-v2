@@ -433,7 +433,8 @@ def train_epoch(
 
             logger.info(f"[DATASET] Sampling {sample_size} windows to estimate distribution...")
             for idx in sample_indices:
-                _, label = dataset[idx.item()]
+                batch = dataset[idx.item()]
+                label = batch["label"]
                 if (label > 0).any():
                     pos_count += 1
                 total_samples += 1
@@ -463,7 +464,6 @@ def train_epoch(
 
     # Get first batch for preflight check
     first_batch = next(iter(dataloader))
-    _, _first_labels = first_batch
 
     # AMP-safe, numerically stable loss on logits (build per-element loss fn)
     # (We keep model outputs as probabilities elsewhere for tests/inference)
@@ -527,9 +527,8 @@ def train_epoch(
 
     # PREFLIGHT CHECK: Test one batch to catch errors early
     logger.info("[PREFLIGHT] Testing one batch before training...")
-    test_windows, test_labels = first_batch
-    test_windows = test_windows.to(device_obj)
-    test_labels = test_labels.to(device_obj)
+    test_windows = first_batch["window"].to(device_obj)
+    test_labels = first_batch["label"].to(device_obj)
 
     # Handle multi-channel labels for test
     if test_labels.dim() == 3:  # (B, C, T)
@@ -612,13 +611,17 @@ def train_epoch(
     # Use enumerate for batch indexing (satisfies ruff SIM113)
     # But track global_step separately for proper scheduler behavior
     try:
-        for batch_idx, (windows, labels) in enumerate(progress):
+        for batch_idx, batch in enumerate(progress):
             # CRITICAL: Log batch start BEFORE any processing (detect hangs)
             if batch_idx == 0 or (batch_idx > 0 and batch_idx % LOG_EVERY_N_STEPS == 0):
                 logger.info(f"[BATCH START] Processing batch {batch_idx}/{len(dataloader)}")
 
-            windows = windows.to(device_obj)
-            labels = labels.to(device_obj)
+            # Unpack dict format
+            windows = batch["window"].to(device_obj)
+            labels = batch["label"].to(device_obj)
+            # Metadata available but not used during training:
+            # file_ids = batch["file_id"]
+            # window_starts = batch["window_start_s"]
 
             # Handle multi-channel labels: aggregate to any-seizure
             if labels.dim() == 3:  # (B, C, T)
@@ -977,6 +980,8 @@ def validate_epoch(
 
     all_probs = []
     all_labels = []
+    all_file_ids = []
+    all_window_starts = []
     total_loss = 0.0
     num_batches = 0
 
@@ -1018,9 +1023,12 @@ def validate_epoch(
             last_heartbeat = time.time()
             heartbeat_interval = 120  # Print progress every 2 minutes
 
-            for batch_idx, (windows, labels) in enumerate(iterator):
-                windows = windows.to(device_obj)
-                labels = labels.to(device_obj)
+            for batch_idx, batch in enumerate(iterator):
+                # Unpack dict format
+                windows = batch["window"].to(device_obj)
+                labels = batch["label"].to(device_obj)
+                file_ids = batch["file_id"]
+                window_starts = batch["window_start_s"]
 
                 # Handle multi-channel labels
                 if labels.dim() == 3:
@@ -1033,6 +1041,8 @@ def validate_epoch(
                 probs = torch.sigmoid(logits)
                 all_probs.append(probs.cpu())
                 all_labels.append(labels.cpu())
+                all_file_ids.extend(file_ids)
+                all_window_starts.extend(window_starts)
 
                 total_loss += loss.item()
                 num_batches += 1
@@ -1058,10 +1068,12 @@ def validate_epoch(
     all_probs_tensor = torch.cat(all_probs, dim=0)
     all_labels_tensor = torch.cat(all_labels, dim=0)
 
-    # Compute metrics
+    # Compute metrics with timeline metadata
     metrics = evaluate_predictions(
         all_probs_tensor,
         all_labels_tensor,
+        all_file_ids,
+        all_window_starts,
         fa_rates,
         post_config,
         sampling_rate=256,
