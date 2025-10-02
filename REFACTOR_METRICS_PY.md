@@ -5,7 +5,7 @@ Owner: Senior ML auditor (Codex)
 Scope: `evaluate_predictions` and supporting helpers
 
 ## 1. Context & Problem Statement
-`evaluate_predictions` (~159 lines) currently couples:
+`evaluate_predictions` (≈185 lines, current span 448–632) currently couples:
 - Timeline reconstruction (binarisation, hysteresis, morphology, merging)
 - False-alarm sweeps at target FA rates
 - Scalar metric reductions (sensitivity, duration stats, AUROC, ECE)
