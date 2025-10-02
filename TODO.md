@@ -1,7 +1,7 @@
 # Technical Debt Priority List
 
 **Last Updated:** 2025-10-02
-**Status:** ✅ ALL P1 COMPLETED | ✅ ALL P2 COMPLETED | P3 VERIFIED
+**Status:** ✅ All legacy P1 completed | 📝 New structural refactors planned (see P2)
 **Training Status:**
 - Modal A100: Full training running (batch_size=48, batch 36+/1284)
 - Local RTX 4090: Full training running (batch_size=8, batch 60+/7702)
@@ -24,7 +24,7 @@
 
 ---
 
-## ✅ P1: HIGH PRIORITY (ALL COMPLETED 2025-09-30)
+## ✅ P1: HIGH PRIORITY (Legacy items completed 2025-09-30)
 
 ### ✅ 1.1 Test Suite Configuration Enforcement
 
@@ -116,233 +116,107 @@ torch.cuda.set_per_process_memory_fraction(fraction, 0)
 
 ---
 
-## ✅ P2: MEDIUM PRIORITY (PARTIALLY COMPLETED 2025-10-02)
+## P2: MEDIUM PRIORITY — Structural Refactors (In Planning)
 
-### ✅ 2.2 ResourcesConfig Unused Field 🗑️
+### ✅ 2.1 loop.py Modularisation (Completed 2025-10-02)
 
-**Issue:** `ResourcesConfig` defined but never used at runtime
-
-**Status:** ✅ **RESOLVED** (Commit: 318f4dc)
-
-**What Was Done:**
-1. Removed `ResourcesConfig` class definition from `src/brain_brr/config/schemas.py`
-2. Removed `resources: ResourcesConfig | None` field from `Config` class
-3. Verified no runtime usage anywhere in codebase or YAML configs
-4. Duplicate of `mixed_precision` from `TrainingConfig` eliminated
-
-**Verification:**
-```bash
-$ rg "ResourcesConfig" src/ --type py
-# Empty - no references remaining
-$ make q
-# All quality checks passed
-```
-
-**Actual Effort:** 15 minutes
+**Status:** ✅ COMPLETE — See `STRUCTURAL_DEBT_AUDIT_2025-10-02.md` and commit `36055df` for details.
 
 ---
 
-### ✅ 2.3 Fixture Naming Standardization 🏷️ (PARTIALLY COMPLETED)
+### ✅ 2.2 ResourcesConfig Removal 🗑️
 
-**Issue:** Redundant `trained_model` fixture nearly identical to `minimal_model`
-
-**Status:** ✅ **PARTIALLY RESOLVED** (Commit: f7b8fc3)
-
-**What Was Done:**
-1. Removed `trained_model` fixture from `tests/conftest.py` (duplicate of `minimal_model`)
-2. Updated 3 references in `tests/clinical/test_taes_metrics.py` to use `minimal_model`
-3. Both fixtures had identical config (4 TCN, 1 Mamba, d_model=512)
-4. Only difference was xavier init in `trained_model` (not needed for tests)
-
-**Remaining Work (Deferred):**
-- `minimal_model_no_leak`: ✅ Already removed (no longer exists in codebase)
-- `small_model` (test_training_edge_cases.py): graph disabled variant (2 usages)
-- No further standardization needed - core duplicates resolved
-
-**Actual Effort:** 20 minutes
+**Status:** ✅ COMPLETE — Dead schema removed (commit `318f4dc`).
 
 ---
 
-### ✅ 2.1 Loop.py Refactoring (COMPLETED 2025-10-02) 📊
+### ✅ 2.3 Fixture Naming Standardisation 🏷️
 
-**Issue:** `src/brain_brr/train/loop.py` was 958 lines with utilities and orchestration mixed
-
-**Status:** ✅ **COMPLETED** - 33% reduction achieved (958 → 640 lines)
-
-**What Was Done:**
-1. ✅ Extracted warmup utilities → `warmup.py` (43 lines)
-2. ✅ Extracted sampling utilities → `sampling.py` (102 lines)
-3. ✅ Extracted FocalLoss → `losses.py` (59 lines)
-4. ✅ Extracted optimizer/scheduler → `optimizer_factory.py` (92 lines)
-5. ✅ Extracted EarlyStopping → `early_stopping.py` (45 lines)
-6. ✅ Updated loop.py imports and removed extracted code
-
-**Final Structure:**
-- `loop.py`: 640 lines (orchestration + main)
-- `train_step.py`: Already extracted (train_epoch implementation)
-- `val_step.py`: Already extracted (validate_epoch implementation)
-- 5 new focused utility modules
-
-**Verification:**
-- Tests: ✅ 100% pass rate (29/29 tests)
-- Type checks: ✅ mypy clean
-- Lint checks: ✅ ruff clean
-- SOLID principles: ✅ Achieved throughout
-
-**Actual Effort:** 4 hours (original estimate: 5 days)
-**Risk:** LOW - Pure extraction, no logic changes
-**Commit:** 36055df (2025-10-02)
+**Status:** ✅ COMPLETE — Duplicate `trained_model` fixture removed (commit `f7b8fc3`).
 
 ---
 
+### 📝 2.4 SeizureDetector Modularisation (Planned)
+
+**Scope:** `src/brain_brr/models/detector.py`
+
+**Why:** `forward` and `from_config` exceed 180 lines each, blending construction and inference pipelines.
+
+**Plan:** See `REFACTOR_DETECTOR_PY.md` for phased extraction of builder helpers and pipeline stages. Requires baseline `state_dict` snapshot and new unit tests.
+
+**Status:** Awaiting consensus; schedule after training completes.
+
+---
+
+### 📝 2.5 Metrics Pipeline Decomposition (Planned)
+
+**Scope:** `src/brain_brr/eval/metrics.py`
+
+**Why:** `evaluate_predictions` couples timeline assembly, FA sweeps, metric reducers, and formatting.
+
+**Plan:** See `REFACTOR_METRICS_PY.md` for staged extraction (timeline helpers → FA sweep → scalar reducers → output formatter). Includes golden JSON regression tests.
+
+**Status:** Awaiting consensus; dependent on Detector refactor completion.
+
+---
+
+### 📝 2.6 CLI Service Layer Extraction (Planned)
+
+**Scope:** `src/brain_brr/cli/cli.py`
+
+**Why:** `evaluate` command (~223 lines) intermixes CLI parsing with evaluation logic, hindering reuse/testing.
+
+**Plan:** See `REFACTOR_CLI_PY.md` for moving logic into `cli/services/evaluation.py` and thinning Click commands.
+
+**Status:** Awaiting consensus; execute after metrics refactor to leverage new evaluation helpers.
+
+---
+
+### 📝 2.7 EDF IO Pipeline Decomposition (Planned)
+
+**Scope:** `src/brain_brr/data/io.py`
+
+**Why:** `load_edf_file` (~152 lines) performs read → preprocess → label alignment inline, complicating profiling and unit tests.
+
+**Plan:** See `REFACTOR_IO_PY.md` for helper extraction (paths, read, resample, filter, channel order, labels, packaging) plus synthetic-signal tests.
+
+**Status:** Awaiting consensus; schedule after CLI refactor or parallel once Detector/metrics are stable.
+
+---
 
 ## P3: LOW PRIORITY
 
 ### 3.1 Code Duplication (Minimal) 📋
 
-**Audit Result:** ✅ **NO DUPLICATION FOUND** (TODO.md was incorrect)
-
-**Investigation:** Lines 92-112 vs 204-220 in `datasets.py` are NOT duplicates:
-- Lines 92-112: `__init__()` method - builds index map from cache metadata
-- Lines 204-220: `__getitem__()` method - loads actual window data for training
-- Different purposes, different contexts, different data
-
-**Status:** No action needed - code is correct
+**Audit Result:** ✅ **NO DUPLICATION FOUND** — prior concern resolved; no action required.
 
 **Actual Effort:** 5 minutes (verification)
-**Risk:** None
 
 ---
 
 ### 3.2 OOM Test Simulation 🧪
 
-**Issue:** `test_cuda_oom_recovery` simulates OOM instead of testing real behavior
+**Issue:** `test_cuda_oom_recovery` simulates OOM instead of exercising real behaviour.
 
-**Current:**
-```python
-if batch_size >= simulated_oom_batch:
-    raise RuntimeError("CUDA out of memory. Simulated for testing.")
-```
-
-**Options:**
-1. Keep as-is (document it's simulated)
-2. Move to manual stress test suite
-3. Delete (little value if not real)
-
-**Estimated Effort:** 15 min (docs) or 1 hour (stress test)
-**Risk:** Negligible
+**Options:** Document simulation or move to manual stress test. Low impact; revisit post structural refactors.
 
 ---
 
 ### 3.3 Deprecated Split Policy Warning 📢
 
-**Issue:** Old custom split policy still supported
+**Issue:** Legacy split policy still supported for backwards compatibility.
 
-**Status:** Keep for backward compatibility until v4.0
-
-**Action:** None required (warnings in place)
+**Action:** None until v4.0 roadmap finalised.
 
 ---
 
 ## ✅ RESOLVED ITEMS
 
-### ✅ Import Audit
-**Status:** Verified consistent - all use `from src.brain_brr...`
-
-### ✅ Race Conditions
-**Status:** None found - proper locking in place
-
-### ✅ Memory Leaks
-**Status:** None found - proper cleanup throughout
-
-### ✅ Bogus Mocked Tests
-**Status:** Only 8 files use mocks, all legitimate (I/O, W&B, etc.)
+- ✅ Import audit — consistent `src.brain_brr` imports.
+- ✅ Race condition review — no issues found.
+- ✅ Memory leak audit — clean.
+- ✅ Mock usage audit — legitimate usage only.
 
 ---
 
-## Summary Statistics
-
-| Category | Count | Status |
-|----------|-------|--------|
-| **P0 Blockers** | 0 | None! 🎉 |
-| **✅ P1 High Priority** | 4 | **ALL COMPLETED** ✅ |
-| **✅ P2 Medium Priority** | 3 | **ALL COMPLETED** ✅ (2.1, 2.2, 2.3) |
-| **P3 Low Priority** | 3 | Verified (3.1 was false positive) |
-| **✅ Other Resolved** | 5 | No action needed |
-
----
-
-## Code Quality Assessment
-
-**Overall Code Quality:** Excellent ✅
-- Only 0.25% true code duplication
-- Strong separation of concerns
-- No race conditions or memory leaks
-- Intentional defensive programming patterns
-
-**Test Suite Quality:** Excellent ✅
-- ✅ Solid infrastructure (100% complete)
-- ✅ Central config enforced (P1.1 completed)
-- ✅ Cleanup fixtures optimized (P1.2 completed)
-- ✅ GPU memory configurable (P1.4 completed)
-- 445 tests passing (380 CPU-safe, 65 GPU, 18 performance)
-
-**Production Readiness:** HIGH ✅
-- No blockers identified
-- Training stable on RTX 4090 and A100 (PR #708 validation in progress)
-- All NaN issues resolved
-- V3 architecture fully operational
-
----
-
-## Recommendations
-
-### ✅ Completed (2025-09-30)
-1. ✅ Enforce test batch size configuration (2 hours) - **DONE**
-2. ✅ Simplify redundant cleanup fixture (1 hour) - **DONE**
-3. ✅ Verify print statements (30 minutes) - **DONE**
-4. ✅ Make GPU memory fraction configurable (5 minutes) - **DONE**
-
-### After Training Completes (Next Sprint)
-5. Complete fixture standardization (remaining 43 tests) - P2.3
-
-### Defer Until V4.0
-6. Loop.py refactoring (5 days, high risk) - P2.1
-7. OOM test redesign (1 hour, low value) - P3.2
-
----
-
-## Recent Updates
-
-**2025-09-30 - P1 Items Completed:**
-- ✅ Test suite configuration enforcement (P1.1)
-- ✅ Redundant cleanup fixtures simplified (P1.2)
-- ✅ Print statements verified (P1.3)
-- ✅ GPU memory fraction configurable (P1.4)
-- **Total effort:** ~3.5 hours (27 files changed, +3,154/-107 lines)
-- **Commits:** 6cf555f, 13b50d3, 6e71240, 9fcb823, 3ac753b
-- **Documentation:** `tests/TEST_SUITE_CURRENT_STATE.md`
-
-**Recent Updates:**
-
-**2025-10-02 - P2 Items Completed:**
-- ✅ Removed ResourcesConfig dead code (P2.2)
-- ✅ Consolidated trained_model fixture (P2.3 partial)
-- ✅ Verified P3.1 duplication claim incorrect
-- **Total effort:** ~40 minutes (3 files changed, +0/-29 lines)
-- **Commits:** 318f4dc, f7b8fc3, afcb109
-- **Quality:** All checks passed
-
-**Last Audit:** 2025-09-29 (Comprehensive codebase investigation)
-**Last Update:** 2025-10-02 (P2 partial completion)
-**Next Review:** After Modal/Local training completes (15-42 days)
-
----
-
-## Key Documentation
-
-- **Test Suite:** `tests/TEST_SUITE_CURRENT_STATE.md` (as-built documentation)
-- **GPU Markers:** `tests/MARKER_POLICY.md` (enforcement policy)
-- **GPU Adjustments:** `tests/GPU_ADJUSTMENTS.md` (RTX 4090 + env vars)
-- **Current Status:** `STATUS.md` (real-time project state)
-- **Dependencies:** `MODAL_XID31_RECURRENCE.md`, `PR708_APPLICATION.md` (testing in progress)
+**Next Review:** After consensus on structural refactor plans or completion of Modal/Local training (eta 15–42 days).
