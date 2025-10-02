@@ -41,5 +41,3 @@ def cleanup_gpu():
         torch.cuda.empty_cache()
         torch.cuda.synchronize()
     gc.collect()
-
-
