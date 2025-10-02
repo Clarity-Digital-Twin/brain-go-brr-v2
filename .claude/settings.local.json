@@ -76,7 +76,8 @@
       "Read(//tmp/**)",
       "Bash(sudo sh:*)",
       "Bash(/usr/local/cuda-12.4/bin/nvcc:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(uv:*)"
     ],
     "deny": [],
     "ask": []
