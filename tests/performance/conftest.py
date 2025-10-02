@@ -43,28 +43,3 @@ def cleanup_gpu():
     gc.collect()
 
 
-@pytest.fixture
-def minimal_model_no_leak():
-    """Create minimal model with proper cleanup."""
-    from src.brain_brr.config.schemas import MambaConfig, ModelConfig, TCNConfig
-    from src.brain_brr.models import SeizureDetector
-
-    config = ModelConfig(
-        architecture="v3",
-        tcn=TCNConfig(num_layers=4, channels=[32, 64, 128, 256], kernel_size=3),
-        mamba=MambaConfig(n_layers=2, d_model=256, d_state=16),
-    )
-    model = SeizureDetector.from_config(config)
-    model.eval()
-
-    # Move to GPU if available
-    if torch.cuda.is_available() and os.getenv("BGB_PERF_ALLOW_GPU", "0") == "1":
-        model = model.cuda()
-
-    yield model
-
-    # Cleanup
-    del model
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-    gc.collect()

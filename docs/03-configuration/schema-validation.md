@@ -23,7 +23,7 @@ training:      # TrainingConfig
 evaluation:    # EvaluationConfig
 experiment:    # ExperimentConfig
 logging:       # LoggingConfig
-resources:     # ResourcesConfig (optional)
+# Note: resources field removed in v3.3.1 - mixed_precision moved to training
 ```
 
 ### Data Configuration
@@ -154,13 +154,6 @@ logging:
 ```
 
 ## Common Validation Errors
-
-### Error: Extra field not permitted
-```yaml
-resources:
-  compile_model: false  # ❌ INVALID - not in ResourcesConfig
-```
-**Fix**: Remove the invalid field
 
 ### Error: wandb under wrong section
 ```yaml

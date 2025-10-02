@@ -294,13 +294,11 @@ if batch_size >= simulated_oom_batch:
 4. ✅ Make GPU memory fraction configurable (5 minutes) - **DONE**
 
 ### After Training Completes (Next Sprint)
-5. Standardize test fixture naming (2 hours) - P2.3
-6. Decide on ResourcesConfig (keep vs remove) - P2.2
+5. Complete fixture standardization (remaining 43 tests) - P2.3
 
 ### Defer Until V4.0
-7. Loop.py refactoring (5 days, high risk) - P2.1
-8. Cache loading consolidation (20 minutes, low value) - P3.1
-9. OOM test redesign (1 hour, low value) - P3.2
+6. Loop.py refactoring (5 days, high risk) - P2.1
+7. OOM test redesign (1 hour, low value) - P3.2
 
 ---
 
@@ -322,7 +320,7 @@ if batch_size >= simulated_oom_batch:
 - ✅ Consolidated trained_model fixture (P2.3 partial)
 - ✅ Verified P3.1 duplication claim incorrect
 - **Total effort:** ~40 minutes (3 files changed, +0/-29 lines)
-- **Commits:** Pending
+- **Commits:** 318f4dc, f7b8fc3, afcb109
 - **Quality:** All checks passed
 
 **Last Audit:** 2025-09-29 (Comprehensive codebase investigation)
