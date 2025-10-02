@@ -454,7 +454,7 @@ def evaluate_predictions(
 
         # Reconstruct timeline for this recording
         # Window is 60s, stride is 10s → 50s overlap
-        recording_end_s = windows[-1]["start_s"] + 60.0
+        recording_end_s = windows[-1]["start_s"] + constants.WINDOW_SIZE_SEC
         timeline_length = int(recording_end_s * sampling_rate)
 
         # Create timeline by averaging overlapping windows
@@ -523,7 +523,7 @@ def evaluate_predictions(
 
     for _fid, windows in recordings.items():
         windows.sort(key=lambda x: x["start_s"])
-        recording_end_s = windows[-1]["start_s"] + 60.0
+        recording_end_s = windows[-1]["start_s"] + constants.WINDOW_SIZE_SEC
         timeline_length = int(recording_end_s * sampling_rate)
 
         timeline_probs = torch.zeros(timeline_length, dtype=torch.float32)
