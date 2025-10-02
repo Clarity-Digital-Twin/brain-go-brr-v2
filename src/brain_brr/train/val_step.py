@@ -93,13 +93,17 @@ def _compute_final_metrics(
         all_ref_events: List of reference events
         all_pred_events: List of predicted events
         total_hours: Total duration in hours
-        fa_rates: FA/24h targets
+        fa_rates: FA/24h targets (e.g., [10, 5, 1])
         post_cfg: Post-processing config
         sampling_rate: Sampling rate
         num_recordings: Number of recordings processed
 
     Returns:
-        Dictionary of metrics
+        Dictionary with keys:
+        - taes, auroc, pr_auc, ece: Standard metrics
+        - sensitivity_at_<N>fa: Sensitivity at each FA target
+        - thresholds: Dict mapping FA rates to tau_on values (e.g., {"10": 0.86})
+        - num_recordings, total_hours: Dataset stats
     """
     from src.brain_brr.eval.metrics import calculate_ece, calculate_taes, overlap
 
