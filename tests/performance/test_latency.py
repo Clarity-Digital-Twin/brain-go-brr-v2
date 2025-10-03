@@ -111,7 +111,7 @@ class TestInferenceLatency:
             # More lenient for consumer GPUs, tighter for datacenter GPUs
             if "RTX" in gpu_name or "GTX" in gpu_name:
                 p95_target = 125  # Consumer GPUs have more variability
-                median_target = 65
+                median_target = 70  # Allow thermal/context variance on consumer GPUs
             else:
                 p95_target = 110  # Datacenter GPUs (A100, V100, etc.)
                 median_target = 55

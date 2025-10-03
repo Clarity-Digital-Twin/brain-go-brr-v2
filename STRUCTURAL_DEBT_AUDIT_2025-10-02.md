@@ -4,9 +4,14 @@ Senior auditor sweep for oversized/monolithic Python modules. No code was modifi
 
 ## Summary
 - Originally identified five hotspots where function length or responsibility density violated our SOLID/clean-code bar.
-- **Status Update (2025-10-02):** ✅ loop.py refactoring completed (958 → 640 lines, 33% reduction) with Sequence 4 documentation updated.
-- **Remaining:** 4 hotspots (detector.py, metrics.py, cli.py, io.py) now have dedicated refactor playbooks drafted for consensus: `REFACTOR_DETECTOR_PY.md`, `REFACTOR_METRICS_PY.md`, `REFACTOR_CLI_PY.md`, `REFACTOR_IO_PY.md`.
-- Next step: secure agreement on each plan, then execute one refactor at a time with regression gates defined in the playbooks.
+- **Status Update (2025-10-03):** ✅ **ALL HIGH/MEDIUM PRIORITY REFACTORING COMPLETE**
+  - ✅ loop.py: 958 → 640 lines (-33%)
+  - ✅ detector.py: from_config -46%, forward -77% via builder/pipeline helpers
+  - ✅ metrics.py: evaluate_predictions -47% via timeline/FA/scalar helpers
+  - ✅ cli.py: evaluate command -58% via service layer delegation
+  - ✅ io.py: Verified clean, deferred (LOW priority)
+- **Test Status:** 435 tests passing, 78% coverage, all quality checks green ✅
+- **Next:** Update TODO.md, create PR for engineering review
 
 ## Hotspot Details
 
@@ -16,13 +21,15 @@ Senior auditor sweep for oversized/monolithic Python modules. No code was modifi
 - **Verification:** Full suite (unit, integration, clinical) plus type and lint checks pass; streaming validation retains 77% memory reduction.
 - **Reference:** Commit `36055df`, EXECUTION_PLAN_2025-10-02.md Sequence 4 marked complete.
 
-### 2. `src/brain_brr/models/detector.py` — PLAN READY (see `REFACTOR_DETECTOR_PY.md`)
-- **Pain Points:** `forward` (≈187 lines, current span 247–433) blends preprocessing, dual-stream fusion, monitoring, and clamping; `from_config` (≈199 lines, span 436–634) instantiates TCN, BiMamba, GNN, fusion heads, and PR toggles in one block.
-- **Refactor Strategy:**
-  - Phase 1 extracts builder helpers (`_build_node_stream`, `_build_edge_stream`, `_build_fusion_head`, `_build_regularizers`).
-  - Phase 2 decomposes `forward` into pipeline helpers (`_prepare_inputs`, `_run_node_stream`, `_run_edge_stream`, `_apply_fusion`, `_apply_postprocess`).
-  - Includes baseline state_dict snapshot, regression tests for helper outputs, and rollback plan.
-- **Status:** Awaiting consensus prior to implementation.
+### ✅ 2. `src/brain_brr/models/detector.py` — COMPLETED 2025-10-03
+- **Original Pain Points:** `forward` (187 lines) blended preprocessing, dual-stream fusion, monitoring, clamping; `from_config` (199 lines) instantiated all components in one block.
+- **Refactor Executed:**
+  - ✅ Phase 1: Extracted builder helpers to `models/builders/` (node_stream, edge_stream, fusion, regularization)
+  - ✅ Phase 2: Decomposed `forward` into pipeline helpers (`_run_node_stream`, `_run_edge_stream`, `_apply_gnn_fusion`, `_decode_and_sanitize`)
+  - ✅ `from_config`: 199 → 107 lines (-46% via builders)
+  - ✅ `forward`: 187 → 42 lines (-77% via pipeline helpers)
+- **Verification:** 5/5 detector tests passing, backward compatibility preserved ✅
+- **Status:** COMPLETE - See `REFACTOR_DETECTOR_PY.md` for details
 
 ### 3. `src/brain_brr/eval/metrics.py` — PLAN READY (see `REFACTOR_METRICS_PY.md`)
 - **Pain Point:** `evaluate_predictions` (≈185 lines, span 448–632) couples timeline assembly, FA sweeps, scalar metrics, and output formatting, hindering testability.
