@@ -333,7 +333,7 @@ def main() -> None:
     import argparse
     import logging
 
-    from src.brain_brr.data import BalancedSeizureDataset, EEGWindowDataset
+    from src.brain_brr.data import BalancedSeizureDataset, EEGWindowDataset, ValidationDataset
     from src.brain_brr.utils.logging_config import setup_logging
 
     # Initialize elite logging infrastructure for training
@@ -538,12 +538,33 @@ def main() -> None:
 
     # Validation cache uses "dev" subdir (TUSZ official naming)
     val_split_name = "dev"
-    val_dataset = EEGWindowDataset(
-        val_files,
-        label_files=val_label_files,
-        cache_dir=data_cache_root / val_split_name,
-        allow_on_demand=True,
-    )
+    val_cache_dir = data_cache_root / val_split_name
+    val_manifest_path = val_cache_dir / constants.MANIFEST_FILENAME
+
+    # Try ValidationDataset (instant load from manifest)
+    # Falls back to EEGWindowDataset if manifest missing
+    if val_manifest_path.exists():
+        try:
+            val_dataset = ValidationDataset(val_cache_dir)
+            logger.info(
+                f"[DATASET] ValidationDataset: {len(val_dataset)} windows from manifest (instant load)"
+            )
+        except Exception as e:
+            logger.warning(f"[DATA] ValidationDataset failed: {e}; falling back to EEGWindowDataset")
+            val_dataset = EEGWindowDataset(
+                val_files,
+                label_files=val_label_files,
+                cache_dir=val_cache_dir,
+                allow_on_demand=True,
+            )
+    else:
+        logger.info("[DATA] No validation manifest found, using EEGWindowDataset (will build index)")
+        val_dataset = EEGWindowDataset(
+            val_files,
+            label_files=val_label_files,
+            cache_dir=val_cache_dir,
+            allow_on_demand=True,
+        )
 
     # CRITICAL FIX: If we just built cache via EEGWindowDataset and manifest doesn't exist,
     # build it now and switch to BalancedSeizureDataset!
