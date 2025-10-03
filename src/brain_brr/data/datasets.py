@@ -416,6 +416,7 @@ class ValidationDataset(Dataset):
         *,
         seed: int | None = 42,
         ensure_manifest: bool = True,
+        allowed_cache_files: set[str] | None = None,
     ) -> None:
         self.cache_dir = Path(cache_dir)
         manifest_path = self.cache_dir / constants.MANIFEST_FILENAME
@@ -444,6 +445,8 @@ class ValidationDataset(Dataset):
 
         for item in all_entries:
             cache_file_name = item["cache_file"]
+            if allowed_cache_files is not None and cache_file_name not in allowed_cache_files:
+                continue
             cache_file_path = self.cache_dir / cache_file_name
             if cache_file_path.exists():
                 file_to_windows[cache_file_name].append((int(item["window_idx"]), cache_file_path))
@@ -466,8 +469,9 @@ class ValidationDataset(Dataset):
         n_total = len(self._entries)
         seizure_ratio = n_seizure / n_total if n_total > 0 else 0.0
 
+        filtered_note = " (filtered)" if allowed_cache_files is not None else ""
         logger.info(
-            f"[ValidationDataset] Created with {len(self._entries)} windows:\n"
+            f"[ValidationDataset] Created with {len(self._entries)} windows{filtered_note}:\n"
             f"  - {len(partial)} partial seizure\n"
             f"  - {len(full)} full seizure\n"
             f"  - {len(no_seizure)} no-seizure\n"

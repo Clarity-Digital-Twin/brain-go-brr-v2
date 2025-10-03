@@ -44,21 +44,32 @@ Created `ValidationDataset` class that:
 ```python
 class ValidationDataset(Dataset):
     """Validation dataset using manifest without balanced sampling.
-    
+
     Uses ALL windows from the manifest in natural distribution (~8% seizures).
     This is much faster than EEGWindowDataset (instant load vs 5-10 min scan).
     """
 ```
 
+- Optional `allowed_cache_files` keeps smoke-mode limits (e.g., `BGB_LIMIT_FILES`) effective.
+
 ### 2. Updated Training Loop (src/brain_brr/train/loop.py:539-567)
 
 ```python
 # Try ValidationDataset (instant load from manifest)
+allowed_cache_files = {
+    f"{val_file.stem}_windows.npz" for val_file in val_files
+} if val_files else None
+
 val_dataset: ValidationDataset | EEGWindowDataset
 if val_manifest_path.exists():
     try:
-        val_dataset = ValidationDataset(val_cache_dir)
-        logger.info(f"[DATASET] ValidationDataset: {len(val_dataset)} windows from manifest (instant load)")
+        val_dataset = ValidationDataset(
+            val_cache_dir,
+            allowed_cache_files=allowed_cache_files,
+        )
+        logger.info(
+            f"[DATASET] ValidationDataset: {len(val_dataset)} windows from manifest (instant load)"
+        )
     except Exception as e:
         # Fallback to EEGWindowDataset
         val_dataset = EEGWindowDataset(...)
@@ -111,7 +122,7 @@ Added `ValidationDataset` to `__all__` exports.
 - Loads in <0.01 seconds from manifest
 
 **Validation Dataset (ValidationDataset)**:
-- 148,224 windows (ALL windows from manifest)
+- 148,224 windows (full manifest) or subset when filters applied
 - Breakdown:
   - 3,536 full seizure windows
   - 7,944 partial seizure windows
@@ -154,7 +165,7 @@ Added `ValidationDataset` to `__all__` exports.
 
 ✅ Quality checks passed (lint, format, mypy)  
 ✅ Training dataset uses BalancedSeizureDataset (manifest)  
-✅ Validation dataset uses ValidationDataset (manifest)  
+✅ Validation dataset uses ValidationDataset (manifest, limit-aware)  
 ✅ Both load in <2 seconds total  
 ✅ Natural distribution preserved (7.7% seizures in validation)  
 ✅ Graceful fallback to EEGWindowDataset if manifest missing

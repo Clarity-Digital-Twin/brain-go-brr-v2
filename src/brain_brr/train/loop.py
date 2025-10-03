@@ -546,7 +546,13 @@ def main() -> None:
     val_dataset: ValidationDataset | EEGWindowDataset
     if val_manifest_path.exists():
         try:
-            val_dataset = ValidationDataset(val_cache_dir)
+            allowed_cache_files = (
+                {f"{val_file.stem}_windows.npz" for val_file in val_files} if val_files else None
+            )
+            val_dataset = ValidationDataset(
+                val_cache_dir,
+                allowed_cache_files=allowed_cache_files,
+            )
             logger.info(
                 f"[DATASET] ValidationDataset: {len(val_dataset)} windows from manifest (instant load)"
             )
