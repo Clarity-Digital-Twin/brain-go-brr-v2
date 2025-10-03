@@ -10,13 +10,13 @@ import numpy as np
 import torch
 from sklearn.metrics import roc_auc_score, roc_curve
 
+from src.brain_brr.config.schemas import PostprocessingConfig
 from src.brain_brr.constants import (
     EPSILON_ZERO_CHECK,
     STRIDE_SIZE_SEC,
     THRESHOLD_SEARCH_TOLERANCE,
     WINDOW_SIZE_SEC,
 )
-from src.brain_brr.config.schemas import PostprocessingConfig
 from src.brain_brr.events import batch_mask_to_events
 from src.brain_brr.post.postprocess import postprocess_predictions
 
@@ -423,7 +423,7 @@ def stitch_recording_timeline(
     """
     windows.sort(key=lambda x: x["start_s"])
 
-    recording_end_s = windows[-1]["start_s"] + constants.WINDOW_SIZE_SEC
+    recording_end_s = windows[-1]["start_s"] + WINDOW_SIZE_SEC
     timeline_length = int(recording_end_s * sampling_rate)
 
     # Detect device from first window to handle CUDA tensors
@@ -608,7 +608,7 @@ def select_threshold_for_fa_rate(
     # One-hour default if we cannot infer duration from shapes
     n_windows = labels.shape[0]
     total_duration_s = (
-        (n_windows - 1) * constants.STRIDE_SIZE_SEC + constants.WINDOW_SIZE_SEC
+        (n_windows - 1) * STRIDE_SIZE_SEC + WINDOW_SIZE_SEC
         if n_windows > 0
         else 3600.0
     )
@@ -639,7 +639,7 @@ def calculate_taes_metrics(
     # Create dummy metadata: treat all windows as from single recording
     n_windows = predictions.shape[0]
     file_ids = ["test_recording"] * n_windows
-    window_starts = [float(i * constants.STRIDE_SIZE_SEC) for i in range(n_windows)]
+    window_starts = [float(i * STRIDE_SIZE_SEC) for i in range(n_windows)]
     metrics = evaluate_predictions(
         predictions,
         labels,
