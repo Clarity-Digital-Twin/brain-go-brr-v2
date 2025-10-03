@@ -12,6 +12,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as func
 
+from src.brain_brr.constants import EPSILON_LAPLACIAN, EPSILON_NUMERICAL
+
 if TYPE_CHECKING:
     from src.brain_brr.config.schemas import WarmupScheduleConfig
 
@@ -121,7 +123,7 @@ def condition_adjacency(
     # Add identity fallback for disconnected nodes
     # Check for rows with very small sum (disconnected nodes)
     row_sums = adjacency.sum(dim=-1, keepdim=True)  # (B, T, N, 1)
-    disconnected = row_sums < 1e-6  # (B, T, N, 1)
+    disconnected = row_sums < EPSILON_NUMERICAL  # (B, T, N, 1)
 
     if disconnected.any():
         # Add small self-loop to disconnected nodes
@@ -138,7 +140,7 @@ def condition_adjacency(
 def compute_stable_laplacian(
     adjacency: torch.Tensor,
     normalize: bool = True,
-    eps: float = 1e-4,
+    eps: float = EPSILON_LAPLACIAN,
 ) -> torch.Tensor:
     """Compute numerically stable graph Laplacian.
 

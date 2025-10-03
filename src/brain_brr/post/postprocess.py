@@ -11,9 +11,8 @@ import numpy as np
 import torch
 from torch.nn import functional
 
-from src.brain_brr.config.schemas import (
-    PostprocessingConfig,
-)
+from src.brain_brr.config.schemas import PostprocessingConfig
+from src.brain_brr.constants import EPSILON_ZERO_CHECK
 
 
 def apply_hysteresis(
@@ -253,7 +252,7 @@ def stitch_windows(
             end = min(start + len(prob), total_length)
             output[start:end] += prob[: end - start]
             counts[start:end] += 1
-        output = output / counts.clamp(min=1e-8)
+        output = output / counts.clamp(min=EPSILON_ZERO_CHECK)
 
     elif method == "overlap_add_weighted":
         # Weighted average using triangular window
@@ -271,7 +270,7 @@ def stitch_windows(
             output[start:end] += prob[: end - start] * weight[: end - start]
             weights_sum[start:end] += weight[: end - start]
 
-        output = output / weights_sum.clamp(min=1e-8)
+        output = output / weights_sum.clamp(min=EPSILON_ZERO_CHECK)
 
     else:
         raise ValueError(f"Unknown stitching method: {method}")
