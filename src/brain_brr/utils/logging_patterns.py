@@ -7,8 +7,7 @@ import logging
 import os
 from typing import Any
 
-# Performance constants from environment
-LOG_EVERY_N_STEPS = int(os.getenv("BGB_LOG_EVERY_N_STEPS", "50"))
+from src.brain_brr.constants import LOG_EVERY_N_STEPS
 
 
 def log_batch_metrics(

@@ -19,8 +19,11 @@ Config (local and Modal)
 data:
   data_dir: <parent>/edf           # Parent containing train/dev/eval
   cache_dir: <cache_root>/tusz     # Will contain {train,dev} subdirs matching TUSZ
-  split_policy: official_tusz      # Enforce patient‑disjoint official splits
+  use_balanced_sampling: true      # Training manifest balancing
 ```
+
+The loader enforces official patient-disjoint splits automatically; manual
+`split_policy`/`validation_split` fields were removed in V4 configs.
 
 Runtime verification
 - The loader builds patient sets by split and asserts overlap is empty.

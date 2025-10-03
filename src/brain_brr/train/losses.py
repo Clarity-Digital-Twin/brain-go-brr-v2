@@ -11,6 +11,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as tnf
 
+from src.brain_brr.constants import (
+    EPSILON_NUMERICAL,
+    EPSILON_PROB_CLAMP,
+    FOCAL_ALPHA_DEFAULT,
+    FOCAL_GAMMA_DEFAULT,
+)
+
 
 class FocalLoss(nn.Module):
     """Binary focal loss on logits with optional pos_weight.
@@ -23,7 +30,9 @@ class FocalLoss(nn.Module):
     - pos_weight: optional scalar tensor to up-weight positives (same semantics as BCEWithLogitsLoss)
     """
 
-    def __init__(self, alpha: float = 0.25, gamma: float = 2.0) -> None:
+    def __init__(
+        self, alpha: float = FOCAL_ALPHA_DEFAULT, gamma: float = FOCAL_GAMMA_DEFAULT
+    ) -> None:
         super().__init__()
         self.alpha = float(alpha)
         self.gamma = float(gamma)
@@ -44,13 +53,13 @@ class FocalLoss(nn.Module):
         # Probabilities (use clamped logits for numerical stability)
         p = torch.sigmoid(logits_clamped)
         # Critical: Clamp probabilities to avoid log(0) or log(1) issues
-        p = p.clamp(min=1e-6, max=1 - 1e-6)
+        p = p.clamp(min=EPSILON_NUMERICAL, max=1 - EPSILON_NUMERICAL)
         p_t = p * targets + (1.0 - p) * (1.0 - targets)
         # Class-balanced alpha
         alpha_t = self.alpha * targets + (1.0 - self.alpha) * (1.0 - targets)
         # Focal modulation with numerical stability
         # Clamp p_t away from 1 to prevent (1-p_t)^gamma from underflowing to 0
-        p_t_stable = p_t.clamp(min=1e-7, max=1 - 1e-7)
+        p_t_stable = p_t.clamp(min=EPSILON_PROB_CLAMP, max=1 - EPSILON_PROB_CLAMP)
         mod = (1.0 - p_t_stable).pow(self.gamma)
         focal_loss = alpha_t * mod * bce
 

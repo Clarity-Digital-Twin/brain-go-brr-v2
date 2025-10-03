@@ -5,6 +5,31 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from src.brain_brr.constants import (
+    BANDPASS_HIGH_HZ,
+    BANDPASS_LOW_HZ,
+    DROPOUT_MAMBA,
+    DROPOUT_TCN,
+    EPSILON_LAPLACIAN,
+    EPSILON_NORM,
+    EVENT_MERGE_GAP_S,
+    FOCAL_ALPHA_PRODUCTION,
+    FOCAL_GAMMA_DEFAULT,
+    FOCAL_GAMMA_WARMUP_END,
+    FOCAL_GAMMA_WARMUP_START,
+    HYSTERESIS_TAU_OFF,
+    HYSTERESIS_TAU_ON,
+    MAX_EVENT_DURATION_S,
+    MIN_EVENT_DURATION_S,
+    MORPHOLOGY_CLOSING_KERNEL,
+    MORPHOLOGY_OPENING_KERNEL,
+    N_CHANNELS,
+    NOTCH_FILTER_HZ,
+    SAMPLING_RATE,
+    STRIDE_SIZE_SEC,
+    WINDOW_SIZE_SEC,
+)
+
 
 class StrictModel(BaseModel):
     """Base model that forbids unknown extra fields for clean configs."""
@@ -21,17 +46,15 @@ class DataConfig(StrictModel):
     data_dir: Path = Field(default=Path("data"), description="Root directory containing EDF files")
     cache_dir: Path = Field(default=Path("cache/data"), description="Data cache directory")
     use_balanced_sampling: bool = Field(default=True, description="Use balanced sampling")
-    sampling_rate: Literal[256] = Field(
-        default=256, description="Target sampling rate in Hz (fixed at 256)"
+    sampling_rate: int = Field(
+        default=SAMPLING_RATE, description="Target sampling rate in Hz (256)"
     )
-    n_channels: Literal[19] = Field(
-        default=19, description="Number of EEG channels (10-20 montage)"
+    n_channels: int = Field(
+        default=N_CHANNELS, description="Number of EEG channels (10-20 montage = 19)"
     )
-    window_size: Literal[60] = Field(
-        default=60, description="Window size in seconds (fixed at 60s)"
-    )
-    stride: Literal[10] = Field(
-        default=10, description="Stride between windows in seconds (fixed at 10s)"
+    window_size: int = Field(default=WINDOW_SIZE_SEC, description="Window size in seconds (60s)")
+    stride: int = Field(
+        default=STRIDE_SIZE_SEC, description="Stride between windows in seconds (10s)"
     )
     num_workers: int = Field(default=0, ge=0, le=32, description="DataLoader workers")
     pin_memory: bool = Field(
@@ -65,10 +88,10 @@ class PreprocessingConfig(StrictModel):
         default="10-20", description="EEG montage standard"
     )
     bandpass: tuple[float, float] = Field(
-        default=(0.5, 120.0), description="Bandpass filter range in Hz"
+        default=(BANDPASS_LOW_HZ, BANDPASS_HIGH_HZ), description="Bandpass filter range in Hz"
     )
-    notch_freq: Literal[50, 60] = Field(
-        default=60, description="Powerline frequency to notch (50 EU, 60 US)"
+    notch_freq: int = Field(
+        default=NOTCH_FILTER_HZ, description="Powerline frequency to notch (50 EU, 60 US)"
     )
     normalize: bool = Field(default=True, description="Apply per-channel z-score normalization")
     use_mne: bool = Field(default=True, description="Use MNE for EDF loading")
@@ -97,7 +120,7 @@ class MambaConfig(StrictModel):
     conv_kernel: int = Field(
         default=4, ge=2, le=4, description="Mamba convolution kernel (CUDA supports 2-4)"
     )
-    dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout rate")
+    dropout: float = Field(default=DROPOUT_MAMBA, ge=0.0, le=0.5, description="Dropout rate")
 
 
 # Legacy decoder config removed in V3-only schema
@@ -109,7 +132,7 @@ class TCNConfig(StrictModel):
     num_layers: int = Field(default=8, ge=4, le=12, description="Number of TCN layers")
     # channels field removed - hardcoded to [64, 128, 256, 512] in implementation
     kernel_size: int = Field(default=7, ge=3, le=11, description="Temporal kernel size")
-    dropout: float = Field(default=0.15, ge=0.0, le=0.5, description="Dropout rate")
+    dropout: float = Field(default=DROPOUT_TCN, ge=0.0, le=0.5, description="Dropout rate")
     causal: bool = Field(
         default=False, description="Causal (True) or non-causal (False) convolutions"
     )
@@ -133,7 +156,9 @@ class GraphConfig(StrictModel):
         description="Safety margin from ±1 boundaries for edge similarities (prevents Mamba explosion)",
     )
     edge_top_k: int = Field(default=3, ge=1, le=18, description="Top-k edges per node for v3")
-    edge_threshold: float = Field(default=1e-4, ge=0.0, description="Edge weight cutoff for v3")
+    edge_threshold: float = Field(
+        default=EPSILON_LAPLACIAN, ge=0.0, description="Edge weight cutoff for v3"
+    )
     edge_mamba_layers: int = Field(default=2, ge=1, le=6, description="Edge Mamba layers")
     edge_mamba_d_state: int = Field(default=8, ge=4, le=64, description="Edge Mamba state dim")
     edge_mamba_d_model: int = Field(
@@ -168,7 +193,10 @@ class GraphConfig(StrictModel):
         default=False, description="Force adjacency matrix to be symmetric"
     )
     laplacian_eps: float = Field(
-        default=1e-4, gt=0.0, le=0.1, description="Epsilon regularization for Laplacian"
+        default=EPSILON_LAPLACIAN,
+        gt=0.0,
+        le=0.1,
+        description="Epsilon regularization for Laplacian",
     )
     laplacian_normalize: bool = Field(
         default=True, description="Use normalized Laplacian (vs unnormalized)"
@@ -205,7 +233,7 @@ class NormConfig(StrictModel):
         description="Type of normalization at component boundaries",
     )
     boundary_eps: float = Field(
-        default=1e-5, ge=1e-10, le=1e-3, description="Epsilon for normalization stability"
+        default=EPSILON_NORM, ge=1e-10, le=1e-3, description="Epsilon for normalization stability"
     )
     layerscale_alpha: float = Field(
         default=0.1, ge=0.001, le=1.0, description="Initial LayerScale value for residuals"
@@ -272,8 +300,10 @@ class ModelConfig(StrictModel):
 class HysteresisConfig(StrictModel):
     """Hysteresis thresholding configuration."""
 
-    tau_on: float = Field(default=0.86, ge=0.5, le=1.0, description="Upper threshold")
-    tau_off: float = Field(default=0.78, ge=0.5, le=1.0, description="Lower threshold")
+    tau_on: float = Field(default=HYSTERESIS_TAU_ON, ge=0.5, le=1.0, description="Upper threshold")
+    tau_off: float = Field(
+        default=HYSTERESIS_TAU_OFF, ge=0.5, le=1.0, description="Lower threshold"
+    )
     min_onset_samples: int = Field(
         default=128, ge=1, description="Min samples above tau_on to enter"
     )
@@ -292,8 +322,12 @@ class HysteresisConfig(StrictModel):
 class MorphologyConfig(StrictModel):
     """Morphological operations configuration."""
 
-    opening_kernel: int = Field(default=11, ge=1, description="Opening kernel size (samples)")
-    closing_kernel: int = Field(default=31, ge=1, description="Closing kernel size (samples)")
+    opening_kernel: int = Field(
+        default=MORPHOLOGY_OPENING_KERNEL, ge=1, description="Opening kernel size (samples)"
+    )
+    closing_kernel: int = Field(
+        default=MORPHOLOGY_CLOSING_KERNEL, ge=1, description="Closing kernel size (samples)"
+    )
     use_gpu: bool = Field(default=False, description="Use GPU acceleration if available")
 
     @field_validator("opening_kernel", "closing_kernel")
@@ -309,10 +343,10 @@ class DurationConfig(StrictModel):
     """Event duration filtering configuration."""
 
     min_duration_s: float = Field(
-        default=3.0, ge=0.0, description="Minimum event duration (seconds)"
+        default=MIN_EVENT_DURATION_S, ge=0.0, description="Minimum event duration (seconds)"
     )
     max_duration_s: float = Field(
-        default=600.0, gt=0.0, description="Maximum event duration (seconds)"
+        default=MAX_EVENT_DURATION_S, gt=0.0, description="Maximum event duration (seconds)"
     )
 
     @model_validator(mode="after")
@@ -326,7 +360,9 @@ class DurationConfig(StrictModel):
 class EventsConfig(StrictModel):
     """Event merging and confidence configuration."""
 
-    tau_merge: float = Field(default=2.0, ge=0.0, description="Max gap to merge events (seconds)")
+    tau_merge: float = Field(
+        default=EVENT_MERGE_GAP_S, ge=0.0, description="Max gap to merge events (seconds)"
+    )
     confidence_method: Literal["mean", "peak", "percentile"] = Field(
         default="mean", description="Method for confidence scoring"
     )
@@ -410,10 +446,16 @@ class WarmupScheduleConfig(StrictModel):
     # Focal loss gamma schedule
     focal_gamma_enabled: bool = Field(default=False, description="Enable focal loss gamma warmup")
     focal_gamma_start: float = Field(
-        default=1.0, ge=0.0, le=3.0, description="Starting gamma (less focusing)"
+        default=FOCAL_GAMMA_WARMUP_START,
+        ge=0.0,
+        le=3.0,
+        description="Starting gamma (less focusing)",
     )
     focal_gamma_end: float = Field(
-        default=2.0, ge=1.0, le=5.0, description="Ending gamma (target focal_gamma)"
+        default=FOCAL_GAMMA_WARMUP_END,
+        ge=1.0,
+        le=5.0,
+        description="Ending gamma (target focal_gamma)",
     )
 
     # Residual scaling (optional, for very deep nets)
@@ -438,10 +480,13 @@ class TrainingConfig(StrictModel):
         default="bce", description="Loss function: 'bce' or 'focal'"
     )
     focal_alpha: float = Field(
-        default=0.5, ge=0.0, le=1.0, description="Focal loss alpha (0.5 = no class reweight)"
+        default=FOCAL_ALPHA_PRODUCTION,
+        ge=0.0,
+        le=1.0,
+        description="Focal loss alpha (0.5 = no class reweight)",
     )
     focal_gamma: float = Field(
-        default=2.0, ge=0.0, description="Focal loss gamma (hard sample focusing)"
+        default=FOCAL_GAMMA_DEFAULT, ge=0.0, description="Focal loss gamma (hard sample focusing)"
     )
     learning_rate: float = Field(
         default=3e-4, ge=1e-6, le=1e-2, description="Initial learning rate"

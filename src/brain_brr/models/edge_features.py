@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import torch
 
+from src.brain_brr.constants import EPSILON_LAPLACIAN, EPSILON_NUMERICAL
+
 
 def pair_indices_undirected(n: int = 19) -> list[tuple[int, int]]:
     """Generate all unique undirected pairs for n nodes.
@@ -76,9 +78,9 @@ def edge_scalar_series(
 
     if metric == "cosine":
         # CRITICAL: More robust normalization to prevent NaN
-        # Increased epsilon from 1e-8 to 1e-6 for better stability
+        # Increased epsilon from 1e-8 to EPSILON_NUMERICAL for better stability
         norms = torch.linalg.norm(x, dim=-1, keepdim=True)
-        norms = torch.clamp(norms, min=1e-6)  # Prevent division by near-zero
+        norms = torch.clamp(norms, min=EPSILON_NUMERICAL)  # Prevent division by near-zero
         x_norm = x / norms
 
         # Additional safety: clamp normalized values
@@ -91,8 +93,8 @@ def edge_scalar_series(
         x_center = x - x.mean(dim=-1, keepdim=True)
         num = torch.matmul(x_center, x_center.transpose(-1, -2))
         # More robust denominator calculation
-        denom = torch.sqrt(x_center.pow(2).sum(dim=-1) + 1e-6)  # Increased epsilon
-        denom = torch.clamp(denom, min=1e-6)  # Additional safety
+        denom = torch.sqrt(x_center.pow(2).sum(dim=-1) + EPSILON_NUMERICAL)  # Increased epsilon
+        denom = torch.clamp(denom, min=EPSILON_NUMERICAL)  # Additional safety
         denom_mat = denom.unsqueeze(-1) * denom.unsqueeze(-2)
         sim = num / denom_mat
         # Clamp correlations with safety margin to prevent edge→Mamba explosion
@@ -110,7 +112,7 @@ def assemble_adjacency(
     *,
     n_nodes: int = 19,
     top_k: int = 3,
-    threshold: float = 1e-4,
+    threshold: float = EPSILON_LAPLACIAN,
     symmetric: bool = True,
     identity_fallback: bool = True,
     pairs: list[tuple[int, int]] | None = None,

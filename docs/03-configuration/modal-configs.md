@@ -42,12 +42,14 @@ data:
   dataset: tuh_eeg
   data_dir: /data/edf                    # Read-only dataset mount
   cache_dir: /results/cache/tusz         # Persistent SSD volume
-  split_policy: official_tusz            # Patient-disjoint splits
   num_workers: 4                         # v3.4.1: Reduced from 8 (spawn delay fix)
   pin_memory: true                       # Fast GPU transfer
   persistent_workers: false              # v3.4.1: Prevents 1h spawn delay + memory leaks
   prefetch_factor: 2                     # v3.4.1: Reduced from 8 (OOM fix)
   use_balanced_sampling: true            # CRITICAL: Oversample seizures
+
+# Official train/dev splits are enforced automatically on Modal; legacy
+# split_policy/validation_split fields were removed in V4.
 ```
 
 ### Training Configuration

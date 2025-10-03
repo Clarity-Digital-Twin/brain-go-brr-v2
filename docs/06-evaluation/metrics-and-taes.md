@@ -9,8 +9,9 @@ Targets (clinical operating points)
 Pipeline for evaluation
 
 - Convert per-sample probabilities `(N,T)` to events via post-processing (hysteresis + morphology + duration + merging).
+- Stitch windows per recording using `file_id` and `window_start_s` emitted by the datasets; overlapping regions are averaged before eventization.
 - Compute metrics using event overlaps and FA counts normalized to 24 hours.
-- Select thresholds (tau_on) per FA target by binary search over hysteresis settings.
+- Select thresholds (`tau_on`) per FA target by binary search over hysteresis settings.
 
 Core functions
 
@@ -23,10 +24,17 @@ Core functions
   - `calculate_taes` — TAES scoring (overlap reward minus FA penalty)
   - `calculate_roc_auc` — AUROC; `calculate_ece` — calibration error (ECE)
 
-Window stitching
+Timeline metadata and stitching
 
-- For record-level evaluation, overlapping windows can be stitched (`overlap_add`) to compute a continuous trace before eventization.
-- Controlled by `stitch_windows` in `sensitivity_at_fa_rates`; uses `post.stitch_windows` implementation.
+- `EEGWindowDataset`, `BalancedSeizureDataset`, and `ValidationDataset` return dictionaries with `window`, `label`, `file_id`, and `window_start_s`.
+- `evaluate_predictions` groups windows by `file_id`, sorts by `window_start_s`, rebuilds continuous traces, and averages overlapping samples before post-processing.
+- The per-record view supplies reference/predicted events along with the total monitored hours, ensuring FA/24 h and TAES honour true recording durations.
+
+Streaming evaluation
+
+- Validation aggregates metrics per recording instead of retaining the entire dev split in memory (22 GB → ~5 GB peak usage on A100).
+- Local hosts (64 GB RAM) no longer risk OOM during metric calculation.
+- Metrics are emitted after each recording batch, keeping progress logs responsive.
 
 CLI evaluate
 

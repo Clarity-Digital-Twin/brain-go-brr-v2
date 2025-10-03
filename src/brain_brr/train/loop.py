@@ -11,7 +11,6 @@ SOLID principles applied:
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +28,15 @@ except ImportError:
     SummaryWriter = None  # type: ignore[assignment, misc]
 
 from src.brain_brr.config.schemas import Config
+from src.brain_brr.constants import (
+    AUROC_FAILURE_MIN_EPOCH,
+    AUROC_FAILURE_THRESHOLD,
+    CHECKPOINT_BEST,
+    CHECKPOINT_LAST,
+    FOCAL_ALPHA_DEFAULT,
+    FOCAL_GAMMA_DEFAULT,
+    MANIFEST_FILENAME,
+)
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.checkpoint import load_checkpoint, save_checkpoint
 from src.brain_brr.train.early_stopping import EarlyStopping
@@ -42,9 +50,6 @@ from src.brain_brr.utils.env import env
 
 # Module logger
 logger = logging.getLogger(__name__)
-
-# Training-specific logger with gating
-LOG_EVERY_N_STEPS = int(os.getenv("BGB_LOG_EVERY_N_STEPS", "50"))
 
 # WSL2-safe multiprocessing defaults (must be before any DataLoader creation)
 if mp.get_start_method(allow_none=True) != "spawn":
@@ -130,19 +135,19 @@ def train(
             scheduler.load_state_dict(ckpt["scheduler_state_dict"])
         start_epoch = ckpt["epoch"]
         best_metric = ckpt.get("best_metric", 0.0)
-        if best_metric == 0.0 and (checkpoint_dir / "last.pt").exists():
+        if best_metric == 0.0 and (checkpoint_dir / CHECKPOINT_LAST).exists():
             try:
                 _last = torch.load(
-                    checkpoint_dir / "last.pt", map_location="cpu", weights_only=False
+                    checkpoint_dir / CHECKPOINT_LAST, map_location="cpu", weights_only=False
                 )
                 best_metric = _last.get("best_metric", 0.0)
             except Exception:
                 pass
         logger.info(f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}")
         # Note: This resumes from start of epoch, not exact batch
-    elif (checkpoint_dir / "last.pt").exists() and config.training.resume:
+    elif (checkpoint_dir / CHECKPOINT_LAST).exists() and config.training.resume:
         start_epoch, best_metric = load_checkpoint(
-            checkpoint_dir / "last.pt", model, optimizer, scheduler
+            checkpoint_dir / CHECKPOINT_LAST, model, optimizer, scheduler
         )
         logger.info(f"Resumed from epoch {start_epoch + 1}")
 
@@ -164,8 +169,8 @@ def train(
             scheduler=scheduler,
             global_step=global_step,
             loss_mode=getattr(config.training, "loss", "bce"),
-            focal_alpha=getattr(config.training, "focal_alpha", 0.25),
-            focal_gamma=getattr(config.training, "focal_gamma", 2.0),
+            focal_alpha=getattr(config.training, "focal_alpha", FOCAL_ALPHA_DEFAULT),
+            focal_gamma=getattr(config.training, "focal_gamma", FOCAL_GAMMA_DEFAULT),
             return_step=True,
             checkpoint_dir=checkpoint_dir,
             epoch_index=epoch,
@@ -196,7 +201,7 @@ def train(
         )
 
         # COLLAPSE DETECTION: Stop if model outputs all-negative
-        if val_metrics["auroc"] < 0.55 and epoch > 2:
+        if val_metrics["auroc"] < AUROC_FAILURE_THRESHOLD and epoch > AUROC_FAILURE_MIN_EPOCH:
             logger.info(f"\n⚠️ MODEL COLLAPSE DETECTED! AUROC={val_metrics['auroc']:.3f}")
             logger.info("Model is predicting all-negative. Stopping training.")
             logger.info("Potential causes:")
@@ -261,7 +266,7 @@ def train(
                 optimizer,
                 epoch,
                 current_metric,
-                checkpoint_dir / "best.pt",
+                checkpoint_dir / CHECKPOINT_BEST,
                 scheduler,
                 config,
             )
@@ -275,7 +280,7 @@ def train(
             logger.info(f"  New best {metric_name}: {current_metric:.4f}")
 
             # Log best model to W&B
-            wandb_logger.log_model(checkpoint_dir / "best.pt", name=f"best-{metric_name}")
+            wandb_logger.log_model(checkpoint_dir / CHECKPOINT_BEST, name=f"best-{metric_name}")
 
         # Save periodic checkpoint based on checkpoint_interval
         checkpoint_interval = getattr(
@@ -302,7 +307,7 @@ def train(
             optimizer,
             epoch,
             best_metric,
-            checkpoint_dir / "last.pt",
+            checkpoint_dir / CHECKPOINT_LAST,
             scheduler,
             config,
         )
@@ -328,7 +333,7 @@ def main() -> None:
     import argparse
     import logging
 
-    from src.brain_brr.data import BalancedSeizureDataset, EEGWindowDataset
+    from src.brain_brr.data import BalancedSeizureDataset, EEGWindowDataset, ValidationDataset
     from src.brain_brr.utils.logging_config import setup_logging
 
     # Initialize elite logging infrastructure for training
@@ -454,7 +459,7 @@ def main() -> None:
 
     train_cache_dir = data_cache_root / "train"
     use_balanced = bool(config.data.use_balanced_sampling)
-    manifest_path = train_cache_dir / "manifest.json"
+    manifest_path = train_cache_dir / MANIFEST_FILENAME
 
     # Force manifest rebuild if requested or if it exists but is invalid
     if use_balanced and manifest_path.exists():
@@ -533,12 +538,44 @@ def main() -> None:
 
     # Validation cache uses "dev" subdir (TUSZ official naming)
     val_split_name = "dev"
-    val_dataset = EEGWindowDataset(
-        val_files,
-        label_files=val_label_files,
-        cache_dir=data_cache_root / val_split_name,
-        allow_on_demand=True,
-    )
+    val_cache_dir = data_cache_root / val_split_name
+    val_manifest_path = val_cache_dir / MANIFEST_FILENAME
+
+    # Try ValidationDataset (instant load from manifest)
+    # Falls back to EEGWindowDataset if manifest missing
+    val_dataset: ValidationDataset | EEGWindowDataset
+    if val_manifest_path.exists():
+        try:
+            allowed_cache_files = (
+                {f"{val_file.stem}_windows.npz" for val_file in val_files} if val_files else None
+            )
+            val_dataset = ValidationDataset(
+                val_cache_dir,
+                allowed_cache_files=allowed_cache_files,
+            )
+            logger.info(
+                f"[DATASET] ValidationDataset: {len(val_dataset)} windows from manifest (instant load)"
+            )
+        except Exception as e:
+            logger.warning(
+                f"[DATA] ValidationDataset failed: {e}; falling back to EEGWindowDataset"
+            )
+            val_dataset = EEGWindowDataset(
+                val_files,
+                label_files=val_label_files,
+                cache_dir=val_cache_dir,
+                allow_on_demand=True,
+            )
+    else:
+        logger.info(
+            "[DATA] No validation manifest found, using EEGWindowDataset (will build index)"
+        )
+        val_dataset = EEGWindowDataset(
+            val_files,
+            label_files=val_label_files,
+            cache_dir=val_cache_dir,
+            allow_on_demand=True,
+        )
 
     # CRITICAL FIX: If we just built cache via EEGWindowDataset and manifest doesn't exist,
     # build it now and switch to BalancedSeizureDataset!

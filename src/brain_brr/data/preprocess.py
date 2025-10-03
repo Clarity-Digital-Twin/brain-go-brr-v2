@@ -61,7 +61,7 @@ def preprocess_recording(
     # 4) Per-channel z-score
     mean = np.mean(x, axis=1, keepdims=True)
     std = np.std(x, axis=1, keepdims=True)
-    x = (x - mean) / (std + 1e-8)
+    x = (x - mean) / (std + constants.EPSILON_ZERO_CHECK)
 
     # CRITICAL: Clip outliers to prevent infinities during training
     # EEG data can have extreme artifacts (>100 sigma) that cause numerical issues

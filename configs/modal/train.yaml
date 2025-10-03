@@ -97,8 +97,8 @@ model:
 
 postprocessing:
   hysteresis:
-    tau_on: 0.86
-    tau_off: 0.78
+    tau_on: 0.86    # Matches constants.HYSTERESIS_TAU_ON
+    tau_off: 0.78   # Matches constants.HYSTERESIS_TAU_OFF
   morphology:
     opening_kernel: 11
     closing_kernel: 31

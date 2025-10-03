@@ -8,13 +8,21 @@ from typing import Any
 
 import numpy as np
 import torch
-from sklearn.metrics import (  # type: ignore[import-untyped]
-    roc_auc_score,
-    roc_curve,
-)
+from sklearn.metrics import roc_auc_score, roc_curve
 
-from src.brain_brr import constants
 from src.brain_brr.config.schemas import PostprocessingConfig
+from src.brain_brr.constants import (
+    EPSILON_ZERO_CHECK,
+    HOURS_PER_DAY,
+    HYSTERESIS_DELTA,
+    HYSTERESIS_TAU_ON,
+    SAMPLING_RATE,
+    SECONDS_PER_HOUR,
+    STRIDE_SIZE_SEC,
+    THRESHOLD_SEARCH_MAX_ITERS,
+    THRESHOLD_SEARCH_TOLERANCE,
+    WINDOW_SIZE_SEC,
+)
 from src.brain_brr.events import batch_mask_to_events
 from src.brain_brr.post.postprocess import postprocess_predictions
 
@@ -96,7 +104,7 @@ def calculate_taes(
     per_ref_scores = []
     for ref_start, ref_end in ref_events:
         ref_dur = max(0.0, ref_end - ref_start)
-        if ref_dur < 1e-8:
+        if ref_dur < EPSILON_ZERO_CHECK:
             continue
 
         # Total overlap with all predictions
@@ -127,7 +135,9 @@ def calculate_taes(
 
     base_score = sum(per_ref_scores) / len(per_ref_scores)
     penalty = (
-        alpha * (fp_duration / max(total_pred_duration, 1e-8)) if total_pred_duration > 0 else 0
+        alpha * (fp_duration / max(total_pred_duration, EPSILON_ZERO_CHECK))
+        if total_pred_duration > 0
+        else 0
     )
     taes = base_score - penalty
 
@@ -149,7 +159,7 @@ def fa_per_24h(
     Returns:
         False alarms per 24 hours
     """
-    if total_hours < 1e-8:
+    if total_hours < EPSILON_ZERO_CHECK:
         return 0.0
 
     fa_count = 0
@@ -163,7 +173,7 @@ def fa_per_24h(
             if not has_overlap:
                 fa_count += 1
 
-    return (fa_count / total_hours) * 24.0
+    return (fa_count / total_hours) * HOURS_PER_DAY
 
 
 def batch_masks_to_events(masks: torch.Tensor, fs: int) -> list[list[tuple[float, float]]]:
@@ -242,8 +252,8 @@ def find_threshold_for_fa_eventized(
     fa_target: float,
     total_hours: float,
     fs: int,
-    max_iters: int = 10,
-    hysteresis_delta: float = 0.08,
+    max_iters: int = THRESHOLD_SEARCH_MAX_ITERS,
+    hysteresis_delta: float = HYSTERESIS_DELTA,
 ) -> float:
     """Binary search for tau_on threshold meeting FA target.
 
@@ -259,7 +269,7 @@ def find_threshold_for_fa_eventized(
         total_hours: Total duration in hours
         fs: Sampling rate
         max_iters: Maximum iterations for binary search
-        hysteresis_delta: Gap between tau_on and tau_off (default 0.08)
+        hysteresis_delta: Gap between tau_on and tau_off (default from constants)
 
     Returns:
         tau_on threshold that meets FA target (conservative)
@@ -267,7 +277,7 @@ def find_threshold_for_fa_eventized(
     # Search over tau_on values, ensuring tau_off is always below
     low = hysteresis_delta  # Minimum tau_on to maintain positive gap
     high = 1.0
-    best_tau_on = 0.86  # Default from clinical settings
+    best_tau_on = HYSTERESIS_TAU_ON  # Default from clinical settings
 
     # Create a copy of config to modify during search
     search_cfg = deepcopy(post_cfg)
@@ -292,7 +302,7 @@ def find_threshold_for_fa_eventized(
             best_tau_on = mid_tau_on
             high = mid_tau_on
 
-        if abs(high - low) < 1e-4:
+        if abs(high - low) < THRESHOLD_SEARCH_TOLERANCE:
             break
 
     return best_tau_on
@@ -303,7 +313,7 @@ def sensitivity_at_fa_rates(
     labels: torch.Tensor,
     fa_targets: list[float],
     post_cfg: PostprocessingConfig,
-    sampling_rate: int = 256,
+    sampling_rate: int = SAMPLING_RATE,
     window_stride_s: float = 10.0,
     window_size_s: float = 60.0,
     stitch_windows: bool = True,
@@ -355,13 +365,13 @@ def sensitivity_at_fa_rates(
 
         # Update duration calculation for stitched record
         total_duration_s = total_samples / sampling_rate
-        total_hours = total_duration_s / 3600
+        total_hours = total_duration_s / SECONDS_PER_HOUR
     else:
         # Original window-based processing
         n_windows = labels.shape[0]
         if n_windows > 0:
             total_duration_s = (n_windows - 1) * window_stride_s + window_size_s
-            total_hours = total_duration_s / 3600
+            total_hours = total_duration_s / SECONDS_PER_HOUR
         else:
             total_hours = 0.0
 
@@ -379,7 +389,7 @@ def sensitivity_at_fa_rates(
 
         search_cfg = deepcopy(post_cfg)
         search_cfg.hysteresis.tau_on = threshold
-        search_cfg.hysteresis.tau_off = max(0.0, threshold - 0.08)  # Default delta
+        search_cfg.hysteresis.tau_off = max(0.0, threshold - HYSTERESIS_DELTA)
 
         # Get predictions at this threshold (using updated config, not threshold param)
         pred_events = batch_probs_to_events(probs, search_cfg, sampling_rate)
@@ -419,7 +429,7 @@ def stitch_recording_timeline(
     """
     windows.sort(key=lambda x: x["start_s"])
 
-    recording_end_s = windows[-1]["start_s"] + constants.WINDOW_SIZE_SEC
+    recording_end_s = windows[-1]["start_s"] + WINDOW_SIZE_SEC
     timeline_length = int(recording_end_s * sampling_rate)
 
     # Detect device from first window to handle CUDA tensors
@@ -451,7 +461,7 @@ def evaluate_predictions(
     window_starts: list[float],
     fa_rates: list[float],
     post_cfg: PostprocessingConfig,
-    sampling_rate: int = 256,
+    sampling_rate: int = SAMPLING_RATE,
 ) -> dict[str, Any]:
     """Complete evaluation of predictions with per-recording timeline stitching.
 
@@ -493,7 +503,7 @@ def evaluate_predictions(
             for pred_tuple in pred_events_list[0]:
                 all_pred_events.append(pred_tuple)
 
-        total_hours += timeline.duration_s / 3600.0
+        total_hours += timeline.duration_s / SECONDS_PER_HOUR
 
     # Compute scalar metrics
     from src.brain_brr.eval.helpers import compute_event_taes, compute_probability_metrics
@@ -522,10 +532,13 @@ def evaluate_predictions(
 
     thresholds: dict[str, float] = {}
     sensitivity_results: dict[str, float] = {}
+    unreachable_targets: list[float] = []
 
     for result in fa_sweep_results:
         thresholds[f"{result.fa_target}"] = float(result.threshold_tau_on)
         sensitivity_results[f"sensitivity_at_{result.fa_target}fa"] = float(result.sensitivity)
+        if result.threshold_unreachable:
+            unreachable_targets.append(result.fa_target)
 
     # Skip FA curve generation (requires refactoring sensitivity_at_fa_rates)
     fa_curve: list[tuple[float, float]] = []
@@ -538,6 +551,7 @@ def evaluate_predictions(
         "fa_curve": fa_curve,
         "num_recordings": len(recording_timelines),
         "total_hours": total_hours,
+        "unreachable_fa_targets": unreachable_targets,
     }
     results.update(sensitivity_results)
     results["thresholds"] = thresholds  # FA target → τ_on
@@ -584,7 +598,7 @@ def calculate_sensitivity_at_fa(
     if duration_hours <= 0 or len(fpr) == 0:
         return 0.0
     # Heuristic mapping to keep within [0,1]
-    target_fpr = min(1.0, max(0.0, target_fa_per_24h / (24.0 * 60.0)))
+    target_fpr = min(1.0, max(0.0, target_fa_per_24h / (HOURS_PER_DAY * 60.0)))
     idx = int(np.argmin(np.abs(fpr - target_fpr)))
     return float(np.clip(tpr[idx], 0.0, 1.0))
 
@@ -593,18 +607,16 @@ def select_threshold_for_fa_rate(
     predictions: torch.Tensor,
     labels: torch.Tensor,
     target_fa_per_24h: float,
-    sample_rate: int = 256,
+    sample_rate: int = SAMPLING_RATE,
 ) -> float:
     """Return hysteresis tau_on that achieves target FA/24h for given predictions."""
     cfg = PostprocessingConfig()
     # One-hour default if we cannot infer duration from shapes
     n_windows = labels.shape[0]
     total_duration_s = (
-        (n_windows - 1) * constants.STRIDE_SIZE_SEC + constants.WINDOW_SIZE_SEC
-        if n_windows > 0
-        else 3600.0
+        (n_windows - 1) * STRIDE_SIZE_SEC + WINDOW_SIZE_SEC if n_windows > 0 else SECONDS_PER_HOUR
     )
-    total_hours = total_duration_s / 3600.0
+    total_hours = total_duration_s / SECONDS_PER_HOUR
     ref_events = batch_masks_to_events(labels > 0.5, sample_rate)
     return float(
         find_threshold_for_fa_eventized(
@@ -617,7 +629,7 @@ def calculate_taes_metrics(
     predictions: torch.Tensor,
     labels: torch.Tensor,
     fa_rate_target: float,
-    sample_rate: int = 256,
+    sample_rate: int = SAMPLING_RATE,
     overlap_threshold: float | None = None,  # unused, kept for compatibility
 ) -> dict[str, Any]:
     """Compatibility wrapper that returns a rich metrics dict for tests.
@@ -631,7 +643,7 @@ def calculate_taes_metrics(
     # Create dummy metadata: treat all windows as from single recording
     n_windows = predictions.shape[0]
     file_ids = ["test_recording"] * n_windows
-    window_starts = [float(i * constants.STRIDE_SIZE_SEC) for i in range(n_windows)]
+    window_starts = [float(i * STRIDE_SIZE_SEC) for i in range(n_windows)]
     metrics = evaluate_predictions(
         predictions,
         labels,

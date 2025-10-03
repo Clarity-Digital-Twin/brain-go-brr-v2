@@ -13,6 +13,7 @@ from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 
 from src.brain_brr.config.schemas import SchedulerConfig, TrainingConfig
+from src.brain_brr.constants import EPSILON_ADAMW
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ def create_optimizer(model: nn.Module, config: TrainingConfig) -> Optimizer:
         logger.info(f"  - Decay group: {len(decay_params)} parameters")
         logger.info(f"  - No-decay group: {len(no_decay_params)} parameters")
 
-        return AdamW(param_groups, lr=config.learning_rate, betas=(0.9, 0.999), eps=1e-8)
+        return AdamW(param_groups, lr=config.learning_rate, betas=(0.9, 0.999), eps=EPSILON_ADAMW)
     else:
         raise ValueError(f"Unknown optimizer: {config.optimizer}")
 

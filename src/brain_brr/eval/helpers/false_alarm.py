@@ -8,6 +8,15 @@ from dataclasses import dataclass
 import torch
 
 from src.brain_brr.config.schemas import PostprocessingConfig
+from src.brain_brr.constants import (
+    EPSILON_NUMERICAL,
+    HOURS_PER_DAY,
+    HYSTERESIS_DELTA,
+    HYSTERESIS_TAU_ON,
+    THRESHOLD_SEARCH_HIGH,
+    THRESHOLD_SEARCH_LOW,
+    THRESHOLD_SEARCH_MAX_ITERS,
+)
 from src.brain_brr.eval.metrics import batch_probs_to_events
 from src.brain_brr.events import batch_mask_to_events
 
@@ -24,6 +33,7 @@ class FASweepResult:
     fa_target: float
     threshold_tau_on: float
     sensitivity: float
+    threshold_unreachable: bool = False
 
 
 def find_threshold_for_fa_target(
@@ -34,7 +44,7 @@ def find_threshold_for_fa_target(
     all_ref_events: list[tuple[float, float]],
     post_cfg: PostprocessingConfig,
     sampling_rate: int,
-    max_iters: int = 10,
+    max_iters: int = THRESHOLD_SEARCH_MAX_ITERS,
 ) -> FASweepResult:
     """Binary search for tau_on threshold meeting FA/24h target.
 
@@ -49,35 +59,57 @@ def find_threshold_for_fa_target(
         max_iters: Maximum binary search iterations
 
     Returns:
-        FASweepResult with threshold and sensitivity at that threshold
+        FASweepResult with:
+            - threshold_tau_on: Best threshold found
+            - sensitivity: Sensitivity at that threshold
+            - threshold_unreachable: True if FA target cannot be reached even at τ=0.0
 
     Notes:
-        Conservative FA counting: Currently counts ALL predicted events as FAs
-        during threshold search. This is intentionally conservative but could
-        be improved in future by checking overlap with reference events.
+        FA counting uses overlap-aware logic: Only predictions that do NOT
+        overlap with any reference event are counted as false alarms.
+        This matches the original fa_per_24h behavior from v3.4.1.
 
-        TODO(v4): Implement true FA counting by checking if predicted events
-        overlap with any reference event. Only count as FA if no overlap exists.
+        Search range expanded to [0.0, 1.0] to support low-confidence models
+        that may require thresholds below 0.1 for high-FA operating points.
     """
-    low, high = 0.1, 1.0
-    best_tau_on = 0.86
+    low, high = THRESHOLD_SEARCH_LOW, THRESHOLD_SEARCH_HIGH
+    best_tau_on = HYSTERESIS_TAU_ON
 
     for _ in range(max_iters):
         mid_tau_on = (low + high) / 2
-        mid_tau_off = max(0.0, mid_tau_on - 0.08)
+        mid_tau_off = max(0.0, mid_tau_on - HYSTERESIS_DELTA)
 
         cfg_for_search = deepcopy(post_cfg)
         cfg_for_search.hysteresis.tau_on = mid_tau_on
         cfg_for_search.hysteresis.tau_off = mid_tau_off
 
         total_fa = 0
-        for timeline_probs_rec in timelines_probs:
+        for timeline_probs_rec, timeline_labels_rec in zip(
+            timelines_probs, timelines_labels, strict=True
+        ):
             pred_events_list = batch_probs_to_events(
                 timeline_probs_rec.unsqueeze(0), cfg_for_search, sampling_rate
             )
-            total_fa += len(pred_events_list[0]) if pred_events_list else 0
+            ref_events_list = batch_mask_to_events(timeline_labels_rec.unsqueeze(0), sampling_rate)
 
-        fa_rate = (total_fa / total_hours) * 24.0 if total_hours > 0 else 0.0
+            search_preds: list[tuple[float, float]] = []
+            if pred_events_list:
+                search_preds = pred_events_list[0]
+
+            search_refs: list[tuple[float, float]] = []
+            if ref_events_list:
+                for event_obj in ref_events_list[0]:
+                    search_refs.append((float(event_obj.start_s), float(event_obj.end_s)))
+
+            for pred_start, pred_end in search_preds:
+                has_overlap = any(
+                    _overlap((pred_start, pred_end), (ref_start, ref_end)) > 0
+                    for ref_start, ref_end in search_refs
+                )
+                if not has_overlap:
+                    total_fa += 1
+
+        fa_rate = (total_fa / total_hours) * HOURS_PER_DAY if total_hours > 0 else 0.0
 
         if fa_rate > fa_target:
             low = mid_tau_on
@@ -87,13 +119,13 @@ def find_threshold_for_fa_target(
 
     cfg_for_eval = deepcopy(post_cfg)
     cfg_for_eval.hysteresis.tau_on = best_tau_on
-    cfg_for_eval.hysteresis.tau_off = max(0.0, best_tau_on - 0.08)
+    cfg_for_eval.hysteresis.tau_off = max(0.0, best_tau_on - HYSTERESIS_DELTA)
 
     tp_count = 0
     total_ref_events = len(all_ref_events)
 
     for timeline_probs_rec, timeline_labels_rec in zip(
-        timelines_probs, timelines_labels, strict=False
+        timelines_probs, timelines_labels, strict=True
     ):
         ref_events_list = batch_mask_to_events(timeline_labels_rec.unsqueeze(0), sampling_rate)
         pred_events_list = batch_probs_to_events(
@@ -115,10 +147,46 @@ def find_threshold_for_fa_target(
 
     sensitivity = tp_count / max(total_ref_events, 1)
 
+    cfg_lowest = deepcopy(post_cfg)
+    cfg_lowest.hysteresis.tau_on = (
+        EPSILON_NUMERICAL  # Essentially zero but valid (must be > tau_off)
+    )
+    cfg_lowest.hysteresis.tau_off = 0.0
+
+    total_fa_lowest = 0
+    for timeline_probs_rec, timeline_labels_rec in zip(
+        timelines_probs, timelines_labels, strict=True
+    ):
+        pred_events_list = batch_probs_to_events(
+            timeline_probs_rec.unsqueeze(0), cfg_lowest, sampling_rate
+        )
+        ref_events_list = batch_mask_to_events(timeline_labels_rec.unsqueeze(0), sampling_rate)
+
+        preds_lowest: list[tuple[float, float]] = []
+        if pred_events_list:
+            preds_lowest = pred_events_list[0]
+
+        refs_lowest: list[tuple[float, float]] = []
+        if ref_events_list:
+            for event_obj in ref_events_list[0]:
+                refs_lowest.append((float(event_obj.start_s), float(event_obj.end_s)))
+
+        for pred_start, pred_end in preds_lowest:
+            has_overlap = any(
+                _overlap((pred_start, pred_end), (ref_start, ref_end)) > 0
+                for ref_start, ref_end in refs_lowest
+            )
+            if not has_overlap:
+                total_fa_lowest += 1
+
+    fa_rate_lowest = (total_fa_lowest / total_hours) * HOURS_PER_DAY if total_hours > 0 else 0.0
+    threshold_unreachable = fa_rate_lowest > fa_target
+
     return FASweepResult(
         fa_target=fa_target,
         threshold_tau_on=best_tau_on,
         sensitivity=sensitivity,
+        threshold_unreachable=threshold_unreachable,
     )
 
 

@@ -1,9 +1,26 @@
-"""EEG constants for Phase 1 data pipeline.
+"""Central constants for Brain-Go-Brr EEG seizure detection.
 
-These constants define the canonical 10-20 channel order and windowing params.
+This module contains ALL magic numbers, hyperparameters, and configuration
+defaults used throughout the codebase. Following Google/DeepMind best practices,
+we centralize constants for:
+- Data pipeline (channels, sampling rate, windowing)
+- Numerical stability (epsilons for different purposes)
+- Clinical thresholds (hysteresis, FA targets, event durations)
+- Model hyperparameters (dropout, focal loss, optimizer)
+- Training configuration (logging, checkpointing, validation)
+- File names and metric names (single source of truth)
+- Time conversions and preprocessing defaults
+
+Each constant is documented with WHY that value was chosen, not just WHAT it is.
 """
 
 from __future__ import annotations
+
+import os
+
+# ==============================================================================
+# Data Pipeline Constants
+# ==============================================================================
 
 # Canonical 10-20 montage order (19 channels)
 # CRITICAL CONTRACT: The model is trained assuming this EXACT channel order.
@@ -43,6 +60,9 @@ CHANNEL_SYNONYMS: dict[str, str] = {
     "P8": "T6",
 }
 
+# Number of channels in 10-20 montage
+N_CHANNELS: int = len(CHANNEL_NAMES_10_20)  # 19
+
 # Sampling / windowing
 SAMPLING_RATE: int = 256
 WINDOW_SIZE_SEC: int = 60
@@ -50,3 +70,205 @@ STRIDE_SIZE_SEC: int = 10
 
 WINDOW_SAMPLES: int = WINDOW_SIZE_SEC * SAMPLING_RATE  # 15360
 STRIDE_SAMPLES: int = STRIDE_SIZE_SEC * SAMPLING_RATE  # 2560
+
+# ==============================================================================
+# Clinical Thresholds - Threshold Search Configuration
+# ==============================================================================
+
+# Binary search bounds for FA rate calibration
+# v3.5.0: Expanded from [0.1, 1.0] to [0.0, 1.0] to support low-confidence models
+# This allows the search to find thresholds for models that output low probabilities
+THRESHOLD_SEARCH_LOW: float = 0.0
+THRESHOLD_SEARCH_HIGH: float = 1.0
+
+# Binary search configuration
+# Max iterations: 2^10 = 1024 divisions of [0,1] = 0.001 precision (sufficient for clinical use)
+THRESHOLD_SEARCH_MAX_ITERS: int = 10
+THRESHOLD_SEARCH_TOLERANCE: float = 1e-4  # Convergence criterion
+
+# ==============================================================================
+# Numerical Stability Constants
+# ==============================================================================
+
+# Ultra-stable epsilon for probability clamping (focal loss)
+# Domain: [0, 1], need 7 orders of magnitude below clinical thresholds (0.5-0.95)
+EPSILON_PROB_CLAMP: float = 1e-7
+
+# Standard numerical stability for weights/features
+# Domain: [-10, 10] normalized features, 6 orders of magnitude safety margin
+EPSILON_NUMERICAL: float = 1e-6
+
+# Coarse-grained checks (zero detection)
+# For checks like "if count < EPS" where we just want "effectively zero"
+EPSILON_ZERO_CHECK: float = 1e-8
+
+# LayerNorm stability (PyTorch default)
+EPSILON_NORM: float = 1e-5
+
+# Laplacian regularization (graph theory)
+# Eigenvalue conditioning for graph Laplacian (domain-specific)
+EPSILON_LAPLACIAN: float = 1e-4
+
+# Optimizer epsilon (AdamW default)
+EPSILON_ADAMW: float = 1e-8
+
+# ==============================================================================
+# Clinical Hysteresis Thresholds
+# ==============================================================================
+
+# Source: Optimized on TUSZ v2.0.3 dev set for 10 FA/24h operating point (v3.4.1)
+# Last validated: October 1, 2025
+# Clinical justification: Balances sensitivity (>95%) with acceptable FA rate (<10/24h)
+
+HYSTERESIS_TAU_ON: float = 0.86
+HYSTERESIS_TAU_OFF: float = 0.78
+HYSTERESIS_DELTA: float = 0.08
+
+# ==============================================================================
+# Clinical Event Constraints
+# ==============================================================================
+
+# False alarm rate targets (per 24 hours) for evaluation
+FA_TARGETS: list[float] = [10.0, 5.0, 2.5, 1.0]
+
+# Event duration limits (seconds)
+# Clinical constraint: seizures shorter than 3s are artifacts, longer than 10min is status epilepticus
+MIN_EVENT_DURATION_S: float = 3.0
+MAX_EVENT_DURATION_S: float = 600.0
+
+# Event merging gap (seconds)
+# Events within 2s are considered part of same seizure
+EVENT_MERGE_GAP_S: float = 2.0
+
+# Binary classification threshold
+PROB_THRESHOLD_DEFAULT: float = 0.5
+
+# ==============================================================================
+# Post-processing - Morphology
+# ==============================================================================
+
+# Morphological operation kernel sizes (samples)
+# Source: Optimized on TUSZ v2.0.3 dev set (v3.4.1)
+# Opening (11 samples @ 256Hz ≈ 43ms): Removes narrow false positive spikes
+# Closing (31 samples @ 256Hz ≈ 121ms): Fills small gaps within seizure events
+MORPHOLOGY_OPENING_KERNEL: int = 11
+MORPHOLOGY_CLOSING_KERNEL: int = 31
+
+# ==============================================================================
+# Model Hyperparameters
+# ==============================================================================
+
+# Dropout rates (architecture-specific)
+DROPOUT_MAMBA: float = 0.1  # Lower for Mamba (built-in regularization from state-space models)
+DROPOUT_TCN: float = 0.15  # Higher for TCN (more parameters, needs stronger regularization)
+DROPOUT_GNN: float = 0.1  # GNN dropout
+
+# Focal Loss parameters
+# RetinaNet paper defaults (Lin et al. 2017)
+FOCAL_ALPHA_DEFAULT: float = 0.25
+FOCAL_GAMMA_DEFAULT: float = 2.0
+
+# Brain-BRR production settings (v3.5.0+)
+# We use alpha=0.5 (neutral) because pos_weight handles class imbalance
+# This prevents double-counting the 12:1 imbalance in both alpha and pos_weight
+FOCAL_ALPHA_PRODUCTION: float = 0.5
+FOCAL_GAMMA_PRODUCTION: float = 2.0
+
+# Warmup schedule for focal loss gamma
+FOCAL_GAMMA_WARMUP_START: float = 1.0  # Start with standard BCE (less amplification)
+FOCAL_GAMMA_WARMUP_END: float = 2.0  # Ramp to full hard-example mining
+
+# Loss safety constraints
+FOCAL_LOSS_MAX_CLAMP: float = 100.0  # Prevent focal loss explosion
+POS_WEIGHT_MAX_CLAMP: float = 20.0  # Prevent over-weighting minority class
+
+# AdamW optimizer defaults
+ADAMW_BETA1: float = 0.9
+ADAMW_BETA2: float = 0.999
+ADAMW_EPS: float = 1e-8
+
+# ==============================================================================
+# Training Configuration
+# ==============================================================================
+
+# Logging frequency
+# Note: Can be overridden via BGB_LOG_EVERY_N_STEPS env var
+LOG_EVERY_N_STEPS: int = int(os.getenv("BGB_LOG_EVERY_N_STEPS", "50"))
+AGGREGATE_WINDOW: int = 100  # Training metric smoothing window
+LOG_BUFFER_CAPACITY: int = 1000  # Max log entries in memory
+
+# Validation sanity checks
+AUROC_FAILURE_THRESHOLD: float = 0.55  # Stop if model barely better than random (0.5)
+AUROC_FAILURE_MIN_EPOCH: int = 2  # Grace period for warmup (don't check first 2 epochs)
+
+# ==============================================================================
+# File Names and Formats
+# ==============================================================================
+
+# Checkpoint file names
+CHECKPOINT_LAST: str = "last.pt"
+CHECKPOINT_BEST: str = "best.pt"
+
+# Cache and export formats
+MANIFEST_FILENAME: str = "manifest.json"
+CSV_VERSION_HEADER: str = "# version = csv_v1.0.0"
+
+# ==============================================================================
+# Metric Names (Canonical Strings for Dict Keys)
+# ==============================================================================
+
+METRIC_AUROC: str = "auroc"
+METRIC_TAES: str = "taes"
+METRIC_SENSITIVITY: str = "sensitivity"
+METRIC_SPECIFICITY: str = "specificity"
+METRIC_PR_AUC: str = "pr_auc"
+METRIC_ECE: str = "ece"
+
+# ==============================================================================
+# Time Conversions
+# ==============================================================================
+
+HOURS_PER_DAY: int = 24
+SECONDS_PER_HOUR: int = 3600
+SECONDS_PER_DAY: int = 86400
+
+# ==============================================================================
+# Preprocessing Defaults
+# ==============================================================================
+
+# Bandpass filter (Hz)
+BANDPASS_LOW_HZ: float = 0.5
+BANDPASS_HIGH_HZ: float = 120.0
+
+# Notch filter (Hz) - US power line frequency
+NOTCH_FILTER_HZ: int = 60
+
+# Z-score outlier clipping (number of standard deviations)
+ZSCORE_CLIP_SIGMA: float = 10.0
+
+# ==============================================================================
+# TUSZ Seizure Type Labels (v2.0.3)
+# ==============================================================================
+
+LABEL_BACKGROUND: str = "bckg"
+LABEL_SEIZURE_GENERIC: str = "seiz"
+LABEL_GENERALIZED_NONSPECIFIC: str = "gnsz"
+LABEL_FOCAL_NONSPECIFIC: str = "fnsz"
+LABEL_COMPLEX_PARTIAL: str = "cpsz"
+LABEL_ABSENCE: str = "absz"
+LABEL_SIMPLE_PARTIAL: str = "spsz"
+LABEL_TONIC_CLONIC: str = "tcsz"
+LABEL_TONIC: str = "tnsz"
+LABEL_MYOCLONIC: str = "mysz"
+
+SEIZURE_LABELS: set[str] = {
+    LABEL_SEIZURE_GENERIC,
+    LABEL_GENERALIZED_NONSPECIFIC,
+    LABEL_FOCAL_NONSPECIFIC,
+    LABEL_COMPLEX_PARTIAL,
+    LABEL_ABSENCE,
+    LABEL_SIMPLE_PARTIAL,
+    LABEL_TONIC_CLONIC,
+    LABEL_TONIC,
+    LABEL_MYOCLONIC,
+}
