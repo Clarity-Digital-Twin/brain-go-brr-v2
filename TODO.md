@@ -151,17 +151,19 @@ torch.cuda.set_per_process_memory_fraction(fraction, 0)
 
 ---
 
-### ✅ 2.5 Metrics Pipeline Decomposition (Verified - Ready to Implement)
+### ✅ 2.5 Metrics Pipeline Decomposition — **COMPLETED 2025-10-03** 🎉
 
 **Scope:** `src/brain_brr/eval/metrics.py`
 
-**Why:** `evaluate_predictions` (184 lines, span 448-632) couples timeline assembly, FA sweeps, metric reducers, and formatting.
+**Status:** ✅ **COMPLETE** - See `REFACTOR_METRICS_PY.md` and commits `4e1ddf3`, `231c32c`, `815d712`
 
-**Plan:** See `REFACTOR_METRICS_PY.md` for staged extraction (timeline helpers → FA sweep → scalar reducers → output formatter). Includes golden JSON regression tests.
-
-**Audit Status:** ✅ VERIFIED (2025-10-02) - Accurately documents conservative FA counting issue (lines 562-566), plan correct
-
-**Implementation Status:** Awaiting consensus; can execute after Detector refactor.
+**Execution Results:**
+- ✅ Extracted `eval/helpers/timeline.py` (37 lines) - 100% coverage
+- ✅ Extracted `eval/helpers/false_alarm.py` (58 lines) - FA sweep + sensitivity
+- ✅ Extracted `eval/helpers/scalar_metrics.py` (25 lines) - TAES/AUROC/ECE reducers
+- ✅ **Line Reduction:** `evaluate_predictions` -47% (185→98)
+- ✅ **Verification:** 26/26 evaluation tests passing, helpers well-tested
+- ✅ **Quality:** 87% eval coverage (up from 66%)
 
 ---
 
