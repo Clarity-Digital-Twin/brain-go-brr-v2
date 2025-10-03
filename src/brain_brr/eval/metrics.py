@@ -13,8 +13,10 @@ from sklearn.metrics import roc_auc_score, roc_curve
 from src.brain_brr.config.schemas import PostprocessingConfig
 from src.brain_brr.constants import (
     EPSILON_ZERO_CHECK,
+    HOURS_PER_DAY,
     HYSTERESIS_DELTA,
     HYSTERESIS_TAU_ON,
+    SECONDS_PER_HOUR,
     STRIDE_SIZE_SEC,
     THRESHOLD_SEARCH_TOLERANCE,
     WINDOW_SIZE_SEC,
@@ -169,7 +171,7 @@ def fa_per_24h(
             if not has_overlap:
                 fa_count += 1
 
-    return (fa_count / total_hours) * 24.0
+    return (fa_count / total_hours) * HOURS_PER_DAY
 
 
 def batch_masks_to_events(masks: torch.Tensor, fs: int) -> list[list[tuple[float, float]]]:
