@@ -306,7 +306,7 @@ class TestTrainingExplosions:
             scaler.update()
 
             # Verify model still produces valid output
-            with torch.no_grad(), autocast():
+            with torch.no_grad(), autocast(device_type=device.type):
                 test_output = small_model(data[:1])
                 assert not torch.isnan(test_output).any(), f"NaN output at step {step}"
 
