@@ -517,83 +517,28 @@ def evaluate_predictions(
     # Expected Calibration Error (ECE) with 10 bins
     ece = calculate_ece(probs_flat, labels_flat, n_bins=10)
 
-    # Sensitivity at FA rates: use pre-built recording timelines for threshold search
-    stitched_timelines: list[tuple[torch.Tensor, torch.Tensor]] = [
-        (timeline.timeline_probs, timeline.timeline_labels) for timeline in recording_timelines
-    ]
+    # Sensitivity at FA rates: use helper for threshold search
+    from src.brain_brr.eval.helpers import compute_fa_sweep
+
+    timelines_probs = [t.timeline_probs for t in recording_timelines]
+    timelines_labels = [t.timeline_labels for t in recording_timelines]
+
+    fa_sweep_results = compute_fa_sweep(
+        timelines_probs,
+        timelines_labels,
+        fa_rates,
+        total_hours,
+        all_ref_events,
+        post_cfg,
+        sampling_rate,
+    )
 
     thresholds: dict[str, float] = {}
     sensitivity_results: dict[str, float] = {}
 
-    # For each FA target, find threshold and compute sensitivity
-    for fa in fa_rates:
-        # Binary search for threshold that meets FA target
-        low, high = 0.1, 1.0
-        best_tau_on = 0.86  # Default
-
-        for _ in range(10):  # Max 10 iterations
-            mid_tau_on = (low + high) / 2
-            mid_tau_off = max(0.0, mid_tau_on - 0.08)
-
-            cfg_for_search = deepcopy(post_cfg)
-            cfg_for_search.hysteresis.tau_on = mid_tau_on
-            cfg_for_search.hysteresis.tau_off = mid_tau_off
-
-            # Count FAs across all stitched timelines
-            # TODO(v4): Conservative FA counting - counts ALL predicted events as FAs
-            #           Should check overlap with reference events to get true FA count.
-            #           This makes threshold search more conservative (higher thresholds).
-            #           Fix: For each pred event, check if it overlaps ANY ref event.
-            #           Only count as FA if no overlap exists.
-            total_fa = 0
-            for timeline_probs_rec, _ in stitched_timelines:
-                pred_events_list = batch_probs_to_events(
-                    timeline_probs_rec.unsqueeze(0), cfg_for_search, sampling_rate
-                )
-                total_fa += len(pred_events_list[0]) if pred_events_list else 0
-
-            fa_rate = (total_fa / total_hours) * 24.0 if total_hours > 0 else 0.0
-
-            if fa_rate > fa:
-                low = mid_tau_on
-            else:
-                high = mid_tau_on
-                best_tau_on = mid_tau_on
-
-        thresholds[f"{fa}"] = float(best_tau_on)
-
-        # Compute sensitivity at this threshold
-        cfg_for_eval = deepcopy(post_cfg)
-        cfg_for_eval.hysteresis.tau_on = best_tau_on
-        cfg_for_eval.hysteresis.tau_off = max(0.0, best_tau_on - 0.08)
-
-        from src.brain_brr.events import batch_mask_to_events
-
-        tp_count = 0
-        total_ref_events = len(all_ref_events)
-
-        for timeline_probs_rec, timeline_labels_rec in stitched_timelines:
-            ref_events_list = batch_mask_to_events(timeline_labels_rec.unsqueeze(0), sampling_rate)
-            pred_events_list = batch_probs_to_events(
-                timeline_probs_rec.unsqueeze(0), cfg_for_eval, sampling_rate
-            )
-
-            # Count overlaps - extract events from batch format
-            refs: list[tuple[float, float]] = []
-            if ref_events_list:
-                for event_obj in ref_events_list[0]:
-                    refs.append((float(event_obj.start_s), float(event_obj.end_s)))
-
-            preds: list[tuple[float, float]] = []
-            if pred_events_list:
-                preds = pred_events_list[0]
-
-            for ref_start, ref_end in refs:
-                if any(overlap((ref_start, ref_end), (ps, pe)) > 0 for (ps, pe) in preds):
-                    tp_count += 1
-
-        sensitivity = tp_count / max(total_ref_events, 1)
-        sensitivity_results[f"sensitivity_at_{fa}fa"] = float(sensitivity)
+    for result in fa_sweep_results:
+        thresholds[f"{result.fa_target}"] = float(result.threshold_tau_on)
+        sensitivity_results[f"sensitivity_at_{result.fa_target}fa"] = float(result.sensitivity)
 
     # Skip FA curve generation (requires refactoring sensitivity_at_fa_rates)
     fa_curve: list[tuple[float, float]] = []
