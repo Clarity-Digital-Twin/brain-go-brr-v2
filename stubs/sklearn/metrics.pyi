@@ -36,3 +36,12 @@ def average_precision_score(
     pos_label: int = ...,
     sample_weight: ArrayLike | None = ...,
 ) -> float: ...
+
+def roc_curve(
+    y_true: ArrayLike,
+    y_score: ArrayLike,
+    *,
+    pos_label: int | str | None = ...,
+    sample_weight: ArrayLike | None = ...,
+    drop_intermediate: bool = ...,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]: ...

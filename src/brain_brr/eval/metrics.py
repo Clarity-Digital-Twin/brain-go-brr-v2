@@ -8,10 +8,7 @@ from typing import Any
 
 import numpy as np
 import torch
-from sklearn.metrics import (  # type: ignore[import-untyped]
-    roc_auc_score,
-    roc_curve,
-)
+from sklearn.metrics import roc_auc_score, roc_curve
 
 from src.brain_brr import constants
 from src.brain_brr.config.schemas import PostprocessingConfig

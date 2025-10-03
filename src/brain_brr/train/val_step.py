@@ -15,7 +15,7 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import average_precision_score, roc_auc_score  # type: ignore[import-untyped]
+from sklearn.metrics import average_precision_score, roc_auc_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm  # type: ignore[import-untyped]
 
