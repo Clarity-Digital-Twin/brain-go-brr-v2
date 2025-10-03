@@ -14,7 +14,7 @@ Common issues
 
 Operational P0 checklist (must pass)
 
-- GPU stack versions match exactly (Torch 2.2.2+cu121, mamba-ssm 2.2.2, PyG 2.6.1 from cu121 wheels). Install order: `make setup` then `make setup-gpu`.
+- GPU stack versions match exactly (Torch 2.5.0+cu124, mamba-ssm 2.2.5, PyG 2.6.1 from cu124 wheels). Install order: `make setup` then `make setup-gpu`.
 - Cache present with seizures and manifest built: run `python -m src scan-cache --cache-dir <cache_split_dir>`; expect partial>0 or full>0.
 - Dynamic PE deps present if `graph.enabled: true`: `pip show torch_geometric` should list installed wheels.
 - After preprocessing changes (e.g., ±10σ clip), rebuild cache: `rm -rf cache/tusz && python -m src build-cache ...`.
@@ -54,7 +54,7 @@ WSL2 OOM/driver artifact note
 
 CI note (PyG optional in unit tests)
 
-- The test suite skips GNN‑dependent tests when `torch_geometric` is absent. To validate GNN paths in CI, install PyG using prebuilt wheels for torch 2.2.0+cu121.
+- The test suite skips GNN‑dependent tests when `torch_geometric` is absent. To validate GNN paths in CI, install PyG using prebuilt wheels for torch 2.5.0+cu124.
 
 NaN logits root cause quick summary
 
