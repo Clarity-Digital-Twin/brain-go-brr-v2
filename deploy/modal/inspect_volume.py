@@ -144,9 +144,14 @@ def inspect_volume():
 @app.local_entrypoint()
 def main():
     """Run inspection."""
-    # Setup logging for local entrypoint
-    from src.brain_brr.utils.logging_config import setup_logging
-    setup_logging(format_style="simple", force=True)
+    # Simple logging for local entrypoint
+    import sys
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+        force=True,
+    )
 
     result = inspect_volume.remote()
     logger.info(result)
