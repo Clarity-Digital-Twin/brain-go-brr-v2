@@ -103,30 +103,6 @@ def mock_raw_edf(sample_edf_data):
 
 
 @pytest.fixture
-def trained_model():
-    """Lightweight pre-trained model for testing."""
-    from src.brain_brr.config.schemas import MambaConfig, ModelConfig, TCNConfig
-    from src.brain_brr.models import SeizureDetector
-
-    # Use minimal config for tests to prevent OOM
-    config = ModelConfig(
-        tcn=TCNConfig(num_layers=4, kernel_size=3, dropout=0.0, stride_down=16),
-        mamba=MambaConfig(n_layers=1, d_model=512, d_state=16, conv_kernel=4, dropout=0.0),
-    )
-
-    model = SeizureDetector.from_config(config)
-
-    # Initialize with known weights for reproducibility
-    torch.manual_seed(42)
-    for param in model.parameters():
-        if param.dim() > 1:
-            torch.nn.init.xavier_uniform_(param)
-    model.eval()  # evaluation mode for deterministic BatchNorm/Dropout and speed
-
-    return model
-
-
-@pytest.fixture
 def minimal_model():
     """Minimal model for fast testing."""
     import gc

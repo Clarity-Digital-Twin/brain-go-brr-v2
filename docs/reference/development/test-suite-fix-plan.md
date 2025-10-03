@@ -574,7 +574,6 @@ pytest tests/ -x --tb=short
 ### P2: Medium Priority (After Modal Training)
 - Fixture naming standardization (tiny_model, small_model, medium_model)
 - Loop.py refactoring (1695 lines, defer until v4.0)
-- ResourcesConfig decision (remove vs implement)
 
 ### P3: Low Priority (Defer Indefinitely)
 - Code duplication in datasets.py (15 lines, 0.25% of codebase)

@@ -41,7 +41,15 @@ def test_scan_existing_cache_and_balanced_dataset(tmp_path: Path) -> None:
     expected = n_partial + min(int(0.3 * n_partial), n_full) + min(int(2.5 * n_partial), n_none)
     assert len(ds) == expected
 
-    x, y = ds[0]
+    batch = ds[0]
+    assert isinstance(batch, dict)
+    assert "window" in batch
+    assert "label" in batch
+    assert "file_id" in batch
+    assert "window_start_s" in batch
+
+    x = batch["window"]
+    y = batch["label"]
     assert isinstance(x, torch.Tensor)
     assert isinstance(y, torch.Tensor)
     assert x.shape[0] == 19

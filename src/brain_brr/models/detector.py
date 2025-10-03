@@ -17,10 +17,14 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn as nn
 
+from .builders import (
+    build_edge_stream,
+    build_fusion_head,
+    build_node_stream,
+    build_regularizers,
+)
 from .debug_utils import assert_finite
-from .fusion import GatedFusion, MultiHeadGatedFusion
 from .mamba import BiMamba2
-from .norms import LayerScale, create_norm_layer
 from .tcn import ProjectionHead, TCNEncoder
 
 if TYPE_CHECKING:  # Only for type checkers; avoids runtime import cycle
@@ -244,23 +248,218 @@ class SeizureDetector(nn.Module):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
+    def _run_node_stream(self, features: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Run node stream: project to electrodes → BiMamba → normalize.
+
+        Args:
+            features: TCN output (B, 512, T)
+
+        Returns:
+            Tuple of (electrode_features, node_processed_features)
+            - electrode_features: (B, 19, T, 64) for edge stream input
+            - node_processed_features: (B, 19, T, 64) BiMamba output
+
+        Notes:
+            - Extracts per-electrode features from TCN bottleneck
+            - Applies per-electrode BiMamba temporal modeling
+            - Applies boundary normalization if configured
+        """
+        assert self.proj_to_electrodes is not None
+        assert self.node_mamba is not None
+
+        batch_size, _, seq_len = features.shape
+
+        elec_flat = self.proj_to_electrodes(features)
+        assert_finite("proj_to_electrodes", elec_flat)
+        elec_feats = elec_flat.reshape(batch_size, 19, 64, seq_len).permute(0, 1, 3, 2)
+
+        if self.norm_after_proj_to_electrodes:
+            elec_feats = self.norm_after_proj_to_electrodes(elec_feats)
+
+        node_flat = (
+            elec_feats.permute(0, 1, 3, 2).reshape(batch_size * 19, 64, seq_len).contiguous()
+        )
+        node_processed = self.node_mamba(node_flat)
+        assert_finite("node_mamba", node_processed)
+        node_feats = node_processed.reshape(batch_size, 19, 64, seq_len).permute(0, 1, 3, 2)
+
+        if self.norm_after_node_mamba:
+            node_feats = self.norm_after_node_mamba(node_feats)
+
+        return elec_feats, node_feats
+
+    def _run_edge_stream(self, elec_feats: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Run edge stream: compute similarities → BiMamba → adjacency.
+
+        Args:
+            elec_feats: Electrode features (B, 19, T, 64)
+
+        Returns:
+            Tuple of (edge_weights, adjacency_matrix)
+            - edge_weights: (B, 171, T) learned edge importances
+            - adjacency_matrix: (B, T, 19, 19) assembled adjacency
+
+        Notes:
+            - Computes pairwise electrode similarities (171 edges)
+            - Applies learned lift/project via BiMamba
+            - Assembles adjacency via top-k + threshold
+        """
+        assert self.edge_in_proj is not None
+        assert self.edge_mamba is not None
+        assert self.edge_out_proj is not None
+        assert self.edge_activate is not None
+
+        from .edge_features import assemble_adjacency, edge_scalar_series
+
+        batch_size, _, seq_len, _ = elec_feats.shape
+
+        edge_metric = str(self.config.get("edge_metric", "cosine"))
+        edge_similarity_margin = 0.01
+        if "edge_similarity_margin" in self.config:
+            margin_val = self.config["edge_similarity_margin"]
+            if isinstance(margin_val, (int, float)):
+                edge_similarity_margin = float(margin_val)
+
+        edge_feats = edge_scalar_series(
+            elec_feats, metric=edge_metric, edge_similarity_margin=edge_similarity_margin
+        )
+
+        if __debug__:
+            lo, hi = edge_feats.amin(), edge_feats.amax()
+            assert torch.isfinite(lo), "Non-finite minimum in edge features"
+            assert torch.isfinite(hi), "Non-finite maximum in edge features"
+            assert lo >= -1.001, f"Edge features lower bound violation: {lo}"
+            assert hi <= 1.001, f"Edge features upper bound violation: {hi}"
+
+        edge_flat = edge_feats.squeeze(-1).reshape(batch_size * 171, 1, seq_len)
+        edge_in = self.edge_in_proj(edge_flat).contiguous()
+
+        if hasattr(self, "edge_lift_act") and self.edge_lift_act is not None:
+            edge_in = self.edge_lift_act(edge_in)
+            if hasattr(self, "edge_lift_norm") and self.edge_lift_norm is not None:
+                edge_in = edge_in.transpose(1, 2).contiguous()
+                edge_in = self.edge_lift_norm(edge_in)
+                edge_in = edge_in.transpose(1, 2).contiguous()
+        else:
+            edge_in = torch.clamp(edge_in, -3.0, 3.0)
+
+        assert edge_in.is_contiguous(), "edge_in must be contiguous for Mamba"
+        edge_processed = self.edge_mamba(edge_in)
+
+        if self.norm_after_edge_mamba:
+            edge_processed = edge_processed.transpose(1, 2).contiguous()
+            edge_processed = self.norm_after_edge_mamba(edge_processed)
+            edge_processed = edge_processed.transpose(1, 2).contiguous()
+
+        edge_out = self.edge_out_proj(edge_processed)
+        edge_weights = self.edge_activate(edge_out).reshape(batch_size, 171, seq_len)
+        assert_finite("edge_weights", edge_weights)
+
+        edge_top_k = cast(int, self.config.get("edge_top_k", 3))
+        edge_threshold = cast(float, self.config.get("edge_threshold", 1e-4))
+        adj = assemble_adjacency(
+            edge_weights, n_nodes=19, top_k=edge_top_k, threshold=edge_threshold
+        )
+        assert_finite("adjacency", adj)
+
+        return edge_weights, adj
+
+    def _apply_gnn_fusion(self, node_feats: torch.Tensor, adj: torch.Tensor) -> torch.Tensor:
+        """Apply GNN with LayerScale residual and fusion.
+
+        Args:
+            node_feats: Node features (B, 19, T, 64)
+            adj: Adjacency matrix (B, T, 19, 19)
+
+        Returns:
+            Enhanced features (B, 19, T, 64) after GNN + fusion
+
+        Notes:
+            - Applies GNN spatial mixing if enabled
+            - Adds LayerScale residual connection
+            - Applies gated fusion if configured
+            - Normalizes after GNN if configured
+        """
+        elec_enhanced: torch.Tensor
+
+        if self.gnn:
+            gnn_out = self.gnn(node_feats, adj)
+            if self.gnn_layerscale:
+                gnn_out_scaled = self.gnn_layerscale(gnn_out)
+                elec_enhanced = node_feats + gnn_out_scaled
+            else:
+                elec_enhanced = node_feats + gnn_out
+        else:
+            elec_enhanced = node_feats
+
+        assert_finite("gnn_out", elec_enhanced)
+
+        if self.norm_after_gnn:
+            elec_enhanced = self.norm_after_gnn(elec_enhanced)
+
+        if (
+            self.fusion is not None
+            and elec_enhanced is not node_feats
+            and self.fusion_type in ("gated", "multihead")
+        ):
+            elec_enhanced = self.fusion(node_feats, elec_enhanced)
+
+        return elec_enhanced
+
+    def _decode_and_sanitize(self, temporal: torch.Tensor) -> torch.Tensor:
+        """Decode to logits and apply final sanitization.
+
+        Args:
+            temporal: Temporal features (B, 512, T)
+
+        Returns:
+            Seizure logits (B, T) with NaN/Inf sanitization
+
+        Notes:
+            - Applies boundary normalization if configured
+            - Projects to 19 channels and upsamples to original resolution
+            - Clamps decoder features (tier 2) and logits (tier 3)
+            - Applies nan_to_num for robust training
+        """
+        if self.norm_before_decoder:
+            temporal = temporal.transpose(1, 2).contiguous()
+            temporal = self.norm_before_decoder(temporal)
+            temporal = temporal.transpose(1, 2).contiguous()
+
+        decoded = self.proj_head(temporal)
+        assert_finite("decoder_prelogits", decoded)
+
+        decoded = torch.nan_to_num(decoded, nan=0.0, posinf=50.0, neginf=-50.0)
+        decoded = torch.clamp(decoded, -50.0, 50.0)
+
+        output = self.detection_head(decoded)
+        assert_finite("final_logits", output)
+
+        output = torch.nan_to_num(output, nan=0.0, posinf=50.0, neginf=-50.0)
+        output = torch.clamp(output, -100.0, 100.0)
+
+        return output.squeeze(1)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass through TCN + Bi-Mamba architecture.
+
+        Refactored to use pipeline helpers for clarity and maintainability.
+        Each helper encapsulates one processing stage.
 
         Args:
             x: (B, 19, 15360) EEG window tensor
 
         Returns:
-            (B, 15360) per-sample seizure logits (raw scores).
+            (B, 15360) per-sample seizure logits
+
+        Notes:
+            - forward reduced from 187 → ~60 lines via pipeline extraction
+            - Helpers maintain identical behavior, just better organization
+            - All intermediate assertions preserved for stability monitoring
         """
-        # TCN encoder: extract multi-scale temporal features
-        features = self.tcn_encoder(x)  # (B, 512, 960)
+        features = self.tcn_encoder(x)
         assert_finite("tcn_out", features)
-        # Optional safety clamp after TCN
 
-        # PR-5: Removed conditional safe clamps (PR-1 norms provide stability)
-
-        # V3 dual-stream if components are present
         if (
             self.node_mamba
             and self.edge_mamba
@@ -270,167 +469,19 @@ class SeizureDetector(nn.Module):
             and self.edge_out_proj
             and self.edge_activate
         ):
-            # V3: Dual-stream architecture with learned adjacency
-            from .edge_features import assemble_adjacency, edge_scalar_series
-
             batch_size, _, seq_len = features.shape
 
-            # Project to electrode features
-            elec_flat = self.proj_to_electrodes(features)  # (B, 19*64, 960)
-            assert_finite("proj_to_electrodes", elec_flat)
-            elec_feats = elec_flat.reshape(batch_size, 19, 64, seq_len).permute(
-                0, 1, 3, 2
-            )  # (B, 19, 960, 64)
+            elec_feats, node_feats = self._run_node_stream(features)
+            _, adj = self._run_edge_stream(elec_feats)
+            elec_enhanced = self._apply_gnn_fusion(node_feats, adj)
 
-            # PR-1: Normalize after projection to electrodes
-            if self.norm_after_proj_to_electrodes:
-                elec_feats = self.norm_after_proj_to_electrodes(elec_feats)
-
-            # Node stream: per-electrode Mamba
-            node_flat = (
-                elec_feats.permute(0, 1, 3, 2).reshape(batch_size * 19, 64, seq_len).contiguous()
-            )  # (B*19, 64, 960) - ensure contiguous for CUDA
-            node_processed = self.node_mamba(node_flat)  # (B*19, 64, 960)
-            assert_finite("node_mamba", node_processed)
-            node_feats = node_processed.reshape(batch_size, 19, 64, seq_len).permute(
-                0, 1, 3, 2
-            )  # (B, 19, 960, 64)
-
-            # PR-1: Normalize after node Mamba
-            if self.norm_after_node_mamba:
-                node_feats = self.norm_after_node_mamba(node_feats)
-
-            # Edge stream: learned adjacency
-            edge_metric = str(self.config.get("edge_metric", "cosine"))
-            # Type-safe extraction with explicit cast
-            edge_similarity_margin = 0.01  # default
-            if "edge_similarity_margin" in self.config:
-                margin_val = self.config["edge_similarity_margin"]
-                if isinstance(margin_val, (int, float)):
-                    edge_similarity_margin = float(margin_val)
-            edge_feats = edge_scalar_series(
-                elec_feats, metric=edge_metric, edge_similarity_margin=edge_similarity_margin
-            )  # (B, 171, 960, 1)
-
-            # Edge clamping now handled at source in edge_scalar_series with configurable margin
-            # Debug assert to verify bounds
-            if __debug__:
-                lo, hi = edge_feats.amin(), edge_feats.amax()
-                assert torch.isfinite(lo), "Non-finite minimum in edge features"
-                assert torch.isfinite(hi), "Non-finite maximum in edge features"
-                assert lo >= -1.001, f"Edge features lower bound violation: {lo}"
-                assert hi <= 1.001, f"Edge features upper bound violation: {hi}"
-
-            # Learnable lift 1→D channels for CUDA alignment & capacity
-            edge_flat = edge_feats.squeeze(-1).reshape(batch_size * 171, 1, seq_len)  # (B*E,1,T)
-            edge_in = self.edge_in_proj(edge_flat).contiguous()  # (B*E, D, T) where D=16
-
-            # PR-2: Apply bounded activation and normalization
-            if hasattr(self, "edge_lift_act") and self.edge_lift_act is not None:
-                edge_in = self.edge_lift_act(edge_in)
-
-                # Apply normalization after activation if configured
-                if hasattr(self, "edge_lift_norm") and self.edge_lift_norm is not None:
-                    # Transpose for LayerNorm on feature dimension
-                    edge_in = edge_in.transpose(1, 2).contiguous()  # (B*E, T, D)
-                    edge_in = self.edge_lift_norm(edge_in)
-                    edge_in = edge_in.transpose(1, 2).contiguous()  # Back to (B*E, D, T)
-            else:
-                # Safety fallback if PR-2 not enabled
-                edge_in = torch.clamp(edge_in, -3.0, 3.0)
-
-            # Safety assertion for Mamba CUDA kernel
-            assert edge_in.is_contiguous(), (
-                "edge_in tensor must be contiguous for Mamba CUDA kernels"
-            )
-
-            edge_processed = self.edge_mamba(edge_in)  # (B*E, D, T)
-
-            # PR-1: Normalize after edge Mamba (permute for LayerNorm on last dim)
-            if self.norm_after_edge_mamba:
-                # edge_processed is (B*E, D, T), need to normalize over D dimension
-                edge_processed = edge_processed.transpose(1, 2).contiguous()  # (B*E, T, D)
-                edge_processed = self.norm_after_edge_mamba(edge_processed)
-                edge_processed = edge_processed.transpose(1, 2).contiguous()  # Back to (B*E, D, T)
-            edge_out = self.edge_out_proj(edge_processed)  # (B*E, 1, T)
-            edge_weights = self.edge_activate(edge_out).reshape(batch_size, 171, seq_len)  # (B,E,T)
-            assert_finite("edge_weights", edge_weights)
-
-            # Assemble adjacency
-            edge_top_k = cast(int, self.config.get("edge_top_k", 3))
-            edge_threshold = cast(float, self.config.get("edge_threshold", 1e-4))
-            adj = assemble_adjacency(
-                edge_weights,
-                n_nodes=19,
-                top_k=edge_top_k,
-                threshold=edge_threshold,
-            )  # (B, 960, 19, 19)
-            assert_finite("adjacency", adj)
-
-            # Apply GNN with external LayerScale residual (v3.4.0)
-            if self.gnn:
-                gnn_out = self.gnn(node_feats, adj)
-                # v3.4.0: GNN has no internal residuals; add clean residual here
-                if self.gnn_layerscale:
-                    # Apply LayerScale to GNN output
-                    gnn_out_scaled = self.gnn_layerscale(gnn_out)
-                    elec_enhanced = node_feats + gnn_out_scaled
-                else:
-                    # Simple residual addition
-                    elec_enhanced = node_feats + gnn_out
-            else:
-                elec_enhanced = node_feats
-            assert_finite("gnn_out", elec_enhanced)
-
-            # PR-1: Normalize after GNN
-            if self.norm_after_gnn:
-                elec_enhanced = self.norm_after_gnn(elec_enhanced)
-
-            # PR-4: Apply fusion between node and edge-enhanced features
-            if (
-                self.fusion is not None
-                and elec_enhanced is not node_feats
-                and self.fusion_type in ("gated", "multihead")
-            ):
-                # elec_enhanced has edge information from GNN, node_feats is pure node
-                elec_enhanced = self.fusion(node_feats, elec_enhanced)
-
-            # Project back to bottleneck
-            elec_flat = elec_enhanced.permute(0, 1, 3, 2).reshape(
-                batch_size, 19 * 64, seq_len
-            )  # (B, 19*64, 960)
-            temporal = self.proj_from_electrodes(elec_flat)  # (B, 512, 960)
+            elec_flat = elec_enhanced.permute(0, 1, 3, 2).reshape(batch_size, 19 * 64, seq_len)
+            temporal = self.proj_from_electrodes(elec_flat)
             assert_finite("backproj", temporal)
-
         else:
-            # Fallback to 512-dim Mamba stack if V3 components not initialized
-            temporal = self.mamba(features)  # (B, 512, 960)
+            temporal = self.mamba(features)
 
-        # PR-1: Normalize before decoder (temporal is B, 512, 960)
-        if self.norm_before_decoder:
-            # Need to permute to make 512 the last dimension for LayerNorm
-            temporal = temporal.transpose(1, 2).contiguous()  # (B, 960, 512)
-            temporal = self.norm_before_decoder(temporal)
-            temporal = temporal.transpose(1, 2).contiguous()  # Back to (B, 512, 960)
-
-        # PR-5: Removed conditional temporal clamps (PR-1 norms provide stability)
-
-        # Project back to 19 channels and upsample to original resolution
-        decoded = self.proj_head(temporal)  # (B, 19, 15360)
-        assert_finite("decoder_prelogits", decoded)
-
-        # Internal tier clamping for features before final projection
-        decoded = torch.nan_to_num(decoded, nan=0.0, posinf=50.0, neginf=-50.0)
-        decoded = torch.clamp(decoded, -50.0, 50.0)
-
-        output = self.detection_head(decoded)  # (B, 1, 15360)
-        assert_finite("final_logits", output)
-
-        # Final output sanitization to prevent non-finite logits
-        output = torch.nan_to_num(output, nan=0.0, posinf=50.0, neginf=-50.0)
-        output = torch.clamp(output, -100.0, 100.0)  # Tier 3: Output clamping for loss
-
-        return cast(torch.Tensor, output.squeeze(1))
+        return self._decode_and_sanitize(temporal)
 
     @classmethod
     def from_config(
@@ -440,9 +491,20 @@ class SeizureDetector(nn.Module):
     ) -> "SeizureDetector":
         """Instantiate from validated schema config (V3).
 
+        Refactored to use builder helpers for SRP compliance.
+        Each builder encapsulates construction of one component family.
+
         Args:
             cfg: Model configuration
             warmup_schedule: Optional warmup schedule for gradient stabilization
+
+        Returns:
+            Configured SeizureDetector instance
+
+        Notes:
+            - from_config reduced from 199 → ~100 lines via builder extraction
+            - Builders maintain identical behavior, just better organization
+            - All attribute names unchanged (checkpoint compatibility preserved)
         """
         instance = cls(
             tcn_layers=cfg.tcn.num_layers,
@@ -455,167 +517,64 @@ class SeizureDetector(nn.Module):
             mamba_dropout=cfg.mamba.dropout,
         )
 
-        # Set architecture
         instance.architecture = cfg.architecture
         instance.config["architecture"] = cfg.architecture
 
-        # Build v3-specific components if v3 architecture
         if cfg.architecture == "v3":
-            # V3: Dual-stream architecture
-            graph_cfg = cfg.graph  # Required for v3
+            graph_cfg = cfg.graph
 
-            # Node stream: per-electrode Mamba
-            # headdim=8 ensures (64 * 2) / 8 = 16 which is multiple of 8
-            # PR-1: Pass LayerScale config to Mamba layers
-            norms_cfg = getattr(cfg, "norms", None)
-            use_layerscale_mamba = bool(norms_cfg and norms_cfg.boundary_norm != "none")
-            layerscale_init = float(norms_cfg.layerscale_alpha if norms_cfg else 0.1)
+            instance.node_mamba = build_node_stream(cfg)
 
-            instance.node_mamba = BiMamba2(
-                d_model=64,
-                d_state=16,  # Fixed for node stream
-                d_conv=4,
-                expand=2,
-                headdim=8,  # Critical: (64*2)/8 = 16 is multiple of 8
-                num_layers=6,  # Fixed for node stream
-                dropout=cfg.mamba.dropout,
-                use_layerscale=use_layerscale_mamba,
-                layerscale_init=layerscale_init,
-            )
+            edge_components = build_edge_stream(cfg)
+            instance.edge_mamba = edge_components.edge_mamba
+            instance.edge_in_proj = edge_components.edge_in_proj
+            instance.edge_out_proj = edge_components.edge_out_proj
+            instance.edge_activate = edge_components.edge_activate
+            instance.edge_lift_act = edge_components.edge_lift_act
+            instance.edge_lift_norm = edge_components.edge_lift_norm
 
-            # Edge stream: per-edge Mamba (learned lift 1→D→1)
-            edge_layers = graph_cfg.edge_mamba_layers if graph_cfg else 2
-            edge_d_state = graph_cfg.edge_mamba_d_state if graph_cfg else 8
-            edge_d_model = graph_cfg.edge_mamba_d_model if graph_cfg else 16
-
-            # Safety assertions for CUDA kernel alignment
-            assert edge_d_model % 8 == 0, (
-                f"edge_mamba_d_model must be multiple of 8 for CUDA, got {edge_d_model}"
-            )
-            assert edge_d_model > 0, f"edge_mamba_d_model must be positive, got {edge_d_model}"
-
-            # headdim=4 ensures (16 * 2) / 4 = 8 which is multiple of 8
-            instance.edge_mamba = BiMamba2(
-                d_model=edge_d_model,
-                d_state=edge_d_state,
-                d_conv=4,
-                expand=2,
-                headdim=4,  # Critical: (16*2)/4 = 8 is multiple of 8
-                num_layers=edge_layers,
-                dropout=cfg.mamba.dropout,
-                use_layerscale=use_layerscale_mamba,
-                layerscale_init=layerscale_init,
-            )
-
-            # Edge stream projections (learned lift/project) + activation
-            instance.edge_in_proj = nn.Conv1d(1, edge_d_model, kernel_size=1, bias=False)
-            instance.edge_out_proj = nn.Conv1d(edge_d_model, 1, kernel_size=1, bias=True)
-            instance.edge_activate = nn.Softplus()
-
-            # PR-2: Bounded edge stream components
-            edge_lift_activation = graph_cfg.edge_lift_activation if graph_cfg else "none"
-            edge_lift_norm = graph_cfg.edge_lift_norm if graph_cfg else "none"
-            edge_lift_gain = graph_cfg.edge_lift_init_gain if graph_cfg else 0.1
-
-            # Create activation function
-            if edge_lift_activation == "tanh":
-                instance.edge_lift_act = nn.Tanh()
-            elif edge_lift_activation == "sigmoid":
-                instance.edge_lift_act = nn.Sigmoid()
-            elif edge_lift_activation == "selu":
-                instance.edge_lift_act = nn.SELU()
-            else:
-                instance.edge_lift_act = None
-
-            # Create normalization layer
-            instance.edge_lift_norm = create_norm_layer(edge_lift_norm, edge_d_model)
-
-            # Initialize edge projections with configured gain
-            nn.init.xavier_uniform_(instance.edge_in_proj.weight, gain=edge_lift_gain)
-            if instance.edge_out_proj.bias is not None:
-                nn.init.zeros_(instance.edge_out_proj.bias)
-            nn.init.xavier_uniform_(instance.edge_out_proj.weight, gain=edge_lift_gain)
-
-            # Projections for electrode space
             instance.proj_to_electrodes = nn.Conv1d(512, 19 * 64, kernel_size=1)
             instance.proj_from_electrodes = nn.Conv1d(19 * 64, 512, kernel_size=1)
 
-            # Store edge config in instance.config
             if graph_cfg:
                 instance.config["edge_metric"] = graph_cfg.edge_features
                 instance.config["edge_similarity_margin"] = graph_cfg.edge_similarity_margin
                 instance.config["edge_top_k"] = graph_cfg.edge_top_k
                 instance.config["edge_threshold"] = graph_cfg.edge_threshold
 
-            # PR-1: Initialize boundary normalization layers if configured
-            norms_cfg = getattr(cfg, "norms", None)
-            if norms_cfg and norms_cfg.boundary_norm != "none":
-                # Create normalization layers at component boundaries
-                if norms_cfg.after_tcn_proj:
-                    instance.norm_after_proj_to_electrodes = create_norm_layer(
-                        norms_cfg.boundary_norm, 64, norms_cfg.boundary_eps
-                    )
-                if norms_cfg.after_node_mamba:
-                    instance.norm_after_node_mamba = create_norm_layer(
-                        norms_cfg.boundary_norm, 64, norms_cfg.boundary_eps
-                    )
-                if norms_cfg.after_edge_mamba:
-                    # Edge stream has 16 dimensions
-                    instance.norm_after_edge_mamba = create_norm_layer(
-                        norms_cfg.boundary_norm, edge_d_model, norms_cfg.boundary_eps
-                    )
-                if norms_cfg.after_gnn:
-                    instance.norm_after_gnn = create_norm_layer(
-                        norms_cfg.boundary_norm, 64, norms_cfg.boundary_eps
-                    )
-                if norms_cfg.before_decoder:
-                    instance.norm_before_decoder = create_norm_layer(
-                        norms_cfg.boundary_norm, 512, norms_cfg.boundary_eps
-                    )
+            edge_d_model = graph_cfg.edge_mamba_d_model if graph_cfg else 16
+            reg_components = build_regularizers(cfg, edge_d_model)
+            instance.norm_after_proj_to_electrodes = reg_components.norm_after_proj_to_electrodes
+            instance.norm_after_node_mamba = reg_components.norm_after_node_mamba
+            instance.norm_after_edge_mamba = reg_components.norm_after_edge_mamba
+            instance.norm_after_gnn = reg_components.norm_after_gnn
+            instance.norm_before_decoder = reg_components.norm_before_decoder
+            instance.gnn_layerscale = reg_components.gnn_layerscale
 
-                # Initialize LayerScale for GNN residual if configured
-                if graph_cfg and graph_cfg.use_residual:
-                    instance.gnn_layerscale = LayerScale(64, norms_cfg.layerscale_alpha)
+        instance.fusion_type, instance.fusion = build_fusion_head(cfg)
 
-        # PR-4: Initialize fusion module if configured
-        fusion_cfg = getattr(cfg, "fusion", None)
-        if fusion_cfg:
-            instance.fusion_type = fusion_cfg.fusion_type
-            if fusion_cfg.fusion_type == "gated":
-                instance.fusion = GatedFusion(64, fusion_cfg.fusion_dropout)
-            elif fusion_cfg.fusion_type == "multihead":
-                instance.fusion = MultiHeadGatedFusion(
-                    64, fusion_cfg.fusion_heads, fusion_cfg.fusion_dropout
-                )
-            # else: keep None for default additive fusion
-
-        # Optionally attach GNN components if enabled
         graph_cfg = getattr(cfg, "graph", None)
         instance.use_gnn = bool(graph_cfg and graph_cfg.enabled)
 
         if instance.use_gnn and graph_cfg is not None:
-            # ONLY PyG implementation with Laplacian PE is supported
             try:
                 from .gnn_pyg import GraphChannelMixerPyG
 
-                # V3 uses vectorized GNN with configurable PE
                 is_v3 = True
                 instance.gnn = GraphChannelMixerPyG(
-                    d_model=64,  # Per-electrode feature dimension
+                    d_model=64,
                     n_electrodes=19,
                     k_eigenvectors=graph_cfg.k_eigenvectors,
                     alpha=graph_cfg.alpha,
-                    k_hops=2,  # 2-hop neighborhood
+                    k_hops=2,
                     n_layers=graph_cfg.n_layers,
                     dropout=graph_cfg.dropout,
-                    # v3.4.0: Disable internal residuals; external LayerScale handles it
-                    use_residual=False,  # Changed from graph_cfg.use_residual
-                    use_vectorized=is_v3,  # V3: vectorized batching
-                    use_dynamic_pe=graph_cfg.use_dynamic_pe,  # Configurable PE mode
-                    bypass_edge_transform=is_v3,  # V3: skip since we have Softplus upstream
+                    use_residual=False,
+                    use_vectorized=is_v3,
+                    use_dynamic_pe=graph_cfg.use_dynamic_pe,
+                    bypass_edge_transform=is_v3,
                     semi_dynamic_interval=graph_cfg.semi_dynamic_interval,
                     pe_sign_consistency=graph_cfg.pe_sign_consistency,
-                    # PR-3: Adjacency conditioning parameters
                     adj_row_softmax=graph_cfg.adj_row_softmax,
                     adj_softmax_tau=graph_cfg.adj_softmax_tau,
                     adj_ema_beta=graph_cfg.adj_ema_beta,
@@ -626,10 +585,10 @@ class SeizureDetector(nn.Module):
                 )
             except ImportError as e:
                 raise ImportError(
-                    "PyTorch Geometric not installed. GNN requires PyG. Install from prebuilt wheels for torch 2.5.0+cu124 (see INSTALLATION.md) or run 'make setup-gpu'"
+                    "PyTorch Geometric not installed. GNN requires PyG. "
+                    "Install from prebuilt wheels for torch 2.5.0+cu124 "
+                    "(see INSTALLATION.md) or run 'make setup-gpu'"
                 ) from e
-
-            # V3 creates projections above
 
         return instance
 

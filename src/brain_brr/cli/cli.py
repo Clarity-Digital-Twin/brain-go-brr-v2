@@ -324,6 +324,8 @@ def evaluate(
 ) -> None:
     """Evaluate model on test data.
 
+    Refactored to delegate to service layer for business logic.
+
     Args:
         checkpoint_path: Path to model checkpoint
         data_path: Path to test data directory
@@ -333,13 +335,13 @@ def evaluate(
         output_csv_bi: Optional path to export events in CSV_BI format
         dry_run: If True, validate args and emit empty reports without loading model
     """
-    # Handle dry-run mode
     if dry_run:
         console.print("[cyan]Running in dry-run mode[/cyan]")
 
-        # Create empty reports if requested
         if output_json:
             output_json.parent.mkdir(parents=True, exist_ok=True)
+            import json
+
             metrics = {
                 "checkpoint": str(checkpoint_path),
                 "data_dir": str(data_path),
@@ -348,8 +350,6 @@ def evaluate(
                 "specificity": 0.0,
                 "auc": 0.0,
             }
-            import json
-
             with output_json.open("w") as f:
                 json.dump(metrics, f, indent=2)
             console.print(f"[green]✅ Created empty JSON:[/green] {output_json}")
@@ -362,89 +362,28 @@ def evaluate(
         console.print("[green]Dry-run evaluation complete[/green]")
         return
 
-    # Check files exist for real evaluation
-    if not checkpoint_path.exists():
-        console.print(f"[red]Checkpoint not found:[/red] {checkpoint_path}")
-        sys.exit(1)
-    if not data_path.exists():
-        console.print(f"[red]Data path not found:[/red] {data_path}")
-        sys.exit(1)
-
     try:
-        import json
-        from datetime import datetime
-
-        import torch
-        from torch.utils.data import DataLoader
-
-        from src.brain_brr.data import EEGWindowDataset
-        from src.brain_brr.eval.metrics import batch_probs_to_events
-        from src.brain_brr.events import SeizureEvent
-        from src.brain_brr.events.export import export_csv_bi
-        from src.brain_brr.models import SeizureDetector
-        from src.brain_brr.train.loop import validate_epoch
+        from src.brain_brr.cli.services import run_evaluation
+        from src.brain_brr.cli.services.evaluation import EvaluationRequest
 
         console.print(f"[cyan]Loading checkpoint:[/cyan] {checkpoint_path}")
 
-        # Load checkpoint
-        checkpoint = torch.load(checkpoint_path, map_location="cpu")
-
-        # Get config
-        if config:
-            cfg = Config.from_yaml(config)
-        elif "config" in checkpoint and checkpoint["config"] is not None:
-            cfg = Config(**checkpoint["config"])
-        else:
-            console.print(
-                "[red]No config found in checkpoint or provided. Please provide --config[/red]"
-            )
-            sys.exit(1)
-
-        # Create model
-        model = SeizureDetector.from_config(cfg.model)
-        model.load_state_dict(checkpoint["model_state_dict"])
-
-        if device == "auto":
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-        model = model.to(device)
-
-        # Load test data
-        edf_files = list(data_path.glob("**/*.edf"))
-        console.print(f"[cyan]Found {len(edf_files)} EDF files[/cyan]")
-
-        if len(edf_files) == 0:
-            console.print("[red]No EDF files found under data path[/red]")
-            sys.exit(1)
-
-        dataset = EEGWindowDataset(
-            edf_files,
-            cache_dir=Path(cfg.data.cache_dir) / "test",
-        )
-
-        dataloader = DataLoader(
-            dataset,
-            batch_size=cfg.training.batch_size,
-            shuffle=False,
-            num_workers=cfg.data.num_workers,
-            pin_memory=(device == "cuda"),
-        )
-
-        # Evaluate
-        console.print("[green]Running evaluation...[/green]")
-        metrics = validate_epoch(
-            model,
-            dataloader,
-            cfg.postprocessing,
+        request = EvaluationRequest(
+            checkpoint_path=checkpoint_path,
+            data_path=data_path,
+            config_path=config,
             device=device,
-            fa_rates=cfg.evaluation.fa_rates,
+            output_json=output_json,
+            output_csv_bi=output_csv_bi,
         )
 
-        # Print results
+        result = run_evaluation(request)
+
         table = Table(title="Evaluation Results")
         table.add_column("Metric", style="cyan")
         table.add_column("Value", style="green")
 
-        for key, value in metrics.items():
+        for key, value in result.metrics.items():
             if isinstance(value, float):
                 table.add_row(key, f"{value:.4f}")
             elif key == "thresholds" and isinstance(value, dict):
@@ -454,86 +393,18 @@ def evaluate(
 
         console.print(table)
 
-        # Export metrics to JSON if requested
         if output_json:
-            # Add metadata
-            metrics["metadata"] = {
-                "checkpoint": str(checkpoint_path),
-                "data_path": str(data_path),
-                "timestamp": datetime.now().isoformat(),
-                "device": device,
-            }
-
-            output_json.parent.mkdir(parents=True, exist_ok=True)
-            with output_json.open("w") as f:
-                json.dump(metrics, f, indent=2, default=str)
             console.print(f"[green]✅ Metrics saved to:[/green] {output_json}")
 
-        # Export events to CSV_BI if requested
         if output_csv_bi:
-            console.print("[cyan]Generating predictions for CSV_BI export...[/cyan]")
-
-            # Run inference to get probabilities
-            model.eval()
-            all_probs = []
-            with torch.no_grad():
-                for windows, _labels in dataloader:
-                    inputs = windows.to(device)
-                    logits = model(inputs)
-                    probs_batch = torch.sigmoid(logits)
-                    all_probs.append(probs_batch.cpu())
-
-            probs = torch.cat(all_probs, dim=0)
-
-            # Convert to events using best threshold
-            thresholds_dict = metrics.get("thresholds", {})
-            if isinstance(thresholds_dict, dict):
-                # Be robust to key types: accept "10", 10, or 10.0
-                if "10" in thresholds_dict:
-                    best_threshold = thresholds_dict["10"]
-                elif 10 in thresholds_dict:
-                    best_threshold = thresholds_dict[10]
-                elif 10.0 in thresholds_dict:
-                    best_threshold = thresholds_dict[10.0]
-                else:
-                    best_threshold = 0.86
-            else:
-                best_threshold = 0.86
-            cfg_for_export = cfg.postprocessing
-            cfg_for_export.hysteresis.tau_on = best_threshold
-            cfg_for_export.hysteresis.tau_off = max(0.0, best_threshold - 0.08)
-
-            pred_events = batch_probs_to_events(probs, cfg_for_export, cfg.data.sampling_rate)
-
-            # Convert to SeizureEvent objects for export with proper timing
-            # Windows overlap with 10s stride: window_i starts at i * stride_seconds
-            stride_s = cfg.data.stride  # 10 seconds
-            window_s = cfg.data.window_size  # 60 seconds
-            seizure_events = []
-            for window_idx, record_events in enumerate(pred_events):
-                window_start_s = window_idx * stride_s
-                for start_s, end_s in record_events:
-                    # Adjust event times relative to the window's actual position
-                    seizure_events.append(
-                        SeizureEvent(
-                            start_s=window_start_s + start_s,
-                            end_s=window_start_s + end_s,
-                            confidence=0.9,  # Default confidence
-                        )
-                    )
-
-            # Export to CSV_BI
-            # Correct total duration calculation accounting for stride
-            total_duration = (len(probs) - 1) * stride_s + window_s if len(probs) > 0 else 0.0
-            export_csv_bi(
-                seizure_events,
-                output_csv_bi,
-                patient_id="test",
-                recording_id="eval",
-                duration_s=total_duration,
-            )
             console.print(f"[green]✅ Events exported to:[/green] {output_csv_bi}")
 
+    except FileNotFoundError as e:
+        console.print(f"[red]File not found:[/red] {e}")
+        sys.exit(1)
+    except ValueError as e:
+        console.print(f"[red]Configuration error:[/red] {e}")
+        sys.exit(1)
     except Exception as e:
         console.print(f"[red]Evaluation error:[/red] {e}")
         sys.exit(1)

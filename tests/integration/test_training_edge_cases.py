@@ -8,7 +8,7 @@ from torch.amp import GradScaler, autocast
 
 from src.brain_brr.config.schemas import Config, ModelConfig
 from src.brain_brr.models import SeizureDetector
-from src.brain_brr.train.loop import FocalLoss
+from src.brain_brr.train.losses import FocalLoss
 
 
 @pytest.mark.integration
@@ -183,7 +183,12 @@ class TestTrainingExplosions:
 
     @pytest.mark.gpu
     def test_cuda_oom_recovery(self, small_model, test_batch_size):
-        """Test OOM recovery with SAFE memory limits."""
+        """Test OOM recovery with SAFE memory limits.
+
+        NOTE: This test SIMULATES OOM behavior rather than causing real OOM,
+        to avoid crashing the test runner. Real OOM testing should be done
+        manually in a controlled environment.
+        """
         if not torch.cuda.is_available():
             pytest.skip("CUDA required for OOM test")
 

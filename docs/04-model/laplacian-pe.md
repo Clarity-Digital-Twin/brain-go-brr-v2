@@ -25,7 +25,7 @@ Numerical stability
 - Clamp degrees and add small diagonal regularization upstream to avoid singularities.
 - Apply `nan_to_num` and cached‑PE fallback if needed (see `gnn_pyg.py`).
 - Sign consistency: make each eigenvector's sum non‑negative (or align to previous timestep if using temporal alignment).
-- **v3.3.1**: Eigenvectors detached to prevent gradient explosion (see ARCHITECTURAL_STABILITY_INVESTIGATION.md).
+- **v3.3.1**: Eigenvectors detached to prevent gradient explosion (see `v3-stability-evolution.md`).
 
 Semi‑dynamic mode
 - `semi_dynamic_interval: N` computes PE every N timesteps and repeats in between.

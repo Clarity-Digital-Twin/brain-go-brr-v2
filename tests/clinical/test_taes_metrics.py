@@ -363,7 +363,7 @@ class TestClinicalValidation:
     """End-to-end clinical validation tests."""
 
     @pytest.mark.gpu  # Skip on CI without GPU
-    def test_full_pipeline_clinical_targets(self, trained_model):
+    def test_full_pipeline_clinical_targets(self, minimal_model):
         """Test full pipeline meets clinical targets."""
         # Skip if CUDA not available (CI runner issue)
         if not torch.cuda.is_available():
@@ -371,7 +371,7 @@ class TestClinicalValidation:
 
         # Ensure model and tensors run on GPU for performance
         device = torch.device("cuda")
-        trained_model = trained_model.to(device)
+        minimal_model = minimal_model.to(device)
 
         # Create 1 hour of test data
         duration_s = 3600
@@ -396,7 +396,7 @@ class TestClinicalValidation:
 
             for start in range(0, n_samples - window_size + 1, stride):
                 window = test_data[:, :, start : start + window_size]
-                pred = trained_model(window)
+                pred = minimal_model(window)
                 predictions.append(pred)
 
             # Combine predictions

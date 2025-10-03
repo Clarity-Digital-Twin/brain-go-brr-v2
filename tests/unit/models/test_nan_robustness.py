@@ -10,7 +10,7 @@ from src.brain_brr.models.detector import SeizureDetector
 from src.brain_brr.models.edge_features import edge_scalar_series
 from src.brain_brr.models.mamba import BiMamba2
 from src.brain_brr.models.tcn import TCNEncoder
-from src.brain_brr.train.loop import FocalLoss
+from src.brain_brr.train.losses import FocalLoss
 
 HAS_PYG = importlib.util.find_spec("torch_geometric") is not None
 
