@@ -123,7 +123,7 @@ with manifest_path.open() as f:
 **Key Facts**:
 - ✅ Stores window counts per EDF file (not per-window metadata)
 - ✅ Allows computing cumulative offsets without loading NPZ
-- ✅ Used as a FAST FALLBACK when manifests are absent
+- ✅ Used for BOTH training and validation datasets
 - ⚠️ MUST match the exact file list passed to `EEGWindowDataset.__init__()`
 - ⚠️ Invalidated when file list changes (smoke test → full training)
 
@@ -148,30 +148,9 @@ class EEGWindowDataset:
         logger.info(f"[DATA] Building dataset index for {len(self.edf_files)} files...")
 ```
 
-### 3. Dataset metadata (file_id + window_start)
-
-**Purpose**: Preserve timeline context for metrics, checkpoints, and debugging
-**Populated by**: All datasets after the October 2025 audit (`EEGWindowDataset`, `BalancedSeizureDataset`, `ValidationDataset`)
-
-**Structure per sample**:
-```python
-{
-    "window": torch.Tensor,          # (C, T)
-    "label": torch.Tensor,           # (T,)
-    "file_id": "aaaaaaac_s001_t000",  # cache file stem / EDF stem
-    "window_start_s": 120.0          # absolute start time in seconds
-}
-```
-
-**Why It Matters**:
-- ✅ Evaluation timeline stitching now groups by `file_id` and respects per-window offsets
-- ✅ Early stopping and metrics operate on true recording durations
-- ✅ Debug logs can trace anomalies back to specific EDFs
-- ⚠️ Older tuple-based code paths were removed; always expect dictionary batches
-
 ---
 
-### 4. `.cache_metadata.json` (ROOT - Cache validation)
+### 3. `.cache_metadata.json` (ROOT - Cache validation)
 
 **Purpose**: Proves cache was built with correct split policy
 **Created by**: Cache build script / populate_cache()
