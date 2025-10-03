@@ -435,7 +435,7 @@ class ValidationDataset(Dataset):
         missing_ref_count = 0
 
         # Add ALL windows from all categories (natural distribution)
-        for category_name, category_windows in [
+        for _category_name, category_windows in [
             ("partial_seizure", partial),
             ("full_seizure", full),
             ("no_seizure", no_seizure),
