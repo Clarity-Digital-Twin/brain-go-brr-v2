@@ -51,8 +51,7 @@ def _process_recording(
     Returns:
         Recording duration in hours
     """
-    from src.brain_brr.eval.metrics import batch_probs_to_events, stitch_recording_timeline
-    from src.brain_brr.events import batch_mask_to_events
+    from src.brain_brr.eval.metrics import stitch_recording_timeline
 
     timeline_probs, timeline_labels = stitch_recording_timeline(windows, sampling_rate)
 
@@ -163,6 +162,7 @@ def _compute_final_metrics(
                 low = mid_tau_on
             else:
                 high = mid_tau_on
+                best_tau_on = mid_tau_on
 
         thresholds[f"{fa}"] = best_tau_on
 
@@ -308,7 +308,7 @@ def validate_epoch(
                             all_ref_events,
                             all_pred_events,
                             post_config,
-                            256,
+                            constants.SAMPLING_RATE,
                         )
                         total_hours += recording_hours
                         num_recordings += 1
@@ -347,7 +347,7 @@ def validate_epoch(
             all_ref_events,
             all_pred_events,
             post_config,
-            256,
+            constants.SAMPLING_RATE,
         )
         total_hours += recording_hours
         num_recordings += 1
@@ -362,7 +362,7 @@ def validate_epoch(
         total_hours,
         fa_rates,
         post_config,
-        256,
+        constants.SAMPLING_RATE,
         num_recordings,
     )
 
