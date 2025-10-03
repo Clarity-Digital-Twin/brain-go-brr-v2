@@ -134,7 +134,49 @@ BGB_NAN_DEBUG=1          # Debug NaN losses
 | Preflight batch | ~2 min | Test forward/backward pass |
 | **Total to epoch start** | **~10-15 min** | When training actually begins |
 
-**v3.4.1 Fix**: Worker spawn reduced from 1h+ to <5 min by setting `persistent_workers: false` and `num_workers: 4` (see MODAL_TRAINING_HANG_INVESTIGATION.md).
+**v3.4.1 Fix**: Worker spawn reduced from 1h+ to <5 min by setting `persistent_workers: false` and `num_workers: 4` (see MODAL_TRAINING_HANG_INVESTIGATION.md). See **DataLoader profiles** below for throughput-oriented variants once the baseline is stable.
+
+## DataLoader profiles
+
+Baseline (safe)
+
+```yaml
+data:
+  num_workers: 4
+  persistent_workers: false
+  prefetch_factor: 2
+training:
+  batch_size: 32
+  gradient_accumulation_steps: 2  # effective 64
+```
+
+- Crash-proof configuration used for day-to-day runs.
+- Keeps first epoch under ~15 minutes and peak VRAM comfortably below 50 GB.
+
+Throughput profile (after smoke verification)
+
+```yaml
+data:
+  num_workers: 8
+  persistent_workers: false
+  prefetch_factor: 4
+```
+
+- Doubles data-loading throughput while keeping startup predictable.
+
+Aggressive profile (benchmarking only)
+
+```yaml
+data:
+  num_workers: 8
+  persistent_workers: true
+  prefetch_factor: 4
+training:
+  batch_size: 64
+  gradient_accumulation_steps: 1
+```
+
+- Re-enables persistent workers after capping prefetch. Only keep if the first epoch remains <15 minutes and VRAM stays <70 GB; otherwise drop back to the safe profile.
 
 ## Cache and Volumes
 
