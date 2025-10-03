@@ -6,7 +6,7 @@
 [![PyTorch 2.5.0](https://img.shields.io/badge/pytorch-2.5.0-red.svg)](https://pytorch.org)
 [![CUDA 12.4](https://img.shields.io/badge/cuda-12.4-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
-[![v3.4.1](https://img.shields.io/badge/version-3.4.1-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.4.1)
+[![v3.5.0](https://img.shields.io/badge/version-3.5.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.5.0)
 
 ## Overview
 
@@ -30,7 +30,7 @@ V3 implements a **dual-stream architecture** grounded in state-space models and 
 
 **Theoretical foundation**: [EvoBrain (NeurIPS 2025)](literature/markdown/EVOBRAIN.md) proves time-then-graph ordering achieves +23% AUROC over alternatives.
 
-**Status**: v3.4.1 validated on RTX 4090 and A100-80GB. See [training docs](docs/05-training/) for implementation details.
+**Status**: v3.5.0 - Clean code refactoring complete. Validated on RTX 4090 and A100-80GB. See [release notes](RELEASE_NOTES.md) for details.
 
 ## 🏗️ Architecture: Theory & Design
 
@@ -312,9 +312,15 @@ We welcome contributions! See [development docs](docs/09-development/) for:
 
 Run `make q` before committing (lint + format + type check).
 
-## Training Status (v3.4.1)
+## Training Status (v3.5.0)
 
-Validated on RTX 4090 and A100-80GB. See [v3.4.1 release notes](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.4.1) and [training validation](docs/04-model/v3-stability-evolution.md).
+**v3.5.0 - Clean Code Architecture:**
+- ✅ All structural debt resolved (detector, metrics, CLI refactored)
+- ✅ 435 tests passing, 78% coverage
+- ✅ 100% backward compatible with v3.4.1
+- ✅ Validated on RTX 4090 and A100-80GB
+
+See [v3.5.0 release notes](RELEASE_NOTES.md) and [refactoring details](STRUCTURAL_DEBT_AUDIT_2025-10-02.md).
 
 ## Citation
 
