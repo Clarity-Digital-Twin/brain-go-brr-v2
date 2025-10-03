@@ -31,8 +31,11 @@ from src.brain_brr.config.schemas import Config
 from src.brain_brr.constants import (
     AUROC_FAILURE_MIN_EPOCH,
     AUROC_FAILURE_THRESHOLD,
+    CHECKPOINT_BEST,
+    CHECKPOINT_LAST,
     FOCAL_ALPHA_DEFAULT,
     FOCAL_GAMMA_DEFAULT,
+    MANIFEST_FILENAME,
 )
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.checkpoint import load_checkpoint, save_checkpoint
@@ -132,19 +135,19 @@ def train(
             scheduler.load_state_dict(ckpt["scheduler_state_dict"])
         start_epoch = ckpt["epoch"]
         best_metric = ckpt.get("best_metric", 0.0)
-        if best_metric == 0.0 and (checkpoint_dir / "last.pt").exists():
+        if best_metric == 0.0 and (checkpoint_dir / CHECKPOINT_LAST).exists():
             try:
                 _last = torch.load(
-                    checkpoint_dir / "last.pt", map_location="cpu", weights_only=False
+                    checkpoint_dir / CHECKPOINT_LAST, map_location="cpu", weights_only=False
                 )
                 best_metric = _last.get("best_metric", 0.0)
             except Exception:
                 pass
         logger.info(f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}")
         # Note: This resumes from start of epoch, not exact batch
-    elif (checkpoint_dir / "last.pt").exists() and config.training.resume:
+    elif (checkpoint_dir / CHECKPOINT_LAST).exists() and config.training.resume:
         start_epoch, best_metric = load_checkpoint(
-            checkpoint_dir / "last.pt", model, optimizer, scheduler
+            checkpoint_dir / CHECKPOINT_LAST, model, optimizer, scheduler
         )
         logger.info(f"Resumed from epoch {start_epoch + 1}")
 
@@ -263,7 +266,7 @@ def train(
                 optimizer,
                 epoch,
                 current_metric,
-                checkpoint_dir / "best.pt",
+                checkpoint_dir / CHECKPOINT_BEST,
                 scheduler,
                 config,
             )
@@ -277,7 +280,7 @@ def train(
             logger.info(f"  New best {metric_name}: {current_metric:.4f}")
 
             # Log best model to W&B
-            wandb_logger.log_model(checkpoint_dir / "best.pt", name=f"best-{metric_name}")
+            wandb_logger.log_model(checkpoint_dir / CHECKPOINT_BEST, name=f"best-{metric_name}")
 
         # Save periodic checkpoint based on checkpoint_interval
         checkpoint_interval = getattr(
@@ -304,7 +307,7 @@ def train(
             optimizer,
             epoch,
             best_metric,
-            checkpoint_dir / "last.pt",
+            checkpoint_dir / CHECKPOINT_LAST,
             scheduler,
             config,
         )
@@ -456,7 +459,7 @@ def main() -> None:
 
     train_cache_dir = data_cache_root / "train"
     use_balanced = bool(config.data.use_balanced_sampling)
-    manifest_path = train_cache_dir / "manifest.json"
+    manifest_path = train_cache_dir / MANIFEST_FILENAME
 
     # Force manifest rebuild if requested or if it exists but is invalid
     if use_balanced and manifest_path.exists():

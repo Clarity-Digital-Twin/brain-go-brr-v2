@@ -265,7 +265,7 @@ class BalancedSeizureDataset(Dataset):
         ensure_manifest: bool = True,
     ) -> None:
         self.cache_dir = Path(cache_dir)
-        manifest_path = self.cache_dir / "manifest.json"
+        manifest_path = self.cache_dir / constants.MANIFEST_FILENAME
         if ensure_manifest and not manifest_path.exists():
             _ = scan_existing_cache(self.cache_dir)
 

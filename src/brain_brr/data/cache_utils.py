@@ -12,6 +12,8 @@ from typing import Any, cast
 
 import numpy as np
 
+from src.brain_brr.constants import MANIFEST_FILENAME
+
 # Module logger
 logger = logging.getLogger(__name__)
 
@@ -77,7 +79,7 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
 
     npz_files = sorted(cache_dir.glob("*.npz"))
     if not npz_files:
-        with (cache_dir / "manifest.json").open("w") as f:
+        with (cache_dir / MANIFEST_FILENAME).open("w") as f:
             json.dump(manifest, f)
         return manifest
 
@@ -124,7 +126,7 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
             else:
                 manifest["partial_seizure"].append(item)
 
-    with (cache_dir / "manifest.json").open("w") as f:
+    with (cache_dir / MANIFEST_FILENAME).open("w") as f:
         json.dump(manifest, f, indent=2)
 
     # Print summary
