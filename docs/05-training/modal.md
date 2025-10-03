@@ -183,7 +183,7 @@ training:
 - Raw data mounted at `/data/edf/` (read‑only dataset mount)
 - Cache on persistent SSD volume at `/results/cache/tusz` (patient‑disjoint subdirs: `{train,dev}`)
 - Results saved to `/results/` (same persistent volume)
-- Ensure `data.data_dir: /data/edf`, `data.split_policy: official_tusz`
+- Ensure `data.data_dir: /data/edf`; the loader enforces official patient-disjoint splits automatically (no `split_policy` field required)
 - Ensure `data.cache_dir: /results/cache/tusz` in configs
 - Do not use S3 for cache on Modal; prebuilt caches should be synced into the Modal volume
 
