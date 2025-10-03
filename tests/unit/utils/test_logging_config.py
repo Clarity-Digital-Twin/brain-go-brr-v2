@@ -463,8 +463,10 @@ class TestIntegration:
         # Force reimport to pick up env vars
         import importlib
 
+        import src.brain_brr.constants as constants
         import src.brain_brr.utils.logging_config as lc
 
+        importlib.reload(constants)
         importlib.reload(lc)
 
         assert lc.LOG_LEVEL == "WARNING"
