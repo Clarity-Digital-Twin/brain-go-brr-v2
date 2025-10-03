@@ -217,7 +217,7 @@ class HysteresisConfig(BaseModel):
 best_tau_on = HYSTERESIS_TAU_ON  # Not 0.86 magic number
 ```
 
-**Files to Refactor**: 12 files, 18 occurrences
+**Files to Refactor**: 12 files, 27 occurrences
 **Risk**: Medium (must verify all configs point to constants)
 **Priority**: P1 - Critical for clinical reproducibility
 
