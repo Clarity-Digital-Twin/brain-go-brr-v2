@@ -12,7 +12,9 @@ from sklearn.metrics import roc_auc_score, roc_curve
 
 from src.brain_brr.constants import (
     EPSILON_ZERO_CHECK,
+    STRIDE_SIZE_SEC,
     THRESHOLD_SEARCH_TOLERANCE,
+    WINDOW_SIZE_SEC,
 )
 from src.brain_brr.config.schemas import PostprocessingConfig
 from src.brain_brr.events import batch_mask_to_events
