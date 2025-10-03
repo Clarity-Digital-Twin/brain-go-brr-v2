@@ -456,6 +456,8 @@ def evaluate_predictions(
 ) -> dict[str, Any]:
     """Complete evaluation of predictions with per-recording timeline stitching.
 
+    Refactored to use timeline helpers for clarity and maintainability.
+
     Args:
         probs: (N, T) probabilities
         labels: (N, T) binary labels
@@ -468,40 +470,23 @@ def evaluate_predictions(
     Returns:
         Dict with all metrics
     """
-    from collections import defaultdict
+    from src.brain_brr.eval.helpers import build_recording_timelines
+    from src.brain_brr.events import batch_mask_to_events
 
-    # Group windows by recording
-    recordings: dict[str, list[dict]] = defaultdict(list)
+    recording_timelines = build_recording_timelines(
+        probs, labels, file_ids, window_starts, sampling_rate
+    )
 
-    for i, (fid, start_s) in enumerate(zip(file_ids, window_starts, strict=False)):
-        recordings[fid].append(
-            {
-                "start_s": float(start_s),
-                "probs": probs[i],
-                "labels": labels[i],
-            }
-        )
-
-    # Process each recording independently and reconstruct timelines
     all_ref_events: list[tuple[float, float]] = []
     all_pred_events: list[tuple[float, float]] = []
     total_hours = 0.0
 
-    for _fid, windows in recordings.items():
-        # Stitch overlapping windows into continuous timeline
-        timeline_probs, timeline_labels = stitch_recording_timeline(windows, sampling_rate)
-        recording_end_s = windows[-1]["start_s"] + constants.WINDOW_SIZE_SEC
-
-        # Convert to events for this recording
-        # Reshape to (1, T) for batch processing
-        from src.brain_brr.events import batch_mask_to_events
-
-        ref_events_list = batch_mask_to_events(timeline_labels.unsqueeze(0), sampling_rate)
+    for timeline in recording_timelines:
+        ref_events_list = batch_mask_to_events(timeline.timeline_labels.unsqueeze(0), sampling_rate)
         pred_events_list = batch_probs_to_events(
-            timeline_probs.unsqueeze(0), post_cfg, sampling_rate
+            timeline.timeline_probs.unsqueeze(0), post_cfg, sampling_rate
         )
 
-        # Extract events from first (and only) recording in batch
         if ref_events_list:
             for event_obj in ref_events_list[0]:
                 all_ref_events.append((float(event_obj.start_s), float(event_obj.end_s)))
@@ -509,8 +494,7 @@ def evaluate_predictions(
             for pred_tuple in pred_events_list[0]:
                 all_pred_events.append(pred_tuple)
 
-        # Accumulate total duration
-        total_hours += recording_end_s / 3600.0
+        total_hours += timeline.duration_s / 3600.0
 
     # Compute TAES on properly stitched timelines
     taes = calculate_taes(all_pred_events, all_ref_events) if all_ref_events else 0.0
@@ -533,13 +517,10 @@ def evaluate_predictions(
     # Expected Calibration Error (ECE) with 10 bins
     ece = calculate_ece(probs_flat, labels_flat, n_bins=10)
 
-    # Sensitivity at FA rates: need to search for thresholds using stitched timelines
-    # Build list of stitched recording timelines for threshold search
-    stitched_timelines: list[tuple[torch.Tensor, torch.Tensor]] = []
-
-    for _fid, windows in recordings.items():
-        timeline_probs, timeline_labels = stitch_recording_timeline(windows, sampling_rate)
-        stitched_timelines.append((timeline_probs, timeline_labels))
+    # Sensitivity at FA rates: use pre-built recording timelines for threshold search
+    stitched_timelines: list[tuple[torch.Tensor, torch.Tensor]] = [
+        (timeline.timeline_probs, timeline.timeline_labels) for timeline in recording_timelines
+    ]
 
     thresholds: dict[str, float] = {}
     sensitivity_results: dict[str, float] = {}
@@ -623,7 +604,7 @@ def evaluate_predictions(
         "pr_auc": pr_auc,
         "ece": ece,
         "fa_curve": fa_curve,
-        "num_recordings": len(recordings),
+        "num_recordings": len(recording_timelines),
         "total_hours": total_hours,
     }
     results.update(sensitivity_results)

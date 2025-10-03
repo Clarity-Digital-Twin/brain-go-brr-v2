@@ -264,6 +264,9 @@ class SeizureDetector(nn.Module):
             - Applies per-electrode BiMamba temporal modeling
             - Applies boundary normalization if configured
         """
+        assert self.proj_to_electrodes is not None
+        assert self.node_mamba is not None
+
         batch_size, _, seq_len = features.shape
 
         elec_flat = self.proj_to_electrodes(features)
@@ -301,6 +304,11 @@ class SeizureDetector(nn.Module):
             - Applies learned lift/project via BiMamba
             - Assembles adjacency via top-k + threshold
         """
+        assert self.edge_in_proj is not None
+        assert self.edge_mamba is not None
+        assert self.edge_out_proj is not None
+        assert self.edge_activate is not None
+
         from .edge_features import assemble_adjacency, edge_scalar_series
 
         batch_size, _, seq_len, _ = elec_feats.shape
@@ -372,6 +380,8 @@ class SeizureDetector(nn.Module):
             - Applies gated fusion if configured
             - Normalizes after GNN if configured
         """
+        elec_enhanced: torch.Tensor
+
         if self.gnn:
             gnn_out = self.gnn(node_feats, adj)
             if self.gnn_layerscale:
