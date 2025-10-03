@@ -8,7 +8,13 @@ from dataclasses import dataclass
 import torch
 
 from src.brain_brr.config.schemas import PostprocessingConfig
-from src.brain_brr.eval.metrics import batch_mask_to_events, batch_probs_to_events, overlap
+from src.brain_brr.eval.metrics import batch_probs_to_events
+from src.brain_brr.events import batch_mask_to_events
+
+
+def _overlap(a: tuple[float, float], b: tuple[float, float]) -> float:
+    """Return intersection length in seconds between intervals."""
+    return max(0.0, min(a[1], b[1]) - max(a[0], b[0]))
 
 
 @dataclass
@@ -104,7 +110,7 @@ def find_threshold_for_fa_target(
             preds = pred_events_list[0]
 
         for ref_start, ref_end in refs:
-            if any(overlap((ref_start, ref_end), (ps, pe)) > 0 for (ps, pe) in preds):
+            if any(_overlap((ref_start, ref_end), (ps, pe)) > 0 for (ps, pe) in preds):
                 tp_count += 1
 
     sensitivity = tp_count / max(total_ref_events, 1)
