@@ -133,7 +133,7 @@ def _compute_final_metrics(
     sensitivity_results: dict[str, float] = {}
 
     for fa in fa_rates:
-        low, high = THRESHOLD_SEARCH_LOW, THRESHOLD_SEARCH_HIGH
+        low, high = constants.THRESHOLD_SEARCH_LOW, constants.THRESHOLD_SEARCH_HIGH
         best_tau_on = 0.86
 
         for _ in range(10):
