@@ -131,16 +131,16 @@ EPSILON_ADAMW: float = 1e-8  # PyTorch optimizer default
 
 ---
 
-### P1.2: Hysteresis Thresholds Duplicated (18 Total Verified)
+### P1.2: Hysteresis Thresholds Duplicated (27 Total Verified)
 
 **Issue**: Clinical hysteresis thresholds (`tau_on`, `tau_off`, `delta`) are hardcoded in configs, evaluation code, and validation logic.
 
 **Verified Counts** (exact grep results):
 - **0.86 (tau_on)**: 8 Python occurrences + 4 YAML configs = **12 total**
 - **0.78 (tau_off)**: **2 Python occurrences** + 4 YAML configs = **6 total**
-- **0.08 (delta)**: 8 Python occurrences + 0 YAML = **8 total**
+- **0.08 (delta)**: **9 Python occurrences** (includes 2 docstrings) + 0 YAML = **9 total**
 
-**IMPORTANT**: Total is **18** (12+6), not "15+" as originally estimated.
+**IMPORTANT**: Total is **27** (12+6+9), not "15+" as originally estimated.
 
 **Current State**:
 ```bash
