@@ -167,17 +167,18 @@ torch.cuda.set_per_process_memory_fraction(fraction, 0)
 
 ---
 
-### ✅ 2.6 CLI Service Layer Extraction (Verified - Ready to Implement)
+### ✅ 2.6 CLI Service Layer Extraction — **COMPLETED 2025-10-03** 🎉
 
 **Scope:** `src/brain_brr/cli/cli.py`
 
-**Why:** `evaluate` command (223 lines, span 316-539) intermixes CLI parsing with evaluation logic, hindering reuse/testing.
+**Status:** ✅ **COMPLETE** - See `REFACTOR_CLI_PY.md` and commit `040a78c`
 
-**Plan:** See `REFACTOR_CLI_PY.md` for moving logic into `cli/services/evaluation.py` and thinning Click commands.
-
-**Audit Status:** ✅ VERIFIED (2025-10-02) - Minor line number fix applied (316-537 → 316-539), plan accurate
-
-**Implementation Status:** Awaiting consensus; execute after metrics refactor to leverage new evaluation helpers.
+**Execution Results:**
+- ✅ Created `cli/services/evaluation.py` (100 lines) - core evaluation orchestration
+- ✅ Thinned `evaluate` command to parse-and-delegate pattern
+- ✅ **Line Reduction:** `evaluate` command -58% (224→95)
+- ✅ **Verification:** CLI integration tests passing, UX unchanged
+- ✅ **Quality:** 70% CLI coverage (up from 57%), service layer testable without Click
 
 ---
 
