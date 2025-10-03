@@ -446,9 +446,7 @@ class ValidationDataset(Dataset):
             cache_file_name = item["cache_file"]
             cache_file_path = self.cache_dir / cache_file_name
             if cache_file_path.exists():
-                file_to_windows[cache_file_name].append(
-                    (int(item["window_idx"]), cache_file_path)
-                )
+                file_to_windows[cache_file_name].append((int(item["window_idx"]), cache_file_path))
             else:
                 missing_ref_count += 1
 
