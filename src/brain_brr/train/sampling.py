@@ -12,6 +12,7 @@ from typing import Any
 import torch
 from torch.utils.data import WeightedRandomSampler
 
+from src.brain_brr.constants import EPSILON_ZERO_CHECK
 from src.brain_brr.utils.env import env
 
 logger = logging.getLogger(__name__)
@@ -64,7 +65,7 @@ def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRan
         f"[SAMPLER] Final: {sampled_seizure_count}/{sample_size} windows with seizures ({seizure_ratio:.2%})"
     )
 
-    if seizure_ratio < 1e-8:
+    if seizure_ratio < EPSILON_ZERO_CHECK:
         logger.info("[SAMPLER] WARNING: No seizures found in sample! Using uniform sampling.")
         return None
 
