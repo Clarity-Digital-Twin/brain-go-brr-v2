@@ -397,3 +397,98 @@ class BalancedSeizureDataset(Dataset):
             "file_id": file_id,
             "window_start_s": float(window_start_s),
         }
+
+
+class ValidationDataset(Dataset):
+    """Validation dataset using manifest without balanced sampling.
+
+    Uses ALL windows from the manifest in natural distribution (~8% seizures).
+    This is much faster than EEGWindowDataset (instant load vs 5-10 min scan).
+
+    The key difference from BalancedSeizureDataset:
+    - BalancedSeizureDataset: Samples to get ~30% seizures (training)
+    - ValidationDataset: Uses ALL windows in natural distribution (validation)
+    """
+
+    def __init__(
+        self,
+        cache_dir: Path,
+        *,
+        seed: int | None = 42,
+        ensure_manifest: bool = True,
+    ) -> None:
+        self.cache_dir = Path(cache_dir)
+        manifest_path = self.cache_dir / constants.MANIFEST_FILENAME
+        if ensure_manifest and not manifest_path.exists():
+            _ = scan_existing_cache(self.cache_dir)
+
+        with manifest_path.open() as f:
+            manifest = json.load(f)
+
+        partial: list[dict] = list(manifest.get("partial_seizure", []))
+        full: list[dict] = list(manifest.get("full_seizure", []))
+        no_seizure: list[dict] = list(manifest.get("no_seizure", []))
+
+        rng = np.random.default_rng(seed)
+
+        indices: list[tuple[Path, int]] = []
+        missing_ref_count = 0
+
+        # Add ALL windows from all categories (natural distribution)
+        for category_name, category_windows in [
+            ("partial_seizure", partial),
+            ("full_seizure", full),
+            ("no_seizure", no_seizure),
+        ]:
+            for item in category_windows:
+                cache_file = self.cache_dir / item["cache_file"]
+                if cache_file.exists():
+                    indices.append((cache_file, int(item["window_idx"])))
+                else:
+                    missing_ref_count += 1
+
+        # Shuffle for variety (but ALL windows are included)
+        indices_array = np.array(indices, dtype=object)
+        rng.shuffle(indices_array)
+        self._entries: list[tuple[Path, int]] = indices_array.tolist()
+
+        # Calculate seizure ratio
+        n_seizure = len(partial) + len(full)
+        n_total = len(self._entries)
+        seizure_ratio = n_seizure / n_total if n_total > 0 else 0.0
+
+        logger.info(
+            f"[ValidationDataset] Created with {len(self._entries)} windows:\n"
+            f"  - {len(partial)} partial seizure\n"
+            f"  - {len(full)} full seizure\n"
+            f"  - {len(no_seizure)} no-seizure\n"
+            f"  - Seizure ratio: {seizure_ratio:.1%} (natural distribution)"
+        )
+        if missing_ref_count > 0:
+            logger.warning(
+                f"Skipped {missing_ref_count} manifest entries referencing missing cache files"
+            )
+
+    def __len__(self) -> int:
+        return len(self._entries)
+
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Return window with metadata dict for timeline stitching."""
+        cache_file, w_idx = self._entries[idx]
+        with np.load(cache_file) as data:
+            window = data["windows"][w_idx].astype(np.float32)
+            if "labels" in data:
+                label = data["labels"][w_idx].astype(np.float32)
+            else:
+                label = np.zeros((window.shape[-1],), dtype=np.float32)
+
+        # Extract file_id from cache filename (remove _windows suffix)
+        file_id = cache_file.stem.replace("_windows", "")
+        window_start_s = w_idx * constants.STRIDE_SIZE_SEC
+
+        return {
+            "window": torch.from_numpy(window),
+            "label": torch.from_numpy(label),
+            "file_id": file_id,
+            "window_start_s": float(window_start_s),
+        }
