@@ -1,9 +1,26 @@
-"""EEG constants for Phase 1 data pipeline.
+"""Central constants for Brain-Go-Brr EEG seizure detection.
 
-These constants define the canonical 10-20 channel order and windowing params.
+This module contains ALL magic numbers, hyperparameters, and configuration
+defaults used throughout the codebase. Following Google/DeepMind best practices,
+we centralize constants for:
+- Data pipeline (channels, sampling rate, windowing)
+- Numerical stability (epsilons for different purposes)
+- Clinical thresholds (hysteresis, FA targets, event durations)
+- Model hyperparameters (dropout, focal loss, optimizer)
+- Training configuration (logging, checkpointing, validation)
+- File names and metric names (single source of truth)
+- Time conversions and preprocessing defaults
+
+Each constant is documented with WHY that value was chosen, not just WHAT it is.
 """
 
 from __future__ import annotations
+
+import os
+
+# ==============================================================================
+# Data Pipeline Constants
+# ==============================================================================
 
 # Canonical 10-20 montage order (19 channels)
 # CRITICAL CONTRACT: The model is trained assuming this EXACT channel order.
