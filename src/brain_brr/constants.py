@@ -50,3 +50,13 @@ STRIDE_SIZE_SEC: int = 10
 
 WINDOW_SAMPLES: int = WINDOW_SIZE_SEC * SAMPLING_RATE  # 15360
 STRIDE_SAMPLES: int = STRIDE_SIZE_SEC * SAMPLING_RATE  # 2560
+
+# ==============================================================================
+# Clinical Thresholds - Threshold Search Configuration
+# ==============================================================================
+
+# Binary search bounds for FA rate calibration
+# v3.5.0: Expanded from [0.1, 1.0] to [0.0, 1.0] to support low-confidence models
+# This allows the search to find thresholds for models that output low probabilities
+THRESHOLD_SEARCH_LOW: float = 0.0
+THRESHOLD_SEARCH_HIGH: float = 1.0
