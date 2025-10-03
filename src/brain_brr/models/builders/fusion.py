@@ -19,18 +19,18 @@ def build_fusion_head(cfg: "ModelConfig") -> tuple[str, GatedFusion | MultiHeadG
 
     Returns:
         Tuple of (fusion_type, fusion_module)
-        - fusion_type: "gated", "multihead", or "additive"
+        - fusion_type: "add", "gated", or "multihead" (preserves config value)
         - fusion_module: GatedFusion, MultiHeadGatedFusion, or None
 
     Notes:
         - Gated fusion: Learnable gate for node/edge weighting (d_model=64)
         - Multi-head fusion: Multiple attention heads for fusion
-        - Additive fusion: Simple addition (no learnable params)
+        - Add fusion: Simple addition (no learnable params, backward compat)
     """
     fusion_cfg = getattr(cfg, "fusion", None)
 
     if not fusion_cfg:
-        return "additive", None
+        return "add", None
 
     fusion_type = fusion_cfg.fusion_type
 
@@ -43,4 +43,4 @@ def build_fusion_head(cfg: "ModelConfig") -> tuple[str, GatedFusion | MultiHeadG
         fusion_module = MultiHeadGatedFusion(64, fusion_cfg.fusion_heads, fusion_cfg.fusion_dropout)
         return fusion_type, fusion_module
     else:
-        return "additive", None
+        return fusion_type, None
