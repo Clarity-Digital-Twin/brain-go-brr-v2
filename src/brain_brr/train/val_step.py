@@ -67,7 +67,7 @@ def _process_recording(
     all_labels_flat.append(timeline_labels.flatten())
 
     recording_end_s = windows[-1]["start_s"] + constants.WINDOW_SIZE_SEC
-    recording_hours: float = recording_end_s / 3600.0
+    recording_hours: float = recording_end_s / constants.SECONDS_PER_HOUR
 
     del timeline_probs, timeline_labels
 
@@ -153,7 +153,11 @@ def _compute_final_metrics(
                 )
                 num_pred_events += len(pred_events[0]) if pred_events else 0
 
-            fa_24h = (num_pred_events / total_hours) * 24.0 if total_hours > 0 else 0.0
+            fa_24h = (
+                (num_pred_events / total_hours) * constants.HOURS_PER_DAY
+                if total_hours > 0
+                else 0.0
+            )
 
             if fa_24h > fa:
                 low = mid_tau_on
