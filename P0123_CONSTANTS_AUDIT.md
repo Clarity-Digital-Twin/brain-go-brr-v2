@@ -172,7 +172,7 @@ src/brain_brr/config/schemas.py:276:    tau_off: float = Field(default=0.78, ge=
 ```
 
 **Why This is Bad**:
-- ❌ Clinical risk: Tuning thresholds requires updating 18 locations manually
+- ❌ Clinical risk: Tuning thresholds requires updating 27 occurrences manually
 - ❌ Inconsistency: Easy to miss one location → evaluation/inference mismatch
 - ❌ Auditability: FDA/medical reviewers expect single source of truth
 - ❌ Versioning: No way to track "these thresholds optimized on TUSZ v2.0.3 dev set"
