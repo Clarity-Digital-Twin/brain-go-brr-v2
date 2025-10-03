@@ -220,16 +220,15 @@ Expect to see:
 - "Seizure ratio: 0%" → Missing manifest, rebuild and re-upload
 - "Falling back to EEGWindowDataset" → Manifest creation failed
 - Training hangs at epoch boundaries → Increase CPU/RAM allocation
-- No W&B logs after 70+ minutes → Check Modal logs for actual errors
+- No W&B logs after 20+ minutes → Check Modal logs for actual errors (baseline emits W&B within the first 10 minutes)
 
 ## Troubleshooting
 
 ### Training appears stuck during initialization
-**Expected**: 75-minute initialization before first epoch
+**Expected**: 10-15 minutes with the safe dataloader profile
 - Check logs: `modal app logs <app-id>`
-- Look for: `[DATASET] BalancedSeizureDataset: XXXX windows from manifest`
-- W&B appears at ~65 minutes, first epoch at ~75 minutes
-- This is NORMAL, not a hang
+- Look for the cache validation lines and the first `[BATCH START]` message.
+- If startup exceeds ~15 minutes, inspect worker spawn counts; revert to the baseline profile (4 workers, `persistent_workers: false`) before investigating further.
 
 ### XID 31 GPU crashes
 **Cause**: A100 memory fragmentation or stale Triton cache
