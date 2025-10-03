@@ -17,11 +17,12 @@ Top-level sections
 Data
 
 - `dataset: tuh_eeg|chb_mit` (default `tuh_eeg`)
-- `data_dir: path` — raw EDF root
-- `cache_dir: path` — NPZ cache root
+- `data_dir: path` — raw EDF root containing `train/`, `dev/`, `eval/`
+- `cache_dir: path` — NPZ cache root (`train/` + `dev/` subdirectories)
 - `use_balanced_sampling: bool` — use manifest‑driven balanced dataset
 - `sampling_rate: 256`, `n_channels: 19`, `window_size: 60`, `stride: 10`
-- `num_workers: 0..32` (WSL2: prefer 0), `pin_memory`, `persistent_workers`, `prefetch_factor`, `validation_split: 0..0.5`
+- `num_workers: 0..32` (WSL2: prefer 0), `pin_memory`, `persistent_workers`, `prefetch_factor`
+- Official TUSZ splits are enforced automatically; legacy `split_policy` / `validation_split` / `split_seed` fields were removed in V4.
 - Limits: `max_samples`, `max_hours`
 
 Preprocessing
