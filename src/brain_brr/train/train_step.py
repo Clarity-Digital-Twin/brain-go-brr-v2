@@ -20,6 +20,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm  # type: ignore[import-untyped]
 
 from src.brain_brr.config.schemas import WarmupScheduleConfig
+from src.brain_brr.constants import EPSILON_NUMERICAL
 from src.brain_brr.train.checkpoint import save_checkpoint
 from src.brain_brr.train.train_utils import get_memory_stats
 from src.brain_brr.utils.env import env
@@ -121,7 +122,7 @@ def train_epoch(
             pos_ratio = pos_count / max(total_samples, 1)
             logger.info(f"[DATASET] Estimated seizure ratio: {100 * pos_ratio:.1f}%")
 
-        pos_weight_val = (1.0 - pos_ratio) / max(pos_ratio, 1e-6)
+        pos_weight_val = (1.0 - pos_ratio) / max(pos_ratio, EPSILON_NUMERICAL)
         pos_weight_val = float(min(pos_weight_val, 20.0))
 
     logger.info(f"[DATASET] Positive weight for loss: {pos_weight_val:.2f}")
