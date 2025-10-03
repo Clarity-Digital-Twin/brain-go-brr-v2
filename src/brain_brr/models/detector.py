@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn as nn
 
+from src.brain_brr.constants import EPSILON_LAPLACIAN
+
 from .builders import (
     build_edge_stream,
     build_fusion_head,

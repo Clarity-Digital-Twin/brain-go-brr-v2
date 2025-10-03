@@ -135,7 +135,9 @@ class GraphConfig(StrictModel):
         description="Safety margin from ±1 boundaries for edge similarities (prevents Mamba explosion)",
     )
     edge_top_k: int = Field(default=3, ge=1, le=18, description="Top-k edges per node for v3")
-    edge_threshold: float = Field(default=EPSILON_LAPLACIAN, ge=0.0, description="Edge weight cutoff for v3")
+    edge_threshold: float = Field(
+        default=EPSILON_LAPLACIAN, ge=0.0, description="Edge weight cutoff for v3"
+    )
     edge_mamba_layers: int = Field(default=2, ge=1, le=6, description="Edge Mamba layers")
     edge_mamba_d_state: int = Field(default=8, ge=4, le=64, description="Edge Mamba state dim")
     edge_mamba_d_model: int = Field(
@@ -170,7 +172,10 @@ class GraphConfig(StrictModel):
         default=False, description="Force adjacency matrix to be symmetric"
     )
     laplacian_eps: float = Field(
-        default=EPSILON_LAPLACIAN, gt=0.0, le=0.1, description="Epsilon regularization for Laplacian"
+        default=EPSILON_LAPLACIAN,
+        gt=0.0,
+        le=0.1,
+        description="Epsilon regularization for Laplacian",
     )
     laplacian_normalize: bool = Field(
         default=True, description="Use normalized Laplacian (vs unnormalized)"
