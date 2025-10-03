@@ -1,8 +1,34 @@
 # Refactor Plan — src/brain_brr/eval/metrics.py
-Status: Draft for consensus (2025-10-02)
+**Status: ✅ COMPLETED (2025-10-03)**
 Priority: HIGH
 Owner: Senior ML auditor (Codex)
 Scope: `evaluate_predictions` and supporting helpers
+
+---
+
+## ✅ COMPLETION SUMMARY (2025-10-03)
+
+**Execution Results:**
+- ✅ Phase 1 (Timeline): Extracted `eval/helpers/timeline.py` (37 lines) - recording timeline assembly with 100% coverage
+- ✅ Phase 2 (FA Sweep): Extracted `eval/helpers/false_alarm.py` (58 lines) - FA sweep and sensitivity calculation
+- ✅ Phase 3 (Scalar Metrics): Extracted `eval/helpers/scalar_metrics.py` (25 lines) - TAES/AUROC/ECE reducers
+- ✅ **Line Reduction:** `evaluate_predictions` 185→98 lines (-47%)
+- ✅ **Tests:** 26/26 evaluation tests passing, timeline helpers at 100% coverage
+- ✅ **Quality:** All mypy/ruff checks passing, 87% eval module coverage (up from 66%)
+- ✅ **Commits:** `815d712` (scalar metrics), `231c32c` (FA helpers), `4e1ddf3` (timeline helpers)
+
+**Files Changed:**
+- `src/brain_brr/eval/metrics.py` - Refactored to delegate to helpers
+- `src/brain_brr/eval/helpers/timeline.py` - NEW (37 lines)
+- `src/brain_brr/eval/helpers/false_alarm.py` - NEW (58 lines)
+- `src/brain_brr/eval/helpers/scalar_metrics.py` - NEW (25 lines)
+- `src/brain_brr/eval/helpers/__init__.py` - NEW
+- `tests/unit/eval/test_timeline.py` - NEW (7 tests, 100% coverage) ✅
+- `tests/integration/test_evaluation.py` - All passing ✅
+
+---
+
+## ORIGINAL PLAN (2025-10-02)
 
 ## 1. Context & Problem Statement
 `evaluate_predictions` (≈185 lines, current span 448–632) currently couples:
