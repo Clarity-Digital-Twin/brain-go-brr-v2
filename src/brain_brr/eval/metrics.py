@@ -10,7 +10,10 @@ import numpy as np
 import torch
 from sklearn.metrics import roc_auc_score, roc_curve
 
-from src.brain_brr import constants
+from src.brain_brr.constants import (
+    EPSILON_ZERO_CHECK,
+    THRESHOLD_SEARCH_TOLERANCE,
+)
 from src.brain_brr.config.schemas import PostprocessingConfig
 from src.brain_brr.events import batch_mask_to_events
 from src.brain_brr.post.postprocess import postprocess_predictions
