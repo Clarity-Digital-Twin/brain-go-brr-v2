@@ -136,17 +136,18 @@ torch.cuda.set_per_process_memory_fraction(fraction, 0)
 
 ---
 
-### ✅ 2.4 SeizureDetector Modularisation (Verified - Ready to Implement)
+### ✅ 2.4 SeizureDetector Modularisation — **COMPLETED 2025-10-03** 🎉
 
 **Scope:** `src/brain_brr/models/detector.py`
 
-**Why:** `forward` (187 lines, span 247-433) and `from_config` (198 lines, span 436-634) blend construction and inference pipelines.
+**Status:** ✅ **COMPLETE** - See `REFACTOR_DETECTOR_PY.md` and commits `4e1ddf3`, `231c32c`, `815d712`, `040a78c`, `9f08d10`
 
-**Plan:** See `REFACTOR_DETECTOR_PY.md` for phased extraction of builder helpers and pipeline stages. Requires baseline `state_dict` snapshot and new unit tests.
-
-**Audit Status:** ✅ VERIFIED (2025-10-02) - Line numbers accurate, plan correct, ready for implementation
-
-**Implementation Status:** Awaiting consensus; schedule after training completes.
+**Execution Results:**
+- ✅ Builders extracted to `models/builders/` (node_stream, edge_stream, fusion, regularization)
+- ✅ Forward pipeline decomposed into helpers (`_run_node_stream`, `_run_edge_stream`, `_apply_gnn_fusion`, `_decode_and_sanitize`)
+- ✅ **Line Reduction:** `from_config` -46% (199→107), `forward` -77% (187→42)
+- ✅ **Verification:** 5/5 detector tests passing, backward compatibility preserved
+- ✅ **Quality:** All mypy/ruff checks passing, 94% coverage
 
 ---
 

@@ -37,6 +37,7 @@ Audited 4 refactor plan documents and 1 structural debt audit against actual sou
 
 **Proposed Architecture:**
 - Suggests `builders/` and `pipelines/` subdirectories OR inline helpers
+
 - Reasonable and flexible ✅
 
 **Verdict:** READY FOR IMPLEMENTATION
