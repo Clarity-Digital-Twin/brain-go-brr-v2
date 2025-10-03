@@ -12,12 +12,17 @@ from src.brain_brr.constants import (
     DROPOUT_TCN,
     EPSILON_LAPLACIAN,
     EPSILON_NORM,
+    EVENT_MERGE_GAP_S,
     FOCAL_ALPHA_PRODUCTION,
     FOCAL_GAMMA_DEFAULT,
     FOCAL_GAMMA_WARMUP_END,
     FOCAL_GAMMA_WARMUP_START,
     HYSTERESIS_TAU_OFF,
     HYSTERESIS_TAU_ON,
+    MAX_EVENT_DURATION_S,
+    MIN_EVENT_DURATION_S,
+    MORPHOLOGY_CLOSING_KERNEL,
+    MORPHOLOGY_OPENING_KERNEL,
     N_CHANNELS,
     NOTCH_FILTER_HZ,
     SAMPLING_RATE,
@@ -317,8 +322,12 @@ class HysteresisConfig(StrictModel):
 class MorphologyConfig(StrictModel):
     """Morphological operations configuration."""
 
-    opening_kernel: int = Field(default=11, ge=1, description="Opening kernel size (samples)")
-    closing_kernel: int = Field(default=31, ge=1, description="Closing kernel size (samples)")
+    opening_kernel: int = Field(
+        default=MORPHOLOGY_OPENING_KERNEL, ge=1, description="Opening kernel size (samples)"
+    )
+    closing_kernel: int = Field(
+        default=MORPHOLOGY_CLOSING_KERNEL, ge=1, description="Closing kernel size (samples)"
+    )
     use_gpu: bool = Field(default=False, description="Use GPU acceleration if available")
 
     @field_validator("opening_kernel", "closing_kernel")
@@ -334,10 +343,10 @@ class DurationConfig(StrictModel):
     """Event duration filtering configuration."""
 
     min_duration_s: float = Field(
-        default=3.0, ge=0.0, description="Minimum event duration (seconds)"
+        default=MIN_EVENT_DURATION_S, ge=0.0, description="Minimum event duration (seconds)"
     )
     max_duration_s: float = Field(
-        default=600.0, gt=0.0, description="Maximum event duration (seconds)"
+        default=MAX_EVENT_DURATION_S, gt=0.0, description="Maximum event duration (seconds)"
     )
 
     @model_validator(mode="after")
@@ -351,7 +360,9 @@ class DurationConfig(StrictModel):
 class EventsConfig(StrictModel):
     """Event merging and confidence configuration."""
 
-    tau_merge: float = Field(default=2.0, ge=0.0, description="Max gap to merge events (seconds)")
+    tau_merge: float = Field(
+        default=EVENT_MERGE_GAP_S, ge=0.0, description="Max gap to merge events (seconds)"
+    )
     confidence_method: Literal["mean", "peak", "percentile"] = Field(
         default="mean", description="Method for confidence scoring"
     )

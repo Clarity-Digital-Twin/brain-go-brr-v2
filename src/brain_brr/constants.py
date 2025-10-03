@@ -144,6 +144,17 @@ EVENT_MERGE_GAP_S: float = 2.0
 PROB_THRESHOLD_DEFAULT: float = 0.5
 
 # ==============================================================================
+# Post-processing - Morphology
+# ==============================================================================
+
+# Morphological operation kernel sizes (samples)
+# Source: Optimized on TUSZ v2.0.3 dev set (v3.4.1)
+# Opening (11 samples @ 256Hz ≈ 43ms): Removes narrow false positive spikes
+# Closing (31 samples @ 256Hz ≈ 121ms): Fills small gaps within seizure events
+MORPHOLOGY_OPENING_KERNEL: int = 11
+MORPHOLOGY_CLOSING_KERNEL: int = 31
+
+# ==============================================================================
 # Model Hyperparameters
 # ==============================================================================
 

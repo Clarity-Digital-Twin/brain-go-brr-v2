@@ -13,6 +13,8 @@ from src.brain_brr.constants import (
     HOURS_PER_DAY,
     HYSTERESIS_DELTA,
     HYSTERESIS_TAU_ON,
+    THRESHOLD_SEARCH_HIGH,
+    THRESHOLD_SEARCH_LOW,
     THRESHOLD_SEARCH_MAX_ITERS,
 )
 from src.brain_brr.eval.metrics import batch_probs_to_events
@@ -70,7 +72,7 @@ def find_threshold_for_fa_target(
         Search range expanded to [0.0, 1.0] to support low-confidence models
         that may require thresholds below 0.1 for high-FA operating points.
     """
-    low, high = 0.0, 1.0
+    low, high = THRESHOLD_SEARCH_LOW, THRESHOLD_SEARCH_HIGH
     best_tau_on = HYSTERESIS_TAU_ON
 
     for _ in range(max_iters):
