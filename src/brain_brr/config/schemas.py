@@ -207,7 +207,7 @@ class NormConfig(StrictModel):
         description="Type of normalization at component boundaries",
     )
     boundary_eps: float = Field(
-        default=1e-5, ge=1e-10, le=1e-3, description="Epsilon for normalization stability"
+        default=EPSILON_NORM, ge=1e-10, le=1e-3, description="Epsilon for normalization stability"
     )
     layerscale_alpha: float = Field(
         default=0.1, ge=0.001, le=1.0, description="Initial LayerScale value for residuals"
