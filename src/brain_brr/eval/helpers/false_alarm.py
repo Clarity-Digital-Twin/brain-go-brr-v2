@@ -81,9 +81,7 @@ def find_threshold_for_fa_target(
             pred_events_list = batch_probs_to_events(
                 timeline_probs_rec.unsqueeze(0), cfg_for_search, sampling_rate
             )
-            ref_events_list = batch_mask_to_events(
-                timeline_labels_rec.unsqueeze(0), sampling_rate
-            )
+            ref_events_list = batch_mask_to_events(timeline_labels_rec.unsqueeze(0), sampling_rate)
 
             search_preds: list[tuple[float, float]] = []
             if pred_events_list:
@@ -151,9 +149,7 @@ def find_threshold_for_fa_target(
         pred_events_list = batch_probs_to_events(
             timeline_probs_rec.unsqueeze(0), cfg_lowest, sampling_rate
         )
-        ref_events_list = batch_mask_to_events(
-            timeline_labels_rec.unsqueeze(0), sampling_rate
-        )
+        ref_events_list = batch_mask_to_events(timeline_labels_rec.unsqueeze(0), sampling_rate)
 
         preds_lowest: list[tuple[float, float]] = []
         if pred_events_list:
