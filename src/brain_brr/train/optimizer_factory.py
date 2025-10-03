@@ -13,6 +13,7 @@ from torch.optim import AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 
 from src.brain_brr.config.schemas import SchedulerConfig, TrainingConfig
+from src.brain_brr.constants import EPSILON_ADAMW
 
 logger = logging.getLogger(__name__)
 
