@@ -347,7 +347,7 @@ def check_cache():
 
     if dev_dir.exists():
         dev_npz = list(dev_dir.glob("*.npz"))
-        print(f"  manifest.json:         {'⚠️ ' if dev_manifest.exists() else '  '} ({dev_manifest.stat().st_size if dev_manifest.exists() else 0:,} bytes) [OPTIONAL - not used]")
+        print(f"  manifest.json:         {'✅' if dev_manifest.exists() else '❌'} ({dev_manifest.stat().st_size if dev_manifest.exists() else 0:,} bytes) [REQUIRED for ValidationDataset]")
         print(f"  _dataset_index.json:   {'✅' if dev_index.exists() else '❌'} ({dev_index.stat().st_size if dev_index.exists() else 0:,} bytes)")
         print(f"  *.npz files:           {'✅' if len(dev_npz) == 1832 else '⚠️ '} {len(dev_npz):,} (expected 1832)")
     else:

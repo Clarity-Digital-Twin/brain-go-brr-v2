@@ -22,9 +22,14 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
 )
 def inspect_volume():
     """List all contents of the Modal persistence volume."""
-    # Setup logging for Modal function
-    from src.brain_brr.utils.logging_config import setup_logging
-    setup_logging(format_style="simple", force=True)
+    # Simple logging setup for Modal
+    import sys
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+        force=True,
+    )
 
     logger.info("=== Modal Persistence Volume Contents ===")
 
@@ -72,14 +77,81 @@ def inspect_volume():
         else:
             logger.info(f"{check_dir}: DOES NOT EXIST")
 
+    # Check cache structure (CRITICAL for training startup)
+    logger.info("\n=== Cache Structure (Training Readiness) ===")
+    cache_root = "/results/cache/tusz"
+    if os.path.exists(cache_root):
+        import json
+
+        # Check metadata
+        metadata_path = os.path.join(cache_root, ".cache_metadata.json")
+        logger.info(f"\nMetadata: {os.path.exists(metadata_path)}")
+        if os.path.exists(metadata_path):
+            with open(metadata_path) as f:
+                meta = json.load(f)
+            logger.info(f"  → Version: {meta.get('version')}")
+            logger.info(f"  → Expected: {meta.get('train_files')} train, {meta.get('dev_files')} dev")
+
+        # Check train split
+        train_dir = os.path.join(cache_root, "train")
+        if os.path.exists(train_dir):
+            train_npz = len([f for f in os.listdir(train_dir) if f.endswith('.npz')])
+            train_manifest = os.path.join(train_dir, "manifest.json")
+            train_index = os.path.join(train_dir, "_dataset_index.json")
+            logger.info(f"\nTrain split:")
+            logger.info(f"  → NPZ files: {train_npz}")
+            logger.info(f"  → manifest.json: {'✅ EXISTS' if os.path.exists(train_manifest) else '❌ MISSING'}")
+            logger.info(f"  → _dataset_index.json: {'✅ EXISTS' if os.path.exists(train_index) else '❌ MISSING'}")
+            if os.path.exists(train_manifest):
+                size_mb = os.path.getsize(train_manifest) / 1024 / 1024
+                logger.info(f"     Size: {size_mb:.1f} MB")
+
+        # Check dev split
+        dev_dir = os.path.join(cache_root, "dev")
+        if os.path.exists(dev_dir):
+            dev_npz = len([f for f in os.listdir(dev_dir) if f.endswith('.npz')])
+            dev_manifest = os.path.join(dev_dir, "manifest.json")
+            dev_index = os.path.join(dev_dir, "_dataset_index.json")
+            logger.info(f"\nDev split:")
+            logger.info(f"  → NPZ files: {dev_npz}")
+            logger.info(f"  → manifest.json: {'✅ EXISTS' if os.path.exists(dev_manifest) else '❌ MISSING'}")
+            logger.info(f"  → _dataset_index.json: {'✅ EXISTS' if os.path.exists(dev_index) else '❌ MISSING'}")
+            if os.path.exists(dev_index):
+                size_kb = os.path.getsize(dev_index) / 1024
+                logger.info(f"     Size: {size_kb:.1f} KB")
+
+        # Readiness check
+        train_ready = (
+            os.path.exists(train_dir) and
+            os.path.exists(os.path.join(train_dir, "manifest.json")) and
+            len([f for f in os.listdir(train_dir) if f.endswith('.npz')]) >= 4600
+        )
+        dev_ready = (
+            os.path.exists(dev_dir) and
+            os.path.exists(os.path.join(dev_dir, "_dataset_index.json")) and
+            len([f for f in os.listdir(dev_dir) if f.endswith('.npz')]) >= 1800
+        )
+
+        logger.info(f"\n🚀 TRAINING READINESS:")
+        logger.info(f"  → Train: {'✅ READY' if train_ready else '❌ NOT READY'}")
+        logger.info(f"  → Dev: {'✅ READY' if dev_ready else '❌ NOT READY'}")
+        logger.info(f"  → Modal: {'✅ READY FOR TRAINING' if (train_ready and dev_ready) else '❌ NEEDS SETUP'}")
+    else:
+        logger.info(f"{cache_root}: DOES NOT EXIST - Run populate_cache first!")
+
     return "Inspection complete"
 
 @app.local_entrypoint()
 def main():
     """Run inspection."""
-    # Setup logging for local entrypoint
-    from src.brain_brr.utils.logging_config import setup_logging
-    setup_logging(format_style="simple", force=True)
+    # Simple logging for local entrypoint
+    import sys
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+        force=True,
+    )
 
     result = inspect_volume.remote()
     logger.info(result)

@@ -13,6 +13,7 @@ import numpy as np
 import torch
 
 from src.brain_brr.config.schemas import PostprocessingConfig
+from src.brain_brr.constants import SAMPLING_RATE
 from src.brain_brr.post.postprocess import apply_morphology
 
 
@@ -37,7 +38,7 @@ class StreamingPostProcessor:
     def __init__(
         self,
         config: PostprocessingConfig,
-        sampling_rate: int = 256,
+        sampling_rate: int = SAMPLING_RATE,
         chunk_size: int = 2560,  # 10 seconds at 256 Hz
     ):
         """Initialize streaming processor.

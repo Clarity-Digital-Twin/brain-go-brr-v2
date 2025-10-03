@@ -10,6 +10,8 @@ import math
 import torch
 import torch.nn as nn
 
+from src.brain_brr.constants import EPSILON_NORM
+
 
 class RMSNorm(nn.Module):
     """Root Mean Square Layer Normalization.
@@ -22,7 +24,7 @@ class RMSNorm(nn.Module):
         eps: Small constant for numerical stability
     """
 
-    def __init__(self, dim: int, eps: float = 1e-5):
+    def __init__(self, dim: int, eps: float = EPSILON_NORM):
         super().__init__()
         self.eps = eps
         self.scale = nn.Parameter(torch.ones(dim))
@@ -71,7 +73,7 @@ class LayerScale(nn.Module):
         return self.gamma * x
 
 
-def create_norm_layer(norm_type: str, dim: int, eps: float = 1e-5) -> nn.Module | None:
+def create_norm_layer(norm_type: str, dim: int, eps: float = EPSILON_NORM) -> nn.Module | None:
     """Factory function to create normalization layers.
 
     Args:

@@ -52,7 +52,6 @@ data:
   dataset: tuh_eeg
   data_dir: /mnt/ssd/tuh_eeg_seizure/v2.0.3/edf  # Adjust to your path
   cache_dir: cache/tusz                           # Local: train (4667) + dev (1832)
-  split_policy: official_tusz
   sampling_rate: 256
   n_channels: 19
   window_size: 60
@@ -62,6 +61,9 @@ data:
   persistent_workers: false        # Must be false when num_workers=0
   prefetch_factor: 2               # Conservative for memory stability
   use_balanced_sampling: true      # CRITICAL: Oversample seizures
+
+# The loader enforces official TUSZ train/dev splits automatically; legacy
+# split_policy/validation_split fields were removed in V4.
 
 preprocessing:
   montage: "10-20"

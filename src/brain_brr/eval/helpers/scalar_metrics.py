@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import torch
-from sklearn.metrics import average_precision_score, roc_auc_score  # type: ignore[import-untyped]
+from sklearn.metrics import average_precision_score, roc_auc_score
 
 from src.brain_brr.eval.metrics import calculate_ece, calculate_taes
 

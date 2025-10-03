@@ -60,6 +60,12 @@
 
 ## ✅ Additional Completions (October 2, 2025)
 
+### ✅ Documentation Restructure (docs_v3)
+- Adopted the Diátaxis layout (`getting-started`, `guides`, `reference`, `explanations`, `development`).
+- `docs/README.md` is now the navigation hub with quick links for new users, operators, and contributors.
+- Merged redundant NaN and troubleshooting docs into single canonical guides; historical investigations live under `docs/archive/`.
+- Validation checks (broken links, uppercase filenames, outdated paths) are scripted as part of the restructure checklist.
+
 ### ✅ Loop.py Refactoring (COMPLETED)
 **Issue**: Training loop was 958 lines with mixed concerns
 **Status**: ✅ **COMPLETED** - 33% reduction achieved (958 → 640 lines)
@@ -80,6 +86,15 @@
 
 **Commit**: 36055df (2025-10-02)
 **Effort**: 4 hours (estimated 5 days!)
+
+### ✅ Evaluation pipeline fixes
+- Datasets now return dictionaries with `window`, `label`, `file_id`, and `window_start_s` metadata.
+- Validation uses `ValidationDataset` backed by `dev/manifest.json`; metrics stitch per-record timelines and stream memory (<5 GB peak).
+- `evaluate_predictions` aggregates per recording, restoring accurate TAES and FA/24 h calculations.
+
+### ✅ Checkpoint and utility extraction
+- `train/checkpoint.py` owns save/load helpers; `train/train_utils.py` centralises seeding, memory stats, and worker init.
+- Duplicate definitions were removed from `loop.py`, shrinking the module and clarifying imports.
 
 ---
 
@@ -120,6 +135,11 @@
    - Location: `docs/10-final-refactor/`
    - Consider moving to archive subdirectory
    - **Status**: Low priority, useful for reference
+
+### Coverage Baseline (October 3, 2025)
+- Overall coverage sits at ~76% (threshold set to 75%) after utility extraction; suites remain green.
+- Under-covered surfaces: `train/loop.py`, `train/train_step.py`, CLI services, and `train_utils.py` (seed/workers). Targeted unit tests there would nudge totals toward 78–79%.
+- Utilities moved out of `loop.py` now have dedicated tests; we intentionally accept lower orchestration coverage instead of brittle mocks.
 
 ## Logging Migration Plan Summary
 

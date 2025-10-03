@@ -12,6 +12,7 @@ from typing import cast
 import torch
 import torch.nn as nn
 
+from src.brain_brr.constants import EPSILON_NORM
 from src.brain_brr.utils.env import env
 
 from .norms import LayerScale
@@ -44,7 +45,7 @@ class RMSNorm(nn.Module):
         eps: Epsilon for numerical stability
     """
 
-    def __init__(self, d_model: int, eps: float = 1e-5):
+    def __init__(self, d_model: int, eps: float = EPSILON_NORM):
         super().__init__()
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(d_model))
@@ -145,7 +146,7 @@ class BiMamba2Layer(nn.Module):
         # Fusion and normalization
         self.output_proj = nn.Linear(d_model * 2, d_model)
         # v3.4.0: Switch to RMSNorm (reference Mamba2 uses this)
-        self.layer_norm = RMSNorm(d_model, eps=1e-5)
+        self.layer_norm = RMSNorm(d_model, eps=EPSILON_NORM)
         self.dropout = nn.Dropout(dropout)
 
         # PR-1: Optional LayerScale for residual connection

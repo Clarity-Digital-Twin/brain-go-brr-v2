@@ -29,6 +29,7 @@ Notes
 
 - The above profile fits comfortably on 24GB VRAM with dynamic PE and has negligible accuracy impact vs full dynamic.
 - If you absolutely need full dynamic (`semi_dynamic_interval: 1`) on 4090, reduce `batch_size` to ~3.
+- Dataloaders yield dictionaries with `window`, `label`, `file_id`, and `window_start_s`; keep that structure when writing custom training scripts.
 
 Cache and manifest
 

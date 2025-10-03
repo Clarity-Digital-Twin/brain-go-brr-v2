@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, cast
 import torch
 import torch.nn as nn
 
+from src.brain_brr.constants import EPSILON_LAPLACIAN
+
 from .builders import (
     build_edge_stream,
     build_fusion_head,
@@ -356,7 +358,7 @@ class SeizureDetector(nn.Module):
         assert_finite("edge_weights", edge_weights)
 
         edge_top_k = cast(int, self.config.get("edge_top_k", 3))
-        edge_threshold = cast(float, self.config.get("edge_threshold", 1e-4))
+        edge_threshold = cast(float, self.config.get("edge_threshold", EPSILON_LAPLACIAN))
         adj = assemble_adjacency(
             edge_weights, n_nodes=19, top_k=edge_top_k, threshold=edge_threshold
         )

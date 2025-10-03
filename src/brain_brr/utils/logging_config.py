@@ -13,6 +13,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Optional, cast
 
+from src.brain_brr.constants import LOG_EVERY_N_STEPS
+
 # Constants from environment with sensible defaults
 LOG_LEVEL = os.getenv("BGB_LOG_LEVEL", "INFO")
 LOG_FILE = os.getenv("BGB_LOG_FILE", None)
@@ -39,7 +41,6 @@ def _get_default_format() -> str:
 
 
 LOG_FORMAT = os.getenv("BGB_LOG_FORMAT", _get_default_format())
-LOG_EVERY_N_STEPS = int(os.getenv("BGB_LOG_EVERY_N_STEPS", "50"))
 LOG_RING_BUFFER_SIZE = int(os.getenv("BGB_LOG_RING_BUFFER_SIZE", "1000"))
 
 # Thread-safe singleton instance

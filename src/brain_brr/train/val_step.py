@@ -15,12 +15,14 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import average_precision_score, roc_auc_score  # type: ignore[import-untyped]
+from sklearn.metrics import average_precision_score, roc_auc_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm  # type: ignore[import-untyped]
 
 from src.brain_brr import constants
 from src.brain_brr.config.schemas import PostprocessingConfig
+from src.brain_brr.eval.metrics import batch_probs_to_events
+from src.brain_brr.events import batch_mask_to_events
 from src.brain_brr.utils.env import env
 
 logger = logging.getLogger(__name__)
@@ -49,8 +51,7 @@ def _process_recording(
     Returns:
         Recording duration in hours
     """
-    from src.brain_brr.eval.metrics import batch_probs_to_events, stitch_recording_timeline
-    from src.brain_brr.events import batch_mask_to_events
+    from src.brain_brr.eval.metrics import stitch_recording_timeline
 
     timeline_probs, timeline_labels = stitch_recording_timeline(windows, sampling_rate)
 
@@ -67,7 +68,7 @@ def _process_recording(
     all_labels_flat.append(timeline_labels.flatten())
 
     recording_end_s = windows[-1]["start_s"] + constants.WINDOW_SIZE_SEC
-    recording_hours: float = recording_end_s / 3600.0
+    recording_hours: float = recording_end_s / constants.SECONDS_PER_HOUR
 
     del timeline_probs, timeline_labels
 
@@ -133,18 +134,16 @@ def _compute_final_metrics(
     sensitivity_results: dict[str, float] = {}
 
     for fa in fa_rates:
-        low, high = 0.1, 1.0
-        best_tau_on = 0.86
+        low, high = constants.THRESHOLD_SEARCH_LOW, constants.THRESHOLD_SEARCH_HIGH
+        best_tau_on = constants.HYSTERESIS_TAU_ON
 
-        for _ in range(10):
+        for _ in range(constants.THRESHOLD_SEARCH_MAX_ITERS):
             mid_tau_on = (low + high) / 2
-            mid_tau_off = max(0.0, mid_tau_on - 0.08)
+            mid_tau_off = max(0.0, mid_tau_on - constants.HYSTERESIS_DELTA)
 
             cfg_for_search = deepcopy(post_cfg)
             cfg_for_search.hysteresis.tau_on = mid_tau_on
             cfg_for_search.hysteresis.tau_off = mid_tau_off
-
-            from src.brain_brr.eval.metrics import batch_probs_to_events
 
             num_pred_events = 0
             for i in range(len(all_probs_flat)):
@@ -153,26 +152,28 @@ def _compute_final_metrics(
                 )
                 num_pred_events += len(pred_events[0]) if pred_events else 0
 
-            fa_24h = (num_pred_events / total_hours) * 24.0 if total_hours > 0 else 0.0
+            fa_24h = (
+                (num_pred_events / total_hours) * constants.HOURS_PER_DAY
+                if total_hours > 0
+                else 0.0
+            )
 
             if fa_24h > fa:
                 low = mid_tau_on
             else:
                 high = mid_tau_on
+                best_tau_on = mid_tau_on
 
         thresholds[f"{fa}"] = best_tau_on
 
         cfg_for_eval = deepcopy(post_cfg)
         cfg_for_eval.hysteresis.tau_on = best_tau_on
-        cfg_for_eval.hysteresis.tau_off = max(0.0, best_tau_on - 0.08)
+        cfg_for_eval.hysteresis.tau_off = max(0.0, best_tau_on - constants.HYSTERESIS_DELTA)
 
         total_ref_events = len(all_ref_events)
         tp_count = 0
 
         for i in range(len(all_probs_flat)):
-            from src.brain_brr.eval.metrics import batch_probs_to_events
-            from src.brain_brr.events import batch_mask_to_events
-
             ref_events_list = batch_mask_to_events(all_labels_flat[i].unsqueeze(0), sampling_rate)
             pred_events_list = batch_probs_to_events(
                 all_probs_flat[i].unsqueeze(0), cfg_for_eval, sampling_rate
@@ -307,7 +308,7 @@ def validate_epoch(
                             all_ref_events,
                             all_pred_events,
                             post_config,
-                            256,
+                            constants.SAMPLING_RATE,
                         )
                         total_hours += recording_hours
                         num_recordings += 1
@@ -346,7 +347,7 @@ def validate_epoch(
             all_ref_events,
             all_pred_events,
             post_config,
-            256,
+            constants.SAMPLING_RATE,
         )
         total_hours += recording_hours
         num_recordings += 1
@@ -361,7 +362,7 @@ def validate_epoch(
         total_hours,
         fa_rates,
         post_config,
-        256,
+        constants.SAMPLING_RATE,
         num_recordings,
     )
 

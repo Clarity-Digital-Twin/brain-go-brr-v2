@@ -26,6 +26,7 @@
 - **Implementation**: Vectorized across B×T with sign-consistency
 - **Update interval**: `graph.semi_dynamic_interval: 5` (optimal - update every 5 timesteps)
 - **Gradient behavior**: **EIGENVECTORS DETACHED** (v3.3.1 critical fix, `gnn_pyg.py:205`)
+- **Efficiency**: Only the sampled timesteps are decomposed; the earlier bug that computed all 960 timesteps per window is gone.
 
 ### Critical Fix (v3.3.1 - September 30, 2025)
 

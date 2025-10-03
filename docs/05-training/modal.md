@@ -134,14 +134,56 @@ BGB_NAN_DEBUG=1          # Debug NaN losses
 | Preflight batch | ~2 min | Test forward/backward pass |
 | **Total to epoch start** | **~10-15 min** | When training actually begins |
 
-**v3.4.1 Fix**: Worker spawn reduced from 1h+ to <5 min by setting `persistent_workers: false` and `num_workers: 4` (see MODAL_TRAINING_HANG_INVESTIGATION.md).
+**v3.4.1 Fix**: Worker spawn reduced from 1h+ to <5 min by setting `persistent_workers: false` and `num_workers: 4` (see MODAL_TRAINING_HANG_INVESTIGATION.md). See **DataLoader profiles** below for throughput-oriented variants once the baseline is stable.
+
+## DataLoader profiles
+
+Baseline (safe)
+
+```yaml
+data:
+  num_workers: 4
+  persistent_workers: false
+  prefetch_factor: 2
+training:
+  batch_size: 32
+  gradient_accumulation_steps: 2  # effective 64
+```
+
+- Crash-proof configuration used for day-to-day runs.
+- Keeps first epoch under ~15 minutes and peak VRAM comfortably below 50 GB.
+
+Throughput profile (after smoke verification)
+
+```yaml
+data:
+  num_workers: 8
+  persistent_workers: false
+  prefetch_factor: 4
+```
+
+- Doubles data-loading throughput while keeping startup predictable.
+
+Aggressive profile (benchmarking only)
+
+```yaml
+data:
+  num_workers: 8
+  persistent_workers: true
+  prefetch_factor: 4
+training:
+  batch_size: 64
+  gradient_accumulation_steps: 1
+```
+
+- Re-enables persistent workers after capping prefetch. Only keep if the first epoch remains <15 minutes and VRAM stays <70 GB; otherwise drop back to the safe profile.
 
 ## Cache and Volumes
 
 - Raw data mounted at `/data/edf/` (read‑only dataset mount)
 - Cache on persistent SSD volume at `/results/cache/tusz` (patient‑disjoint subdirs: `{train,dev}`)
 - Results saved to `/results/` (same persistent volume)
-- Ensure `data.data_dir: /data/edf`, `data.split_policy: official_tusz`
+- Ensure `data.data_dir: /data/edf`; the loader enforces official patient-disjoint splits automatically (no `split_policy` field required)
 - Ensure `data.cache_dir: /results/cache/tusz` in configs
 - Do not use S3 for cache on Modal; prebuilt caches should be synced into the Modal volume
 
@@ -178,16 +220,15 @@ Expect to see:
 - "Seizure ratio: 0%" → Missing manifest, rebuild and re-upload
 - "Falling back to EEGWindowDataset" → Manifest creation failed
 - Training hangs at epoch boundaries → Increase CPU/RAM allocation
-- No W&B logs after 70+ minutes → Check Modal logs for actual errors
+- No W&B logs after 20+ minutes → Check Modal logs for actual errors (baseline emits W&B within the first 10 minutes)
 
 ## Troubleshooting
 
 ### Training appears stuck during initialization
-**Expected**: 75-minute initialization before first epoch
+**Expected**: 10-15 minutes with the safe dataloader profile
 - Check logs: `modal app logs <app-id>`
-- Look for: `[DATASET] BalancedSeizureDataset: XXXX windows from manifest`
-- W&B appears at ~65 minutes, first epoch at ~75 minutes
-- This is NORMAL, not a hang
+- Look for the cache validation lines and the first `[BATCH START]` message.
+- If startup exceeds ~15 minutes, inspect worker spawn counts; revert to the baseline profile (4 workers, `persistent_workers: false`) before investigating further.
 
 ### XID 31 GPU crashes
 **Cause**: A100 memory fragmentation or stale Triton cache

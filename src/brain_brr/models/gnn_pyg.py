@@ -13,6 +13,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as func
 
+from src.brain_brr.constants import EPSILON_LAPLACIAN, EPSILON_NUMERICAL
+
 from .adjacency import compute_stable_laplacian, condition_adjacency
 
 if TYPE_CHECKING:
@@ -65,7 +67,7 @@ class GraphChannelMixerPyG(nn.Module):
         adj_softmax_tau: float = 1.0,
         adj_ema_beta: float | None = None,
         adj_force_symmetric: bool = False,
-        laplacian_eps: float = 1e-4,
+        laplacian_eps: float = EPSILON_LAPLACIAN,
         warmup_config: WarmupScheduleConfig | None = None,  # v3.4.1: Warmup schedules
         laplacian_normalize: bool = True,
     ):
@@ -254,8 +256,8 @@ class GraphChannelMixerPyG(nn.Module):
                             * 0.01
                         )
                 else:
-                    # Clamp eigenvalues to SAFER range [1e-6, 2]
-                    eigenvalues = torch.clamp(eigenvalues, min=1e-6, max=2.0)
+                    # Clamp eigenvalues to SAFER range [EPSILON_NUMERICAL, 2]
+                    eigenvalues = torch.clamp(eigenvalues, min=EPSILON_NUMERICAL, max=2.0)
                     # Take k smallest eigenvectors (ascending order)
                     pe = eigenvectors[..., : self.k_eigenvectors]  # (B*T, N, k)
 

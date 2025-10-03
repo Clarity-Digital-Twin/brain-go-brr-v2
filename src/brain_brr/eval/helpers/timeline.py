@@ -50,7 +50,7 @@ def build_recording_timelines(
     """
     recordings: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
-    for i, (fid, start_s) in enumerate(zip(file_ids, window_starts, strict=False)):
+    for i, (fid, start_s) in enumerate(zip(file_ids, window_starts, strict=True)):
         recordings[fid].append(
             {
                 "start_s": float(start_s),

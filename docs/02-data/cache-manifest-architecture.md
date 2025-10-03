@@ -19,7 +19,7 @@ cache/tusz/
 │   ├── _dataset_index.json        (282 bytes, Sep 28) ⚠️ STALE (3 files from BGB_SMOKE_TEST=1)
 │   └── *.npz                      (4667 files, 306 GB) ✅
 └── dev/
-    ├── manifest.json              (13 MB, Sep 29) ✅ EXISTS (NOT USED by validation)
+    ├── manifest.json              (13 MB, Sep 29) ✅ REQUIRED (validation manifest)
     ├── _dataset_index.json        (148 KB, Sep 30) ✅ COMPLETE (1832 files)
     └── *.npz                      (1832 files, 143 GB) ✅
 ```
@@ -35,7 +35,7 @@ cache/tusz/
 │   ├── _dataset_index.json        (282 bytes, Sep 29) ⚠️ STALE (3 files)
 │   └── *.npz                      (4667 files) ✅
 └── dev/
-    ├── manifest.json              (12.8 MB, Sep 29) ✅
+    ├── manifest.json              (12.8 MB, Sep 29) ✅ REQUIRED (validation manifest)
     ├── _dataset_index.json        (113 bytes, Sep 29) ⚠️ STALE (different structure)
     └── *.npz                      (1832 files) ✅
 ```
@@ -62,11 +62,13 @@ cache/tusz/
 
 ## 📋 File Types & Purposes
 
-### 1. `manifest.json` (TRAIN ONLY - Used by BalancedSeizureDataset)
+### 1. `manifest.json` (TRAIN + DEV)
 
-**Purpose**: Enables balanced sampling for training
+**Purpose**: Enables balanced sampling for training **and** window ordering for validation
 **Created by**: `src/brain_brr/data/cache_utils.py::scan_existing_cache()`
-**Used by**: `BalancedSeizureDataset.__init__()` (line 242-257 in datasets.py)
+**Used by**:
+- `BalancedSeizureDataset.__init__()` (train manifest)
+- `ValidationDataset.__init__()` (dev manifest)
 
 **Structure** (27 MB for 4667 files):
 ```json
@@ -83,20 +85,19 @@ cache/tusz/
 **Key Facts**:
 - ✅ Lists ALL window indices categorized by seizure type
 - ✅ Allows oversampling partial/full seizures without loading NPZ files
-- ✅ ONLY used for TRAINING (not validation)
+- ✅ Validation uses the same metadata to group windows by cache file and preserve ordering
 - ⚠️ Large file (27 MB) - takes time to generate
 
 **Code Reference**:
 ```python
-# src/brain_brr/data/datasets.py:242-257
-class BalancedSeizureDataset(Dataset):
-    def __init__(self, cache_dir: Path, ...):
-        manifest_path = self.cache_dir / "manifest.json"
-        if ensure_manifest and not manifest_path.exists():
-            _ = scan_existing_cache(self.cache_dir)  # Generate it
+# src/brain_brr/data/datasets.py
+# BalancedSeizureDataset and ValidationDataset both require manifest metadata
+manifest_path = cache_dir / "manifest.json"
+if ensure_manifest and not manifest_path.exists():
+    _ = scan_existing_cache(cache_dir)  # Generate it
 
-        with manifest_path.open() as f:
-            manifest = json.load(f)
+with manifest_path.open() as f:
+    manifest = json.load(f)
 ```
 
 ---
@@ -122,7 +123,7 @@ class BalancedSeizureDataset(Dataset):
 **Key Facts**:
 - ✅ Stores window counts per EDF file (not per-window metadata)
 - ✅ Allows computing cumulative offsets without loading NPZ
-- ✅ Used for BOTH training and validation datasets
+- ✅ Used as a FAST FALLBACK when manifests are absent
 - ⚠️ MUST match the exact file list passed to `EEGWindowDataset.__init__()`
 - ⚠️ Invalidated when file list changes (smoke test → full training)
 
@@ -147,11 +148,32 @@ class EEGWindowDataset:
         logger.info(f"[DATA] Building dataset index for {len(self.edf_files)} files...")
 ```
 
+### 3. Dataset metadata (file_id + window_start)
+
+**Purpose**: Preserve timeline context for metrics, checkpoints, and debugging
+**Populated by**: All datasets after the October 2025 audit (`EEGWindowDataset`, `BalancedSeizureDataset`, `ValidationDataset`)
+
+**Structure per sample**:
+```python
+{
+    "window": torch.Tensor,          # (C, T)
+    "label": torch.Tensor,           # (T,)
+    "file_id": "aaaaaaac_s001_t000",  # cache file stem / EDF stem
+    "window_start_s": 120.0          # absolute start time in seconds
+}
+```
+
+**Why It Matters**:
+- ✅ Evaluation timeline stitching now groups by `file_id` and respects per-window offsets
+- ✅ Early stopping and metrics operate on true recording durations
+- ✅ Debug logs can trace anomalies back to specific EDFs
+- ⚠️ Older tuple-based code paths were removed; always expect dictionary batches
+
 ---
 
-### 3. `.cache_metadata.json` (ROOT - Cache validation)
+### 4. `.cache_metadata.json` (ROOT - Cache validation)
 
-**Purpose**: Proves cache was built with correct split policy
+**Purpose**: Records that the cache was built with the official patient-disjoint split
 **Created by**: Cache build script / populate_cache()
 **Used by**: Validation checks in training scripts
 
@@ -169,6 +191,10 @@ class EEGWindowDataset:
   "version": "v3.2.0"
 }
 ```
+
+The metadata retains `"split_policy": "official_tusz"` for auditability, but runtime
+configuration no longer accepts manual split controls—the loader enforces the official
+train/dev split automatically in V4.
 
 ---
 

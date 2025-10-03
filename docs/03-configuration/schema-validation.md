@@ -1,6 +1,6 @@
 # Configuration Schema Validation Guide
 
-**Last Updated**: September 26, 2025
+**Last Updated**: October 3, 2025
 **Schema Source**: `src/brain_brr/config/schemas.py`
 **Validation Mode**: STRICT (`extra="forbid"`)
 
@@ -30,17 +30,22 @@ logging:       # LoggingConfig
 ```yaml
 data:
   dataset: "tuh_eeg"              # or "chb_mit"
-  data_dir: path/to/data          # Path to raw EDF files
-  cache_dir: path/to/cache        # Path to preprocessed NPZ
+  data_dir: path/to/data          # Path to raw EDF files (train/, dev/, eval/)
+  cache_dir: path/to/cache        # Path to preprocessed NPZ (train/, dev/ subdirs)
   use_balanced_sampling: true     # CRITICAL for seizure detection
   sampling_rate: 256              # MUST be 256 Hz
   n_channels: 19                  # MUST be 19 (10-20 montage)
   window_size: 60                 # MUST be 60 seconds
   stride: 10                      # MUST be 10 seconds
   num_workers: 0                  # 0 for WSL2, 8 for native Linux
-  split_policy: "official_tusz"   # Use official TUSZ splits
-  split_seed: 42                  # Reproducibility seed
+  pin_memory: false               # Enable when num_workers > 0 on Linux
+  persistent_workers: false       # Requires num_workers > 0 to take effect
+  prefetch_factor: 2              # Default per-worker prefetch depth
 ```
+
+**Official splits are enforced automatically.** The loader scans `<data_dir>/{train,dev,eval}`
+and aborts if patient IDs overlap; legacy `split_policy`, `validation_split`, and
+`split_seed` fields were removed in V4.
 
 ### Model Configuration (V3 Architecture)
 ```yaml
