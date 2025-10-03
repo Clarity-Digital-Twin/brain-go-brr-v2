@@ -543,6 +543,7 @@ def main() -> None:
 
     # Try ValidationDataset (instant load from manifest)
     # Falls back to EEGWindowDataset if manifest missing
+    val_dataset: ValidationDataset | EEGWindowDataset
     if val_manifest_path.exists():
         try:
             val_dataset = ValidationDataset(val_cache_dir)
