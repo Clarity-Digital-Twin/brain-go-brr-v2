@@ -173,7 +173,7 @@ class EEGWindowDataset:
 
 ### 4. `.cache_metadata.json` (ROOT - Cache validation)
 
-**Purpose**: Proves cache was built with correct split policy
+**Purpose**: Records that the cache was built with the official patient-disjoint split
 **Created by**: Cache build script / populate_cache()
 **Used by**: Validation checks in training scripts
 
@@ -191,6 +191,10 @@ class EEGWindowDataset:
   "version": "v3.2.0"
 }
 ```
+
+The metadata retains `"split_policy": "official_tusz"` for auditability, but runtime
+configuration no longer accepts manual split controls—the loader enforces the official
+train/dev split automatically in V4.
 
 ---
 

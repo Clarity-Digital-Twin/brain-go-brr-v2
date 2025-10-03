@@ -66,7 +66,7 @@ Modal cache hygiene
 
 - Do not use S3 for caches; keep NPZs on Modal volume at `/results/cache/tusz/`
 - Modal persistent volume only used for results at `/results/`
-- Ensure `data.data_dir: /data/edf` and `data.split_policy: official_tusz`; app verifies patient disjointness on startup.
+- Ensure `data.data_dir: /data/edf`; the loader enforces official patient-disjoint splits automatically (legacy `split_policy` field was removed in V4).
 
 ## Emergency Recovery Procedures
 
