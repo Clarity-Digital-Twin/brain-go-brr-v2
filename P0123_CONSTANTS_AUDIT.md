@@ -977,15 +977,15 @@ def test_hysteresis_uses_constants():
 
 ```
 Magic numbers scattered across 63 Python files:
-- 30+ epsilon values (6 different values)
-- 15+ hysteresis thresholds (0.86, 0.78, 0.08)
-- 15+ sampling rate duplicates (256)
+- 34 epsilon values (6 different values)
+- 27 hysteresis thresholds (0.86, 0.78, 0.08)
+- 12 sampling rate duplicates (256)
 - 10+ focal loss param duplicates (0.25/0.5, 2.0)
 - 50+ other magic numbers
 
 Maintainability: ⚠️ RISKY
-- Tuning hysteresis requires editing 15 files
-- Changing epsilon policy requires editing 30+ lines
+- Tuning hysteresis requires editing 12 files (27 occurrences)
+- Changing epsilon policy requires editing 34 lines across 15 files
 - Typo risk in metric names (string literals)
 - No single source of truth for clinical parameters
 ```
@@ -1042,17 +1042,18 @@ Maintainability: ✅ PRODUCTION READY
 
 ## Appendix: Full Magic Number Inventory
 
-### Epsilon Values (30+ occurrences)
-- `1e-6`: 8 occurrences (GNN, train, adjacency, losses, edge_features, false_alarm)
-- `1e-8`: 8 occurrences (preprocess, train, sampling, postprocess, eval/metrics)
-- `1e-5`: 5 occurrences (norms, mamba, config schemas)
-- `1e-4`: 6 occurrences (GNN laplacian, config, eval/metrics)
-- `1e-7`: 1 occurrence (focal loss ultra-stable clamp)
+### Epsilon Values (34 verified occurrences)
+- `1e-6`: **11 occurrences** (numerical stability, division by zero)
+- `1e-8`: **9 occurrences** (zero detection, optimizer epsilon)
+- `1e-5`: **5 occurrences** (LayerNorm denominator)
+- `1e-4`: **7 occurrences** (Laplacian regularization, edge threshold)
+- `1e-7`: **1 occurrence** (ultra-stable focal loss clamping)
+- `1e-3`: **1 occurrence** (learning rate bounds)
 
-### Clinical Thresholds (15+ occurrences)
-- `0.86` (tau_on): 8 occurrences (4 configs + 4 Python files)
-- `0.78` (tau_off): 4 occurrences (configs)
-- `0.08` (delta): 8 occurrences (eval, train, cli)
+### Clinical Thresholds (27 verified occurrences)
+- `0.86` (tau_on): **12 total** (8 Python + 4 YAML configs)
+- `0.78` (tau_off): **6 total** (2 Python + 4 YAML configs)
+- `0.08` (delta): **9 occurrences** (9 Python including 2 docstrings)
 
 ### Model Hyperparameters
 - `0.25` (focal alpha): 2 occurrences (losses.py, train_step.py)
@@ -1062,7 +1063,7 @@ Maintainability: ✅ PRODUCTION READY
 - `0.1` (Mamba dropout): 5 occurrences
 
 ### Data Processing
-- `256` (sampling rate): 15+ function signatures
+- `256` (sampling rate): **12 function signatures** across 4 files
 - `10` (stride seconds): 5+ occurrences
 - `60` (window seconds): 3+ occurrences
 - `10.0` (z-score clip): 3 occurrences
