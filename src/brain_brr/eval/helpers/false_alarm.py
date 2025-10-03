@@ -24,6 +24,7 @@ class FASweepResult:
     fa_target: float
     threshold_tau_on: float
     sensitivity: float
+    threshold_unreachable: bool = False
 
 
 def find_threshold_for_fa_target(
@@ -49,7 +50,10 @@ def find_threshold_for_fa_target(
         max_iters: Maximum binary search iterations
 
     Returns:
-        FASweepResult with threshold and sensitivity at that threshold
+        FASweepResult with:
+            - threshold_tau_on: Best threshold found
+            - sensitivity: Sensitivity at that threshold
+            - threshold_unreachable: True if FA target cannot be reached even at τ=0.0
 
     Notes:
         FA counting uses overlap-aware logic: Only predictions that do NOT
@@ -136,10 +140,46 @@ def find_threshold_for_fa_target(
 
     sensitivity = tp_count / max(total_ref_events, 1)
 
+    cfg_lowest = deepcopy(post_cfg)
+    cfg_lowest.hysteresis.tau_on = 0.0
+    cfg_lowest.hysteresis.tau_off = 0.0
+
+    total_fa_lowest = 0
+    for timeline_probs_rec, timeline_labels_rec in zip(
+        timelines_probs, timelines_labels, strict=True
+    ):
+        pred_events_list = batch_probs_to_events(
+            timeline_probs_rec.unsqueeze(0), cfg_lowest, sampling_rate
+        )
+        ref_events_list = batch_mask_to_events(
+            timeline_labels_rec.unsqueeze(0), sampling_rate
+        )
+
+        preds_lowest: list[tuple[float, float]] = []
+        if pred_events_list:
+            preds_lowest = pred_events_list[0]
+
+        refs_lowest: list[tuple[float, float]] = []
+        if ref_events_list:
+            for event_obj in ref_events_list[0]:
+                refs_lowest.append((float(event_obj.start_s), float(event_obj.end_s)))
+
+        for pred_start, pred_end in preds_lowest:
+            has_overlap = any(
+                _overlap((pred_start, pred_end), (ref_start, ref_end)) > 0
+                for ref_start, ref_end in refs_lowest
+            )
+            if not has_overlap:
+                total_fa_lowest += 1
+
+    fa_rate_lowest = (total_fa_lowest / total_hours) * 24.0 if total_hours > 0 else 0.0
+    threshold_unreachable = fa_rate_lowest > fa_target
+
     return FASweepResult(
         fa_target=fa_target,
         threshold_tau_on=best_tau_on,
         sensitivity=sensitivity,
+        threshold_unreachable=threshold_unreachable,
     )
 
 

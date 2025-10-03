@@ -12,13 +12,38 @@ from typing import Any
 import torch
 from torch.utils.data import DataLoader
 
-from src.brain_brr.config.schemas import Config
+from src.brain_brr.config.schemas import Config, PostprocessingConfig
 from src.brain_brr.data import EEGWindowDataset
 from src.brain_brr.eval.metrics import batch_probs_to_events
 from src.brain_brr.events import SeizureEvent
 from src.brain_brr.events.export import export_csv_bi
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.loop import validate_epoch
+
+
+def create_threshold_config(
+    base_config: PostprocessingConfig,
+    threshold: float,
+    tau_off_delta: float = 0.08,
+) -> PostprocessingConfig:
+    """Create a postprocessing config with updated hysteresis thresholds.
+
+    Args:
+        base_config: Base postprocessing configuration to copy
+        threshold: tau_on threshold value
+        tau_off_delta: Delta to subtract from tau_on for tau_off (default 0.08)
+
+    Returns:
+        New PostprocessingConfig with updated thresholds
+
+    Notes:
+        This helper ensures config immutability by creating a deep copy.
+        Used when exporting events with calibrated thresholds.
+    """
+    cfg_copy = deepcopy(base_config)
+    cfg_copy.hysteresis.tau_on = threshold
+    cfg_copy.hysteresis.tau_off = max(0.0, threshold - tau_off_delta)
+    return cfg_copy
 
 
 @dataclass
@@ -216,9 +241,7 @@ def _export_events_csv_bi(
     else:
         best_threshold = 0.86
 
-    cfg_for_export = deepcopy(cfg.postprocessing)
-    cfg_for_export.hysteresis.tau_on = best_threshold
-    cfg_for_export.hysteresis.tau_off = max(0.0, best_threshold - 0.08)
+    cfg_for_export = create_threshold_config(cfg.postprocessing, best_threshold)
 
     pred_events = batch_probs_to_events(probs, cfg_for_export, cfg.data.sampling_rate)
 

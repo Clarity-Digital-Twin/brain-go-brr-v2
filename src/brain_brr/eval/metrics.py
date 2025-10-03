@@ -519,10 +519,13 @@ def evaluate_predictions(
 
     thresholds: dict[str, float] = {}
     sensitivity_results: dict[str, float] = {}
+    unreachable_targets: list[float] = []
 
     for result in fa_sweep_results:
         thresholds[f"{result.fa_target}"] = float(result.threshold_tau_on)
         sensitivity_results[f"sensitivity_at_{result.fa_target}fa"] = float(result.sensitivity)
+        if result.threshold_unreachable:
+            unreachable_targets.append(result.fa_target)
 
     # Skip FA curve generation (requires refactoring sensitivity_at_fa_rates)
     fa_curve: list[tuple[float, float]] = []
@@ -535,6 +538,7 @@ def evaluate_predictions(
         "fa_curve": fa_curve,
         "num_recordings": len(recording_timelines),
         "total_hours": total_hours,
+        "unreachable_fa_targets": unreachable_targets,
     }
     results.update(sensitivity_results)
     results["thresholds"] = thresholds  # FA target → τ_on
