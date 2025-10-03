@@ -139,7 +139,7 @@ def find_threshold_for_fa_target(
     sensitivity = tp_count / max(total_ref_events, 1)
 
     cfg_lowest = deepcopy(post_cfg)
-    cfg_lowest.hysteresis.tau_on = 0.0
+    cfg_lowest.hysteresis.tau_on = 1e-6  # Essentially zero but valid (must be > tau_off)
     cfg_lowest.hysteresis.tau_off = 0.0
 
     total_fa_lowest = 0
