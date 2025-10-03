@@ -22,9 +22,14 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
 )
 def inspect_volume():
     """List all contents of the Modal persistence volume."""
-    # Setup logging for Modal function
-    from src.brain_brr.utils.logging_config import setup_logging
-    setup_logging(format_style="simple", force=True)
+    # Simple logging setup for Modal
+    import sys
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+        force=True,
+    )
 
     logger.info("=== Modal Persistence Volume Contents ===")
 
