@@ -143,36 +143,47 @@ class TestInferenceLatency:
     @pytest.mark.timeout(240)
     def test_batch_inference_latency(self, production_model, batch_size, benchmark_timer):
         """Test latency scaling with batch size."""
-        window = torch.randn(batch_size, 19, 15360)
-
-        # Move to same device as model
         device = next(production_model.parameters()).device
-        window = window.to(device)
 
-        # Warmup
-        with torch.no_grad():
-            for _ in range(5):
-                _ = production_model(window)
+        # Clean GPU memory before test
+        if device.type == "cuda":
+            torch.cuda.empty_cache()
+            gc.collect()
 
-        # Benchmark
-        times = []
-        with torch.no_grad():
-            for _ in range(20):
-                start = time.perf_counter()
-                _ = production_model(window)
-                # Sync for accurate GPU timing
-                if device.type == "cuda":
-                    torch.cuda.synchronize()
-                times.append(time.perf_counter() - start)
+        try:
+            window = torch.randn(batch_size, 19, 15360)
 
-        avg_time_per_sample = np.mean(times) * 1000 / batch_size  # ms per sample
+            # Move to same device as model
+            window = window.to(device)
 
-        # Should have sub-linear scaling
-        is_cpu = next(production_model.parameters()).device.type == "cpu"
-        max_latency = thresholds.batch_latency_per_sample_ms(is_cpu)
-        assert avg_time_per_sample < max_latency, (
-            f"Batch {batch_size}: {avg_time_per_sample:.1f}ms per sample (max: {max_latency:.1f}ms)"
-        )
+            # Warmup
+            with torch.no_grad():
+                for _ in range(5):
+                    _ = production_model(window)
+
+            # Benchmark
+            times = []
+            with torch.no_grad():
+                for _ in range(20):
+                    start = time.perf_counter()
+                    _ = production_model(window)
+                    # Sync for accurate GPU timing
+                    if device.type == "cuda":
+                        torch.cuda.synchronize()
+                    times.append(time.perf_counter() - start)
+
+            avg_time_per_sample = np.mean(times) * 1000 / batch_size  # ms per sample
+
+            # Should have sub-linear scaling
+            is_cpu = next(production_model.parameters()).device.type == "cpu"
+            max_latency = thresholds.batch_latency_per_sample_ms(is_cpu)
+            assert avg_time_per_sample < max_latency, (
+                f"Batch {batch_size}: {avg_time_per_sample:.1f}ms per sample (max: {max_latency:.1f}ms)"
+            )
+
+        except torch.cuda.OutOfMemoryError:
+            # Skip this batch size if OOM (hardware-dependent)
+            pytest.skip(f"Batch size {batch_size} causes OOM on this GPU (hardware-dependent)")
 
     @pytest.mark.performance
     @pytest.mark.timeout(300)
