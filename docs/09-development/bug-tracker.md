@@ -30,14 +30,14 @@ P1 — Fixed / Hardened
 P1 — Open
 - Validation loss weighting under imbalance
   - TODO: mirror `pos_weight` used in train, or report weighted+unweighted val loss.
-- Constants single-source-of-truth polish
-  - TODO: finish migrating evaluation/validation time conversions, threshold loop bounds, and config schema defaults to `src/brain_brr/constants.py`; add a config audit to ensure YAML values stay aligned.
 
 P2 — Open/Polish
 - Edge adjacency sparsification ordering
   - TODO: zero diagonal pre‑topk; threshold before top‑k; keep strictly positive edges.
 - Config/docs drift (legacy fields)
   - Action: remove stale examples referencing removed schema fields in future edits.
+- Config audit automation
+  - TODO: add a lightweight script (or CI check) that compares YAML clinical constants against `src/brain_brr/constants.py` to prevent drift.
 - Dataset batch contract typing
   - TODO: add `TypedDict` (or `Protocol`) for the dataset batch dictionary to prevent regressions to tuple outputs.
 

@@ -136,6 +136,11 @@
    - Consider moving to archive subdirectory
    - **Status**: Low priority, useful for reference
 
+### Coverage Baseline (October 3, 2025)
+- Overall coverage sits at ~76% (threshold set to 75%) after utility extraction; suites remain green.
+- Under-covered surfaces: `train/loop.py`, `train/train_step.py`, CLI services, and `train_utils.py` (seed/workers). Targeted unit tests there would nudge totals toward 78–79%.
+- Utilities moved out of `loop.py` now have dedicated tests; we intentionally accept lower orchestration coverage instead of brittle mocks.
+
 ## Logging Migration Plan Summary
 
 ### Current State
