@@ -52,14 +52,14 @@ def find_threshold_for_fa_target(
         FASweepResult with threshold and sensitivity at that threshold
 
     Notes:
-        Conservative FA counting: Currently counts ALL predicted events as FAs
-        during threshold search. This is intentionally conservative but could
-        be improved in future by checking overlap with reference events.
+        FA counting uses overlap-aware logic: Only predictions that do NOT
+        overlap with any reference event are counted as false alarms.
+        This matches the original fa_per_24h behavior from v3.4.1.
 
-        TODO(v4): Implement true FA counting by checking if predicted events
-        overlap with any reference event. Only count as FA if no overlap exists.
+        Search range expanded to [0.0, 1.0] to support low-confidence models
+        that may require thresholds below 0.1 for high-FA operating points.
     """
-    low, high = 0.1, 1.0
+    low, high = 0.0, 1.0
     best_tau_on = 0.86
 
     for _ in range(max_iters):
@@ -71,11 +71,32 @@ def find_threshold_for_fa_target(
         cfg_for_search.hysteresis.tau_off = mid_tau_off
 
         total_fa = 0
-        for timeline_probs_rec in timelines_probs:
+        for timeline_probs_rec, timeline_labels_rec in zip(
+            timelines_probs, timelines_labels, strict=True
+        ):
             pred_events_list = batch_probs_to_events(
                 timeline_probs_rec.unsqueeze(0), cfg_for_search, sampling_rate
             )
-            total_fa += len(pred_events_list[0]) if pred_events_list else 0
+            ref_events_list = batch_mask_to_events(
+                timeline_labels_rec.unsqueeze(0), sampling_rate
+            )
+
+            search_preds: list[tuple[float, float]] = []
+            if pred_events_list:
+                search_preds = pred_events_list[0]
+
+            search_refs: list[tuple[float, float]] = []
+            if ref_events_list:
+                for event_obj in ref_events_list[0]:
+                    search_refs.append((float(event_obj.start_s), float(event_obj.end_s)))
+
+            for pred_start, pred_end in search_preds:
+                has_overlap = any(
+                    _overlap((pred_start, pred_end), (ref_start, ref_end)) > 0
+                    for ref_start, ref_end in search_refs
+                )
+                if not has_overlap:
+                    total_fa += 1
 
         fa_rate = (total_fa / total_hours) * 24.0 if total_hours > 0 else 0.0
 
@@ -93,7 +114,7 @@ def find_threshold_for_fa_target(
     total_ref_events = len(all_ref_events)
 
     for timeline_probs_rec, timeline_labels_rec in zip(
-        timelines_probs, timelines_labels, strict=False
+        timelines_probs, timelines_labels, strict=True
     ):
         ref_events_list = batch_mask_to_events(timeline_labels_rec.unsqueeze(0), sampling_rate)
         pred_events_list = batch_probs_to_events(

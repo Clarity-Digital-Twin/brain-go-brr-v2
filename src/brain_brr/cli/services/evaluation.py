@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -215,7 +216,7 @@ def _export_events_csv_bi(
     else:
         best_threshold = 0.86
 
-    cfg_for_export = cfg.postprocessing
+    cfg_for_export = deepcopy(cfg.postprocessing)
     cfg_for_export.hysteresis.tau_on = best_threshold
     cfg_for_export.hysteresis.tau_off = max(0.0, best_threshold - 0.08)
 
