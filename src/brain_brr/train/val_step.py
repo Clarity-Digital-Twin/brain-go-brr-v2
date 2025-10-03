@@ -136,7 +136,7 @@ def _compute_final_metrics(
         low, high = constants.THRESHOLD_SEARCH_LOW, constants.THRESHOLD_SEARCH_HIGH
         best_tau_on = constants.HYSTERESIS_TAU_ON
 
-        for _ in range(10):
+        for _ in range(constants.THRESHOLD_SEARCH_MAX_ITERS):
             mid_tau_on = (low + high) / 2
             mid_tau_off = max(0.0, mid_tau_on - constants.HYSTERESIS_DELTA)
 

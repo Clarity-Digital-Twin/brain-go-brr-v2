@@ -28,7 +28,12 @@ except ImportError:
     SummaryWriter = None  # type: ignore[assignment, misc]
 
 from src.brain_brr.config.schemas import Config
-from src.brain_brr.constants import FOCAL_ALPHA_DEFAULT, FOCAL_GAMMA_DEFAULT
+from src.brain_brr.constants import (
+    AUROC_FAILURE_MIN_EPOCH,
+    AUROC_FAILURE_THRESHOLD,
+    FOCAL_ALPHA_DEFAULT,
+    FOCAL_GAMMA_DEFAULT,
+)
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.checkpoint import load_checkpoint, save_checkpoint
 from src.brain_brr.train.early_stopping import EarlyStopping
@@ -193,7 +198,7 @@ def train(
         )
 
         # COLLAPSE DETECTION: Stop if model outputs all-negative
-        if val_metrics["auroc"] < 0.55 and epoch > 2:
+        if val_metrics["auroc"] < AUROC_FAILURE_THRESHOLD and epoch > AUROC_FAILURE_MIN_EPOCH:
             logger.info(f"\n⚠️ MODEL COLLAPSE DETECTED! AUROC={val_metrics['auroc']:.3f}")
             logger.info("Model is predicting all-negative. Stopping training.")
             logger.info("Potential causes:")

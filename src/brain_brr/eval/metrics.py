@@ -596,7 +596,7 @@ def calculate_sensitivity_at_fa(
     if duration_hours <= 0 or len(fpr) == 0:
         return 0.0
     # Heuristic mapping to keep within [0,1]
-    target_fpr = min(1.0, max(0.0, target_fa_per_24h / (24.0 * 60.0)))
+    target_fpr = min(1.0, max(0.0, target_fa_per_24h / (HOURS_PER_DAY * 60.0)))
     idx = int(np.argmin(np.abs(fpr - target_fpr)))
     return float(np.clip(tpr[idx], 0.0, 1.0))
 
@@ -612,9 +612,9 @@ def select_threshold_for_fa_rate(
     # One-hour default if we cannot infer duration from shapes
     n_windows = labels.shape[0]
     total_duration_s = (
-        (n_windows - 1) * STRIDE_SIZE_SEC + WINDOW_SIZE_SEC if n_windows > 0 else 3600.0
+        (n_windows - 1) * STRIDE_SIZE_SEC + WINDOW_SIZE_SEC if n_windows > 0 else SECONDS_PER_HOUR
     )
-    total_hours = total_duration_s / 3600.0
+    total_hours = total_duration_s / SECONDS_PER_HOUR
     ref_events = batch_masks_to_events(labels > 0.5, sample_rate)
     return float(
         find_threshold_for_fa_eventized(

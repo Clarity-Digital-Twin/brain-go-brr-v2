@@ -13,6 +13,7 @@ from src.brain_brr.constants import (
     HOURS_PER_DAY,
     HYSTERESIS_DELTA,
     HYSTERESIS_TAU_ON,
+    THRESHOLD_SEARCH_MAX_ITERS,
 )
 from src.brain_brr.eval.metrics import batch_probs_to_events
 from src.brain_brr.events import batch_mask_to_events
@@ -41,7 +42,7 @@ def find_threshold_for_fa_target(
     all_ref_events: list[tuple[float, float]],
     post_cfg: PostprocessingConfig,
     sampling_rate: int,
-    max_iters: int = 10,
+    max_iters: int = THRESHOLD_SEARCH_MAX_ITERS,
 ) -> FASweepResult:
     """Binary search for tau_on threshold meeting FA/24h target.
 
