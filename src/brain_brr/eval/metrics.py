@@ -127,7 +127,9 @@ def calculate_taes(
 
     base_score = sum(per_ref_scores) / len(per_ref_scores)
     penalty = (
-        alpha * (fp_duration / max(total_pred_duration, 1e-8)) if total_pred_duration > 0 else 0
+        alpha * (fp_duration / max(total_pred_duration, EPSILON_ZERO_CHECK))
+        if total_pred_duration > 0
+        else 0
     )
     taes = base_score - penalty
 
@@ -149,7 +151,7 @@ def fa_per_24h(
     Returns:
         False alarms per 24 hours
     """
-    if total_hours < 1e-8:
+    if total_hours < EPSILON_ZERO_CHECK:
         return 0.0
 
     fa_count = 0
@@ -292,7 +294,7 @@ def find_threshold_for_fa_eventized(
             best_tau_on = mid_tau_on
             high = mid_tau_on
 
-        if abs(high - low) < 1e-4:
+        if abs(high - low) < THRESHOLD_SEARCH_TOLERANCE:
             break
 
     return best_tau_on
