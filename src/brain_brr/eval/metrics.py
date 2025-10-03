@@ -501,7 +501,7 @@ def evaluate_predictions(
             for pred_tuple in pred_events_list[0]:
                 all_pred_events.append(pred_tuple)
 
-        total_hours += timeline.duration_s / 3600.0
+        total_hours += timeline.duration_s / SECONDS_PER_HOUR
 
     # Compute scalar metrics
     from src.brain_brr.eval.helpers import compute_event_taes, compute_probability_metrics
