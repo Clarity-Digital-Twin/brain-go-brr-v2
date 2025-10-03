@@ -363,13 +363,13 @@ def sensitivity_at_fa_rates(
 
         # Update duration calculation for stitched record
         total_duration_s = total_samples / sampling_rate
-        total_hours = total_duration_s / 3600
+        total_hours = total_duration_s / SECONDS_PER_HOUR
     else:
         # Original window-based processing
         n_windows = labels.shape[0]
         if n_windows > 0:
             total_duration_s = (n_windows - 1) * window_stride_s + window_size_s
-            total_hours = total_duration_s / 3600
+            total_hours = total_duration_s / SECONDS_PER_HOUR
         else:
             total_hours = 0.0
 
