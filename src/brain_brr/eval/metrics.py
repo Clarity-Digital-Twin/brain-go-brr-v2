@@ -385,7 +385,7 @@ def sensitivity_at_fa_rates(
 
         search_cfg = deepcopy(post_cfg)
         search_cfg.hysteresis.tau_on = threshold
-        search_cfg.hysteresis.tau_off = max(0.0, threshold - 0.08)  # Default delta
+        search_cfg.hysteresis.tau_off = max(0.0, threshold - HYSTERESIS_DELTA)
 
         # Get predictions at this threshold (using updated config, not threshold param)
         pred_events = batch_probs_to_events(probs, search_cfg, sampling_rate)

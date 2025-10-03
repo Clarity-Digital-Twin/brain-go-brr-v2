@@ -28,6 +28,7 @@ except ImportError:
     SummaryWriter = None  # type: ignore[assignment, misc]
 
 from src.brain_brr.config.schemas import Config
+from src.brain_brr.constants import FOCAL_ALPHA_DEFAULT, FOCAL_GAMMA_DEFAULT
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.checkpoint import load_checkpoint, save_checkpoint
 from src.brain_brr.train.early_stopping import EarlyStopping
@@ -160,8 +161,8 @@ def train(
             scheduler=scheduler,
             global_step=global_step,
             loss_mode=getattr(config.training, "loss", "bce"),
-            focal_alpha=getattr(config.training, "focal_alpha", 0.25),
-            focal_gamma=getattr(config.training, "focal_gamma", 2.0),
+            focal_alpha=getattr(config.training, "focal_alpha", FOCAL_ALPHA_DEFAULT),
+            focal_gamma=getattr(config.training, "focal_gamma", FOCAL_GAMMA_DEFAULT),
             return_step=True,
             checkpoint_dir=checkpoint_dir,
             epoch_index=epoch,
