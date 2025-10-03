@@ -54,7 +54,7 @@ def create_optimizer(model: nn.Module, config: TrainingConfig) -> Optimizer:
         logger.info(f"  - Decay group: {len(decay_params)} parameters")
         logger.info(f"  - No-decay group: {len(no_decay_params)} parameters")
 
-        return AdamW(param_groups, lr=config.learning_rate, betas=(0.9, 0.999), eps=1e-8)
+        return AdamW(param_groups, lr=config.learning_rate, betas=(0.9, 0.999), eps=EPSILON_ADAMW)
     else:
         raise ValueError(f"Unknown optimizer: {config.optimizer}")
 
