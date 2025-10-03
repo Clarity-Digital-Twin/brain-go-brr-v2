@@ -78,10 +78,10 @@ class TestBuildRecordingTimelines:
         timeline_fids = {t.file_id for t in timelines}
         assert timeline_fids == {"rec_001", "rec_002", "rec_003"}
 
-        rec_001 = [t for t in timelines if t.file_id == "rec_001"][0]
+        rec_001 = next(t for t in timelines if t.file_id == "rec_001")
         assert rec_001.duration_s == 70.0
 
-        rec_002 = [t for t in timelines if t.file_id == "rec_002"][0]
+        rec_002 = next(t for t in timelines if t.file_id == "rec_002")
         assert rec_002.duration_s == 60.0
 
     def test_window_sorting(self) -> None:

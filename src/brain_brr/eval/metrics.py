@@ -9,7 +9,6 @@ from typing import Any
 import numpy as np
 import torch
 from sklearn.metrics import (  # type: ignore[import-untyped]
-    average_precision_score,
     roc_auc_score,
     roc_curve,
 )
@@ -496,26 +495,14 @@ def evaluate_predictions(
 
         total_hours += timeline.duration_s / 3600.0
 
-    # Compute TAES on properly stitched timelines
-    taes = calculate_taes(all_pred_events, all_ref_events) if all_ref_events else 0.0
+    # Compute scalar metrics
+    from src.brain_brr.eval.helpers import compute_event_taes, compute_probability_metrics
 
-    # AUROC and PR-AUC (sample-level, still valid across all windows)
-    probs_flat = probs.cpu().numpy().flatten()
-    labels_flat = labels.cpu().numpy().flatten()
-
-    if np.unique(labels_flat).size < 2:
-        auroc = 0.5
-    else:
-        auroc = float(roc_auc_score(labels_flat, probs_flat))
-
-    # PR-AUC can be undefined with no positives; guard to avoid warnings
-    if (labels_flat == 1).sum() == 0:
-        pr_auc = 0.0
-    else:
-        pr_auc = float(average_precision_score(labels_flat, probs_flat))
-
-    # Expected Calibration Error (ECE) with 10 bins
-    ece = calculate_ece(probs_flat, labels_flat, n_bins=10)
+    prob_metrics = compute_probability_metrics(probs, labels)
+    taes = compute_event_taes(all_pred_events, all_ref_events)
+    auroc = prob_metrics.auroc
+    pr_auc = prob_metrics.pr_auc
+    ece = prob_metrics.ece
 
     # Sensitivity at FA rates: use helper for threshold search
     from src.brain_brr.eval.helpers import compute_fa_sweep
