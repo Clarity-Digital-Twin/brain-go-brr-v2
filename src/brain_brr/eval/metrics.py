@@ -96,7 +96,7 @@ def calculate_taes(
     per_ref_scores = []
     for ref_start, ref_end in ref_events:
         ref_dur = max(0.0, ref_end - ref_start)
-        if ref_dur < 1e-8:
+        if ref_dur < EPSILON_ZERO_CHECK:
             continue
 
         # Total overlap with all predictions
