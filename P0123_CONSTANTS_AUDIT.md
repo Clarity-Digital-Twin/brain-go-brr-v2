@@ -315,11 +315,11 @@ LOG_BUFFER_CAPACITY: int = 1000  # Max log entries in memory
 
 ---
 
-### P1.5: Sampling Rate Duplicated in 13 Function Signatures (Verified)
+### P1.5: Sampling Rate Duplicated in 12 Function Signatures (Verified)
 
-**Issue**: Despite having `constants.SAMPLING_RATE = 256`, it's hardcoded in 13 function signatures.
+**Issue**: Despite having `constants.SAMPLING_RATE = 256`, it's hardcoded in 12 function signatures.
 
-**Verified Locations** (exact grep count: **13**):
+**Verified Locations** (exact grep count: **12** across 4 files):
 
 **Current State**:
 ```python
@@ -345,7 +345,7 @@ src/brain_brr/events/events.py:246:    sampling_rate: int = 256,
 
 **Why This is Bad**:
 - ❌ `SAMPLING_RATE` constant exists but is ignored
-- ❌ If we ever support 128Hz or 512Hz, must update 13 signatures manually
+- ❌ If we ever support 128Hz or 512Hz, must update 12 signatures manually
 - ❌ Contract violation: `constants.py` says "canonical value" but it's not used
 
 **Recommended Solution**:
@@ -357,7 +357,7 @@ def my_function(sampling_rate: int = SAMPLING_RATE) -> ...:
     ...
 ```
 
-**Files to Refactor**: 5 files, 13 function signatures
+**Files to Refactor**: 4 files, 12 function signatures
 **Risk**: Very low (sampling rate is always 256 in practice)
 **Priority**: P1 - Honors "single source of truth" principle
 
