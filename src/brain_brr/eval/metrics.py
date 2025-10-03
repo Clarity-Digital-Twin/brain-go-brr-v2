@@ -13,6 +13,8 @@ from sklearn.metrics import roc_auc_score, roc_curve
 from src.brain_brr.config.schemas import PostprocessingConfig
 from src.brain_brr.constants import (
     EPSILON_ZERO_CHECK,
+    HYSTERESIS_DELTA,
+    HYSTERESIS_TAU_ON,
     STRIDE_SIZE_SEC,
     THRESHOLD_SEARCH_TOLERANCE,
     WINDOW_SIZE_SEC,
@@ -247,7 +249,7 @@ def find_threshold_for_fa_eventized(
     total_hours: float,
     fs: int,
     max_iters: int = 10,
-    hysteresis_delta: float = 0.08,
+    hysteresis_delta: float = HYSTERESIS_DELTA,
 ) -> float:
     """Binary search for tau_on threshold meeting FA target.
 
@@ -263,7 +265,7 @@ def find_threshold_for_fa_eventized(
         total_hours: Total duration in hours
         fs: Sampling rate
         max_iters: Maximum iterations for binary search
-        hysteresis_delta: Gap between tau_on and tau_off (default 0.08)
+        hysteresis_delta: Gap between tau_on and tau_off (default from constants)
 
     Returns:
         tau_on threshold that meets FA target (conservative)
@@ -271,7 +273,7 @@ def find_threshold_for_fa_eventized(
     # Search over tau_on values, ensuring tau_off is always below
     low = hysteresis_delta  # Minimum tau_on to maintain positive gap
     high = 1.0
-    best_tau_on = 0.86  # Default from clinical settings
+    best_tau_on = HYSTERESIS_TAU_ON  # Default from clinical settings
 
     # Create a copy of config to modify during search
     search_cfg = deepcopy(post_cfg)

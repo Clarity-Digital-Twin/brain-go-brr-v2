@@ -12,13 +12,13 @@ import torch
 from torch.nn import functional
 
 from src.brain_brr.config.schemas import PostprocessingConfig
-from src.brain_brr.constants import EPSILON_ZERO_CHECK
+from src.brain_brr.constants import EPSILON_ZERO_CHECK, HYSTERESIS_TAU_OFF, HYSTERESIS_TAU_ON
 
 
 def apply_hysteresis(
     probs: torch.Tensor,
-    tau_on: float = 0.86,
-    tau_off: float = 0.78,
+    tau_on: float = HYSTERESIS_TAU_ON,
+    tau_off: float = HYSTERESIS_TAU_OFF,
     min_onset_samples: int = 1,
     min_offset_samples: int = 1,
 ) -> torch.Tensor:

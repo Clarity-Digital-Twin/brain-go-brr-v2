@@ -20,13 +20,17 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm  # type: ignore[import-untyped]
 
 from src.brain_brr.config.schemas import WarmupScheduleConfig
-from src.brain_brr.constants import EPSILON_NUMERICAL
+from src.brain_brr.constants import (
+    EPSILON_NUMERICAL,
+    FOCAL_ALPHA_DEFAULT,
+    FOCAL_GAMMA_DEFAULT,
+    LOG_EVERY_N_STEPS,
+)
 from src.brain_brr.train.checkpoint import save_checkpoint
 from src.brain_brr.train.train_utils import get_memory_stats
 from src.brain_brr.utils.env import env
 
 logger = logging.getLogger(__name__)
-LOG_EVERY_N_STEPS = 50
 
 
 def train_epoch(
@@ -40,8 +44,8 @@ def train_epoch(
     global_step: int = 0,
     *,
     loss_mode: str = "bce",
-    focal_alpha: float = 0.25,
-    focal_gamma: float = 2.0,
+    focal_alpha: float = FOCAL_ALPHA_DEFAULT,
+    focal_gamma: float = FOCAL_GAMMA_DEFAULT,
     return_step: bool = False,
     checkpoint_dir: Path | None = None,
     epoch_index: int | None = None,

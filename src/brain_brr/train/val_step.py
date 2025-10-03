@@ -134,11 +134,11 @@ def _compute_final_metrics(
 
     for fa in fa_rates:
         low, high = constants.THRESHOLD_SEARCH_LOW, constants.THRESHOLD_SEARCH_HIGH
-        best_tau_on = 0.86
+        best_tau_on = constants.HYSTERESIS_TAU_ON
 
         for _ in range(10):
             mid_tau_on = (low + high) / 2
-            mid_tau_off = max(0.0, mid_tau_on - 0.08)
+            mid_tau_off = max(0.0, mid_tau_on - constants.HYSTERESIS_DELTA)
 
             cfg_for_search = deepcopy(post_cfg)
             cfg_for_search.hysteresis.tau_on = mid_tau_on
@@ -164,7 +164,7 @@ def _compute_final_metrics(
 
         cfg_for_eval = deepcopy(post_cfg)
         cfg_for_eval.hysteresis.tau_on = best_tau_on
-        cfg_for_eval.hysteresis.tau_off = max(0.0, best_tau_on - 0.08)
+        cfg_for_eval.hysteresis.tau_off = max(0.0, best_tau_on - constants.HYSTERESIS_DELTA)
 
         total_ref_events = len(all_ref_events)
         tp_count = 0

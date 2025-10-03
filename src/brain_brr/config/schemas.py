@@ -5,7 +5,16 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from src.brain_brr.constants import EPSILON_LAPLACIAN, EPSILON_NORM
+from src.brain_brr.constants import (
+    EPSILON_LAPLACIAN,
+    EPSILON_NORM,
+    FOCAL_ALPHA_PRODUCTION,
+    FOCAL_GAMMA_DEFAULT,
+    FOCAL_GAMMA_WARMUP_END,
+    FOCAL_GAMMA_WARMUP_START,
+    HYSTERESIS_TAU_OFF,
+    HYSTERESIS_TAU_ON,
+)
 
 
 class StrictModel(BaseModel):
@@ -279,8 +288,10 @@ class ModelConfig(StrictModel):
 class HysteresisConfig(StrictModel):
     """Hysteresis thresholding configuration."""
 
-    tau_on: float = Field(default=0.86, ge=0.5, le=1.0, description="Upper threshold")
-    tau_off: float = Field(default=0.78, ge=0.5, le=1.0, description="Lower threshold")
+    tau_on: float = Field(default=HYSTERESIS_TAU_ON, ge=0.5, le=1.0, description="Upper threshold")
+    tau_off: float = Field(
+        default=HYSTERESIS_TAU_OFF, ge=0.5, le=1.0, description="Lower threshold"
+    )
     min_onset_samples: int = Field(
         default=128, ge=1, description="Min samples above tau_on to enter"
     )
@@ -417,10 +428,16 @@ class WarmupScheduleConfig(StrictModel):
     # Focal loss gamma schedule
     focal_gamma_enabled: bool = Field(default=False, description="Enable focal loss gamma warmup")
     focal_gamma_start: float = Field(
-        default=1.0, ge=0.0, le=3.0, description="Starting gamma (less focusing)"
+        default=FOCAL_GAMMA_WARMUP_START,
+        ge=0.0,
+        le=3.0,
+        description="Starting gamma (less focusing)",
     )
     focal_gamma_end: float = Field(
-        default=2.0, ge=1.0, le=5.0, description="Ending gamma (target focal_gamma)"
+        default=FOCAL_GAMMA_WARMUP_END,
+        ge=1.0,
+        le=5.0,
+        description="Ending gamma (target focal_gamma)",
     )
 
     # Residual scaling (optional, for very deep nets)
@@ -445,10 +462,13 @@ class TrainingConfig(StrictModel):
         default="bce", description="Loss function: 'bce' or 'focal'"
     )
     focal_alpha: float = Field(
-        default=0.5, ge=0.0, le=1.0, description="Focal loss alpha (0.5 = no class reweight)"
+        default=FOCAL_ALPHA_PRODUCTION,
+        ge=0.0,
+        le=1.0,
+        description="Focal loss alpha (0.5 = no class reweight)",
     )
     focal_gamma: float = Field(
-        default=2.0, ge=0.0, description="Focal loss gamma (hard sample focusing)"
+        default=FOCAL_GAMMA_DEFAULT, ge=0.0, description="Focal loss gamma (hard sample focusing)"
     )
     learning_rate: float = Field(
         default=3e-4, ge=1e-6, le=1e-2, description="Initial learning rate"

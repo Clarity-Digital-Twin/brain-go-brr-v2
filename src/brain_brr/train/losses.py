@@ -11,7 +11,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as tnf
 
-from src.brain_brr.constants import EPSILON_NUMERICAL, EPSILON_PROB_CLAMP
+from src.brain_brr.constants import (
+    EPSILON_NUMERICAL,
+    EPSILON_PROB_CLAMP,
+    FOCAL_ALPHA_DEFAULT,
+    FOCAL_GAMMA_DEFAULT,
+)
 
 
 class FocalLoss(nn.Module):
@@ -25,7 +30,9 @@ class FocalLoss(nn.Module):
     - pos_weight: optional scalar tensor to up-weight positives (same semantics as BCEWithLogitsLoss)
     """
 
-    def __init__(self, alpha: float = 0.25, gamma: float = 2.0) -> None:
+    def __init__(
+        self, alpha: float = FOCAL_ALPHA_DEFAULT, gamma: float = FOCAL_GAMMA_DEFAULT
+    ) -> None:
         super().__init__()
         self.alpha = float(alpha)
         self.gamma = float(gamma)

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import torch
 
 from src.brain_brr.config.schemas import PostprocessingConfig
-from src.brain_brr.constants import EPSILON_NUMERICAL
+from src.brain_brr.constants import EPSILON_NUMERICAL, HYSTERESIS_DELTA, HYSTERESIS_TAU_ON
 from src.brain_brr.eval.metrics import batch_probs_to_events
 from src.brain_brr.events import batch_mask_to_events
 
@@ -65,11 +65,11 @@ def find_threshold_for_fa_target(
         that may require thresholds below 0.1 for high-FA operating points.
     """
     low, high = 0.0, 1.0
-    best_tau_on = 0.86
+    best_tau_on = HYSTERESIS_TAU_ON
 
     for _ in range(max_iters):
         mid_tau_on = (low + high) / 2
-        mid_tau_off = max(0.0, mid_tau_on - 0.08)
+        mid_tau_off = max(0.0, mid_tau_on - HYSTERESIS_DELTA)
 
         cfg_for_search = deepcopy(post_cfg)
         cfg_for_search.hysteresis.tau_on = mid_tau_on
@@ -111,7 +111,7 @@ def find_threshold_for_fa_target(
 
     cfg_for_eval = deepcopy(post_cfg)
     cfg_for_eval.hysteresis.tau_on = best_tau_on
-    cfg_for_eval.hysteresis.tau_off = max(0.0, best_tau_on - 0.08)
+    cfg_for_eval.hysteresis.tau_off = max(0.0, best_tau_on - HYSTERESIS_DELTA)
 
     tp_count = 0
     total_ref_events = len(all_ref_events)
@@ -140,7 +140,9 @@ def find_threshold_for_fa_target(
     sensitivity = tp_count / max(total_ref_events, 1)
 
     cfg_lowest = deepcopy(post_cfg)
-    cfg_lowest.hysteresis.tau_on = EPSILON_NUMERICAL  # Essentially zero but valid (must be > tau_off)
+    cfg_lowest.hysteresis.tau_on = (
+        EPSILON_NUMERICAL  # Essentially zero but valid (must be > tau_off)
+    )
     cfg_lowest.hysteresis.tau_off = 0.0
 
     total_fa_lowest = 0
