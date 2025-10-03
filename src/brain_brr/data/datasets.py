@@ -429,28 +429,39 @@ class ValidationDataset(Dataset):
         full: list[dict] = list(manifest.get("full_seizure", []))
         no_seizure: list[dict] = list(manifest.get("no_seizure", []))
 
-        rng = np.random.default_rng(seed)
+        # Collect all manifest entries (no sampling, all categories)
+        all_entries: list[dict] = []
+        all_entries.extend(partial)
+        all_entries.extend(full)
+        all_entries.extend(no_seizure)
 
-        indices: list[tuple[Path, int]] = []
+        # Group by cache file, then sort by window index
+        # CRITICAL: Validation streaming requires windows grouped by file!
+        from collections import defaultdict
+
+        file_to_windows: dict[str, list[tuple[int, Path]]] = defaultdict(list)
         missing_ref_count = 0
 
-        # Add ALL windows from all categories (natural distribution)
-        for _category_name, category_windows in [
-            ("partial_seizure", partial),
-            ("full_seizure", full),
-            ("no_seizure", no_seizure),
-        ]:
-            for item in category_windows:
-                cache_file = self.cache_dir / item["cache_file"]
-                if cache_file.exists():
-                    indices.append((cache_file, int(item["window_idx"])))
-                else:
-                    missing_ref_count += 1
+        for item in all_entries:
+            cache_file_name = item["cache_file"]
+            cache_file_path = self.cache_dir / cache_file_name
+            if cache_file_path.exists():
+                file_to_windows[cache_file_name].append(
+                    (int(item["window_idx"]), cache_file_path)
+                )
+            else:
+                missing_ref_count += 1
 
-        # Shuffle for variety (but ALL windows are included)
-        indices_array = np.array(indices, dtype=object)
-        rng.shuffle(indices_array)
-        self._entries: list[tuple[Path, int]] = indices_array.tolist()
+        # Build ordered list: files in sorted order, windows sorted within each file
+        indices: list[tuple[Path, int]] = []
+        for cache_file_name in sorted(file_to_windows.keys()):
+            windows = file_to_windows[cache_file_name]
+            # Sort by window index to maintain temporal order
+            windows_sorted = sorted(windows, key=lambda x: x[0])
+            for w_idx, cache_path in windows_sorted:
+                indices.append((cache_path, w_idx))
+
+        self._entries: list[tuple[Path, int]] = indices
 
         # Calculate seizure ratio
         n_seizure = len(partial) + len(full)
