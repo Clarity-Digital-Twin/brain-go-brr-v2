@@ -349,7 +349,9 @@ class GraphChannelMixerPyG(nn.Module):
                 # Extract adjacency only for selected timesteps
                 adjacency_sparse = adjacency[:, indices]  # (B, T//interval, N, N)
                 # Compute PE only for selected timesteps (5x faster!)
-                pe_sparse = self._compute_dynamic_pe_vectorized(adjacency_sparse)  # (B, T//interval, N, k)
+                pe_sparse = self._compute_dynamic_pe_vectorized(
+                    adjacency_sparse
+                )  # (B, T//interval, N, k)
                 # Repeat each computed PE for interval timesteps
                 pe = pe_sparse.repeat_interleave(interval, dim=1)[:, :seq_len]
             else:

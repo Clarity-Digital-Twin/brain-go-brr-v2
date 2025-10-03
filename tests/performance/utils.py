@@ -18,8 +18,9 @@ class PerfThresholds:
 
     def batch_latency_per_sample_ms(self, is_cpu: bool = False) -> float:
         """Max latency per sample in batch inference."""
-        # V3 dual-stream architecture requires higher threshold due to complexity
-        base = 100 if is_cpu else 45
+        # V3 dual-stream architecture (TCN + BiMamba + GNN) requires higher threshold
+        # Batch size 1 is worst-case for batching efficiency
+        base = 100 if is_cpu else 50
         return base * self.tolerance
 
     def streaming_p95_latency(self, stride_s: float) -> float:

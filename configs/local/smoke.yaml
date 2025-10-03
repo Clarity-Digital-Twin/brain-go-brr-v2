@@ -98,7 +98,6 @@ data:
   dataset: tuh_eeg
   data_dir: data_ext4/tusz/edf
   cache_dir: cache/tusz
-  split_policy: official_tusz
   sampling_rate: 256
   n_channels: 19
   window_size: 60

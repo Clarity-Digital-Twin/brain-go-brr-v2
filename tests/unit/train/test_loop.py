@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 import torch
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader
 
 from src.brain_brr.config.schemas import Config, EarlyStoppingConfig, TrainingConfig
 from src.brain_brr.models import SeizureDetector
@@ -43,7 +43,9 @@ class TestTrainingSmoke:
 
     @pytest.fixture
     def synthetic_data(self, test_batch_size) -> tuple[DataLoader, DataLoader]:
-        """Create synthetic balanced dataset."""
+        """Create synthetic balanced dataset matching real dataset interface."""
+        from typing import Any
+
         # Create balanced dataset (10 windows)
         windows = torch.randn(10, 19, 15360)
         labels = torch.zeros(10, 15360)
@@ -51,9 +53,27 @@ class TestTrainingSmoke:
         # Make 50% positive
         labels[::2, 5000:10000] = 1
 
+        # Simple dataset that matches our real dict-based interface
+        class SimpleTestDataset:
+            def __init__(self, windows: torch.Tensor, labels: torch.Tensor):
+                self.windows = windows
+                self.labels = labels
+
+            def __len__(self) -> int:
+                return len(self.windows)
+
+            def __getitem__(self, idx: int) -> dict[str, Any]:
+                # Match real dataset interface with metadata
+                return {
+                    "window": self.windows[idx],
+                    "label": self.labels[idx],
+                    "file_id": f"test_file_{idx // 4}",  # Simulate 4 windows per file
+                    "window_start_s": float((idx % 4) * 10),  # stride=10s
+                }
+
         # Split into train/val
-        train_dataset = TensorDataset(windows[:8], labels[:8])
-        val_dataset = TensorDataset(windows[8:], labels[8:])
+        train_dataset = SimpleTestDataset(windows[:8], labels[:8])
+        val_dataset = SimpleTestDataset(windows[8:], labels[8:])
 
         # Use GPU-appropriate batch size
         batch_size = min(test_batch_size, 2)  # Cap at 2 for these quick tests
@@ -252,7 +272,13 @@ class TestTrainingSmoke:
             labels = torch.zeros(15360)
             if idx < 10:
                 labels[5000:10000] = 1  # Seizure
-            return torch.zeros(19, 15360), labels
+            # Return dict matching real dataset interface
+            return {
+                "window": torch.zeros(19, 15360),
+                "label": labels,
+                "file_id": f"mock_file_{idx}",
+                "window_start_s": 0.0,
+            }
 
         mock_dataset.__getitem__ = MagicMock(side_effect=mock_getitem)
 

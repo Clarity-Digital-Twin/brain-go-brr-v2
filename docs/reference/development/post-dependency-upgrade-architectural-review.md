@@ -7,6 +7,10 @@
 **mamba-ssm**: 2.2.5
 **Status**: Post-Dependency Upgrade Analysis
 
+**NOTE**: This is a historical reference document from Sept 30, 2025. For current documentation:
+- Stability evolution → `docs/04-model/v3-stability-evolution.md`
+- NaN protection → `docs/08-operations/nan-prevention-complete.md`
+
 ---
 
 ## Executive Summary

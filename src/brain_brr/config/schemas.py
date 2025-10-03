@@ -44,19 +44,6 @@ class DataConfig(StrictModel):
     prefetch_factor: int = Field(
         default=2, ge=2, description="Batches to prefetch per worker (requires num_workers>0)"
     )
-    split_policy: str = Field(
-        default="official_tusz",
-        description="Split policy: 'official_tusz' uses train/dev/eval dirs, 'custom' allows validation_split",
-    )
-    validation_split: float = Field(
-        default=0.2,
-        ge=0.0,
-        le=0.5,
-        description="DEPRECATED - Only used if split_policy='custom'. Use official TUSZ splits!",
-    )
-    split_seed: int = Field(
-        default=42, description="Seed for custom splits (ignored for official_tusz)"
-    )
     max_samples: int | None = Field(
         default=None, ge=1, description="Limit samples for debugging (None = use all)"
     )
@@ -548,14 +535,6 @@ class LoggingConfig(StrictModel):
     log_weights: bool = Field(default=False, description="Log weight histograms")
 
 
-class ResourcesConfig(StrictModel):
-    """Compute resource configuration."""
-
-    max_memory_gb: float | None = Field(default=None, gt=0, description="Maximum GPU memory to use")
-    distributed: bool = Field(default=False, description="Use distributed training")
-    mixed_precision: bool = Field(default=True, description="Use mixed precision training")
-
-
 class Config(StrictModel):
     """Complete configuration schema for seizure detection pipeline."""
 
@@ -567,7 +546,6 @@ class Config(StrictModel):
     evaluation: EvaluationConfig = Field(default_factory=EvaluationConfig)
     experiment: ExperimentConfig = Field(default_factory=ExperimentConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
-    resources: ResourcesConfig | None = Field(default=None)
 
     @model_validator(mode="after")
     def validate_device_resources(self) -> "Config":

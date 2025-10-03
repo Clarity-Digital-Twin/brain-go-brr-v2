@@ -29,7 +29,7 @@
 - **After**: Phase-specific expectations (20-60 early → 10-30 warmup → 5-20 stable)
 - **Rationale**: Original claim was speculation, not empirical
 
-**`ARCHITECTURAL_STABILITY_INVESTIGATION.md`** (Lines 9-43, 108-113)
+**`ARCHITECTURAL_STABILITY_INVESTIGATION.md`** (Now at `docs/04-model/v3-stability-evolution.md`, Lines 9-43, 108-113)
 - **Change**: Added "TRAINING VALIDATION UPDATE" section at top
 - **Added**: Batch 80 actual results (P95=26.57, loss ↓35%, zero NaN)
 - **Marked**: "Expected Results" as speculation with validation status
