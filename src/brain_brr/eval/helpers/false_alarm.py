@@ -8,7 +8,12 @@ from dataclasses import dataclass
 import torch
 
 from src.brain_brr.config.schemas import PostprocessingConfig
-from src.brain_brr.constants import EPSILON_NUMERICAL, HYSTERESIS_DELTA, HYSTERESIS_TAU_ON
+from src.brain_brr.constants import (
+    EPSILON_NUMERICAL,
+    HOURS_PER_DAY,
+    HYSTERESIS_DELTA,
+    HYSTERESIS_TAU_ON,
+)
 from src.brain_brr.eval.metrics import batch_probs_to_events
 from src.brain_brr.events import batch_mask_to_events
 
@@ -101,7 +106,7 @@ def find_threshold_for_fa_target(
                 if not has_overlap:
                     total_fa += 1
 
-        fa_rate = (total_fa / total_hours) * 24.0 if total_hours > 0 else 0.0
+        fa_rate = (total_fa / total_hours) * HOURS_PER_DAY if total_hours > 0 else 0.0
 
         if fa_rate > fa_target:
             low = mid_tau_on
@@ -171,7 +176,7 @@ def find_threshold_for_fa_target(
             if not has_overlap:
                 total_fa_lowest += 1
 
-    fa_rate_lowest = (total_fa_lowest / total_hours) * 24.0 if total_hours > 0 else 0.0
+    fa_rate_lowest = (total_fa_lowest / total_hours) * HOURS_PER_DAY if total_hours > 0 else 0.0
     threshold_unreachable = fa_rate_lowest > fa_target
 
     return FASweepResult(
