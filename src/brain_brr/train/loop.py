@@ -539,7 +539,7 @@ def main() -> None:
     # Validation cache uses "dev" subdir (TUSZ official naming)
     val_split_name = "dev"
     val_cache_dir = data_cache_root / val_split_name
-    val_manifest_path = val_cache_dir / constants.MANIFEST_FILENAME
+    val_manifest_path = val_cache_dir / MANIFEST_FILENAME
 
     # Try ValidationDataset (instant load from manifest)
     # Falls back to EEGWindowDataset if manifest missing
@@ -550,7 +550,9 @@ def main() -> None:
                 f"[DATASET] ValidationDataset: {len(val_dataset)} windows from manifest (instant load)"
             )
         except Exception as e:
-            logger.warning(f"[DATA] ValidationDataset failed: {e}; falling back to EEGWindowDataset")
+            logger.warning(
+                f"[DATA] ValidationDataset failed: {e}; falling back to EEGWindowDataset"
+            )
             val_dataset = EEGWindowDataset(
                 val_files,
                 label_files=val_label_files,
@@ -558,7 +560,9 @@ def main() -> None:
                 allow_on_demand=True,
             )
     else:
-        logger.info("[DATA] No validation manifest found, using EEGWindowDataset (will build index)")
+        logger.info(
+            "[DATA] No validation manifest found, using EEGWindowDataset (will build index)"
+        )
         val_dataset = EEGWindowDataset(
             val_files,
             label_files=val_label_files,
