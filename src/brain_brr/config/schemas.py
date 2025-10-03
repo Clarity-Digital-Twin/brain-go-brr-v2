@@ -6,6 +6,10 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from src.brain_brr.constants import (
+    BANDPASS_HIGH_HZ,
+    BANDPASS_LOW_HZ,
+    DROPOUT_MAMBA,
+    DROPOUT_TCN,
     EPSILON_LAPLACIAN,
     EPSILON_NORM,
     FOCAL_ALPHA_PRODUCTION,
@@ -14,6 +18,11 @@ from src.brain_brr.constants import (
     FOCAL_GAMMA_WARMUP_START,
     HYSTERESIS_TAU_OFF,
     HYSTERESIS_TAU_ON,
+    N_CHANNELS,
+    NOTCH_FILTER_HZ,
+    SAMPLING_RATE,
+    STRIDE_SIZE_SEC,
+    WINDOW_SIZE_SEC,
 )
 
 
@@ -32,17 +41,15 @@ class DataConfig(StrictModel):
     data_dir: Path = Field(default=Path("data"), description="Root directory containing EDF files")
     cache_dir: Path = Field(default=Path("cache/data"), description="Data cache directory")
     use_balanced_sampling: bool = Field(default=True, description="Use balanced sampling")
-    sampling_rate: Literal[256] = Field(
-        default=256, description="Target sampling rate in Hz (fixed at 256)"
+    sampling_rate: int = Field(
+        default=SAMPLING_RATE, description="Target sampling rate in Hz (256)"
     )
-    n_channels: Literal[19] = Field(
-        default=19, description="Number of EEG channels (10-20 montage)"
+    n_channels: int = Field(
+        default=N_CHANNELS, description="Number of EEG channels (10-20 montage = 19)"
     )
-    window_size: Literal[60] = Field(
-        default=60, description="Window size in seconds (fixed at 60s)"
-    )
-    stride: Literal[10] = Field(
-        default=10, description="Stride between windows in seconds (fixed at 10s)"
+    window_size: int = Field(default=WINDOW_SIZE_SEC, description="Window size in seconds (60s)")
+    stride: int = Field(
+        default=STRIDE_SIZE_SEC, description="Stride between windows in seconds (10s)"
     )
     num_workers: int = Field(default=0, ge=0, le=32, description="DataLoader workers")
     pin_memory: bool = Field(
@@ -76,10 +83,10 @@ class PreprocessingConfig(StrictModel):
         default="10-20", description="EEG montage standard"
     )
     bandpass: tuple[float, float] = Field(
-        default=(0.5, 120.0), description="Bandpass filter range in Hz"
+        default=(BANDPASS_LOW_HZ, BANDPASS_HIGH_HZ), description="Bandpass filter range in Hz"
     )
-    notch_freq: Literal[50, 60] = Field(
-        default=60, description="Powerline frequency to notch (50 EU, 60 US)"
+    notch_freq: int = Field(
+        default=NOTCH_FILTER_HZ, description="Powerline frequency to notch (50 EU, 60 US)"
     )
     normalize: bool = Field(default=True, description="Apply per-channel z-score normalization")
     use_mne: bool = Field(default=True, description="Use MNE for EDF loading")
@@ -108,7 +115,7 @@ class MambaConfig(StrictModel):
     conv_kernel: int = Field(
         default=4, ge=2, le=4, description="Mamba convolution kernel (CUDA supports 2-4)"
     )
-    dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout rate")
+    dropout: float = Field(default=DROPOUT_MAMBA, ge=0.0, le=0.5, description="Dropout rate")
 
 
 # Legacy decoder config removed in V3-only schema
@@ -120,7 +127,7 @@ class TCNConfig(StrictModel):
     num_layers: int = Field(default=8, ge=4, le=12, description="Number of TCN layers")
     # channels field removed - hardcoded to [64, 128, 256, 512] in implementation
     kernel_size: int = Field(default=7, ge=3, le=11, description="Temporal kernel size")
-    dropout: float = Field(default=0.15, ge=0.0, le=0.5, description="Dropout rate")
+    dropout: float = Field(default=DROPOUT_TCN, ge=0.0, le=0.5, description="Dropout rate")
     causal: bool = Field(
         default=False, description="Causal (True) or non-causal (False) convolutions"
     )

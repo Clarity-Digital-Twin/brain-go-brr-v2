@@ -12,7 +12,12 @@ import torch
 from torch.nn import functional
 
 from src.brain_brr.config.schemas import PostprocessingConfig
-from src.brain_brr.constants import EPSILON_ZERO_CHECK, HYSTERESIS_TAU_OFF, HYSTERESIS_TAU_ON
+from src.brain_brr.constants import (
+    EPSILON_ZERO_CHECK,
+    HYSTERESIS_TAU_OFF,
+    HYSTERESIS_TAU_ON,
+    SAMPLING_RATE,
+)
 
 
 def apply_hysteresis(
@@ -172,7 +177,7 @@ def filter_duration(
     masks: torch.Tensor,
     min_duration_samples: int,
     max_duration_samples: int,
-    sampling_rate: int = 256,
+    sampling_rate: int = SAMPLING_RATE,
 ) -> torch.Tensor:
     """Filter events by duration and segment long events.
 
@@ -281,7 +286,7 @@ def stitch_windows(
 def postprocess_predictions(
     probs: torch.Tensor,
     config: PostprocessingConfig,
-    sampling_rate: int = 256,
+    sampling_rate: int = SAMPLING_RATE,
 ) -> torch.Tensor:
     """Complete post-processing pipeline.
 

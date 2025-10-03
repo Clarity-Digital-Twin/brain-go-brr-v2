@@ -12,6 +12,8 @@ import numpy as np
 import torch
 from scipy import ndimage  # type: ignore[import-untyped]
 
+from src.brain_brr.constants import SAMPLING_RATE
+
 
 @dataclass(init=False)
 class SeizureEvent:
@@ -75,7 +77,7 @@ class SeizureEvent:
 
 def mask_to_events(
     mask: torch.Tensor | np.ndarray,
-    sampling_rate: int = 256,
+    sampling_rate: int = SAMPLING_RATE,
     min_samples: int = 1,
 ) -> list[SeizureEvent]:
     """Convert binary mask to list of events.
@@ -145,7 +147,7 @@ def merge_events(
 def calculate_event_confidence(
     probs: torch.Tensor | np.ndarray,
     event: SeizureEvent,
-    sampling_rate: int = 256,
+    sampling_rate: int = SAMPLING_RATE,
     method: Literal["mean", "peak", "percentile"] = "mean",
     percentile: float = 0.75,
 ) -> float:
@@ -191,7 +193,7 @@ def calculate_event_confidence(
 def add_confidence_scores(
     events: list[SeizureEvent],
     probs: torch.Tensor | np.ndarray,
-    sampling_rate: int = 256,
+    sampling_rate: int = SAMPLING_RATE,
     method: Literal["mean", "peak", "percentile"] = "mean",
     percentile: float = 0.75,
 ) -> list[SeizureEvent]:
@@ -217,7 +219,7 @@ def add_confidence_scores(
 def events_to_mask(
     events: list[SeizureEvent],
     length: int,
-    sampling_rate: int = 256,
+    sampling_rate: int = SAMPLING_RATE,
 ) -> np.ndarray:
     """Convert events back to binary mask.
 
@@ -243,7 +245,7 @@ def events_to_mask(
 
 def batch_mask_to_events(
     masks: torch.Tensor,
-    sampling_rate: int = 256,
+    sampling_rate: int = SAMPLING_RATE,
     tau_merge: float | None = None,
     probs: torch.Tensor | None = None,
     confidence_method: Literal["mean", "peak", "percentile"] = "mean",

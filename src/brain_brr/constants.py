@@ -60,6 +60,9 @@ CHANNEL_SYNONYMS: dict[str, str] = {
     "P8": "T6",
 }
 
+# Number of channels in 10-20 montage
+N_CHANNELS: int = len(CHANNEL_NAMES_10_20)  # 19
+
 # Sampling / windowing
 SAMPLING_RATE: int = 256
 WINDOW_SIZE_SEC: int = 60

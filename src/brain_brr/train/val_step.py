@@ -21,6 +21,8 @@ from tqdm import tqdm  # type: ignore[import-untyped]
 
 from src.brain_brr import constants
 from src.brain_brr.config.schemas import PostprocessingConfig
+from src.brain_brr.eval.metrics import batch_probs_to_events
+from src.brain_brr.events import batch_mask_to_events
 from src.brain_brr.utils.env import env
 
 logger = logging.getLogger(__name__)
@@ -144,8 +146,6 @@ def _compute_final_metrics(
             cfg_for_search.hysteresis.tau_on = mid_tau_on
             cfg_for_search.hysteresis.tau_off = mid_tau_off
 
-            from src.brain_brr.eval.metrics import batch_probs_to_events
-
             num_pred_events = 0
             for i in range(len(all_probs_flat)):
                 pred_events = batch_probs_to_events(
@@ -174,9 +174,6 @@ def _compute_final_metrics(
         tp_count = 0
 
         for i in range(len(all_probs_flat)):
-            from src.brain_brr.eval.metrics import batch_probs_to_events
-            from src.brain_brr.events import batch_mask_to_events
-
             ref_events_list = batch_mask_to_events(all_labels_flat[i].unsqueeze(0), sampling_rate)
             pred_events_list = batch_probs_to_events(
                 all_probs_flat[i].unsqueeze(0), cfg_for_eval, sampling_rate

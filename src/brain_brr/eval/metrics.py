@@ -16,8 +16,10 @@ from src.brain_brr.constants import (
     HOURS_PER_DAY,
     HYSTERESIS_DELTA,
     HYSTERESIS_TAU_ON,
+    SAMPLING_RATE,
     SECONDS_PER_HOUR,
     STRIDE_SIZE_SEC,
+    THRESHOLD_SEARCH_MAX_ITERS,
     THRESHOLD_SEARCH_TOLERANCE,
     WINDOW_SIZE_SEC,
 )
@@ -250,7 +252,7 @@ def find_threshold_for_fa_eventized(
     fa_target: float,
     total_hours: float,
     fs: int,
-    max_iters: int = 10,
+    max_iters: int = THRESHOLD_SEARCH_MAX_ITERS,
     hysteresis_delta: float = HYSTERESIS_DELTA,
 ) -> float:
     """Binary search for tau_on threshold meeting FA target.
@@ -311,7 +313,7 @@ def sensitivity_at_fa_rates(
     labels: torch.Tensor,
     fa_targets: list[float],
     post_cfg: PostprocessingConfig,
-    sampling_rate: int = 256,
+    sampling_rate: int = SAMPLING_RATE,
     window_stride_s: float = 10.0,
     window_size_s: float = 60.0,
     stitch_windows: bool = True,
@@ -459,7 +461,7 @@ def evaluate_predictions(
     window_starts: list[float],
     fa_rates: list[float],
     post_cfg: PostprocessingConfig,
-    sampling_rate: int = 256,
+    sampling_rate: int = SAMPLING_RATE,
 ) -> dict[str, Any]:
     """Complete evaluation of predictions with per-recording timeline stitching.
 
@@ -605,7 +607,7 @@ def select_threshold_for_fa_rate(
     predictions: torch.Tensor,
     labels: torch.Tensor,
     target_fa_per_24h: float,
-    sample_rate: int = 256,
+    sample_rate: int = SAMPLING_RATE,
 ) -> float:
     """Return hysteresis tau_on that achieves target FA/24h for given predictions."""
     cfg = PostprocessingConfig()
@@ -627,7 +629,7 @@ def calculate_taes_metrics(
     predictions: torch.Tensor,
     labels: torch.Tensor,
     fa_rate_target: float,
-    sample_rate: int = 256,
+    sample_rate: int = SAMPLING_RATE,
     overlap_threshold: float | None = None,  # unused, kept for compatibility
 ) -> dict[str, Any]:
     """Compatibility wrapper that returns a rich metrics dict for tests.
