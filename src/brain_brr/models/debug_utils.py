@@ -1,3 +1,13 @@
+"""Debugging utilities for NaN/Inf detection and gradient monitoring.
+
+Provides runtime validation tools for numerical stability during training:
+- assert_finite: Validate tensors contain only finite values
+- clamp_and_check: Safe clamping with logging
+- check_gradients: Gradient inspection for debugging
+
+Enable via BGB_NAN_DEBUG=1 or BGB_SMOKE_TEST=1 environment variables.
+"""
+
 import logging
 
 import torch

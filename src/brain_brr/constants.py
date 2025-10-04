@@ -76,7 +76,7 @@ STRIDE_SAMPLES: int = STRIDE_SIZE_SEC * SAMPLING_RATE  # 2560
 # ==============================================================================
 
 # Binary search bounds for FA rate calibration
-# v3.5.0: Expanded from [0.1, 1.0] to [0.0, 1.0] to support low-confidence models
+# v3.6.0: Expanded from [0.1, 1.0] to [0.0, 1.0] to support low-confidence models
 # This allows the search to find thresholds for models that output low probabilities
 THRESHOLD_SEARCH_LOW: float = 0.0
 THRESHOLD_SEARCH_HIGH: float = 1.0
@@ -168,7 +168,7 @@ DROPOUT_GNN: float = 0.1  # GNN dropout
 FOCAL_ALPHA_DEFAULT: float = 0.25
 FOCAL_GAMMA_DEFAULT: float = 2.0
 
-# Brain-BRR production settings (v3.5.0+)
+# Brain-BRR production settings (v3.6.0+)
 # We use alpha=0.5 (neutral) because pos_weight handles class imbalance
 # This prevents double-counting the 12:1 imbalance in both alpha and pos_weight
 FOCAL_ALPHA_PRODUCTION: float = 0.5

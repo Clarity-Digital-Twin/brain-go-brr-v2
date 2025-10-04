@@ -118,6 +118,19 @@ class TCNEncoder(nn.Module):
         use_cuda_optimizations: bool = True,
         init_gain: float = 0.2,  # Dependency injection for initialization
     ):
+        """Initialize TCNEncoder for temporal feature extraction.
+
+        Args:
+            input_channels: Number of input EEG channels (default: 19)
+            output_channels: Final output channel dimension (default: 512)
+            num_layers: Number of TCN residual blocks (default: 8)
+            kernel_size: Convolution kernel size (default: 7)
+            dropout: Dropout rate for regularization (default: 0.15)
+            causal: Enable causal convolutions (default: False)
+            stride_down: Temporal downsampling factor (default: 16 → 960 samples)
+            use_cuda_optimizations: Enable CUDA-optimized operations (default: True)
+            init_gain: Kaiming initialization gain for weights (default: 0.2)
+        """
         super().__init__()
 
         self.input_channels = input_channels
@@ -277,6 +290,13 @@ class ProjectionHead(nn.Module):
         output_channels: int = 19,
         upsample_factor: int = 16,
     ):
+        """Initialize ProjectionHead for channel projection and upsampling.
+
+        Args:
+            input_channels: Input channel dimension after Mamba (default: 512)
+            output_channels: Output channels for per-sample logits (default: 19)
+            upsample_factor: Temporal upsampling factor (default: 16 → restore 15360 samples)
+        """
         super().__init__()
 
         # 1x1 conv to project channels

@@ -4,7 +4,7 @@ This file provides critical project context for Claude Code (claude.ai/code) whe
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.5.0: Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks.
+Brain-Go-Brr v3.6.0 (Modal Training Baseline): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks.
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
@@ -12,7 +12,7 @@ Brain-Go-Brr v3.5.0: Clinical EEG seizure detection using **TCN + BiMamba + GNN 
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-Current Architecture (v3.5.0 - October 3, 2025):
+Current Architecture (v3.6.0 - October 3, 2025):
 - **V3 dual-stream** → Node (19×) and Edge (171×) parallel processing
 - **Edge similarity clamping** → Prevents ±1.0 boundary explosions (PR-5)
 - **Dynamic Laplacian PE** → Time-evolving graph structure, fully dynamic every timestep
@@ -335,7 +335,9 @@ Due to hardware differences, integration tests have adjusted thresholds:
 
 **Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
 
-**Current Status (v3.5.0 - October 3, 2025)**:
+**Current Status (v3.6.0 - October 3, 2025)**:
+- ✅ **Constants centralization COMPLETE** - All magic numbers in `constants.py`
+- ✅ **Modal training baseline VALIDATED** - Smoke test launched on A100-80GB
 - ✅ **Clean code refactoring COMPLETE** - All modules extracted and optimized
 - ✅ **Warmup schedules** - Optional gradient stabilization (adjacency τ + focal γ)
 - PyTorch 2.5.0 + mamba-ssm 2.2.5 (A100 XID 31 crashes resolved)

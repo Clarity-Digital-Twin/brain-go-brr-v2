@@ -6,14 +6,14 @@ V3 dual-stream architecture combining:
 - GNN (Graph Neural Network) with dynamic Laplacian positional encoding
 - Multi-head gated fusion for node/edge stream combination
 
-v3.5.0: Clean code refactoring following Uncle Bob principles
-- Modular builders for component construction
-- Pipeline decomposition for improved maintainability
-- Service layer extraction for CLI orchestration
-- 78% test coverage with comprehensive validation
+v3.6.0: Modal training baseline with constants centralization
+- All clinical thresholds centralized in constants.py with WHY documentation
+- Modal A100-80GB smoke test validated
+- Production-ready configuration for long training runs
+- Enhanced documentation and code organization
 """
 
-__version__ = "3.5.0"
+__version__ = "3.6.0"
 
 # NO HEAVY IMPORTS AT PACKAGE LEVEL
 # Models should be imported explicitly when needed:
