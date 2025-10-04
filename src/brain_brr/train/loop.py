@@ -205,6 +205,10 @@ def train(
             fa_rates=config.evaluation.fa_rates,
             focal_alpha=focal_alpha,
             focal_gamma=focal_gamma,
+            save_predictions=config.evaluation.save_predictions,
+            save_plots=config.evaluation.save_plots,
+            output_dir=config.experiment.output_dir,
+            epoch=epoch,
         )
 
         # COLLAPSE DETECTION: Stop if model outputs all-negative

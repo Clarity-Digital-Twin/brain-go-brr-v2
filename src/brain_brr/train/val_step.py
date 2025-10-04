@@ -218,6 +218,10 @@ def validate_epoch(
     fa_rates: list[float] | None = None,
     focal_alpha: float | None = None,
     focal_gamma: float | None = None,
+    save_predictions: bool = False,
+    save_plots: bool = False,
+    output_dir: str | None = None,
+    epoch: int | None = None,
 ) -> dict[str, Any]:
     """Validate model with true streaming per-recording processing (low memory).
 
@@ -395,5 +399,68 @@ def validate_epoch(
         )
     else:
         logger.info(f"[VALIDATION] Done! Val Loss: {metrics['val_loss']:.4f}")
+
+    if save_predictions and output_dir:
+        from pathlib import Path
+
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        probs_flat = torch.cat(all_probs_flat).cpu().numpy()
+        labels_flat = torch.cat(all_labels_flat).cpu().numpy()
+
+        epoch_suffix = f"_epoch{epoch}" if epoch is not None else ""
+        pred_file = output_path / f"predictions{epoch_suffix}.npy"
+        label_file = output_path / f"labels{epoch_suffix}.npy"
+
+        np.save(pred_file, probs_flat)
+        np.save(label_file, labels_flat)
+        logger.info(f"[SAVE] Predictions saved to {pred_file} and {label_file}")
+
+    if save_plots and output_dir:
+        from pathlib import Path
+
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        from sklearn.metrics import precision_recall_curve, roc_curve
+
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        probs_flat = torch.cat(all_probs_flat).cpu().numpy()
+        labels_flat = torch.cat(all_labels_flat).cpu().numpy()
+        labels_binary = (labels_flat > 0.5).astype(np.float32)
+
+        epoch_suffix = f"_epoch{epoch}" if epoch is not None else ""
+
+        if np.unique(labels_binary).size >= 2:
+            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+            fpr, tpr, _ = roc_curve(labels_binary, probs_flat)
+            axes[0].plot(fpr, tpr, label=f"ROC (AUC={metrics['auroc']:.3f})")
+            axes[0].plot([0, 1], [0, 1], "k--", label="Random")
+            axes[0].set_xlabel("False Positive Rate")
+            axes[0].set_ylabel("True Positive Rate")
+            axes[0].set_title("ROC Curve")
+            axes[0].legend()
+            axes[0].grid(True, alpha=0.3)
+
+            precision, recall, _ = precision_recall_curve(labels_binary, probs_flat)
+            axes[1].plot(recall, precision, label=f"PR (AUC={metrics['pr_auc']:.3f})")
+            axes[1].set_xlabel("Recall")
+            axes[1].set_ylabel("Precision")
+            axes[1].set_title("Precision-Recall Curve")
+            axes[1].legend()
+            axes[1].grid(True, alpha=0.3)
+
+            plot_file = output_path / f"diagnostic_plots{epoch_suffix}.png"
+            plt.tight_layout()
+            plt.savefig(plot_file, dpi=150, bbox_inches="tight")
+            plt.close(fig)
+            logger.info(f"[SAVE] Diagnostic plots saved to {plot_file}")
+        else:
+            logger.warning("[SAVE] Skipping plots - insufficient label diversity")
 
     return metrics
