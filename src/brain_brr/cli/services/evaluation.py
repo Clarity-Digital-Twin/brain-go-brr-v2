@@ -171,12 +171,17 @@ def run_evaluation(request: EvaluationRequest) -> EvaluationResult:
 
     dataloader, _edf_files = create_dataloader(request.data_path, cfg, device)
 
+    focal_alpha = cfg.training.focal_alpha if cfg.training.loss == "focal" else None
+    focal_gamma = cfg.training.focal_gamma if cfg.training.loss == "focal" else None
+
     metrics = validate_epoch(
         model,
         dataloader,
         cfg.postprocessing,
         device=device,
         fa_rates=cfg.evaluation.fa_rates,
+        focal_alpha=focal_alpha,
+        focal_gamma=focal_gamma,
     )
 
     if request.output_json:

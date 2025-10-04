@@ -337,14 +337,16 @@ Due to hardware differences, integration tests have adjusted thresholds:
 
 **Current Status (v3.6.0 - October 3, 2025)**:
 - ✅ **Constants centralization COMPLETE** - All magic numbers in `constants.py`
-- ✅ **Modal training baseline VALIDATED** - Smoke test launched on A100-80GB
+- ✅ **Modal training LAUNCHED** - Full 100-epoch run active on A100-80GB (App: ap-BwyQN1PX1prmfzbWGlUDqS)
+- ✅ **Smoke test validated** - Zero crashes, W&B integration perfect
 - ✅ **Clean code refactoring COMPLETE** - All modules extracted and optimized
 - ✅ **Warmup schedules** - Optional gradient stabilization (adjacency τ + focal γ)
-- PyTorch 2.5.0 + mamba-ssm 2.2.5 (A100 XID 31 crashes resolved)
-- V3 dual-stream with edge similarity clamping (PR-5)
-- Training ROCK SOLID: Zero NaN/Inf after 80 batches ✅
-- Loss converging smoothly: 35% decrease in 80 batches ✅
-- Gradient norms decreasing: P95 49% drop from peak ✅
+- ✅ PyTorch 2.5.0 + mamba-ssm 2.2.5 (A100 XID 31 crashes resolved)
+- ✅ V3 dual-stream with edge similarity clamping (PR-5)
+- ✅ Training ROCK SOLID: Zero NaN/Inf after 80 batches
+- ✅ Loss converging smoothly: 35% decrease in 80 batches
+- ✅ Gradient norms decreasing: P95 49% drop from peak
+- 🔴 **1 active P1** - Validation loss weighting (non-blocking, defer to post-training)
 - **Gradient expectations**: Architecture-dependent (BiMamba+GNN ≠ transformers!)
   - Early training (batch 0-200): P95 ~20-60 (high variance, normal)
   - Warmup phase (200-1000): P95 ~10-30 (decreasing)

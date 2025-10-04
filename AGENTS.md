@@ -291,8 +291,9 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 
 **Current Status (v3.6.0 - October 3, 2025)**:
 - ✅ **Constants centralization COMPLETE** - All magic numbers in `constants.py`
-- ✅ **Modal training baseline VALIDATED** - Smoke test launched on A100-80GB
+- ✅ **Modal training LAUNCHED** - Full 100-epoch run active on A100-80GB (App: ap-BwyQN1PX1prmfzbWGlUDqS)
+- ✅ **Smoke test validated** - Zero crashes, W&B integration perfect
 - ✅ **Clean code refactoring COMPLETE** - All modules extracted and optimized
 - ✅ **Production ready** - PyTorch 2.5.0 + mamba-ssm 2.2.5 (XID 31 crashes resolved)
 - ✅ **Training ROCK SOLID** - Zero NaN/Inf issues with gradient sanitization
-- ✅ **Official baseline** - v3.6.0-modal-training-baseline tag for 100-epoch runs
+- 🔴 **1 active P1** - Validation loss weighting (non-blocking, defer to post-training)

@@ -192,12 +192,16 @@ def train(
         train_loss, global_step = result
 
         # Validate
+        focal_alpha = config.training.focal_alpha if config.training.loss == "focal" else None
+        focal_gamma = config.training.focal_gamma if config.training.loss == "focal" else None
         val_metrics = validate_epoch(
             model,
             val_loader,
             config.postprocessing,
             device=device,
             fa_rates=config.evaluation.fa_rates,
+            focal_alpha=focal_alpha,
+            focal_gamma=focal_gamma,
         )
 
         # COLLAPSE DETECTION: Stop if model outputs all-negative
@@ -218,6 +222,8 @@ def train(
         if writer is not None:
             writer.add_scalar("Loss/train", train_loss, epoch)
             writer.add_scalar("Loss/val", val_metrics["val_loss"], epoch)
+            if "val_loss_focal" in val_metrics:
+                writer.add_scalar("Loss/val_focal", val_metrics["val_loss_focal"], epoch)
             writer.add_scalar("Metrics/TAES", val_metrics["taes"], epoch)
             writer.add_scalar("Metrics/AUROC", val_metrics["auroc"], epoch)
 
@@ -233,6 +239,8 @@ def train(
             "taes": val_metrics["taes"],
             "auroc": val_metrics["auroc"],
         }
+        if "val_loss_focal" in val_metrics:
+            wandb_metrics["val_loss_focal"] = val_metrics["val_loss_focal"]
         for fa_rate in config.evaluation.fa_rates:
             key = f"sensitivity_at_{fa_rate}fa"
             if key in val_metrics:
@@ -241,7 +249,9 @@ def train(
 
         # Print metrics with flush for Modal visibility
         logger.info(f"  Train Loss: {train_loss:.4f}")
-        logger.info(f"  Val Loss: {val_metrics['val_loss']:.4f}")
+        logger.info(f"  Val Loss (BCE): {val_metrics['val_loss']:.4f}")
+        if "val_loss_focal" in val_metrics:
+            logger.info(f"  Val Loss (Focal): {val_metrics['val_loss_focal']:.4f}")
         logger.info(f"  TAES: {val_metrics['taes']:.4f}")
         logger.info(f"  AUROC: {val_metrics['auroc']:.4f}")
 
