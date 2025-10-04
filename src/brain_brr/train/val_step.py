@@ -441,16 +441,19 @@ def validate_epoch(
             logger.info(f"[SAVE] Predictions saved to {pred_file} and {label_file}")
 
     if save_plots and output_dir:
-        import matplotlib
+        if not all_probs_flat or not all_labels_flat:
+            logger.warning("[SAVE] No validation outputs for plots; skipping.")
+        else:
+            import matplotlib
 
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
 
-        output_path = Path(output_dir)
-        output_path.mkdir(parents=True, exist_ok=True)
+            output_path = Path(output_dir)
+            output_path.mkdir(parents=True, exist_ok=True)
 
-        probs_flat = torch.cat(all_probs_flat).cpu().numpy()
-        labels_flat = torch.cat(all_labels_flat).cpu().numpy()
+            probs_flat = torch.cat(all_probs_flat).cpu().numpy()
+            labels_flat = torch.cat(all_labels_flat).cpu().numpy()
         labels_binary = (labels_flat > 0.5).astype(np.float32)
 
         epoch_suffix = f"_epoch{epoch}" if epoch is not None else ""
