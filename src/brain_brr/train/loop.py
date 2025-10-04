@@ -269,7 +269,7 @@ def train(
             break
 
         # Save best model
-        if current_metric == early_stopping.best_score:
+        if config.experiment.save_model and current_metric == early_stopping.best_score:
             save_checkpoint(
                 model,
                 optimizer,
@@ -297,7 +297,11 @@ def train(
             "checkpoint_interval",
             getattr(config.training, "checkpoint_interval", 0),
         )
-        if checkpoint_interval > 0 and (epoch + 1) % checkpoint_interval == 0:
+        if (
+            config.experiment.save_model
+            and checkpoint_interval > 0
+            and (epoch + 1) % checkpoint_interval == 0
+        ):
             checkpoint_path = checkpoint_dir / f"epoch_{epoch + 1:03d}.pt"
             save_checkpoint(
                 model,
@@ -310,16 +314,17 @@ def train(
             )
             logger.info(f"  Saved periodic checkpoint: {checkpoint_path.name}")
 
-        # Always save last checkpoint for resume capability
-        save_checkpoint(
-            model,
-            optimizer,
-            epoch,
-            best_metric,
-            checkpoint_dir / CHECKPOINT_LAST,
-            scheduler,
-            config,
-        )
+        # Always save last checkpoint for resume capability (even if save_model=False)
+        if config.training.resume or config.experiment.save_model:
+            save_checkpoint(
+                model,
+                optimizer,
+                epoch,
+                best_metric,
+                checkpoint_dir / CHECKPOINT_LAST,
+                scheduler,
+                config,
+            )
 
     if writer is not None:
         writer.close()
