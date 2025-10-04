@@ -411,3 +411,72 @@ class TestTrainingExplosions:
         with torch.no_grad():
             test_output = small_model(data[:1])
             assert not torch.isnan(test_output).any(), "Model broken after NaN recovery"
+
+    def test_training_with_gradient_sanitization_enabled(self, small_model):
+        """Verify training works with BGB_SANITIZE_GRADS=1 (should be no-op with clean data)."""
+        import os
+
+        os.environ["BGB_SANITIZE_GRADS"] = "1"
+
+        try:
+            from src.brain_brr.train.train_step import train_epoch
+
+            device = next(small_model.parameters()).device
+            batch_size = 2 if str(device) == "cuda" else 2
+
+            data = torch.randn(batch_size, 19, 15360, device=device)
+            labels = torch.randint(0, 2, (batch_size, 15360), device=device).float()
+            dataset = torch.utils.data.TensorDataset(data, labels)
+            dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+
+            optimizer = torch.optim.Adam(small_model.parameters(), lr=0.001)
+
+            metrics = train_epoch(
+                model=small_model,
+                dataloader=dataloader,
+                optimizer=optimizer,
+                device=str(device),
+                use_amp=False,
+                gradient_clip=0.5,
+                loss_mode="bce",
+            )
+
+            assert metrics["loss"] < 0.8
+            assert "gradient_norms" in metrics
+            assert len(metrics["gradient_norms"]) > 0
+            assert all(torch.isfinite(torch.tensor(g)) for g in metrics["gradient_norms"])
+        finally:
+            os.environ["BGB_SANITIZE_GRADS"] = "0"
+
+    def test_training_without_gradient_sanitization(self, small_model):
+        """Verify training works with BGB_SANITIZE_GRADS=0 (default)."""
+        import os
+
+        os.environ["BGB_SANITIZE_GRADS"] = "0"
+
+        from src.brain_brr.train.train_step import train_epoch
+
+        device = next(small_model.parameters()).device
+        batch_size = 2 if str(device) == "cuda" else 2
+
+        data = torch.randn(batch_size, 19, 15360, device=device)
+        labels = torch.randint(0, 2, (batch_size, 15360), device=device).float()
+        dataset = torch.utils.data.TensorDataset(data, labels)
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+
+        optimizer = torch.optim.Adam(small_model.parameters(), lr=0.001)
+
+        metrics = train_epoch(
+            model=small_model,
+            dataloader=dataloader,
+            optimizer=optimizer,
+            device=str(device),
+            use_amp=False,
+            gradient_clip=0.5,
+            loss_mode="bce",
+        )
+
+        assert metrics["loss"] < 0.8
+        assert "gradient_norms" in metrics
+        assert len(metrics["gradient_norms"]) > 0
+        assert all(torch.isfinite(torch.tensor(g)) for g in metrics["gradient_norms"])
