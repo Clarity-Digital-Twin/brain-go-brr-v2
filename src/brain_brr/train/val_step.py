@@ -114,6 +114,22 @@ def _compute_final_metrics(
     """
     from src.brain_brr.eval.metrics import calculate_ece, calculate_taes, overlap
 
+    if not all_probs_flat or not all_labels_flat:
+        logger.warning("[METRICS] No validation outputs; returning default metrics.")
+        default_results = {
+            "taes": 0.0,
+            "auroc": 0.5,
+            "pr_auc": 0.0,
+            "ece": 1.0,
+            "fa_curve": [],
+            "num_recordings": num_recordings,
+            "total_hours": total_hours,
+            "thresholds": {},
+        }
+        for fa in fa_rates:
+            default_results[f"sensitivity_at_{fa}fa"] = 0.0
+        return default_results
+
     taes = calculate_taes(all_pred_events, all_ref_events) if all_ref_events else 0.0
 
     probs_flat = torch.cat(all_probs_flat).cpu().numpy()
@@ -407,11 +423,14 @@ def validate_epoch(
         logger.info(f"[VALIDATION] Done! Val Loss: {metrics['val_loss']:.4f}")
 
     if save_predictions and output_dir:
-        output_path = Path(output_dir)
-        output_path.mkdir(parents=True, exist_ok=True)
+        if not all_probs_flat or not all_labels_flat:
+            logger.warning("[SAVE] No validation outputs to save; skipping predictions.")
+        else:
+            output_path = Path(output_dir)
+            output_path.mkdir(parents=True, exist_ok=True)
 
-        probs_flat = torch.cat(all_probs_flat).cpu().numpy()
-        labels_flat = torch.cat(all_labels_flat).cpu().numpy()
+            probs_flat = torch.cat(all_probs_flat).cpu().numpy()
+            labels_flat = torch.cat(all_labels_flat).cpu().numpy()
 
         epoch_suffix = f"_epoch{epoch}" if epoch is not None else ""
         pred_file = output_path / f"predictions{epoch_suffix}.npy"
