@@ -148,6 +148,9 @@ BGB_NAN_DEBUG=1               # Loss monitoring
 
 # Training loop uses faster heartbeat:
 heartbeat_interval = 120       # 2 minutes (vs 5 minutes)
+
+# Optional debugging helpers (set manually if needed):
+# export BGB_SANITIZE_GRADS=1   # Zero/log non-finite gradients while investigating
 ```
 
 ## Commands
