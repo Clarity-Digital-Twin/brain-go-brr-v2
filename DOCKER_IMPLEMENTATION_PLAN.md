@@ -219,29 +219,32 @@ print('✅ PyG imported successfully')
 ```dockerfile
 # After PyG installation
 
-# Install all other dependencies
+# Install remaining dependencies (EXACT versions from pyproject.toml)
 RUN pip install \
     pytorch-tcn==1.2.3 \
-    click>=8.1.7 \
+    scipy==1.11.4 \
+    scikit-learn==1.3.2 \
+    matplotlib>=3.5.0 \
+    seaborn>=0.11.0 \
+    pandas>=2.0.0 \
+    wandb>=0.16.0 \
     einops>=0.7.0 \
     mne>=1.5.0 \
-    pandas>=2.0.0 \
     pydantic>=2.0.0 \
     pyedflib>=0.1.30 \
     pyyaml>=6.0.0 \
+    click>=8.1.7 \
     rich>=13.0.0 \
-    scikit-learn>=1.3.0 \
-    scipy>=1.10.0 \
-    tensorboard>=2.10.0 \
-    tqdm>=4.64.0 \
-    wandb>=0.22.0
+    tqdm>=4.64.0
+
+# NOTE: tensorboard is dev-only, not needed for runtime
 ```
 
 **Validation:**
 ```bash
 docker build -t bgb:complete .
 
-# Test all imports
+# Test all imports (CORRECT package name: src.brain_brr)
 docker run --rm bgb:complete python3.11 -c "
 import torch
 import mamba_ssm
@@ -268,14 +271,8 @@ services:
       dockerfile: Dockerfile
     image: brain-go-brr:v3.6.1
 
-    # CRITICAL: Use deploy.resources for compose v2 (not runtime: nvidia)
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    # GPU access (requires nvidia-container-toolkit)
+    runtime: nvidia
 
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
@@ -293,15 +290,17 @@ services:
     shm_size: 8gb
 ```
 
+**NOTE:** `runtime: nvidia` requires nvidia-container-toolkit. Alternative: run with `docker compose run --gpus all <service>`
+
 **Validation:**
 ```bash
-# Create .env file first
+# Create .env file first (MUST expand $USER manually, Docker doesn't do it)
 cat > .env << EOF
-CACHE_DIR=/home/$USER/eeg-cache/tusz
+CACHE_DIR=$HOME/eeg-cache/tusz
 EOF
 
 # Test config parsing
-docker-compose config | head -20
+docker compose config | head -20
 ```
 
 ---
@@ -326,7 +325,8 @@ services:
 **Validation:**
 ```bash
 # Dry run (don't actually train)
-docker-compose run --rm smoke-test python3.11 -c "
+# NOTE: Must use --gpus all if runtime: nvidia doesn't work
+docker compose run --gpus all --rm smoke-test python3.11 -c "
 import torch
 assert torch.cuda.is_available(), 'No CUDA'
 print(f'✅ CUDA available: {torch.cuda.get_device_name(0)}')
@@ -386,11 +386,11 @@ services:
 **Validation:**
 ```bash
 # Drop into shell
-docker-compose run --rm dev
+docker compose run --rm dev
 
-# Inside container, verify editable mode:
-root@bgb-dev:/app# python3.11 -c "import src; print(src.__file__)"
-# Should show: /app/src/__init__.py (mounted volume, not copied)
+# Inside container, verify editable mode (CORRECT package name):
+root@bgb-dev:/app# python3.11 -c "import src.brain_brr; print(src.brain_brr.__file__)"
+# Should show: /app/src/brain_brr/__init__.py (mounted volume, not copied)
 ```
 
 ---
@@ -432,10 +432,14 @@ results/
 .git/
 .gitignore
 
-# Docs
+# Docs (exclude most, keep critical ones)
 docs/
 *.md
 !README.md
+!DOCKER_IMPLEMENTATION_PLAN.md
+!CLAUDE.md
+!INSTALLATION.md
+!CHANGELOG.md
 
 # Tests
 tests/
@@ -480,7 +484,7 @@ ls ~/eeg-cache/tusz/train/manifest.json  # Must exist
 ls ~/eeg-cache/tusz/dev/manifest.json    # Must exist
 
 # Run smoke test (1 epoch, 50 files, ~5 min)
-docker-compose up smoke-test
+docker compose up smoke-test
 
 # Expected output (KEY LINES):
 # [CACHE] ✅ Using valid cache: 4667 NPZ files
@@ -494,10 +498,9 @@ docker-compose up smoke-test
 #### Step 4.3: Full Training Test (1 Epoch Only)
 
 ```bash
-# Test full training pipeline with early exit
-docker-compose run --rm train \
-  python3.11 -m src train /app/configs/local/train.yaml \
-  --max-epochs 1
+# CLI has NO --max-epochs flag! Use smoke config (already 1 epoch)
+docker compose run --rm train \
+  python3.11 -m src train /app/configs/local/smoke.yaml
 
 # Verify mid-epoch checkpointing works:
 ls -lh ./results/checkpoints/mid_epoch_*.pt
@@ -509,13 +512,13 @@ ls -lh ./results/checkpoints/mid_epoch_*.pt
 #### Step 4.4: Resume Test
 
 ```bash
-# Run 1 epoch
-docker-compose run --rm train \
-  python3.11 -m src train /app/configs/local/train.yaml \
-  --max-epochs 1
+# Run 1 epoch first (use smoke config)
+docker compose run --rm train \
+  python3.11 -m src train /app/configs/local/smoke.yaml
 
 # Resume from checkpoint (auto-detects last.pt or mid_epoch_*.pt)
-docker-compose run --rm train \
+# NOTE: --resume is a boolean flag, no path argument!
+docker compose run --rm train \
   python3.11 -m src train /app/configs/local/train.yaml \
   --resume
 
@@ -565,7 +568,7 @@ time make s  # Smoke test natively
 # Record: Time for 1 epoch
 
 # Docker training (comparison)
-time docker-compose up smoke-test
+time docker compose up smoke-test
 # Record: Time for 1 epoch
 
 # Expected: Docker should be 99-99.5% of native speed
