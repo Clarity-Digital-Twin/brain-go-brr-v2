@@ -268,18 +268,9 @@ def train(
             logger.info(f"Early stopping at epoch {epoch + 1}")
             break
 
-        # Save best model
-        if config.experiment.save_model and current_metric == early_stopping.best_score:
-            save_checkpoint(
-                model,
-                optimizer,
-                epoch,
-                current_metric,
-                checkpoint_dir / CHECKPOINT_BEST,
-                scheduler,
-                config,
-            )
-            best_metric = current_metric  # FIX: Update best_metric when we find a new best
+        # Track best metrics (always, regardless of save_model)
+        if current_metric == early_stopping.best_score:
+            best_metric = current_metric
             best_metrics = {
                 "best_epoch": epoch + 1,
                 "best_taes": val_metrics["taes"],
@@ -288,8 +279,19 @@ def train(
             }
             logger.info(f"  New best {metric_name}: {current_metric:.4f}")
 
-            # Log best model to W&B
-            wandb_logger.log_model(checkpoint_dir / CHECKPOINT_BEST, name=f"best-{metric_name}")
+            # Save best model checkpoint (only if save_model enabled)
+            if config.experiment.save_model:
+                save_checkpoint(
+                    model,
+                    optimizer,
+                    epoch,
+                    current_metric,
+                    checkpoint_dir / CHECKPOINT_BEST,
+                    scheduler,
+                    config,
+                )
+                # Log best model to W&B
+                wandb_logger.log_model(checkpoint_dir / CHECKPOINT_BEST, name=f"best-{metric_name}")
 
         # Save periodic checkpoint based on checkpoint_interval
         checkpoint_interval = getattr(
