@@ -311,7 +311,7 @@ def train_epoch(
                 else:
                     progress.set_postfix({"loss": f"{loss_val:.4f}"})
 
-            if batch_idx > 0 and batch_idx % LOG_EVERY_N_STEPS == 0:
+            if batch_idx > 0 and batch_idx % log_every_n_steps == 0:
                 current_lr = optimizer.param_groups[0]["lr"]
                 if not torch.isfinite(torch.tensor(loss_val)):
                     logger.info(
