@@ -531,19 +531,20 @@ class TestLatencyUnderLoad:
             )
 
         # No significant degradation over time (improvement is OK)
+        # Use MEDIAN instead of mean for robustness to outliers/thermal spikes
         span = 60 if device.type == "cpu" else 100
-        early = np.mean(latencies[:span])
-        late = np.mean(latencies[-span:])
+        early = np.median(latencies[:span])
+        late = np.median(latencies[-span:])
         degradation = (late - early) / early
 
         # Skip degradation check if variance is already high (system under load)
         # When CV > 0.35, the system is too noisy to measure degradation reliably
-        # Also be more lenient with the degradation threshold (20% instead of 15%)
         if cv < 0.35:
             # Only check degradation if system is stable
             max_degradation = thresholds.latency_degradation_pct() / 100
             assert abs(degradation) < max_degradation, (
-                f"Latency changed by {degradation * 100:.1f}% over time (max: {max_degradation * 100:.1f}%)"
+                f"Latency degraded by {degradation * 100:.1f}% over time "
+                f"(P50 early: {early*1000:.2f}ms → late: {late*1000:.2f}ms, max: {max_degradation * 100:.1f}%)"
             )
 
     @pytest.mark.performance
