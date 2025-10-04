@@ -58,19 +58,18 @@ def _sanitize_gradients(
     sanitized_count = 0
 
     for param in model.parameters():
-        if param.grad is not None:
-            if not torch.isfinite(param.grad).all():
-                n_nonfinite = (~torch.isfinite(param.grad)).sum().item()
-                sanitized_count += 1
+        if param.grad is not None and not torch.isfinite(param.grad).all():
+            n_nonfinite = (~torch.isfinite(param.grad)).sum().item()
+            sanitized_count += 1
 
-                param.grad.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
+            param.grad.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
 
-                if sanitized_count == 1:
-                    logger.debug(
-                        f"[GRAD_SANITIZE] First occurrence at batch {batch_idx}: "
-                        f"param_shape={param.shape}, "
-                        f"non_finite_count={n_nonfinite}"
-                    )
+            if sanitized_count == 1:
+                logger.debug(
+                    f"[GRAD_SANITIZE] First occurrence at batch {batch_idx}: "
+                    f"param_shape={param.shape}, "
+                    f"non_finite_count={n_nonfinite}"
+                )
 
     return sanitized_count
 
