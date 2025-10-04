@@ -1,8 +1,8 @@
-# Brain-Go-Brr V3.5.0 - Current Status
+# Brain-Go-Brr V3.6.0 - Current Status
 
 **Last Updated**: 2025-10-03
-**Branch**: `fix/cleanup-debt` → Merging to `main`
-**Version**: v3.5.0 (Clean Code Refactoring + Rock Solid Training)
+**Branch**: `main` (all branches synced)
+**Version**: v3.6.0-modal-training-baseline (Constants Centralization + Modal Production Ready)
 
 ---
 
