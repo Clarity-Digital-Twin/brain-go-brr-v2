@@ -131,7 +131,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         total_windows_before = len(self._index_map)
         if self.max_samples is not None or self.max_hours is not None:
             # Calculate hours from window count (60s window / 3600s per hour)
-            window_duration_hours = constants.WINDOW_SIZE_S / 3600.0
+            window_duration_hours = constants.WINDOW_SIZE_SEC / 3600.0
             total_hours_before = total_windows_before * window_duration_hours
 
             limit_windows = total_windows_before
