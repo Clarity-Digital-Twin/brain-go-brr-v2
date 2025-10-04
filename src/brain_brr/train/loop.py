@@ -196,8 +196,9 @@ def train(
             ),
             warmup_schedule=config.training.warmup_schedule,
             gradient_accumulation_steps=config.training.gradient_accumulation_steps,
-            log_every_n_steps=int(
-                os.getenv("BGB_LOG_EVERY_N_STEPS", str(config.logging.log_every_n_steps))
+            log_every_n_steps=_safe_parse_int(
+                os.getenv("BGB_LOG_EVERY_N_STEPS"),
+                fallback=config.logging.log_every_n_steps or 0,
             ),
         )
 
