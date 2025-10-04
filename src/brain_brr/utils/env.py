@@ -113,28 +113,9 @@ class EnvConfig:
         return _SANITIZE_GRADS
 
     @staticmethod
-    def skip_opt_step_on_nan() -> bool:
-        """Skip optimizer step when NaN detected."""
-        return _SKIP_OPT_STEP_ON_NAN
-
-    @staticmethod
     def anomaly_detect() -> bool:
         """Enable PyTorch anomaly detection."""
         return _ANOMALY_DETECT
-
-    # Activation safety clamps
-    @staticmethod
-    def safe_clamp() -> bool:
-        """Enable activation nan-to-num + clamping between safe bounds."""
-        return _SAFE_CLAMP
-
-    @staticmethod
-    def safe_clamp_min() -> float:
-        return _SAFE_CLAMP_MIN
-
-    @staticmethod
-    def safe_clamp_max() -> float:
-        return _SAFE_CLAMP_MAX
 
     # Performance testing
     @staticmethod
