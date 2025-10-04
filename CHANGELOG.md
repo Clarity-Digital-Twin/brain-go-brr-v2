@@ -5,6 +5,20 @@ All notable changes to the Brain-Go-Brr V3 project will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Documentation Cleanup**: Removed false claims about `BGB_SANITIZE_GRADS` being "REQUIRED"
+  - Archived `nan-prevention-complete.md` (superseded by `gradient-protection-guide.md`)
+  - Updated `CLAUDE.md`, `configs/`, and `deploy/modal/app.py` to clarify gradient clipping is primary protection
+  - Fixed misleading "CRITICAL" and "MANDATORY" language in documentation
+  - All environment variables are now correctly documented as optional debugging tools
+
+### Documentation
+- Created authoritative reference: `docs/08-operations/gradient-protection-guide.md`
+- Clarified that gradient clipping (0.5 from config) is always applied, regardless of environment variables
+- Moved false protection claims to `archived_docs/false_protection_claims_oct2025/` with explanation
+
 ## [3.6.0] - 2025-10-03
 
 ### 🚀 Modal Training Baseline: Production-Ready for A100 Training
