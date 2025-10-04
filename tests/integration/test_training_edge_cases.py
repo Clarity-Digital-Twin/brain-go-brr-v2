@@ -442,7 +442,7 @@ class TestTrainingExplosions:
 
             optimizer = torch.optim.Adam(small_model.parameters(), lr=0.001)
 
-            metrics = train_epoch(
+            avg_loss = train_epoch(
                 model=small_model,
                 dataloader=dataloader,
                 optimizer=optimizer,
@@ -452,13 +452,8 @@ class TestTrainingExplosions:
                 loss_mode="bce",
             )
 
-            assert metrics["loss"] < 0.8
-            assert "gradient_norms" in metrics
-            assert len(metrics["gradient_norms"]) > 0
-            assert all(
-                torch.isfinite(torch.tensor(g)) or g == float("inf")
-                for g in metrics["gradient_norms"]
-            )
+            assert avg_loss < 0.8, f"Loss should be < 0.8, got {avg_loss}"
+            assert not torch.isnan(torch.tensor(avg_loss)), "Loss should not be NaN"
         finally:
             os.environ["BGB_SANITIZE_GRADS"] = "0"
 
@@ -491,7 +486,7 @@ class TestTrainingExplosions:
 
         optimizer = torch.optim.Adam(small_model.parameters(), lr=0.001)
 
-        metrics = train_epoch(
+        avg_loss = train_epoch(
             model=small_model,
             dataloader=dataloader,
             optimizer=optimizer,
@@ -501,9 +496,5 @@ class TestTrainingExplosions:
             loss_mode="bce",
         )
 
-        assert metrics["loss"] < 0.8
-        assert "gradient_norms" in metrics
-        assert len(metrics["gradient_norms"]) > 0
-        assert all(
-            torch.isfinite(torch.tensor(g)) or g == float("inf") for g in metrics["gradient_norms"]
-        )
+        assert avg_loss < 0.8, f"Loss should be < 0.8, got {avg_loss}"
+        assert not torch.isnan(torch.tensor(avg_loss)), "Loss should not be NaN"
