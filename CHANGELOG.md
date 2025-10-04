@@ -7,17 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- **Documentation Cleanup**: Removed false claims about `BGB_SANITIZE_GRADS` being "REQUIRED"
-  - Archived `nan-prevention-complete.md` (superseded by `gradient-protection-guide.md`)
-  - Updated `CLAUDE.md`, `configs/`, and `deploy/modal/app.py` to clarify gradient clipping is primary protection
-  - Fixed misleading "CRITICAL" and "MANDATORY" language in documentation
-  - All environment variables are now correctly documented as optional debugging tools
+## [3.6.1] - 2025-10-04
 
-### Documentation
+### 📊 Gradient Logging Enhancement: ML 2025 Best Practices
+
+This release upgrades gradient logging to use robust statistics (median, IQR) following ML 2025 best practices, removes outlier-sensitive metrics, and fixes contradictory documentation.
+
+**Tag**: `v3.6.1-gradient-logging-enhancement`
+**Status**: ✅ **READY FOR MODAL TRAINING WITH ENHANCED MONITORING**
+
+### Changed
+
+#### Gradient Logging (`src/brain_brr/train/train_step.py`)
+- **Median-First Reporting** (lines 336-347)
+  - P50 (median) now emphasized as primary metric (robust to outliers)
+  - Removed `grad_mean` (arithmetic mean, sensitive to outliers)
+  - New format: `P50=X.XX | IQR=X.XX | P95=X.XX | Max=X.XX`
+
+- **Added IQR (Interquartile Range)**
+  - P75 - P25 for robust spread measurement
+  - Better than standard deviation for heavy-tailed distributions
+  - Immune to extreme outliers (FP16 overflow values)
+
+- **Cleaner Output Format**
+  - Removed "(finite)" label (all stats always on finite values since e63a9c2)
+  - Example: `[GRADIENTS] Last 100 batches: P50=2.19 | IQR=2.39 | P95=11.38 | Max=14.82`
+
+### Fixed
+
+#### Documentation (`docs/08-operations/gradient-protection-guide.md`)
+- **Removed Contradictory Examples** (lines 97-106)
+  - Old: `[GRADIENTS] Last 50 batches (finite): Mean=inf | P50=2.19` ❌ (mathematically impossible)
+  - New: `[GRADIENTS] Last 100 batches: P50=2.19 | IQR=2.39 | P95=11.38 | Max=14.82` ✅
+  - Separate Modal (FP16) and Local (FP32) example outputs
+
+- **Archived Analysis Documents**
+  - Moved `GRADIENT-LOGGING-AUDIT-REPORT.md` to `docs/archive/`
+  - Moved `GRADIENT-LOGGING-ENHANCEMENT-PLAN.md` to `docs/archive/`
+  - Deleted `GRADIENT-LOGGING-ANALYSIS.md` (based on incorrect premise)
+
+### Infrastructure
+
+#### Modal Deployment (`deploy/modal/app.py`)
+- **Forced Image Rebuild** (line 28)
+  - `FORCE_REBUILD: "2025-10-04-gradient-logging"` (was `2025-09-30-pr708-fix-cache`)
+  - Ensures Modal uses latest gradient logging code
+  - Previous deploys used cached image, missing train_step.py updates
+
+#### Previous Unreleased Changes (from v3.6.0)
+
+**Documentation Cleanup** (Gradient Protection):
+- Removed false claims about `BGB_SANITIZE_GRADS` being "REQUIRED"
+- Archived `nan-prevention-complete.md` (superseded by `gradient-protection-guide.md`)
+- Updated `CLAUDE.md`, `configs/`, and `deploy/modal/app.py` to clarify gradient clipping is primary protection
+- Fixed misleading "CRITICAL" and "MANDATORY" language
 - Created authoritative reference: `docs/08-operations/gradient-protection-guide.md`
-- Clarified that gradient clipping (0.5 from config) is always applied, regardless of environment variables
-- Moved false protection claims to `archived_docs/false_protection_claims_oct2025/` with explanation
+- Moved false protection claims to `archived_docs/false_protection_claims_oct2025/`
 
 ## [3.6.0] - 2025-10-03
 
