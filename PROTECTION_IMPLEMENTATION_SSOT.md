@@ -299,8 +299,8 @@ else:
 # Monitoring (improved)
 gradient_norms.append(float(pre_clip_norm))
 if batch_idx % LOG_EVERY_N_STEPS == 0 and pre_clip_norm > gradient_clip * 2:
-    # Calculate post-clip norm for comparison
-    post_clip_norm = nn.utils.clip_grad_norm_(model.parameters(), float('inf'))
+    # Post-clip norm is guaranteed to be ≤ gradient_clip (analytical formula)
+    post_clip_norm = min(float(pre_clip_norm), gradient_clip)
     logger.debug(
         f"[GRAD_CLIP] Batch {batch_idx}: "
         f"pre={pre_clip_norm:.2f} → post={post_clip_norm:.2f} "
