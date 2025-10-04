@@ -4,10 +4,10 @@
 configuration or environment flags that still diverge from runtime behaviour.
 
 Priority legend:
-- **P0** – Blocks production; fix before next train run.
-- **P1** – High leverage; schedule for the next engineering sprint.
-- **P2** – Valuable but not urgent; triage once P1 items ship.
-- **P3** – Prefer to deprecate/remove unless a strong product requirement appears.
+- **P0** – Blocks production configs (local/modal train.yaml depend on it); implement immediately.
+- **P1** – Professional best practice; implement before production training.
+- **P2** – Quality-of-life improvement; triage after P1.
+- **P3** – Phantom feature with no implementation; REMOVE from schema to prevent user confusion.
 
 All paths below point to the current `fix/cleanup-debt` branch. When a gap is
 closed, remove the entry (and update docs/tests accordingly).
@@ -22,7 +22,7 @@ closed, remove the entry (and update docs/tests accordingly).
 | `preprocessing.montage` (`"10-20"`/`"standard_1020"`)
 <br>`schemas.py:95` → `load_edf_file` | **P1 – Implement** | Pass the flag through `EEGWindowDataset` ➝ `load_edf_file(... apply_montage=...)`. Default stays `True`, but disabling should skip `_apply_montage_best_effort`. | `load_edf_file` already accepts `apply_montage`; the datasets just ignore the config. Implementing unlocks pre-montaged corpora (e.g., hospital exports). |
 | `preprocessing.use_mne`
-<br>`schemas.py:105` | **P3 – Deprecate** | Remove from schema + docs unless we add a non-MNE loader (e.g., pyEDFlib fallback). Today the pipeline hard-depends on MNE; pretending this is optional misleads users. | No references in code beyond the schema/documentation. Eliminating the flag simplifies support (one blessed loader). |
+<br>`schemas.py:105` | **P3 – Remove** | Delete from schema + docs. Pipeline hard-depends on MNE; no alternative loader exists. Pretending this is optional misleads users. | Phantom feature. Grep: zero references in `src/brain_brr/` beyond schema. One blessed loader = simpler support. |
 
 ## Dataset Debug Limits
 
@@ -35,26 +35,28 @@ closed, remove the entry (and update docs/tests accordingly).
 
 | Field(s) | Priority | Recommendation | Notes |
 | --- | --- | --- | --- |
-| `logging.log_every_n_steps`, `logging.log_gradients`, `logging.log_weights`
-<br>`schemas.py:583-588` | **P1 – Implement** | Plumb these into `constants.LOG_EVERY_N_STEPS` / `train_step` instrumentation and gradient histogram hooks. Treat env vars as overrides (config → env → default). | Currently only env vars (`BGB_LOG_EVERY_N_STEPS`, etc.) take effect. Hooking configs restores truthfulness and allows per-run tuning in YAML. |
+| `logging.log_every_n_steps`
+<br>`schemas.py:586` | **P0 – Implement** | Wire into `train_step.py` batch logging. Both local/modal configs set this (50/25). Env var `BGB_LOG_EVERY_N_STEPS` should override. | **BLOCKS PRODUCTION**: `configs/local/train.yaml:214` sets 50, `configs/modal/train.yaml:184` sets 25. Currently only env var takes effect (grep: 0 config references in train code). |
+| `logging.log_gradients`, `logging.log_weights`
+<br>`schemas.py:587-588` | **P1 – Implement** | Add gradient histogram hooks in `train_step.py` when enabled. Both configs set `false` but framework should respect `true`. | Professional ML teams need gradient/weight monitoring for debugging. Currently no-op (grep: 0 matches). |
 | `experiment.log_level`
-<br>`schemas.py:569-571` | **P1 – Implement** | Feed into `setup_logging` so CLI/config drives root logger level. Honour env override precedence (`BGB_LOG_LEVEL`). | Production teams expect logging level to travel with the config artifact; today it silently ignores the field. |
+<br>`schemas.py:569-571` | **P1 – Implement** | Feed into `setup_logging` (or `utils/logging_config.py`) so config drives root logger level. Honour env override (`BGB_LOG_LEVEL`). | Both configs set `INFO`. Production teams expect logging level in config artifact, not just env vars. Currently no-op. |
 
 ## Evaluation Surface
 
 | Field(s) | Priority | Recommendation | Notes |
 | --- | --- | --- | --- |
-| `evaluation.metrics`
-<br>`schemas.py:538-545` | **P3 – Deprecate** | Remove from schema/docs (or reintroduce later as a reporting filter). We always compute the full TAES/AUROC suite, and early-stopping depends on a known metric set. | Allowing users to drop metrics would desynchronise training logic. Prefer deterministic outputs. |
 | `evaluation.save_predictions`, `evaluation.save_plots`
-<br>`schemas.py:545-547` | **P2 – Implement** | Wire into `train loop`/`evaluate` CLI so that, when enabled, we persist `.npy` predictions and diagnostic plots to `experiment.output_dir`. | These toggles are visible in configs but no-op. Persisting artifacts aligns with industry eval workflows. |
+<br>`schemas.py:545-546` | **P0 – Implement** | Wire into `train/loop.py` validation and `evaluate` CLI. Save `.npy` predictions and diagnostic plots to `experiment.output_dir` when enabled. | **BLOCKS PRODUCTION**: `configs/modal/train.yaml:164-165` sets both to `true`. Currently NO implementation exists (grep: 0 matches in `src/brain_brr/train/` or `src/brain_brr/eval/`). |
+| `evaluation.metrics`
+<br>`schemas.py:538-541` | **P3 – Remove** | Delete from schema. We always compute full TAES/AUROC suite; early-stopping depends on known metrics. User-filtering would break training logic. | Phantom feature with no implementation. Deterministic metric computation is correct design. |
 
 ## Warmup Schedule Extras
 
 | Field(s) | Priority | Recommendation | Notes |
 | --- | --- | --- | --- |
 | `warmup_schedule.residual_scale_*`
-<br>`schemas.py:469-478` | **P3 – Deprecate** | Drop the residual scaling flags for now. No module consumes them and adding partial scaling on the V3 residual graph requires careful stability analysis. | Keeping dormant flags invites confusion; reintroduce if/when we implement residual warmups. |
+<br>`schemas.py:470-478` | **P3 – Remove** | Delete `residual_scale_enabled`, `residual_scale_blocks`, `residual_scale_factor` from schema. No module consumes them; V3 residual graph doesn't support partial scaling. | Phantom feature (grep: 0 matches beyond schema). Configs set `residual_scale_enabled: false` but field shouldn't exist. Remove to prevent user confusion. |
 
 ## Post-processing Controls
 
