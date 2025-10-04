@@ -312,15 +312,15 @@ We welcome contributions! See [development docs](docs/09-development/) for:
 
 Run `make q` before committing (lint + format + type check).
 
-## Training Status (v3.5.0)
+## Training Status (v3.6.0)
 
-**v3.5.0 - Clean Code Architecture:**
-- ✅ All structural debt resolved (detector, metrics, CLI refactored)
+**v3.6.0 - Modal Training Baseline:**
+- ✅ Constants centralization complete (all magic numbers in `constants.py`)
+- ✅ Modal A100-80GB smoke test validated
 - ✅ 435 tests passing, 78% coverage
-- ✅ 100% backward compatible with v3.4.1
-- ✅ Validated on RTX 4090 and A100-80GB
+- ✅ Production-ready configuration for long training runs
 
-See [v3.5.0 release notes](RELEASE_NOTES.md) and [refactoring details](STRUCTURAL_DEBT_AUDIT_2025-10-02.md).
+See [v3.6.0 release notes](RELEASE_NOTES.md) for full details.
 
 ## Citation
 
