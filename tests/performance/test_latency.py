@@ -538,8 +538,9 @@ class TestLatencyUnderLoad:
         degradation = (late - early) / early
 
         # Skip degradation check if variance is already high (system under load)
-        # When CV > 0.35, the system is too noisy to measure degradation reliably
-        if cv < 0.35:
+        # WSL2 has more system noise, so use higher CV threshold
+        cv_threshold_for_degradation = 0.40 if os.getenv("WSL_DISTRO_NAME") else 0.35
+        if cv < cv_threshold_for_degradation:
             # Only check degradation if system is stable
             max_degradation = thresholds.latency_degradation_pct() / 100
             assert abs(degradation) < max_degradation, (
