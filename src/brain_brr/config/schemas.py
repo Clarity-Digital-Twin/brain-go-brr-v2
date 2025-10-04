@@ -85,7 +85,7 @@ class DataConfig(StrictModel):
     def check_dataset(cls, v: str) -> str:
         """Ensure only implemented datasets are used."""
         if v != "tuh_eeg":
-            raise ValueError("Only 'tuh_eeg' implemented (CHB-MIT coming v3.7)")
+            raise ValueError("Only 'tuh_eeg' dataset is currently supported")
         return v
 
 
@@ -407,7 +407,7 @@ class SchedulerConfig(StrictModel):
     """Learning rate scheduler configuration."""
 
     type: Literal["cosine"] = Field(
-        default="cosine", description="Only cosine implemented (linear/constant coming v3.7)"
+        default="cosine", description="Learning rate scheduler type (only cosine supported)"
     )
     warmup_ratio: float = Field(
         default=0.1, ge=0.0, le=0.5, description="Warmup fraction of total steps"
@@ -489,7 +489,7 @@ class TrainingConfig(StrictModel):
     )
     weight_decay: float = Field(default=0.05, ge=0.0, le=0.2, description="AdamW weight decay")
     optimizer: Literal["adamw"] = Field(
-        default="adamw", description="Only AdamW implemented (adam/sgd coming v3.7)"
+        default="adamw", description="Optimizer type (only AdamW supported)"
     )
     resume: bool = Field(default=False, description="Resume from last checkpoint")
     scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
