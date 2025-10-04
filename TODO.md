@@ -1,7 +1,7 @@
 # Technical Debt Priority List
 
 **Last Updated:** 2025-10-03
-**Status:** ✅ All legacy P1 completed | ✅ **ALL P2 STRUCTURAL REFACTORING COMPLETE!** 🎉
+**Status:** 🔴 1 active P1 (non-blocking) | ✅ All legacy P1 completed | ✅ **ALL P2 STRUCTURAL REFACTORING COMPLETE!** 🎉
 **Refactoring Sprint:** detector.py, metrics.py, cli.py — ALL DONE (2025-10-03)
 - 435 tests passing ✅
 - 78% coverage (exceeds 75% threshold) ✅
@@ -25,7 +25,31 @@
 
 ---
 
-## ✅ P1: HIGH PRIORITY (Legacy items completed 2025-09-30)
+## P1: HIGH PRIORITY
+
+### 🔴 1.0 ACTIVE P1 ITEMS
+
+#### 1.0.1 Validation Loss Weighting Under Imbalance (OPEN)
+
+**Issue:** Training loss uses `pos_weight` for class imbalance, validation loss doesn't.
+
+**Evidence:**
+- Training: `BCEWithLogitsLoss(pos_weight=pos_weight_tensor)` (src/brain_brr/train/train_step.py:141)
+- Validation: `BCEWithLogitsLoss()` (src/brain_brr/train/val_step.py:239) — NO pos_weight
+
+**Impact:** Train/val losses not directly comparable due to different class weighting. Affects interpretability, not correctness.
+
+**Solutions:**
+1. **Option A:** Mirror `pos_weight` in validation loss (makes losses comparable)
+2. **Option B:** Report both weighted + unweighted validation loss (more informative)
+
+**Priority:** P1 (affects model selection and interpretability during training)
+
+**Status:** OPEN — Defer to post-training (not a blocker)
+
+---
+
+### ✅ 1.1-1.4 LEGACY P1 ITEMS (Completed 2025-09-30)
 
 ### ✅ 1.1 Test Suite Configuration Enforcement
 

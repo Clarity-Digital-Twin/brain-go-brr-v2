@@ -216,6 +216,8 @@ def validate_epoch(
     post_config: PostprocessingConfig,
     device: str = "cpu",
     fa_rates: list[float] | None = None,
+    focal_alpha: float | None = None,
+    focal_gamma: float | None = None,
 ) -> dict[str, Any]:
     """Validate model with true streaming per-recording processing (low memory).
 
@@ -227,9 +229,11 @@ def validate_epoch(
         post_config: Post-processing configuration
         device: Device to evaluate on
         fa_rates: FA/24h targets for sensitivity
+        focal_alpha: Focal loss alpha (if None, skip focal loss computation)
+        focal_gamma: Focal loss gamma (if None, skip focal loss computation)
 
     Returns:
-        Dictionary of metrics
+        Dictionary of metrics (includes val_loss and optionally val_loss_focal)
     """
     if fa_rates is None:
         fa_rates = [10, 5, 1]
@@ -237,6 +241,8 @@ def validate_epoch(
     model.eval()
     device_obj = torch.device(device)
     criterion = nn.BCEWithLogitsLoss()
+
+    use_focal = focal_alpha is not None and focal_gamma is not None
 
     current_file_id: str | None = None
     current_windows: list[dict[str, Any]] = []
@@ -247,6 +253,7 @@ def validate_epoch(
     all_pred_events: list[tuple[float, float]] = []
     total_hours = 0.0
     total_loss = 0.0
+    total_loss_focal = 0.0
     num_batches = 0
     num_recordings = 0
 
@@ -295,9 +302,22 @@ def validate_epoch(
                     labels = labels.max(dim=1)[0]
 
                 logits = model(windows)
-                loss = criterion(logits, labels)
-
                 probs = torch.sigmoid(logits)
+
+                loss_bce = criterion(logits, labels)
+                total_loss += loss_bce.item()
+
+                if use_focal:
+                    assert focal_alpha is not None
+                    assert focal_gamma is not None
+                    pt = labels * probs + (1 - labels) * (1 - probs)
+                    at = labels * focal_alpha + (1 - labels) * (1 - focal_alpha)
+                    focal_weight = at * ((1 - pt) ** focal_gamma)
+                    bce = nn.functional.binary_cross_entropy_with_logits(
+                        logits, labels, reduction="none"
+                    )
+                    loss_focal = (focal_weight * bce).mean()
+                    total_loss_focal += loss_focal.item()
 
                 for i, fid in enumerate(file_ids):
                     if fid != current_file_id and current_windows:
@@ -323,7 +343,6 @@ def validate_epoch(
                         }
                     )
 
-                total_loss += loss.item()
                 num_batches += 1
 
                 current_time = time.time()
@@ -368,6 +387,13 @@ def validate_epoch(
 
     metrics["val_loss"] = total_loss / max(1, num_batches)
 
-    logger.info(f"[VALIDATION] Done! Val Loss: {metrics['val_loss']:.4f}")
+    if use_focal:
+        metrics["val_loss_focal"] = total_loss_focal / max(1, num_batches)
+        logger.info(
+            f"[VALIDATION] Done! Val Loss (BCE): {metrics['val_loss']:.4f} | "
+            f"Val Loss (Focal): {metrics['val_loss_focal']:.4f}"
+        )
+    else:
+        logger.info(f"[VALIDATION] Done! Val Loss: {metrics['val_loss']:.4f}")
 
     return metrics
