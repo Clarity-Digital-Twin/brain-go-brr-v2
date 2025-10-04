@@ -382,10 +382,6 @@ def main() -> None:
     from src.brain_brr.data import BalancedSeizureDataset, EEGWindowDataset, ValidationDataset
     from src.brain_brr.utils.logging_config import setup_logging
 
-    # Initialize elite logging infrastructure for training
-    setup_logging()
-    logging.captureWarnings(True)  # Capture Python warnings into logging system
-
     parser = argparse.ArgumentParser(description="Train seizure detection model")
     parser.add_argument(
         "config",  # Make positional argument for easier CLI usage
@@ -403,6 +399,16 @@ def main() -> None:
     # Load config
     config = Config.from_yaml(Path(args.config))
     config.training.resume = args.resume
+
+    # Initialize logging with config-driven level (env > config > default precedence)
+    log_level_env = os.getenv("BGB_LOG_LEVEL")
+    log_level = log_level_env or config.experiment.log_level
+    log_source = "env" if log_level_env else "config"
+    setup_logging(level=log_level)
+    logging.captureWarnings(True)
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"[LOGGING] Level: {log_level} (source: {log_source})")
 
     # Check if we're in smoke test mode
     is_smoke_test = env.smoke_test()
