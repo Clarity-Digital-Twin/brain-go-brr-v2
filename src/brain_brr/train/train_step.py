@@ -441,6 +441,9 @@ def train_epoch(
                 f"[GRAD_ACCUM] Flushed {accumulation_counter} leftover microbatch(es) at epoch end"
             )
 
+            optimizer.zero_grad(set_to_none=True)
+            accumulation_counter = 0
+
     except Exception as e:
         if progress_bar is not None and hasattr(progress_bar, "close"):
             with suppress(Exception):
