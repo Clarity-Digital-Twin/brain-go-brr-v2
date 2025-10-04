@@ -1,8 +1,20 @@
 # Comprehensive Debt Elimination Roadmap
 
 **Date:** 2025-10-04
+**Verification Date:** 2025-10-04
 **Status:** Post config-wiring completion - documentation and implementation cleanup phase
 **Goal:** Zero technical debt, zero documentation divergence, production-ready codebase
+
+## ✅ Verification Summary
+
+**Blind Debt Audit Accuracy:** 6/7 claims TRUE (85% accurate)
+- BD-01: ✅ TRUE - Schema docs advertise phantom features
+- BD-02: ✅ TRUE - Modal guide has stale config
+- BD-03: ✅ TRUE - BGB_NAN_DEBUG_MAX defined but unused
+- BD-04: ❌ FALSE - Modal correctly enforces BGB_NAN_DEBUG=1
+- BD-05: ✅ TRUE - Perf env vars only in test suite
+- BD-06: ✅ TRUE - Local guide has wrong batch_size
+- BD-07: ✅ TRUE - Checkpoint docs push deprecated env vars
 
 ---
 
@@ -151,13 +163,13 @@ All configuration fields now have runtime implementation paths:
 ## 🎯 Execution Plan (Time-Boxed)
 
 ### Week 1: Critical Documentation (1 hour total)
-1. ✅ BD-01: Fix schema docs (5 min)
-2. ✅ BD-02: Fix Modal deployment guide (10 min)
-3. ✅ BD-06: Fix local training batch_size (2 min)
-4. ✅ BD-07: Update checkpoint docs (20 min)
-5. ✅ BD-05: Clarify perf env vars scope (5 min)
-6. ✅ BD-03: Remove BGB_NAN_DEBUG_MAX (5 min + docs)
-7. ✅ Clean schema comments about future features (10 min)
+1. [ ] BD-01: Fix schema docs - remove phantom optimizer/scheduler/resources (5 min)
+2. [ ] BD-02: Fix Modal deployment guide - update to actual config values (10 min)
+3. [ ] BD-06: Fix local training guide - change batch_size 4→8 (2 min)
+4. [ ] BD-07: Update checkpoint docs - flip to config-first, env vars legacy (20 min)
+5. [ ] BD-05: Add scope note to perf env vars - "test suite only" (5 min)
+6. [ ] BD-03: Remove BGB_NAN_DEBUG_MAX from env.py and docs (5 min)
+7. [ ] Clean schema comments - remove "coming v3.7" promises (10 min)
 
 ### Week 2: Validation & Smoke Tests
 1. Run full test suite: `make test`
