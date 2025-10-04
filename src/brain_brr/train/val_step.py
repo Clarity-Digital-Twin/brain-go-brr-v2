@@ -432,13 +432,13 @@ def validate_epoch(
             probs_flat = torch.cat(all_probs_flat).cpu().numpy()
             labels_flat = torch.cat(all_labels_flat).cpu().numpy()
 
-        epoch_suffix = f"_epoch{epoch}" if epoch is not None else ""
-        pred_file = output_path / f"predictions{epoch_suffix}.npy"
-        label_file = output_path / f"labels{epoch_suffix}.npy"
+            epoch_suffix = f"_epoch{epoch}" if epoch is not None else ""
+            pred_file = output_path / f"predictions{epoch_suffix}.npy"
+            label_file = output_path / f"labels{epoch_suffix}.npy"
 
-        np.save(pred_file, probs_flat)
-        np.save(label_file, labels_flat)
-        logger.info(f"[SAVE] Predictions saved to {pred_file} and {label_file}")
+            np.save(pred_file, probs_flat)
+            np.save(label_file, labels_flat)
+            logger.info(f"[SAVE] Predictions saved to {pred_file} and {label_file}")
 
     if save_plots and output_dir:
         import matplotlib
