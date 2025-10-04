@@ -40,6 +40,8 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         notch_freq: int = 60,
         normalize: bool = True,
         apply_montage: bool = True,
+        max_samples: int | None = None,
+        max_hours: float | None = None,
     ) -> None:
         self.edf_files = edf_files
         self.label_files = label_files
@@ -50,6 +52,8 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         self.notch_freq = notch_freq
         self.normalize = normalize
         self.apply_montage = apply_montage
+        self.max_samples = max_samples
+        self.max_hours = max_hours
 
         if self.cache_dir is not None:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
