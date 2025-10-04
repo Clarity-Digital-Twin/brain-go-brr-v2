@@ -199,12 +199,12 @@ For each debt item, verify:
 ## 🎉 Success Criteria
 
 **Definition of "Debt-Free"**:
-1. ✅ All config fields have runtime paths (CONFIG_ADDITIONAL_GAPS.md empty)
-2. ✅ All docs match actual code behavior (no stale examples)
-3. ✅ No phantom env vars (defined but unused)
-4. ✅ No misleading schema comments (promises of unimplemented features)
+1. ✅ All config fields have runtime paths (CONFIG_ADDITIONAL_GAPS.md complete)
+2. ⏳ All docs match actual code behavior (6 items to fix - see Week 1)
+3. ⏳ No phantom env vars (BD-03: BGB_NAN_DEBUG_MAX to remove)
+4. ⏳ No misleading schema comments (BD-01: remove phantom features)
 5. ✅ All smoke tests pass (local + Modal)
-6. ✅ Documentation review shows zero divergence
+6. ⏳ Documentation review shows zero divergence (BD-01,02,05,06,07 pending)
 
 **Exit Criteria**:
 - Documentation audit finds ZERO mismatches
