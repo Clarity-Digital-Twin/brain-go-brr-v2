@@ -4,6 +4,11 @@ This module provides typed access to all BGB_* environment variables
 used throughout the codebase, preventing scattered os.getenv() calls
 and providing clear documentation of each variable's purpose.
 
+Protection Flags (Optional Debugging):
+- BGB_SANITIZE_GRADS: Replace NaN/Inf gradients with zeros (default: OFF)
+  Use case: Debugging gradient explosions, not required for normal training
+  Note: Gradient clipping (from config) is the primary protection mechanism
+
 NOTE: Environment variables are cached at module import time to support
 torch.compile which cannot trace through os.getenv() calls.
 """
