@@ -44,3 +44,15 @@ Verified October 4, 2025. These items are **not** covered in the current fix pla
 - No code adjusts residual gain during warmup.
 
 These gaps should be triaged after the initial wiring plan. Confirm priorities with stakeholders before implementation.
+
+## 8. Postprocessing stitching config ignored
+- Schema: `src/brain_brr/config/schemas.py:375-391` defines `postprocessing.stitching.method/stride/window_size`.
+- Usage: `postprocess_predictions` (`src/brain_brr/post/postprocess.py:264-320`) never reads `config.stitching`.
+- Evaluation code (`batch_probs_to_events`, `validate_epoch`) relies on fixed overlap-add logic.
+- **Impact**: Changing `stitching.method` in configs has no effect on timeline assembly.
+
+## 9. Morphology `use_gpu` flag is inert
+- Schema: `src/brain_brr/config/schemas.py:333-341` exposes `postprocessing.morphology.use_gpu`.
+- Implementation: `apply_morphology` (`src/brain_brr/post/postprocess.py:126-170`) accepts `use_gpu` but never branches on it.
+- Doc comment even notes “not yet implemented”.
+- **Impact**: Toggle does nothing; misleading for GPU users.
