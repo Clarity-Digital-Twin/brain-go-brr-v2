@@ -264,6 +264,18 @@ class BalancedSeizureDataset(Dataset):
         seed: int | None = 42,
         ensure_manifest: bool = True,
     ) -> None:
+        """Initialize BalancedSeizureDataset with manifest-based sampling.
+
+        Args:
+            cache_dir: Path to cache directory containing NPZ files and manifest.json
+            full_ratio: Ratio of full-seizure windows to partial (default: 0.3)
+            background_ratio: Ratio of no-seizure windows to partial (default: 2.5)
+            seed: Random seed for reproducible sampling (default: 42)
+            ensure_manifest: Auto-create manifest if missing (default: True)
+
+        Raises:
+            ValueError: If manifest exists but contains no partial seizure windows
+        """
         self.cache_dir = Path(cache_dir)
         manifest_path = self.cache_dir / constants.MANIFEST_FILENAME
         if ensure_manifest and not manifest_path.exists():
@@ -418,6 +430,18 @@ class ValidationDataset(Dataset):
         ensure_manifest: bool = True,
         allowed_cache_files: set[str] | None = None,
     ) -> None:
+        """Initialize ValidationDataset with natural distribution.
+
+        Args:
+            cache_dir: Path to cache directory containing NPZ files and manifest.json
+            seed: Random seed for reproducible shuffling (default: 42)
+            ensure_manifest: Auto-create manifest if missing (default: True)
+            allowed_cache_files: Optional whitelist of cache filenames to include (default: None = all)
+
+        Note:
+            Uses ALL windows from manifest without sampling. This provides natural
+            distribution (~8% seizures) for realistic validation metrics.
+        """
         self.cache_dir = Path(cache_dir)
         manifest_path = self.cache_dir / constants.MANIFEST_FILENAME
         if ensure_manifest and not manifest_path.exists():

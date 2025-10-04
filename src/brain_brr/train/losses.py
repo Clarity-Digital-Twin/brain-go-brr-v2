@@ -33,6 +33,16 @@ class FocalLoss(nn.Module):
     def __init__(
         self, alpha: float = FOCAL_ALPHA_DEFAULT, gamma: float = FOCAL_GAMMA_DEFAULT
     ) -> None:
+        """Initialize Focal Loss with class balancing.
+
+        Args:
+            alpha: Class balance weight for positive class (default: 0.25 from RetinaNet)
+            gamma: Focusing parameter for hard examples (default: 2.0 from RetinaNet)
+
+        Note:
+            Loss = -alpha_t * (1-p_t)^gamma * BCE(logits, targets)
+            where p_t is the model's confidence for the true class.
+        """
         super().__init__()
         self.alpha = float(alpha)
         self.gamma = float(gamma)

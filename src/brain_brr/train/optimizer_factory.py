@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import math
+import warnings
 
 import torch.nn as nn
 from torch.optim import AdamW, Optimizer
@@ -84,7 +85,12 @@ def create_scheduler(
             progress = (step - warmup_steps) / max(1, (total_steps - warmup_steps))
             return 0.5 * (1.0 + math.cos(math.pi * progress))
 
-        sched = LambdaLR(optimizer, lr_lambda=lr_lambda, last_epoch=-1)
+        # Suppress PyTorch 1.1.0+ warning about scheduler.step() order
+        # Our code correctly calls optimizer.step() before scheduler.step()
+        # but PyTorch emits warning on scheduler creation before first training step
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="Detected call of.*lr_scheduler")
+            sched = LambdaLR(optimizer, lr_lambda=lr_lambda, last_epoch=-1)
         # Reset any change at construction time.
         for g, lr in zip(optimizer.param_groups, initial_lrs, strict=False):
             g["lr"] = lr
