@@ -105,7 +105,7 @@ class TestGradientSanitization:
         count = _sanitize_gradients(model, logger, batch_idx=0)
 
         assert count == 0
-        for orig, param in zip(original_grads, model.parameters()):
+        for orig, param in zip(original_grads, model.parameters(), strict=False):
             if param.grad is not None:
                 assert torch.equal(orig, param.grad)
 

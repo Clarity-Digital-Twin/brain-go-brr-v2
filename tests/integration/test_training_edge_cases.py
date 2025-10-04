@@ -455,7 +455,10 @@ class TestTrainingExplosions:
             assert metrics["loss"] < 0.8
             assert "gradient_norms" in metrics
             assert len(metrics["gradient_norms"]) > 0
-            assert all(torch.isfinite(torch.tensor(g)) or g == float("inf") for g in metrics["gradient_norms"])
+            assert all(
+                torch.isfinite(torch.tensor(g)) or g == float("inf")
+                for g in metrics["gradient_norms"]
+            )
         finally:
             os.environ["BGB_SANITIZE_GRADS"] = "0"
 
@@ -501,4 +504,6 @@ class TestTrainingExplosions:
         assert metrics["loss"] < 0.8
         assert "gradient_norms" in metrics
         assert len(metrics["gradient_norms"]) > 0
-        assert all(torch.isfinite(torch.tensor(g)) or g == float("inf") for g in metrics["gradient_norms"])
+        assert all(
+            torch.isfinite(torch.tensor(g)) or g == float("inf") for g in metrics["gradient_norms"]
+        )
