@@ -68,6 +68,7 @@ training:
 
 ## General tips
 
-- Always run with `BGB_SANITIZE_GRADS=1` (set by Modal automatically; export locally).
+- Ensure gradient clipping remains enabled (`training.gradient_clip: 0.5`).
+- Optional debugging: enable `BGB_NAN_DEBUG=1` (logging) and `BGB_SANITIZE_GRADS=1` only when investigating NaNs.
 - Streaming validation keeps dev-split memory under ~5 GB; no need to downsample for RAM.
 - Profile with `torch.profiler` or `nsys` before attempting larger architectural changes; most wins now come from dataloader and PE frequency tuning.

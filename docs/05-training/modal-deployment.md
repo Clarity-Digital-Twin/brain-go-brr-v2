@@ -145,7 +145,7 @@ experiment:
 | Issue | Solution |
 |-------|----------|
 | Cache not found | Run `populate-cache` action first |
-| NaN losses | Enable `BGB_SANITIZE_GRADS=1` |
+| NaN losses | Confirm gradient clipping (0.5) & cache; optionally enable `BGB_SANITIZE_GRADS=1` while debugging |
 | OOM errors | Reduce batch size to 32 |
 | Slow training | Verify using SSD cache, not S3 |
 | Connection lost | Use `--detach` for long runs |
@@ -154,7 +154,7 @@ experiment:
 ```bash
 # Enable for debugging
 export BGB_NAN_DEBUG=1           # Verbose NaN reporting
-export BGB_SANITIZE_GRADS=1      # Clean gradients (recommended)
+# export BGB_SANITIZE_GRADS=1    # Optional: zero/log non-finite gradients
 export BGB_DEBUG_FINITE=1        # Check tensor finiteness
 
 # Limit data for testing
