@@ -43,7 +43,18 @@ services:
 
     environment:
       - BGB_SMOKE_TEST=1
+      # No BGB_LIMIT_FILES - defaults to 3 files for fast validation (~5 min)
+
+    command: python3.11 -m src train /app/configs/local/smoke.yaml
+
+  integration-test:
+    extends: train-base
+    container_name: bgb-integration
+
+    environment:
+      - BGB_SMOKE_TEST=1
       - BGB_LIMIT_FILES=50
+      # Deeper validation with 50 files (~60 min)
 
     command: python3.11 -m src train /app/configs/local/smoke.yaml
 
