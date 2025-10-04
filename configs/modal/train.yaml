@@ -1,6 +1,17 @@
 # Modal A100 Full Training: TCN + Bi-Mamba + GNN Stack (V3)
 # Optimized for A100-80GB on Modal cloud with proper resource allocation
 # Usage: modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+#
+# ========================================================================
+# 🚨 NaN Protection (Automatically Enabled on Modal)
+# ========================================================================
+# Modal automatically sets debugging via deploy/modal/app.py:
+#   BGB_NAN_DEBUG=1       # ✅ Shows NaN warnings
+#
+# Gradient clipping (0.5) is always applied from config (primary protection).
+# No manual environment setup needed for Modal!
+# See: docs/08-operations/gradient-protection-guide.md for details
+# ========================================================================
 
 data:
   dataset: tuh_eeg
