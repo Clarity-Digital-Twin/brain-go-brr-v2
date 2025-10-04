@@ -80,6 +80,14 @@ class DataConfig(StrictModel):
         """Ensure data_dir is Path object."""
         return Path(v) if not isinstance(v, Path) else v
 
+    @field_validator("dataset")
+    @classmethod
+    def check_dataset(cls, v: str) -> str:
+        """Ensure only implemented datasets are used."""
+        if v != "tuh_eeg":
+            raise ValueError("Only 'tuh_eeg' implemented (CHB-MIT coming v3.7)")
+        return v
+
 
 class PreprocessingConfig(StrictModel):
     """Signal preprocessing configuration."""
