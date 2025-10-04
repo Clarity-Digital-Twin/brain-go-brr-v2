@@ -264,6 +264,13 @@ def train(
         metric_name = config.training.early_stopping.metric
         current_metric = val_metrics.get(metric_name, 0.0)
 
+        # Check if this is a NEW best (before early_stopping updates best_score)
+        is_new_best = (
+            current_metric > early_stopping.best_score
+            if early_stopping.mode == "max"
+            else current_metric < early_stopping.best_score
+        )
+
         if early_stopping(current_metric, epoch):
             logger.info(f"Early stopping at epoch {epoch + 1}")
             break
@@ -279,8 +286,11 @@ def train(
             }
             logger.info(f"  New best {metric_name}: {current_metric:.4f}")
 
-            # Save best model checkpoint (only if save_model enabled)
-            if config.experiment.save_model:
+            # Save best model checkpoint (respecting save_model and save_best_only)
+            # Only save if: save_model enabled AND (save_best_only=False OR this is NEW best)
+            if config.experiment.save_model and (
+                not config.experiment.save_best_only or is_new_best
+            ):
                 save_checkpoint(
                     model,
                     optimizer,
