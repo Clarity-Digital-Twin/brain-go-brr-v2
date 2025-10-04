@@ -25,7 +25,7 @@ image = (
         "PATH": "/usr/local/cuda-12.4/bin:$PATH",
         "LD_LIBRARY_PATH": "/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH",
         "TORCH_CUDA_ARCH_LIST": "8.0;8.6;8.9;9.0",  # A100 is 8.0
-        "FORCE_REBUILD": "2025-09-30-pr708-fix-cache",  # Bump to defeat Modal layer cache
+        "FORCE_REBUILD": "2025-10-04-gradient-logging",  # Bump to defeat Modal layer cache
         "TRITON_CACHE_DIR": "/tmp/triton_cache",
         "TORCHINDUCTOR_CACHE_DIR": "/tmp/torchinductor_cache",
     })
