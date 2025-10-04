@@ -333,14 +333,16 @@ def train_epoch(
                     finite_norms = [x for x in sorted_norms if torch.isfinite(torch.tensor(x))]
 
                     if len(finite_norms) > 0:
-                        grad_mean = sum(finite_norms) / len(finite_norms)
                         grad_p50 = finite_norms[len(finite_norms) // 2]
+                        grad_p25 = finite_norms[int(len(finite_norms) * 0.25)]
+                        grad_p75 = finite_norms[int(len(finite_norms) * 0.75)]
                         grad_p95 = finite_norms[int(len(finite_norms) * 0.95)]
                         grad_max = finite_norms[-1]
+                        grad_iqr = grad_p75 - grad_p25
 
                         logger.info(
-                            f"[GRADIENTS] Last {n} batches (finite): "
-                            f"Mean={grad_mean:.2f} | P50={grad_p50:.2f} | "
+                            f"[GRADIENTS] Last {n} batches: "
+                            f"P50={grad_p50:.2f} | IQR={grad_iqr:.2f} | "
                             f"P95={grad_p95:.2f} | Max={grad_max:.2f}"
                         )
 

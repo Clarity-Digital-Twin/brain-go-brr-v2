@@ -79,30 +79,30 @@ Gradient clipping already handles inf/nan gradients:
 
 ---
 
-## What To Do If You See "Mean=inf"
+## When Gradient Logs Report `inf`
 
 **This is normal with FP16 mixed precision!**
 
-- The logged value is **pre-clip** gradient norm
-- Actual parameter updates use **post-clip** (finite) gradients
+- The `inf` entries refer to the **pre-clip** gradient norm that PyTorch reports
+- Actual parameter updates use the **post-clip** (finite) gradients
 - If loss is decreasing, training is working correctly
 - No action needed
 
 **Why it happens**:
 - FP16 max value: 65,504
-- Large gradients overflow to inf during backward
-- Clipping scales them down to finite values
-- Only the pre-clip norm shows inf (logged for monitoring)
+- Large gradients overflow to `inf` during backward
+- Gradient clipping scales them down to finite values before the optimizer step
+- The logger prints the count of batches whose pre-clip norm exceeded the FP16 range
 
 **Modal (A100, FP16)**:
 ```
-[GRADIENTS] Last 50 batches (finite): Mean=inf | P50=2.19 | P95=11.39
-[GRADIENTS] 15/50 batches had inf pre-clip norm (normal with FP16, clipping handles it)
+[GRADIENTS] Last 100 batches: P50=2.19 | IQR=2.39 | P95=11.38 | Max=14.82
+[GRADIENTS] 15/100 batches had inf pre-clip norm (normal with FP16, clipping handles it)
 ```
 
 **Local (RTX 4090, FP32)**:
 ```
-[GRADIENTS] Last 50 batches (finite): Mean=14.54 | P50=9.32 | P95=52.06
+[GRADIENTS] Last 100 batches: P50=3.32 | IQR=2.87 | P95=9.74 | Max=10.84
 ```
 
 ---
