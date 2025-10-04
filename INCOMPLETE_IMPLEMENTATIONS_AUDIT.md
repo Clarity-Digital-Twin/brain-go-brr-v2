@@ -457,8 +457,8 @@ gradient_norms.append(float(grad_norm))  # PRE-CLIP (can be inf)
 
 # AFTER:
 pre_clip_norm = nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
-# Calculate POST-CLIP norm
-post_clip_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), float('inf'))
+# POST-CLIP norm is guaranteed to be ≤ gradient_clip (analytical formula)
+post_clip_norm = min(float(pre_clip_norm), gradient_clip)
 gradient_norms.append(float(post_clip_norm))  # POST-CLIP (always finite)
 
 # Optionally log both
