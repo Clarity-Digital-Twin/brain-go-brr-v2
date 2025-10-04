@@ -10,12 +10,18 @@ import sys
 import time
 from contextlib import suppress
 from copy import deepcopy
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import average_precision_score, roc_auc_score
+from sklearn.metrics import (
+    average_precision_score,
+    precision_recall_curve,
+    roc_auc_score,
+    roc_curve,
+)
 from torch.utils.data import DataLoader
 from tqdm import tqdm  # type: ignore[import-untyped]
 
@@ -220,7 +226,7 @@ def validate_epoch(
     focal_gamma: float | None = None,
     save_predictions: bool = False,
     save_plots: bool = False,
-    output_dir: str | None = None,
+    output_dir: str | Path | None = None,
     epoch: int | None = None,
 ) -> dict[str, Any]:
     """Validate model with true streaming per-recording processing (low memory).
@@ -401,8 +407,6 @@ def validate_epoch(
         logger.info(f"[VALIDATION] Done! Val Loss: {metrics['val_loss']:.4f}")
 
     if save_predictions and output_dir:
-        from pathlib import Path
-
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
@@ -418,13 +422,10 @@ def validate_epoch(
         logger.info(f"[SAVE] Predictions saved to {pred_file} and {label_file}")
 
     if save_plots and output_dir:
-        from pathlib import Path
-
         import matplotlib
 
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
-        from sklearn.metrics import precision_recall_curve, roc_curve
 
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
