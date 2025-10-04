@@ -127,6 +127,35 @@ class EEGWindowDataset(torch.utils.data.Dataset):
             for w_idx in range(n_windows):
                 self._index_map.append((i, w_idx))
 
+        # Apply debug limits (max_samples or max_hours) if specified
+        total_windows_before = len(self._index_map)
+        if self.max_samples is not None or self.max_hours is not None:
+            # Calculate hours from window count (60s window / 3600s per hour)
+            window_duration_hours = constants.WINDOW_SIZE_S / 3600.0
+            total_hours_before = total_windows_before * window_duration_hours
+
+            limit_windows = total_windows_before
+            limit_reason = None
+
+            if self.max_samples is not None and self.max_samples < limit_windows:
+                limit_windows = self.max_samples
+                limit_reason = f"max_samples={self.max_samples}"
+
+            if self.max_hours is not None:
+                max_windows_from_hours = int(self.max_hours / window_duration_hours)
+                if max_windows_from_hours < limit_windows:
+                    limit_windows = max_windows_from_hours
+                    limit_reason = f"max_hours={self.max_hours:.2f}h"
+
+            if limit_windows < total_windows_before:
+                self._index_map = self._index_map[:limit_windows]
+                total_hours_after = limit_windows * window_duration_hours
+                logger.warning(
+                    f"[DATA] Applied debug limit ({limit_reason}): "
+                    f"{total_windows_before} → {limit_windows} windows "
+                    f"({total_hours_before:.2f}h → {total_hours_after:.2f}h)"
+                )
+
         # Save the index cache for next time
         if index_cache_path is not None:
             import json
