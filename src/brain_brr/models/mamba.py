@@ -89,6 +89,19 @@ class BiMamba2Layer(nn.Module):
         use_layerscale: bool = False,  # PR-1: Enable LayerScale on residual
         layerscale_init: float = 0.1,  # PR-1: LayerScale initial value
     ):
+        """Initialize single BiMamba2 layer with forward+backward processing.
+
+        Args:
+            d_model: Model dimension (default: 512)
+            d_state: SSM state dimension (default: 16)
+            d_conv: Convolution dimension (default: 4)
+            expand: Channel expansion factor (default: 2)
+            headdim: Head dimension (default: 64, must satisfy (d_model * expand) / headdim is multiple of 8)
+            dropout: Dropout probability (default: 0.1)
+            init_gain: Kaiming initialization gain (default: 0.2)
+            use_layerscale: Enable LayerScale on residual connection (default: False, PR-1)
+            layerscale_init: LayerScale initial value (default: 0.1, PR-1)
+        """
         super().__init__()
         self.d_model = d_model
         self.d_conv = d_conv  # Now always 4 or less, no coercion needed
@@ -330,6 +343,20 @@ class BiMamba2(nn.Module):
         use_layerscale: bool = False,  # PR-1: Enable LayerScale on residuals
         layerscale_init: float = 0.1,  # PR-1: LayerScale initial value
     ):
+        """Initialize BiMamba2 stack for bidirectional state-space modeling.
+
+        Args:
+            d_model: Model dimension (default: 512)
+            d_state: SSM state dimension (default: 16)
+            d_conv: Convolution dimension (default: 4)
+            expand: Channel expansion factor (default: 2)
+            headdim: Head dimension (default: 64, must satisfy (d_model * expand) / headdim is multiple of 8)
+            num_layers: Number of bidirectional Mamba layers (default: 6)
+            dropout: Dropout probability (default: 0.1)
+            init_gain: Kaiming initialization gain (default: 0.2)
+            use_layerscale: Enable LayerScale on residuals (default: False, PR-1)
+            layerscale_init: LayerScale initial value (default: 0.1, PR-1)
+        """
         super().__init__()
         self.d_model = d_model
         self.num_layers = num_layers

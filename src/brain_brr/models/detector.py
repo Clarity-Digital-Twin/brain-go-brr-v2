@@ -64,6 +64,23 @@ class SeizureDetector(nn.Module):
         mamba_d_conv: int = 4,
         mamba_dropout: float | None = None,
     ) -> None:
+        """Initialize SeizureDetector V3 dual-stream architecture.
+
+        Args:
+            in_channels: Number of EEG input channels (default: 19 for 10-20 montage)
+            tcn_layers: Number of TCN residual blocks (default: 8)
+            tcn_kernel_size: TCN convolution kernel size (default: 7)
+            tcn_dropout: TCN dropout rate (default: 0.15)
+            tcn_stride: Temporal downsampling factor (default: 16 → 960 samples)
+            mamba_layers: Number of bidirectional Mamba layers (default: 6)
+            mamba_d_state: Mamba state dimension (default: 16)
+            mamba_d_conv: Mamba convolution dimension (default: 4)
+            mamba_dropout: Mamba dropout rate (default: 0.1 if None)
+
+        Note:
+            GNN and V3 dual-stream components are initialized via from_config()
+            if enabled in configuration. This __init__ only sets up core TCN/Mamba.
+        """
         super().__init__()
 
         # GNN components (initialized as None, set by from_config if enabled)

@@ -71,6 +71,30 @@ class GraphChannelMixerPyG(nn.Module):
         warmup_config: WarmupScheduleConfig | None = None,  # v3.4.1: Warmup schedules
         laplacian_normalize: bool = True,
     ):
+        """Initialize GraphChannelMixerPyG with dynamic Laplacian PE.
+
+        Args:
+            d_model: Feature dimension per electrode (default: 64, EvoBrain baseline)
+            n_electrodes: Number of EEG electrodes (default: 19)
+            k_eigenvectors: Number of Laplacian eigenvectors for PE (default: 16)
+            alpha: SSGConv skip connection strength (default: 0.05)
+            k_hops: Neighborhood size for message passing (default: 2)
+            n_layers: Number of GNN layers (default: 2)
+            dropout: Dropout rate (default: 0.1)
+            use_residual: Enable residual connections (default: True)
+            use_vectorized: Use vectorized batch processing (default: True)
+            use_dynamic_pe: Compute PE dynamically per timestep (default: True)
+            bypass_edge_transform: Skip edge transform if upstream uses Softplus (default: False)
+            semi_dynamic_interval: PE update frequency in timesteps (default: 1)
+            pe_sign_consistency: Fix eigenvector sign flips (default: True)
+            adj_row_softmax: Apply row-wise softmax to adjacency (default: False)
+            adj_softmax_tau: Temperature for adjacency softmax (default: 1.0)
+            adj_ema_beta: EMA decay for adjacency smoothing (default: None)
+            adj_force_symmetric: Force adjacency matrix symmetry (default: False)
+            laplacian_eps: Epsilon for Laplacian stability (default: EPSILON_LAPLACIAN)
+            warmup_config: Optional warmup schedule for adjacency tau (default: None)
+            laplacian_normalize: Normalize Laplacian (default: True)
+        """
         super().__init__()
 
         if not HAS_PYG:
