@@ -412,6 +412,35 @@ def train_epoch(
                 except Exception as e:
                     logger.info(f"[WARNING] Failed to save mid-epoch checkpoint: {e}")
 
+        if accumulation_counter > 0:
+            if scaler.is_enabled():
+                scaler.unscale_(optimizer)
+
+            if env.sanitize_grads():
+                sanitized_count = _sanitize_gradients(model, logger, batch_idx)
+                if sanitized_count > 0:
+                    logger.warning(
+                        f"[GRAD_SANITIZE] Replaced {sanitized_count} non-finite gradients "
+                        f"at batch {batch_idx} (investigate root cause)"
+                    )
+
+            pre_clip_norm = nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+            gradient_norms.append(float(pre_clip_norm))
+
+            if scaler.is_enabled():
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                optimizer.step()
+
+            if scheduler is not None:
+                scheduler.step()
+                global_step += 1
+
+            logger.info(
+                f"[GRAD_ACCUM] Flushed {accumulation_counter} leftover microbatch(es) at epoch end"
+            )
+
     except Exception as e:
         if progress_bar is not None and hasattr(progress_bar, "close"):
             with suppress(Exception):
