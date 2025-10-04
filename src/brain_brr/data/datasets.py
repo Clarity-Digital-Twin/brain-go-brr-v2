@@ -39,6 +39,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         bandpass: tuple[float, float] = (0.5, 120.0),
         notch_freq: int = 60,
         normalize: bool = True,
+        apply_montage: bool = True,
     ) -> None:
         self.edf_files = edf_files
         self.label_files = label_files
@@ -48,6 +49,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         self.bandpass = bandpass
         self.notch_freq = notch_freq
         self.normalize = normalize
+        self.apply_montage = apply_montage
 
         if self.cache_dir is not None:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -142,7 +144,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         self, edf_path: Path, file_idx: int
     ) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.float32] | None]:
         # Load & preprocess
-        data_uv, fs = load_edf_file(edf_path)
+        data_uv, fs = load_edf_file(edf_path, apply_montage=self.apply_montage)
         data_proc = preprocess_recording(
             data_uv,
             fs_original=fs,
