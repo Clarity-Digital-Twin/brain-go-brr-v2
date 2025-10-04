@@ -158,7 +158,6 @@ training:
   mid_epoch_keep: 3                    # Keep last 3 mid-epoch snapshots
 
 evaluation:
-  metrics: [taes, sensitivity, specificity, auroc]
   fa_rates: [10, 5, 2.5, 1]
   save_predictions: true               # Cloud has space
   save_plots: true                     # Generate all visualizations
