@@ -102,7 +102,6 @@ class PreprocessingConfig(StrictModel):
         default=NOTCH_FILTER_HZ, description="Powerline frequency to notch (50 EU, 60 US)"
     )
     normalize: bool = Field(default=True, description="Apply per-channel z-score normalization")
-    use_mne: bool = Field(default=True, description="Use MNE for EDF loading")
 
     @field_validator("bandpass")
     @classmethod
