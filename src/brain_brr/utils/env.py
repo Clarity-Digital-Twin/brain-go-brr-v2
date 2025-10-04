@@ -18,6 +18,17 @@ import os
 
 logger = logging.getLogger(__name__)
 
+# Track which deprecation warnings we've already issued
+_warned: set[str] = set()
+
+
+def _warn_once(key: str, msg: str) -> None:
+    """Issue a warning only once per key."""
+    if key not in _warned:
+        logger.warning(msg)
+        _warned.add(key)
+
+
 # Cache environment variables at import time for torch.compile compatibility
 # Model/forward pass variables
 _DEBUG_FINITE = os.getenv("BGB_DEBUG_FINITE", "0") == "1"
@@ -96,9 +107,10 @@ class EnvConfig:
         Save checkpoint every N minutes during epoch.
         """
         if _MID_EPOCH_MINUTES:
-            logger.warning(
+            _warn_once(
+                "BGB_MID_EPOCH_MINUTES",
                 "BGB_MID_EPOCH_MINUTES is DEPRECATED. "
-                "Use 'training.mid_checkpoint_interval_s' in config instead."
+                "Use 'training.mid_checkpoint_interval_s' in config instead.",
             )
         return int(_MID_EPOCH_MINUTES) if _MID_EPOCH_MINUTES else None
 
@@ -109,8 +121,10 @@ class EnvConfig:
         Number of mid-epoch checkpoints to keep (default: 2).
         """
         if _MID_EPOCH_KEEP != 2:
-            logger.warning(
-                "BGB_MID_EPOCH_KEEP is DEPRECATED. Use 'training.mid_epoch_keep' in config instead."
+            _warn_once(
+                "BGB_MID_EPOCH_KEEP",
+                "BGB_MID_EPOCH_KEEP is DEPRECATED. "
+                "Use 'training.mid_epoch_keep' in config instead.",
             )
         return _MID_EPOCH_KEEP
 

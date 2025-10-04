@@ -179,7 +179,9 @@ def train(
                 if config.training.mid_checkpoint_interval_s
                 else None
             ),
-            mid_epoch_keep=config.training.mid_epoch_keep or 3,
+            mid_epoch_keep=(
+                config.training.mid_epoch_keep if config.training.mid_epoch_keep is not None else 3
+            ),
             warmup_schedule=config.training.warmup_schedule,
             gradient_accumulation_steps=config.training.gradient_accumulation_steps,
         )
