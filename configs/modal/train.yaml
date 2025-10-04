@@ -33,7 +33,6 @@ preprocessing:
   bandpass: [0.5, 120]
   notch_freq: 60
   normalize: true
-  use_mne: true
 
 model:
   # Architecture: "v3" (dual-stream with edge Mamba)

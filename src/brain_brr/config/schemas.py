@@ -534,10 +534,6 @@ class TrainingConfig(StrictModel):
 class EvaluationConfig(StrictModel):
     """Evaluation and metrics configuration."""
 
-    metrics: list[str] = Field(
-        default=["taes", "sensitivity", "specificity", "auroc"],
-        description="Metrics to compute",
-    )
     fa_rates: list[float] = Field(
         default=[10, 5, 2.5, 1], description="False alarm rates per 24h for TAES"
     )
