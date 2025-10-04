@@ -130,10 +130,13 @@ class TestGradientSanitization:
         model = MultiParamModel()
 
         params = list(model.parameters())
-        params[0].grad = torch.tensor([[float("nan")]] * 10)
-        params[1].grad = torch.tensor([float("inf")] * 5)
-        params[2].grad = torch.randn(5, 1)
-        params[3].grad = torch.tensor([float("-inf")])
+        params[0].grad = torch.ones_like(params[0])
+        params[0].grad.fill_(float("nan"))
+        params[1].grad = torch.ones_like(params[1])
+        params[1].grad.fill_(float("inf"))
+        params[2].grad = torch.randn_like(params[2])
+        params[3].grad = torch.ones_like(params[3])
+        params[3].grad.fill_(float("-inf"))
 
         count = _sanitize_gradients(model, logger, batch_idx=0)
 
