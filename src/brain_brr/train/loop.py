@@ -548,6 +548,10 @@ def main() -> None:
         else:
             logger.info("[DATA] Skipping manifest build - cache not yet populated")
 
+    # Determine if montage should be applied (defensive: handle None or "none")
+    montage_val = getattr(config.preprocessing, "montage", None)
+    apply_montage = bool(montage_val) and str(montage_val).lower() != "none"
+
     # Create training dataset - either balanced (from manifest) or standard
     train_dataset: BalancedSeizureDataset | EEGWindowDataset
     if use_balanced and manifest_path.exists():
