@@ -57,7 +57,9 @@ Memory levers for dynamic PE
 After crash or restart
 
 - Resume: add `--resume` to `python -m src train ...` or set `training.resume: true` in config.
-- Mid-epoch checkpointing (optional): set env vars `BGB_MID_EPOCH_MINUTES` and `BGB_MID_EPOCH_KEEP`.
+- **Mid-epoch checkpointing** (v3.6+):
+  - **Recommended**: Set in config: `training.mid_checkpoint_interval_s: 1800`, `training.mid_epoch_keep: 3`
+  - **Legacy (deprecated)**: Env vars `BGB_MID_EPOCH_MINUTES`, `BGB_MID_EPOCH_KEEP` (config takes precedence)
 
 Pre‑flight checklist (recommended before long runs)
 
