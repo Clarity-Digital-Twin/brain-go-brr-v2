@@ -269,7 +269,7 @@ def train_epoch(
 
                 pre_clip_norm = nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
 
-                if batch_idx % LOG_EVERY_N_STEPS == 0 and pre_clip_norm > gradient_clip * 2:
+                if batch_idx % log_every_n_steps == 0 and pre_clip_norm > gradient_clip * 2:
                     post_clip_norm = min(float(pre_clip_norm), gradient_clip)
                     logger.debug(
                         f"[GRAD_CLIP] Batch {batch_idx}: "
@@ -300,7 +300,7 @@ def train_epoch(
                 total_loss += loss_val
                 num_batches += 1
             else:
-                if batch_idx % LOG_EVERY_N_STEPS == 0:
+                if batch_idx % log_every_n_steps == 0:
                     logger.warning(
                         f"Non-finite loss detected at batch {batch_idx}, skipping in average"
                     )
