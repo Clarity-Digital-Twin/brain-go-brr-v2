@@ -342,6 +342,7 @@ def validate_epoch(...,
 - ✅ Ruff linting: All checks passed
 - ✅ Mypy type checking: No issues found
 - ✅ Proper type narrowing with assertions for focal params
+- ✅ Unit tests added to cover focal and BCE validation metrics
 
 ### Verification
 
@@ -370,7 +371,7 @@ def validate_epoch(...,
 1. ✅ **Implement Option B** in `val_step.py`
 2. ✅ **Update loop.py** to pass `focal_alpha` and `focal_gamma` from config
 3. ✅ **Update W&B logging** to report both `val_loss` and `val_loss_focal`
-4. ⏳ **Add unit tests** for both loss modes (deferred)
+4. ✅ **Add unit tests** for both loss modes (`tests/unit/train/test_loop.py`)
 5. ⏳ **Update CLAUDE.md** to document both metrics (deferred)
 
 ### Phase 2: Next Training Run
@@ -421,22 +422,11 @@ wandb_logger.log_metrics({
 
 **Estimated lines changed:** ~5 lines
 
-### File 3: `tests/unit/train/test_val_loss_focal.py` (NEW)
+### File 3: `tests/unit/train/test_loop.py`
 
-**New test file:**
-```python
-def test_validation_loss_focal_vs_bce():
-    """Verify focal loss differs from plain BCE on hard examples."""
-    # Setup model, create hard examples (p_t ~ 0.5)
-    # Run validation with focal_alpha=0.5, focal_gamma=2.0
-    # Assert: val_loss_focal ≈ val_loss (α=0.5 is neutral on class weight)
-    # BUT verify focal loss down-weights easy examples
-
-def test_validation_loss_backward_compat():
-    """Verify focal_alpha=None preserves original behavior."""
-    # Run validation without focal params
-    # Assert: only val_loss returned, no val_loss_focal
-```
+**Updates:**
+- Added regression test to confirm focal-aware metrics emit `val_loss_focal` when parameters are provided.
+- Expanded existing validation smoke test to assert backward-compatible behavior when focal params are omitted.
 
 ---
 

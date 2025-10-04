@@ -222,6 +222,8 @@ def train(
         if writer is not None:
             writer.add_scalar("Loss/train", train_loss, epoch)
             writer.add_scalar("Loss/val", val_metrics["val_loss"], epoch)
+            if "val_loss_focal" in val_metrics:
+                writer.add_scalar("Loss/val_focal", val_metrics["val_loss_focal"], epoch)
             writer.add_scalar("Metrics/TAES", val_metrics["taes"], epoch)
             writer.add_scalar("Metrics/AUROC", val_metrics["auroc"], epoch)
 
