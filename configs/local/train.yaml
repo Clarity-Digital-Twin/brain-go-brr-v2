@@ -22,8 +22,8 @@ experiment:
 
   # W&B configuration (optional)
   wandb:
-    enabled: false
-    project: seizure-v3
+    enabled: true
+    project: seizure-v3-rtx4090
     entity: null
 
 model:
