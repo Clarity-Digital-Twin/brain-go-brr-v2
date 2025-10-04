@@ -133,6 +133,7 @@ WORKDIR /app
 COPY src/ /app/src/
 COPY configs/ /app/configs/
 COPY pyproject.toml /app/
+COPY README.md /app/
 
 # Install editable
 RUN pip install -e .
