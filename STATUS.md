@@ -23,6 +23,31 @@
 
 ---
 
+## 🚀 v3.6.0 Milestone: Modal Training Baseline (2025-10-03)
+
+### Constants Centralization + Production Training Launch
+
+**Release Highlights:**
+- ✅ **Constants Centralization COMPLETE** - All magic numbers moved to `src/brain_brr/constants.py`
+- ✅ **Modal A100 Training LAUNCHED** - Full 100-epoch production run active (App ID: ap-BwyQN1PX1prmfzbWGlUDqS)
+- ✅ **Smoke Test Validated** - Zero crashes, AUROC 0.57 (expected for untrained), W&B integration perfect
+- ✅ **All Branches Synced** - main, development, fix/cleanup-debt all aligned
+
+**Training Status (Oct 3, 2025):**
+```
+🏃 Modal A100-80GB: 100-epoch training IN PROGRESS
+   - Expected runtime: ~100 hours (~4 days)
+   - Configuration: batch_size=32, grad_accum=2, mixed_precision=true
+   - Cache: 4667 NPZ files, patient-disjoint splits validated
+   - Monitoring: W&B + Modal logs
+```
+
+**P1 Items:**
+- 🔴 1 active P1 (validation loss weighting) - non-blocking, defer to post-training
+- ✅ All legacy P1 items resolved
+
+---
+
 ## 🎉 v3.5.0 Milestone: Clean Code Refactoring (2025-10-03)
 
 ### ALL Structural Debt Resolved! 🚀
