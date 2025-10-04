@@ -19,7 +19,7 @@ Recommendations
 
 Recommended V3 profile (RTX 4090, 24GB)
 
-- `training.batch_size: 4`
+- `training.batch_size: 8` (2x faster than batch=4, tested safe ~20GB VRAM)
 - `model.graph.use_dynamic_pe: true`
 - `model.graph.semi_dynamic_interval: 5`  (compute PE every 5 timesteps)
 - `training.gradient_clip: 0.5`
@@ -28,7 +28,7 @@ Recommended V3 profile (RTX 4090, 24GB)
 Notes
 
 - The above profile fits comfortably on 24GB VRAM with dynamic PE and has negligible accuracy impact vs full dynamic.
-- If you absolutely need full dynamic (`semi_dynamic_interval: 1`) on 4090, reduce `batch_size` to ~3.
+- If you absolutely need full dynamic (`semi_dynamic_interval: 1`) on 4090, reduce `batch_size` to ~4.
 - Dataloaders yield dictionaries with `window`, `label`, `file_id`, and `window_start_s`; keep that structure when writing custom training scripts.
 
 Cache and manifest
