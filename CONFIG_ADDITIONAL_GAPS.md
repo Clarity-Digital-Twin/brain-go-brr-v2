@@ -1,58 +1,76 @@
-# Additional Config/Env Wiring Gaps (beyond Phase 1 plan)
+# Additional Config & Env Wiring Gaps (Beyond Phase 1)
 
-Verified October 4, 2025. These items are **not** covered in the current fix plan and remain unwired today.
+**Updated:** 2025-10-04 (post Phase-1/6 wiring). This file is the single source of truth for
+configuration or environment flags that still diverge from runtime behaviour.
 
-## 1. Preprocessing knobs are cosmetic (outside bandpass/notch)
-- Schema: `src/brain_brr/config/schemas.py:85-104`
-  - `montage`, `normalize`, `use_mne` exposed to users.
-- Code usage: `rg "config.preprocessing" src` returns nothing.
-- Data loaders (`src/brain_brr/data/datasets.py:140`) call `preprocess_recording(...)` without passing config fields.
-- `preprocess_recording` defaults in `src/brain_brr/data/preprocess.py:11-52` ignore montage/normalize/use_mne entirely.
-- **Impact**: Users cannot disable MNE, skip normalization, or select montage despite docs promising it.
+Priority legend:
+- **P0** – Blocks production; fix before next train run.
+- **P1** – High leverage; schedule for the next engineering sprint.
+- **P2** – Valuable but not urgent; triage once P1 items ship.
+- **P3** – Prefer to deprecate/remove unless a strong product requirement appears.
 
-## 2. Data limits (`max_samples`, `max_hours`) are dead fields
-- Schema: `src/brain_brr/config/schemas.py:70-75`.
-- Search: `rg "max_samples" src` and `rg "max_hours" src` show only schema definitions.
-- Datasets never receive or enforce these limits.
-- **Impact**: Config suggests you can cap data for debugging; nothing happens.
+All paths below point to the current `fix/cleanup-debt` branch. When a gap is
+closed, remove the entry (and update docs/tests accordingly).
 
-## 3. Logging config section unused
-- Schema: `src/brain_brr/config/schemas.py:575-584` defines `log_every_n_steps`, `log_gradients`, `log_weights`.
-- Search: `rg "config.logging" src` → no references.
-- Actual logging uses environment defaults (`src/brain_brr/utils/logging_config.py:15-110`).
-- **Impact**: Logging section in YAML has no effect; users must rely on env vars.
+---
 
-## 4. Experiment log level ignored
-- Schema: `src/brain_brr/config/schemas.py:561-563` adds `experiment.log_level`.
-- Search: `rg "experiment.log_level" src` → no hits.
-- Logging configuration reads `BGB_LOG_LEVEL` env (`utils/logging_config.py:32`), not config.
+## Preprocessing Controls
 
-## 5. Evaluation metrics list unused
-- Schema: `src/brain_brr/config/schemas.py:528-534` exposes `evaluation.metrics`.
-- Search: `rg "config.evaluation.metrics" src` → no hits.
-- Validation pipeline (`train/loop.py:200-248`) only uses `fa_rates` and hardcoded metrics.
-- **Impact**: Cannot customize metric set despite docs implying support.
+| Field(s) | Priority | Recommendation | Notes |
+| --- | --- | --- | --- |
+| `preprocessing.normalize`<br>`src/brain_brr/config/schemas.py:98` | **P1 – Implement** | Thread `normalize` into `preprocess_recording` so we can skip z-score when users provide pre-normalised data. Default remains `True`; add regression tests for both paths. | `preprocess_recording` ( `src/brain_brr/data/preprocess.py` ) always z-scores today. Trainers at Google DeepMind and Modal often need to compare with vendor-normalised inputs, so this flag must actually toggle behaviour. |
+| `preprocessing.montage` (`"10-20"`/`"standard_1020"`)
+<br>`schemas.py:95` → `load_edf_file` | **P1 – Implement** | Pass the flag through `EEGWindowDataset` ➝ `load_edf_file(... apply_montage=...)`. Default stays `True`, but disabling should skip `_apply_montage_best_effort`. | `load_edf_file` already accepts `apply_montage`; the datasets just ignore the config. Implementing unlocks pre-montaged corpora (e.g., hospital exports). |
+| `preprocessing.use_mne`
+<br>`schemas.py:105` | **P3 – Deprecate** | Remove from schema + docs unless we add a non-MNE loader (e.g., pyEDFlib fallback). Today the pipeline hard-depends on MNE; pretending this is optional misleads users. | No references in code beyond the schema/documentation. Eliminating the flag simplifies support (one blessed loader). |
 
-## 6. Montage flag ignored in EDF loader
-- Config advertises `preprocessing.montage`/`use_mne`.
-- EDF loader `load_edf_file` (`src/brain_brr/data/io.py:44-205`) has an `apply_montage` parameter but nothing threads config into it.
-- **Impact**: Users can’t disable montage or switch to alternate approach when data already aligned.
+## Dataset Debug Limits
 
-## 7. Warmup residual scaling flags unused
-- Schema: `src/brain_brr/config/schemas.py:462-470` (residual_scale_* fields).
-- Search: `rg "residual_scale_enabled" src` → only schema.
-- No code adjusts residual gain during warmup.
+| Field(s) | Priority | Recommendation | Notes |
+| --- | --- | --- | --- |
+| `data.max_samples`, `data.max_hours`
+<br>`schemas.py:70-75` | **P1 – Implement** | Enforce limits inside `EEGWindowDataset` and `BalancedSeizureDataset` before window extraction. Respect whichever constraint triggers first and surface a warning for transparency. | Docs promise quick-debug limits; nothing happens today. Implementing keeps dev ergonomics on par with Meta/DeepMind pipelines. |
 
-These gaps should be triaged after the initial wiring plan. Confirm priorities with stakeholders before implementation.
+## Logging & Experiment Telemetry
 
-## 8. Postprocessing stitching config ignored
-- Schema: `src/brain_brr/config/schemas.py:375-391` defines `postprocessing.stitching.method/stride/window_size`.
-- Usage: `postprocess_predictions` (`src/brain_brr/post/postprocess.py:264-320`) never reads `config.stitching`.
-- Evaluation code (`batch_probs_to_events`, `validate_epoch`) relies on fixed overlap-add logic.
-- **Impact**: Changing `stitching.method` in configs has no effect on timeline assembly.
+| Field(s) | Priority | Recommendation | Notes |
+| --- | --- | --- | --- |
+| `logging.log_every_n_steps`, `logging.log_gradients`, `logging.log_weights`
+<br>`schemas.py:583-588` | **P1 – Implement** | Plumb these into `constants.LOG_EVERY_N_STEPS` / `train_step` instrumentation and gradient histogram hooks. Treat env vars as overrides (config → env → default). | Currently only env vars (`BGB_LOG_EVERY_N_STEPS`, etc.) take effect. Hooking configs restores truthfulness and allows per-run tuning in YAML. |
+| `experiment.log_level`
+<br>`schemas.py:569-571` | **P1 – Implement** | Feed into `setup_logging` so CLI/config drives root logger level. Honour env override precedence (`BGB_LOG_LEVEL`). | Production teams expect logging level to travel with the config artifact; today it silently ignores the field. |
 
-## 9. Morphology `use_gpu` flag is inert
-- Schema: `src/brain_brr/config/schemas.py:333-341` exposes `postprocessing.morphology.use_gpu`.
-- Implementation: `apply_morphology` (`src/brain_brr/post/postprocess.py:126-170`) accepts `use_gpu` but never branches on it.
-- Doc comment even notes “not yet implemented”.
-- **Impact**: Toggle does nothing; misleading for GPU users.
+## Evaluation Surface
+
+| Field(s) | Priority | Recommendation | Notes |
+| --- | --- | --- | --- |
+| `evaluation.metrics`
+<br>`schemas.py:538-545` | **P3 – Deprecate** | Remove from schema/docs (or reintroduce later as a reporting filter). We always compute the full TAES/AUROC suite, and early-stopping depends on a known metric set. | Allowing users to drop metrics would desynchronise training logic. Prefer deterministic outputs. |
+| `evaluation.save_predictions`, `evaluation.save_plots`
+<br>`schemas.py:545-547` | **P2 – Implement** | Wire into `train loop`/`evaluate` CLI so that, when enabled, we persist `.npy` predictions and diagnostic plots to `experiment.output_dir`. | These toggles are visible in configs but no-op. Persisting artifacts aligns with industry eval workflows. |
+
+## Warmup Schedule Extras
+
+| Field(s) | Priority | Recommendation | Notes |
+| --- | --- | --- | --- |
+| `warmup_schedule.residual_scale_*`
+<br>`schemas.py:469-478` | **P3 – Deprecate** | Drop the residual scaling flags for now. No module consumes them and adding partial scaling on the V3 residual graph requires careful stability analysis. | Keeping dormant flags invites confusion; reintroduce if/when we implement residual warmups. |
+
+## Post-processing Controls
+
+| Field(s) | Priority | Recommendation | Notes |
+| --- | --- | --- | --- |
+| `postprocessing.stitching.{method, window_size, stride}`
+<br>`schemas.py:385-391` | **P2 – Implement** | Thread into `sensitivity_at_fa_rates`/`batch_probs_to_events` so experiments can compare `overlap_add` vs `max` stitching. Validate with regression tests (TAES, FA curves). | `stitch_windows` already supports multiple methods; we just need to stop hardcoding `overlap_add`. |
+| `postprocessing.morphology.use_gpu`
+<br>`schemas.py:333-341` | **P2 – Implement** | Honour the flag by moving tensors to CUDA when available (and fall back gracefully). Document expected VRAM hit. | `apply_morphology` always runs on CPU today. GPU acceleration is optional but helps long recordings. |
+
+
+---
+
+## Retired Items (Handled in Phase 1/6)
+
+- `experiment.save_model`, `experiment.save_best_only` – now honoured in `train/loop.py` (2025-10-04).
+- `training.gradient_accumulation_steps`, `training.mid_checkpoint_interval_s`, `training.mid_epoch_keep`, `preprocessing.bandpass`, `preprocessing.notch_freq` – fully wired as of Phase 1–6.
+
+Remove this section as more knobs graduate from the gap list.
