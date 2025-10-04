@@ -222,14 +222,21 @@ def train_epoch(
                     probs = torch.sigmoid(logits)
                     pt = labels * probs + (1 - labels) * (1 - probs)
                     at = labels * focal_alpha + (1 - labels) * (1 - focal_alpha)
-                    current_gamma = get_focal_gamma(global_step, warmup_schedule, target_gamma=focal_gamma)
+                    current_gamma = get_focal_gamma(
+                        global_step, warmup_schedule, target_gamma=focal_gamma
+                    )
                     focal_weight = at * ((1 - pt) ** current_gamma)
                     bce = nn.functional.binary_cross_entropy_with_logits(
                         logits, labels, reduction="none"
                     )
                     loss = (focal_weight * bce).mean()
 
-                    if warmup_schedule and warmup_schedule.enabled and warmup_schedule.focal_gamma_enabled and batch_idx % 100 == 0:
+                    if (
+                        warmup_schedule
+                        and warmup_schedule.enabled
+                        and warmup_schedule.focal_gamma_enabled
+                        and batch_idx % 100 == 0
+                    ):
                         logger.info(f"[WARMUP] Batch {batch_idx} focal_gamma={current_gamma:.3f}")
                 else:
                     loss = criterion(logits, labels)
