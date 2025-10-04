@@ -18,11 +18,20 @@ services:
       - BGB_NAN_DEBUG=1
 
     volumes:
-      # CRITICAL: Paths must match config expectations (relative to /app workdir)
-      # Cache (read-only) - configs expect "cache/tusz" → /app/cache/tusz
-      - ${CACHE_DIR}:/app/cache/tusz:ro
-      # Results (read-write) - configs expect "results/*" → /app/results/*
+      # CRITICAL: Mount BOTH data sources (matches local training exactly)
+
+      # Original EDFs (read-only) - 109GB
+      # Required for: smoke tests with EEGWindowDataset (use_balanced_sampling: false)
+      - ./data_ext4:/app/data_ext4:ro
+
+      # Preprocessed cache (read-only) - 449GB
+      # Required for: ALL training (BalancedSeizureDataset + ValidationDataset)
+      - ./cache/tusz:/app/cache/tusz:ro
+
+      # Results (read-write)
+      # Required for: checkpoints, logs, outputs
       - ./results:/app/results:rw
+
       # Configs (read-only)
       - ./configs:/app/configs:ro
 
@@ -53,8 +62,9 @@ services:
     volumes:
       # Override: editable source code
       - ./src:/app/src:rw
-      # CRITICAL: Must match train-base paths (configs expect /app/cache/tusz and /app/results)
-      - ${CACHE_DIR}:/app/cache/tusz:ro
+      # CRITICAL: Must match train-base paths (matches local training exactly)
+      - ./data_ext4:/app/data_ext4:ro
+      - ./cache/tusz:/app/cache/tusz:ro
       - ./results:/app/results:rw
       - ./configs:/app/configs:ro
 
