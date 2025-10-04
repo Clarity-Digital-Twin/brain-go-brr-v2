@@ -454,41 +454,41 @@ def validate_epoch(
 
             probs_flat = torch.cat(all_probs_flat).cpu().numpy()
             labels_flat = torch.cat(all_labels_flat).cpu().numpy()
-        labels_binary = (labels_flat > 0.5).astype(np.float32)
+            labels_binary = (labels_flat > 0.5).astype(np.float32)
 
-        epoch_suffix = f"_epoch{epoch}" if epoch is not None else ""
+            epoch_suffix = f"_epoch{epoch}" if epoch is not None else ""
 
-        if np.unique(labels_binary).size >= 2:
-            fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+            if np.unique(labels_binary).size >= 2:
+                fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
-            auroc = float(metrics.get("auroc", float("nan")))
-            pr_auc = float(metrics.get("pr_auc", float("nan")))
+                auroc = float(metrics.get("auroc", float("nan")))
+                pr_auc = float(metrics.get("pr_auc", float("nan")))
 
-            fpr, tpr, _ = roc_curve(labels_binary, probs_flat)
-            label_roc = f"ROC (AUC={auroc:.3f})" if np.isfinite(auroc) else "ROC"
-            axes[0].plot(fpr, tpr, label=label_roc)
-            axes[0].plot([0, 1], [0, 1], "k--", label="Random")
-            axes[0].set_xlabel("False Positive Rate")
-            axes[0].set_ylabel("True Positive Rate")
-            axes[0].set_title("ROC Curve")
-            axes[0].legend()
-            axes[0].grid(True, alpha=0.3)
+                fpr, tpr, _ = roc_curve(labels_binary, probs_flat)
+                label_roc = f"ROC (AUC={auroc:.3f})" if np.isfinite(auroc) else "ROC"
+                axes[0].plot(fpr, tpr, label=label_roc)
+                axes[0].plot([0, 1], [0, 1], "k--", label="Random")
+                axes[0].set_xlabel("False Positive Rate")
+                axes[0].set_ylabel("True Positive Rate")
+                axes[0].set_title("ROC Curve")
+                axes[0].legend()
+                axes[0].grid(True, alpha=0.3)
 
-            precision, recall, _ = precision_recall_curve(labels_binary, probs_flat)
-            label_pr = f"PR (AUC={pr_auc:.3f})" if np.isfinite(pr_auc) else "PR"
-            axes[1].plot(recall, precision, label=label_pr)
-            axes[1].set_xlabel("Recall")
-            axes[1].set_ylabel("Precision")
-            axes[1].set_title("Precision-Recall Curve")
-            axes[1].legend()
-            axes[1].grid(True, alpha=0.3)
+                precision, recall, _ = precision_recall_curve(labels_binary, probs_flat)
+                label_pr = f"PR (AUC={pr_auc:.3f})" if np.isfinite(pr_auc) else "PR"
+                axes[1].plot(recall, precision, label=label_pr)
+                axes[1].set_xlabel("Recall")
+                axes[1].set_ylabel("Precision")
+                axes[1].set_title("Precision-Recall Curve")
+                axes[1].legend()
+                axes[1].grid(True, alpha=0.3)
 
-            plot_file = output_path / f"diagnostic_plots{epoch_suffix}.png"
-            plt.tight_layout()
-            plt.savefig(plot_file, dpi=150, bbox_inches="tight")
-            plt.close(fig)
-            logger.info(f"[SAVE] Diagnostic plots saved to {plot_file}")
-        else:
-            logger.warning("[SAVE] Skipping plots - insufficient label diversity")
+                plot_file = output_path / f"diagnostic_plots{epoch_suffix}.png"
+                plt.tight_layout()
+                plt.savefig(plot_file, dpi=150, bbox_inches="tight")
+                plt.close(fig)
+                logger.info(f"[SAVE] Diagnostic plots saved to {plot_file}")
+            else:
+                logger.warning("[SAVE] Skipping plots - insufficient label diversity")
 
     return metrics
