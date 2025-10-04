@@ -181,6 +181,7 @@ def train(
             ),
             mid_epoch_keep=config.training.mid_epoch_keep or 3,
             warmup_schedule=config.training.warmup_schedule,
+            gradient_accumulation_steps=config.training.gradient_accumulation_steps,
         )
 
         # Type narrowing for mypy

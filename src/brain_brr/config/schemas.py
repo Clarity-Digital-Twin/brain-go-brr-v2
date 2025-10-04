@@ -399,8 +399,8 @@ class PostprocessingConfig(StrictModel):
 class SchedulerConfig(StrictModel):
     """Learning rate scheduler configuration."""
 
-    type: Literal["cosine", "linear", "constant"] = Field(
-        default="cosine", description="Scheduler type"
+    type: Literal["cosine"] = Field(
+        default="cosine", description="Only cosine implemented (linear/constant coming v3.7)"
     )
     warmup_ratio: float = Field(
         default=0.1, ge=0.0, le=0.5, description="Warmup fraction of total steps"
@@ -492,8 +492,8 @@ class TrainingConfig(StrictModel):
         default=3e-4, ge=1e-6, le=1e-2, description="Initial learning rate"
     )
     weight_decay: float = Field(default=0.05, ge=0.0, le=0.2, description="AdamW weight decay")
-    optimizer: Literal["adamw", "adam", "sgd"] = Field(
-        default="adamw", description="Optimizer type"
+    optimizer: Literal["adamw"] = Field(
+        default="adamw", description="Only AdamW implemented (adam/sgd coming v3.7)"
     )
     resume: bool = Field(default=False, description="Resume from last checkpoint")
     scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
