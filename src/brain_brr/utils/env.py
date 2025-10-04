@@ -13,7 +13,10 @@ NOTE: Environment variables are cached at module import time to support
 torch.compile which cannot trace through os.getenv() calls.
 """
 
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 # Cache environment variables at import time for torch.compile compatibility
 # Model/forward pass variables
@@ -88,12 +91,27 @@ class EnvConfig:
 
     @staticmethod
     def mid_epoch_minutes() -> int | None:
-        """Save checkpoint every N minutes during epoch."""
+        """DEPRECATED: Use config.training.mid_checkpoint_interval_s instead.
+
+        Save checkpoint every N minutes during epoch.
+        """
+        if _MID_EPOCH_MINUTES:
+            logger.warning(
+                "BGB_MID_EPOCH_MINUTES is DEPRECATED. "
+                "Use 'training.mid_checkpoint_interval_s' in config instead."
+            )
         return int(_MID_EPOCH_MINUTES) if _MID_EPOCH_MINUTES else None
 
     @staticmethod
     def mid_epoch_keep() -> int:
-        """Number of mid-epoch checkpoints to keep (default: 2)."""
+        """DEPRECATED: Use config.training.mid_epoch_keep instead.
+
+        Number of mid-epoch checkpoints to keep (default: 2).
+        """
+        if _MID_EPOCH_KEEP != 2:
+            logger.warning(
+                "BGB_MID_EPOCH_KEEP is DEPRECATED. Use 'training.mid_epoch_keep' in config instead."
+            )
         return _MID_EPOCH_KEEP
 
     # NaN/Debug controls

@@ -175,15 +175,11 @@ def train(
             checkpoint_dir=checkpoint_dir,
             epoch_index=epoch,
             mid_epoch_minutes=(
-                float(env.mid_epoch_minutes() or 0)
-                if config.training.resume and env.mid_epoch_minutes() is not None
-                else getattr(
-                    config.experiment,
-                    "mid_epoch_checkpoint_minutes",
-                    10.0 if config.training.resume else None,
-                )
+                config.training.mid_checkpoint_interval_s / 60.0
+                if config.training.mid_checkpoint_interval_s
+                else None
             ),
-            mid_epoch_keep=int(env.mid_epoch_keep()),
+            mid_epoch_keep=config.training.mid_epoch_keep or 3,
             warmup_schedule=config.training.warmup_schedule,
         )
 

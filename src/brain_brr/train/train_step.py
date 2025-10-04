@@ -94,6 +94,7 @@ def train_epoch(
     mid_epoch_minutes: float | None = None,
     mid_epoch_keep: int = 3,
     warmup_schedule: WarmupScheduleConfig | None = None,
+    gradient_accumulation_steps: int = 1,
 ) -> float | tuple[float, int]:
     """Train for one epoch.
 
@@ -185,6 +186,7 @@ def train_epoch(
     gradient_norms = []
     total_loss = 0.0
     num_batches = 0
+    accumulation_counter = 0
 
     use_tqdm = not env.disable_tqdm()
     progress_bar = None
@@ -213,7 +215,8 @@ def train_epoch(
             if labels.dim() == 3:
                 labels = labels.max(dim=1)[0]
 
-            optimizer.zero_grad(set_to_none=True)
+            if accumulation_counter == 0:
+                optimizer.zero_grad(set_to_none=True)
 
             with torch.amp.autocast(device_type=device, enabled=(use_amp and device == "cuda")):  # type: ignore[attr-defined]
                 logits = model(windows)
@@ -241,41 +244,49 @@ def train_epoch(
                 else:
                     loss = criterion(logits, labels)
 
+            loss = loss / gradient_accumulation_steps
+
             if scaler.is_enabled():
                 scaler.scale(loss).backward()
-                scaler.unscale_(optimizer)
             else:
                 loss.backward()
 
-            if env.sanitize_grads():
-                sanitized_count = _sanitize_gradients(model, logger, batch_idx)
-                if sanitized_count > 0:
-                    logger.warning(
-                        f"[GRAD_SANITIZE] Replaced {sanitized_count} non-finite gradients "
-                        f"at batch {batch_idx} (investigate root cause)"
+            accumulation_counter += 1
+
+            if accumulation_counter >= gradient_accumulation_steps:
+                if scaler.is_enabled():
+                    scaler.unscale_(optimizer)
+
+                if env.sanitize_grads():
+                    sanitized_count = _sanitize_gradients(model, logger, batch_idx)
+                    if sanitized_count > 0:
+                        logger.warning(
+                            f"[GRAD_SANITIZE] Replaced {sanitized_count} non-finite gradients "
+                            f"at batch {batch_idx} (investigate root cause)"
+                        )
+
+                pre_clip_norm = nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+
+                if batch_idx % LOG_EVERY_N_STEPS == 0 and pre_clip_norm > gradient_clip * 2:
+                    post_clip_norm = min(float(pre_clip_norm), gradient_clip)
+                    logger.debug(
+                        f"[GRAD_CLIP] Batch {batch_idx}: "
+                        f"pre={pre_clip_norm:.2f} → post={post_clip_norm:.2f} "
+                        f"(clipped {(pre_clip_norm - post_clip_norm) / pre_clip_norm * 100:.1f}%)"
                     )
 
-            pre_clip_norm = nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+                if scaler.is_enabled():
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    optimizer.step()
 
-            if batch_idx % LOG_EVERY_N_STEPS == 0 and pre_clip_norm > gradient_clip * 2:
-                post_clip_norm = min(float(pre_clip_norm), gradient_clip)
-                logger.debug(
-                    f"[GRAD_CLIP] Batch {batch_idx}: "
-                    f"pre={pre_clip_norm:.2f} → post={post_clip_norm:.2f} "
-                    f"(clipped {(pre_clip_norm - post_clip_norm) / pre_clip_norm * 100:.1f}%)"
-                )
+                accumulation_counter = 0
+                gradient_norms.append(float(pre_clip_norm))
 
-            if scaler.is_enabled():
-                scaler.step(optimizer)
-                scaler.update()
-            else:
-                optimizer.step()
-
-            gradient_norms.append(float(pre_clip_norm))
-
-            if scheduler is not None:
-                scheduler.step()
-                global_step += 1
+                if scheduler is not None:
+                    scheduler.step()
+                    global_step += 1
 
             if supports_training_state:
                 with suppress(Exception):
