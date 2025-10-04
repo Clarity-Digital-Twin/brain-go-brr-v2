@@ -164,6 +164,9 @@ def train_epoch(
     warmup_schedule: WarmupScheduleConfig | None = None,
     gradient_accumulation_steps: int = 1,
     log_every_n_steps: int = LOG_EVERY_N_STEPS,
+    log_gradients: bool = False,
+    log_weights: bool = False,
+    wandb_logger: Any | None = None,
 ) -> float | tuple[float, int]:
     """Train for one epoch.
 
