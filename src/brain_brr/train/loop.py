@@ -374,9 +374,13 @@ def main() -> None:
         logger.info("DO NOT use this for real training!")
         logger.info("=" * 60 + "\n")
 
-    # Load TUSZ official splits (PATIENT-DISJOINT!)
-    # For TUSZ: train on train/, validate on dev/, never touch eval/
-    from src.brain_brr.data.tusz_splits import load_tusz_for_training
+    # Load dataset based on config
+    if config.data.dataset == "tuh_eeg":
+        from src.brain_brr.data.tusz_splits import load_tusz_for_training
+    elif config.data.dataset == "chb_mit":
+        raise NotImplementedError("CHB-MIT coming v3.7")
+    else:
+        raise ValueError(f"Unknown dataset: {config.data.dataset}")
 
     data_root = Path(config.data.data_dir)
 
