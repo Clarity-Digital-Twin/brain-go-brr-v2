@@ -582,7 +582,7 @@ def main() -> None:
                 label_files=val_label_files,
                 cache_dir=val_cache_dir,
                 allow_on_demand=True,
-                bandpass=tuple(config.preprocessing.bandpass),
+                bandpass=config.preprocessing.bandpass,
                 notch_freq=config.preprocessing.notch_freq,
             )
     else:
@@ -594,7 +594,7 @@ def main() -> None:
             label_files=val_label_files,
             cache_dir=val_cache_dir,
             allow_on_demand=True,
-            bandpass=tuple(config.preprocessing.bandpass),
+            bandpass=config.preprocessing.bandpass,
             notch_freq=config.preprocessing.notch_freq,
         )
 
