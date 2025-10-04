@@ -216,23 +216,22 @@ logging:
   log_weights: false
 
 # ========================================================================
-# 🚨 CRITICAL: NaN Protection (REQUIRED for PyTorch 2.5.0+)
+# NaN Protection (gradient clipping is always applied from config)
 # ========================================================================
-# BEFORE running training, set these environment variables:
+# Optional environment variables for debugging:
 #
-#   export BGB_SANITIZE_GRADS=1  # ✅ REQUIRED - prevents gradient explosion
-#   export BGB_NAN_DEBUG=1       # ✅ RECOMMENDED - shows NaN warnings
+#   export BGB_NAN_DEBUG=1       # Enable NaN warnings
+#   # export BGB_SANITIZE_GRADS=1  # Debug: log gradient NaNs (not required)
 #
 # Example:
 #   tmux new -s train
-#   export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1
+#   export BGB_NAN_DEBUG=1
 #   .venv/bin/python -m src train configs/local/train.yaml
 #
-# See: NAN-PROTECTION-REFERENCE.md (root) for complete reference
+# See: docs/08-operations/gradient-protection-guide.md for details
 # ========================================================================
 #
 # Additional debug variables (optional):
 # export BGB_DEBUG_FINITE=1       # Enable assert_finite() checks (slower)
-# export BGB_SANITIZE_INPUTS=1    # Input sanitization (usually not needed)
 # export BGB_ANOMALY_DETECT=1     # PyTorch anomaly detection (very slow!)
 # export BGB_DISABLE_TQDM=0       # Keep progress bars locally

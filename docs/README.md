@@ -165,11 +165,13 @@ torch-geometric==2.6.1
 numpy==1.26.4
 ```
 
-### Critical Environment Variables
+### Environment Variables (Optional)
 ```bash
-export BGB_SANITIZE_GRADS=1  # REQUIRED for PyTorch 2.5.0
-export BGB_NAN_DEBUG=1       # Recommended for monitoring
+export BGB_NAN_DEBUG=1         # Enable NaN warnings
+# export BGB_SANITIZE_GRADS=1  # Debug: log gradient NaNs (not required)
 ```
+
+**Note**: Gradient clipping (0.5) from config provides primary NaN protection.
 
 ---
 
@@ -194,7 +196,7 @@ export BGB_NAN_DEBUG=1       # Recommended for monitoring
 make s
 
 # Full training (local)
-export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1
+export BGB_NAN_DEBUG=1
 make train-local
 
 # Full training (Modal)
