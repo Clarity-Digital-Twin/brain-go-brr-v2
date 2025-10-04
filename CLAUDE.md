@@ -69,6 +69,15 @@ docker compose up train
 docker compose run dev
 ```
 
+**Smoke Test Standards**:
+- **Local/Docker**: 3 files (BGB_SMOKE_TEST=1)
+- **Modal**: 50 files (BGB_LIMIT_FILES=50)
+- Both use same architecture, just different scale
+
+**Monitoring**:
+- **W&B**: Set `WANDB_API_KEY` in environment (see `docs/05-training/docker.md`)
+- **TensorBoard**: `docker compose up tensorboard` → http://localhost:6006
+
 ### Modal Cloud Deployment (A100-80GB)
 ```bash
 # Test Mamba CUDA before training

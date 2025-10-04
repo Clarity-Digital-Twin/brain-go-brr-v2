@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.6.1] - 2025-10-04
+## [3.6.1] - 2025-10-04 (COMPLETED)
 
 ### 📊 Gradient Logging Enhancement: ML 2025 Best Practices
 
@@ -54,9 +54,31 @@ This release upgrades gradient logging to use robust statistics (median, IQR) fo
   - Ensures Modal uses latest gradient logging code
   - Previous deploys used cached image, missing train_step.py updates
 
-#### Previous Unreleased Changes (from v3.6.0)
+#### Documentation Updates (v3.6.1)
 
-**Documentation Cleanup** (Gradient Protection):
+**Gradient Protection Guide Enhancement**:
+- Added ML 2025 best practices section (median over mean, IQR over std)
+- Explained why percentile-based logging matters for seizure detection
+- Documented migration from v3.6.0 mean-based format
+- Added seizure detection-specific requirements (stability, reproducibility)
+
+**Environment Variables Documentation**:
+- Marked deprecated/unused flags: `BGB_SANITIZE_INPUTS`, `BGB_SKIP_OPT_STEP_ON_NAN`, `BGB_SAFE_CLAMP`
+- Clarified these were documented but never implemented
+- Noted gradient clipping is the real protection mechanism
+
+**Docker Documentation**:
+- Created `docs/05-training/docker.md` (comprehensive guide)
+- Extracted from `docs/archive/DOCKER_IMPLEMENTATION_PLAN_V2.md`
+- Includes volume mounts, smoke vs integration tests, troubleshooting
+- Comparison table: Docker vs Local vs Modal
+
+**Version Consistency**:
+- Updated README.md to v3.6.1 (badge + status sections)
+- Updated `src/brain_brr/__init__.py` docstring to v3.6.1
+- All documentation now references v3.6.1 consistently
+
+**Previous Unreleased Changes (from v3.6.0)**:
 - Removed false claims about `BGB_SANITIZE_GRADS` being "REQUIRED"
 - Archived `nan-prevention-complete.md` (superseded by `gradient-protection-guide.md`)
 - Updated `CLAUDE.md`, `configs/`, and `deploy/modal/app.py` to clarify gradient clipping is primary protection
