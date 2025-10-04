@@ -30,16 +30,23 @@ Zero phantom features, zero ignored flags. Config-to-runtime wiring is 100% comp
 
 ### Additional Gaps - Completed (2025-10-04)
 **P0 (Production Blockers)**:
-- `logging.log_every_n_steps` – wired through train_step.py with config → env var → default precedence (train_step.py:98, loop.py:188-190)
-- `evaluation.save_predictions`, `evaluation.save_plots` – implemented in val_step.py:403-465, wired through loop.py:208-211 and evaluation.py:185-187
+- `logging.log_every_n_steps` – wired through train_step.py with config → env var → default precedence (train_step.py:167, loop.py:199-202)
+- `evaluation.save_predictions`, `evaluation.save_plots` – implemented in val_step.py with defensive guards, wired through loop.py and evaluation.py
 
 **P1 (Professional Best Practice)**:
 - `preprocessing.normalize` – threaded into preprocess_recording (preprocess.py:17,63-70), datasets.py:41,50-51,151
-- `preprocessing.montage` – apply_montage parameter added to datasets (datasets.py:42,52,147), wired through loop.py (571,582,617,631)
+- `preprocessing.montage` – apply_montage parameter added to datasets (datasets.py:42,52,147), wired through loop.py
+- `data.max_samples`, `data.max_hours` – enforced in EEGWindowDataset (datasets.py:43-44,55-56,130-157), wired through loop.py (4 call sites)
+- `logging.log_gradients`, `logging.log_weights` – histogram hooks in train_step.py (lines 78-143,356-395), wired with W&B integration
+- `experiment.log_level` – wired into setup_logging with env > config > default precedence (loop.py:403-411)
+
+**P2 (Quality of Life)**:
+- `postprocessing.stitching.method` – threaded through metrics.py:348, honors config.stitching.method
+- `postprocessing.morphology.use_gpu` – implemented with device handling (postprocess.py:153-156,181-182, streaming.py:166)
 
 **P3 (Phantom Features - Removed)**:
 - `preprocessing.use_mne` – deleted from schema (schemas.py) and both configs
 - `evaluation.metrics` – deleted from schema (schemas.py:537-540) and both configs
 - `warmup_schedule.residual_scale_*` – deleted all 3 fields (schemas.py:468-477) and both configs
 
-Remove this section as more knobs graduate from the gap list.
+**All wiring gaps closed. Config schema is now fully implemented.**
