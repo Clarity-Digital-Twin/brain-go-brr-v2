@@ -611,6 +611,7 @@ def main() -> None:
                 allow_on_demand=True,
                 bandpass=config.preprocessing.bandpass,
                 notch_freq=config.preprocessing.notch_freq,
+                normalize=config.preprocessing.normalize,
             )
     else:
         logger.info(
@@ -623,6 +624,7 @@ def main() -> None:
             allow_on_demand=True,
             bandpass=config.preprocessing.bandpass,
             notch_freq=config.preprocessing.notch_freq,
+            normalize=config.preprocessing.normalize,
         )
 
     # CRITICAL FIX: If we just built cache via EEGWindowDataset and manifest doesn't exist,
