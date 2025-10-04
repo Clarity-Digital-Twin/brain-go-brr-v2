@@ -283,10 +283,11 @@ services:
       - BGB_NAN_DEBUG=1
 
     volumes:
-      # Cache (read-only) - MUST use absolute path, no ~
-      - ${CACHE_DIR}:/cache/tusz:ro
-      # Results (read-write)
-      - ./results:/results:rw
+      # CRITICAL: Paths must match config expectations (relative to /app workdir)
+      # Cache (read-only) - configs expect "cache/tusz" → /app/cache/tusz
+      - ${CACHE_DIR}:/app/cache/tusz:ro
+      # Results (read-write) - configs expect "results/*" → /app/results/*
+      - ./results:/app/results:rw
       # Configs (read-only)
       - ./configs:/app/configs:ro
 
@@ -356,10 +357,10 @@ services:
 **Validation:**
 ```bash
 # Test resume flag (CORRECT: boolean only, no path argument)
-docker-compose run --rm train \
+docker compose run --rm train \
   python3.11 -m src train /app/configs/local/train.yaml --resume
 
-# Should auto-detect newest checkpoint in /results/checkpoints/
+# Should auto-detect newest checkpoint in /app/results/checkpoints/
 ```
 
 ---
@@ -377,8 +378,9 @@ services:
     volumes:
       # Override: editable source code
       - ./src:/app/src:rw
-      - ${CACHE_DIR}:/cache/tusz:ro
-      - ./results:/results:rw
+      # CRITICAL: Must match train-base paths (configs expect /app/cache/tusz and /app/results)
+      - ${CACHE_DIR}:/app/cache/tusz:ro
+      - ./results:/app/results:rw
       - ./configs:/app/configs:ro
 
     command: bash
@@ -526,7 +528,7 @@ docker compose run --rm train \
   --resume
 
 # Verify it loads checkpoint:
-# [RESUME] Loading checkpoint from /results/checkpoints/last.pt
+# [RESUME] Loading checkpoint from /app/results/checkpoints/last.pt
 # [RESUME] Resuming from epoch 2, batch 0
 ```
 
@@ -640,9 +642,9 @@ docker stats bgb-train
 ✅ **Docker implementation is complete when:**
 
 1. `docker build -t brain-go-brr:v3.6.1 .` succeeds in <30 min
-2. `docker-compose up smoke-test` completes in ~5 min with no errors
-3. `docker-compose up train` runs full training with mid-epoch checkpointing
-4. `docker-compose run --rm train ... --resume` loads checkpoints correctly
+2. `docker compose up smoke-test` completes in ~5 min with no errors
+3. `docker compose up train` runs full training with mid-epoch checkpointing
+4. `docker compose run --rm train ... --resume` loads checkpoints correctly
 5. Docker training speed is 99%+ of native speed
 6. All imports work: torch, mamba_ssm, torch_geometric, src modules
 
