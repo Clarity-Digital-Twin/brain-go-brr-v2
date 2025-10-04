@@ -51,9 +51,24 @@ closed, remove the entry (and update docs/tests accordingly).
 
 ---
 
-## Retired Items (Handled in Phase 1/6)
+## Retired Items
 
-- `experiment.save_model`, `experiment.save_best_only` – now honoured in `train/loop.py` (2025-10-04).
-- `training.gradient_accumulation_steps`, `training.mid_checkpoint_interval_s`, `training.mid_epoch_keep`, `preprocessing.bandpass`, `preprocessing.notch_freq` – fully wired as of Phase 1–6.
+### Phase 1/6 (2025-10-04)
+- `experiment.save_model`, `experiment.save_best_only` – now honoured in `train/loop.py`.
+- `training.gradient_accumulation_steps`, `training.mid_checkpoint_interval_s`, `training.mid_epoch_keep`, `preprocessing.bandpass`, `preprocessing.notch_freq` – fully wired.
+
+### Additional Gaps - Completed (2025-10-04)
+**P0 (Production Blockers)**:
+- `logging.log_every_n_steps` – wired through train_step.py with config → env var → default precedence (train_step.py:98, loop.py:188-190)
+- `evaluation.save_predictions`, `evaluation.save_plots` – implemented in val_step.py:403-465, wired through loop.py:208-211 and evaluation.py:185-187
+
+**P1 (Professional Best Practice)**:
+- `preprocessing.normalize` – threaded into preprocess_recording (preprocess.py:17,63-70), datasets.py:41,50-51,151
+- `preprocessing.montage` – apply_montage parameter added to datasets (datasets.py:42,52,147), wired through loop.py (571,582,617,631)
+
+**P3 (Phantom Features - Removed)**:
+- `preprocessing.use_mne` – deleted from schema (schemas.py) and both configs
+- `evaluation.metrics` – deleted from schema (schemas.py:537-540) and both configs
+- `warmup_schedule.residual_scale_*` – deleted all 3 fields (schemas.py:468-477) and both configs
 
 Remove this section as more knobs graduate from the gap list.
