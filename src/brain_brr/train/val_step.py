@@ -16,12 +16,7 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import (  # type: ignore[attr-defined]
-    average_precision_score,
-    precision_recall_curve,
-    roc_auc_score,
-    roc_curve,
-)
+from sklearn.metrics import average_precision_score, roc_auc_score  # type: ignore[attr-defined]
 from torch.utils.data import DataLoader
 from tqdm import tqdm  # type: ignore[import-untyped]
 
@@ -444,6 +439,12 @@ def validate_epoch(
         if not all_probs_flat or not all_labels_flat:
             logger.warning("[SAVE] No validation outputs for plots; skipping.")
         else:
+            try:
+                from sklearn.metrics import precision_recall_curve, roc_curve  # type: ignore[attr-defined]
+            except (ImportError, AttributeError):
+                logger.warning("[SAVE] sklearn not available; skipping diagnostic plots.")
+                return metrics
+
             import matplotlib
 
             matplotlib.use("Agg")
