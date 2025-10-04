@@ -56,16 +56,22 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9" \
     FORCE_CUDA=1
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    ninja-build \
-    git \
-    python3.11 \
-    python3.11-dev \
-    python3-pip \
-    wget \
+# Install build dependencies (add python3.11-venv for ensurepip)
+RUN apt-get update && apt-get install -y software-properties-common && \
+    add-apt-repository -y ppa:deadsnakes/ppa && apt-get update && \
+    apt-get install -y \
+      build-essential \
+      ninja-build \
+      git \
+      python3.11 \
+      python3.11-dev \
+      python3.11-venv \
+      python3-pip \
+      wget \
     && rm -rf /var/lib/apt/lists/*
+
+# Ensure Python 3.11 has pip (base image only ships pip for system Python)
+RUN python3.11 -m ensurepip --upgrade
 
 # Upgrade pip
 RUN python3.11 -m pip install --upgrade pip setuptools wheel packaging
@@ -93,12 +99,18 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH \
     PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-# Install runtime Python
-RUN apt-get update && apt-get install -y \
-    python3.11 \
-    python3-pip \
-    git \
+# Install runtime Python (use deadsnakes for GA Python 3.11)
+RUN apt-get update && apt-get install -y software-properties-common && \
+    add-apt-repository -y ppa:deadsnakes/ppa && apt-get update && \
+    apt-get install -y \
+      python3.11 \
+      python3.11-venv \
+      python3-pip \
+      git \
     && rm -rf /var/lib/apt/lists/*
+
+# Ensure pip is available for Python 3.11 runtime layer
+RUN python3.11 -m ensurepip --upgrade
 
 # Copy compiled packages from builder
 COPY --from=builder /usr/local/lib/python3.11/dist-packages /usr/local/lib/python3.11/dist-packages
@@ -356,11 +368,11 @@ services:
 
 **Validation:**
 ```bash
-# Test resume flag (CORRECT: boolean only, no path argument)
-docker compose run --rm train \
-  python3.11 -m src train /app/configs/local/train.yaml --resume
+# Test train service is defined correctly (just verify service config)
+docker compose config train
 
-# Should auto-detect newest checkpoint in /app/results/checkpoints/
+# NOTE: Cannot test --resume here since no checkpoint exists yet
+# See Step 4.4 for full resume testing with smoke config
 ```
 
 ---
@@ -500,7 +512,7 @@ docker compose up smoke-test
 
 ---
 
-#### Step 4.3: Full Training Test (1 Epoch Only)
+#### Step 4.3: Full Training Service Sanity (1 Epoch via Smoke Config)
 
 ```bash
 # CLI has NO --max-epochs flag! Use smoke config (already 1 epoch)
@@ -508,7 +520,8 @@ docker compose run --rm train \
   python3.11 -m src train /app/configs/local/smoke.yaml
 
 # Verify mid-epoch checkpointing works:
-ls -lh ./results/checkpoints/mid_epoch_*.pt
+# (smoke config writes to results/smoke)
+ls -lh ./results/smoke/checkpoints/mid_epoch_*.pt
 # Should see files if epoch > 30 minutes
 ```
 
@@ -517,18 +530,18 @@ ls -lh ./results/checkpoints/mid_epoch_*.pt
 #### Step 4.4: Resume Test
 
 ```bash
-# Run 1 epoch first (use smoke config)
+# Run 1 epoch first (smoke config already saved last.pt under results/smoke)
 docker compose run --rm train \
   python3.11 -m src train /app/configs/local/smoke.yaml
 
 # Resume from checkpoint (auto-detects last.pt or mid_epoch_*.pt)
 # NOTE: --resume is a boolean flag, no path argument!
 docker compose run --rm train \
-  python3.11 -m src train /app/configs/local/train.yaml \
+  python3.11 -m src train /app/configs/local/smoke.yaml \
   --resume
 
 # Verify it loads checkpoint:
-# [RESUME] Loading checkpoint from /app/results/checkpoints/last.pt
+# [RESUME] Loading checkpoint from /app/results/smoke/checkpoints/last.pt
 # [RESUME] Resuming from epoch 2, batch 0
 ```
 
