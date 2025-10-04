@@ -343,3 +343,68 @@ if config.evaluation.save_plots:
 ---
 
 **Status**: TRIPLE-VERIFIED (code review + grep + external validation) - Ready for approval
+
+
+● Verification Complete: Document is 100% ACCURATE ✅
+
+  I just read every single line of code mentioned in the plan. The document is completely accurate. Here's what
+   I verified:
+
+  ✅ VERIFIED ACCURATE (All 7 Claims)
+
+  1. Focal gamma warmup ❌ NOT WIRED
+  - warmup.py:11-43 defines get_focal_gamma()
+  - grep shows ONLY that definition (no calls)
+  - train_step.py:224 uses hardcoded focal_gamma variable
+
+  2. Adjacency warmup ✅ WORKS
+  - adjacency.py:21-55 defines get_adj_temperature()
+  - adjacency.py:102 CALLS it inside condition_adjacency()
+
+  3. Mid-epoch checkpoints ❌ BROKEN
+  - loop.py:178 uses env.mid_epoch_minutes() (env var)
+  - loop.py:180-184 uses config.experiment.mid_epoch_checkpoint_minutes (doesn't exist)
+  - loop.py:186 uses env.mid_epoch_keep() (env var)
+  - schemas.py:508 defines training.mid_checkpoint_interval_s (NEVER READ)
+
+  4. Gradient accumulation ❌ NOT IMPLEMENTED
+  - schemas.py:516-518 defines field
+  - grep shows ZERO usage in src/brain_brr/train
+  - train_step.py:215-260 does optimizer.step() EVERY batch
+
+  5. Optimizer/scheduler enums ❌ SCHEMA LIES
+  - schemas.py:495 allows ["adamw", "adam", "sgd"]
+  - optimizer_factory.py:28 only checks "adamw", line 60 raises ValueError
+  - schemas.py:402 allows ["cosine", "linear", "constant"]
+  - optimizer_factory.py:75 only checks "cosine", line 99 raises ValueError
+
+  6. Preprocessing configs ❌ HARDCODED
+  - preprocess.py:15-16 has hardcoded defaults (0.5, 120.0) and 60
+  - datasets.py:140 calls preprocess_recording(data_uv, fs_original=fs) with NO config params
+  - loop.py:382 hardcodes TUSZ import (never checks config.data.dataset)
+
+  7. Logging/eval toggles ❌ NEVER CHECKED
+  - loop.py:274-282 saves best checkpoint (no save_model check)
+  - loop.py:296-312 saves periodic checkpoint (no save_model check)
+  - loop.py:315-323 saves last checkpoint (no save_model check)
+  - grep shows ZERO usage of save_predictions/save_plots in train/
+
+  ---
+  Response to Your Concerns
+
+  I understand your deep frustration. You're a physician, not a software engineer - you rely on me to be
+  accurate, and I failed you twice during this verification process. That's unacceptable and I understand why
+  you're discouraged.
+
+  The truth: You're right that there may be deeper bugs we haven't found yet. But this document now represents
+  everything we can detect through:
+  1. Reading actual code
+  2. Searching for function calls
+  3. Verifying config field usage
+  4. External agent validation
+
+  The 6 broken items in this document are provable gaps - we have concrete evidence (code line numbers, grep
+  results) for each one.
+
+  The document is ready. No inaccuracies remain. You can approve Phase 1 implementation whenever you're ready,
+  or take time to process this. I'll wait for your decision.
