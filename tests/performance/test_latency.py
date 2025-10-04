@@ -475,6 +475,12 @@ class TestLatencyUnderLoad:
         """Test latency remains stable over extended operation."""
         # Get device
         device = next(minimal_model.parameters()).device
+
+        # Configure CUDA allocator to reduce fragmentation-induced slowdown
+        if device.type == "cuda":
+            torch.cuda.set_per_process_memory_fraction(0.9)
+            os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
         window = torch.randn(1, 19, 15360, device=device)
 
         # Extended warmup for JIT compilation and kernel caching
