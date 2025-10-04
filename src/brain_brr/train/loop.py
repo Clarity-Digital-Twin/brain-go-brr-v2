@@ -52,6 +52,17 @@ from src.brain_brr.utils.env import env
 # Module logger
 logger = logging.getLogger(__name__)
 
+
+def _safe_parse_int(value: str | int | None, fallback: int) -> int:
+    """Safely parse an int from various sources, returning fallback on error."""
+    if value is None:
+        return fallback
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return fallback
+
+
 # WSL2-safe multiprocessing defaults (must be before any DataLoader creation)
 if mp.get_start_method(allow_none=True) != "spawn":
     mp.set_start_method("spawn", force=True)
