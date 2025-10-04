@@ -35,16 +35,17 @@ Current Architecture (v3.6.0 - October 3, 2025):
 
 ### Local Training (RTX 4090)
 ```bash
-# 🚨 CRITICAL: Set NaN protection flags (REQUIRED for PyTorch 2.5.0+)
-export BGB_SANITIZE_GRADS=1  # Prevents gradient explosion
-export BGB_NAN_DEBUG=1       # Shows NaN warnings
+# NaN Protection (gradient clipping is always applied from config)
+# Optional debugging (not required for normal training):
+# export BGB_SANITIZE_GRADS=1  # Debug: Log where NaNs occur
+export BGB_NAN_DEBUG=1         # Enable NaN warnings
 
 # Smoke test (quick validation)
 make s  # or: python -m src train configs/local/smoke.yaml
 
 # Full training in tmux (recommended)
 tmux new -s train
-export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1
+export BGB_NAN_DEBUG=1
 make train-local  # or: .venv/bin/python -m src train configs/local/train.yaml
 # Detach: Ctrl+B then D
 # Reattach: tmux attach -t train
@@ -74,7 +75,7 @@ modal run --detach deploy/modal/app.py --action train \
   --config configs/modal/train.yaml --resume true
 ```
 
-**NOTE**: Modal automatically sets `BGB_SANITIZE_GRADS=1` and `BGB_NAN_DEBUG=1` via `deploy/modal/app.py`.
+**NOTE**: Modal automatically sets `BGB_NAN_DEBUG=1` via `deploy/modal/app.py`. Gradient clipping (0.5) provides primary NaN protection.
 
 ## 📁 Project Structure
 
@@ -256,7 +257,7 @@ make test-gpu       # GPU-specific tests (stop training first)
 ```bash
 # Debugging
 export BGB_NAN_DEBUG=1               # Debug NaN losses
-export BGB_SANITIZE_GRADS=1          # RECOMMENDED: Sanitize NaN gradients
+# export BGB_SANITIZE_GRADS=1        # Debug: Log gradient NaNs (not required)
 export SEIZURE_MAMBA_FORCE_FALLBACK=1 # Force Conv1d fallback
 export BGB_FORCE_MANIFEST_REBUILD=1   # Rebuild cache manifest
 
@@ -282,7 +283,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 | Cache directory wrong | Local: `cache/tusz/`, Modal: `/results/cache/tusz/` |
 | Zero seizures in batches | Enable `use_balanced_sampling: true` |
 | NaN losses on RTX 4090 | Set `mixed_precision: false` |
-| **Non-finite logits** | **Rebuild cache after Sep 26 fix + use `BGB_SANITIZE_GRADS=1`** |
+| **Non-finite logits** | **Rebuild cache after Sep 26 fix (gradient clipping handles it)** |
 | **Edge similarity explosions** | **v3.3.0: Set `edge_similarity_margin: 0.01` in configs** |
 | **Gradient spikes (7.03+)** | **v3.3.1: FIXED - eigenvectors detached in gnn_pyg.py:205 (see docs/04-model/v3-stability-evolution.md)** |
 | **Modal XID 31 GPU crashes** | **v3.3.1: FIXED - unique Triton cache dirs in deploy/modal/app.py:539-546** |
