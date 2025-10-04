@@ -584,7 +584,7 @@ def main() -> None:
                 bandpass=config.preprocessing.bandpass,
                 notch_freq=config.preprocessing.notch_freq,
                 normalize=config.preprocessing.normalize,
-                apply_montage=True,
+                apply_montage=apply_montage,
             )
     else:
         train_dataset = EEGWindowDataset(
@@ -595,7 +595,7 @@ def main() -> None:
             bandpass=config.preprocessing.bandpass,
             notch_freq=config.preprocessing.notch_freq,
             normalize=config.preprocessing.normalize,
-            apply_montage=True,
+            apply_montage=apply_montage,
         )
 
     # Validation cache uses "dev" subdir (TUSZ official naming)
@@ -630,7 +630,7 @@ def main() -> None:
                 bandpass=config.preprocessing.bandpass,
                 notch_freq=config.preprocessing.notch_freq,
                 normalize=config.preprocessing.normalize,
-                apply_montage=True,
+                apply_montage=apply_montage,
             )
     else:
         logger.info(
@@ -644,7 +644,7 @@ def main() -> None:
             bandpass=config.preprocessing.bandpass,
             notch_freq=config.preprocessing.notch_freq,
             normalize=config.preprocessing.normalize,
-            apply_montage=True,
+            apply_montage=apply_montage,
         )
 
     # CRITICAL FIX: If we just built cache via EEGWindowDataset and manifest doesn't exist,
