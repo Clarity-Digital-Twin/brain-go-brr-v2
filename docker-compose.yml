@@ -16,6 +16,7 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
       - BGB_NAN_DEBUG=1
+      - WANDB_API_KEY=${WANDB_API_KEY:-}
 
     volumes:
       # CRITICAL: Mount BOTH data sources (matches local training exactly)
