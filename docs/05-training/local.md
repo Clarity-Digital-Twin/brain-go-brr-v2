@@ -45,7 +45,7 @@ Monitoring
 Quick fixes (if local training gets stuck or unstable)
 
 - Dataloader hangs (WSL2): set `data.num_workers: 0` in your config.
-- NaN losses (RTX 4090): set `training.mixed_precision: false`, reduce `batch_size`, consider lowering `learning_rate`. **REQUIRED for PyTorch 2.5.0+**: set `export BGB_SANITIZE_GRADS=1` before training (see `08-operations/nan-prevention-complete.md`). Optionally enable `BGB_NAN_DEBUG=1` for monitoring.
+- NaN losses (RTX 4090): set `training.mixed_precision: false`, reduce `batch_size`, consider lowering `learning_rate`. Ensure `training.gradient_clip: 0.5` remains enabled. Optional debugging: `export BGB_NAN_DEBUG=1` (logging) and `export BGB_SANITIZE_GRADS=1` (zero-out/log non-finite gradients).
 - GPU OOM: reduce `batch_size` or enable gradient accumulation.
 
 Memory levers for dynamic PE

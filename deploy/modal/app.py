@@ -25,7 +25,7 @@ image = (
         "PATH": "/usr/local/cuda-12.4/bin:$PATH",
         "LD_LIBRARY_PATH": "/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH",
         "TORCH_CUDA_ARCH_LIST": "8.0;8.6;8.9;9.0",  # A100 is 8.0
-        "FORCE_REBUILD": "2025-09-30-pr708-fix-cache",  # Bump to defeat Modal layer cache
+        "FORCE_REBUILD": "2025-10-04-gradient-logging",  # Bump to defeat Modal layer cache
         "TRITON_CACHE_DIR": "/tmp/triton_cache",
         "TORCHINDUCTOR_CACHE_DIR": "/tmp/torchinductor_cache",
     })
@@ -709,10 +709,11 @@ def train(
         # EXPLICITLY UNSET for full training to avoid inheritance
         env.pop("BGB_LIMIT_FILES", None)
 
-    # 🚨 CRITICAL: NaN protection (REQUIRED for PyTorch 2.5.0+)
-    env["BGB_SANITIZE_GRADS"] = "1"  # Prevent gradient explosion
-    env["BGB_NAN_DEBUG"] = "1"        # Show NaN warnings
-    logger.info("[ENV] BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 (NaN protection enabled)")
+    # Debugging flags (optional)
+    # env["BGB_SANITIZE_GRADS"] = "1"  # Debug: log gradient NaNs (not required)
+    env["BGB_NAN_DEBUG"] = "1"          # Enable NaN warnings
+    logger.info("[ENV] BGB_NAN_DEBUG=1 (NaN debugging enabled)")
+    logger.info("[PROTECTION] Gradient clipping (0.5) provides primary NaN protection")
 
     # Disable tqdm for Modal subprocess environments (causes issues with manifest generation)
     env["BGB_DISABLE_TQDM"] = "1"

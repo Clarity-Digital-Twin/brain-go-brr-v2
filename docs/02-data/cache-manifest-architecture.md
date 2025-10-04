@@ -615,7 +615,9 @@ tmux kill-session -t pr1-smoke
 
 # Start full training with PR1+2+3
 tmux new -s full-train
-export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1
+# Optional debugging helpers
+export BGB_NAN_DEBUG=1
+# export BGB_SANITIZE_GRADS=1
 .venv/bin/python -m src train configs/local/train.yaml
 # Detach: Ctrl+B then D
 ```

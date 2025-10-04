@@ -1,100 +1,81 @@
 # Environment Variables
 
-**Last Updated**: October 1, 2025 (v3.4.1)
-**Source**: `src/brain_brr/utils/env.py`
+**Last Updated**: October 4, 2025 (v3.6.1)
+**Source of Truth**: [`src/brain_brr/utils/env.py`](../../src/brain_brr/utils/env.py)
 
-## Critical for Production (v3.4.1)
+## Key Takeaways
 
-**REQUIRED for stable training**:
-```bash
-export BGB_SANITIZE_GRADS=1  # Gradient NaN protection (REQUIRED)
-export BGB_NAN_DEBUG=1       # Loss monitoring (RECOMMENDED)
-```
-
-**These are automatically set by Modal** (`deploy/modal/app.py:720-723`)
+- 🛡️ **Primary gradient protection** is `training.gradient_clip` in your config (default: `0.5`).
+- 🛠️ Environment flags are **optional debugging tools**. Enable them only when you need extra visibility.
+- 📘 See [`docs/08-operations/gradient-protection-guide.md`](../08-operations/gradient-protection-guide.md) for the full protection strategy.
 
 ---
 
-## Core Controls
+## Core Training Controls
 
-- `BGB_SMOKE_TEST=1` — enable smoke shortcuts (skip sampling, relax checks)
-- `BGB_LIMIT_FILES=N` — limit file count for quick runs
-- `BGB_FORCE_MANIFEST_REBUILD=1` — delete and rebuild manifest on start
+- `BGB_SMOKE_TEST=1` — Enable smoke-mode shortcuts (3 files, relaxed checks)
+- `BGB_LIMIT_FILES=N` — Limit dataset size for quick experiments
+- `BGB_FORCE_MANIFEST_REBUILD=1` — Rebuild cache manifest on startup
+- `BGB_DISABLE_TQDM=1` — Disable progress bars (set automatically on Modal)
+- `BGB_DISABLE_TB=1` — Disable TensorBoard writer
 
-Debugging and stability
+## Debugging & Stability
 
-- `BGB_NAN_DEBUG=1` — extra logging if loss or grads misbehave
-- `BGB_NAN_DEBUG_MAX=K` — limit debug prints per epoch (default 10)
-- `BGB_DISABLE_TQDM=1` — disable progress bars (Modal auto)
-- `BGB_DISABLE_TB=1` — disable TensorBoard writer
-- `BGB_SANITIZE_INPUTS=1` — clamp/sanitize inputs in training loop (debug)
-- `BGB_ANOMALY_DETECT=1` — enable torch autograd anomaly detection
+- `BGB_NAN_DEBUG=1` — Log NaN/Inf tensors with additional context (recommended when troubleshooting)
+- `BGB_DEBUG_FINITE=1` — Enable assert_finite() checks inside the model (slower; debug only)
+- `BGB_ANOMALY_DETECT=1` — Turn on `torch.autograd.set_detect_anomaly(True)` (very slow; use sparingly)
+- `BGB_SANITIZE_GRADS=1` — **Optional**: zero-out/log non-finite gradients after `backward()` (disabled by default)
 
-Checkpoint cadence (resume workflows)
+> ❗️ `BGB_SANITIZE_GRADS` is no longer required for normal training. Gradient clipping handles stability. Enable the flag only when you want to investigate why gradients went non-finite.
 
-- `BGB_MID_EPOCH_MINUTES=M` — mid‑epoch checkpoint interval (minutes)
-- `BGB_MID_EPOCH_KEEP=K` — retain at most K mid‑epoch checkpoints
+## Checkpoint Cadence
 
-Model toggles
+- `BGB_MID_EPOCH_MINUTES=M` — Save mid-epoch checkpoints every _M_ minutes
+- `BGB_MID_EPOCH_KEEP=K` — Keep at most _K_ mid-epoch checkpoints (default: 2)
 
-- `SEIZURE_MAMBA_FORCE_FALLBACK=1` — force Conv1d fallback instead of CUDA kernels (debug only)
-- `BGB_FORCE_TCN_EXT=1` — force internal TCN implementation (bypass ext)
+## Model Toggles
 
-WSL2 and packaging
+- `SEIZURE_MAMBA_FORCE_FALLBACK=1` — Force Conv1d fallback instead of CUDA kernels (debug only)
+- `BGB_FORCE_TCN_EXT=1` — Force internal TCN implementation (bypass extension module)
 
-- `UV_LINK_MODE=copy` — safer linking mode for uv on Windows filesystems
+## Performance Testing
 
-Model and stability toggles
+- `BGB_PERF_ALLOW_GPU=1` — Allow GPU usage in performance tests
+- `BGB_PERF_THREADS=N` — Pin CPU thread count for perf tests
+- `BGB_PERF_TOLERANCE_FACTOR=X.Y` — Set tolerance factor for perf comparisons (default: 1.2)
+- `BGB_PERF_STRICT_MODE=1` — Disable the tolerance slack (strict comparisons)
 
-- `BGB_DEBUG_FINITE=1` — enable assert_finite checks in critical tensors (debug only)
-- `BGB_SAFE_CLAMP=1` — enable extra activation clamping (debug only)
-- `BGB_SAFE_CLAMP_MIN=-10.0` — minimum clamp value when safe_clamp enabled
-- `BGB_SAFE_CLAMP_MAX=10.0` — maximum clamp value when safe_clamp enabled
+## Logging Configuration
 
-## Training Safety/Debug (CRITICAL)
+- `BGB_LOG_LEVEL=INFO|DEBUG|WARNING|ERROR` — Global logging verbosity (default: INFO)
+- `BGB_LOG_FILE=/path/to/file.log` — Write logs to a file in addition to stdout
+- `BGB_LOG_FORMAT=rich|simple|json` — Output format (default: auto-detect; simple in CI/Modal)
+- `BGB_LOG_EVERY_N_STEPS=50` — Progress logging cadence (Modal overrides to 10)
+- `BGB_LOG_RING_BUFFER_SIZE=1000` — In-memory log buffer size
+- `BGB_FORCE_SIMPLE=1` — Force simple logging format (no Rich)
+- `BGB_FORCE_RICH=0` — Disable Rich formatting even if available
 
-- `BGB_SANITIZE_GRADS=1` — **REQUIRED** for v3.4.1 stability (clamp/replace NaN/Inf gradients)
-- `BGB_SKIP_OPT_STEP_ON_NAN=1` — skip optimizer step if NaN detected (optional, debug only)
+## Modal-Specific Defaults
 
-Performance testing (tests/performance)
-
-- `BGB_PERF_ALLOW_GPU=1` — allow GPU usage in performance tests
-- `BGB_PERF_THREADS=N` — set CPU thread count in performance tests
-- `BGB_PERF_TOLERANCE_FACTOR=X.Y` — tolerance factor for perf tests (default 1.2)
-- `BGB_PERF_STRICT_MODE=1` — disable tolerance slack (strict comparisons)
-
-Logging configuration
-
-- `BGB_LOG_LEVEL=INFO|DEBUG|WARNING|ERROR` — logging verbosity (default: INFO)
-- `BGB_LOG_FILE=/path/to/file.log` — optional log file output
-- `BGB_LOG_FORMAT=rich|simple|json` — output format (default: auto-detect, simple in CI/Modal)
-- `BGB_LOG_EVERY_N_STEPS=50` — log training progress every N steps (default: 50)
-- `BGB_LOG_RING_BUFFER_SIZE=1000` — size of in-memory log buffer (default: 1000)
-- `BGB_FORCE_SIMPLE=1` — force simple logging format (no Rich)
-- `BGB_FORCE_RICH=0` — disable Rich format even if available
-
-## Modal-Specific (Auto-Set)
-
-Modal automatically sets these in `deploy/modal/app.py`:
+Modal sets a few environment variables automatically in [`deploy/modal/app.py`](../../deploy/modal/app.py):
 
 ```python
-# Memory allocator (XID 31 fix)
-PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True,max_split_size_mb:512"
+# Memory allocator tweaks (prevent XID 31)
+PYTORCH_CUDA_ALLOC_CONF = "expandable_segments:True,max_split_size_mb:512"
 
-# Unique Triton cache per run (prevents stale kernels)
-TRITON_CACHE_DIR=f"/tmp/triton_cache_run_{run_id}"
-TORCHINDUCTOR_CACHE_DIR=f"/tmp/tii_cache_run_{run_id}"
+# Unique Triton/Inductor cache per run
+TRITON_CACHE_DIR = f"/tmp/triton_cache_run_{run_id}"
+TORCHINDUCTOR_CACHE_DIR = f"/tmp/tii_cache_run_{run_id}"
 
-# Enhanced logging
-BGB_LOG_EVERY_N_STEPS=10
-
-# NaN protection
-BGB_SANITIZE_GRADS=1
-BGB_NAN_DEBUG=1
+# Logging
+BGB_LOG_EVERY_N_STEPS = "10"
+BGB_NAN_DEBUG = "1"
 ```
 
-## Important Notes
+> Modal no longer forces `BGB_SANITIZE_GRADS=1`. Gradient clipping already keeps training stable.
 
-- Environment variables are **cached at import time** by `src.brain_brr.utils.env.EnvConfig` to support `torch.compile`. Restart the process to apply changes.
-- `BGB_LIMIT_FILES` is honored by both training and `build-cache` (unless `--limit-files` is passed on the CLI).
-- **v3.4.1**: `BGB_SANITIZE_GRADS=1` is **REQUIRED** for stable training on PyTorch 2.5.0.
+## Notes
+
+- Environment variables are cached at import time by `EnvConfig` for `torch.compile` compatibility. **Restart the process** after changing any `BGB_*` flag.
+- `BGB_LIMIT_FILES` affects both training and cache-building (unless a CLI flag overrides it).
+- For the full protection story—including clipping, sanitization, and architectural safeguards—read the [Gradient Protection Guide](../08-operations/gradient-protection-guide.md).

@@ -249,14 +249,14 @@ class SeizureDetector(nn.Module):
             if hasattr(self, "edge_out_proj") and m is self.edge_out_proj:
                 continue
 
-            if isinstance(m, (nn.Conv1d, nn.ConvTranspose1d)):
+            if isinstance(m, nn.Conv1d | nn.ConvTranspose1d):
                 # v3.4.0: Trust Kaiming init (designed for ReLU)
                 # Removed 5x scale-down; normalization layers handle stability
                 nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
                 # REMOVED: m.weight.data *= 0.2
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
-            elif isinstance(m, (nn.BatchNorm1d, nn.LayerNorm, nn.GroupNorm)):
+            elif isinstance(m, nn.BatchNorm1d | nn.LayerNorm | nn.GroupNorm):
                 if hasattr(m, "weight") and m.weight is not None:
                     nn.init.constant_(m.weight, 1)
                 if hasattr(m, "bias") and m.bias is not None:
@@ -336,7 +336,7 @@ class SeizureDetector(nn.Module):
         edge_similarity_margin = 0.01
         if "edge_similarity_margin" in self.config:
             margin_val = self.config["edge_similarity_margin"]
-            if isinstance(margin_val, (int, float)):
+            if isinstance(margin_val, int | float):
                 edge_similarity_margin = float(margin_val)
 
         edge_feats = edge_scalar_series(

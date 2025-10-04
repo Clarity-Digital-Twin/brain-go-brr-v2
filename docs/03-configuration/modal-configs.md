@@ -144,11 +144,13 @@ os.environ["TORCHINDUCTOR_CACHE_DIR"] = f"/tmp/tii_cache_run_{run_id}"
 ```python
 # Modal auto-sets these environment variables:
 BGB_LOG_EVERY_N_STEPS=10      # Log every 10 batches (vs 50)
-BGB_SANITIZE_GRADS=1          # Gradient NaN protection
 BGB_NAN_DEBUG=1               # Loss monitoring
 
 # Training loop uses faster heartbeat:
 heartbeat_interval = 120       # 2 minutes (vs 5 minutes)
+
+# Optional debugging helpers (set manually if needed):
+# export BGB_SANITIZE_GRADS=1   # Zero/log non-finite gradients while investigating
 ```
 
 ## Commands

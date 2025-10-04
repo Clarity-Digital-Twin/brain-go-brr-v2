@@ -4,13 +4,13 @@
 # ========================================================================
 # 🚨 NaN Protection (Automatically Enabled on Modal)
 # ========================================================================
-# Modal automatically sets NaN protection via deploy/modal/app.py:
-#   BGB_SANITIZE_GRADS=1  # ✅ Prevents gradient explosion
+# Modal automatically sets debugging via deploy/modal/app.py:
 #   BGB_NAN_DEBUG=1       # ✅ Shows NaN warnings
 #   BGB_LIMIT_FILES=50    # ✅ Limits to 50 files for smoke test
 #
+# Gradient clipping (0.5) is always applied from config (primary protection).
 # No manual environment setup needed for Modal!
-# See: NAN-PROTECTION-REFERENCE.md (root) for complete reference
+# See: docs/08-operations/gradient-protection-guide.md for details
 # ========================================================================
 #
 # Usage: modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml

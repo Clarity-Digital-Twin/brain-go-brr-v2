@@ -33,6 +33,47 @@ from src.brain_brr.utils.env import env
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_gradients(
+    model: nn.Module,
+    logger: logging.Logger,
+    batch_idx: int,
+) -> int:
+    """Sanitize non-finite gradients to zero.
+
+    This is a DEBUGGING TOOL, not core protection. Gradient clipping
+    is the primary protection mechanism and is always applied.
+
+    Args:
+        model: Model with gradients to sanitize
+        logger: Logger for warnings
+        batch_idx: Current batch number
+
+    Returns:
+        Number of parameters with sanitized gradients
+
+    Note:
+        Only called when BGB_SANITIZE_GRADS=1 (debugging mode).
+        Not required for normal training.
+    """
+    sanitized_count = 0
+
+    for param in model.parameters():
+        if param.grad is not None and not torch.isfinite(param.grad).all():
+            n_nonfinite = (~torch.isfinite(param.grad)).sum().item()
+            sanitized_count += 1
+
+            param.grad.nan_to_num_(nan=0.0, posinf=0.0, neginf=0.0)
+
+            if sanitized_count == 1:
+                logger.debug(
+                    f"[GRAD_SANITIZE] First occurrence at batch {batch_idx}: "
+                    f"param_shape={param.shape}, "
+                    f"non_finite_count={n_nonfinite}"
+                )
+
+    return sanitized_count
+
+
 def train_epoch(
     model: nn.Module,
     dataloader: DataLoader,
@@ -191,15 +232,34 @@ def train_epoch(
             if scaler.is_enabled():
                 scaler.scale(loss).backward()
                 scaler.unscale_(optimizer)
-                grad_norm = nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+            else:
+                loss.backward()
+
+            if env.sanitize_grads():
+                sanitized_count = _sanitize_gradients(model, logger, batch_idx)
+                if sanitized_count > 0:
+                    logger.warning(
+                        f"[GRAD_SANITIZE] Replaced {sanitized_count} non-finite gradients "
+                        f"at batch {batch_idx} (investigate root cause)"
+                    )
+
+            pre_clip_norm = nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
+
+            if batch_idx % LOG_EVERY_N_STEPS == 0 and pre_clip_norm > gradient_clip * 2:
+                post_clip_norm = min(float(pre_clip_norm), gradient_clip)
+                logger.debug(
+                    f"[GRAD_CLIP] Batch {batch_idx}: "
+                    f"pre={pre_clip_norm:.2f} → post={post_clip_norm:.2f} "
+                    f"(clipped {(pre_clip_norm - post_clip_norm) / pre_clip_norm * 100:.1f}%)"
+                )
+
+            if scaler.is_enabled():
                 scaler.step(optimizer)
                 scaler.update()
             else:
-                loss.backward()
-                grad_norm = nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
                 optimizer.step()
 
-            gradient_norms.append(float(grad_norm))
+            gradient_norms.append(float(pre_clip_norm))
 
             if scheduler is not None:
                 scheduler.step()
@@ -269,15 +329,34 @@ def train_epoch(
                 if len(gradient_norms) > 10:
                     sorted_norms = sorted(gradient_norms)
                     n = len(sorted_norms)
-                    grad_mean = sum(sorted_norms) / n
-                    grad_p50 = sorted_norms[n // 2]
-                    grad_p95 = sorted_norms[int(n * 0.95)]
-                    grad_max = sorted_norms[-1]
-                    logger.info(
-                        f"[GRADIENTS] Last {n} batches: "
-                        f"Mean={grad_mean:.2f} | P50={grad_p50:.2f} | "
-                        f"P95={grad_p95:.2f} | Max={grad_max:.2f}"
-                    )
+
+                    finite_norms = [x for x in sorted_norms if torch.isfinite(torch.tensor(x))]
+
+                    if len(finite_norms) > 0:
+                        grad_p50 = finite_norms[len(finite_norms) // 2]
+                        grad_p25 = finite_norms[int(len(finite_norms) * 0.25)]
+                        grad_p75 = finite_norms[int(len(finite_norms) * 0.75)]
+                        grad_p95 = finite_norms[int(len(finite_norms) * 0.95)]
+                        grad_max = finite_norms[-1]
+                        grad_iqr = grad_p75 - grad_p25
+
+                        logger.info(
+                            f"[GRADIENTS] Last {n} batches: "
+                            f"P50={grad_p50:.2f} | IQR={grad_iqr:.2f} | "
+                            f"P95={grad_p95:.2f} | Max={grad_max:.2f}"
+                        )
+
+                        n_inf = n - len(finite_norms)
+                        if n_inf > 0:
+                            logger.info(
+                                f"[GRADIENTS] {n_inf}/{n} batches had inf pre-clip norm "
+                                f"(normal with FP16, clipping handles it)"
+                            )
+                    else:
+                        logger.warning(
+                            f"[GRADIENTS] All {n} batches had inf pre-clip norm "
+                            f"(verify gradient clipping is working)"
+                        )
 
             if (
                 checkpoint_dir is not None

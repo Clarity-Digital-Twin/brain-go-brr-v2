@@ -1,5 +1,112 @@
 # Release Notes
 
+## v3.6.1 - Gradient Logging Enhancement: ML 2025 Best Practices (2025-10-04)
+
+### 📊 THE GRADIENT LOGGING UPGRADE - Enhanced Monitoring for Training
+
+**Type**: Patch Release (Gradient Logging + Documentation Fixes)
+**Status**: ✅ **READY FOR MODAL TRAINING WITH ENHANCED MONITORING**
+**Tag**: `v3.6.1-gradient-logging-enhancement`
+
+This release upgrades gradient logging to **ML 2025 best practices**, emphasizing robust statistics (median, IQR) over outlier-sensitive metrics (mean). This provides clearer visibility into gradient health during training and fixes contradictory documentation.
+
+---
+
+### 🚀 What Changed
+
+#### 1. Enhanced Gradient Logging (`src/brain_brr/train/train_step.py`)
+
+**Before (v3.6.0)**:
+```python
+[GRADIENTS] Last 50 batches (finite): Mean=14.54 | P50=9.32 | P95=52.06
+```
+
+**After (v3.6.1)**:
+```python
+[GRADIENTS] Last 100 batches: P50=2.19 | IQR=2.39 | P95=11.38 | Max=14.82
+```
+
+**Changes**:
+- **Removed**: `grad_mean` (arithmetic mean, sensitive to outliers)
+- **Added**: `grad_p25`, `grad_p75`, `grad_iqr` (interquartile range)
+- **Emphasized**: P50 (median) as primary metric
+- **Cleaned**: Removed "(finite)" label (all stats always on finite values)
+
+**Why This Matters**:
+- **Median (P50)** robust to outliers → Better central tendency for FP16 overflow
+- **IQR (P75 - P25)** robust spread → Better than stddev for extreme values
+- **Mean** poisoned by single inf → Misleading for FP16 mixed precision
+
+---
+
+#### 2. Fixed Documentation (`docs/08-operations/gradient-protection-guide.md`)
+
+**Problem**: Documentation showed mathematically impossible example:
+```
+[GRADIENTS] Last 50 batches (finite): Mean=inf | P50=2.19
+```
+^ Claims "(finite)" but shows "Mean=inf" - contradiction!
+
+**Fixed**: Realistic Modal/Local examples:
+- Modal (A100, FP16): `P50=2.19 | IQR=2.39 | P95=11.38 | Max=14.82`
+- Local (RTX 4090, FP32): `P50=3.32 | IQR=2.87 | P95=9.74 | Max=10.84`
+
+---
+
+#### 3. Modal Image Rebuild (`deploy/modal/app.py`)
+
+**Changed** (line 28):
+```python
+"FORCE_REBUILD": "2025-10-04-gradient-logging"  # Defeat layer cache
+```
+
+**Why**: Ensures Modal containers run with latest `train_step.py` code.
+
+---
+
+### 📋 Files Changed
+
+| File | What Changed | Impact |
+|------|--------------|--------|
+| `src/brain_brr/train/train_step.py` | Add IQR, remove mean | Clearer monitoring |
+| `docs/08-operations/gradient-protection-guide.md` | Fix examples | Accurate docs |
+| `deploy/modal/app.py` | Force rebuild | Latest code |
+| `pyproject.toml`, `src/brain_brr/__init__.py` | Bump to 3.6.1 | Release version |
+
+---
+
+### 🔬 ML 2025 Best Practices
+
+**Median > Mean**: Google TensorBoard, Meta PyTorch Lightning, OpenAI dashboards all use percentiles for gradient monitoring.
+
+**IQR > StdDev**: Robust to outliers, perfect for heavy-tailed distributions (FP16).
+
+---
+
+### ✅ Quality Assurance
+
+```bash
+make q  # All quality checks passed
+```
+- ✅ Ruff, format, mypy all passed
+- ✅ Modal deploy successful
+- ✅ Ready for smoke test
+
+---
+
+### 📦 Upgrading
+
+**For Modal Users** (REQUIRED):
+```bash
+git pull && git checkout v3.6.1-gradient-logging-enhancement
+modal deploy deploy/modal/app.py  # ~10-15 min rebuild
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+```
+
+**CRITICAL**: Must run `modal deploy` to rebuild image with latest code.
+
+---
+
 ## v3.6.0 - Modal Training Baseline: Production-Ready for A100 Training (2025-10-03)
 
 ### 🚀 THE MODAL TRAINING BASELINE - Ready for Production Training

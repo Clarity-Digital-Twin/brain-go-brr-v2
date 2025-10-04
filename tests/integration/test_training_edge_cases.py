@@ -411,3 +411,90 @@ class TestTrainingExplosions:
         with torch.no_grad():
             test_output = small_model(data[:1])
             assert not torch.isnan(test_output).any(), "Model broken after NaN recovery"
+
+    def test_training_with_gradient_sanitization_enabled(self, small_model):
+        """Verify training works with BGB_SANITIZE_GRADS=1 (should be no-op with clean data)."""
+        import os
+
+        os.environ["BGB_SANITIZE_GRADS"] = "1"
+
+        try:
+            from src.brain_brr.train.train_step import train_epoch
+
+            device = next(small_model.parameters()).device
+            batch_size = 1
+
+            class DictDataset(torch.utils.data.Dataset):
+                def __init__(self, size=4):
+                    self.size = size
+
+                def __len__(self):
+                    return self.size
+
+                def __getitem__(self, idx):
+                    return {
+                        "window": torch.randn(19, 15360, device=device),
+                        "label": torch.randint(0, 2, (15360,), device=device).float(),
+                    }
+
+            dataset = DictDataset()
+            dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+
+            optimizer = torch.optim.Adam(small_model.parameters(), lr=0.001)
+
+            avg_loss = train_epoch(
+                model=small_model,
+                dataloader=dataloader,
+                optimizer=optimizer,
+                device=str(device),
+                use_amp=False,
+                gradient_clip=0.5,
+                loss_mode="bce",
+            )
+
+            assert avg_loss < 0.8, f"Loss should be < 0.8, got {avg_loss}"
+            assert not torch.isnan(torch.tensor(avg_loss)), "Loss should not be NaN"
+        finally:
+            os.environ["BGB_SANITIZE_GRADS"] = "0"
+
+    def test_training_without_gradient_sanitization(self, small_model):
+        """Verify training works with BGB_SANITIZE_GRADS=0 (default)."""
+        import os
+
+        os.environ["BGB_SANITIZE_GRADS"] = "0"
+
+        from src.brain_brr.train.train_step import train_epoch
+
+        device = next(small_model.parameters()).device
+        batch_size = 1
+
+        class DictDataset(torch.utils.data.Dataset):
+            def __init__(self, size=4):
+                self.size = size
+
+            def __len__(self):
+                return self.size
+
+            def __getitem__(self, idx):
+                return {
+                    "window": torch.randn(19, 15360, device=device),
+                    "label": torch.randint(0, 2, (15360,), device=device).float(),
+                }
+
+        dataset = DictDataset()
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+
+        optimizer = torch.optim.Adam(small_model.parameters(), lr=0.001)
+
+        avg_loss = train_epoch(
+            model=small_model,
+            dataloader=dataloader,
+            optimizer=optimizer,
+            device=str(device),
+            use_amp=False,
+            gradient_clip=0.5,
+            loss_mode="bce",
+        )
+
+        assert avg_loss < 0.8, f"Loss should be < 0.8, got {avg_loss}"
+        assert not torch.isnan(torch.tensor(avg_loss)), "Loss should not be NaN"

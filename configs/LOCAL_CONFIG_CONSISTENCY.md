@@ -65,7 +65,8 @@ batch_size: 4  # Fast smoke test (8-12 iterations for 3 files)
 use_balanced_sampling: false  # MUST be false for BGB_LIMIT_FILES
 mixed_precision: false
 # CRITICAL: Requires NaN protection flags
-# export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 BGB_SMOKE_TEST=1
+# export BGB_NAN_DEBUG=1 BGB_SMOKE_TEST=1        # Optional debugging helpers
+# export BGB_SANITIZE_GRADS=1                    # Optional: zero/log non-finite gradients
 # Or use: make s (sets flags automatically)
 ```
 
