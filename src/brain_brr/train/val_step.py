@@ -16,7 +16,7 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import (
+from sklearn.metrics import (  # type: ignore[attr-defined]
     average_precision_score,
     precision_recall_curve,
     roc_auc_score,
