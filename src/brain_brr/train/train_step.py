@@ -229,9 +229,8 @@ def train_epoch(
                     )
                     loss = (focal_weight * bce).mean()
 
-                    if warmup_schedule and warmup_schedule.enabled and warmup_schedule.focal_gamma_enabled:
-                        if batch_idx % 100 == 0:
-                            logger.info(f"[WARMUP] Batch {batch_idx} focal_gamma={current_gamma:.3f}")
+                    if warmup_schedule and warmup_schedule.enabled and warmup_schedule.focal_gamma_enabled and batch_idx % 100 == 0:
+                        logger.info(f"[WARMUP] Batch {batch_idx} focal_gamma={current_gamma:.3f}")
                 else:
                     loss = criterion(logits, labels)
 
