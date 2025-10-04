@@ -293,7 +293,7 @@ def train_epoch(
                 with suppress(Exception):
                     model.set_training_state(global_step, warmup_schedule)
 
-            loss_val = loss.item()
+            loss_val = float(raw_loss)
 
             if torch.isfinite(torch.tensor(loss_val)):
                 total_loss += loss_val
