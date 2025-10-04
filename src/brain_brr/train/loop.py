@@ -11,6 +11,7 @@ SOLID principles applied:
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -184,6 +185,9 @@ def train(
             ),
             warmup_schedule=config.training.warmup_schedule,
             gradient_accumulation_steps=config.training.gradient_accumulation_steps,
+            log_every_n_steps=int(
+                os.getenv("BGB_LOG_EVERY_N_STEPS", str(config.logging.log_every_n_steps))
+            ),
         )
 
         # Type narrowing for mypy
