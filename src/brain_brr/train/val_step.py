@@ -440,7 +440,10 @@ def validate_epoch(
             logger.warning("[SAVE] No validation outputs for plots; skipping.")
         else:
             try:
-                from sklearn.metrics import precision_recall_curve, roc_curve  # type: ignore[attr-defined]
+                from sklearn.metrics import (  # type: ignore[attr-defined]
+                    precision_recall_curve,
+                    roc_curve,
+                )
             except (ImportError, AttributeError):
                 logger.warning("[SAVE] sklearn not available; skipping diagnostic plots.")
                 return metrics
