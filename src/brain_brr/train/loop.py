@@ -200,6 +200,9 @@ def train(
                 os.getenv("BGB_LOG_EVERY_N_STEPS"),
                 fallback=config.logging.log_every_n_steps or 0,
             ),
+            log_gradients=config.logging.log_gradients,
+            log_weights=config.logging.log_weights,
+            wandb_logger=wandb_logger,
         )
 
         # Type narrowing for mypy
