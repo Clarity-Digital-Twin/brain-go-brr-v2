@@ -40,7 +40,7 @@ Current Architecture (v3.6.1 - October 4, 2025):
 # export BGB_SANITIZE_GRADS=1  # Debug: Log where NaNs occur
 export BGB_NAN_DEBUG=1         # Enable NaN warnings
 
-# Smoke test (quick validation)
+# Smoke test (3 files, ~5 min - fast pipeline validation)
 make s  # or: python -m src train configs/local/smoke.yaml
 
 # Full training in tmux (recommended)
@@ -54,12 +54,27 @@ make train-local  # or: .venv/bin/python -m src train configs/local/train.yaml
 
 **NOTE**: See `docs/04-model/v3-stability-evolution.md` for gradient explosion fix details and `docs/08-operations/nan-prevention-complete.md` for complete NaN protection documentation.
 
+### Docker Training (GPU-accelerated containers)
+```bash
+# Smoke test (3 files, ~5 min - fast validation)
+docker compose up smoke-test
+
+# Integration test (50 files, ~60 min - deeper validation)
+docker compose up integration-test
+
+# Full training (100 epochs)
+docker compose up train
+
+# Development shell
+docker compose run dev
+```
+
 ### Modal Cloud Deployment (A100-80GB)
 ```bash
 # Test Mamba CUDA before training
 modal run deploy/modal/app.py --action test-mamba
 
-# Smoke test (quick validation)
+# Smoke test (50 files, ~10 min - quick validation)
 modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
 
 # Full training (detached for long runs)
@@ -261,9 +276,9 @@ export BGB_NAN_DEBUG=1               # Debug NaN losses
 export SEIZURE_MAMBA_FORCE_FALLBACK=1 # Force Conv1d fallback
 export BGB_FORCE_MANIFEST_REBUILD=1   # Rebuild cache manifest
 
-# Data limits
-export BGB_SMOKE_TEST=1              # Limit to 3 files
-export BGB_LIMIT_FILES=50            # Custom file limit
+# Data limits (smoke testing)
+export BGB_SMOKE_TEST=1              # Auto-limit to 3 files (fast validation)
+export BGB_LIMIT_FILES=50            # Override: use N files instead
 
 # Testing
 export BGB_SKIP_GPU_TESTS=1          # Skip GPU tests during training
@@ -310,7 +325,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 ### Training Times
 - **Local (RTX 4090)**: ~2-3 hours/epoch, ~200-300 hours total
 - **Modal (A100)**: ~1 hour/epoch, ~100 hours total (~$319)
-- **Smoke test**: ~5 minutes both platforms
+- **Smoke test**: ~5 minutes (3 files local/Docker, 50 files Modal)
 
 ### Resource Usage
 - **VRAM**: 12-20GB (RTX 4090), 40-60GB (A100)

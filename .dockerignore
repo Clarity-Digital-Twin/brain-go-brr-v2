@@ -1,0 +1,50 @@
+# .dockerignore - Prevent unnecessary files from slowing build
+# Goal: Reduce build context from 449GB to <10MB
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data (mount as volume instead - 449GB!)
+cache/
+data_ext4/
+results/
+
+# Git
+.git/
+.gitignore
+
+# Docs (exclude most, keep critical ones)
+docs/
+*.md
+!README.md
+!DOCKER_IMPLEMENTATION_PLAN.md
+!CLAUDE.md
+!INSTALLATION.md
+!CHANGELOG.md
+
+# Tests
+tests/
+
+# Secrets
+.env
+*.key
+*.pem

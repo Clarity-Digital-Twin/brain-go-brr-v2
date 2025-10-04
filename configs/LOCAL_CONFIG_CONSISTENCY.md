@@ -1,4 +1,4 @@
-# Local Config Consistency (V3.2.0) ✅
+# Local Config Consistency (V3.6.1) ✅
 
 Canonical stack: TCN + Dual-Stream BiMamba + Vectorized GNN (PyG SSGConv + Dynamic LPE)
 
@@ -61,29 +61,30 @@ data:
 Smoke (safe + fast)
 ```yaml
 epochs: 1
-batch_size: 4  # Fast smoke test (8-12 iterations for 3 files)
+batch_size: 8  # Same as train for consistency
 use_balanced_sampling: false  # MUST be false for BGB_LIMIT_FILES
 mixed_precision: false
-# CRITICAL: Requires NaN protection flags
-# export BGB_NAN_DEBUG=1 BGB_SMOKE_TEST=1        # Optional debugging helpers
-# export BGB_SANITIZE_GRADS=1                    # Optional: zero/log non-finite gradients
+# Optional: export BGB_NAN_DEBUG=1 for debugging
 # Or use: make s (sets flags automatically)
 ```
 
 Train (RTX 4090 optimized)
 ```yaml
 epochs: 100
-batch_size: 4
-use_balanced_sampling: true  # Critical for severe imbalance
-mixed_precision: false       # RTX 4090 FP16 can cause NaNs
-learning_rate: 1e-4
-gradient_clip: 0.1
+batch_size: 8                  # OPTIMIZED: 2× faster than batch=4
+use_balanced_sampling: true    # Critical for severe imbalance
+mixed_precision: false         # RTX 4090 FP16 can cause NaNs
+learning_rate: 1.0e-4          # Conservative for stability
+gradient_clip: 0.5             # Increased from 0.1 (eigendecomp fix)
+mid_checkpoint_interval_s: 1800  # Save every 30 min
+mid_epoch_keep: 3              # Keep last 3 mid-epoch snapshots
 ```
 
 WSL2 notes
 - Use `num_workers: 0` (multiprocessing issues)
-- Keep `pin_memory: true`, `persistent_workers: true`
-- Full V3 training is long; prefer Modal for speed
+- Keep `pin_memory: true`, `persistent_workers: false`
+- Mid-epoch checkpoints save every 30 min (critical for 3-hour epochs)
+- Full V3 training ~300 hours; prefer Modal for speed (~100 hours)
 
 Key V3 improvements
 - Node BiMamba: d_model=64, headdim=8 → (64*2)/8=16 ✓
