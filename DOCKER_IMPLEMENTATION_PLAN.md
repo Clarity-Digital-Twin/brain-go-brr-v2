@@ -70,6 +70,9 @@ RUN apt-get update && apt-get install -y \
 # Upgrade pip
 RUN python3.11 -m pip install --upgrade pip setuptools wheel packaging
 
+# CRITICAL: Install numpy FIRST to prevent PyTorch from pulling 2.x (breaks mamba-ssm)
+RUN pip install numpy==1.26.4
+
 # Install PyTorch (EXACT version from Modal)
 RUN pip install \
     torch==2.5.0 \
