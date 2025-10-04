@@ -145,7 +145,6 @@ training:
     focal_gamma_enabled: true
     focal_gamma_start: 1.0
     focal_gamma_end: 2.0
-    residual_scale_enabled: false
 
   gradient_clip: 0.5                   # Stronger clipping for NaN protection
   mixed_precision: true                # A100 is 3.8x faster at FP16! Critical for performance

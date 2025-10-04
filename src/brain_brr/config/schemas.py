@@ -465,17 +465,6 @@ class WarmupScheduleConfig(StrictModel):
         description="Ending gamma (target focal_gamma)",
     )
 
-    # Residual scaling (optional, for very deep nets)
-    residual_scale_enabled: bool = Field(
-        default=False, description="Enable residual scaling in early blocks (OPTIONAL)"
-    )
-    residual_scale_blocks: list[int] = Field(
-        default_factory=lambda: [0, 1], description="Which blocks to scale (0-indexed)"
-    )
-    residual_scale_factor: float = Field(
-        default=0.5, ge=0.1, le=0.9, description="Scaling factor for residuals during warmup"
-    )
-
 
 class TrainingConfig(StrictModel):
     """Training loop configuration."""

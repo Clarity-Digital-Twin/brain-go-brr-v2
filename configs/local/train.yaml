@@ -173,11 +173,6 @@ training:
     focal_gamma_start: 1.0             # Standard BCE at start (less amplification)
     focal_gamma_end: 2.0               # Match focal_gamma (full hard-example mining after warmup)
 
-    # Residual Scaling: OPTIONAL (only for very deep nets 750+ layers, not needed here)
-    residual_scale_enabled: false
-    residual_scale_blocks: [0, 1]
-    residual_scale_factor: 0.5
-
   # Early stopping
   early_stopping:
     patience: 5
