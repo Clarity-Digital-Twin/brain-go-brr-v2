@@ -155,6 +155,8 @@ training:
     patience: 5
     metric: sensitivity_at_10fa
   checkpoint_interval: 1               # Save every epoch for full training
+  mid_checkpoint_interval_s: 1800      # Save every 30 minutes (critical for 6-7h epochs)
+  mid_epoch_keep: 3                    # Keep last 3 mid-epoch snapshots
 
 evaluation:
   metrics: [taes, sensitivity, specificity, auroc]

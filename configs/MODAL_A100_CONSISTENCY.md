@@ -1,4 +1,4 @@
-# Modal A100 Config Consistency (V3) ✅
+# Modal A100 Config Consistency (V3.6.1) ✅
 
 Canonical stack: TCN + Dual-Stream BiMamba + GNN (PyG SSGConv + Laplacian PE)
 
@@ -8,10 +8,10 @@ Files
 
 GPU‑optimized loading
 ```yaml
-num_workers: 8
+num_workers: 4                # SAFE: 8 caused overhead
 pin_memory: true
-persistent_workers: true
-prefetch_factor: 4
+persistent_workers: false     # CRITICAL: Prevents spawn delay + memory leaks
+prefetch_factor: 2            # SAFE: 4/8 caused OOM
 ```
 
 Shared model
@@ -38,16 +38,24 @@ model:
     alpha: 0.05
     k_eigenvectors: 16
     use_dynamic_pe: true  # Dynamic PE (recomputed per timestep)
-    semi_dynamic_interval: 1  # Full dynamic on A100
+    semi_dynamic_interval: 5  # OPTIMAL: 192 eigendecomps (matches local)
 ```
 
 Batch sizing
-- smoke.yaml: batch_size: 32 (reduced for V3 dual-stream)
-- train.yaml: batch_size: 64 (optimized for A100-80GB with V3)
+- smoke.yaml: batch_size: 48 (same as train for consistency)
+- train.yaml: batch_size: 48 (PRODUCTION: ~58GB peak verified stable)
 
 Precision & stability
-- A100: `mixed_precision: true` (Tensor Cores)
-- Gradient clipping: `gradient_clip: 0.5` (stronger for NaN protection)
+- A100: `mixed_precision: true` (Tensor Cores, 3.8× faster)
+- Gradient clipping: `gradient_clip: 0.5` (NaN protection)
+- Learning rate: `8.0e-5` (batch-size scaled from 1e-4)
+
+Mid-epoch checkpointing (train.yaml only)
+```yaml
+checkpoint_interval: 1
+mid_checkpoint_interval_s: 1800  # Save every 30 min (CRITICAL for 6-7h epochs)
+mid_epoch_keep: 3                # Keep last 3 mid-epoch snapshots
+```
 
 Paths (Modal)
 ```yaml
@@ -67,6 +75,7 @@ Validation UX
 
 Notes
 - PyG is required; ensure graph wheels match your Torch/CUDA.
-- Removed legacy `configs/modal/train_gnn.yaml` (pre‑refactor schema).
 - Smoke test: app.py sets BGB_LIMIT_FILES=50 automatically
 - V3 requires headdim parameters (handled in detector.py)
+- Mid-epoch checkpoints critical for Modal (epochs can be 6-7 hours)
+- Resume: Automatically loads newest mid_epoch_*.pt or last.pt
