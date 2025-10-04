@@ -75,6 +75,74 @@ def _sanitize_gradients(
     return sanitized_count
 
 
+def _compute_gradient_stats(model: nn.Module) -> dict[str, float]:
+    """Compute gradient statistics for monitoring.
+
+    Cheap summary stats (median, IQR, P95, max) matching current format.
+
+    Args:
+        model: Model with gradients
+
+    Returns:
+        Dict with gradient statistics
+    """
+    grad_norms = []
+    for param in model.parameters():
+        if param.grad is not None:
+            grad_norms.append(param.grad.detach().norm().item())
+
+    if not grad_norms:
+        return {"median": 0.0, "iqr": 0.0, "p95": 0.0, "max": 0.0}
+
+    import numpy as np
+
+    grad_array = np.array(grad_norms)
+    p25, median, p75, p95 = np.percentile(grad_array, [25, 50, 75, 95])
+    iqr = p75 - p25
+    max_norm = float(grad_array.max())
+
+    return {
+        "median": float(median),
+        "iqr": float(iqr),
+        "p95": float(p95),
+        "max": max_norm,
+    }
+
+
+def _compute_weight_stats(model: nn.Module) -> dict[str, float]:
+    """Compute weight statistics for monitoring.
+
+    Cheap summary stats (median, IQR, P95, max) for weights.
+
+    Args:
+        model: Model with parameters
+
+    Returns:
+        Dict with weight statistics
+    """
+    weight_norms = []
+    for param in model.parameters():
+        if param.requires_grad:
+            weight_norms.append(param.detach().norm().item())
+
+    if not weight_norms:
+        return {"median": 0.0, "iqr": 0.0, "p95": 0.0, "max": 0.0}
+
+    import numpy as np
+
+    weight_array = np.array(weight_norms)
+    p25, median, p75, p95 = np.percentile(weight_array, [25, 50, 75, 95])
+    iqr = p75 - p25
+    max_norm = float(weight_array.max())
+
+    return {
+        "median": float(median),
+        "iqr": float(iqr),
+        "p95": float(p95),
+        "max": max_norm,
+    }
+
+
 def train_epoch(
     model: nn.Module,
     dataloader: DataLoader,
