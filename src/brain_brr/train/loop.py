@@ -567,6 +567,7 @@ def main() -> None:
                 allow_on_demand=True,
                 bandpass=config.preprocessing.bandpass,
                 notch_freq=config.preprocessing.notch_freq,
+                normalize=config.preprocessing.normalize,
             )
     else:
         train_dataset = EEGWindowDataset(
@@ -576,6 +577,7 @@ def main() -> None:
             allow_on_demand=True,
             bandpass=config.preprocessing.bandpass,
             notch_freq=config.preprocessing.notch_freq,
+            normalize=config.preprocessing.normalize,
         )
 
     # Validation cache uses "dev" subdir (TUSZ official naming)
