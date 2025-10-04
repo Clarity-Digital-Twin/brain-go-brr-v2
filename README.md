@@ -235,7 +235,8 @@ python -m src build-cache --data-dir data_ext4/tusz/edf/dev --cache-dir cache/tu
 make s
 
 # 6️⃣ Full training (RTX 4090)
-export BGB_SANITIZE_GRADS=1  # Enables gradient protection
+export BGB_NAN_DEBUG=1          # Optional: extra logging
+# export BGB_SANITIZE_GRADS=1   # Optional: debugging helper
 tmux new -s train
 make train-local
 # Detach: Ctrl+B then D | Reattach: tmux attach -t train

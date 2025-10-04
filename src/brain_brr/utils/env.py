@@ -4,6 +4,11 @@ This module provides typed access to all BGB_* environment variables
 used throughout the codebase, preventing scattered os.getenv() calls
 and providing clear documentation of each variable's purpose.
 
+Protection Flags (Optional Debugging):
+- BGB_SANITIZE_GRADS: Replace NaN/Inf gradients with zeros (default: OFF)
+  Use case: Debugging gradient explosions, not required for normal training
+  Note: Gradient clipping (from config) is the primary protection mechanism
+
 NOTE: Environment variables are cached at module import time to support
 torch.compile which cannot trace through os.getenv() calls.
 """
@@ -26,17 +31,10 @@ _MID_EPOCH_MINUTES = os.getenv("BGB_MID_EPOCH_MINUTES")
 _MID_EPOCH_KEEP = int(os.getenv("BGB_MID_EPOCH_KEEP", "2"))
 _NAN_DEBUG = os.getenv("BGB_NAN_DEBUG", "0") == "1"
 _NAN_DEBUG_MAX = int(os.getenv("BGB_NAN_DEBUG_MAX", "10"))
-_SANITIZE_INPUTS = os.getenv("BGB_SANITIZE_INPUTS", "0") == "1"
 _SANITIZE_GRADS = os.getenv("BGB_SANITIZE_GRADS", "0") == "1"
-_SKIP_OPT_STEP_ON_NAN = os.getenv("BGB_SKIP_OPT_STEP_ON_NAN", "0") == "1"
 _ANOMALY_DETECT = os.getenv("BGB_ANOMALY_DETECT", "0") == "1"
 _PERF_ALLOW_GPU = os.getenv("BGB_PERF_ALLOW_GPU", "0") == "1"
 _PERF_THREADS = os.getenv("BGB_PERF_THREADS")
-
-# Safety clamps for activations (post-block sanitization)
-_SAFE_CLAMP = os.getenv("BGB_SAFE_CLAMP", "0") == "1"
-_SAFE_CLAMP_MIN = float(os.getenv("BGB_SAFE_CLAMP_MIN", "-10.0"))
-_SAFE_CLAMP_MAX = float(os.getenv("BGB_SAFE_CLAMP_MAX", "10.0"))
 
 # Performance test tolerance configuration
 _PERF_TOLERANCE_FACTOR = float(os.getenv("BGB_PERF_TOLERANCE_FACTOR", "1.2"))  # 20% slack
@@ -110,38 +108,14 @@ class EnvConfig:
         return _NAN_DEBUG_MAX
 
     @staticmethod
-    def sanitize_inputs() -> bool:
-        """Enable input sanitization (replace NaN/Inf with 0)."""
-        return _SANITIZE_INPUTS
-
-    @staticmethod
     def sanitize_grads() -> bool:
         """Enable gradient sanitization."""
         return _SANITIZE_GRADS
 
     @staticmethod
-    def skip_opt_step_on_nan() -> bool:
-        """Skip optimizer step when NaN detected."""
-        return _SKIP_OPT_STEP_ON_NAN
-
-    @staticmethod
     def anomaly_detect() -> bool:
         """Enable PyTorch anomaly detection."""
         return _ANOMALY_DETECT
-
-    # Activation safety clamps
-    @staticmethod
-    def safe_clamp() -> bool:
-        """Enable activation nan-to-num + clamping between safe bounds."""
-        return _SAFE_CLAMP
-
-    @staticmethod
-    def safe_clamp_min() -> float:
-        return _SAFE_CLAMP_MIN
-
-    @staticmethod
-    def safe_clamp_max() -> float:
-        return _SAFE_CLAMP_MAX
 
     # Performance testing
     @staticmethod

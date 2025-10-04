@@ -222,8 +222,9 @@ loss = (1 - p_t)^gamma_current × BCE
 
 **Configuration**:
 - v3.4.1 with warmup schedules enabled
-- `BGB_SANITIZE_GRADS=1`
+- Gradient clipping enabled (`training.gradient_clip: 0.5`)
 - `BGB_NAN_DEBUG=1`
+- `BGB_SANITIZE_GRADS=1` (optional debugging during investigation)
 
 **Metrics**:
 ```

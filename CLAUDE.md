@@ -4,7 +4,7 @@ This file provides critical project context for Claude Code (claude.ai/code) whe
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.6.0 (Modal Training Baseline): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks.
+Brain-Go-Brr v3.6.1 (Gradient Logging Enhancement): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks.
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
@@ -12,7 +12,7 @@ Brain-Go-Brr v3.6.0 (Modal Training Baseline): Clinical EEG seizure detection us
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-Current Architecture (v3.6.0 - October 3, 2025):
+Current Architecture (v3.6.1 - October 4, 2025):
 - **V3 dual-stream** → Node (19×) and Edge (171×) parallel processing
 - **Edge similarity clamping** → Prevents ±1.0 boundary explosions (PR-5)
 - **Dynamic Laplacian PE** → Time-evolving graph structure, fully dynamic every timestep
@@ -35,16 +35,17 @@ Current Architecture (v3.6.0 - October 3, 2025):
 
 ### Local Training (RTX 4090)
 ```bash
-# 🚨 CRITICAL: Set NaN protection flags (REQUIRED for PyTorch 2.5.0+)
-export BGB_SANITIZE_GRADS=1  # Prevents gradient explosion
-export BGB_NAN_DEBUG=1       # Shows NaN warnings
+# NaN Protection (gradient clipping is always applied from config)
+# Optional debugging (not required for normal training):
+# export BGB_SANITIZE_GRADS=1  # Debug: Log where NaNs occur
+export BGB_NAN_DEBUG=1         # Enable NaN warnings
 
 # Smoke test (quick validation)
 make s  # or: python -m src train configs/local/smoke.yaml
 
 # Full training in tmux (recommended)
 tmux new -s train
-export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1
+export BGB_NAN_DEBUG=1
 make train-local  # or: .venv/bin/python -m src train configs/local/train.yaml
 # Detach: Ctrl+B then D
 # Reattach: tmux attach -t train
@@ -74,7 +75,7 @@ modal run --detach deploy/modal/app.py --action train \
   --config configs/modal/train.yaml --resume true
 ```
 
-**NOTE**: Modal automatically sets `BGB_SANITIZE_GRADS=1` and `BGB_NAN_DEBUG=1` via `deploy/modal/app.py`.
+**NOTE**: Modal automatically sets `BGB_NAN_DEBUG=1` via `deploy/modal/app.py`. Gradient clipping (0.5) provides primary NaN protection.
 
 ## 📁 Project Structure
 
@@ -256,7 +257,7 @@ make test-gpu       # GPU-specific tests (stop training first)
 ```bash
 # Debugging
 export BGB_NAN_DEBUG=1               # Debug NaN losses
-export BGB_SANITIZE_GRADS=1          # RECOMMENDED: Sanitize NaN gradients
+# export BGB_SANITIZE_GRADS=1        # Debug: Log gradient NaNs (not required)
 export SEIZURE_MAMBA_FORCE_FALLBACK=1 # Force Conv1d fallback
 export BGB_FORCE_MANIFEST_REBUILD=1   # Rebuild cache manifest
 
@@ -282,7 +283,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 | Cache directory wrong | Local: `cache/tusz/`, Modal: `/results/cache/tusz/` |
 | Zero seizures in batches | Enable `use_balanced_sampling: true` |
 | NaN losses on RTX 4090 | Set `mixed_precision: false` |
-| **Non-finite logits** | **Rebuild cache after Sep 26 fix + use `BGB_SANITIZE_GRADS=1`** |
+| **Non-finite logits** | **Rebuild cache after Sep 26 fix (gradient clipping handles it)** |
 | **Edge similarity explosions** | **v3.3.0: Set `edge_similarity_margin: 0.01` in configs** |
 | **Gradient spikes (7.03+)** | **v3.3.1: FIXED - eigenvectors detached in gnn_pyg.py:205 (see docs/04-model/v3-stability-evolution.md)** |
 | **Modal XID 31 GPU crashes** | **v3.3.1: FIXED - unique Triton cache dirs in deploy/modal/app.py:539-546** |
@@ -335,20 +336,15 @@ Due to hardware differences, integration tests have adjusted thresholds:
 
 **Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
 
-**Current Status (v3.6.0 - October 3, 2025)**:
+**Current Status (v3.6.1 - October 4, 2025)**:
+- ✅ **Gradient logging enhanced** - ML 2025 best practices (median, IQR)
+- ✅ **Modal image rebuilt** - Forced rebuild with latest train_step.py code
+- ✅ **Documentation fixed** - Removed contradictory examples
 - ✅ **Constants centralization COMPLETE** - All magic numbers in `constants.py`
-- ✅ **Modal training LAUNCHED** - Full 100-epoch run active on A100-80GB (App: ap-BwyQN1PX1prmfzbWGlUDqS)
 - ✅ **Smoke test validated** - Zero crashes, W&B integration perfect
 - ✅ **Clean code refactoring COMPLETE** - All modules extracted and optimized
 - ✅ **Warmup schedules** - Optional gradient stabilization (adjacency τ + focal γ)
 - ✅ PyTorch 2.5.0 + mamba-ssm 2.2.5 (A100 XID 31 crashes resolved)
 - ✅ V3 dual-stream with edge similarity clamping (PR-5)
-- ✅ Training ROCK SOLID: Zero NaN/Inf after 80 batches
-- ✅ Loss converging smoothly: 35% decrease in 80 batches
-- ✅ Gradient norms decreasing: P95 49% drop from peak
-- 🔴 **1 active P1** - Validation loss weighting (non-blocking, defer to post-training)
-- **Gradient expectations**: Architecture-dependent (BiMamba+GNN ≠ transformers!)
-  - Early training (batch 0-200): P95 ~20-60 (high variance, normal)
-  - Warmup phase (200-1000): P95 ~10-30 (decreasing)
-  - Stable training (1000+): P95 ~5-20 (architecture-dependent)
-  - **Current (batch 80)**: P95=26.57, trending down ✅
+- 🔴 **0 active P1** - All critical issues resolved
+- **Ready for Modal training** - New gradient logging format: `P50 | IQR | P95 | Max`

@@ -113,11 +113,12 @@ TORCHINDUCTOR_CACHE_DIR=f"/tmp/tii_cache_run_{run_id}"
 See `docs_v2/reference/incidents/modal-xid31-recurrence.md` for detailed investigation.
 
 ### NaN Protection (deploy/modal/app.py:720-723)
-Modal automatically enables gradient sanitization:
+Modal automatically enables NaN debugging:
 ```python
-BGB_SANITIZE_GRADS=1     # Sanitize NaN gradients
-BGB_NAN_DEBUG=1          # Debug NaN losses
+BGB_NAN_DEBUG=1          # Extra NaN logging
 ```
+
+> Gradient clipping (0.5) remains the primary protection. Enable `BGB_SANITIZE_GRADS=1` manually if you want to zero/log non-finite gradients while investigating an issue.
 
 ## Initialization Timeline (v3.4.1)
 

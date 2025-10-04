@@ -2,22 +2,22 @@
 # Quick validation (1 epoch) for pipeline testing on RTX 4090
 #
 # ========================================================================
-# 🚨 CRITICAL: NaN Protection (REQUIRED for PyTorch 2.5.0+)
+# NaN Protection (gradient clipping is always applied from config)
 # ========================================================================
-# BEFORE running smoke test, set these environment variables:
+# Optional environment variables:
 #
-#   export BGB_SANITIZE_GRADS=1  # ✅ REQUIRED - prevents gradient explosion
-#   export BGB_NAN_DEBUG=1       # ✅ RECOMMENDED - shows NaN warnings
-#   export BGB_SMOKE_TEST=1      # ✅ Enables smoke test mode (3 files)
+#   export BGB_NAN_DEBUG=1       # Enable NaN warnings
+#   # export BGB_SANITIZE_GRADS=1  # Debug: log gradient NaNs (not required)
+#   export BGB_SMOKE_TEST=1      # Enables smoke test mode (3 files)
 #
 # Usage:
-#   export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 BGB_SMOKE_TEST=1
+#   export BGB_NAN_DEBUG=1 BGB_SMOKE_TEST=1
 #   python -m src train configs/local/smoke.yaml
 #
 # Or use Makefile:
-#   make s  # Automatically sets required flags
+#   make s  # Automatically sets flags
 #
-# See: NAN-PROTECTION-REFERENCE.md (root) for complete reference
+# See: docs/08-operations/gradient-protection-guide.md for details
 # ========================================================================
 #
 

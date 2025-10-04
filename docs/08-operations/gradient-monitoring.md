@@ -14,8 +14,8 @@
 |-------------|--------|--------|
 | `Large grad norm: 5.72e+00 (clipped to 0.5)` | ✅ Normal | None - clipping working |
 | `[GRADIENTS] P95=9.74 (decreasing trend)` | ✅ Excellent | Continue training |
-| `Sanitized NaN gradients at batch X` | ⚠️ Handled | Monitor - should be rare |
-| `NaN loss detected at batch X` | 🚨 Problem | Check `BGB_SANITIZE_GRADS=1` |
+| `Sanitized NaN gradients at batch X` | ⚠️ Handled | Investigate why gradients blew up (enable when debugging) |
+| `NaN loss detected at batch X` | 🚨 Problem | Verify gradient clipping (0.5) & cache integrity; optional: enable `BGB_SANITIZE_GRADS` while debugging |
 | `Non-finite logits` | 🚨 Critical | Rebuild cache, check config |
 
 ---
@@ -279,9 +279,9 @@ Batch 400: P95=40.0  ← Problem!
 [WARN] Sanitized NaN gradients at batch 44  ← Every batch!
 ```
 **Action**: 🚨 **INVESTIGATE**
-- Check `BGB_SANITIZE_GRADS=1` is set
-- Verify cache rebuilt after preprocessing fix
-- Check config has `edge_similarity_margin: 0.01`
+- Confirm cache was rebuilt after the preprocessing fix (Sept 26, 2025)
+- Ensure `edge_similarity_margin: 0.01` in config to clamp similarities
+- Optional: enable `BGB_SANITIZE_GRADS=1` to log/zero the offending gradients while debugging
 
 **Pattern 3: NaN Loss**
 ```
@@ -548,8 +548,8 @@ As training progresses:
 ### Local RTX 4090 - Batch 723
 
 **Configuration**:
-- `BGB_SANITIZE_GRADS=1` ✅
-- `BGB_NAN_DEBUG=1` ✅
+- `training.gradient_clip: 0.5` ✅ (primary protection)
+- `BGB_NAN_DEBUG=1` ✅ (extra logging)
 - Warmup schedules enabled (v3.4.1) ✅
 
 **Results**:

@@ -77,9 +77,9 @@ tmux new -s train  # Create new session named "train"
 ### Local Training (RTX 4090)
 
 ```bash
-# Inside tmux session
-export BGB_SANITIZE_GRADS=1  # CRITICAL
-export BGB_NAN_DEBUG=1       # Recommended
+# Inside tmux session (optional debugging)
+export BGB_NAN_DEBUG=1         # Recommended for extra logging
+# export BGB_SANITIZE_GRADS=1  # Optional debugging helper
 
 make train-local
 ```
@@ -203,7 +203,8 @@ If training stops (power outage, manual stop):
 
 **Local**:
 ```bash
-export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1
+export BGB_NAN_DEBUG=1          # Optional: extra logging when resuming
+# export BGB_SANITIZE_GRADS=1   # Optional: debugging helper
 python -m src train configs/local/train.yaml --resume checkpoints/epoch_042.pt
 ```
 
@@ -349,9 +350,9 @@ See `../08-operations/troubleshooting.md` for comprehensive troubleshooting.
 | Resume | `python -m src train configs/local/train.yaml --resume checkpoints/epoch_X.pt` | - |
 | Evaluate | `python -m src evaluate --checkpoint checkpoints/best_model.pt` | 30 min |
 
-**Critical environment variables**:
-- `BGB_SANITIZE_GRADS=1` - **REQUIRED** for PyTorch 2.5.0
+**Environment variables (optional)**:
 - `BGB_NAN_DEBUG=1` - Show NaN warnings (recommended)
+- `BGB_SANITIZE_GRADS=1` - Optional debugging helper (see gradient protection guide)
 
 ---
 

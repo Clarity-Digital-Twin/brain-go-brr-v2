@@ -6,14 +6,15 @@ V3 dual-stream architecture combining:
 - GNN (Graph Neural Network) with dynamic Laplacian positional encoding
 - Multi-head gated fusion for node/edge stream combination
 
-v3.6.0: Modal training baseline with constants centralization
-- All clinical thresholds centralized in constants.py with WHY documentation
-- Modal A100-80GB smoke test validated
-- Production-ready configuration for long training runs
-- Enhanced documentation and code organization
+v3.6.1: Gradient logging enhancement (ML 2025 best practices)
+- Median-first logging (P50 emphasized over mean)
+- IQR (Interquartile Range) for robust spread measurement
+- Removed mean (outlier-sensitive) in favor of percentiles
+- Fixed contradictory documentation examples
+- Modal image forced rebuild for latest gradient logging code
 """
 
-__version__ = "3.6.0"
+__version__ = "3.6.1"
 
 # NO HEAVY IMPORTS AT PACKAGE LEVEL
 # Models should be imported explicitly when needed:

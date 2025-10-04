@@ -20,14 +20,14 @@ Run a **smoke test** to verify your installation and see the model training in a
 
 ## Local Smoke Test (RTX 4090)
 
-### Step 1: Set Required Environment Variables
+### Step 1: (Optional) Enable NaN Debugging
 
 ```bash
-export BGB_SANITIZE_GRADS=1  # CRITICAL: Prevents gradient explosion
-export BGB_NAN_DEBUG=1       # Shows NaN warnings if they occur
+export BGB_NAN_DEBUG=1         # Show NaN warnings if they occur
+# export BGB_SANITIZE_GRADS=1  # Debug: zero-out non-finite gradients while investigating
 ```
 
-**Why these are required**: PyTorch 2.5.0 needs gradient sanitization for stable training with BiMamba+GNN architecture.
+> Gradient clipping (`training.gradient_clip: 0.5`) is always active and provides the primary NaN protection. Enable `BGB_SANITIZE_GRADS` only when you want extra debugging visibility.
 
 ### Step 2: Run Smoke Test
 
@@ -77,7 +77,7 @@ modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
 **What this does**:
 - Spins up A100-80GB instance
 - Runs 1 epoch with 50 files
-- Automatically sets `BGB_SANITIZE_GRADS=1`
+- Enables `BGB_NAN_DEBUG=1` for extra logging
 
 ### Step 3: Monitor
 
@@ -103,9 +103,9 @@ python -m src scan-cache --cache-dir cache/tusz/train
 ### ❌ "NaN loss detected at batch X"
 
 **Solution**:
-1. Check `BGB_SANITIZE_GRADS=1` is set
-2. Verify cache was built **after** September 26 (preprocessing fix)
-3. If cache is old: delete and rebuild
+1. Verify the cache was built **after** the September 26 preprocessing fix
+2. Confirm `training.gradient_clip` is still set to `0.5`
+3. Optional: enable `BGB_SANITIZE_GRADS=1` to log/zero the problematic gradients while you investigate
 
 ```bash
 rm -rf cache/tusz/train
@@ -136,8 +136,9 @@ data:
 
 **Local (RTX 4090)**:
 ```bash
-export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1
-make train-local  # 100 epochs, ~200-300 hours
+export BGB_NAN_DEBUG=1          # Optional: extra NaN logging
+# export BGB_SANITIZE_GRADS=1   # Optional: debugging helper
+make train-local                # 100 epochs, ~200-300 hours
 ```
 
 **Modal (A100)**:
@@ -165,8 +166,8 @@ modal run --detach deploy/modal/app.py --action train --config configs/modal/tra
 | `python -m src validate configs/local/smoke.yaml` | Validate config |
 
 **Environment variables**:
-- `BGB_SANITIZE_GRADS=1` - **REQUIRED** for PyTorch 2.5.0
 - `BGB_NAN_DEBUG=1` - Show NaN warnings (recommended)
+- `BGB_SANITIZE_GRADS=1` - Optional debugging helper (see gradient protection guide)
 - `BGB_SMOKE_TEST=1` - Limit to 3 files (auto-set by `make s`)
 
 ---

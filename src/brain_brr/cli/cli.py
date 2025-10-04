@@ -388,7 +388,7 @@ def evaluate(
                 table.add_row(key, f"{value:.4f}")
             elif key == "thresholds" and isinstance(value, dict):
                 for fa_target, threshold in value.items():
-                    if isinstance(threshold, (int, float)):
+                    if isinstance(threshold, int | float):
                         table.add_row(f"τ_on @ {fa_target} FA/24h", f"{threshold:.4f}")
 
         console.print(table)

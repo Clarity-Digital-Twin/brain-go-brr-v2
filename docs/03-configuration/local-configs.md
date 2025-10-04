@@ -36,10 +36,10 @@ V3 dual-stream architecture is the **only supported** architecture. V2 heuristic
 - `training.warmup_schedule.adj_temperature_enabled: true`
 - `training.warmup_schedule.focal_gamma_enabled: true`
 
-### Environment Variables (CRITICAL)
+### Optional Environment Variables
 ```bash
-export BGB_SANITIZE_GRADS=1  # Gradient NaN protection
-export BGB_NAN_DEBUG=1       # Loss monitoring
+export BGB_NAN_DEBUG=1         # Additional NaN logging
+# export BGB_SANITIZE_GRADS=1  # Optional debugging helper
 ```
 
 ## Complete V3.4.1 Configuration
@@ -187,8 +187,8 @@ experiment:
 Quick validation (3 files, 1 epoch):
 ```bash
 export BGB_SMOKE_TEST=1          # Limit to 3 files
-export BGB_SANITIZE_GRADS=1      # NaN protection
-export BGB_NAN_DEBUG=1           # Loss monitoring
+export BGB_NAN_DEBUG=1           # Loss monitoring (optional)
+# export BGB_SANITIZE_GRADS=1    # Optional debugging helper
 
 make s  # or: python -m src train configs/local/smoke.yaml
 ```
@@ -246,10 +246,10 @@ data:
 ## Common Issues
 
 ### NaN losses
-**Solution**: Already addressed in v3.4.1
+**Solution**: Ensure cache is up to date and gradient clipping remains enabled. Optional debugging:
 ```bash
-export BGB_SANITIZE_GRADS=1
-export BGB_NAN_DEBUG=1
+export BGB_NAN_DEBUG=1         # Log NaN/Inf tensors
+# export BGB_SANITIZE_GRADS=1  # Zero/log non-finite gradients while investigating
 ```
 
 ### Out of memory

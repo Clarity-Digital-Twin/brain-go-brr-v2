@@ -1,5 +1,13 @@
 # Technical Debt Priority List
 
+-- LOOK FOR THINGS LIKE THIS... FLAGS OR FEATURES IMPELMENTED... BUT NEVER 100% WIRED IN: 
+  CRITICAL DISCOVERY: BGB_SANITIZE_GRADS=1 does NOT actually do gradient sanitization!
+
+  I searched the entire codebase - the flag is defined but never used in the training loop. The only real gradient protection is:
+
+  grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+  gradient_norms.append(float(grad_norm))  # ← Logs PRE-CLIP value!
+
 **Last Updated:** 2025-10-03
 **Status:** 🔴 1 active P1 (non-blocking) | ✅ All legacy P1 completed | ✅ **ALL P2 STRUCTURAL REFACTORING COMPLETE!** 🎉
 **Refactoring Sprint:** detector.py, metrics.py, cli.py — ALL DONE (2025-10-03)
