@@ -50,6 +50,8 @@ The following flags were documented in various places but **never actually check
 
 ## Performance Testing
 
+**Scope:** Performance test suite only (`tests/performance/`) — NOT used during training
+
 - `BGB_PERF_ALLOW_GPU=1` — Allow GPU usage in performance tests
 - `BGB_PERF_THREADS=N` — Pin CPU thread count for perf tests
 - `BGB_PERF_TOLERANCE_FACTOR=X.Y` — Set tolerance factor for perf comparisons (default: 1.2)

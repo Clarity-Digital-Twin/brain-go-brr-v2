@@ -44,7 +44,6 @@ _DISABLE_TENSORBOARD = os.getenv("BGB_DISABLE_TB", "0") == "1"
 _MID_EPOCH_MINUTES = os.getenv("BGB_MID_EPOCH_MINUTES")
 _MID_EPOCH_KEEP = int(os.getenv("BGB_MID_EPOCH_KEEP", "2"))
 _NAN_DEBUG = os.getenv("BGB_NAN_DEBUG", "0") == "1"
-_NAN_DEBUG_MAX = int(os.getenv("BGB_NAN_DEBUG_MAX", "10"))
 _SANITIZE_GRADS = os.getenv("BGB_SANITIZE_GRADS", "0") == "1"
 _ANOMALY_DETECT = os.getenv("BGB_ANOMALY_DETECT", "0") == "1"
 _PERF_ALLOW_GPU = os.getenv("BGB_PERF_ALLOW_GPU", "0") == "1"
@@ -133,11 +132,6 @@ class EnvConfig:
     def nan_debug() -> bool:
         """Enable NaN debugging mode."""
         return _NAN_DEBUG
-
-    @staticmethod
-    def nan_debug_max() -> int:
-        """Maximum NaN occurrences before stopping (default: 10)."""
-        return _NAN_DEBUG_MAX
 
     @staticmethod
     def sanitize_grads() -> bool:
