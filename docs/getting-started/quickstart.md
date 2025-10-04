@@ -103,9 +103,9 @@ python -m src scan-cache --cache-dir cache/tusz/train
 ### ❌ "NaN loss detected at batch X"
 
 **Solution**:
-1. Check `BGB_SANITIZE_GRADS=1` is set
-2. Verify cache was built **after** September 26 (preprocessing fix)
-3. If cache is old: delete and rebuild
+1. Verify the cache was built **after** the September 26 preprocessing fix
+2. Confirm `training.gradient_clip` is still set to `0.5`
+3. Optional: enable `BGB_SANITIZE_GRADS=1` to log/zero the problematic gradients while you investigate
 
 ```bash
 rm -rf cache/tusz/train
