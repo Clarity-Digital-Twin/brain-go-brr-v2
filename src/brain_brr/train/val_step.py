@@ -439,8 +439,12 @@ def validate_epoch(
         if np.unique(labels_binary).size >= 2:
             fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
+            auroc = float(metrics.get("auroc", float("nan")))
+            pr_auc = float(metrics.get("pr_auc", float("nan")))
+
             fpr, tpr, _ = roc_curve(labels_binary, probs_flat)
-            axes[0].plot(fpr, tpr, label=f"ROC (AUC={metrics['auroc']:.3f})")
+            label_roc = f"ROC (AUC={auroc:.3f})" if np.isfinite(auroc) else "ROC"
+            axes[0].plot(fpr, tpr, label=label_roc)
             axes[0].plot([0, 1], [0, 1], "k--", label="Random")
             axes[0].set_xlabel("False Positive Rate")
             axes[0].set_ylabel("True Positive Rate")
@@ -449,7 +453,8 @@ def validate_epoch(
             axes[0].grid(True, alpha=0.3)
 
             precision, recall, _ = precision_recall_curve(labels_binary, probs_flat)
-            axes[1].plot(recall, precision, label=f"PR (AUC={metrics['pr_auc']:.3f})")
+            label_pr = f"PR (AUC={pr_auc:.3f})" if np.isfinite(pr_auc) else "PR"
+            axes[1].plot(recall, precision, label=label_pr)
             axes[1].set_xlabel("Recall")
             axes[1].set_ylabel("Precision")
             axes[1].set_title("Precision-Recall Curve")
