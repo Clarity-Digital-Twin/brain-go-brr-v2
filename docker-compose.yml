@@ -1,0 +1,63 @@
+# docker-compose.yml for Brain-Go-Brr v3.6.1
+# GPU-accelerated EEG seizure detection training
+version: '3.8'
+
+services:
+  train-base:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: brain-go-brr:v3.6.1
+
+    # GPU access (requires nvidia-container-toolkit)
+    runtime: nvidia
+
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+      - BGB_NAN_DEBUG=1
+
+    volumes:
+      # CRITICAL: Paths must match config expectations (relative to /app workdir)
+      # Cache (read-only) - configs expect "cache/tusz" → /app/cache/tusz
+      - ${CACHE_DIR}:/app/cache/tusz:ro
+      # Results (read-write) - configs expect "results/*" → /app/results/*
+      - ./results:/app/results:rw
+      # Configs (read-only)
+      - ./configs:/app/configs:ro
+
+    shm_size: 8gb
+
+  smoke-test:
+    extends: train-base
+    container_name: bgb-smoke
+
+    environment:
+      - BGB_SMOKE_TEST=1
+      - BGB_LIMIT_FILES=50
+
+    command: python3.11 -m src train /app/configs/local/smoke.yaml
+
+  train:
+    extends: train-base
+    container_name: bgb-train
+
+    command: python3.11 -m src train /app/configs/local/train.yaml
+
+    restart: unless-stopped
+
+  dev:
+    extends: train-base
+    container_name: bgb-dev
+
+    volumes:
+      # Override: editable source code
+      - ./src:/app/src:rw
+      # CRITICAL: Must match train-base paths (configs expect /app/cache/tusz and /app/results)
+      - ${CACHE_DIR}:/app/cache/tusz:ro
+      - ./results:/app/results:rw
+      - ./configs:/app/configs:ro
+
+    command: bash
+    stdin_open: true
+    tty: true
