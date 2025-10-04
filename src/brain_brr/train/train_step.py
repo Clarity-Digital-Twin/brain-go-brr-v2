@@ -352,6 +352,48 @@ def train_epoch(
                         f"(clipped {(pre_clip_norm - post_clip_norm) / pre_clip_norm * 100:.1f}%)"
                     )
 
+                # Log gradient statistics if enabled
+                if log_gradients and log_every_n_steps and batch_idx % log_every_n_steps == 0:
+                    grad_stats = _compute_gradient_stats(model)
+                    logger.info(
+                        f"[GRAD_STATS] Batch {batch_idx}: "
+                        f"P50={grad_stats['median']:.2e} | "
+                        f"IQR={grad_stats['iqr']:.2e} | "
+                        f"P95={grad_stats['p95']:.2e} | "
+                        f"Max={grad_stats['max']:.2e}"
+                    )
+                    if wandb_logger and hasattr(wandb_logger, "enabled") and wandb_logger.enabled:
+                        wandb_logger.log(
+                            {
+                                "gradients/median": grad_stats["median"],
+                                "gradients/iqr": grad_stats["iqr"],
+                                "gradients/p95": grad_stats["p95"],
+                                "gradients/max": grad_stats["max"],
+                            },
+                            step=global_step,
+                        )
+
+                # Log weight statistics if enabled
+                if log_weights and log_every_n_steps and batch_idx % log_every_n_steps == 0:
+                    weight_stats = _compute_weight_stats(model)
+                    logger.info(
+                        f"[WEIGHT_STATS] Batch {batch_idx}: "
+                        f"P50={weight_stats['median']:.2e} | "
+                        f"IQR={weight_stats['iqr']:.2e} | "
+                        f"P95={weight_stats['p95']:.2e} | "
+                        f"Max={weight_stats['max']:.2e}"
+                    )
+                    if wandb_logger and hasattr(wandb_logger, "enabled") and wandb_logger.enabled:
+                        wandb_logger.log(
+                            {
+                                "weights/median": weight_stats["median"],
+                                "weights/iqr": weight_stats["iqr"],
+                                "weights/p95": weight_stats["p95"],
+                                "weights/max": weight_stats["max"],
+                            },
+                            step=global_step,
+                        )
+
                 if scaler.is_enabled():
                     scaler.step(optimizer)
                     scaler.update()
