@@ -31,8 +31,11 @@ P1 — Fixed / Hardened
   - Affected: `schemas.py` (DurationConfig, EventsConfig, MorphologyConfig), `eval/helpers/false_alarm.py` (threshold search bounds)
 
 P1 — Open
-- Validation loss weighting under imbalance
-  - TODO: mirror `pos_weight` used in train, or report weighted+unweighted val loss.
+- **Validation loss weighting under imbalance** (ACTIVE)
+  - Issue: Training uses `pos_weight` (train_step.py:141), validation doesn't (val_step.py:239)
+  - Impact: Train/val loss not directly comparable due to different class weighting
+  - TODO: Mirror `pos_weight` in validation OR report both weighted+unweighted val loss
+  - Severity: P1 (affects interpretability, not correctness)
 
 P2 — Open/Polish
 - Edge adjacency sparsification ordering
