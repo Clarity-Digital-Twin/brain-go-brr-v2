@@ -244,6 +244,7 @@ def train_epoch(
                 else:
                     loss = criterion(logits, labels)
 
+            raw_loss = loss.detach()
             loss = loss / gradient_accumulation_steps
 
             if scaler.is_enabled():
