@@ -432,16 +432,22 @@ make s
 
 ## 📈 METRICS & STATISTICS
 
-### Constant Usage Breakdown
+### Constant Usage Breakdown (PRE-IMPLEMENTATION)
+
+**🔴 CURRENT STATE - Before fixes applied**
 
 | Category | Count | Percentage | Status |
 |----------|-------|------------|--------|
-| Schema-Default | 23 | 26% | ✅ All used correctly |
-| Code-Guard | 29 | 33% | ✅ All used correctly |
-| Unused (High-Value) | 7 | 8% | 🔴 Wire into code (P0) |
-| Unused (Medium-Value) | 9 | 10% | 🟡 Consider re-enabling |
-| Unused (Low-Value) | 20 | 23% | 🗑️ Cleanup candidates |
+| Schema-Default (USED) | 23 | 26.1% | ✅ All wired correctly |
+| Code-Guard (USED) | 29 | 33.0% | ✅ All wired correctly |
+| **USED SUBTOTAL** | **52** | **59.1%** | ✅ Working constants |
+| Unused (High-Value) | 6 | 6.8% | 🔴 **MUST WIRE** (P0) |
+| Unused (Medium-Value) | 10 | 11.4% | 🟡 Consider re-enabling |
+| Unused (Low-Value) | 20 | 22.7% | 🗑️ Cleanup candidates |
+| **UNUSED SUBTOTAL** | **36** | **40.9%** | ❌ Not imported |
 | **TOTAL** | **88** | **100%** | **100% documented** ✅ |
+
+**After Fix Target**: 58/88 used (65.9%) - when 6 P0 constants are wired
 
 ### Schema Field Coverage
 
