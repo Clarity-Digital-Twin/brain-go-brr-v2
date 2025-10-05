@@ -286,6 +286,7 @@ def train_epoch(
             if accumulation_counter == 0:
                 optimizer.zero_grad(set_to_none=True)
 
+            # torch.amp.autocast not in PyTorch type stubs (known issue)
             with torch.amp.autocast(device_type=device, enabled=(use_amp and device == "cuda")):  # type: ignore[attr-defined]
                 logits = model(windows)
 
