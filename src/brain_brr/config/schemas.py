@@ -618,15 +618,19 @@ class Config(StrictModel):
         """
         if phase == "data":
             # Phase 1 only needs data + preprocessing
-            if self.data.sampling_rate != 256:
-                raise ValueError(f"Must use 256 Hz sampling rate, got {self.data.sampling_rate}")
-            if self.data.n_channels != 19:
+            if self.data.sampling_rate != SAMPLING_RATE:
                 raise ValueError(
-                    f"Must use 19 channels (10-20 montage), got {self.data.n_channels}"
+                    f"Must use {SAMPLING_RATE} Hz sampling rate, got {self.data.sampling_rate}"
                 )
-            if self.data.window_size != 60:
-                raise ValueError(f"Must use 60s windows, got {self.data.window_size}s")
-            if self.data.stride != 10:
+            if self.data.n_channels != N_CHANNELS:
+                raise ValueError(
+                    f"Must use {N_CHANNELS} channels (10-20 montage), got {self.data.n_channels}"
+                )
+            if self.data.window_size != WINDOW_SIZE_SEC:
+                raise ValueError(
+                    f"Must use {WINDOW_SIZE_SEC}s windows, got {self.data.window_size}s"
+                )
+            if self.data.stride != STRIDE_SIZE_SEC:
                 raise ValueError(f"Must use 10s stride, got {self.data.stride}s")
         elif phase == "model":
             # Phase 2 needs model config
