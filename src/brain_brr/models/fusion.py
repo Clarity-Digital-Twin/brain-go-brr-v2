@@ -5,6 +5,7 @@ additive fusion, preventing edge noise from dominating node features.
 """
 
 import math
+from typing import cast
 
 import torch
 import torch.nn as nn
@@ -43,7 +44,7 @@ class GatedFusion(nn.Module):
 
         # Gated combination: node is primary, edge is gated
         output = node + gate * edge
-        return output  # type: ignore[no-any-return]
+        return cast(torch.Tensor, output)
 
 
 class MultiHeadGatedFusion(nn.Module):
@@ -108,4 +109,4 @@ class MultiHeadGatedFusion(nn.Module):
         out = self.dropout(out)
 
         # Residual connection with node features
-        return node + out  # type: ignore[no-any-return]
+        return cast(torch.Tensor, node + out)
