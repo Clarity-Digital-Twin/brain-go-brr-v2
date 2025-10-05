@@ -13,20 +13,23 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
 
 # Make TensorBoard optional
-try:
+if TYPE_CHECKING:
     from torch.utils.tensorboard import SummaryWriter
+else:
+    try:
+        from torch.utils.tensorboard import SummaryWriter
 
-    HAS_TENSORBOARD = True
-except ImportError:
-    HAS_TENSORBOARD = False
-    SummaryWriter: Any = None  # Fallback when TensorBoard not available
+        HAS_TENSORBOARD = True
+    except ImportError:
+        HAS_TENSORBOARD = False
+        SummaryWriter = None  # type: ignore[misc,assignment]
 
 from src.brain_brr.config.schemas import Config
 from src.brain_brr.constants import (
