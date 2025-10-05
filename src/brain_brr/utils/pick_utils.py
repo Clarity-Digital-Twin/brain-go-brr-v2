@@ -92,6 +92,7 @@ def pick_and_order(raw: Any, required: list[str]) -> tuple[Any, list[str]]:
             return raw, missing
 
         # Build new Raw with correct channel order
+        # MNE has no type stubs (third-party library)
         import mne  # type: ignore[import-untyped]
 
         info = mne.create_info(
