@@ -1,7 +1,8 @@
 # Technical Debt Priority List
 
-**Last Updated:** 2025-10-05
-**Status:** ✅ **ZERO ACTIVE P1** · 🟡 Optional polish backlog (unused constants/docs)
+**Last Updated:** 2025-10-05 (Comprehensive Audit Complete)
+**Status:** ✅ **ZERO P0/P1** · 🟡 3 P2 issues · 4 P3 polish items
+**Comprehensive Audit:** See `COMPREHENSIVE_DEBT_AUDIT.md` for full first-principles analysis
 
 Key reminder from earlier investigation: `BGB_SANITIZE_GRADS=1` remains informational; gradient sanitisation relies on clipping + logging.
 
@@ -46,16 +47,22 @@ Key reminder from earlier investigation: `BGB_SANITIZE_GRADS=1` remains informat
 
 ## P2: MEDIUM PRIORITY
 
-- None – all previously tracked items (config validation, FA sweep refactor, metric helper, schema epsilons) completed in v3.7.0
+**COUNT: 3** (see `COMPREHENSIVE_DEBT_AUDIT.md` for details)
+
+1. **P2.1:** Deprecated env vars (`BGB_MID_EPOCH_*`) → Remove in v3.8.0
+2. **P2.2:** Flaky performance test → ✅ **FIXED** (WSL2 degradation threshold)
+3. **P2.3:** 32 unused constants → Audit in v3.8.0 polish sprint
 
 ---
 
 ## P3: LOW PRIORITY (Optional Backlog)
 
-| Item | Notes | Origin |
-|------|-------|--------|
-| Remove unused constants (labels, metric strings, legacy clamps) | 32 constants identified by `/tmp/complete_audit.py`; schedule for v3.8.0 | Constant audit |
-| Refresh architecture/metrics documentation | Update diagrams + docs to highlight `format_sensitivity_key()` and SSOT patterns | Documentation debt |
+**COUNT: 4** (see `COMPREHENSIVE_DEBT_AUDIT.md` for details)
+
+1. **P3.1:** 21 `# type: ignore` comments → Audit and remove where possible
+2. **P3.2:** Debug assertions in production → Convert to exceptions (2-3 hours)
+3. **P3.3:** 11 `pass` statements → Review for dead code
+4. **P3.4:** Documentation refresh → Update diagrams for focal-only, SSOT patterns
 
 ---
 
