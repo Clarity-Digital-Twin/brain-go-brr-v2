@@ -249,19 +249,8 @@ def train_epoch(
             pos_ratio = pos_count / max(total_samples, 1)
             logger.info(f"[DATASET] Estimated seizure ratio: {100 * pos_ratio:.1f}%")
 
-        pos_weight_val = (1.0 - pos_ratio) / max(pos_ratio, EPSILON_NUMERICAL)
-        pos_weight_val = float(min(pos_weight_val, 20.0))
-
-    logger.info(f"[DATASET] Positive weight for loss: {pos_weight_val:.2f}")
     logger.info("=" * 60 + "\n")
-
-    if loss_mode == "focal":
-        logger.info(f"[LOSS] Using focal loss (alpha={focal_alpha}, gamma={focal_gamma})")
-    else:
-        logger.info(f"[LOSS] Using BCE loss (pos_weight={pos_weight_val:.2f})")
-
-    pos_weight_tensor = torch.tensor([pos_weight_val], device=device_obj)
-    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight_tensor)
+    logger.info(f"[LOSS] Using focal loss (alpha={focal_alpha}, gamma={focal_gamma})")
 
     gradient_norms = []
     total_loss = 0.0
