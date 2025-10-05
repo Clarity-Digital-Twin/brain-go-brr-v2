@@ -49,33 +49,98 @@ Key reminder from earlier investigation: `BGB_SANITIZE_GRADS=1` remains informat
 
 ---
 
-## P2: MEDIUM PRIORITY
+## P2: MEDIUM PRIORITY (MUST FIX BEFORE TRAINING)
 
-**COUNT: 3** (see `COMPREHENSIVE_DEBT_AUDIT.md` for details)
+**COUNT: 2** (total: 1.5 hours)
 
-1. **P2.1:** Deprecated env vars (`BGB_MID_EPOCH_*`) → Remove in v3.8.0
-2. **P2.2:** Flaky performance test → ✅ **FIXED** (WSL2 degradation threshold)
-3. **P2.3:** 32 unused constants → Audit in v3.8.0 polish sprint
+### P2.1: Deprecated Environment Variables (30 min)
+**Location:** `src/brain_brr/utils/env.py:104-128`
+- Delete `mid_epoch_minutes()` and `mid_epoch_keep()` functions
+- Verify no usage: `rg "BGB_MID_EPOCH_MINUTES|BGB_MID_EPOCH_KEEP" configs/ deploy/`
+- **Rationale:** Clean API surface, avoid runtime warnings
+
+### P2.2: Unused Constants Cleanup (1 hour)
+**Location:** `src/brain_brr/constants.py` (32/90 unused = 35.6%)
+- Audit each of 32 unused constants
+- DELETE if truly dead code (e.g., CSV_VERSION_HEADER)
+- KEEP with `# OPTIONAL:` if intentional (e.g., LABEL_* for future multi-class)
+- WIRE if should be used but isn't (e.g., FOCAL_GAMMA_PRODUCTION)
+- **Rationale:** 35.6% dead code violates clean code principles
 
 ---
 
-## P3: LOW PRIORITY (Optional Backlog)
+## P3: LOW PRIORITY (MUST FIX BEFORE TRAINING)
 
-**COUNT: 4** (see `COMPREHENSIVE_DEBT_AUDIT.md` for details)
+**COUNT: 4** (total: 5.25 hours)
 
-1. **P3.1:** 21 `# type: ignore` comments → Audit and remove where possible
-2. **P3.2:** Debug assertions in production → Convert to exceptions (2-3 hours)
-3. **P3.3:** 11 `pass` statements → Review for dead code
-4. **P3.4:** Documentation refresh → Update diagrams for focal-only, SSOT patterns
+### P3.1: Type Ignore Comments Audit (2 hours)
+**Location:** Scattered (21 occurrences)
+- Review each `# type: ignore`, try to remove
+- Add proper type annotations or use `typing.cast()`
+- Document remaining ignores with inline explanation
+- **Rationale:** Type safety non-negotiable for production ML
+
+### P3.2: Convert Assertions to Exceptions (1.5 hours)
+**Location:** `src/brain_brr/models/detector.py` (11 assert statements)
+- Convert all assertions to proper exceptions (RuntimeError, ValueError)
+- **CRITICAL:** Assertions disabled with `python -O` (Modal may use this)
+- **Rationale:** Production code MUST NOT use assertions for data validation
+
+### P3.3: Review Pass Statements (45 min)
+**Location:** Various (9 occurrences)
+- Audit each `pass` statement
+- Abstract classes → OK, add docstring
+- Empty except blocks → **CRITICAL:** May hide bugs, add logging or handle properly
+- Empty functions → Document intent or remove dead code
+- **Rationale:** Silent error handling violates best practices
+
+### P3.4: Documentation Accuracy Verification (1 hour)
+**Location:** `docs/`, root-level docs
+- Check for BCE references (should be removed)
+- Verify focal-only messaging is clear
+- Ensure all training commands are accurate (file counts, memory, batch sizes)
+- **Rationale:** Inaccurate docs waste time and money during training
+
+---
+
+## P4-P5: DEFER (Post-Training Optimization Only)
+
+**COUNT: 2** (DO NOT IMPLEMENT BEFORE TRAINING)
+
+**🚨 WARNING: Performance optimizations ONLY after training proves baseline 🚨**
+
+1. **P4.1:** Tensor `.item()` calls (7 in train/) → Profile first, optimize ONLY if bottleneck proven
+2. **P4.2:** Refactor detector.py (480 lines) → DEFER, current structure is clear
+
+**Philosophy:** Training has been tough. Premature optimization risks bugs for negligible gain. Training stability >>> theoretical performance.
 
 ---
 
 ## Verification Commands
 
 ```bash
-python /tmp/complete_audit.py   # constant usage + schema stats
+# After completing each P2/P3 item:
 make q                          # lint + format + mypy + config validation
+make test                       # full test suite
+
+# Final verification before training:
+python /tmp/complete_audit.py   # verify constant usage
+make test-performance           # verify stability
 ```
+
+---
+
+## Implementation Order (RECOMMENDED)
+
+1. P2.1: Remove deprecated env vars (30 min)
+2. P2.2: Audit unused constants (1 hour)
+3. P3.2: Convert assertions to exceptions (1.5 hours) - **HIGHEST RISK**
+4. P3.1: Audit type ignores (2 hours)
+5. P3.3: Review pass statements (45 min)
+6. P3.4: Verify documentation (1 hour)
+7. **Final verification** (make q + make test)
+
+**Total: ~6.75 hours + verification**
 
 ---
 
@@ -83,6 +148,8 @@ make q                          # lint + format + mypy + config validation
 
 **v3.7.0 Completed Items:**
 - ✅ **BCE mode removed** - Focal-only production, deleted dead code, locked schema
-- ✅ SSOT constant wiring (88→90 constants, 58 used, zero hardcoded literals)
+- ✅ **Comprehensive debt audit** - First-principles analysis, zero-debt policy enforcement
+- ✅ **Performance test fix** - WSL2 degradation threshold (2.5× tolerance)
+- ✅ SSOT constant wiring (90 constants total, 58 used = 64.4%, zero hardcoded literals)
 - ✅ Test-suite batch size fixture, redundant cleanup fixtures, GPU memory fraction parametrisation
 - ✅ Inline import removal, FA sweep refactor, metric key helper adoption, schema epsilons, ECE bin constant
