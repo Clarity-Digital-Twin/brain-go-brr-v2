@@ -163,7 +163,7 @@ class StreamingPostProcessor:
                 mask_batch,
                 opening_kernel=self.config.morphology.opening_kernel,
                 closing_kernel=self.config.morphology.closing_kernel,
-                use_gpu=device.type == "cuda",
+                use_gpu=self.config.morphology.use_gpu,
             )
             mask_tensor = mask_batch.squeeze(0)
 

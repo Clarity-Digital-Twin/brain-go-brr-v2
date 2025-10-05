@@ -64,8 +64,8 @@ Training
 
 - `epochs`, `batch_size`
 - `loss: bce|focal` with `focal_alpha` (0.5 neutral), `focal_gamma`
-- `learning_rate`, `weight_decay`, `optimizer: adamw|adam|sgd`
-- `scheduler: { type: cosine|linear|constant, warmup_ratio }`
+- `learning_rate`, `weight_decay`, `optimizer: adamw` (only AdamW supported)
+- `scheduler: { type: cosine, warmup_ratio }` (only cosine supported)
 - `gradient_clip`, `mixed_precision`, `resume`, `early_stopping`
 
 Evaluation
@@ -74,11 +74,10 @@ Evaluation
 - `fa_rates: [10, 5, 2.5, 1]`
 - `save_predictions`, `save_plots`
 
-Experiment / Logging / Resources
+Experiment / Logging
 
 - `experiment: { name, description, seed, device: auto|cuda|cpu|mps, output_dir, cache_dir, log_level, save_model, save_best_only, wandb{…} }`
 - `logging: { log_every_n_steps, log_gradients, log_weights }`
-- `resources: { max_memory_gb, distributed, mixed_precision }` (optional)
 
 Constraints and validations
 

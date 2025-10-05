@@ -4,7 +4,7 @@ This file provides critical project context for Claude Code (claude.ai/code) whe
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.6.1 (Gradient Logging Enhancement): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks.
+Brain-Go-Brr v3.6.2 (Complete Debt Elimination - Production Baseline): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks.
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
@@ -12,7 +12,7 @@ Brain-Go-Brr v3.6.1 (Gradient Logging Enhancement): Clinical EEG seizure detecti
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-Current Architecture (v3.6.1 - October 4, 2025):
+Current Architecture (v3.6.2 - October 4, 2025):
 - **V3 dual-stream** → Node (19×) and Edge (171×) parallel processing
 - **Edge similarity clamping** → Prevents ±1.0 boundary explosions (PR-5)
 - **Dynamic Laplacian PE** → Time-evolving graph structure, fully dynamic every timestep
@@ -68,6 +68,15 @@ docker compose up train
 # Development shell
 docker compose run dev
 ```
+
+**Smoke Test Standards**:
+- **Local/Docker**: 3 files (BGB_SMOKE_TEST=1)
+- **Modal**: 50 files (BGB_LIMIT_FILES=50)
+- Both use same architecture, just different scale
+
+**Monitoring**:
+- **W&B**: Set `WANDB_API_KEY` in environment (see `docs/05-training/docker.md`)
+- **TensorBoard**: `docker compose up tensorboard` → http://localhost:6006
 
 ### Modal Cloud Deployment (A100-80GB)
 ```bash

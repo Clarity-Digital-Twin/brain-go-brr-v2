@@ -134,7 +134,6 @@ training:
   mixed_precision: true                # A100 is 3.8x faster at FP16!
 
 evaluation:
-  metrics: [taes, sensitivity, specificity, auroc]
   fa_rates: [10, 5, 2.5, 1]
 
 experiment:

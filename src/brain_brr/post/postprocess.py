@@ -138,7 +138,7 @@ def apply_morphology(
         masks: Binary masks (B, T) as bool
         opening_kernel: Size of opening kernel (must be odd)
         closing_kernel: Size of closing kernel (must be odd)
-        use_gpu: Whether to use GPU acceleration (not yet implemented)
+        use_gpu: Whether to use GPU acceleration (if CUDA available)
 
     Returns:
         Cleaned binary masks (B, T) as bool
@@ -150,7 +150,12 @@ def apply_morphology(
     if opening_kernel % 2 == 0 or closing_kernel % 2 == 0:
         raise ValueError("Kernel sizes must be odd")
 
-    # Unified fast path using pooling ops on both CPU and GPU
+    # Optional GPU acceleration (move to CUDA if requested and available)
+    original_device = masks.device
+    if use_gpu and torch.cuda.is_available() and original_device.type != "cuda":
+        masks = masks.to("cuda")
+
+    # Unified fast path using pooling ops (works on both CPU and GPU)
     x = masks.float()
 
     # Opening: erosion (min pool) then dilation (max pool)
@@ -170,7 +175,13 @@ def apply_morphology(
         x = -functional.max_pool1d(-x, kernel_size=closing_kernel, stride=1, padding=padding)
         x = x.squeeze(1)
 
-    return x > 0.5
+    result = x > 0.5
+
+    # Move back to original device if we moved to GPU
+    if use_gpu and torch.cuda.is_available() and original_device.type != "cuda":
+        result = result.to(original_device)
+
+    return result
 
 
 def filter_duration(

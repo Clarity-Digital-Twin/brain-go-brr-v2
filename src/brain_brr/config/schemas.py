@@ -40,8 +40,9 @@ class StrictModel(BaseModel):
 class DataConfig(StrictModel):
     """Data loading and batching configuration."""
 
-    dataset: Literal["tuh_eeg", "chb_mit"] = Field(
-        default="tuh_eeg", description="Dataset to use for training"
+    dataset: Literal["tuh_eeg"] = Field(
+        default="tuh_eeg",
+        description="Dataset to use for training (only TUH EEG Seizure supported)",
     )
     data_dir: Path = Field(default=Path("data"), description="Root directory containing EDF files")
     cache_dir: Path = Field(default=Path("cache/data"), description="Data cache directory")
@@ -94,7 +95,6 @@ class PreprocessingConfig(StrictModel):
         default=NOTCH_FILTER_HZ, description="Powerline frequency to notch (50 EU, 60 US)"
     )
     normalize: bool = Field(default=True, description="Apply per-channel z-score normalization")
-    use_mne: bool = Field(default=True, description="Use MNE for EDF loading")
 
     @field_validator("bandpass")
     @classmethod
@@ -399,8 +399,8 @@ class PostprocessingConfig(StrictModel):
 class SchedulerConfig(StrictModel):
     """Learning rate scheduler configuration."""
 
-    type: Literal["cosine", "linear", "constant"] = Field(
-        default="cosine", description="Scheduler type"
+    type: Literal["cosine"] = Field(
+        default="cosine", description="Learning rate scheduler type (only cosine supported)"
     )
     warmup_ratio: float = Field(
         default=0.1, ge=0.0, le=0.5, description="Warmup fraction of total steps"
@@ -458,17 +458,6 @@ class WarmupScheduleConfig(StrictModel):
         description="Ending gamma (target focal_gamma)",
     )
 
-    # Residual scaling (optional, for very deep nets)
-    residual_scale_enabled: bool = Field(
-        default=False, description="Enable residual scaling in early blocks (OPTIONAL)"
-    )
-    residual_scale_blocks: list[int] = Field(
-        default_factory=lambda: [0, 1], description="Which blocks to scale (0-indexed)"
-    )
-    residual_scale_factor: float = Field(
-        default=0.5, ge=0.1, le=0.9, description="Scaling factor for residuals during warmup"
-    )
-
 
 class TrainingConfig(StrictModel):
     """Training loop configuration."""
@@ -492,8 +481,8 @@ class TrainingConfig(StrictModel):
         default=3e-4, ge=1e-6, le=1e-2, description="Initial learning rate"
     )
     weight_decay: float = Field(default=0.05, ge=0.0, le=0.2, description="AdamW weight decay")
-    optimizer: Literal["adamw", "adam", "sgd"] = Field(
-        default="adamw", description="Optimizer type"
+    optimizer: Literal["adamw"] = Field(
+        default="adamw", description="Optimizer type (only AdamW supported)"
     )
     resume: bool = Field(default=False, description="Resume from last checkpoint")
     scheduler: SchedulerConfig = Field(default_factory=SchedulerConfig)
@@ -527,10 +516,6 @@ class TrainingConfig(StrictModel):
 class EvaluationConfig(StrictModel):
     """Evaluation and metrics configuration."""
 
-    metrics: list[str] = Field(
-        default=["taes", "sensitivity", "specificity", "auroc"],
-        description="Metrics to compute",
-    )
     fa_rates: list[float] = Field(
         default=[10, 5, 2.5, 1], description="False alarm rates per 24h for TAES"
     )
@@ -619,18 +604,37 @@ class Config(StrictModel):
         return cls(**data)
 
     def validate_for_phase(self, phase: str) -> None:
-        """Validate config is appropriate for given phase."""
+        """Validate config is appropriate for given phase.
+
+        Args:
+            phase: Validation phase ('data', 'model', or 'training')
+
+        Raises:
+            ValueError: If config values are invalid for the specified phase
+        """
         if phase == "data":
             # Phase 1 only needs data + preprocessing
-            assert self.data.sampling_rate == 256, "Must use 256 Hz"
-            assert self.data.n_channels == 19, "Must use 19 channels"
-            assert self.data.window_size == 60, "Must use 60s windows"
-            assert self.data.stride == 10, "Must use 10s stride"
+            if self.data.sampling_rate != 256:
+                raise ValueError(f"Must use 256 Hz sampling rate, got {self.data.sampling_rate}")
+            if self.data.n_channels != 19:
+                raise ValueError(
+                    f"Must use 19 channels (10-20 montage), got {self.data.n_channels}"
+                )
+            if self.data.window_size != 60:
+                raise ValueError(f"Must use 60s windows, got {self.data.window_size}s")
+            if self.data.stride != 10:
+                raise ValueError(f"Must use 10s stride, got {self.data.stride}s")
         elif phase == "model":
             # Phase 2 needs model config
-            assert self.model.tcn.num_layers >= 4, "Must have >=4 TCN layers"
-            assert self.model.mamba.d_model == 512, "Mamba d_model must be 512"
+            if self.model.tcn.num_layers < 4:
+                raise ValueError(f"Must have >=4 TCN layers, got {self.model.tcn.num_layers}")
+            if self.model.mamba.d_model != 512:
+                raise ValueError(f"Mamba d_model must be 512, got {self.model.mamba.d_model}")
         elif phase == "training":
             # Phase 3 needs full config
-            assert self.training.epochs > 0, "Must have positive epochs"
-            assert self.training.learning_rate > 0, "Must have positive LR"
+            if self.training.epochs <= 0:
+                raise ValueError(f"Must have positive epochs, got {self.training.epochs}")
+            if self.training.learning_rate <= 0:
+                raise ValueError(
+                    f"Must have positive learning rate, got {self.training.learning_rate}"
+                )

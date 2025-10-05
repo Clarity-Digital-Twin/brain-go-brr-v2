@@ -90,6 +90,7 @@ RUN pip install \
     seaborn>=0.11.0 \
     pandas>=2.0.0 \
     wandb>=0.16.0 \
+    tensorboard>=2.15.0 \
     einops>=0.7.0 \
     mne>=1.5.0 \
     pydantic>=2.0.0 \

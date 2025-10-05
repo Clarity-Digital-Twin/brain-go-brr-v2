@@ -182,6 +182,9 @@ def run_evaluation(request: EvaluationRequest) -> EvaluationResult:
         fa_rates=cfg.evaluation.fa_rates,
         focal_alpha=focal_alpha,
         focal_gamma=focal_gamma,
+        save_predictions=cfg.evaluation.save_predictions,
+        save_plots=cfg.evaluation.save_plots,
+        output_dir=cfg.experiment.output_dir,
     )
 
     if request.output_json:

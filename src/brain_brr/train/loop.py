@@ -11,6 +11,7 @@ SOLID principles applied:
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +51,17 @@ from src.brain_brr.utils.env import env
 
 # Module logger
 logger = logging.getLogger(__name__)
+
+
+def _safe_parse_int(value: str | int | None, fallback: int) -> int:
+    """Safely parse an int from various sources, returning fallback on error."""
+    if value is None:
+        return fallback
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return fallback
+
 
 # WSL2-safe multiprocessing defaults (must be before any DataLoader creation)
 if mp.get_start_method(allow_none=True) != "spawn":
@@ -175,16 +187,22 @@ def train(
             checkpoint_dir=checkpoint_dir,
             epoch_index=epoch,
             mid_epoch_minutes=(
-                float(env.mid_epoch_minutes() or 0)
-                if config.training.resume and env.mid_epoch_minutes() is not None
-                else getattr(
-                    config.experiment,
-                    "mid_epoch_checkpoint_minutes",
-                    10.0 if config.training.resume else None,
-                )
+                config.training.mid_checkpoint_interval_s / 60.0
+                if config.training.mid_checkpoint_interval_s
+                else None
             ),
-            mid_epoch_keep=int(env.mid_epoch_keep()),
+            mid_epoch_keep=(
+                config.training.mid_epoch_keep if config.training.mid_epoch_keep is not None else 3
+            ),
             warmup_schedule=config.training.warmup_schedule,
+            gradient_accumulation_steps=config.training.gradient_accumulation_steps,
+            log_every_n_steps=_safe_parse_int(
+                os.getenv("BGB_LOG_EVERY_N_STEPS"),
+                fallback=config.logging.log_every_n_steps or 0,
+            ),
+            log_gradients=config.logging.log_gradients,
+            log_weights=config.logging.log_weights,
+            wandb_logger=wandb_logger,
         )
 
         # Type narrowing for mypy
@@ -202,6 +220,10 @@ def train(
             fa_rates=config.evaluation.fa_rates,
             focal_alpha=focal_alpha,
             focal_gamma=focal_gamma,
+            save_predictions=config.evaluation.save_predictions,
+            save_plots=config.evaluation.save_plots,
+            output_dir=config.experiment.output_dir,
+            epoch=epoch,
         )
 
         # COLLAPSE DETECTION: Stop if model outputs all-negative
@@ -265,22 +287,20 @@ def train(
         metric_name = config.training.early_stopping.metric
         current_metric = val_metrics.get(metric_name, 0.0)
 
+        # Check if this is a NEW best (before early_stopping updates best_score)
+        is_new_best = (
+            current_metric > early_stopping.best_score
+            if early_stopping.mode == "max"
+            else current_metric < early_stopping.best_score
+        )
+
         if early_stopping(current_metric, epoch):
             logger.info(f"Early stopping at epoch {epoch + 1}")
             break
 
-        # Save best model
+        # Track best metrics (always, regardless of save_model)
         if current_metric == early_stopping.best_score:
-            save_checkpoint(
-                model,
-                optimizer,
-                epoch,
-                current_metric,
-                checkpoint_dir / CHECKPOINT_BEST,
-                scheduler,
-                config,
-            )
-            best_metric = current_metric  # FIX: Update best_metric when we find a new best
+            best_metric = current_metric
             best_metrics = {
                 "best_epoch": epoch + 1,
                 "best_taes": val_metrics["taes"],
@@ -289,8 +309,22 @@ def train(
             }
             logger.info(f"  New best {metric_name}: {current_metric:.4f}")
 
-            # Log best model to W&B
-            wandb_logger.log_model(checkpoint_dir / CHECKPOINT_BEST, name=f"best-{metric_name}")
+            # Save best model checkpoint (respecting save_model and save_best_only)
+            # Only save if: save_model enabled AND (save_best_only=False OR this is NEW best)
+            if config.experiment.save_model and (
+                not config.experiment.save_best_only or is_new_best
+            ):
+                save_checkpoint(
+                    model,
+                    optimizer,
+                    epoch,
+                    current_metric,
+                    checkpoint_dir / CHECKPOINT_BEST,
+                    scheduler,
+                    config,
+                )
+                # Log best model to W&B
+                wandb_logger.log_model(checkpoint_dir / CHECKPOINT_BEST, name=f"best-{metric_name}")
 
         # Save periodic checkpoint based on checkpoint_interval
         checkpoint_interval = getattr(
@@ -298,7 +332,11 @@ def train(
             "checkpoint_interval",
             getattr(config.training, "checkpoint_interval", 0),
         )
-        if checkpoint_interval > 0 and (epoch + 1) % checkpoint_interval == 0:
+        if (
+            config.experiment.save_model
+            and checkpoint_interval > 0
+            and (epoch + 1) % checkpoint_interval == 0
+        ):
             checkpoint_path = checkpoint_dir / f"epoch_{epoch + 1:03d}.pt"
             save_checkpoint(
                 model,
@@ -311,16 +349,17 @@ def train(
             )
             logger.info(f"  Saved periodic checkpoint: {checkpoint_path.name}")
 
-        # Always save last checkpoint for resume capability
-        save_checkpoint(
-            model,
-            optimizer,
-            epoch,
-            best_metric,
-            checkpoint_dir / CHECKPOINT_LAST,
-            scheduler,
-            config,
-        )
+        # Always save last checkpoint for resume capability (even if save_model=False)
+        if config.training.resume or config.experiment.save_model:
+            save_checkpoint(
+                model,
+                optimizer,
+                epoch,
+                best_metric,
+                checkpoint_dir / CHECKPOINT_LAST,
+                scheduler,
+                config,
+            )
 
     if writer is not None:
         writer.close()
@@ -346,10 +385,6 @@ def main() -> None:
     from src.brain_brr.data import BalancedSeizureDataset, EEGWindowDataset, ValidationDataset
     from src.brain_brr.utils.logging_config import setup_logging
 
-    # Initialize elite logging infrastructure for training
-    setup_logging()
-    logging.captureWarnings(True)  # Capture Python warnings into logging system
-
     parser = argparse.ArgumentParser(description="Train seizure detection model")
     parser.add_argument(
         "config",  # Make positional argument for easier CLI usage
@@ -368,6 +403,16 @@ def main() -> None:
     config = Config.from_yaml(Path(args.config))
     config.training.resume = args.resume
 
+    # Initialize logging with config-driven level (env > config > default precedence)
+    log_level_env = os.getenv("BGB_LOG_LEVEL")
+    log_level = log_level_env or config.experiment.log_level
+    log_source = "env" if log_level_env else "config"
+    setup_logging(level=log_level)
+    logging.captureWarnings(True)
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"[LOGGING] Level: {log_level} (source: {log_source})")
+
     # Check if we're in smoke test mode
     is_smoke_test = env.smoke_test()
     if is_smoke_test:
@@ -377,8 +422,7 @@ def main() -> None:
         logger.info("DO NOT use this for real training!")
         logger.info("=" * 60 + "\n")
 
-    # Load TUSZ official splits (PATIENT-DISJOINT!)
-    # For TUSZ: train on train/, validate on dev/, never touch eval/
+    # Load dataset (only TUH EEG Seizure supported, enforced by schema)
     from src.brain_brr.data.tusz_splits import load_tusz_for_training
 
     data_root = Path(config.data.data_dir)
@@ -508,6 +552,10 @@ def main() -> None:
         else:
             logger.info("[DATA] Skipping manifest build - cache not yet populated")
 
+    # Determine if montage should be applied (defensive: handle None or "none")
+    montage_val = getattr(config.preprocessing, "montage", None)
+    apply_montage = bool(montage_val) and str(montage_val).lower() != "none"
+
     # Create training dataset - either balanced (from manifest) or standard
     train_dataset: BalancedSeizureDataset | EEGWindowDataset
     if use_balanced and manifest_path.exists():
@@ -537,6 +585,12 @@ def main() -> None:
                 label_files=train_label_files,
                 cache_dir=train_cache_dir,
                 allow_on_demand=True,
+                bandpass=config.preprocessing.bandpass,
+                notch_freq=config.preprocessing.notch_freq,
+                normalize=config.preprocessing.normalize,
+                apply_montage=apply_montage,
+                max_samples=config.data.max_samples,
+                max_hours=config.data.max_hours,
             )
     else:
         train_dataset = EEGWindowDataset(
@@ -544,6 +598,12 @@ def main() -> None:
             label_files=train_label_files,
             cache_dir=train_cache_dir,
             allow_on_demand=True,
+            bandpass=config.preprocessing.bandpass,
+            notch_freq=config.preprocessing.notch_freq,
+            normalize=config.preprocessing.normalize,
+            apply_montage=apply_montage,
+            max_samples=config.data.max_samples,
+            max_hours=config.data.max_hours,
         )
 
     # Validation cache uses "dev" subdir (TUSZ official naming)
@@ -575,6 +635,12 @@ def main() -> None:
                 label_files=val_label_files,
                 cache_dir=val_cache_dir,
                 allow_on_demand=True,
+                bandpass=config.preprocessing.bandpass,
+                notch_freq=config.preprocessing.notch_freq,
+                normalize=config.preprocessing.normalize,
+                apply_montage=apply_montage,
+                max_samples=config.data.max_samples,
+                max_hours=config.data.max_hours,
             )
     else:
         logger.info(
@@ -585,6 +651,12 @@ def main() -> None:
             label_files=val_label_files,
             cache_dir=val_cache_dir,
             allow_on_demand=True,
+            bandpass=config.preprocessing.bandpass,
+            notch_freq=config.preprocessing.notch_freq,
+            normalize=config.preprocessing.normalize,
+            apply_montage=apply_montage,
+            max_samples=config.data.max_samples,
+            max_hours=config.data.max_hours,
         )
 
     # CRITICAL FIX: If we just built cache via EEGWindowDataset and manifest doesn't exist,

@@ -14,6 +14,7 @@ def preprocess_recording(
     target_fs: int = constants.SAMPLING_RATE,
     bandpass: tuple[float, float] = (0.5, 120.0),
     notch_freq: int = 60,
+    normalize: bool = True,
 ) -> npt.NDArray[np.float32]:
     """Preprocess EEG recording.
 
@@ -21,7 +22,7 @@ def preprocess_recording(
       1) Resample to target_fs (scipy.signal.resample)
       2) Bandpass Butterworth (order=3) via lfilter
       3) Notch (iirnotch)
-      4) Per-channel z-score normalization
+      4) Per-channel z-score normalization (if normalize=True)
 
     Returns float32 array (n_channels, n_samples_new), finite-only (NaN/Inf → 0).
     """
@@ -58,14 +59,15 @@ def preprocess_recording(
         b_notch, a_notch = iirnotch(w0, Q=30)
         x = lfilter(b_notch, a_notch, x, axis=1)
 
-    # 4) Per-channel z-score
-    mean = np.mean(x, axis=1, keepdims=True)
-    std = np.std(x, axis=1, keepdims=True)
-    x = (x - mean) / (std + constants.EPSILON_ZERO_CHECK)
+    # 4) Per-channel z-score (if normalize=True)
+    if normalize:
+        mean = np.mean(x, axis=1, keepdims=True)
+        std = np.std(x, axis=1, keepdims=True)
+        x = (x - mean) / (std + constants.EPSILON_ZERO_CHECK)
 
-    # CRITICAL: Clip outliers to prevent infinities during training
-    # EEG data can have extreme artifacts (>100 sigma) that cause numerical issues
-    x = np.clip(x, -10.0, 10.0)  # Clip to ±10 standard deviations
+        # CRITICAL: Clip outliers to prevent infinities during training
+        # EEG data can have extreme artifacts (>100 sigma) that cause numerical issues
+        x = np.clip(x, -10.0, 10.0)  # Clip to ±10 standard deviations
 
     # Sanitize NaNs / Infs and cast
     x_clean: npt.NDArray[np.float32] = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0).astype(

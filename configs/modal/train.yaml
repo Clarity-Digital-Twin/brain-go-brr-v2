@@ -33,7 +33,6 @@ preprocessing:
   bandpass: [0.5, 120]
   notch_freq: 60
   normalize: true
-  use_mne: true
 
 model:
   # Architecture: "v3" (dual-stream with edge Mamba)
@@ -146,7 +145,6 @@ training:
     focal_gamma_enabled: true
     focal_gamma_start: 1.0
     focal_gamma_end: 2.0
-    residual_scale_enabled: false
 
   gradient_clip: 0.5                   # Stronger clipping for NaN protection
   mixed_precision: true                # A100 is 3.8x faster at FP16! Critical for performance
@@ -159,7 +157,6 @@ training:
   mid_epoch_keep: 3                    # Keep last 3 mid-epoch snapshots
 
 evaluation:
-  metrics: [taes, sensitivity, specificity, auroc]
   fa_rates: [10, 5, 2.5, 1]
   save_predictions: true               # Cloud has space
   save_plots: true                     # Generate all visualizations
