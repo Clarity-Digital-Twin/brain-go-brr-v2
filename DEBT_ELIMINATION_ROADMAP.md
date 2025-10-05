@@ -232,7 +232,7 @@ For each debt item, verify:
 
 **Files Modified:**
 - 7 documentation files updated
-- 2 code files cleaned
+- 3 code files cleaned
 
 **Changes Made:**
 1. ✅ Removed phantom optimizer/scheduler/resources from schema docs
@@ -241,7 +241,7 @@ For each debt item, verify:
 4. ✅ Flipped checkpoint docs to config-first, env vars as legacy (4 files)
 5. ✅ Added scope note to perf env vars (test suite only)
 6. ✅ Removed phantom BGB_NAN_DEBUG_MAX env var from code
-7. ✅ Cleaned all "coming v3.7" promises from schema comments
+7. ✅ Cleaned all "coming soon" promises from schema comments and training loader error
 
 **Quality Verification:**
 - ✅ Ruff: All checks passed

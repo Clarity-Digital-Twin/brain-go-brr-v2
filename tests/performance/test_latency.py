@@ -545,7 +545,7 @@ class TestLatencyUnderLoad:
             max_degradation = thresholds.latency_degradation_pct() / 100
             assert abs(degradation) < max_degradation, (
                 f"Latency degraded by {degradation * 100:.1f}% over time "
-                f"(P50 early: {early*1000:.2f}ms → late: {late*1000:.2f}ms, max: {max_degradation * 100:.1f}%)"
+                f"(P50 early: {early * 1000:.2f}ms → late: {late * 1000:.2f}ms, max: {max_degradation * 100:.1f}%)"
             )
 
     @pytest.mark.performance

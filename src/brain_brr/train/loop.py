@@ -426,7 +426,7 @@ def main() -> None:
     if config.data.dataset == "tuh_eeg":
         from src.brain_brr.data.tusz_splits import load_tusz_for_training
     elif config.data.dataset == "chb_mit":
-        raise NotImplementedError("CHB-MIT coming v3.7")
+        raise NotImplementedError("CHB-MIT dataset support is not yet implemented")
     else:
         raise ValueError(f"Unknown dataset: {config.data.dataset}")
 

@@ -64,9 +64,10 @@ All critical fixes implemented and verified. Codebase is now 100% debt-free.
 6. `docs/05-training/resume.md` - Updated mid-epoch checkpoint documentation
 7. `docs/05-training/monitoring.md` - Updated mid-epoch checkpoint documentation
 
-**Code (2 files):**
-1. `src/brain_brr/config/schemas.py` - Removed "coming v3.7" promises from 3 comments
+**Code (3 files):**
+1. `src/brain_brr/config/schemas.py` - Removed "coming v3.7" promises from comments
 2. `src/brain_brr/utils/env.py` - Removed phantom `BGB_NAN_DEBUG_MAX` env var
+3. `src/brain_brr/train/loop.py` - Updated CHB-MIT error to "not yet implemented" (no future promise)
 
 ### Quality Checks
 - ✅ Ruff: All checks passed
