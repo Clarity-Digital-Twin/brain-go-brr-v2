@@ -127,8 +127,8 @@ def apply_hysteresis(
 
 def apply_morphology(
     masks: torch.Tensor,
-    opening_kernel: int = 11,
-    closing_kernel: int = 31,
+    opening_kernel: int = MORPHOLOGY_OPENING_KERNEL,
+    closing_kernel: int = MORPHOLOGY_CLOSING_KERNEL,
     use_gpu: bool = False,
     kernel_size: int | None = None,
 ) -> torch.Tensor:
