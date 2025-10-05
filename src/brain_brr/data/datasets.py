@@ -267,8 +267,8 @@ class EEGWindowDataset(torch.utils.data.Dataset):
 
             # Open as memory-mapped (ZERO copies to RAM!)
             # OS manages memory automatically via page cache
-            windows_mmap = np.load(windows_file, mmap_mode='r')
-            labels_mmap = np.load(labels_file, mmap_mode='r') if labels_file.exists() else None
+            windows_mmap = np.load(windows_file, mmap_mode="r")
+            labels_mmap = np.load(labels_file, mmap_mode="r") if labels_file.exists() else None
 
             self._mmap_handles[cache_path] = (windows_mmap, labels_mmap)
 
@@ -509,8 +509,8 @@ class BalancedSeizureDataset(Dataset):
 
             # Open as memory-mapped (ZERO copies to RAM!)
             # OS manages memory automatically via page cache
-            windows_mmap = np.load(windows_file, mmap_mode='r')
-            labels_mmap = np.load(labels_file, mmap_mode='r') if labels_file.exists() else None
+            windows_mmap = np.load(windows_file, mmap_mode="r")
+            labels_mmap = np.load(labels_file, mmap_mode="r") if labels_file.exists() else None
 
             self._mmap_handles[cache_path] = (windows_mmap, labels_mmap)
 
@@ -684,8 +684,8 @@ class ValidationDataset(Dataset):
 
             # Open as memory-mapped (ZERO copies to RAM!)
             # OS manages memory automatically via page cache
-            windows_mmap = np.load(windows_file, mmap_mode='r')
-            labels_mmap = np.load(labels_file, mmap_mode='r') if labels_file.exists() else None
+            windows_mmap = np.load(windows_file, mmap_mode="r")
+            labels_mmap = np.load(labels_file, mmap_mode="r") if labels_file.exists() else None
 
             self._mmap_handles[cache_path] = (windows_mmap, labels_mmap)
 
