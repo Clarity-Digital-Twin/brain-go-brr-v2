@@ -1,27 +1,33 @@
 # Brain-Go-Brr v3.7.0 – Comprehensive Technical Debt Audit
 
-**Date:** 2025-10-05
+**Date:** 2025-10-05 (Last Updated: 2025-10-05)
 **Audit Scope:** ALL source code, tests, configs, documentation
 **Methodology:** First-principles systematic analysis (Google/DeepMind standards)
-**Status:** 🟢 **PRODUCTION READY** · 🟡 Low-priority polish opportunities
+**Status:** 🔴 **NO TRAINING UNTIL ALL DEBT PAID** · Zero-debt policy in effect
 
 ---
 
 ## Executive Summary
 
-**Headline:** Zero blocking issues. Codebase is production-ready for Modal A100 training.
+**🚨 ZERO-DEBT POLICY: NO MODAL A100 TRAINING UNTIL ALL P2/P3 ITEMS RESOLVED 🚨**
 
+**Philosophy:** A100 training costs ~$319 for 100 epochs. Technical debt during training wastes money and compounds issues. We MUST have a pristine codebase before expensive cloud training.
+
+**Current State:**
 - ✅ **P0 (Blockers):** 0 issues
 - ✅ **P1 (High Priority):** 0 issues
-- 🟡 **P2 (Medium Priority):** 3 issues (deprecated env vars, test flakiness, unused constants)
-- 🟡 **P3 (Low Priority):** 4 issues (documentation polish, debug assertions, type ignores)
-- 🟢 **P4-P5 (Nice-to-have):** 2 issues (performance optimizations, refactoring opportunities)
+- 🔴 **P2 (Medium Priority):** 2 issues → **MUST FIX BEFORE TRAINING**
+- 🔴 **P3 (Low Priority):** 4 issues → **MUST FIX BEFORE TRAINING**
+- 🟡 **P4-P5 (Nice-to-have):** 2 issues → DEFER (post-training optimization)
 
-**Key Metrics:**
-- Mypy: 0 errors (100% type safe)
-- Test coverage: High (516 tests across unit/integration/performance)
-- Code organization: Excellent (63 modules, clear separation of concerns)
-- Constants centralization: 56/90 used (63.6%), 32 optional cleanup candidates
+**Verified Metrics (2025-10-05):**
+- Mypy: 0 errors (100% type safe) ✅
+- Test coverage: Requires full environment to verify (torch not in current shell)
+- Code organization: Excellent (63 modules, clear separation of concerns) ✅
+- Constants centralization: 58/90 used (64.4%), 32 cleanup candidates
+- Type ignore comments: 21 (need audit)
+- Pass statements: 9 (need review)
+- Assert statements (detector.py): 11 (need conversion to exceptions)
 
 ---
 
@@ -44,9 +50,9 @@ All P1 issues resolved in v3.7.0:
 
 ---
 
-## P2: MEDIUM PRIORITY (Should Fix Soon)
+## P2: MEDIUM PRIORITY (Must Fix Before Training)
 
-**COUNT: 3**
+**COUNT: 2** (P2.2 removed - already fixed)
 
 ### P2.1: Deprecated Environment Variables
 **Location:** `src/brain_brr/utils/env.py:104-128`
