@@ -48,7 +48,9 @@
 
 ---
 
-### 🔴 GAPS IDENTIFIED (Need Fixing)
+### 🔴 GAPS IDENTIFIED (7 Total - Need Fixing)
+
+**Summary**: 7 hardcoded literals found that should use constants from `constants.py`
 
 #### 1. BALANCED_SAMPLER_SAMPLE_SIZE (Unused Constant)
 
@@ -176,6 +178,64 @@ layerscale_init = float(norms_cfg.layerscale_alpha if norms_cfg else 0.1)
 
 ---
 
+#### 5. MORPHOLOGY_OPENING_KERNEL & MORPHOLOGY_CLOSING_KERNEL (Unused Constants)
+
+**Location**: `constants.py:154-155`
+```python
+MORPHOLOGY_OPENING_KERNEL: int = 11
+"""Opening kernel size..."""
+
+MORPHOLOGY_CLOSING_KERNEL: int = 31
+"""Closing kernel size..."""
+```
+
+**Current Code** (`postprocess.py:128-129`):
+```python
+def apply_morphology(
+    masks: torch.Tensor,
+    opening_kernel: int = 11,
+    closing_kernel: int = 31,
+    ...
+):
+```
+
+**Issue**: Hardcoded `11` and `31` instead of using constants
+
+**Fix Required**:
+```python
+from src.brain_brr.constants import MORPHOLOGY_OPENING_KERNEL, MORPHOLOGY_CLOSING_KERNEL
+
+def apply_morphology(
+    masks: torch.Tensor,
+    opening_kernel: int = MORPHOLOGY_OPENING_KERNEL,
+    closing_kernel: int = MORPHOLOGY_CLOSING_KERNEL,
+    ...
+):
+```
+
+**Category**: **Code-Guard Constant** (defensive fallback, config overrides)
+
+---
+
+#### 6. EDGE_INPUT_CLAMP_MAX (Missing Constant - Optional Fix)
+
+**Current Code** (`detector.py:363`):
+```python
+edge_in = torch.clamp(edge_in, -3.0, 3.0)
+```
+
+**Issue**: Hardcoded `3.0` clamp range (3σ safety for normalized features)
+
+**Decision Required**:
+- **OPTION A**: Create constant `EDGE_INPUT_CLAMP_MAX = 3.0` and wire it
+- **OPTION B**: Leave as-is (rarely-used fallback path when `edge_lift_activation: none`)
+
+**Recommendation**: OPTION A for completeness (centralizes all magic numbers)
+
+**Category**: **Code-Guard Constant** (safety clamp for edge features)
+
+---
+
 ## 📊 Complete Categorization Matrix
 
 ### Category 1: Config-Driven (Schema = SSOT)
@@ -218,6 +278,9 @@ layerscale_init = float(norms_cfg.layerscale_alpha if norms_cfg else 0.1)
 | `PERCENTILE_P25/P50/P75/P95` | `constants.py:308-317` | Gradient stats | `train_step.py:107,143` | ✅ Used |
 | **🔴 BALANCED_SAMPLER_SAMPLE_SIZE** | `constants.py:295` | Default sampling | `sampling.py:21` | ❌ **NOT USED** (hardcoded 500) |
 | **🔴 EIGENVALUE_CLAMP_MAX** | `constants.py:327` | Laplacian clamp | `gnn_pyg.py:284` | ❌ **NOT USED** (hardcoded 2.0) |
+| **🔴 MORPHOLOGY_OPENING_KERNEL** | `constants.py:154` | Opening kernel | `postprocess.py:128` | ❌ **NOT USED** (hardcoded 11) |
+| **🔴 MORPHOLOGY_CLOSING_KERNEL** | `constants.py:155` | Closing kernel | `postprocess.py:129` | ❌ **NOT USED** (hardcoded 31) |
+| **🔴 EDGE_INPUT_CLAMP_MAX** | N/A (missing) | Edge clamp | `detector.py:363` | ❌ **NOT DEFINED** (hardcoded 3.0) |
 
 **Decision**: ✅ **Keep in constants.py** - These are safety/clinical standards, never user-tunable
 
@@ -341,6 +404,66 @@ from src.brain_brr.constants import LAYERSCALE_ALPHA_FALLBACK
 
 layerscale_init = float(norms_cfg.layerscale_alpha if norms_cfg else LAYERSCALE_ALPHA_FALLBACK)
 ```
+
+---
+
+### Fix 6: postprocess.py - Wire MORPHOLOGY Constants
+
+**File**: `src/brain_brr/post/postprocess.py:128-129`
+
+**BEFORE**:
+```python
+def apply_morphology(
+    masks: torch.Tensor,
+    opening_kernel: int = 11,
+    closing_kernel: int = 31,
+    use_gpu: bool = False,
+    kernel_size: int | None = None,
+) -> torch.Tensor:
+```
+
+**AFTER**:
+```python
+from src.brain_brr.constants import MORPHOLOGY_OPENING_KERNEL, MORPHOLOGY_CLOSING_KERNEL
+
+def apply_morphology(
+    masks: torch.Tensor,
+    opening_kernel: int = MORPHOLOGY_OPENING_KERNEL,
+    closing_kernel: int = MORPHOLOGY_CLOSING_KERNEL,
+    use_gpu: bool = False,
+    kernel_size: int | None = None,
+) -> torch.Tensor:
+```
+
+**Category**: **Code-Guard Constant** (defensive fallback, config overrides)
+
+---
+
+### Fix 7: detector.py - Edge Input Clamp (Optional)
+
+**File**: `src/brain_brr/models/detector.py:363`
+
+**CURRENT**:
+```python
+edge_in = torch.clamp(edge_in, -3.0, 3.0)
+```
+
+**Issue**: Hardcoded `3.0` clamp range (3σ safety for normalized features)
+
+**Decision Required**:
+- **OPTION A**: Create constant and wire it
+  ```python
+  # In constants.py
+  EDGE_INPUT_CLAMP_MAX: float = 3.0
+  """Maximum edge input range (±3σ for normalized features)."""
+
+  # In detector.py
+  from src.brain_brr.constants import EDGE_INPUT_CLAMP_MAX
+  edge_in = torch.clamp(edge_in, -EDGE_INPUT_CLAMP_MAX, EDGE_INPUT_CLAMP_MAX)
+  ```
+- **OPTION B**: Leave as-is (fallback path, may be deprecated in future)
+
+**Recommendation**: Implement OPTION A for completeness (currently this is in a rarely-used fallback path when `edge_lift_activation: none`)
 
 ---
 
