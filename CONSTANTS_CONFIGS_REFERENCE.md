@@ -136,22 +136,11 @@
 
 **🔴 CORRECTED COUNT** (was 36, now 38 after removing CSV_VERSION_HEADER and SECONDS_PER_DAY from Code-Guard)
 
-#### 3A. HIGH-VALUE - Should Be Wired Into Code (6 constants)
+#### 3A. HIGH-VALUE - Should Be Wired Into Code (0 constants)
 
-**🔴 CRITICAL: These constants are DEFINED but NOT USED - hardcoded literals remain in code!**
+**✅ All high-priority constants are now wired into production code.**
 
-| # | Constant | Line | Value | File with Hardcoded Literal | Current Status |
-|---|----------|------|-------|----------------------------|----------------|
-| 1 | **`BALANCED_SAMPLER_SAMPLE_SIZE`** | 295 | `500` | `sampling.py:21` → `sample_size: int = 500` | 🔴 **NOT WIRED** |
-| 2 | **`GNN_SSGCONV_ALPHA_DEFAULT`** | 324 | `0.05` | `gnn_pyg.py:55` → `alpha: float = 0.05` | 🔴 **NOT WIRED** |
-| 3 | **`EIGENVALUE_CLAMP_MAX`** | 327 | `2.0` | `gnn_pyg.py:284` → `max=2.0` | 🔴 **NOT WIRED** |
-| 4 | **`LAYERSCALE_ALPHA_FALLBACK`** | 334 | `0.1` | `node_stream.py:30`, `edge_stream.py:65` → `else 0.1` | 🔴 **NOT WIRED** |
-| 5 | **`MORPHOLOGY_OPENING_KERNEL`** | 154 | `11` | `postprocess.py:128` → `opening_kernel: int = 11` | 🔴 **NOT WIRED** |
-| 6 | **`MORPHOLOGY_CLOSING_KERNEL`** | 155 | `31` | `postprocess.py:129` → `closing_kernel: int = 31` | 🔴 **NOT WIRED** |
-
-**Note**: `MORPHOLOGY_*` constants ARE imported by schemas.py but NOT used in postprocess.py function signatures!
-
-**Decision**: 🔧 **MUST WIRE ALL 6** - See "REQUIRED FIXES" section below
+**Decision**: None pending
 
 ---
 
@@ -438,22 +427,19 @@ make s
 
 ## 📈 METRICS & STATISTICS
 
-### Constant Usage Breakdown (PRE-IMPLEMENTATION)
+### Constant Usage Breakdown (POST-IMPLEMENTATION)
 
-**🔴 CURRENT STATE - Before remaining 4 fixes applied** (2 fixes already done)
+**✅ CURRENT STATE - After wiring all 6 constants**
 
 | Category | Count | Percentage | Status |
 |----------|-------|------------|--------|
 | Schema-Default (USED) | 23 | 26.1% | ✅ All wired correctly |
-| Code-Guard (USED) | 27 | 30.7% | ✅ All wired correctly |
-| **USED SUBTOTAL** | **50** | **56.8%** | ✅ Working constants |
-| Unused (High-Value) | 6 | 6.8% | 🔴 **MUST WIRE** (4 remaining, 2 done) |
+| Code-Guard (USED) | 33 | 37.5% | ✅ All wired correctly |
+| **USED SUBTOTAL** | **56** | **63.6%** | ✅ Working constants |
 | Unused (Medium-Value) | 10 | 11.4% | 🟡 Consider re-enabling |
 | Unused (Low-Value) | 22 | 25.0% | 🗑️ Cleanup candidates |
-| **UNUSED SUBTOTAL** | **38** | **43.2%** | ❌ Not imported |
+| **UNUSED SUBTOTAL** | **32** | **36.4%** | ❌ Not imported |
 | **TOTAL** | **88** | **100%** | **100% documented** ✅ |
-
-**After All 6 Fixes Complete**: 56/88 used (63.6%), 32/88 unused (36.4%)
 
 ### Schema Field Coverage (CORRECTED)
 
