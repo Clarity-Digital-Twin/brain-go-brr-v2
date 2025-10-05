@@ -1,17 +1,18 @@
 # Brain-Go-Brr v3.7.0 – Current Status
 
-**Last Updated:** 2025-10-05  
-**Branch:** `main`  
-**Version:** v3.7.0 (SSOT constant wiring)
+**Last Updated:** 2025-10-05
+**Branch:** `main`
+**Version:** v3.7.0 (Focal-only production, zero debt)
 
 ---
 
 ## Production Readiness
 
-- ✅ All blocking debt resolved (P0/P1 closed) and all critical constants wired
+- ✅ **ZERO TECHNICAL DEBT** - All P0/P1 items closed
+- ✅ **Focal-only production** - BCE mode removed, focal loss proven standard for rare event detection
 - ✅ `make q` green (lint, format, mypy, config validation)
 - ✅ Training stable on RTX 4090 + Modal A100 with current configs (no runs active right now)
-- ✅ P1 validation loss audit complete – no bugs found (production uses focal loss correctly)
+- ✅ All critical constants wired (SSOT compliance)
 - 🟡 Optional cleanup backlog limited to unused constants / docs (tracked in `POLISH_ITEMS.md`)
 
 ---
@@ -28,8 +29,7 @@
 
 | Priority | Item | Status | Notes |
 |----------|------|--------|-------|
-| ~~P1~~ CLOSED | ~~Validation loss weighting parity~~ | ✅ Not a bug | Production uses focal loss in train+val. See `P1_VALIDATION_LOSS_AUDIT.md` |
-| P3 (optional) | Rename val_loss → val_loss_bce for clarity | Open | Cosmetic monitoring improvement (not required) |
+| ~~P1~~ CLOSED | ~~Validation loss / BCE mode~~ | ✅ Removed | Focal-only production (v3.7.0) - BCE mode deleted |
 | P3 (optional) | Remove unused constants (labels, metric strings) | Open | Optional v3.8.0 cleanup |
 | P3 (optional) | Refresh diagrams / docs to highlight SSOT patterns | Open | Optional polish |
 

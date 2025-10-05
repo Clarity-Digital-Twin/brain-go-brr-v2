@@ -162,7 +162,7 @@ def train_epoch(
     scheduler: LRScheduler | None = None,
     global_step: int = 0,
     *,
-    loss_mode: str = "bce",
+    loss_mode: str = "focal",
     focal_alpha: float = FOCAL_ALPHA_DEFAULT,
     focal_gamma: float = FOCAL_GAMMA_DEFAULT,
     return_step: bool = False,

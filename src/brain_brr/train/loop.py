@@ -182,7 +182,7 @@ def train(
             gradient_clip=config.training.gradient_clip,
             scheduler=scheduler,
             global_step=global_step,
-            loss_mode=getattr(config.training, "loss", "bce"),
+            loss_mode=getattr(config.training, "loss", "focal"),
             focal_alpha=getattr(config.training, "focal_alpha", FOCAL_ALPHA_DEFAULT),
             focal_gamma=getattr(config.training, "focal_gamma", FOCAL_GAMMA_DEFAULT),
             return_step=True,
