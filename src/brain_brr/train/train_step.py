@@ -19,6 +19,7 @@ from torch.amp import GradScaler
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
+# tqdm has no type stubs (third-party library)
 from tqdm import tqdm  # type: ignore[import-untyped]
 
 from src.brain_brr.config.schemas import WarmupScheduleConfig
