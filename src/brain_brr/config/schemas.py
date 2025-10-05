@@ -41,7 +41,8 @@ class DataConfig(StrictModel):
     """Data loading and batching configuration."""
 
     dataset: Literal["tuh_eeg"] = Field(
-        default="tuh_eeg", description="Dataset to use for training (only TUH EEG Seizure supported)"
+        default="tuh_eeg",
+        description="Dataset to use for training (only TUH EEG Seizure supported)",
     )
     data_dir: Path = Field(default=Path("data"), description="Root directory containing EDF files")
     cache_dir: Path = Field(default=Path("cache/data"), description="Data cache directory")
@@ -614,37 +615,25 @@ class Config(StrictModel):
         if phase == "data":
             # Phase 1 only needs data + preprocessing
             if self.data.sampling_rate != 256:
-                raise ValueError(
-                    f"Must use 256 Hz sampling rate, got {self.data.sampling_rate}"
-                )
+                raise ValueError(f"Must use 256 Hz sampling rate, got {self.data.sampling_rate}")
             if self.data.n_channels != 19:
                 raise ValueError(
                     f"Must use 19 channels (10-20 montage), got {self.data.n_channels}"
                 )
             if self.data.window_size != 60:
-                raise ValueError(
-                    f"Must use 60s windows, got {self.data.window_size}s"
-                )
+                raise ValueError(f"Must use 60s windows, got {self.data.window_size}s")
             if self.data.stride != 10:
-                raise ValueError(
-                    f"Must use 10s stride, got {self.data.stride}s"
-                )
+                raise ValueError(f"Must use 10s stride, got {self.data.stride}s")
         elif phase == "model":
             # Phase 2 needs model config
             if self.model.tcn.num_layers < 4:
-                raise ValueError(
-                    f"Must have >=4 TCN layers, got {self.model.tcn.num_layers}"
-                )
+                raise ValueError(f"Must have >=4 TCN layers, got {self.model.tcn.num_layers}")
             if self.model.mamba.d_model != 512:
-                raise ValueError(
-                    f"Mamba d_model must be 512, got {self.model.mamba.d_model}"
-                )
+                raise ValueError(f"Mamba d_model must be 512, got {self.model.mamba.d_model}")
         elif phase == "training":
             # Phase 3 needs full config
             if self.training.epochs <= 0:
-                raise ValueError(
-                    f"Must have positive epochs, got {self.training.epochs}"
-                )
+                raise ValueError(f"Must have positive epochs, got {self.training.epochs}")
             if self.training.learning_rate <= 0:
                 raise ValueError(
                     f"Must have positive learning rate, got {self.training.learning_rate}"

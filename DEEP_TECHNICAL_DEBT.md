@@ -58,26 +58,16 @@ dataset: Literal["tuh_eeg"] = Field(
 
 ## 🟡 P1: Important Issues (Should Fix)
 
-### DEBT-02: Dead Function - handle_channel_synonyms
+### DEBT-02: Channel Synonym Helper
 **Location:** `src/brain_brr/utils/pick_utils.py`
-**Issue:** Function defined but NEVER called anywhere in codebase
+**Status:** Helper is exercised by clinical channel-order tests and should remain
 
-**Evidence:**
-```bash
-$ rg "handle_channel_synonyms" src --type py
-src/brain_brr/utils/pick_utils.py:def handle_channel_synonyms(names: list[str]) -> list[str]:
-# ^^^ Only one match - the definition. NO CALLERS.
-```
+**Evidence:** Tests under `tests/clinical/test_channel_order.py` import and rely on
+`handle_channel_synonyms()` to normalize channel names prior to asserting order. The
+helper also mirrors the synonym logic applied in `data/io.py`.
 
-**Impact:** Dead code clutters codebase, confuses developers
-**Root Cause:** Likely legacy from old montage handling approach
-**Fix:** Delete function entirely
-
-**Recommended Action:**
-```python
-# In src/brain_brr/utils/pick_utils.py - DELETE lines 35-87
-# (the entire handle_channel_synonyms function)
-```
+**Action:** Keep the function, document its purpose, and ensure it remains consistent
+with the canonical 10-20 mapping defined in `constants.py`.
 
 ### DEBT-03: Assertion-Based Validation Instead of ValueError
 **Location:** `src/brain_brr/config/schemas.py:617-628`
@@ -180,7 +170,7 @@ def validate_for_phase(self, phase: str) -> None:
    - Delete validator check
    - Delete NotImplementedError branch in loop.py
 
-2. ✅ DEBT-02: Delete handle_channel_synonyms function (5 min)
+2. ✅ DEBT-02: Document handle_channel_synonyms helper usage (5 min)
 
 3. ✅ DEBT-03: Replace asserts with ValueError (15 min)
    - Update validate_for_phase method
@@ -260,7 +250,7 @@ def validate_for_phase(self, phase: str) -> None:
    - Simplified to single dataset path (enforced by schema)
 
 3. `src/brain_brr/utils/pick_utils.py`
-   - Deleted unused `handle_channel_synonyms()` function (DEBT-02)
+   - Reintroduced documented `handle_channel_synonyms()` helper for tests/utilities
    - Preserved `CHANNEL_SYNONYMS` constant (actively used in io.py)
 
 **Configs (2 files):**
