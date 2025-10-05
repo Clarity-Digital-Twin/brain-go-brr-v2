@@ -220,9 +220,6 @@ def validate_epoch(
 
     model.eval()
     device_obj = torch.device(device)
-    criterion = nn.BCEWithLogitsLoss()
-
-    use_focal = focal_alpha is not None and focal_gamma is not None
 
     current_file_id: str | None = None
     current_windows: list[dict[str, Any]] = []
@@ -233,7 +230,6 @@ def validate_epoch(
     all_pred_events: list[tuple[float, float]] = []
     total_hours = 0.0
     total_loss = 0.0
-    total_loss_focal = 0.0
     num_batches = 0
     num_recordings = 0
 
@@ -284,20 +280,16 @@ def validate_epoch(
                 logits = model(windows)
                 probs = torch.sigmoid(logits)
 
-                loss_bce = criterion(logits, labels)
-                total_loss += loss_bce.item()
-
-                if use_focal:
-                    assert focal_alpha is not None
-                    assert focal_gamma is not None
-                    pt = labels * probs + (1 - labels) * (1 - probs)
-                    at = labels * focal_alpha + (1 - labels) * (1 - focal_alpha)
-                    focal_weight = at * ((1 - pt) ** focal_gamma)
-                    bce = nn.functional.binary_cross_entropy_with_logits(
-                        logits, labels, reduction="none"
-                    )
-                    loss_focal = (focal_weight * bce).mean()
-                    total_loss_focal += loss_focal.item()
+                assert focal_alpha is not None
+                assert focal_gamma is not None
+                pt = labels * probs + (1 - labels) * (1 - probs)
+                at = labels * focal_alpha + (1 - labels) * (1 - focal_alpha)
+                focal_weight = at * ((1 - pt) ** focal_gamma)
+                bce = nn.functional.binary_cross_entropy_with_logits(
+                    logits, labels, reduction="none"
+                )
+                loss = (focal_weight * bce).mean()
+                total_loss += loss.item()
 
                 for i, fid in enumerate(file_ids):
                     if fid != current_file_id and current_windows:
@@ -366,15 +358,7 @@ def validate_epoch(
     )
 
     metrics["val_loss"] = total_loss / max(1, num_batches)
-
-    if use_focal:
-        metrics["val_loss_focal"] = total_loss_focal / max(1, num_batches)
-        logger.info(
-            f"[VALIDATION] Done! Val Loss (BCE): {metrics['val_loss']:.4f} | "
-            f"Val Loss (Focal): {metrics['val_loss_focal']:.4f}"
-        )
-    else:
-        logger.info(f"[VALIDATION] Done! Val Loss: {metrics['val_loss']:.4f}")
+    logger.info(f"[VALIDATION] Done! Val Loss (Focal): {metrics['val_loss']:.4f}")
 
     if save_predictions and output_dir:
         if not all_probs_flat or not all_labels_flat:

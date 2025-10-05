@@ -468,9 +468,9 @@ class TrainingConfig(StrictModel):
 
     epochs: int = Field(default=1, ge=1, le=200, description="Number of training epochs")
     batch_size: int = Field(default=16, ge=1, le=256, description="Batch size")
-    # Loss selection
-    loss: Literal["bce", "focal"] = Field(
-        default="bce", description="Loss function: 'bce' or 'focal'"
+    # Loss selection (focal-only as of v3.7.0)
+    loss: Literal["focal"] = Field(
+        default="focal", description="Loss function: focal (class imbalance + hard-example focusing)"
     )
     focal_alpha: float = Field(
         default=FOCAL_ALPHA_PRODUCTION,
