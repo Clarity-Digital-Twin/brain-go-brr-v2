@@ -105,30 +105,49 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
     from src.brain_brr.utils.env import env
 
     disable_tqdm = env.disable_tqdm() or tqdm is None
-    logger.debug(f"[CACHE] tqdm disabled={disable_tqdm} | files={len(npz_files)}")
+    logger.debug(f"[CACHE] tqdm disabled={disable_tqdm} | files={len(cache_files)}")
 
     if disable_tqdm:
-        iterable = npz_files
+        iterable = cache_files
     else:
-        iterable = cast(Any, tqdm)(npz_files, desc="Scanning cache", leave=False)
-    for npz_path in iterable:
+        iterable = cast(Any, tqdm)(cache_files, desc="Scanning cache", leave=False)
+
+    for cache_path in iterable:
         try:
-            with np.load(npz_path) as data:
-                if "labels" not in data:
-                    # CRITICAL: NPZ without labels - likely a cache corruption!
+            if is_npy_format:
+                # NPY format: Load labels from separate file
+                # cache_path is *_data.npy, find corresponding *_labels.npy
+                stem = cache_path.stem.replace("_data", "")
+                labels_path = cache_path.parent / f"{stem}_labels.npy"
+
+                if not labels_path.exists():
                     warnings.warn(
-                        f"⚠️  NPZ file {npz_path.name} has NO LABELS! "
-                        f"This indicates cache corruption or incomplete processing. "
-                        f"Excluding from balanced sampling to prevent flooding with false negatives.",
+                        f"⚠️  NPY file {cache_path.name} has NO LABELS FILE ({labels_path.name})! "
+                        f"This indicates cache corruption or incomplete conversion. "
+                        f"Excluding from balanced sampling.",
                         stacklevel=2,
                     )
-                    # Skip this file entirely - do NOT assume it's no_seizure!
-                    # This prevents flooding the manifest with potentially incorrect data
                     continue
-                labels = data["labels"]
+
+                labels = np.load(labels_path, mmap_mode="r")
+                # For manifest, reference the stem without _data suffix
+                manifest_filename = f"{stem}_windows.npz"  # Keep NPZ-style naming for compatibility
+            else:
+                # NPZ format (legacy)
+                with np.load(cache_path) as data:
+                    if "labels" not in data:
+                        warnings.warn(
+                            f"⚠️  NPZ file {cache_path.name} has NO LABELS! "
+                            f"This indicates cache corruption or incomplete processing. "
+                            f"Excluding from balanced sampling.",
+                            stacklevel=2,
+                        )
+                        continue
+                    labels = data["labels"]
+                manifest_filename = cache_path.name
+
         except (OSError, ValueError) as e:
-            # Skip corrupted or inaccessible files
-            logger.warning(f"Skipping {npz_path.name}: {e}")
+            logger.warning(f"Skipping {cache_path.name}: {e}")
             continue
 
         n_windows = int(labels.shape[0])
@@ -136,7 +155,7 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
             lbl = labels[w_idx]
             ratio = float((lbl > 0).mean())
             # Use relative path (just filename) for portability
-            item = {"cache_file": npz_path.name, "window_idx": int(w_idx)}
+            item = {"cache_file": manifest_filename, "window_idx": int(w_idx)}
             if ratio == 0.0:
                 manifest["no_seizure"].append(item)
             elif ratio >= 0.99:
@@ -153,11 +172,17 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
     n_none = len(manifest["no_seizure"])
     total = n_partial + n_full + n_none
 
+    format_type = "NPY (mmap)" if is_npy_format else "NPZ (legacy)"
+
     if n_partial == 0:
-        logger.warning(f"No partial seizure windows found in {len(npz_files)} files!")
+        logger.warning(
+            f"No partial seizure windows found in {len(cache_files)} {format_type} files!"
+        )
         logger.warning(f"  Full seizure: {n_full}, No seizure: {n_none}")
     else:
-        logger.info(f"Manifest created: {n_partial} partial, {n_full} full, {n_none} no-seizure")
+        logger.info(
+            f"Manifest created from {format_type}: {n_partial} partial, {n_full} full, {n_none} no-seizure"
+        )
         logger.info(f"  Seizure ratio: {(n_partial + n_full) / total:.1%}")
 
     return manifest
@@ -165,6 +190,8 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
 
 def validate_manifest(cache_dir: Path, manifest: dict[str, Any]) -> bool:
     """Validate that a manifest matches the current cache directory.
+
+    Supports both NPZ format (legacy) and NPY format (mmap, production).
 
     Conditions for validity:
     - Manifest has at least one window total across categories
@@ -176,7 +203,18 @@ def validate_manifest(cache_dir: Path, manifest: dict[str, Any]) -> bool:
     """
     try:
         cache_dir = Path(cache_dir)
+
+        # Build set of available files (both NPZ and NPY formats)
+        # NPZ format: filename_windows.npz
+        # NPY format: filename_data.npy + filename_labels.npy
+        #   → Manifest references filename_windows.npz (for compatibility)
+        #   → We check if filename_data.npy exists
         npz_set = {p.name for p in cache_dir.glob("*.npz")}
+        npy_data_files = cache_dir.glob("*_data.npy")
+        # Convert NPY data files to NPZ-style names for manifest comparison
+        npy_set = {p.stem.replace("_data", "") + "_windows.npz" for p in npy_data_files}
+
+        available_files = npz_set | npy_set
 
         total = 0
         missing_refs = 0
@@ -185,7 +223,7 @@ def validate_manifest(cache_dir: Path, manifest: dict[str, Any]) -> bool:
             total += len(entries)
             for item in entries:
                 cf = str(item.get("cache_file", ""))
-                if cf not in npz_set:
+                if cf not in available_files:
                     missing_refs += 1
 
         if total == 0:

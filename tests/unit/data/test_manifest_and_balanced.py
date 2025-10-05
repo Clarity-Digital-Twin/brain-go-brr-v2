@@ -7,8 +7,10 @@ from src.brain_brr.data.cache_utils import scan_existing_cache
 from src.brain_brr.data.datasets import BalancedSeizureDataset
 
 
-def _make_npz(path: Path, windows: np.ndarray, labels: np.ndarray) -> None:
-    np.savez_compressed(path, windows=windows.astype(np.float32), labels=labels.astype(np.float32))
+def _make_npy_cache(cache_dir: Path, stem: str, windows: np.ndarray, labels: np.ndarray) -> None:
+    """Create NPY cache files in the new format (data + labels separate)."""
+    np.save(cache_dir / f"{stem}_data.npy", windows.astype(np.float32))
+    np.save(cache_dir / f"{stem}_labels.npy", labels.astype(np.float32))
 
 
 def test_scan_existing_cache_and_balanced_dataset(tmp_path: Path) -> None:
@@ -20,13 +22,13 @@ def test_scan_existing_cache_and_balanced_dataset(tmp_path: Path) -> None:
     labels_a[1] = 1.0
     labels_a[2, :10] = 1.0
     labels_a[3, :1] = 1.0
-    _make_npz(cache_dir / "a_windows.npz", windows_a, labels_a)
+    _make_npy_cache(cache_dir, "a", windows_a, labels_a)
 
     windows_b = np.zeros((4, 19, 20), dtype=np.float32)
     labels_b = np.zeros((4, 20), dtype=np.float32)
     labels_b[0, :] = 1.0
     labels_b[1, :5] = 1.0
-    _make_npz(cache_dir / "b_windows.npz", windows_b, labels_b)
+    _make_npy_cache(cache_dir, "b", windows_b, labels_b)
 
     manifest = scan_existing_cache(cache_dir)
     n_partial = len(manifest["partial_seizure"])
