@@ -88,7 +88,7 @@
 
 ---
 
-### Category 2: Code-Guard Constants (29 constants)
+### Category 2: Code-Guard Constants (27 constants)
 
 **Purpose**: Used directly in implementation, NOT exposed to users via configs.
 
@@ -101,30 +101,32 @@
 | 5 | `CHANNEL_SYNONYMS` | 56 | `dict[str, str]` | `data/io.py` | 2 | Channel name mapping (T7→T3, etc) |
 | 6 | `CHECKPOINT_BEST` | 210 | `"best.pt"` | `train/loop.py` | 3 | Best checkpoint filename |
 | 7 | `CHECKPOINT_LAST` | 209 | `"last.pt"` | `train/loop.py` | 3 | Latest checkpoint filename |
-| 8 | `CSV_VERSION_HEADER` | 214 | `"# version = csv_v1.0.0"` | `data/io.py` | 1 | CSV format version |
-| 9 | `DATASET_DISTRIBUTION_SAMPLE_SIZE` | 301 | `100` | `train/train_step.py:237` | 1 | ✅ **USED** - Dataset stats sampling |
-| 10 | `ECE_NUM_BINS` | 280 | `10` | `eval/metrics.py:39`, `train/val_step.py:148` | 5 | ✅ **USED** - Guo et al. 2017 standard |
-| 11 | `EPSILON_PROB_CLAMP` | 95 | `1e-7` | `train/train_step.py` | 2 | Focal loss [0,1] clamping |
-| 12 | `EPSILON_ZERO_CHECK` | 103 | `1e-8` | `train/sampling.py:68`, etc | 10 | Coarse zero detection |
-| 13 | `HYSTERESIS_DELTA` | 125 | `0.08` | `post/postprocess.py`, `constants.py` | 8 | Hysteresis gap (tau_on - tau_off) |
-| 14 | `LOG_EVERY_N_STEPS` | 196 | `50` (env override) | `train/loop.py`, `train/train_step.py` | 9 | Logging frequency |
-| 15 | `MANIFEST_FILENAME` | 213 | `"manifest.json"` | `data/datasets.py` | 4 | Cache manifest name |
-| 16 | `PERCENTILE_P25` | 308 | `25.0` | `train/train_step.py:107,143` | 2 | ✅ **USED** - Gradient stats |
-| 17 | `PERCENTILE_P50` | 311 | `50.0` | `train/train_step.py:107,143` | 2 | ✅ **USED** - Median stats |
-| 18 | `PERCENTILE_P75` | 314 | `75.0` | `train/train_step.py:107,143` | 2 | ✅ **USED** - Gradient stats |
-| 19 | `PERCENTILE_P95` | 317 | `95.0` | `train/train_step.py:107,143` | 2 | ✅ **USED** - Outlier detection |
-| 20 | `SECONDS_PER_DAY` | 233 | `86400` | `eval/helpers/false_alarm.py` | 3 | Time conversion |
-| 21 | `SECONDS_PER_HOUR` | 232 | `3600` | `eval/helpers/false_alarm.py` | 3 | Time conversion |
-| 22 | `STRIDE_SAMPLES` | 72 | `2560` | `data/preprocess.py`, etc | 5 | Derived (STRIDE_SIZE_SEC * 256) |
-| 23 | `TAES_ALPHA_DEFAULT` | 288 | `0.15` | `eval/metrics.py:82` | 1 | ✅ **USED** - FA penalty weight |
-| 24 | `THRESHOLD_SEARCH_HIGH` | 82 | `1.0` | `eval/helpers/false_alarm.py` | 3 | Binary search upper bound |
-| 25 | `THRESHOLD_SEARCH_LOW` | 81 | `0.0` | `eval/helpers/false_alarm.py` | 3 | Binary search lower bound |
-| 26 | `THRESHOLD_SEARCH_MAX_ITERS` | 86 | `10` | `eval/helpers/false_alarm.py` | 2 | Binary search iterations |
-| 27 | `THRESHOLD_SEARCH_TOLERANCE` | 87 | `1e-4` | `eval/helpers/false_alarm.py` | 2 | Convergence criterion |
-| 28 | `WINDOW_SAMPLES` | 71 | `15360` | `data/preprocess.py`, etc | 7 | Derived (WINDOW_SIZE_SEC * 256) |
-| 29 | `format_sensitivity_key()` | 344 | Function | `train/loop.py`, `train/val_step.py` | 10 | ✅ **USED** - Metric key formatter |
+| 8 | `DATASET_DISTRIBUTION_SAMPLE_SIZE` | 301 | `100` | `train/train_step.py:237` | 1 | ✅ **USED** - Dataset stats sampling |
+| 9 | `ECE_NUM_BINS` | 280 | `10` | `eval/metrics.py:39`, `train/val_step.py:148` | 5 | ✅ **USED** - Guo et al. 2017 standard |
+| 10 | `EPSILON_PROB_CLAMP` | 95 | `1e-7` | `train/train_step.py` | 2 | Focal loss [0,1] clamping |
+| 11 | `EPSILON_ZERO_CHECK` | 103 | `1e-8` | `train/sampling.py:68`, etc | 10 | Coarse zero detection |
+| 12 | `HYSTERESIS_DELTA` | 125 | `0.08` | `post/postprocess.py`, `constants.py` | 8 | Hysteresis gap (tau_on - tau_off) |
+| 13 | `LOG_EVERY_N_STEPS` | 196 | `50` (env override) | `train/loop.py`, `train/train_step.py` | 9 | Logging frequency |
+| 14 | `MANIFEST_FILENAME` | 213 | `"manifest.json"` | `data/datasets.py` | 4 | Cache manifest name |
+| 15 | `PERCENTILE_P25` | 308 | `25.0` | `train/train_step.py:107,143` | 2 | ✅ **USED** - Gradient stats |
+| 16 | `PERCENTILE_P50` | 311 | `50.0` | `train/train_step.py:107,143` | 2 | ✅ **USED** - Median stats |
+| 17 | `PERCENTILE_P75` | 314 | `75.0` | `train/train_step.py:107,143` | 2 | ✅ **USED** - Gradient stats |
+| 18 | `PERCENTILE_P95` | 317 | `95.0` | `train/train_step.py:107,143` | 2 | ✅ **USED** - Outlier detection |
+| 19 | `SECONDS_PER_HOUR` | 232 | `3600` | `eval/metrics.py`, `train/val_step.py` | 6 | Time conversion |
+| 20 | `STRIDE_SAMPLES` | 72 | `2560` | `data/datasets.py` | 2 | Derived (STRIDE_SIZE_SEC * 256) |
+| 21 | `TAES_ALPHA_DEFAULT` | 288 | `0.15` | `eval/metrics.py:82` | 1 | ✅ **USED** - FA penalty weight |
+| 22 | `THRESHOLD_SEARCH_HIGH` | 82 | `1.0` | `eval/helpers/false_alarm.py` | 3 | Binary search upper bound |
+| 23 | `THRESHOLD_SEARCH_LOW` | 81 | `0.0` | `eval/helpers/false_alarm.py` | 3 | Binary search lower bound |
+| 24 | `THRESHOLD_SEARCH_MAX_ITERS` | 86 | `10` | `eval/helpers/false_alarm.py` | 2 | Binary search iterations |
+| 25 | `THRESHOLD_SEARCH_TOLERANCE` | 87 | `1e-4` | `eval/helpers/false_alarm.py` | 2 | Convergence criterion |
+| 26 | `WINDOW_SAMPLES` | 71 | `15360` | `data/datasets.py` | 2 | Derived (WINDOW_SIZE_SEC * 256) |
+| 27 | `format_sensitivity_key()` | 344 | Function | `train/loop.py`, `train/val_step.py` | 10 | ✅ **USED** - Metric key formatter |
 
-**Decision**: ✅ **Keep all 29** - These are correctly used as code-guard constants
+**Decision**: ✅ **Keep all 27** - These are correctly used as code-guard constants
+
+**🔴 REMOVED FROM CODE-GUARD (moved to Unused)**:
+- `CSV_VERSION_HEADER` - Only in constants.py, never imported
+- `SECONDS_PER_DAY` - Only in constants.py, never imported
 
 ---
 
