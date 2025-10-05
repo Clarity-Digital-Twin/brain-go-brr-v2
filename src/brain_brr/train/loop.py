@@ -32,11 +32,13 @@ from src.brain_brr.config.schemas import Config
 from src.brain_brr.constants import (
     AUROC_FAILURE_MIN_EPOCH,
     AUROC_FAILURE_THRESHOLD,
+    BALANCED_SAMPLER_MAX_SAMPLE,
     CHECKPOINT_BEST,
     CHECKPOINT_LAST,
     FOCAL_ALPHA_DEFAULT,
     FOCAL_GAMMA_DEFAULT,
     MANIFEST_FILENAME,
+    format_sensitivity_key,
 )
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.checkpoint import load_checkpoint, save_checkpoint
@@ -250,7 +252,7 @@ def train(
             writer.add_scalar("Metrics/AUROC", val_metrics["auroc"], epoch)
 
         for fa_rate in config.evaluation.fa_rates:
-            key = f"sensitivity_at_{fa_rate}fa"
+            key = format_sensitivity_key(fa_rate)
             if key in val_metrics and writer is not None:
                 writer.add_scalar(f"Metrics/{key}", val_metrics[key], epoch)
 
@@ -264,7 +266,7 @@ def train(
         if "val_loss_focal" in val_metrics:
             wandb_metrics["val_loss_focal"] = val_metrics["val_loss_focal"]
         for fa_rate in config.evaluation.fa_rates:
-            key = f"sensitivity_at_{fa_rate}fa"
+            key = format_sensitivity_key(fa_rate)
             if key in val_metrics:
                 wandb_metrics[key] = val_metrics[key]
         wandb_logger.log(wandb_metrics, step=epoch)
@@ -279,7 +281,7 @@ def train(
 
         # Print sensitivity at FA rates
         for fa_rate in config.evaluation.fa_rates:
-            key = f"sensitivity_at_{fa_rate}fa"
+            key = format_sensitivity_key(fa_rate)
             if key in val_metrics:
                 logger.info(f"  Sensitivity@{fa_rate}FA/24h: {val_metrics[key]:.4f}")
 
@@ -690,7 +692,7 @@ def main() -> None:
         # CRITICAL: TUSZ has extreme imbalance (0.1-1% seizures at window level)
         # We MUST sample enough windows to guarantee finding seizures
         # Math: P(0 seizures) = (1-p)^n, for p=0.001, n=20000 → P≈0.00000002
-        sample_size = min(20000, len(train_dataset))  # Sample 20k windows for safety
+        sample_size = min(BALANCED_SAMPLER_MAX_SAMPLE, len(train_dataset))
         logger.info(f"[SAMPLER] Sampling {sample_size} windows to detect seizures...")
         train_sampler = create_balanced_sampler(train_dataset, sample_size=sample_size)
 

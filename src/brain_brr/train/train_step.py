@@ -22,10 +22,15 @@ from tqdm import tqdm  # type: ignore[import-untyped]
 
 from src.brain_brr.config.schemas import WarmupScheduleConfig
 from src.brain_brr.constants import (
+    DATASET_DISTRIBUTION_SAMPLE_SIZE,
     EPSILON_NUMERICAL,
     FOCAL_ALPHA_DEFAULT,
     FOCAL_GAMMA_DEFAULT,
     LOG_EVERY_N_STEPS,
+    PERCENTILE_P25,
+    PERCENTILE_P50,
+    PERCENTILE_P75,
+    PERCENTILE_P95,
 )
 from src.brain_brr.train.checkpoint import save_checkpoint
 from src.brain_brr.train.train_utils import get_memory_stats
@@ -98,7 +103,9 @@ def _compute_gradient_stats(model: nn.Module) -> dict[str, float]:
     import numpy as np
 
     grad_array = np.array(grad_norms)
-    p25, median, p75, p95 = np.percentile(grad_array, [25, 50, 75, 95])
+    p25, median, p75, p95 = np.percentile(
+        grad_array, [PERCENTILE_P25, PERCENTILE_P50, PERCENTILE_P75, PERCENTILE_P95]
+    )
     iqr = p75 - p25
     max_norm = float(grad_array.max())
 
@@ -132,7 +139,9 @@ def _compute_weight_stats(model: nn.Module) -> dict[str, float]:
     import numpy as np
 
     weight_array = np.array(weight_norms)
-    p25, median, p75, p95 = np.percentile(weight_array, [25, 50, 75, 95])
+    p25, median, p75, p95 = np.percentile(
+        weight_array, [PERCENTILE_P25, PERCENTILE_P50, PERCENTILE_P75, PERCENTILE_P95]
+    )
     iqr = p75 - p25
     max_norm = float(weight_array.max())
 
@@ -225,7 +234,7 @@ def train_epoch(
             logger.info("[DATASET] Using BalancedSeizureDataset known distribution")
             logger.info(f"[DATASET] Seizure ratio: {100 * pos_ratio:.1f}% (from manifest)")
         else:
-            sample_size = min(100, dataset_len)
+            sample_size = min(DATASET_DISTRIBUTION_SAMPLE_SIZE, dataset_len)
             sample_indices = torch.randperm(dataset_len)[:sample_size]
 
             pos_count = 0
