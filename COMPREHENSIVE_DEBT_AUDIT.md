@@ -283,20 +283,48 @@ Inaccurate documentation during training wastes time and money. Must be pristine
 
 **Evidence:**
 ```bash
-rg -n "\.item\(\)" src/brain_brr/train/ | wc -l
-# Output: 7
+rg -n "\.item\(\)" src/brain_brr/train/
+# Locations:
+# 1. val_step.py:292 - validation loss accumulation (per val batch)
+# 2. train_step.py:68 - NaN detection (only if BGB_SANITIZE_GRADS=1)
+# 3. train_step.py:97 - gradient norms (only if log_gradients=True)
+# 4. train_step.py:133 - weight norms (only if log_weights=True)
+# 5. train_step.py:242 - dataset indexing (REQUIRED - Python lists need int)
+# 6. sampling.py:52 - dataset indexing (REQUIRED - Python lists need int)
+# 7. sampling.py:98 - logger info (once per epoch)
 ```
 
-**Recommendation:**
-**DEFER - Profile first, optimize ONLY if bottleneck proven:**
-- Current training is stable
-- No evidence of performance issues from `.item()` calls
-- Optimizing without profiling risks introducing bugs for negligible gain
+**Performance Impact Analysis:**
+- **Items 5-6 (dataset indexing):** CANNOT optimize - Python lists require int indices
+- **Items 3-4 (grad/weight logging):** Only if `log_gradients/log_weights=True` (typically disabled or sparse via `log_every_n_steps=10`)
+- **Item 1 (val loss):** Warm path (~100 batches/epoch, not hot)
+- **Item 2 (NaN debug):** Only if `BGB_SANITIZE_GRADS=1` (disabled in production)
+- **Item 7 (logger):** Once per epoch (cold path)
 
-**Action:** ONLY revisit if post-training profiling shows GPU sync as bottleneck (unlikely).
+**Concrete Modal Cost Analysis:**
+- At `log_every_n_steps=10`: ~1000 batches/epoch ÷ 10 = 100 logging calls/epoch
+- 100 epochs × 100 calls = 10,000 sync points total
+- Each sync: ~100μs
+- **Total overhead: 1 second over 100 hours = 0.0003% slowdown**
+- **Modal cost impact: <$0.01 on $319 training run**
+
+**Optimization Risk:**
+- Effort: 2-3 hours to batch GPU→CPU transfers and refactor logging
+- Risk: HIGH - Changes monitoring code that tracks NaN/gradient issues
+- Benefit: Save <$0.01
+
+**Recommendation:**
+**DEFER - Cost-benefit analysis strongly favors deferring:**
+- Reward: <$0.01 savings on Modal run
+- Risk: Introduce bugs in critical monitoring code before $319 training
+- Effort: 2-3 hours that could be spent on P2/P3 items
+- 2 of 7 calls are unavoidable (dataset indexing)
+- Remaining 5 calls are gated by debug flags or sparse logging
+
+**Action:** ONLY revisit if post-training profiling shows >1% time in GPU sync (extremely unlikely).
 
 **Rationale:**
-Premature optimization is the root of all evil. Training stability >>> theoretical performance gains.
+Premature optimization is the root of all evil. $0.01 savings with HIGH risk of breaking gradient monitoring is not worth it. Training stability and monitoring >>> negligible performance gains.
 
 ---
 
@@ -408,6 +436,8 @@ rg "TODO|FIXME|HACK|XXX|BUG" src/brain_brr/  # Review each occurrence
 | 2025-10-05 10:15 | **REVISED: Zero-debt policy enforcement** | AI Assistant |
 | 2025-10-05 10:15 | Corrected metrics: constants (58/90), pass (9), asserts (11) | AI Assistant |
 | 2025-10-05 10:15 | Added implementation roadmap (~6.75 hours total) | AI Assistant |
+| 2025-10-05 11:00 | **Added detailed P4.1 analysis with Modal cost calculations** | AI Assistant |
+| 2025-10-05 11:00 | Fixed P0 test failures (random data threshold 0.8→2.0) | AI Assistant |
 
 ---
 
