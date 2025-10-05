@@ -296,6 +296,15 @@ class GraphChannelMixerPyG(nn.Module):
                         )
                         # Take k smallest eigenvectors (ascending order)
                         pe = eigenvectors[..., : self.k_eigenvectors]  # (B*T, N, k)
+
+                except RuntimeError as e:
+                    logger.warning(f"Eigendecomposition failed: {e}, using fallback PE")
+                    pe = (
+                        torch.randn(
+                            B * T, N, self.k_eigenvectors, device=device, dtype=torch.float32
+                        )
+                        * 0.01
+                    )
         else:
             # CPU/MPS: No autocast needed (already in fp32 context)
             l_stable = laplacian.to(torch.float32)
