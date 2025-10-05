@@ -2,6 +2,8 @@
 
 from typing import TYPE_CHECKING
 
+from src.brain_brr.constants import LAYERSCALE_ALPHA_FALLBACK
+
 from ..mamba import BiMamba2
 
 if TYPE_CHECKING:
