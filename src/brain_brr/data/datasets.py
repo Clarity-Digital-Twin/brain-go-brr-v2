@@ -303,8 +303,13 @@ class EEGWindowDataset(torch.utils.data.Dataset):
             # Old NPZ: Decompress to RAM → 387 GB total → OOM on Modal
             # New mmap: OS page cache → <1 GB per worker → ✅ Scales to any size
             windows_mmap, labels_mmap = self._load_cache_for_worker(cache_path)
-            window = windows_mmap[window_idx].astype(np.float32)
-            label = labels_mmap[window_idx].astype(np.float32) if labels_mmap is not None else None
+            # Zero-copy: Data already float32, copy=False avoids duplication
+            window = windows_mmap[window_idx].astype(np.float32, copy=False)
+            label = (
+                labels_mmap[window_idx].astype(np.float32, copy=False)
+                if labels_mmap is not None
+                else None
+            )
         else:
             if not self.allow_on_demand:
                 raise RuntimeError(
