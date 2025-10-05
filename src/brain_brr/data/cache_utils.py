@@ -66,7 +66,12 @@ def check_cache_completeness(edf_files: Iterable[Path], cache_dir: Path) -> Cach
 
 
 def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
-    """Scan a cache directory of NPZ files and build a seizure-category manifest.
+    """Scan a cache directory and build a seizure-category manifest.
+
+    Supports both NPZ format (legacy) and NPY format (mmap, production).
+
+    NPZ format: filename_windows.npz (contains windows + labels)
+    NPY format: filename_data.npy + filename_labels.npy (memory-mappable)
 
     The manifest has three keys: "partial_seizure", "full_seizure", and "no_seizure".
     Each item is a mapping with keys: {"cache_file": str, "window_idx": int}.
@@ -78,8 +83,20 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
         "no_seizure": [],
     }
 
+    # Check for NPY format (production mmap cache) first
+    npy_data_files = sorted(cache_dir.glob("*_data.npy"))
     npz_files = sorted(cache_dir.glob("*.npz"))
-    if not npz_files:
+
+    if npy_data_files:
+        # NPY format (production): Use *_data.npy + *_labels.npy
+        cache_files = npy_data_files
+        is_npy_format = True
+    elif npz_files:
+        # NPZ format (legacy): Use *.npz
+        cache_files = npz_files
+        is_npy_format = False
+    else:
+        # No cache files found
         with (cache_dir / MANIFEST_FILENAME).open("w") as f:
             json.dump(manifest, f)
         return manifest
