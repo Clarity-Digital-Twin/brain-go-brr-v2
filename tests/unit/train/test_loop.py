@@ -119,14 +119,15 @@ class TestTrainingSmoke:
             min_duration=1.0,
         )
 
-        metrics = validate_epoch(model, val_loader, post_cfg, device="cpu")
+        metrics = validate_epoch(
+            model, val_loader, post_cfg, device="cpu", focal_alpha=0.5, focal_gamma=2.0
+        )
 
-        # Check metrics structure
+        # Check metrics structure (focal-only as of v3.7.0)
         assert "val_loss" in metrics
         assert "taes" in metrics
         assert "auroc" in metrics
         assert "sensitivity_at_10fa" in metrics
-        assert "val_loss_focal" not in metrics
 
         # Check ranges
         assert 0 <= metrics["taes"] <= 1
@@ -136,7 +137,7 @@ class TestTrainingSmoke:
     def test_validation_with_focal_metrics(
         self, model: SeizureDetector, synthetic_data: tuple[DataLoader, DataLoader]
     ) -> None:
-        """Validate focal-aware metrics are emitted when requested."""
+        """Validate focal loss is computed (v3.7.0+ focal-only)."""
         _, val_loader = synthetic_data
 
         from src.brain_brr.config.schemas import (
@@ -160,8 +161,8 @@ class TestTrainingSmoke:
             focal_gamma=2.0,
         )
 
-        assert "val_loss_focal" in metrics
-        assert metrics["val_loss_focal"] > 0
+        assert "val_loss" in metrics
+        assert metrics["val_loss"] > 0
 
     def test_optimizer_creation(self, model: SeizureDetector) -> None:
         """Test optimizer creation from config."""

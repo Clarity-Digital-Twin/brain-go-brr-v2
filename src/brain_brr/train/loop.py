@@ -13,30 +13,35 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import torch
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
 
 # Make TensorBoard optional
+if TYPE_CHECKING:
+    from torch.utils.tensorboard import SummaryWriter
+
 try:
     from torch.utils.tensorboard import SummaryWriter
 
     HAS_TENSORBOARD = True
 except ImportError:
     HAS_TENSORBOARD = False
-    SummaryWriter = None  # type: ignore[assignment, misc]
+    SummaryWriter = None  # type: ignore[misc,assignment]
 
 from src.brain_brr.config.schemas import Config
 from src.brain_brr.constants import (
     AUROC_FAILURE_MIN_EPOCH,
     AUROC_FAILURE_THRESHOLD,
+    BALANCED_SAMPLER_MAX_SAMPLE,
     CHECKPOINT_BEST,
     CHECKPOINT_LAST,
     FOCAL_ALPHA_DEFAULT,
     FOCAL_GAMMA_DEFAULT,
     MANIFEST_FILENAME,
+    format_sensitivity_key,
 )
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.checkpoint import load_checkpoint, save_checkpoint
@@ -95,6 +100,7 @@ def train(
             torch.autograd.set_detect_anomaly(True)
             logger.info("[DEBUG] Enabled torch.autograd anomaly detection")
         except Exception:
+            # Silently skip if anomaly detection unavailable (e.g., torch.compile mode)
             pass
     set_seed(config.experiment.seed)
     device = config.experiment.device
@@ -154,6 +160,7 @@ def train(
                 )
                 best_metric = _last.get("best_metric", 0.0)
             except Exception:
+                # Corrupt checkpoint file, proceed with best_metric=0.0
                 pass
         logger.info(f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}")
         # Note: This resumes from start of epoch, not exact batch
@@ -180,7 +187,7 @@ def train(
             gradient_clip=config.training.gradient_clip,
             scheduler=scheduler,
             global_step=global_step,
-            loss_mode=getattr(config.training, "loss", "bce"),
+            loss_mode=getattr(config.training, "loss", "focal"),
             focal_alpha=getattr(config.training, "focal_alpha", FOCAL_ALPHA_DEFAULT),
             focal_gamma=getattr(config.training, "focal_gamma", FOCAL_GAMMA_DEFAULT),
             return_step=True,
@@ -250,7 +257,7 @@ def train(
             writer.add_scalar("Metrics/AUROC", val_metrics["auroc"], epoch)
 
         for fa_rate in config.evaluation.fa_rates:
-            key = f"sensitivity_at_{fa_rate}fa"
+            key = format_sensitivity_key(fa_rate)
             if key in val_metrics and writer is not None:
                 writer.add_scalar(f"Metrics/{key}", val_metrics[key], epoch)
 
@@ -264,7 +271,7 @@ def train(
         if "val_loss_focal" in val_metrics:
             wandb_metrics["val_loss_focal"] = val_metrics["val_loss_focal"]
         for fa_rate in config.evaluation.fa_rates:
-            key = f"sensitivity_at_{fa_rate}fa"
+            key = format_sensitivity_key(fa_rate)
             if key in val_metrics:
                 wandb_metrics[key] = val_metrics[key]
         wandb_logger.log(wandb_metrics, step=epoch)
@@ -279,7 +286,7 @@ def train(
 
         # Print sensitivity at FA rates
         for fa_rate in config.evaluation.fa_rates:
-            key = f"sensitivity_at_{fa_rate}fa"
+            key = format_sensitivity_key(fa_rate)
             if key in val_metrics:
                 logger.info(f"  Sensitivity@{fa_rate}FA/24h: {val_metrics[key]:.4f}")
 
@@ -480,6 +487,7 @@ def main() -> None:
                 f"BGB_LIMIT_FILES={limit}: using {len(train_files)} train, {len(val_files)} val files"
             )
         except Exception:
+            # Failed to parse BGB_LIMIT_FILES, proceed with full dataset
             pass
 
     # Cache directory sanity and preflight
@@ -509,6 +517,7 @@ def main() -> None:
                 f"  python -m src build-cache --data-dir {config.data.data_dir} --cache-dir {data_cache_root / 'dev'}"
             )
     except Exception:
+        # Cache check failed, proceed with training (will build on-the-fly if needed)
         pass
 
     train_cache_dir = data_cache_root / "train"
@@ -690,7 +699,7 @@ def main() -> None:
         # CRITICAL: TUSZ has extreme imbalance (0.1-1% seizures at window level)
         # We MUST sample enough windows to guarantee finding seizures
         # Math: P(0 seizures) = (1-p)^n, for p=0.001, n=20000 → P≈0.00000002
-        sample_size = min(20000, len(train_dataset))  # Sample 20k windows for safety
+        sample_size = min(BALANCED_SAMPLER_MAX_SAMPLE, len(train_dataset))
         logger.info(f"[SAMPLER] Sampling {sample_size} windows to detect seizures...")
         train_sampler = create_balanced_sampler(train_dataset, sample_size=sample_size)
 

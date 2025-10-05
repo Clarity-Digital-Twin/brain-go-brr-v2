@@ -8,9 +8,10 @@ from __future__ import annotations
 import logging
 import sys
 import time
+from collections.abc import Sized
 from contextlib import suppress
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import torch
 import torch.nn as nn
@@ -18,14 +19,20 @@ from torch.amp import GradScaler
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch.utils.data import DataLoader
+
+# tqdm has no type stubs (third-party library)
 from tqdm import tqdm  # type: ignore[import-untyped]
 
 from src.brain_brr.config.schemas import WarmupScheduleConfig
 from src.brain_brr.constants import (
-    EPSILON_NUMERICAL,
+    DATASET_DISTRIBUTION_SAMPLE_SIZE,
     FOCAL_ALPHA_DEFAULT,
     FOCAL_GAMMA_DEFAULT,
     LOG_EVERY_N_STEPS,
+    PERCENTILE_P25,
+    PERCENTILE_P50,
+    PERCENTILE_P75,
+    PERCENTILE_P95,
 )
 from src.brain_brr.train.checkpoint import save_checkpoint
 from src.brain_brr.train.train_utils import get_memory_stats
@@ -98,7 +105,9 @@ def _compute_gradient_stats(model: nn.Module) -> dict[str, float]:
     import numpy as np
 
     grad_array = np.array(grad_norms)
-    p25, median, p75, p95 = np.percentile(grad_array, [25, 50, 75, 95])
+    p25, median, p75, p95 = np.percentile(
+        grad_array, [PERCENTILE_P25, PERCENTILE_P50, PERCENTILE_P75, PERCENTILE_P95]
+    )
     iqr = p75 - p25
     max_norm = float(grad_array.max())
 
@@ -132,7 +141,9 @@ def _compute_weight_stats(model: nn.Module) -> dict[str, float]:
     import numpy as np
 
     weight_array = np.array(weight_norms)
-    p25, median, p75, p95 = np.percentile(weight_array, [25, 50, 75, 95])
+    p25, median, p75, p95 = np.percentile(
+        weight_array, [PERCENTILE_P25, PERCENTILE_P50, PERCENTILE_P75, PERCENTILE_P95]
+    )
     iqr = p75 - p25
     max_norm = float(weight_array.max())
 
@@ -154,7 +165,7 @@ def train_epoch(
     scheduler: LRScheduler | None = None,
     global_step: int = 0,
     *,
-    loss_mode: str = "bce",
+    loss_mode: str = "focal",
     focal_alpha: float = FOCAL_ALPHA_DEFAULT,
     focal_gamma: float = FOCAL_GAMMA_DEFAULT,
     return_step: bool = False,
@@ -209,14 +220,12 @@ def train_epoch(
     logger.info("=" * 60)
 
     dataset = dataloader.dataset
-    dataset_len = len(dataset)  # type: ignore[arg-type]
+    dataset_len = len(cast(Sized, dataset))
 
     is_smoke_test = env.smoke_test()
     if is_smoke_test:
-        logger.info("[SMOKE TEST MODE] Skipping dataset sampling - using default pos_weight=1.0")
-        pos_weight_val = 1.0
+        logger.info("[SMOKE TEST MODE] Skipping dataset sampling")
         pos_ratio = 0.5
-
     else:
         from src.brain_brr.data.datasets import BalancedSeizureDataset
 
@@ -225,7 +234,7 @@ def train_epoch(
             logger.info("[DATASET] Using BalancedSeizureDataset known distribution")
             logger.info(f"[DATASET] Seizure ratio: {100 * pos_ratio:.1f}% (from manifest)")
         else:
-            sample_size = min(100, dataset_len)
+            sample_size = min(DATASET_DISTRIBUTION_SAMPLE_SIZE, dataset_len)
             sample_indices = torch.randperm(dataset_len)[:sample_size]
 
             pos_count = 0
@@ -242,19 +251,8 @@ def train_epoch(
             pos_ratio = pos_count / max(total_samples, 1)
             logger.info(f"[DATASET] Estimated seizure ratio: {100 * pos_ratio:.1f}%")
 
-        pos_weight_val = (1.0 - pos_ratio) / max(pos_ratio, EPSILON_NUMERICAL)
-        pos_weight_val = float(min(pos_weight_val, 20.0))
-
-    logger.info(f"[DATASET] Positive weight for loss: {pos_weight_val:.2f}")
     logger.info("=" * 60 + "\n")
-
-    if loss_mode == "focal":
-        logger.info(f"[LOSS] Using focal loss (alpha={focal_alpha}, gamma={focal_gamma})")
-    else:
-        logger.info(f"[LOSS] Using BCE loss (pos_weight={pos_weight_val:.2f})")
-
-    pos_weight_tensor = torch.tensor([pos_weight_val], device=device_obj)
-    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight_tensor)
+    logger.info(f"[LOSS] Using focal loss (alpha={focal_alpha}, gamma={focal_gamma})")
 
     gradient_norms = []
     total_loss = 0.0
@@ -291,31 +289,29 @@ def train_epoch(
             if accumulation_counter == 0:
                 optimizer.zero_grad(set_to_none=True)
 
+            # torch.amp.autocast not in PyTorch type stubs (known issue)
             with torch.amp.autocast(device_type=device, enabled=(use_amp and device == "cuda")):  # type: ignore[attr-defined]
                 logits = model(windows)
 
-                if loss_mode == "focal":
-                    probs = torch.sigmoid(logits)
-                    pt = labels * probs + (1 - labels) * (1 - probs)
-                    at = labels * focal_alpha + (1 - labels) * (1 - focal_alpha)
-                    current_gamma = get_focal_gamma(
-                        global_step, warmup_schedule, target_gamma=focal_gamma
-                    )
-                    focal_weight = at * ((1 - pt) ** current_gamma)
-                    bce = nn.functional.binary_cross_entropy_with_logits(
-                        logits, labels, reduction="none"
-                    )
-                    loss = (focal_weight * bce).mean()
+                probs = torch.sigmoid(logits)
+                pt = labels * probs + (1 - labels) * (1 - probs)
+                at = labels * focal_alpha + (1 - labels) * (1 - focal_alpha)
+                current_gamma = get_focal_gamma(
+                    global_step, warmup_schedule, target_gamma=focal_gamma
+                )
+                focal_weight = at * ((1 - pt) ** current_gamma)
+                bce = nn.functional.binary_cross_entropy_with_logits(
+                    logits, labels, reduction="none"
+                )
+                loss = (focal_weight * bce).mean()
 
-                    if (
-                        warmup_schedule
-                        and warmup_schedule.enabled
-                        and warmup_schedule.focal_gamma_enabled
-                        and batch_idx % 100 == 0
-                    ):
-                        logger.info(f"[WARMUP] Batch {batch_idx} focal_gamma={current_gamma:.3f}")
-                else:
-                    loss = criterion(logits, labels)
+                if (
+                    warmup_schedule
+                    and warmup_schedule.enabled
+                    and warmup_schedule.focal_gamma_enabled
+                    and batch_idx % 100 == 0
+                ):
+                    logger.info(f"[WARMUP] Batch {batch_idx} focal_gamma={current_gamma:.3f}")
 
             raw_loss = loss.detach()
             loss = loss / gradient_accumulation_steps

@@ -24,7 +24,8 @@ def _read_raw_edf(file_path: Path) -> Any:  # pragma: no cover - thin wrapper
 
     Split out for easy monkeypatching in tests (avoids depending on MNE).
     """
-    import mne  # type: ignore[import-untyped]  # MNE has no stubs
+    # MNE has no type stubs (third-party library)
+    import mne  # type: ignore[import-untyped]
 
     return mne.io.read_raw_edf(file_path, preload=True, verbose="WARNING")
 

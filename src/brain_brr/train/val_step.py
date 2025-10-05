@@ -9,20 +9,30 @@ import logging
 import sys
 import time
 from contextlib import suppress
-from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import torch
 import torch.nn as nn
+
+# sklearn type stubs incomplete (known third-party issue)
 from sklearn.metrics import average_precision_score, roc_auc_score  # type: ignore[attr-defined]
 from torch.utils.data import DataLoader
+
+# tqdm has no type stubs (third-party library)
 from tqdm import tqdm  # type: ignore[import-untyped]
 
 from src.brain_brr import constants
 from src.brain_brr.config.schemas import PostprocessingConfig
-from src.brain_brr.eval.metrics import batch_probs_to_events
+from src.brain_brr.constants import ECE_NUM_BINS, format_sensitivity_key
+from src.brain_brr.eval.helpers.false_alarm import FASweepResult, find_threshold_for_fa_target
+from src.brain_brr.eval.metrics import (
+    batch_probs_to_events,
+    calculate_ece,
+    calculate_taes,
+    stitch_recording_timeline,
+)
 from src.brain_brr.events import batch_mask_to_events
 from src.brain_brr.utils.env import env
 
@@ -52,8 +62,6 @@ def _process_recording(
     Returns:
         Recording duration in hours
     """
-    from src.brain_brr.eval.metrics import stitch_recording_timeline
-
     timeline_probs, timeline_labels = stitch_recording_timeline(windows, sampling_rate)
 
     ref_events_list = batch_mask_to_events(timeline_labels.unsqueeze(0), sampling_rate)
@@ -107,8 +115,6 @@ def _compute_final_metrics(
         - thresholds: Dict mapping FA rates to tau_on values (e.g., {"10": 0.86})
         - num_recordings, total_hours: Dataset stats
     """
-    from src.brain_brr.eval.metrics import calculate_ece, calculate_taes, overlap
-
     if not all_probs_flat or not all_labels_flat:
         logger.warning("[METRICS] No validation outputs; returning default metrics.")
         default_results = {
@@ -122,7 +128,7 @@ def _compute_final_metrics(
             "thresholds": {},
         }
         for fa in fa_rates:
-            default_results[f"sensitivity_at_{fa}fa"] = 0.0
+            default_results[format_sensitivity_key(fa)] = 0.0
         return default_results
 
     taes = calculate_taes(all_pred_events, all_ref_events) if all_ref_events else 0.0
@@ -143,74 +149,31 @@ def _compute_final_metrics(
     else:
         pr_auc = float(average_precision_score(labels_flat, probs_flat))
 
-    ece = calculate_ece(probs_flat, labels_flat, n_bins=10)
+    ece = calculate_ece(probs_flat, labels_flat, n_bins=ECE_NUM_BINS)
 
     fa_curve: list[tuple[float, float]] = []
 
     thresholds: dict[str, float] = {}
     sensitivity_results: dict[str, float] = {}
 
+    timelines_probs = [prob.cpu() for prob in all_probs_flat]
+    timelines_labels = [label.cpu() for label in all_labels_flat]
+
     for fa in fa_rates:
-        low, high = constants.THRESHOLD_SEARCH_LOW, constants.THRESHOLD_SEARCH_HIGH
-        best_tau_on = constants.HYSTERESIS_TAU_ON
+        result: FASweepResult = find_threshold_for_fa_target(
+            timelines_probs=timelines_probs,
+            timelines_labels=timelines_labels,
+            fa_target=fa,
+            total_hours=total_hours,
+            all_ref_events=all_ref_events,
+            post_cfg=post_cfg,
+            sampling_rate=sampling_rate,
+            max_iters=constants.THRESHOLD_SEARCH_MAX_ITERS,
+        )
 
-        for _ in range(constants.THRESHOLD_SEARCH_MAX_ITERS):
-            mid_tau_on = (low + high) / 2
-            mid_tau_off = max(0.0, mid_tau_on - constants.HYSTERESIS_DELTA)
-
-            cfg_for_search = deepcopy(post_cfg)
-            cfg_for_search.hysteresis.tau_on = mid_tau_on
-            cfg_for_search.hysteresis.tau_off = mid_tau_off
-
-            num_pred_events = 0
-            for i in range(len(all_probs_flat)):
-                pred_events = batch_probs_to_events(
-                    all_probs_flat[i].unsqueeze(0), cfg_for_search, sampling_rate
-                )
-                num_pred_events += len(pred_events[0]) if pred_events else 0
-
-            fa_24h = (
-                (num_pred_events / total_hours) * constants.HOURS_PER_DAY
-                if total_hours > 0
-                else 0.0
-            )
-
-            if fa_24h > fa:
-                low = mid_tau_on
-            else:
-                high = mid_tau_on
-                best_tau_on = mid_tau_on
-
-        thresholds[f"{fa}"] = best_tau_on
-
-        cfg_for_eval = deepcopy(post_cfg)
-        cfg_for_eval.hysteresis.tau_on = best_tau_on
-        cfg_for_eval.hysteresis.tau_off = max(0.0, best_tau_on - constants.HYSTERESIS_DELTA)
-
-        total_ref_events = len(all_ref_events)
-        tp_count = 0
-
-        for i in range(len(all_probs_flat)):
-            ref_events_list = batch_mask_to_events(all_labels_flat[i].unsqueeze(0), sampling_rate)
-            pred_events_list = batch_probs_to_events(
-                all_probs_flat[i].unsqueeze(0), cfg_for_eval, sampling_rate
-            )
-
-            refs: list[tuple[float, float]] = []
-            if ref_events_list:
-                for event_obj in ref_events_list[0]:
-                    refs.append((float(event_obj.start_s), float(event_obj.end_s)))
-
-            preds: list[tuple[float, float]] = []
-            if pred_events_list:
-                preds = pred_events_list[0]
-
-            for ref_start, ref_end in refs:
-                if any(overlap((ref_start, ref_end), (ps, pe)) > 0 for (ps, pe) in preds):
-                    tp_count += 1
-
-        sensitivity = tp_count / max(total_ref_events, 1)
-        sensitivity_results[f"sensitivity_at_{fa}fa"] = sensitivity
+        thresholds[f"{fa}"] = result.threshold_tau_on
+        sensitivity_results[format_sensitivity_key(fa)] = result.sensitivity
+        fa_curve.append((fa, result.sensitivity))
 
     results = {
         "taes": taes,
@@ -261,9 +224,6 @@ def validate_epoch(
 
     model.eval()
     device_obj = torch.device(device)
-    criterion = nn.BCEWithLogitsLoss()
-
-    use_focal = focal_alpha is not None and focal_gamma is not None
 
     current_file_id: str | None = None
     current_windows: list[dict[str, Any]] = []
@@ -274,7 +234,6 @@ def validate_epoch(
     all_pred_events: list[tuple[float, float]] = []
     total_hours = 0.0
     total_loss = 0.0
-    total_loss_focal = 0.0
     num_batches = 0
     num_recordings = 0
 
@@ -325,20 +284,16 @@ def validate_epoch(
                 logits = model(windows)
                 probs = torch.sigmoid(logits)
 
-                loss_bce = criterion(logits, labels)
-                total_loss += loss_bce.item()
-
-                if use_focal:
-                    assert focal_alpha is not None
-                    assert focal_gamma is not None
-                    pt = labels * probs + (1 - labels) * (1 - probs)
-                    at = labels * focal_alpha + (1 - labels) * (1 - focal_alpha)
-                    focal_weight = at * ((1 - pt) ** focal_gamma)
-                    bce = nn.functional.binary_cross_entropy_with_logits(
-                        logits, labels, reduction="none"
-                    )
-                    loss_focal = (focal_weight * bce).mean()
-                    total_loss_focal += loss_focal.item()
+                assert focal_alpha is not None
+                assert focal_gamma is not None
+                pt = labels * probs + (1 - labels) * (1 - probs)
+                at = labels * focal_alpha + (1 - labels) * (1 - focal_alpha)
+                focal_weight = at * ((1 - pt) ** focal_gamma)
+                bce = nn.functional.binary_cross_entropy_with_logits(
+                    logits, labels, reduction="none"
+                )
+                loss = (focal_weight * bce).mean()
+                total_loss += loss.item()
 
                 for i, fid in enumerate(file_ids):
                     if fid != current_file_id and current_windows:
@@ -407,15 +362,7 @@ def validate_epoch(
     )
 
     metrics["val_loss"] = total_loss / max(1, num_batches)
-
-    if use_focal:
-        metrics["val_loss_focal"] = total_loss_focal / max(1, num_batches)
-        logger.info(
-            f"[VALIDATION] Done! Val Loss (BCE): {metrics['val_loss']:.4f} | "
-            f"Val Loss (Focal): {metrics['val_loss_focal']:.4f}"
-        )
-    else:
-        logger.info(f"[VALIDATION] Done! Val Loss: {metrics['val_loss']:.4f}")
+    logger.info(f"[VALIDATION] Done! Val Loss (Focal): {metrics['val_loss']:.4f}")
 
     if save_predictions and output_dir:
         if not all_probs_flat or not all_labels_flat:
@@ -440,6 +387,7 @@ def validate_epoch(
             logger.warning("[SAVE] No validation outputs for plots; skipping.")
         else:
             try:
+                # sklearn type stubs incomplete (known third-party issue)
                 from sklearn.metrics import (  # type: ignore[attr-defined]
                     precision_recall_curve,
                     roc_curve,

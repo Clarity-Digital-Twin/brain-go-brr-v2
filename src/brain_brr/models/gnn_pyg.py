@@ -13,7 +13,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as func
 
-from src.brain_brr.constants import EPSILON_LAPLACIAN, EPSILON_NUMERICAL
+from src.brain_brr.constants import (
+    EIGENVALUE_CLAMP_MAX,
+    EPSILON_LAPLACIAN,
+    EPSILON_NUMERICAL,
+    GNN_SSGCONV_ALPHA_DEFAULT,
+)
 
 from .adjacency import compute_stable_laplacian, condition_adjacency
 
@@ -52,7 +57,7 @@ class GraphChannelMixerPyG(nn.Module):
         d_model: int = 64,  # Per-electrode feature dimension
         n_electrodes: int = 19,
         k_eigenvectors: int = 16,  # EvoBrain default
-        alpha: float = 0.05,  # SSGConv alpha for EEG
+        alpha: float = GNN_SSGCONV_ALPHA_DEFAULT,  # SSGConv alpha for EEG
         k_hops: int = 2,  # 2-hop neighborhood
         n_layers: int = 2,
         dropout: float = 0.1,
@@ -280,8 +285,10 @@ class GraphChannelMixerPyG(nn.Module):
                             * 0.01
                         )
                 else:
-                    # Clamp eigenvalues to SAFER range [EPSILON_NUMERICAL, 2]
-                    eigenvalues = torch.clamp(eigenvalues, min=EPSILON_NUMERICAL, max=2.0)
+                    # Clamp eigenvalues to SAFER range [EPSILON_NUMERICAL, EIGENVALUE_CLAMP_MAX]
+                    eigenvalues = torch.clamp(
+                        eigenvalues, min=EPSILON_NUMERICAL, max=EIGENVALUE_CLAMP_MAX
+                    )
                     # Take k smallest eigenvectors (ascending order)
                     pe = eigenvectors[..., : self.k_eigenvectors]  # (B*T, N, k)
 

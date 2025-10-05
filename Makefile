@@ -110,7 +110,11 @@ type-check: ## Run mypy type checking
 	@echo "${CYAN}Type checking...${NC}"
 	$(MYPY) src/
 
-quality: lint format type-check ## Run all code quality checks
+config-check: ## Validate YAML configs match constants.py
+	@echo "${CYAN}Validating configs...${NC}"
+	@.venv/bin/python scripts/validate_configs.py
+
+quality: lint format type-check config-check ## Run all code quality checks
 	@echo "${GREEN}✓ All quality checks passed${NC}"
 
 train-local: ## Train model with V3 local config (100 epochs) with NaN protection

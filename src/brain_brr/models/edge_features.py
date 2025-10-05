@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import torch
 
-from src.brain_brr.constants import EPSILON_LAPLACIAN, EPSILON_NUMERICAL
+from src.brain_brr.constants import EPSILON_LAPLACIAN, EPSILON_NUMERICAL, N_CHANNELS
 
 
-def pair_indices_undirected(n: int = 19) -> list[tuple[int, int]]:
+def pair_indices_undirected(n: int = N_CHANNELS) -> list[tuple[int, int]]:
     """Generate all unique undirected pairs for n nodes.
 
     For 19 electrodes: n*(n-1)/2 = 19*18/2 = 171 pairs.
@@ -193,7 +193,7 @@ def assemble_adjacency(
     return adj
 
 
-def get_structural_adjacency(n_nodes: int = 19) -> torch.Tensor:
+def get_structural_adjacency(n_nodes: int = N_CHANNELS) -> torch.Tensor:
     """Get structural adjacency for 10-20 montage.
 
     Defines physical electrode neighbors based on standard positions.

@@ -10,6 +10,8 @@ from typing import Literal
 
 import numpy as np
 import torch
+
+# scipy has no type stubs (third-party library)
 from scipy import ndimage  # type: ignore[import-untyped]
 
 from src.brain_brr.constants import SAMPLING_RATE

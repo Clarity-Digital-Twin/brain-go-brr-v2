@@ -12,6 +12,24 @@ we centralize constants for:
 - Time conversions and preprocessing defaults
 
 Each constant is documented with WHY that value was chosen, not just WHAT it is.
+
+NOTE ON UNUSED CONSTANTS (as of v3.7.0):
+Some constants are defined but not actively used in the current codebase.
+These are INTENTIONAL RESERVES for future features:
+- LABEL_* constants: For future multi-class seizure type detection
+- METRIC_* constants: Canonical metric name strings for future standardization
+- Hyperparameter constants (ADAMW_*, FOCAL_GAMMA_PRODUCTION, etc.): Documentation
+  of standard values even when configs override them
+
+This is acceptable because:
+1. They document standard/recommended values
+2. They enable future features without breaking changes
+3. They provide single source of truth for domain knowledge
+4. Cost is minimal (< 1KB in memory)
+
+Constants were audited 2025-10-05 and 6 truly dead constants were removed
+(CSV_VERSION_HEADER, AGGREGATE_WINDOW, LOG_BUFFER_CAPACITY, PROB_THRESHOLD_DEFAULT,
+SECONDS_PER_DAY, ZSCORE_CLIP_SIGMA).
 """
 
 from __future__ import annotations
@@ -140,9 +158,6 @@ MAX_EVENT_DURATION_S: float = 600.0
 # Events within 2s are considered part of same seizure
 EVENT_MERGE_GAP_S: float = 2.0
 
-# Binary classification threshold
-PROB_THRESHOLD_DEFAULT: float = 0.5
-
 # ==============================================================================
 # Post-processing - Morphology
 # ==============================================================================
@@ -162,6 +177,7 @@ MORPHOLOGY_CLOSING_KERNEL: int = 31
 DROPOUT_MAMBA: float = 0.1  # Lower for Mamba (built-in regularization from state-space models)
 DROPOUT_TCN: float = 0.15  # Higher for TCN (more parameters, needs stronger regularization)
 DROPOUT_GNN: float = 0.1  # GNN dropout
+DROPOUT_FUSION: float = 0.1  # Fusion layer dropout (matches GNN/Mamba)
 
 # Focal Loss parameters
 # RetinaNet paper defaults (Lin et al. 2017)
@@ -169,8 +185,8 @@ FOCAL_ALPHA_DEFAULT: float = 0.25
 FOCAL_GAMMA_DEFAULT: float = 2.0
 
 # Brain-BRR production settings (v3.6.0+)
-# We use alpha=0.5 (neutral) because pos_weight handles class imbalance
-# This prevents double-counting the 12:1 imbalance in both alpha and pos_weight
+# We use alpha=0.5 (neutral class weighting) with gamma=2.0 for hard-example mining
+# For 12:1 imbalance, focal loss focuses learning on difficult cases rather than easy negatives
 FOCAL_ALPHA_PRODUCTION: float = 0.5
 FOCAL_GAMMA_PRODUCTION: float = 2.0
 
@@ -194,8 +210,6 @@ ADAMW_EPS: float = 1e-8
 # Logging frequency
 # Note: Can be overridden via BGB_LOG_EVERY_N_STEPS env var
 LOG_EVERY_N_STEPS: int = int(os.getenv("BGB_LOG_EVERY_N_STEPS", "50"))
-AGGREGATE_WINDOW: int = 100  # Training metric smoothing window
-LOG_BUFFER_CAPACITY: int = 1000  # Max log entries in memory
 
 # Validation sanity checks
 AUROC_FAILURE_THRESHOLD: float = 0.55  # Stop if model barely better than random (0.5)
@@ -211,7 +225,6 @@ CHECKPOINT_BEST: str = "best.pt"
 
 # Cache and export formats
 MANIFEST_FILENAME: str = "manifest.json"
-CSV_VERSION_HEADER: str = "# version = csv_v1.0.0"
 
 # ==============================================================================
 # Metric Names (Canonical Strings for Dict Keys)
@@ -230,7 +243,6 @@ METRIC_ECE: str = "ece"
 
 HOURS_PER_DAY: int = 24
 SECONDS_PER_HOUR: int = 3600
-SECONDS_PER_DAY: int = 86400
 
 # ==============================================================================
 # Preprocessing Defaults
@@ -242,9 +254,6 @@ BANDPASS_HIGH_HZ: float = 120.0
 
 # Notch filter (Hz) - US power line frequency
 NOTCH_FILTER_HZ: int = 60
-
-# Z-score outlier clipping (number of standard deviations)
-ZSCORE_CLIP_SIGMA: float = 10.0
 
 # ==============================================================================
 # TUSZ Seizure Type Labels (v2.0.3)
@@ -272,3 +281,91 @@ SEIZURE_LABELS: set[str] = {
     LABEL_TONIC,
     LABEL_MYOCLONIC,
 }
+
+# ==============================================================================
+# Calibration Metrics
+# ==============================================================================
+
+ECE_NUM_BINS: int = 10
+"""Number of bins for Expected Calibration Error (ECE) calculation.
+
+Standard calibration curve resolution per Guo et al. 2017:
+"On Calibration of Modern Neural Networks" (ICML 2017)
+https://arxiv.org/abs/1706.04599
+"""
+
+TAES_ALPHA_DEFAULT: float = 0.15
+"""Default false alarm penalty weight for TAES metric."""
+
+# ==============================================================================
+# Balanced Sampling Configuration
+# ==============================================================================
+
+BALANCED_SAMPLER_SAMPLE_SIZE: int = 500
+"""Number of windows to sample when checking seizure presence in balanced sampler."""
+
+BALANCED_SAMPLER_MAX_SAMPLE: int = 20000
+"""Maximum number of windows to check for safety in balanced sampler."""
+
+DATASET_DISTRIBUTION_SAMPLE_SIZE: int = 100
+"""Number of windows to sample when checking dataset distribution."""
+
+# ==============================================================================
+# Statistics and Logging
+# ==============================================================================
+
+PERCENTILE_P25: float = 25.0
+"""25th percentile for gradient/weight statistics."""
+
+PERCENTILE_P50: float = 50.0
+"""50th percentile (median) for gradient/weight statistics."""
+
+PERCENTILE_P75: float = 75.0
+"""75th percentile for gradient/weight statistics."""
+
+PERCENTILE_P95: float = 95.0
+"""95th percentile for gradient/weight statistics (outlier detection)."""
+
+# ==============================================================================
+# GNN Configuration Defaults
+# ==============================================================================
+
+GNN_SSGCONV_ALPHA_DEFAULT: float = 0.05
+"""Default alpha mixing parameter for GNN SSGConv layer (when not specified in config)."""
+
+EIGENVALUE_CLAMP_MAX: float = 2.0
+"""Maximum eigenvalue for Laplacian stability (prevents numerical overflow)."""
+
+# ==============================================================================
+# Model Architecture Defaults
+# ==============================================================================
+
+FUSION_NUM_HEADS: int = 4
+"""Number of heads for multi-head fusion (PR-4 gated fusion architecture)."""
+
+LAYERSCALE_ALPHA_FALLBACK: float = 0.1
+"""Fallback LayerScale alpha when config is missing (defensive default)."""
+
+# ==============================================================================
+# Metric Key Formatting
+# ==============================================================================
+
+METRIC_SENSITIVITY_TEMPLATE: str = "sensitivity_at_{}fa"
+
+
+def format_sensitivity_key(fa_rate: float) -> str:
+    """Format sensitivity metric key for given FA rate.
+
+    Args:
+        fa_rate: False alarm rate (e.g., 10.0 for 10 FA/24h)
+
+    Returns:
+        Formatted metric key (e.g., "sensitivity_at_10.0fa")
+
+    Example:
+        >>> format_sensitivity_key(10.0)
+        'sensitivity_at_10.0fa'
+        >>> format_sensitivity_key(1)
+        'sensitivity_at_1fa'
+    """
+    return METRIC_SENSITIVITY_TEMPLATE.format(fa_rate)

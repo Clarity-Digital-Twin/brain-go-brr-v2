@@ -16,6 +16,8 @@ from src.brain_brr.constants import (
     EPSILON_ZERO_CHECK,
     HYSTERESIS_TAU_OFF,
     HYSTERESIS_TAU_ON,
+    MORPHOLOGY_CLOSING_KERNEL,
+    MORPHOLOGY_OPENING_KERNEL,
     SAMPLING_RATE,
 )
 
@@ -125,8 +127,8 @@ def apply_hysteresis(
 
 def apply_morphology(
     masks: torch.Tensor,
-    opening_kernel: int = 11,
-    closing_kernel: int = 31,
+    opening_kernel: int = MORPHOLOGY_OPENING_KERNEL,
+    closing_kernel: int = MORPHOLOGY_CLOSING_KERNEL,
     use_gpu: bool = False,
     kernel_size: int | None = None,
 ) -> torch.Tensor:

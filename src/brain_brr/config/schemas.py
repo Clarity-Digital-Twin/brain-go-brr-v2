@@ -12,6 +12,7 @@ from src.brain_brr.constants import (
     DROPOUT_TCN,
     EPSILON_LAPLACIAN,
     EPSILON_NORM,
+    EPSILON_NUMERICAL,
     EVENT_MERGE_GAP_S,
     FOCAL_ALPHA_PRODUCTION,
     FOCAL_GAMMA_DEFAULT,
@@ -233,7 +234,10 @@ class NormConfig(StrictModel):
         description="Type of normalization at component boundaries",
     )
     boundary_eps: float = Field(
-        default=EPSILON_NORM, ge=1e-10, le=1e-3, description="Epsilon for normalization stability"
+        default=EPSILON_NORM,
+        ge=EPSILON_NUMERICAL,
+        le=1e-3,
+        description="Epsilon for normalization stability",
     )
     layerscale_alpha: float = Field(
         default=0.1, ge=0.001, le=1.0, description="Initial LayerScale value for residuals"
@@ -464,9 +468,10 @@ class TrainingConfig(StrictModel):
 
     epochs: int = Field(default=1, ge=1, le=200, description="Number of training epochs")
     batch_size: int = Field(default=16, ge=1, le=256, description="Batch size")
-    # Loss selection
-    loss: Literal["bce", "focal"] = Field(
-        default="bce", description="Loss function: 'bce' or 'focal'"
+    # Loss selection (focal-only as of v3.7.0)
+    loss: Literal["focal"] = Field(
+        default="focal",
+        description="Loss function: focal (class imbalance + hard-example focusing)",
     )
     focal_alpha: float = Field(
         default=FOCAL_ALPHA_PRODUCTION,
@@ -478,7 +483,7 @@ class TrainingConfig(StrictModel):
         default=FOCAL_GAMMA_DEFAULT, ge=0.0, description="Focal loss gamma (hard sample focusing)"
     )
     learning_rate: float = Field(
-        default=3e-4, ge=1e-6, le=1e-2, description="Initial learning rate"
+        default=3e-4, ge=EPSILON_NUMERICAL, le=1e-2, description="Initial learning rate"
     )
     weight_decay: float = Field(default=0.05, ge=0.0, le=0.2, description="AdamW weight decay")
     optimizer: Literal["adamw"] = Field(
@@ -614,16 +619,20 @@ class Config(StrictModel):
         """
         if phase == "data":
             # Phase 1 only needs data + preprocessing
-            if self.data.sampling_rate != 256:
-                raise ValueError(f"Must use 256 Hz sampling rate, got {self.data.sampling_rate}")
-            if self.data.n_channels != 19:
+            if self.data.sampling_rate != SAMPLING_RATE:
                 raise ValueError(
-                    f"Must use 19 channels (10-20 montage), got {self.data.n_channels}"
+                    f"Must use {SAMPLING_RATE} Hz sampling rate, got {self.data.sampling_rate}"
                 )
-            if self.data.window_size != 60:
-                raise ValueError(f"Must use 60s windows, got {self.data.window_size}s")
-            if self.data.stride != 10:
-                raise ValueError(f"Must use 10s stride, got {self.data.stride}s")
+            if self.data.n_channels != N_CHANNELS:
+                raise ValueError(
+                    f"Must use {N_CHANNELS} channels (10-20 montage), got {self.data.n_channels}"
+                )
+            if self.data.window_size != WINDOW_SIZE_SEC:
+                raise ValueError(
+                    f"Must use {WINDOW_SIZE_SEC}s windows, got {self.data.window_size}s"
+                )
+            if self.data.stride != STRIDE_SIZE_SEC:
+                raise ValueError(f"Must use {STRIDE_SIZE_SEC}s stride, got {self.data.stride}s")
         elif phase == "model":
             # Phase 2 needs model config
             if self.model.tcn.num_layers < 4:

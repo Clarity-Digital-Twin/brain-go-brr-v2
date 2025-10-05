@@ -10,6 +10,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 try:
+    # wandb is optional dependency (may not be installed)
     import wandb  # type: ignore[import-not-found]
 
     WANDB_AVAILABLE = True

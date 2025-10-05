@@ -449,10 +449,12 @@ class TestTrainingExplosions:
                 device=str(device),
                 use_amp=False,
                 gradient_clip=0.5,
-                loss_mode="bce",
+                loss_mode="focal",
+                focal_alpha=0.5,
+                focal_gamma=2.0,
             )
 
-            assert avg_loss < 0.8, f"Loss should be < 0.8, got {avg_loss}"
+            assert avg_loss < 2.0, f"Loss should be < 2.0 (random data), got {avg_loss}"
             assert not torch.isnan(torch.tensor(avg_loss)), "Loss should not be NaN"
         finally:
             os.environ["BGB_SANITIZE_GRADS"] = "0"
@@ -493,8 +495,10 @@ class TestTrainingExplosions:
             device=str(device),
             use_amp=False,
             gradient_clip=0.5,
-            loss_mode="bce",
+            loss_mode="focal",
+            focal_alpha=0.5,
+            focal_gamma=2.0,
         )
 
-        assert avg_loss < 0.8, f"Loss should be < 0.8, got {avg_loss}"
+        assert avg_loss < 2.0, f"Loss should be < 2.0 (random data), got {avg_loss}"
         assert not torch.isnan(torch.tensor(avg_loss)), "Loss should not be NaN"

@@ -26,7 +26,8 @@ def preprocess_recording(
 
     Returns float32 array (n_channels, n_samples_new), finite-only (NaN/Inf → 0).
     """
-    from scipy.signal import (  # type: ignore[import-untyped]  # local import
+    # scipy.signal has no type stubs (third-party library)
+    from scipy.signal import (  # type: ignore[import-untyped]
         butter,
         iirnotch,
         lfilter,

@@ -283,8 +283,10 @@ class SeizureDetector(nn.Module):
             - Applies per-electrode BiMamba temporal modeling
             - Applies boundary normalization if configured
         """
-        assert self.proj_to_electrodes is not None
-        assert self.node_mamba is not None
+        if self.proj_to_electrodes is None:
+            raise RuntimeError("proj_to_electrodes is None - model not properly initialized")
+        if self.node_mamba is None:
+            raise RuntimeError("node_mamba is None - model not properly initialized")
 
         batch_size, _, seq_len = features.shape
 
@@ -323,10 +325,14 @@ class SeizureDetector(nn.Module):
             - Applies learned lift/project via BiMamba
             - Assembles adjacency via top-k + threshold
         """
-        assert self.edge_in_proj is not None
-        assert self.edge_mamba is not None
-        assert self.edge_out_proj is not None
-        assert self.edge_activate is not None
+        if self.edge_in_proj is None:
+            raise RuntimeError("edge_in_proj is None - model not properly initialized")
+        if self.edge_mamba is None:
+            raise RuntimeError("edge_mamba is None - model not properly initialized")
+        if self.edge_out_proj is None:
+            raise RuntimeError("edge_out_proj is None - model not properly initialized")
+        if self.edge_activate is None:
+            raise RuntimeError("edge_activate is None - model not properly initialized")
 
         from .edge_features import assemble_adjacency, edge_scalar_series
 
@@ -345,10 +351,14 @@ class SeizureDetector(nn.Module):
 
         if __debug__:
             lo, hi = edge_feats.amin(), edge_feats.amax()
-            assert torch.isfinite(lo), "Non-finite minimum in edge features"
-            assert torch.isfinite(hi), "Non-finite maximum in edge features"
-            assert lo >= -1.001, f"Edge features lower bound violation: {lo}"
-            assert hi <= 1.001, f"Edge features upper bound violation: {hi}"
+            if not torch.isfinite(lo):
+                raise ValueError("Non-finite minimum in edge features")
+            if not torch.isfinite(hi):
+                raise ValueError("Non-finite maximum in edge features")
+            if lo < -1.001:
+                raise ValueError(f"Edge features lower bound violation: {lo}")
+            if hi > 1.001:
+                raise ValueError(f"Edge features upper bound violation: {hi}")
 
         edge_flat = edge_feats.squeeze(-1).reshape(batch_size * 171, 1, seq_len)
         edge_in = self.edge_in_proj(edge_flat).contiguous()
@@ -362,7 +372,8 @@ class SeizureDetector(nn.Module):
         else:
             edge_in = torch.clamp(edge_in, -3.0, 3.0)
 
-        assert edge_in.is_contiguous(), "edge_in must be contiguous for Mamba"
+        if not edge_in.is_contiguous():
+            raise RuntimeError("edge_in must be contiguous for Mamba")
         edge_processed = self.edge_mamba(edge_in)
 
         if self.norm_after_edge_mamba:
