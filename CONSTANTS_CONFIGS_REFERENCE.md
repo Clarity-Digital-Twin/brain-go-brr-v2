@@ -440,20 +440,20 @@ make s
 
 ### Constant Usage Breakdown (PRE-IMPLEMENTATION)
 
-**🔴 CURRENT STATE - Before fixes applied**
+**🔴 CURRENT STATE - Before remaining 4 fixes applied** (2 fixes already done)
 
 | Category | Count | Percentage | Status |
 |----------|-------|------------|--------|
 | Schema-Default (USED) | 23 | 26.1% | ✅ All wired correctly |
-| Code-Guard (USED) | 29 | 33.0% | ✅ All wired correctly |
-| **USED SUBTOTAL** | **52** | **59.1%** | ✅ Working constants |
-| Unused (High-Value) | 6 | 6.8% | 🔴 **MUST WIRE** (P0) |
+| Code-Guard (USED) | 27 | 30.7% | ✅ All wired correctly |
+| **USED SUBTOTAL** | **50** | **56.8%** | ✅ Working constants |
+| Unused (High-Value) | 6 | 6.8% | 🔴 **MUST WIRE** (4 remaining, 2 done) |
 | Unused (Medium-Value) | 10 | 11.4% | 🟡 Consider re-enabling |
-| Unused (Low-Value) | 20 | 22.7% | 🗑️ Cleanup candidates |
-| **UNUSED SUBTOTAL** | **36** | **40.9%** | ❌ Not imported |
+| Unused (Low-Value) | 22 | 25.0% | 🗑️ Cleanup candidates |
+| **UNUSED SUBTOTAL** | **38** | **43.2%** | ❌ Not imported |
 | **TOTAL** | **88** | **100%** | **100% documented** ✅ |
 
-**After Fix Target**: 58/88 used (65.9%) - when 6 P0 constants are wired
+**After All 6 Fixes Complete**: 56/88 used (63.6%), 32/88 unused (36.4%)
 
 ### Schema Field Coverage (CORRECTED)
 
