@@ -304,10 +304,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
             # New mmap: OS page cache → <1 GB per worker → ✅ Scales to any size
             windows_mmap, labels_mmap = self._load_cache_for_worker(cache_path)
             window = windows_mmap[window_idx].astype(np.float32)
-            if labels_mmap is not None:
-                label = labels_mmap[window_idx].astype(np.float32)
-            else:
-                label = None
+            label = labels_mmap[window_idx].astype(np.float32) if labels_mmap is not None else None
         else:
             if not self.allow_on_demand:
                 raise RuntimeError(
