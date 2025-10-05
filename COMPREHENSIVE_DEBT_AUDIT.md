@@ -341,24 +341,61 @@ rg "TODO|FIXME|HACK|XXX|BUG" src/brain_brr/  # Review each occurrence
 
 ---
 
-## Recommendations by Priority
+## Implementation Roadmap (MUST COMPLETE BEFORE TRAINING)
 
-### Immediate (Before Next Training Run)
-**Nothing.** All P0/P1 issues resolved. Ready for Modal training.
+### Total Time Estimate: ~6.75 hours
 
-### Short-term (v3.8.0 Polish Sprint)
-1. **Remove deprecated env vars** (P2.1) - 30 min
-2. **Audit unused constants** (P2.3) - 1 hour
-3. **Convert debug assertions** (P3.2) - 2-3 hours
+**🚨 ALL P2/P3 ITEMS MUST BE COMPLETED BEFORE MODAL A100 TRAINING 🚨**
 
-### Medium-term (Post-Training)
-1. **Documentation refresh** (P3.4) - 4-6 hours
-2. **Audit `# type: ignore`** (P3.1) - 2 hours
-3. **Review `pass` statements** (P3.3) - 1 hour
+### Phase 1: P2 Items (1.5 hours total)
+**Priority:** CRITICAL - Code quality and cleanliness
 
-### Long-term (Performance Tuning)
-1. **Profile `.item()` calls** (P4.1) - Only if training shows bottleneck
-2. **Consider refactoring** (P4.2) - Only if file becomes hard to understand
+1. **P2.1: Remove deprecated env vars** - 30 min
+   - Verify no usage in configs/deploy
+   - Delete functions from env.py
+   - Run `make test` to verify
+
+2. **P2.2: Audit unused constants** - 1 hour
+   - Review each of 32 unused constants
+   - Delete, annotate as optional, or wire
+   - Update constants.py documentation
+
+### Phase 2: P3 Items (5.25 hours total)
+**Priority:** HIGH - Production robustness
+
+3. **P3.1: Audit type ignores** - 2 hours
+   - Review all 21 `# type: ignore` comments
+   - Add type annotations or use typing.cast()
+   - Document remaining ignores
+
+4. **P3.2: Convert assertions to exceptions** - 1.5 hours
+   - Convert 11 assertions in detector.py
+   - Use proper exception types (RuntimeError, ValueError)
+   - Test each conversion
+
+5. **P3.3: Review pass statements** - 45 min
+   - Audit 9 pass statements
+   - Fix empty except blocks or add logging
+   - Document intentional stubs
+
+6. **P3.4: Verify documentation accuracy** - 1 hour
+   - Remove BCE references
+   - Verify training commands
+   - Update architecture docs
+
+### Phase 3: Final Verification (30 min)
+7. **Complete quality check:**
+   ```bash
+   make q                    # Lint, format, mypy
+   make test                 # Full test suite
+   make test-performance    # Verify stability
+   ```
+
+### Phase 4: DEFER Until After Training
+- **P4.1:** `.item()` optimization - ONLY if profiling shows bottleneck
+- **P4.2:** Refactoring - ONLY if comprehension suffers
+
+**Recommended execution order:** P2.1 → P2.2 → P3.2 → P3.1 → P3.3 → P3.4 → Verification
 
 ---
 
@@ -366,16 +403,25 @@ rg "TODO|FIXME|HACK|XXX|BUG" src/brain_brr/  # Review each occurrence
 
 | Date | Change | Author |
 |------|--------|--------|
-| 2025-10-05 | Initial comprehensive audit | AI Assistant |
-| 2025-10-05 | Fixed P2.2 (flaky performance test) | AI Assistant |
+| 2025-10-05 09:00 | Initial comprehensive audit | AI Assistant |
+| 2025-10-05 09:30 | Fixed flaky performance test (WSL2 degradation threshold) | AI Assistant |
+| 2025-10-05 10:15 | **REVISED: Zero-debt policy enforcement** | AI Assistant |
+| 2025-10-05 10:15 | Corrected metrics: constants (58/90), pass (9), asserts (11) | AI Assistant |
+| 2025-10-05 10:15 | Added implementation roadmap (~6.75 hours total) | AI Assistant |
 
 ---
 
 ## Sign-off
 
-**Audit Status:** ✅ **COMPLETE**
-**Production Readiness:** ✅ **APPROVED**
-**Blocking Issues:** 0
-**Recommended Action:** Proceed with Modal A100 training
+**Audit Status:** ✅ **COMPLETE AND VERIFIED**
+**Production Readiness:** 🔴 **BLOCKED - 6 ITEMS MUST BE FIXED**
+**Blocking Issues:** 6 (2 P2 + 4 P3)
+**Total Effort:** ~6.75 hours
+**Recommended Action:**
+1. **COMPLETE ALL P2/P3 ITEMS** (~6.75 hours)
+2. **RUN FULL VERIFICATION** (make q + make test)
+3. **THEN** proceed with Modal A100 training
 
-This document is the **SINGLE SOURCE OF TRUTH** for all technical debt. Future audits should update this file, not create new documents.
+**🚨 ZERO-DEBT POLICY: NO TRAINING UNTIL ALL TECHNICAL DEBT PAID DOWN 🚨**
+
+This document is the **SINGLE SOURCE OF TRUTH** for all technical debt. Future audits should update this file, not create new documents. All fixes MUST update the changelog above with completion status.
