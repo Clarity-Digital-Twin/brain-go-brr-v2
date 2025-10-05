@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from typing import Literal, cast
 
 import click
 import yaml
@@ -171,7 +172,7 @@ def train(config_path: Path, resume: bool, device: str) -> None:
         if resume:
             config.training.resume = True
         if device != "auto":
-            config.experiment.device = device  # type: ignore[assignment]
+            config.experiment.device = cast(Literal["auto", "cuda", "cpu", "mps"], device)
 
         # Import here to avoid circular dependency
         from src.brain_brr.train.loop import main as train_main
