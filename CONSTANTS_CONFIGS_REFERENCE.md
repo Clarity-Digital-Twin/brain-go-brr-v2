@@ -2,9 +2,9 @@
 
 **Version**: v3.7.0
 **Date**: October 5, 2025
-**Purpose**: **100% COMPLETE** authoritative decision matrix for EVERY constant (88/88) and config field (74/74) in Brain-Go-Brr v3
+**Purpose**: **100% COMPLETE** authoritative decision matrix for EVERY constant (88/88) and config field (152/152) in Brain-Go-Brr v3
 **Principle**: Single Source of Truth (SSOT) - Robert C. Martin's Clean Code + Google/DeepMind ML Best Practices
-**Status**: ✅ **VERIFIED COMPLETE** - Forensic audit passed with 100% coverage
+**Status**: 🔴 **PRE-IMPLEMENTATION** - Document verified, code fixes pending (6 hardcoded literals remain)
 
 ---
 
@@ -66,7 +66,7 @@
 | 4 | `DROPOUT_TCN` | 163 | `0.15` | `TCNConfig.dropout` | 3 | TCN dropout rate |
 | 5 | `EPSILON_LAPLACIAN` | 110 | `1e-4` | `GraphConfig.laplacian_eps`, `edge_threshold` | 12 | Graph Laplacian stability |
 | 6 | `EPSILON_NORM` | 106 | `1e-5` | `NormConfig.boundary_eps` | 8 | LayerNorm epsilon |
-| 7 | `EPSILON_NUMERICAL` | 99 | `1e-6` | `NormConfig.boundary_eps` bounds, `TrainingConfig.learning_rate` bounds | 17 | General numerical stability |
+| 7 | `EPSILON_NUMERICAL` | 99 | `1e-6` | `NormConfig.boundary_eps` bounds, `TrainingConfig.learning_rate` bounds | 21 | General numerical stability |
 | 8 | `EVENT_MERGE_GAP_S` | 141 | `2.0` | `EventsConfig.tau_merge` | 3 | Event merging gap (seconds) |
 | 9 | `FOCAL_ALPHA_PRODUCTION` | 174 | `0.5` | `TrainingConfig.focal_alpha` | 3 | Focal loss alpha (production) |
 | 10 | `FOCAL_GAMMA_DEFAULT` | 169 | `2.0` | `TrainingConfig.focal_gamma` | 3 | Focal loss gamma |
@@ -80,7 +80,7 @@
 | 18 | `MORPHOLOGY_OPENING_KERNEL` | 154 | `11` | `MorphologyConfig.opening_kernel` | 4 | Morphological opening size |
 | 19 | `N_CHANNELS` | 64 | `19` | `DataConfig.n_channels` | 4 | 10-20 montage channels |
 | 20 | `NOTCH_FILTER_HZ` | 244 | `60` | `PreprocessingConfig.notch_freq` | 2 | US powerline frequency |
-| 21 | `SAMPLING_RATE` | 67 | `256` | `DataConfig.sampling_rate` | 26 | **MOST USED** - Target Hz |
+| 21 | `SAMPLING_RATE` | 67 | `256` | `DataConfig.sampling_rate` | 29 | **MOST USED** - Target Hz |
 | 22 | `STRIDE_SIZE_SEC` | 69 | `10` | `DataConfig.stride` | 10 | Window stride (seconds) |
 | 23 | `WINDOW_SIZE_SEC` | 68 | `60` | `DataConfig.window_size` | 11 | Window size (seconds) |
 
@@ -103,7 +103,7 @@
 | 7 | `CHECKPOINT_LAST` | 209 | `"last.pt"` | `train/loop.py` | 3 | Latest checkpoint filename |
 | 8 | `CSV_VERSION_HEADER` | 214 | `"# version = csv_v1.0.0"` | `data/io.py` | 1 | CSV format version |
 | 9 | `DATASET_DISTRIBUTION_SAMPLE_SIZE` | 301 | `100` | `train/train_step.py:237` | 1 | ✅ **USED** - Dataset stats sampling |
-| 10 | `ECE_NUM_BINS` | 280 | `10` | `eval/metrics.py:39`, `train/val_step.py:148` | 2 | ✅ **USED** - Guo et al. 2017 standard |
+| 10 | `ECE_NUM_BINS` | 280 | `10` | `eval/metrics.py:39`, `train/val_step.py:148` | 5 | ✅ **USED** - Guo et al. 2017 standard |
 | 11 | `EPSILON_PROB_CLAMP` | 95 | `1e-7` | `train/train_step.py` | 2 | Focal loss [0,1] clamping |
 | 12 | `EPSILON_ZERO_CHECK` | 103 | `1e-8` | `train/sampling.py:68`, etc | 10 | Coarse zero detection |
 | 13 | `HYSTERESIS_DELTA` | 125 | `0.08` | `post/postprocess.py`, `constants.py` | 8 | Hysteresis gap (tau_on - tau_off) |
@@ -132,19 +132,22 @@
 
 **Purpose**: Defined in `constants.py` but NOT imported anywhere.
 
-#### 3A. HIGH-VALUE - Should Be Wired Into Code (7 constants)
+#### 3A. HIGH-VALUE - Should Be Wired Into Code (6 constants)
 
-| # | Constant | Line | Value | Proposed Fix | Priority |
-|---|----------|------|-------|--------------|----------|
-| 1 | **`BALANCED_SAMPLER_SAMPLE_SIZE`** | 295 | `500` | Wire into `sampling.py:21` default arg | 🔴 **P0** |
-| 2 | **`EIGENVALUE_CLAMP_MAX`** | 327 | `2.0` | Wire into `gnn_pyg.py:284` clamp | 🔴 **P0** |
-| 3 | **`GNN_SSGCONV_ALPHA_DEFAULT`** | 324 | `0.05` | Wire into `gnn_pyg.py:55` default arg | 🔴 **P0** |
-| 4 | **`LAYERSCALE_ALPHA_FALLBACK`** | 334 | `0.1` | Wire into `node_stream.py:30`, `edge_stream.py:65` | 🔴 **P0** |
-| 5 | **`FA_TARGETS`** | 132 | `[10.0, 5.0, 2.5, 1.0]` | Use in evaluation loop (currently hardcoded in configs) | 🟡 **P1** |
-| 6 | **`ZSCORE_CLIP_SIGMA`** | 247 | `10.0` | Use in preprocessing (±10σ clipping) | 🟡 **P1** |
-| 7 | **`METRIC_SENSITIVITY_TEMPLATE`** | 341 | `"sensitivity_at_{}fa"` | ✅ **ACTUALLY USED** (inside `format_sensitivity_key()`) | ✅ Keep |
+**🔴 CRITICAL: These constants are DEFINED but NOT USED - hardcoded literals remain in code!**
 
-**Decision**: ✅ **Wire items 1-6 into code** (7 fixes total from original audit)
+| # | Constant | Line | Value | File with Hardcoded Literal | Current Status |
+|---|----------|------|-------|----------------------------|----------------|
+| 1 | **`BALANCED_SAMPLER_SAMPLE_SIZE`** | 295 | `500` | `sampling.py:21` → `sample_size: int = 500` | 🔴 **NOT WIRED** |
+| 2 | **`GNN_SSGCONV_ALPHA_DEFAULT`** | 324 | `0.05` | `gnn_pyg.py:55` → `alpha: float = 0.05` | 🔴 **NOT WIRED** |
+| 3 | **`EIGENVALUE_CLAMP_MAX`** | 327 | `2.0` | `gnn_pyg.py:284` → `max=2.0` | 🔴 **NOT WIRED** |
+| 4 | **`LAYERSCALE_ALPHA_FALLBACK`** | 334 | `0.1` | `node_stream.py:30`, `edge_stream.py:65` → `else 0.1` | 🔴 **NOT WIRED** |
+| 5 | **`MORPHOLOGY_OPENING_KERNEL`** | 154 | `11` | `postprocess.py:128` → `opening_kernel: int = 11` | 🔴 **NOT WIRED** |
+| 6 | **`MORPHOLOGY_CLOSING_KERNEL`** | 155 | `31` | `postprocess.py:129` → `closing_kernel: int = 31` | 🔴 **NOT WIRED** |
+
+**Note**: `MORPHOLOGY_*` constants ARE imported by schemas.py but NOT used in postprocess.py function signatures!
+
+**Decision**: 🔧 **MUST WIRE ALL 6** - See "REQUIRED FIXES" section below
 
 ---
 
@@ -179,32 +182,27 @@
 
 ---
 
-## 📊 Config Schema Field Inventory (74/74)
+## 📊 Config Schema Field Inventory (152/152)
 
 ### Schema Coverage Summary
 
-| Schema Class | Fields | Uses Constants | Hardcoded Defaults |
-|--------------|--------|----------------|-------------------|
-| DataConfig | 11 | 3 (27%) | 8 (73%) |
-| PreprocessingConfig | 4 | 3 (75%) | 1 (25%) |
-| TCNConfig | 6 | 1 (17%) | 5 (83%) |
-| MambaConfig | 5 | 1 (20%) | 4 (80%) |
-| GraphConfig | 21 | 1 (5%) | 20 (95%) |
-| NormConfig | 7 | 2 (29%) | 5 (71%) |
-| FusionConfig | 3 | 0 (0%) | 3 (100%) |
-| HysteresisConfig | 4 | 2 (50%) | 2 (50%) |
-| MorphologyConfig | 3 | 2 (67%) | 1 (33%) |
-| DurationConfig | 2 | 2 (100%) ✅ | 0 (0%) |
-| EventsConfig | 3 | 1 (33%) | 2 (67%) |
-| WarmupScheduleConfig | 8 | 4 (50%) | 4 (50%) |
-| TrainingConfig | 12 | 3 (25%) | 9 (75%) |
-| **TOTAL** | **74** | **23 (31%)** | **51 (69%)** |
+**🔴 CORRECTED DATA (Forensic Audit Oct 5, 2025)**
+
+| Metric | Count | Notes |
+|--------|-------|-------|
+| **Total Field() occurrences** | **152** | Actual grep count in schemas.py |
+| **StrictModel classes** | **23** | Config class count |
+| **Constants imported by schemas** | **23** | From constants.py import block |
+| **Constants used as defaults** | **23** | 15.1% of 152 fields |
+| **Hardcoded defaults** | **129** | 84.9% of fields |
+
+**Previous incorrect claim**: Document stated "74 fields" - this was WRONG. Actual count is 152.
 
 ### Key Observations
 
-1. **DurationConfig is perfect** ✅ - 100% uses constants (MIN/MAX_EVENT_DURATION_S)
-2. **GraphConfig is worst** ❌ - Only 5% uses constants (20/21 fields hardcoded)
-3. **Overall**: 69% of schema fields have hardcoded defaults (opportunity for ~14 new constants)
+1. **Only 15.1% of schema fields use constants** (23/152) - NOT 31% as previously claimed
+2. **84.9% of fields have hardcoded defaults** (129/152) - Massive opportunity for centralization
+3. **23 config classes** with varying field counts per class
 
 ---
 
