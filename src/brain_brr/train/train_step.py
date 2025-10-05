@@ -23,7 +23,6 @@ from tqdm import tqdm  # type: ignore[import-untyped]
 from src.brain_brr.config.schemas import WarmupScheduleConfig
 from src.brain_brr.constants import (
     DATASET_DISTRIBUTION_SAMPLE_SIZE,
-    EPSILON_NUMERICAL,
     FOCAL_ALPHA_DEFAULT,
     FOCAL_GAMMA_DEFAULT,
     LOG_EVERY_N_STEPS,

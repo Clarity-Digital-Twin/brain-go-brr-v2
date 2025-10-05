@@ -470,7 +470,8 @@ class TrainingConfig(StrictModel):
     batch_size: int = Field(default=16, ge=1, le=256, description="Batch size")
     # Loss selection (focal-only as of v3.7.0)
     loss: Literal["focal"] = Field(
-        default="focal", description="Loss function: focal (class imbalance + hard-example focusing)"
+        default="focal",
+        description="Loss function: focal (class imbalance + hard-example focusing)",
     )
     focal_alpha: float = Field(
         default=FOCAL_ALPHA_PRODUCTION,

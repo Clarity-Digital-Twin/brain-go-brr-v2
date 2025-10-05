@@ -449,7 +449,9 @@ class TestTrainingExplosions:
                 device=str(device),
                 use_amp=False,
                 gradient_clip=0.5,
-                loss_mode="bce",
+                loss_mode="focal",
+                focal_alpha=0.5,
+                focal_gamma=2.0,
             )
 
             assert avg_loss < 0.8, f"Loss should be < 0.8, got {avg_loss}"
@@ -493,7 +495,9 @@ class TestTrainingExplosions:
             device=str(device),
             use_amp=False,
             gradient_clip=0.5,
-            loss_mode="bce",
+            loss_mode="focal",
+            focal_alpha=0.5,
+            focal_gamma=2.0,
         )
 
         assert avg_loss < 0.8, f"Loss should be < 0.8, got {avg_loss}"
