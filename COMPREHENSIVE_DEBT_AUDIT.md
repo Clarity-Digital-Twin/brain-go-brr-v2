@@ -167,7 +167,7 @@ Type safety is non-negotiable for production ML. `# type: ignore` bypasses compi
 ---
 
 ### P3.2: Debug Assertions in Production Code
-**Location:** `src/brain_brr/models/detector.py` (21 assert statements)
+**Location:** `src/brain_brr/models/detector.py` (11 assert statements)
 
 **Issue:**
 Production model code contains runtime assertions:
@@ -178,12 +178,12 @@ assert edge_in.is_contiguous(), "edge_in must be contiguous for Mamba"
 ```
 
 **Impact:**
-- Assertions are disabled when running with `python -O`
-- May cause silent failures in optimized deployment
-- Performance overhead (though gated by `DEBUG_FINITE` flag)
+- **CRITICAL:** Assertions are disabled when running with `python -O`
+- Silent failures in optimized deployment (Modal may use optimized Python)
+- Violates production robustness requirements
 
 **Recommendation:**
-**Convert critical checks to exceptions:**
+**MUST CONVERT** - Replace all assertions with proper exceptions:
 ```python
 # BEFORE
 assert edge_in.is_contiguous(), "edge_in must be contiguous for Mamba"
@@ -193,40 +193,39 @@ if not edge_in.is_contiguous():
     raise RuntimeError("edge_in must be contiguous for Mamba")
 ```
 
-**Rationale:**
-Google Python Style Guide: Use assertions for impossible conditions, exceptions for runtime validation. Edge feature bounds are runtime constraints, not impossible states.
+**Effort:** 1.5 hours (11 assertions × ~8 min each: review context, convert, test)
 
-**Effort:** 2-3 hours to audit all 21 assertions and convert as needed.
+**Rationale:**
+Google Python Style Guide: Use assertions for impossible conditions, exceptions for runtime validation. Edge feature bounds are runtime constraints, not impossible states. Production code MUST NOT use assertions for data validation.
 
 ---
 
-### P3.3: 11 `pass` Statements (Potential Dead Code)
+### P3.3: 9 `pass` Statements (Potential Dead Code)
 **Location:** Various (see below)
 
 **Issue:**
 ```bash
-rg -n "pass$" src/brain_brr/ --type py
-# Output: 11 matches
+rg -n "^\s*pass$" src/brain_brr/ --type py
+# Output: 9 matches
 ```
 
-**Examples:**
-```python
-# src/brain_brr/utils/training_logger.py:25
-class AbstractTrainingLogger:
-    pass  # OK: Abstract base class
-
-# src/brain_brr/train/loop.py:514
-def _cleanup() -> None:
-    pass  # Suspicious: Empty function
-```
+**Locations:**
+- `src/brain_brr/train/loop.py:100` - except block
+- `src/brain_brr/train/loop.py:159` - except block
+- `src/brain_brr/utils/training_logger.py:25` - abstract class (OK)
+- `src/brain_brr/utils/training_logger.py:384` - except block
+- `src/brain_brr/cli/cli.py:22` - function stub
 
 **Recommendation:**
-**Audit each `pass` statement:**
-1. Abstract classes → OK (keep)
-2. Empty except blocks → Review error handling
-3. Empty functions → Add docstring or remove
+**MUST REVIEW** - For each occurrence:
+1. Abstract classes → OK (keep with docstring)
+2. Empty except blocks → **AUDIT**: Silent error handling may hide bugs
+3. Empty functions → Add docstring explaining intent or remove if dead code
 
-**Priority:** P3 because most are likely intentional (abstract classes, empty exception handlers)
+**Effort:** 45 minutes (9 statements × ~5 min each: review context, decide, fix)
+
+**Rationale:**
+Empty except blocks violate error handling best practices. Empty functions may indicate incomplete implementation or dead code.
 
 ---
 
