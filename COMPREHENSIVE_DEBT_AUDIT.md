@@ -229,22 +229,34 @@ Empty except blocks violate error handling best practices. Empty functions may i
 
 ---
 
-### P3.4: Documentation Refresh
+### P3.4: Documentation Accuracy
 **Location:** `docs/`, root-level docs
 
 **Issue:**
-Some documentation may lag behind v3.7.0 focal-only changes:
-- Architecture diagrams may show dual-loss paths
-- Metric documentation may not highlight `format_sensitivity_key()` SSOT pattern
+Documentation MUST match codebase before training:
+- Architecture diagrams must reflect focal-only production path
+- Metric documentation must explain SSOT patterns
+- Training guides must be accurate for reproducibility
 
 **Recommendation:**
-**Defer to post-training documentation sprint:**
-1. Update architecture diagrams to show focal-only path
-2. Document `format_sensitivity_key()` pattern in `docs/metrics.md`
-3. Refresh `ARCHITECTURE_EVOLUTION.md` with v3.7.0 focal decision rationale
+**MUST VERIFY** - Quick audit of key docs:
+```bash
+# Check for BCE references (should be removed):
+rg -i "bce|binary.cross.entropy" docs/ CLAUDE.md README.md
+
+# Verify focal-only messaging is clear:
+rg -i "focal.*only|focal.*production" docs/
+
+# Ensure all training commands are accurate:
+# - Smoke test file counts (3 local, 50 Modal)
+# - Memory requirements (12GB RTX 4090, 50GB A100)
+# - Batch sizes (12 local, 32 Modal)
+```
+
+**Effort:** 1 hour (quick audit + fix any inaccuracies)
 
 **Rationale:**
-Documentation debt is low-risk. Focus on training first, document learnings after.
+Inaccurate documentation during training wastes time and money. Must be pristine before A100 run.
 
 ---
 
