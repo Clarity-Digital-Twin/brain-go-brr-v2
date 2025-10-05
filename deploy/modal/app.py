@@ -320,7 +320,7 @@ def check_cache():
     from pathlib import Path
     import json
 
-    cache = Path("/results/cache/tusz")
+    cache = Path("/results/cache/tusz_mmap")  # Memory-mapped NPY cache
 
     print("\n" + "=" * 70)
     print(" " * 20 + "MODAL SSD CACHE VERIFICATION")
@@ -346,13 +346,16 @@ def check_cache():
     train_dir = cache / "train"
 
     if train_dir.exists():
-        train_npz = list(train_dir.glob("*.npz"))
+        train_data_npy = list(train_dir.glob("*_data.npy"))
+        train_labels_npy = list(train_dir.glob("*_labels.npy"))
         print(f"  manifest.json:         {'✅' if train_manifest.exists() else '❌'} ({train_manifest.stat().st_size if train_manifest.exists() else 0:,} bytes)")
         print(f"  _dataset_index.json:   {'✅' if train_index.exists() else '❌'} ({train_index.stat().st_size if train_index.exists() else 0:,} bytes)")
-        print(f"  *.npz files:           {'✅' if len(train_npz) == 4667 else '⚠️ '} {len(train_npz):,} (expected 4667)")
+        print(f"  *_data.npy files:      {'✅' if len(train_data_npy) == 4667 else '⚠️ '} {len(train_data_npy):,} (expected 4667)")
+        print(f"  *_labels.npy files:    {'✅' if len(train_labels_npy) == 4667 else '⚠️ '} {len(train_labels_npy):,} (expected 4667)")
     else:
         print(f"  ❌ train/ directory missing!")
-        train_npz = []
+        train_data_npy = []
+        train_labels_npy = []
 
     # Check dev split
     print(f"\n[DEV SPLIT]")
@@ -361,13 +364,16 @@ def check_cache():
     dev_dir = cache / "dev"
 
     if dev_dir.exists():
-        dev_npz = list(dev_dir.glob("*.npz"))
+        dev_data_npy = list(dev_dir.glob("*_data.npy"))
+        dev_labels_npy = list(dev_dir.glob("*_labels.npy"))
         print(f"  manifest.json:         {'✅' if dev_manifest.exists() else '❌'} ({dev_manifest.stat().st_size if dev_manifest.exists() else 0:,} bytes) [REQUIRED for ValidationDataset]")
         print(f"  _dataset_index.json:   {'✅' if dev_index.exists() else '❌'} ({dev_index.stat().st_size if dev_index.exists() else 0:,} bytes)")
-        print(f"  *.npz files:           {'✅' if len(dev_npz) == 1832 else '⚠️ '} {len(dev_npz):,} (expected 1832)")
+        print(f"  *_data.npy files:      {'✅' if len(dev_data_npy) == 1832 else '⚠️ '} {len(dev_data_npy):,} (expected 1832)")
+        print(f"  *_labels.npy files:    {'✅' if len(dev_labels_npy) == 1832 else '⚠️ '} {len(dev_labels_npy):,} (expected 1832)")
     else:
         print(f"  ❌ dev/ directory missing!")
-        dev_npz = []
+        dev_data_npy = []
+        dev_labels_npy = []
 
     # Summary
     print("\n" + "=" * 70)
@@ -379,8 +385,10 @@ def check_cache():
     if not train_manifest.exists(): missing.append("train/manifest.json [CRITICAL]")
     if not train_index.exists(): missing.append("train/_dataset_index.json [OPTIONAL]")
     if not dev_index.exists(): missing.append("dev/_dataset_index.json [CRITICAL]")
-    if len(train_npz) != 4667: missing.append(f"train/*.npz ({len(train_npz)}/4667)")
-    if len(dev_npz) != 1832: missing.append(f"dev/*.npz ({len(dev_npz)}/1832)")
+    if len(train_data_npy) != 4667: missing.append(f"train/*_data.npy ({len(train_data_npy)}/4667)")
+    if len(train_labels_npy) != 4667: missing.append(f"train/*_labels.npy ({len(train_labels_npy)}/4667)")
+    if len(dev_data_npy) != 1832: missing.append(f"dev/*_data.npy ({len(dev_data_npy)}/1832)")
+    if len(dev_labels_npy) != 1832: missing.append(f"dev/*_labels.npy ({len(dev_labels_npy)}/1832)")
 
     if missing:
         print("\n❌ MISSING FILES:")
