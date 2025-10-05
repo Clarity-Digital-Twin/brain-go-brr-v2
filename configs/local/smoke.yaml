@@ -113,7 +113,6 @@ preprocessing:
   bandpass: [0.5, 120.0]
   notch_freq: 60
   normalize: true
-  use_mne: true
 
 training:
   epochs: 1
@@ -151,7 +150,6 @@ postprocessing:
     confidence_method: mean
 
 evaluation:
-  metrics: [taes, sensitivity, specificity, auroc]
   fa_rates: [10, 5, 2.5, 1]
   save_predictions: false
   save_plots: false

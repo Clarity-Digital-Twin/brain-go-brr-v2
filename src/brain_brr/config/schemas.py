@@ -603,18 +603,49 @@ class Config(StrictModel):
         return cls(**data)
 
     def validate_for_phase(self, phase: str) -> None:
-        """Validate config is appropriate for given phase."""
+        """Validate config is appropriate for given phase.
+
+        Args:
+            phase: Validation phase ('data', 'model', or 'training')
+
+        Raises:
+            ValueError: If config values are invalid for the specified phase
+        """
         if phase == "data":
             # Phase 1 only needs data + preprocessing
-            assert self.data.sampling_rate == 256, "Must use 256 Hz"
-            assert self.data.n_channels == 19, "Must use 19 channels"
-            assert self.data.window_size == 60, "Must use 60s windows"
-            assert self.data.stride == 10, "Must use 10s stride"
+            if self.data.sampling_rate != 256:
+                raise ValueError(
+                    f"Must use 256 Hz sampling rate, got {self.data.sampling_rate}"
+                )
+            if self.data.n_channels != 19:
+                raise ValueError(
+                    f"Must use 19 channels (10-20 montage), got {self.data.n_channels}"
+                )
+            if self.data.window_size != 60:
+                raise ValueError(
+                    f"Must use 60s windows, got {self.data.window_size}s"
+                )
+            if self.data.stride != 10:
+                raise ValueError(
+                    f"Must use 10s stride, got {self.data.stride}s"
+                )
         elif phase == "model":
             # Phase 2 needs model config
-            assert self.model.tcn.num_layers >= 4, "Must have >=4 TCN layers"
-            assert self.model.mamba.d_model == 512, "Mamba d_model must be 512"
+            if self.model.tcn.num_layers < 4:
+                raise ValueError(
+                    f"Must have >=4 TCN layers, got {self.model.tcn.num_layers}"
+                )
+            if self.model.mamba.d_model != 512:
+                raise ValueError(
+                    f"Mamba d_model must be 512, got {self.model.mamba.d_model}"
+                )
         elif phase == "training":
             # Phase 3 needs full config
-            assert self.training.epochs > 0, "Must have positive epochs"
-            assert self.training.learning_rate > 0, "Must have positive LR"
+            if self.training.epochs <= 0:
+                raise ValueError(
+                    f"Must have positive epochs, got {self.training.epochs}"
+                )
+            if self.training.learning_rate <= 0:
+                raise ValueError(
+                    f"Must have positive learning rate, got {self.training.learning_rate}"
+                )
