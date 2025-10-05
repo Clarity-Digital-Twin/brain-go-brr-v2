@@ -146,18 +146,23 @@ rg -n "# type: ignore" src/brain_brr/ | wc -l
 - May hide real type errors
 
 **Recommendation:**
-**Audit each `# type: ignore` and attempt to remove:**
+**MUST AUDIT** - Review each occurrence:
 ```bash
 # Step 1: List all occurrences
 rg -n "# type: ignore" src/brain_brr/
 
 # Step 2: For each, try:
-# - Add proper type annotations
-# - Use typing.cast() if unavoidable
-# - Only keep if truly intractable
+# - Add proper type annotations (preferred)
+# - Use typing.cast() if type is known but mypy can't infer
+# - Keep only if truly intractable (e.g., third-party library issues)
+
+# Step 3: Document remaining ignores with inline explanation
 ```
 
-**Priority:** P3 because mypy currently shows 0 errors (type safety is enforced elsewhere)
+**Effort:** 2 hours (21 occurrences × ~5 min each)
+
+**Rationale:**
+Type safety is non-negotiable for production ML. `# type: ignore` bypasses compiler checks and may hide real bugs.
 
 ---
 
