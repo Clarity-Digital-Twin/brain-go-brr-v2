@@ -90,7 +90,7 @@ def create_balanced_sampler(
     logger.info(f"[SAMPLER] Seizure ratio (from sample): {seizure_ratio:.2%}")
     logger.info(f"[SAMPLER] Positive weight: {pos_weight:.2f}")
     logger.info(f"[SAMPLER] Verified seizure windows: {(weights > 1).sum().item()}/{len(dataset)}")
-    logger.info(f"[SAMPLER] Note: Using VERIFIED seizures only (no random extrapolation)")
+    logger.info("[SAMPLER] Note: Using VERIFIED seizures only (no random extrapolation)")
 
     return WeightedRandomSampler(
         weights=weights.tolist(),
