@@ -10,6 +10,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as func
 
+from src.brain_brr.constants import DROPOUT_FUSION, FUSION_NUM_HEADS
+
 
 class GatedFusion(nn.Module):
     """Learnable gating for node/edge stream fusion.
@@ -18,7 +20,7 @@ class GatedFusion(nn.Module):
     to weight the edge contribution based on both features.
     """
 
-    def __init__(self, dim: int, dropout: float = 0.1):
+    def __init__(self, dim: int, dropout: float = DROPOUT_FUSION):
         super().__init__()
         self.gate_proj = nn.Linear(dim * 2, dim)
         self.dropout = nn.Dropout(dropout)
@@ -51,7 +53,9 @@ class MultiHeadGatedFusion(nn.Module):
     to learn complex interaction patterns.
     """
 
-    def __init__(self, dim: int, num_heads: int = 4, dropout: float = 0.1):
+    def __init__(
+        self, dim: int, num_heads: int = FUSION_NUM_HEADS, dropout: float = DROPOUT_FUSION
+    ):
         super().__init__()
         assert dim % num_heads == 0, f"dim {dim} must be divisible by num_heads {num_heads}"
 

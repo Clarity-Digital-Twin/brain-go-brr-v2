@@ -88,7 +88,7 @@
 
 ---
 
-### Category 2: Code-Guard Constants (27 constants)
+### Category 2: Code-Guard Constants (35 constants)
 
 **Purpose**: Used directly in implementation, NOT exposed to users via configs.
 

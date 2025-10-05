@@ -29,7 +29,7 @@ Key reminder from earlier investigation: `BGB_SANITIZE_GRADS=1` remains informat
 - Training loss uses `pos_weight`; validation loss does not (`train/val_step.py`)
 - Impact: affects interpretability of train vs. val loss; no correctness impact
 - Options: mirror `pos_weight` in validation or report both metrics
-- Status: defer until after current training run completes
+- Status: plan documented in `P1_VALIDATION_LOSS_PLAN.md` (defer execution until after current training run completes)
 
 ---
 
@@ -61,4 +61,3 @@ make q                          # lint + format + mypy + config validation
 
 Resolved items (kept for context): test-suite batch size fixture, redundant cleanup fixtures, GPU memory fraction parametrisation,
 inline import removal, FA sweep refactor, metric key helper adoption, schema epsilons, ECE bin constant, constant wiring.
-
