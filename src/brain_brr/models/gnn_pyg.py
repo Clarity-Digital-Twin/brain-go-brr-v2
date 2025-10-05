@@ -249,17 +249,59 @@ class GraphChannelMixerPyG(nn.Module):
         )  # (B*T, N, N)
 
         # Eigendecomposition in fp32 without AMP for numerical stability
-        with torch.amp.autocast("cuda", enabled=False):
+        # CRITICAL: Device-aware autocast to support CPU/MPS training
+        device_type = laplacian.device.type
+
+        if device_type == "cuda":
+            # CUDA: Disable AMP for eigendecomposition (numerical stability)
+            with torch.amp.autocast("cuda", enabled=False):
+                l_stable = laplacian.to(torch.float32)
+
+                try:
+                    eigenvalues, eigenvectors = torch.linalg.eigh(l_stable)
+
+                    # CRITICAL FIX: Detach eigenvectors to prevent gradient explosion
+                    # PyTorch eigendecomposition backward uses 1/(λᵢ - λⱼ) which explodes
+                    # when eigenvalues are close (near-degenerate from row-softmax/EMA/symmetry)
+                    # Best practice 2025: Eigenvectors are FIXED positional coordinates
+                    # Learning happens in GNN layers that PROCESS PE, not in PE itself
+                    eigenvectors = eigenvectors.detach()
+
+                    if (
+                        torch.isnan(eigenvalues).any()
+                        or torch.isnan(eigenvectors).any()
+                        or torch.isinf(eigenvalues).any()
+                        or torch.isinf(eigenvectors).any()
+                    ):
+                        logger.warning("NaN/Inf detected in eigendecomposition, using fallback PE")
+                        if self.last_valid_pe is not None and self.last_valid_pe.shape[0] == B:
+                            pe = self.last_valid_pe.reshape(B * T, N, self.k_eigenvectors).to(
+                                torch.float32
+                            )
+                        else:
+                            pe = (
+                                torch.randn(
+                                    B * T,
+                                    N,
+                                    self.k_eigenvectors,
+                                    device=device,
+                                    dtype=torch.float32,
+                                )
+                                * 0.01
+                            )
+                    else:
+                        # Clamp eigenvalues to SAFER range [EPSILON_NUMERICAL, EIGENVALUE_CLAMP_MAX]
+                        eigenvalues = torch.clamp(
+                            eigenvalues, min=EPSILON_NUMERICAL, max=EIGENVALUE_CLAMP_MAX
+                        )
+                        # Take k smallest eigenvectors (ascending order)
+                        pe = eigenvectors[..., : self.k_eigenvectors]  # (B*T, N, k)
+        else:
+            # CPU/MPS: No autocast needed (already in fp32 context)
             l_stable = laplacian.to(torch.float32)
 
             try:
                 eigenvalues, eigenvectors = torch.linalg.eigh(l_stable)
-
-                # CRITICAL FIX: Detach eigenvectors to prevent gradient explosion
-                # PyTorch eigendecomposition backward uses 1/(λᵢ - λⱼ) which explodes
-                # when eigenvalues are close (near-degenerate from row-softmax/EMA/symmetry)
-                # Best practice 2025: Eigenvectors are FIXED positional coordinates
-                # Learning happens in GNN layers that PROCESS PE, not in PE itself
                 eigenvectors = eigenvectors.detach()
 
                 if (
@@ -285,11 +327,9 @@ class GraphChannelMixerPyG(nn.Module):
                             * 0.01
                         )
                 else:
-                    # Clamp eigenvalues to SAFER range [EPSILON_NUMERICAL, EIGENVALUE_CLAMP_MAX]
                     eigenvalues = torch.clamp(
                         eigenvalues, min=EPSILON_NUMERICAL, max=EIGENVALUE_CLAMP_MAX
                     )
-                    # Take k smallest eigenvectors (ascending order)
                     pe = eigenvectors[..., : self.k_eigenvectors]  # (B*T, N, k)
 
             except RuntimeError as e:

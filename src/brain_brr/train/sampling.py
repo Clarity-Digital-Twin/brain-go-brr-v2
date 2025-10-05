@@ -74,28 +74,23 @@ def create_balanced_sampler(
     # Calculate weight for positive samples (sqrt to prevent explosion)
     pos_weight = math.sqrt((1 - seizure_ratio) / seizure_ratio)
 
-    # Extrapolate to full dataset
-    # For unsampled indices, assign weight probabilistically
+    # Assign weights based on VERIFIED seizure windows only
+    # CRITICAL FIX: Do NOT randomly assign weights to unsampled windows
+    # Previous behavior: randomly picked unsampled windows and labeled them "seizures"
+    # This caused 92% false positives (most unsampled windows are background)
+    # New behavior: Only assign high weight to windows we KNOW have seizures
     weights = torch.ones(len(dataset), dtype=torch.float32)
 
     # Known seizure windows get high weight
     weights[window_has_seizure > 0] = pos_weight
 
-    # Estimate weights for unsampled windows
-    unsampled_mask = torch.ones(len(dataset), dtype=torch.bool)
-    unsampled_mask[sample_indices] = False
-    n_unsampled_seizures = int(unsampled_mask.sum() * seizure_ratio)
+    # Unsampled windows keep weight=1.0 (neutral)
+    # This is safer than guessing - if we need more accuracy, increase sample_size
 
-    if n_unsampled_seizures > 0:
-        unsampled_indices = torch.where(unsampled_mask)[0]
-        random_seizure_indices = unsampled_indices[
-            torch.randperm(len(unsampled_indices))[:n_unsampled_seizures]
-        ]
-        weights[random_seizure_indices] = pos_weight
-
-    logger.info(f"[SAMPLER] Seizure ratio: {seizure_ratio:.2%}")
+    logger.info(f"[SAMPLER] Seizure ratio (from sample): {seizure_ratio:.2%}")
     logger.info(f"[SAMPLER] Positive weight: {pos_weight:.2f}")
-    logger.info(f"[SAMPLER] Estimated seizure windows: {(weights > 1).sum().item()}/{len(dataset)}")
+    logger.info(f"[SAMPLER] Verified seizure windows: {(weights > 1).sum().item()}/{len(dataset)}")
+    logger.info(f"[SAMPLER] Note: Using VERIFIED seizures only (no random extrapolation)")
 
     return WeightedRandomSampler(
         weights=weights.tolist(),
