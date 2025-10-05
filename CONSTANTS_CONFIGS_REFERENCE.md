@@ -477,12 +477,17 @@ rg '\bsample_size: int = 500\b' src/brain_brr/train/sampling.py  # Should fail �
 rg '\balpha: float = 0\.05\b' src/brain_brr/models/gnn_pyg.py  # Should fail ✅
 rg 'max=2\.0\b' src/brain_brr/models/gnn_pyg.py  # Should fail ✅
 rg 'else 0\.1\b' src/brain_brr/models/builders/  # Should fail ✅
+rg 'opening_kernel: int = 11\b' src/brain_brr/post/postprocess.py  # Should fail ✅
+rg 'closing_kernel: int = 31\b' src/brain_brr/post/postprocess.py  # Should fail ✅
+rg '\-3\.0, 3\.0\b' src/brain_brr/models/detector.py  # Should fail if fix #7 applied ✅
 
 # 2. Verify constants are imported
 rg 'BALANCED_SAMPLER_SAMPLE_SIZE' src/brain_brr/train/sampling.py  # Should match ✅
 rg 'GNN_SSGCONV_ALPHA_DEFAULT' src/brain_brr/models/gnn_pyg.py  # Should match ✅
 rg 'EIGENVALUE_CLAMP_MAX' src/brain_brr/models/gnn_pyg.py  # Should match ✅
 rg 'LAYERSCALE_ALPHA_FALLBACK' src/brain_brr/models/builders/  # Should match ✅
+rg 'MORPHOLOGY_OPENING_KERNEL' src/brain_brr/post/postprocess.py  # Should match ✅
+rg 'MORPHOLOGY_CLOSING_KERNEL' src/brain_brr/post/postprocess.py  # Should match ✅
 
 # 3. Run quality checks
 make q  # Lint, format, type checking
@@ -564,8 +569,11 @@ make s  # 1 epoch, 3 files
 | `src/brain_brr/models/gnn_pyg.py` | 55, 284 | Add imports + use constants | Low |
 | `src/brain_brr/models/builders/node_stream.py` | 30 | Add import + use constant | Low |
 | `src/brain_brr/models/builders/edge_stream.py` | 65 | Add import + use constant | Low |
+| `src/brain_brr/post/postprocess.py` | 128-129 | Add imports + use constants | Low |
+| `src/brain_brr/models/detector.py` | 363 | Create constant + use it (optional) | Low |
+| `src/brain_brr/constants.py` | N/A | Add `EDGE_INPUT_CLAMP_MAX = 3.0` (optional) | None |
 
-**Total Changes**: 5 locations across 4 files
+**Total Changes**: 7 fixes across 5-6 files (6th/7th optional but recommended)
 
 ---
 
