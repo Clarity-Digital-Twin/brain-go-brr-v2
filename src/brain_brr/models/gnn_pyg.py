@@ -285,8 +285,10 @@ class GraphChannelMixerPyG(nn.Module):
                             * 0.01
                         )
                 else:
-                    # Clamp eigenvalues to SAFER range [EPSILON_NUMERICAL, 2]
-                    eigenvalues = torch.clamp(eigenvalues, min=EPSILON_NUMERICAL, max=2.0)
+                    # Clamp eigenvalues to SAFER range [EPSILON_NUMERICAL, EIGENVALUE_CLAMP_MAX]
+                    eigenvalues = torch.clamp(
+                        eigenvalues, min=EPSILON_NUMERICAL, max=EIGENVALUE_CLAMP_MAX
+                    )
                     # Take k smallest eigenvectors (ascending order)
                     pe = eigenvectors[..., : self.k_eigenvectors]  # (B*T, N, k)
 
