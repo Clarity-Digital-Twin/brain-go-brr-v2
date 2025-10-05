@@ -100,7 +100,7 @@ class PerformanceFilter(logging.Filter):
     Uses efficient modulo check with configurable step size.
     """
 
-    def __init__(self, every_n_steps: int = 50):
+    def __init__(self, every_n_steps: int = LOG_EVERY_N_STEPS):
         super().__init__()
         self.every_n_steps = every_n_steps
         self.step_counters: dict[str, int] = {}

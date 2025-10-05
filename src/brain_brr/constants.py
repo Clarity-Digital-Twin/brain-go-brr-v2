@@ -162,6 +162,7 @@ MORPHOLOGY_CLOSING_KERNEL: int = 31
 DROPOUT_MAMBA: float = 0.1  # Lower for Mamba (built-in regularization from state-space models)
 DROPOUT_TCN: float = 0.15  # Higher for TCN (more parameters, needs stronger regularization)
 DROPOUT_GNN: float = 0.1  # GNN dropout
+DROPOUT_FUSION: float = 0.1  # Fusion layer dropout (matches GNN/Mamba)
 
 # Focal Loss parameters
 # RetinaNet paper defaults (Lin et al. 2017)
@@ -330,6 +331,9 @@ EIGENVALUE_CLAMP_MAX: float = 2.0
 # ==============================================================================
 # Model Architecture Defaults
 # ==============================================================================
+
+FUSION_NUM_HEADS: int = 4
+"""Number of heads for multi-head fusion (PR-4 gated fusion architecture)."""
 
 LAYERSCALE_ALPHA_FALLBACK: float = 0.1
 """Fallback LayerScale alpha when config is missing (defensive default)."""
