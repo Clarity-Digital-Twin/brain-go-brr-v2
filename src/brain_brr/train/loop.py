@@ -422,13 +422,8 @@ def main() -> None:
         logger.info("DO NOT use this for real training!")
         logger.info("=" * 60 + "\n")
 
-    # Load dataset based on config
-    if config.data.dataset == "tuh_eeg":
-        from src.brain_brr.data.tusz_splits import load_tusz_for_training
-    elif config.data.dataset == "chb_mit":
-        raise NotImplementedError("CHB-MIT dataset support is not yet implemented")
-    else:
-        raise ValueError(f"Unknown dataset: {config.data.dataset}")
+    # Load dataset (only TUH EEG Seizure supported, enforced by schema)
+    from src.brain_brr.data.tusz_splits import load_tusz_for_training
 
     data_root = Path(config.data.data_dir)
 
