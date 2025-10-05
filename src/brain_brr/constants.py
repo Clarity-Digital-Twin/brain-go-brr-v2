@@ -170,8 +170,8 @@ FOCAL_ALPHA_DEFAULT: float = 0.25
 FOCAL_GAMMA_DEFAULT: float = 2.0
 
 # Brain-BRR production settings (v3.6.0+)
-# We use alpha=0.5 (neutral) because pos_weight handles class imbalance
-# This prevents double-counting the 12:1 imbalance in both alpha and pos_weight
+# We use alpha=0.5 (neutral class weighting) with gamma=2.0 for hard-example mining
+# For 12:1 imbalance, focal loss focuses learning on difficult cases rather than easy negatives
 FOCAL_ALPHA_PRODUCTION: float = 0.5
 FOCAL_GAMMA_PRODUCTION: float = 2.0
 
