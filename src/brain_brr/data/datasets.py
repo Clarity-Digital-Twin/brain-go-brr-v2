@@ -397,11 +397,21 @@ class BalancedSeizureDataset(Dataset):
         n_bg_kept = 0
         missing_ref_count = 0
 
+        # Helper to check if cache file exists (supports both NPZ and NPY formats)
+        def cache_file_exists(cache_path: Path) -> bool:
+            """Check if cache file exists in either NPZ or NPY format."""
+            if cache_path.exists():
+                return True  # NPZ format
+            # Check NPY format: convert a_windows.npz → a_data.npy
+            stem = cache_path.stem.replace("_windows", "")
+            data_file = cache_path.parent / f"{stem}_data.npy"
+            return data_file.exists()
+
         # Add ALL partial seizure windows (most informative)
         for item in partial:
             # Resolve relative path from manifest to absolute
             cache_file = self.cache_dir / item["cache_file"]
-            if cache_file.exists():
+            if cache_file_exists(cache_file):
                 indices.append((cache_file, int(item["window_idx"])))
                 n_partial_kept += 1
             else:
@@ -414,7 +424,7 @@ class BalancedSeizureDataset(Dataset):
             for i in selected_indices:
                 item = full[i]
                 cache_file = self.cache_dir / item["cache_file"]
-                if cache_file.exists():
+                if cache_file_exists(cache_file):
                     indices.append((cache_file, int(item["window_idx"])))
                     n_full_kept += 1
                 else:
@@ -429,7 +439,7 @@ class BalancedSeizureDataset(Dataset):
             for i in selected_indices:
                 item = no_seizure[i]
                 cache_file = self.cache_dir / item["cache_file"]
-                if cache_file.exists():
+                if cache_file_exists(cache_file):
                     indices.append((cache_file, int(item["window_idx"])))
                     n_bg_kept += 1
                 else:
