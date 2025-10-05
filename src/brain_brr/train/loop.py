@@ -100,6 +100,7 @@ def train(
             torch.autograd.set_detect_anomaly(True)
             logger.info("[DEBUG] Enabled torch.autograd anomaly detection")
         except Exception:
+            # Silently skip if anomaly detection unavailable (e.g., torch.compile mode)
             pass
     set_seed(config.experiment.seed)
     device = config.experiment.device
@@ -159,6 +160,7 @@ def train(
                 )
                 best_metric = _last.get("best_metric", 0.0)
             except Exception:
+                # Corrupt checkpoint file, proceed with best_metric=0.0
                 pass
         logger.info(f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}")
         # Note: This resumes from start of epoch, not exact batch
@@ -485,6 +487,7 @@ def main() -> None:
                 f"BGB_LIMIT_FILES={limit}: using {len(train_files)} train, {len(val_files)} val files"
             )
         except Exception:
+            # Failed to parse BGB_LIMIT_FILES, proceed with full dataset
             pass
 
     # Cache directory sanity and preflight
@@ -514,6 +517,7 @@ def main() -> None:
                 f"  python -m src build-cache --data-dir {config.data.data_dir} --cache-dir {data_cache_root / 'dev'}"
             )
     except Exception:
+        # Cache check failed, proceed with training (will build on-the-fly if needed)
         pass
 
     train_cache_dir = data_cache_root / "train"
