@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections import OrderedDict
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,8 @@ class EEGWindowDataset(torch.utils.data.Dataset):
 
     Memory-efficient: loads windows on-demand from cache or computes them.
     """
+
+    MAX_CACHE_FILES_PER_WORKER = 6
 
     def __init__(
         self,
@@ -55,10 +58,11 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         self.max_samples = max_samples
         self.max_hours = max_hours
 
-        # Worker-local cache for NPZ files (40,000x speedup vs re-opening compressed files)
-        # Each worker process loads files into RAM once, then indexes directly
-        # CRITICAL: This dict is per-worker after DataLoader fork
-        self._cache_data: dict[Path, dict[str, Any]] = {}
+        # Worker-local cache for NPZ files (massive speedup vs re-opening compressed files)
+        # Each worker process loads files into RAM once, then indexes directly.
+        # Use LRU eviction to bound memory: 6 files ≈ 2.4GB per worker (fits in 96GB Modal node).
+        # CRITICAL: This structure is per-worker after DataLoader fork.
+        self._cache_data: OrderedDict[Path, dict[str, Any]] = OrderedDict()
 
         if self.cache_dir is not None:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -249,14 +253,24 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         Returns:
             Dict with "windows" (ndarray) and "labels" (ndarray | None) keys
         """
-        if cache_path not in self._cache_data:
+        cached = self._cache_data.get(cache_path)
+        if cached is None:
             with np.load(cache_path) as data:
-                # Force load into RAM (not lazy-loaded from compressed archive)
-                self._cache_data[cache_path] = {
+                cached = {
                     "windows": data["windows"][:],  # (N, C, T) array
                     "labels": data["labels"][:] if "labels" in data else None,  # (N, T) or None
                 }
-        return self._cache_data[cache_path]
+            self._cache_data[cache_path] = cached
+            self._cache_data.move_to_end(cache_path)
+
+            # Enforce LRU cap to prevent unbounded RAM usage across thousands of files
+            if len(self._cache_data) > self.MAX_CACHE_FILES_PER_WORKER:
+                self._cache_data.popitem(last=False)
+        else:
+            # Refresh LRU order
+            self._cache_data.move_to_end(cache_path)
+
+        return cached
 
     def __len__(self) -> int:
         return len(self._index_map)
@@ -330,6 +344,8 @@ class BalancedSeizureDataset(Dataset):
 
     Uses all partial-seizure windows and adds 0.3x full-seizure and 2.5x no-seizure.
     """
+
+    MAX_CACHE_FILES_PER_WORKER = 6
 
     def __init__(
         self,
@@ -422,10 +438,9 @@ class BalancedSeizureDataset(Dataset):
         rng.shuffle(indices_array)
         self._entries: list[tuple[Path, int]] = indices_array.tolist()
 
-        # Worker-local cache for NPZ files (40,000x speedup vs re-opening compressed files)
-        # Each worker process loads files into RAM once, then indexes directly
-        # CRITICAL: This dict is per-worker after DataLoader fork
-        self._cache_data: dict[Path, dict[str, Any]] = {}
+        # Worker-local cache for NPZ files with LRU eviction (mirrors EEGWindowDataset behaviour)
+        # Bounds RAM to ≈6 files per worker while still avoiding repeated decompression.
+        self._cache_data: OrderedDict[Path, dict[str, Any]] = OrderedDict()
 
         # Log dataset composition based on actual kept entries
         n_partial_used = n_partial_kept
@@ -475,14 +490,22 @@ class BalancedSeizureDataset(Dataset):
         Returns:
             Dict with "windows" (ndarray) and "labels" (ndarray | None) keys
         """
-        if cache_path not in self._cache_data:
+        cached = self._cache_data.get(cache_path)
+        if cached is None:
             with np.load(cache_path) as data:
-                # Force load into RAM (not lazy-loaded from compressed archive)
-                self._cache_data[cache_path] = {
-                    "windows": data["windows"][:],  # (N, C, T) array
-                    "labels": data["labels"][:] if "labels" in data else None,  # (N, T) or None
+                cached = {
+                    "windows": data["windows"][:],
+                    "labels": data["labels"][:] if "labels" in data else None,
                 }
-        return self._cache_data[cache_path]
+            self._cache_data[cache_path] = cached
+            self._cache_data.move_to_end(cache_path)
+
+            if len(self._cache_data) > self.MAX_CACHE_FILES_PER_WORKER:
+                self._cache_data.popitem(last=False)
+        else:
+            self._cache_data.move_to_end(cache_path)
+
+        return cached
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
         """Return window with metadata dict for timeline stitching.
