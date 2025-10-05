@@ -54,7 +54,6 @@ Key reminder from earlier investigation: `BGB_SANITIZE_GRADS=1` remains informat
 
 | Item | Notes | Origin |
 |------|-------|--------|
-| Rename `val_loss` → `val_loss_bce` for clarity | Cosmetic monitoring improvement (optional) | P1 audit 2025-10-05 |
 | Remove unused constants (labels, metric strings, legacy clamps) | 32 constants identified by `/tmp/complete_audit.py`; schedule for v3.8.0 | Constant audit |
 | Refresh architecture/metrics documentation | Update diagrams + docs to highlight `format_sensitivity_key()` and SSOT patterns | Documentation debt |
 
@@ -72,7 +71,7 @@ make q                          # lint + format + mypy + config validation
 ## Historical Reference
 
 **v3.7.0 Completed Items:**
-- ✅ P1 validation loss weighting audit (closed as "not a bug" – production uses focal loss correctly)
-- ✅ SSOT constant wiring (88→90 constants, 56→58 used, zero hardcoded literals)
+- ✅ **BCE mode removed** - Focal-only production, deleted dead code, locked schema
+- ✅ SSOT constant wiring (88→90 constants, 58 used, zero hardcoded literals)
 - ✅ Test-suite batch size fixture, redundant cleanup fixtures, GPU memory fraction parametrisation
 - ✅ Inline import removal, FA sweep refactor, metric key helper adoption, schema epsilons, ECE bin constant
