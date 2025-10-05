@@ -260,15 +260,26 @@ Inaccurate documentation during training wastes time and money. Must be pristine
 
 ---
 
-## P4-P5: NICE-TO-HAVE (Future Optimizations)
+## P4-P5: DEFER (Post-Training Optimization Only)
 
 **COUNT: 2**
+
+**🚨 CRITICAL: DO NOT IMPLEMENT P4/P5 BEFORE TRAINING 🚨**
+
+**Philosophy:** Training has been tough in the past. Performance optimizations MUST be:
+1. **Profile-driven** - Only optimize proven bottlenecks
+2. **Risk-assessed** - No changes that could affect training validity
+3. **Post-training** - Only after successful A100 run validates architecture
+
+**These items are DEFERRED until after training proves baseline performance.**
+
+---
 
 ### P4.1: Tensor `.item()` Calls in Training Loop (7 occurrences)
 **Location:** `src/brain_brr/train/` (7 matches)
 
 **Issue:**
-`.item()` forces GPU→CPU sync, potential performance bottleneck in tight loops.
+`.item()` forces GPU→CPU sync, *potential* performance bottleneck in tight loops.
 
 **Evidence:**
 ```bash
@@ -277,14 +288,15 @@ rg -n "\.item\(\)" src/brain_brr/train/ | wc -l
 ```
 
 **Recommendation:**
-**Profile first, optimize if needed:**
-```bash
-# Check if any .item() calls are in hot path
-# If so, accumulate tensors and convert batch to CPU
-```
+**DEFER - Profile first, optimize ONLY if bottleneck proven:**
+- Current training is stable
+- No evidence of performance issues from `.item()` calls
+- Optimizing without profiling risks introducing bugs for negligible gain
+
+**Action:** ONLY revisit if post-training profiling shows GPU sync as bottleneck (unlikely).
 
 **Rationale:**
-Premature optimization. Training is stable at current performance. Revisit if profiling shows bottleneck.
+Premature optimization is the root of all evil. Training stability >>> theoretical performance gains.
 
 ---
 
@@ -292,19 +304,19 @@ Premature optimization. Training is stable at current performance. Revisit if pr
 **Location:** `src/brain_brr/models/detector.py` (480 lines)
 
 **Observation:**
-`detector.py` is the largest model file (480 lines). Could be split into:
-- `detector_node.py` - Node stream
-- `detector_edge.py` - Edge stream
-- `detector_fusion.py` - Fusion + decoder
+`detector.py` is the largest model file (480 lines). Could theoretically be split into smaller modules.
 
 **Recommendation:**
-**DEFER - Current structure is clear:**
-- File is well-commented
-- Logical sections already separated
-- Splitting may reduce cohesion
+**DEFER - Current structure is clear and production-ready:**
+- File is well-commented with clear section boundaries
+- Logical flow is easy to follow
+- Splitting may reduce cohesion and make cross-stream fusion harder to understand
+- No comprehension issues reported
+
+**Action:** ONLY refactor if file becomes hard to maintain (not currently the case).
 
 **Rationale:**
-Clean Code principle: Refactor when comprehension suffers. Current file is readable (clear section comments, good naming). Don't refactor for refactoring's sake.
+Clean Code principle: Refactor when comprehension suffers. Current file is readable. Don't refactor for refactoring's sake.
 
 ---
 
