@@ -21,6 +21,7 @@ from tqdm import tqdm  # type: ignore[import-untyped]
 
 from src.brain_brr import constants
 from src.brain_brr.config.schemas import PostprocessingConfig
+from src.brain_brr.constants import format_sensitivity_key
 from src.brain_brr.eval.helpers.false_alarm import FASweepResult, find_threshold_for_fa_target
 from src.brain_brr.eval.metrics import (
     batch_probs_to_events,
@@ -123,7 +124,7 @@ def _compute_final_metrics(
             "thresholds": {},
         }
         for fa in fa_rates:
-            default_results[f"sensitivity_at_{fa}fa"] = 0.0
+            default_results[format_sensitivity_key(fa)] = 0.0
         return default_results
 
     taes = calculate_taes(all_pred_events, all_ref_events) if all_ref_events else 0.0
@@ -167,7 +168,7 @@ def _compute_final_metrics(
         )
 
         thresholds[f"{fa}"] = result.threshold_tau_on
-        sensitivity_results[f"sensitivity_at_{fa}fa"] = result.sensitivity
+        sensitivity_results[format_sensitivity_key(fa)] = result.sensitivity
         fa_curve.append((fa, result.sensitivity))
 
     results = {
