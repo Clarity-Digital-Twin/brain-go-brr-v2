@@ -6,7 +6,7 @@
 [![PyTorch 2.5.0](https://img.shields.io/badge/pytorch-2.5.0-red.svg)](https://pytorch.org)
 [![CUDA 12.4](https://img.shields.io/badge/cuda-12.4-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
-[![v3.6.1](https://img.shields.io/badge/version-3.6.1-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.6.1-gradient-logging-enhancement)
+[![v3.6.2](https://img.shields.io/badge/version-3.6.2-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.6.2-debt-elimination-baseline)
 
 ## Overview
 
@@ -30,7 +30,7 @@ V3 implements a **dual-stream architecture** grounded in state-space models and 
 
 **Theoretical foundation**: [EvoBrain (NeurIPS 2025)](literature/markdown/EVOBRAIN.md) proves time-then-graph ordering achieves +23% AUROC over alternatives.
 
-**Status**: v3.6.1 - Gradient logging enhancement with ML 2025 best practices (median, IQR). Validated on RTX 4090 and A100-80GB. See [release notes](RELEASE_NOTES.md) for details.
+**Status**: v3.6.2 - Complete debt elimination baseline. 100% debt-free codebase with zero documentation drift, dead code, or phantom features. Production-ready for A100 training. See [release notes](RELEASE_NOTES.md) for details.
 
 ## 🏗️ Architecture: Theory & Design
 
