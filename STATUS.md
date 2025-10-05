@@ -1,22 +1,29 @@
 # Brain-Go-Brr v3.7.0 – Current Status
 
-**Last Updated:** 2025-10-05 (Comprehensive Audit Complete)
+**Last Updated:** 2025-10-05 (Zero-Debt Policy Enforcement)
 **Branch:** `main`
-**Version:** v3.7.0 (Focal-only production, zero P0/P1 debt)
+**Version:** v3.7.0 (Focal-only production, ZERO-DEBT POLICY IN EFFECT)
 **Audit:** See `COMPREHENSIVE_DEBT_AUDIT.md` for complete first-principles analysis
 
 ---
 
 ## Production Readiness
 
-- ✅ **ZERO BLOCKING DEBT** - All P0/P1 items closed (comprehensive audit complete)
-- ✅ **Focal-only production** - BCE mode removed, focal loss proven standard for rare event detection
+**🚨 TRAINING BLOCKED - ZERO-DEBT POLICY IN EFFECT 🚨**
+
+- ✅ **P0/P1 (Blockers):** 0 issues - All resolved
+- 🔴 **P2 (Medium Priority):** 2 issues - **MUST FIX BEFORE TRAINING**
+- 🔴 **P3 (Low Priority):** 4 issues - **MUST FIX BEFORE TRAINING**
+- 🟡 **P4-P5 (Optimizations):** 2 issues - DEFER until after training
+
+**Total Effort Required:** ~6.75 hours
+
+**Policy:** NO Modal A100 training until ALL P2/P3 technical debt paid down. Training costs ~$319 for 100 epochs - we MUST have pristine codebase first.
+
+**Recent Fixes:**
+- ✅ Focal-only production (BCE mode removed)
+- ✅ Performance test flakiness (WSL2 degradation threshold)
 - ✅ `make q` green (lint, format, mypy, config validation)
-- ✅ Training stable on RTX 4090 + Modal A100 with current configs (no runs active right now)
-- ✅ All critical constants wired (SSOT compliance)
-- ✅ Performance test flakiness fixed (WSL2 degradation threshold)
-- 🟡 3 P2 medium-priority items (deprecated env vars, unused constants) - defer to v3.8.0
-- 🟡 4 P3 low-priority polish items (type ignores, docs refresh) - post-training
 
 ---
 
