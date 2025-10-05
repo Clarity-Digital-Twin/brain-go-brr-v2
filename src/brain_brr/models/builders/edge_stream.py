@@ -64,9 +64,7 @@ def build_edge_stream(cfg: "ModelConfig") -> EdgeStreamComponents:
     assert edge_d_model > 0, f"edge_mamba_d_model must be positive, got {edge_d_model}"
 
     use_layerscale = bool(norms_cfg and norms_cfg.boundary_norm != "none")
-    layerscale_init = float(
-        norms_cfg.layerscale_alpha if norms_cfg else LAYERSCALE_ALPHA_FALLBACK
-    )
+    layerscale_init = float(norms_cfg.layerscale_alpha if norms_cfg else LAYERSCALE_ALPHA_FALLBACK)
 
     edge_mamba = BiMamba2(
         d_model=edge_d_model,

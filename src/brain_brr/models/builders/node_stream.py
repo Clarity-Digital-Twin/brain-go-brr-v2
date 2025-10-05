@@ -29,9 +29,7 @@ def build_node_stream(cfg: "ModelConfig") -> BiMamba2:
     """
     norms_cfg = getattr(cfg, "norms", None)
     use_layerscale = bool(norms_cfg and norms_cfg.boundary_norm != "none")
-    layerscale_init = float(
-        norms_cfg.layerscale_alpha if norms_cfg else LAYERSCALE_ALPHA_FALLBACK
-    )
+    layerscale_init = float(norms_cfg.layerscale_alpha if norms_cfg else LAYERSCALE_ALPHA_FALLBACK)
 
     return BiMamba2(
         d_model=64,
