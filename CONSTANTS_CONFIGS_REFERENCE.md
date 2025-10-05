@@ -172,15 +172,17 @@
 
 ---
 
-#### 3C. LOW-VALUE - Dead Code Candidates (20 constants)
+#### 3C. LOW-VALUE - Dead Code Candidates (22 constants)
 
 | # | Constant | Line | Value | Reason Unused | Recommendation |
 |---|----------|------|-------|---------------|----------------|
 | 1-3 | `ADAMW_BETA1/BETA2/EPS` | 186-188 | `0.9`, `0.999`, `1e-8` | PyTorch AdamW uses its own defaults | 🗑️ **Remove** |
-| 4-5 | `FOCAL_LOSS_MAX_CLAMP`, `POS_WEIGHT_MAX_CLAMP` | 182-183 | `100.0`, `20.0` | Safety clamps never applied | 🗑️ **Remove** OR wire |
-| 6 | `EPSILON_ADAMW` | 113 | `1e-8` | Duplicate of `ADAMW_EPS` | 🗑️ **Remove** |
-| 7 | `FOCAL_GAMMA_PRODUCTION` | 175 | `2.0` | Duplicate of `FOCAL_GAMMA_DEFAULT` | 🗑️ **Remove** |
-| 8-13 | `METRIC_AUROC/TAES/SENSITIVITY/SPECIFICITY/PR_AUC/ECE` | 220-225 | String constants | Code uses string literals instead | 🗑️ **Remove** OR wire |
+| 4 | `CSV_VERSION_HEADER` | 214 | `"# version = csv_v1.0.0"` | Never imported, only defined | 🗑️ **Remove** |
+| 5-6 | `FOCAL_LOSS_MAX_CLAMP`, `POS_WEIGHT_MAX_CLAMP` | 182-183 | `100.0`, `20.0` | Safety clamps never applied | 🗑️ **Remove** OR wire |
+| 7 | `EPSILON_ADAMW` | 113 | `1e-8` | Duplicate of `ADAMW_EPS` | 🗑️ **Remove** |
+| 8 | `FOCAL_GAMMA_PRODUCTION` | 175 | `2.0` | Duplicate of `FOCAL_GAMMA_DEFAULT` | 🗑️ **Remove** |
+| 9-14 | `METRIC_AUROC/TAES/SENSITIVITY/SPECIFICITY/PR_AUC/ECE` | 220-225 | String constants | Code uses string literals instead | 🗑️ **Remove** OR wire |
+| 15 | `SECONDS_PER_DAY` | 233 | `86400` | Never imported, only defined | 🗑️ **Remove** |
 
 **Decision**: 🟡 **Review in v4.0** - Cleanup candidates but low priority
 
