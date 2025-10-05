@@ -461,10 +461,10 @@ make s
 
 **Opportunity**: 84.9% of schema fields use hardcoded defaults - MASSIVE opportunity for centralization
 
-### Top 10 Most-Used Constants
+### Top 10 Most-Used Constants (Verified Oct 5, 2025)
 
-1. `SAMPLING_RATE`: 26 usages (sampling rate: 256 Hz)
-2. `EPSILON_NUMERICAL`: 17 usages (general stability: 1e-6)
+1. `SAMPLING_RATE`: 29 usages (sampling rate: 256 Hz)
+2. `EPSILON_NUMERICAL`: 21 usages (general stability: 1e-6)
 3. `EPSILON_LAPLACIAN`: 12 usages (graph stability: 1e-4)
 4. `WINDOW_SIZE_SEC`: 11 usages (60s windows)
 5. `HYSTERESIS_TAU_ON`: 11 usages (upper threshold: 0.86)
