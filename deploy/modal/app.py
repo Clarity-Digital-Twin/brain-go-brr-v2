@@ -183,16 +183,23 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
         "/s3_cache": modal.CloudBucketMount(
             "brain-go-brr-eeg-data-20250919",
             secret=s3_secret,
-            key_prefix="cache/tusz/",
+            key_prefix="cache/tusz_mmap/",  # Updated for memory-mapped NPY format
             read_only=True,
-        ),  # Source: S3 bucket
+        ),  # Source: S3 bucket (memory-mapped cache)
     },
 )
 def populate_cache():
     """One-time copy of cache from S3 to Modal SSD volume.
 
-    This copies ~450GB of preprocessed NPZ files from S3 to the Modal
+    This copies ~507GB of memory-mapped NPY files from S3 to the Modal
     persistent SSD volume for fast, reliable training access.
+
+    NPY format (production, 2025 ML best practice):
+    - Uncompressed for zero-copy memory mapping
+    - OS-managed page cache (workers share memory)
+    - <1 GB RAM per worker vs 85+ GB with compressed NPZ
+    - Files: *_data.npy + *_labels.npy per recording
+
     Run this ONCE when setting up, then reuse the cache forever.
     """
     from src.brain_brr.utils.logging_config import setup_logging
@@ -203,8 +210,8 @@ def populate_cache():
     from pathlib import Path
     import time
 
-    src = Path("/s3_cache")  # S3 mount
-    dst = Path("/results/cache/tusz")  # SSD volume
+    src = Path("/s3_cache")  # S3 mount (memory-mapped NPY format)
+    dst = Path("/results/cache/tusz_mmap")  # SSD volume (memory-mapped cache)
 
     logger.info("\n" + "=" * 60)
     logger.info("[CACHE POPULATION] Starting S3 → SSD cache copy...")
@@ -221,14 +228,16 @@ def populate_cache():
     train_src = src / "train"
     train_dst = dst / "train"
     if train_src.exists():
-        train_files = list(train_src.glob("*.npz"))
-        logger.info(f"[COPY] Found {len(train_files)} train files to copy...")
+        train_data_files = list(train_src.glob("*_data.npy"))
+        logger.info(f"[COPY] Found {len(train_data_files)} train data files to copy (+ {len(train_data_files)} labels files)...")
         if train_dst.exists():
             logger.info(f"[COPY] Removing existing {train_dst}...")
             shutil.rmtree(train_dst)
         logger.info(f"[COPY] Copying {train_src} → {train_dst}...")
         shutil.copytree(train_src, train_dst)
-        logger.info(f"[COPY] ✅ Copied {len(list(train_dst.glob('*.npz')))} train files")
+        copied_data = len(list(train_dst.glob("*_data.npy")))
+        copied_labels = len(list(train_dst.glob("*_labels.npy")))
+        logger.info(f"[COPY] ✅ Copied {copied_data} data files + {copied_labels} labels files")
     else:
         logger.info(f"[WARNING] No train split found at {train_src}")
 
@@ -239,14 +248,16 @@ def populate_cache():
     dev_src = src / "dev"
     dev_dst = dst / "dev"
     if dev_src.exists():
-        dev_files = list(dev_src.glob("*.npz"))
-        logger.info(f"[COPY] Found {len(dev_files)} dev files to copy...")
+        dev_data_files = list(dev_src.glob("*_data.npy"))
+        logger.info(f"[COPY] Found {len(dev_data_files)} dev data files to copy (+ {len(dev_data_files)} labels files)...")
         if dev_dst.exists():
             logger.info(f"[COPY] Removing existing {dev_dst}...")
             shutil.rmtree(dev_dst)
         logger.info(f"[COPY] Copying {dev_src} → {dev_dst}...")
         shutil.copytree(dev_src, dev_dst)
-        logger.info(f"[COPY] ✅ Copied {len(list(dev_dst.glob('*.npz')))} dev files")
+        copied_data = len(list(dev_dst.glob("*_data.npy")))
+        copied_labels = len(list(dev_dst.glob("*_labels.npy")))
+        logger.info(f"[COPY] ✅ Copied {copied_data} data files + {copied_labels} labels files")
     else:
         logger.info(f"[WARNING] No dev split found at {dev_src}")
 
@@ -264,30 +275,34 @@ def populate_cache():
         import json
         metadata = {
             "split_policy": "official_tusz",
-            "created": "2025-09-26T22:11:00",
-            "timestamp": "1758939060",
-            "note": "Cache built with patient-disjoint TUSZ official splits",
+            "created": "2025-10-05T15:00:00",
+            "timestamp": str(int(time.time())),
+            "note": "Memory-mapped NPY cache (2025 ML best practice)",
+            "format": "npy_mmap",
             "train_patients": 579,
             "dev_patients": 53,
-            "train_files": 4667,
-            "dev_files": 1832,
-            "version": "v3.2.0"
+            "train_data_files": 4667,
+            "dev_data_files": 1832,
+            "version": "v3.6.2"
         }
         with open(metadata_dst, "w") as f:
             json.dump(metadata, f, indent=2)
         logger.info(f"[COPY] ✅ Created metadata file at {metadata_dst}")
 
-    # Verify final state
-    train_count = len(list((dst / "train").glob("*.npz")))
-    dev_count = len(list((dst / "dev").glob("*.npz")))
+    # Verify final state (count data files; labels should match)
+    train_count = len(list((dst / "train").glob("*_data.npy")))
+    dev_count = len(list((dst / "dev").glob("*_data.npy")))
+    train_labels = len(list((dst / "train").glob("*_labels.npy")))
+    dev_labels = len(list((dst / "dev").glob("*_labels.npy")))
     elapsed = time.time() - start
 
     logger.info("\n" + "=" * 60)
     logger.info("[CACHE POPULATION] ✅ COMPLETE!")
-    logger.info(f"Train files: {train_count} (expected: 4600-4700)")
-    logger.info(f"Dev files: {dev_count} (expected: 1800-1900)")
+    logger.info(f"Train: {train_count} data files + {train_labels} labels files (expected: 4667 each)")
+    logger.info(f"Dev: {dev_count} data files + {dev_labels} labels files (expected: 1832 each)")
     logger.info(f"Time taken: {elapsed/60:.1f} minutes")
     logger.info(f"Cache location: {dst}")
+    logger.info(f"Format: Memory-mapped NPY (2025 ML best practice)")
     logger.info("Cache is now on fast Modal SSD - ready for training!")
     logger.info("=" * 60 + "\n")
 
