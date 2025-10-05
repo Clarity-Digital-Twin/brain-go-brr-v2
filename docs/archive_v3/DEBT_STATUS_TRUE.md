@@ -1,7 +1,7 @@
 # Brain-Go-Brr v3.7.0 – Technical Debt Status
 
-**Date:** October 5, 2025  
-**Status:** ✅ P0/P1 debt resolved · 🟡 Low-priority polish remaining  
+**Date:** October 5, 2025
+**Status:** ✅ **ZERO P0/P1 DEBT** - Focal-only production ready · 🟡 Low-priority polish remaining
 **Verification:** make q · `/tmp/complete_audit.py` · manual line reviews
 
 ---
@@ -38,7 +38,7 @@ Key outcomes:
 |----------|-------------|----------------|
 | Unused constants (32) | Label enums, metric name strings, legacy clamps | Remove or re-purpose in v3.8.0 polish sprint |
 | Metrics documentation | Clarify metric naming conventions (now powered by `format_sensitivity_key`) | Update `docs/metrics.md` (deferred) |
-| Validation loss weighting (P1, non-blocking) | Track in `TODO.md` – decide post-training | Already captured in TODO |
+| ~~Validation loss weighting (P1)~~ | ✅ **RESOLVED** - BCE mode removed, focal-only production | Closed Oct 5, 2025 |
 
 None of the remaining items block production training or deployment.
 
