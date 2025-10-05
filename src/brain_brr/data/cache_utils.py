@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 # Guard tqdm import for Modal/subprocess environments with typing-friendly fallbacks
 tqdm: Any | None
 try:
+    # tqdm has no type stubs (third-party library)
     import tqdm as _tqdm  # type: ignore[import-untyped]
 
     tqdm = _tqdm.tqdm
