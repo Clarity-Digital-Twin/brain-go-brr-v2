@@ -8,9 +8,10 @@
 
 ## Production Readiness
 
-- ✅ All blocking debt resolved (P0/P1) and six critical literals replaced with constants
+- ✅ All blocking debt resolved (P0/P1 closed) and all critical constants wired
 - ✅ `make q` green (lint, format, mypy, config validation)
 - ✅ Training stable on RTX 4090 + Modal A100 with current configs (no runs active right now)
+- ✅ P1 validation loss audit complete – no bugs found (production uses focal loss correctly)
 - 🟡 Optional cleanup backlog limited to unused constants / docs (tracked in `POLISH_ITEMS.md`)
 
 ---
@@ -25,11 +26,12 @@
 
 ## Outstanding Items
 
-| Priority | Item | Owner | Notes |
-|----------|------|-------|-------|
-| P1 (non-blocking) | Validation loss weighting parity | TODO backlog | Refer to `P1_VALIDATION_LOSS_PLAN.md` |
-| P3 | Remove unused constants (labels, metric strings) | Open | Optional v3.8.0 cleanup |
-| P3 | Refresh diagrams / docs to highlight SSOT patterns | Open | Optional polish |
+| Priority | Item | Status | Notes |
+|----------|------|--------|-------|
+| ~~P1~~ CLOSED | ~~Validation loss weighting parity~~ | ✅ Not a bug | Production uses focal loss in train+val. See `P1_VALIDATION_LOSS_AUDIT.md` |
+| P3 (optional) | Rename val_loss → val_loss_bce for clarity | Open | Cosmetic monitoring improvement (not required) |
+| P3 (optional) | Remove unused constants (labels, metric strings) | Open | Optional v3.8.0 cleanup |
+| P3 (optional) | Refresh diagrams / docs to highlight SSOT patterns | Open | Optional polish |
 
 ---
 
