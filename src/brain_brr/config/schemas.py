@@ -12,6 +12,7 @@ from src.brain_brr.constants import (
     DROPOUT_TCN,
     EPSILON_LAPLACIAN,
     EPSILON_NORM,
+    EPSILON_NUMERICAL,
     EVENT_MERGE_GAP_S,
     FOCAL_ALPHA_PRODUCTION,
     FOCAL_GAMMA_DEFAULT,
@@ -233,7 +234,10 @@ class NormConfig(StrictModel):
         description="Type of normalization at component boundaries",
     )
     boundary_eps: float = Field(
-        default=EPSILON_NORM, ge=1e-10, le=1e-3, description="Epsilon for normalization stability"
+        default=EPSILON_NORM,
+        ge=EPSILON_NUMERICAL,
+        le=1e-3,
+        description="Epsilon for normalization stability",
     )
     layerscale_alpha: float = Field(
         default=0.1, ge=0.001, le=1.0, description="Initial LayerScale value for residuals"
@@ -478,7 +482,7 @@ class TrainingConfig(StrictModel):
         default=FOCAL_GAMMA_DEFAULT, ge=0.0, description="Focal loss gamma (hard sample focusing)"
     )
     learning_rate: float = Field(
-        default=3e-4, ge=1e-6, le=1e-2, description="Initial learning rate"
+        default=3e-4, ge=EPSILON_NUMERICAL, le=1e-2, description="Initial learning rate"
     )
     weight_decay: float = Field(default=0.05, ge=0.0, le=0.2, description="AdamW weight decay")
     optimizer: Literal["adamw"] = Field(
