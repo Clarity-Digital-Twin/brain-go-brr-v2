@@ -8,9 +8,10 @@ from __future__ import annotations
 import logging
 import sys
 import time
+from collections.abc import Sized
 from contextlib import suppress
 from pathlib import Path
-from typing import Any, Sized, cast
+from typing import Any, cast
 
 import torch
 import torch.nn as nn

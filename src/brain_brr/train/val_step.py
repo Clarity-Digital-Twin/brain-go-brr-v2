@@ -15,6 +15,8 @@ from typing import Any
 import numpy as np
 import torch
 import torch.nn as nn
+
+# sklearn type stubs incomplete (known third-party issue)
 from sklearn.metrics import average_precision_score, roc_auc_score  # type: ignore[attr-defined]
 from torch.utils.data import DataLoader
 from tqdm import tqdm  # type: ignore[import-untyped]
@@ -383,6 +385,7 @@ def validate_epoch(
             logger.warning("[SAVE] No validation outputs for plots; skipping.")
         else:
             try:
+                # sklearn type stubs incomplete (known third-party issue)
                 from sklearn.metrics import (  # type: ignore[attr-defined]
                     precision_recall_curve,
                     roc_curve,
