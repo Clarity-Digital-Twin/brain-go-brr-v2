@@ -10,7 +10,7 @@ import sys
 import time
 from contextlib import suppress
 from pathlib import Path
-from typing import Any
+from typing import Any, Sized, cast
 
 import torch
 import torch.nn as nn
@@ -217,7 +217,7 @@ def train_epoch(
     logger.info("=" * 60)
 
     dataset = dataloader.dataset
-    dataset_len = len(dataset)  # type: ignore[arg-type]
+    dataset_len = len(cast(Sized, dataset))
 
     is_smoke_test = env.smoke_test()
     if is_smoke_test:
