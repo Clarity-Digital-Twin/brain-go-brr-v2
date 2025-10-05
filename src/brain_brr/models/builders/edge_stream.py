@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 import torch.nn as nn
 
+from src.brain_brr.constants import LAYERSCALE_ALPHA_FALLBACK
+
 from ..mamba import BiMamba2
 from ..norms import create_norm_layer
 
@@ -62,7 +64,9 @@ def build_edge_stream(cfg: "ModelConfig") -> EdgeStreamComponents:
     assert edge_d_model > 0, f"edge_mamba_d_model must be positive, got {edge_d_model}"
 
     use_layerscale = bool(norms_cfg and norms_cfg.boundary_norm != "none")
-    layerscale_init = float(norms_cfg.layerscale_alpha if norms_cfg else 0.1)
+    layerscale_init = float(
+        norms_cfg.layerscale_alpha if norms_cfg else LAYERSCALE_ALPHA_FALLBACK
+    )
 
     edge_mamba = BiMamba2(
         d_model=edge_d_model,
