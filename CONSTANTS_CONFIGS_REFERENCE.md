@@ -449,15 +449,17 @@ make s
 
 **After Fix Target**: 58/88 used (65.9%) - when 6 P0 constants are wired
 
-### Schema Field Coverage
+### Schema Field Coverage (CORRECTED)
+
+**🔴 ACCURATE DATA - Forensic audit Oct 5, 2025**
 
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| Total Fields | 74 | 100% |
-| Use Constants | 23 | 31% |
-| Hardcoded Defaults | 51 | 69% |
+| Total Field() occurrences | 152 | 100% |
+| Use Constants | 23 | 15.1% |
+| Hardcoded Defaults | 129 | 84.9% |
 
-**Opportunity**: Create ~14 new constants for model architecture defaults (Mamba layers, TCN config, batch size, learning rate, etc.) to increase schema→constant coverage from 31% → 50%.
+**Opportunity**: 84.9% of schema fields use hardcoded defaults - MASSIVE opportunity for centralization
 
 ### Top 10 Most-Used Constants
 
