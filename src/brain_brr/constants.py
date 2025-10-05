@@ -274,6 +274,18 @@ SEIZURE_LABELS: set[str] = {
 }
 
 # ==============================================================================
+# Calibration Metrics
+# ==============================================================================
+
+ECE_NUM_BINS: int = 10
+"""Number of bins for Expected Calibration Error (ECE) calculation.
+
+Standard calibration curve resolution per Guo et al. 2017:
+"On Calibration of Modern Neural Networks" (ICML 2017)
+https://arxiv.org/abs/1706.04599
+"""
+
+# ==============================================================================
 # Metric Key Formatting
 # ==============================================================================
 

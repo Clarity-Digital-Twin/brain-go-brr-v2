@@ -21,7 +21,7 @@ from tqdm import tqdm  # type: ignore[import-untyped]
 
 from src.brain_brr import constants
 from src.brain_brr.config.schemas import PostprocessingConfig
-from src.brain_brr.constants import format_sensitivity_key
+from src.brain_brr.constants import ECE_NUM_BINS, format_sensitivity_key
 from src.brain_brr.eval.helpers.false_alarm import FASweepResult, find_threshold_for_fa_target
 from src.brain_brr.eval.metrics import (
     batch_probs_to_events,
@@ -145,7 +145,7 @@ def _compute_final_metrics(
     else:
         pr_auc = float(average_precision_score(labels_flat, probs_flat))
 
-    ece = calculate_ece(probs_flat, labels_flat, n_bins=10)
+    ece = calculate_ece(probs_flat, labels_flat, n_bins=ECE_NUM_BINS)
 
     fa_curve: list[tuple[float, float]] = []
 

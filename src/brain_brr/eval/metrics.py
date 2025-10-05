@@ -12,6 +12,7 @@ from sklearn.metrics import roc_auc_score, roc_curve
 
 from src.brain_brr.config.schemas import PostprocessingConfig
 from src.brain_brr.constants import (
+    ECE_NUM_BINS,
     EPSILON_ZERO_CHECK,
     HOURS_PER_DAY,
     HYSTERESIS_DELTA,
@@ -35,7 +36,7 @@ def overlap(a: tuple[float, float], b: tuple[float, float]) -> float:
     return max(0.0, min(a[1], b[1]) - max(a[0], b[0]))
 
 
-def calculate_ece(probs: np.ndarray, labels: np.ndarray, n_bins: int = 10) -> float:
+def calculate_ece(probs: np.ndarray, labels: np.ndarray, n_bins: int = ECE_NUM_BINS) -> float:
     """Calculate Expected Calibration Error (ECE).
 
     ECE measures the difference between predicted probabilities and actual
