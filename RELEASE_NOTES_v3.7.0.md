@@ -102,7 +102,7 @@ python /tmp/complete_audit.py # 84 constants, 58 used (69%) → PASS
 
 ### Full Training Plan
 1. ✅ **Smoke test** (~10 min, validates environment)
-2. → **Full Modal training** (100 epochs, ~100 hours, ~$319)
+2. → **Full Modal training** (100 epochs)
 3. → **Target metrics**: <1 FA/24h @ >75% sensitivity
 
 ---
@@ -187,7 +187,7 @@ git checkout v3.7.0-zero-debt-modal-baseline
 - **Perfect doc/code alignment** - SSOT achieved ✅
 - **17 type ignores** - all third-party/dynamic, documented ✅
 
-**The Result**: Cleanest, most professional ML codebase following Google/DeepMind/OpenAI standards. Ready for $319 Modal A100 training with zero technical debt, zero documentation drift, and zero surprises.
+**The Result**: Cleanest, most professional ML codebase following Google/DeepMind/OpenAI standards. Ready for Modal A100 training with zero technical debt, zero documentation drift, and zero surprises.
 
 ---
 
@@ -198,7 +198,7 @@ With v3.7.0, we have achieved:
 - ✅ Production-grade robustness (exceptions, not assertions)
 - ✅ Perfect type safety (all ignores justified and documented)
 - ✅ Documentation accuracy (configs/code/docs aligned)
-- ✅ Clean baseline for $319 training campaign
+- ✅ Clean baseline for Modal A100 training
 
 **This is THE moment we've been preparing for. Let's ship it! 🚀**
 
