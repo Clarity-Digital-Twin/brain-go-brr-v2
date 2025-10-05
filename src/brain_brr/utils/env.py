@@ -41,8 +41,6 @@ _LIMIT_FILES = os.getenv("BGB_LIMIT_FILES")
 _FORCE_MANIFEST_REBUILD = os.getenv("BGB_FORCE_MANIFEST_REBUILD", "0") == "1"
 _DISABLE_TQDM = os.getenv("BGB_DISABLE_TQDM", "0") == "1"
 _DISABLE_TENSORBOARD = os.getenv("BGB_DISABLE_TB", "0") == "1"
-_MID_EPOCH_MINUTES = os.getenv("BGB_MID_EPOCH_MINUTES")
-_MID_EPOCH_KEEP = int(os.getenv("BGB_MID_EPOCH_KEEP", "2"))
 _NAN_DEBUG = os.getenv("BGB_NAN_DEBUG", "0") == "1"
 _SANITIZE_GRADS = os.getenv("BGB_SANITIZE_GRADS", "0") == "1"
 _ANOMALY_DETECT = os.getenv("BGB_ANOMALY_DETECT", "0") == "1"
@@ -98,34 +96,6 @@ class EnvConfig:
     def disable_tensorboard() -> bool:
         """Disable TensorBoard logging."""
         return _DISABLE_TENSORBOARD
-
-    @staticmethod
-    def mid_epoch_minutes() -> int | None:
-        """DEPRECATED: Use config.training.mid_checkpoint_interval_s instead.
-
-        Save checkpoint every N minutes during epoch.
-        """
-        if _MID_EPOCH_MINUTES:
-            _warn_once(
-                "BGB_MID_EPOCH_MINUTES",
-                "BGB_MID_EPOCH_MINUTES is DEPRECATED. "
-                "Use 'training.mid_checkpoint_interval_s' in config instead.",
-            )
-        return int(_MID_EPOCH_MINUTES) if _MID_EPOCH_MINUTES else None
-
-    @staticmethod
-    def mid_epoch_keep() -> int:
-        """DEPRECATED: Use config.training.mid_epoch_keep instead.
-
-        Number of mid-epoch checkpoints to keep (default: 2).
-        """
-        if _MID_EPOCH_KEEP != 2:
-            _warn_once(
-                "BGB_MID_EPOCH_KEEP",
-                "BGB_MID_EPOCH_KEEP is DEPRECATED. "
-                "Use 'training.mid_epoch_keep' in config instead.",
-            )
-        return _MID_EPOCH_KEEP
 
     # NaN/Debug controls
     @staticmethod

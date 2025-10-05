@@ -12,6 +12,24 @@ we centralize constants for:
 - Time conversions and preprocessing defaults
 
 Each constant is documented with WHY that value was chosen, not just WHAT it is.
+
+NOTE ON UNUSED CONSTANTS (as of v3.7.0):
+Some constants are defined but not actively used in the current codebase.
+These are INTENTIONAL RESERVES for future features:
+- LABEL_* constants: For future multi-class seizure type detection
+- METRIC_* constants: Canonical metric name strings for future standardization
+- Hyperparameter constants (ADAMW_*, FOCAL_GAMMA_PRODUCTION, etc.): Documentation
+  of standard values even when configs override them
+
+This is acceptable because:
+1. They document standard/recommended values
+2. They enable future features without breaking changes
+3. They provide single source of truth for domain knowledge
+4. Cost is minimal (< 1KB in memory)
+
+Constants were audited 2025-10-05 and 6 truly dead constants were removed
+(CSV_VERSION_HEADER, AGGREGATE_WINDOW, LOG_BUFFER_CAPACITY, PROB_THRESHOLD_DEFAULT,
+SECONDS_PER_DAY, ZSCORE_CLIP_SIGMA).
 """
 
 from __future__ import annotations
@@ -140,9 +158,6 @@ MAX_EVENT_DURATION_S: float = 600.0
 # Events within 2s are considered part of same seizure
 EVENT_MERGE_GAP_S: float = 2.0
 
-# Binary classification threshold
-PROB_THRESHOLD_DEFAULT: float = 0.5
-
 # ==============================================================================
 # Post-processing - Morphology
 # ==============================================================================
@@ -195,8 +210,6 @@ ADAMW_EPS: float = 1e-8
 # Logging frequency
 # Note: Can be overridden via BGB_LOG_EVERY_N_STEPS env var
 LOG_EVERY_N_STEPS: int = int(os.getenv("BGB_LOG_EVERY_N_STEPS", "50"))
-AGGREGATE_WINDOW: int = 100  # Training metric smoothing window
-LOG_BUFFER_CAPACITY: int = 1000  # Max log entries in memory
 
 # Validation sanity checks
 AUROC_FAILURE_THRESHOLD: float = 0.55  # Stop if model barely better than random (0.5)
@@ -212,7 +225,6 @@ CHECKPOINT_BEST: str = "best.pt"
 
 # Cache and export formats
 MANIFEST_FILENAME: str = "manifest.json"
-CSV_VERSION_HEADER: str = "# version = csv_v1.0.0"
 
 # ==============================================================================
 # Metric Names (Canonical Strings for Dict Keys)
@@ -231,7 +243,6 @@ METRIC_ECE: str = "ece"
 
 HOURS_PER_DAY: int = 24
 SECONDS_PER_HOUR: int = 3600
-SECONDS_PER_DAY: int = 86400
 
 # ==============================================================================
 # Preprocessing Defaults
@@ -243,9 +254,6 @@ BANDPASS_HIGH_HZ: float = 120.0
 
 # Notch filter (Hz) - US power line frequency
 NOTCH_FILTER_HZ: int = 60
-
-# Z-score outlier clipping (number of standard deviations)
-ZSCORE_CLIP_SIGMA: float = 10.0
 
 # ==============================================================================
 # TUSZ Seizure Type Labels (v2.0.3)

@@ -209,12 +209,16 @@ rg -n "^\s*pass$" src/brain_brr/ --type py
 # Output: 9 matches
 ```
 
-**Locations:**
-- `src/brain_brr/train/loop.py:100` - except block
-- `src/brain_brr/train/loop.py:159` - except block
-- `src/brain_brr/utils/training_logger.py:25` - abstract class (OK)
-- `src/brain_brr/utils/training_logger.py:384` - except block
-- `src/brain_brr/cli/cli.py:22` - function stub
+**Complete Locations (verified 2025-10-05):**
+1. `src/brain_brr/train/loop.py:100` - except block (file limit parsing)
+2. `src/brain_brr/train/loop.py:159` - except block
+3. `src/brain_brr/train/loop.py:485` - except block (BGB_LIMIT_FILES parsing)
+4. `src/brain_brr/train/loop.py:514` - except block (cache directory check)
+5. `src/brain_brr/train/train_utils.py:50` - except ImportError (psutil optional dependency)
+6. `src/brain_brr/cli/cli.py:22` - function stub
+7. `src/brain_brr/utils/training_logger.py:25` - abstract class (OK)
+8. `src/brain_brr/utils/training_logger.py:315` - except block (rich library fallback)
+9. `src/brain_brr/utils/training_logger.py:384` - except block
 
 **Recommendation:**
 **MUST REVIEW** - For each occurrence:
@@ -361,7 +365,7 @@ make test  # Should pass (516 tests)
 make test-performance  # Should pass (was failing before)
 
 # 4. Constant audit
-python /tmp/complete_audit.py  # 56/90 used, 32 optional
+python /tmp/complete_audit.py  # 58/90 used (64.4%), 32 unused
 
 # 5. Code quality
 rg "TODO|FIXME|HACK|XXX|BUG" src/brain_brr/  # Review each occurrence
@@ -438,6 +442,8 @@ rg "TODO|FIXME|HACK|XXX|BUG" src/brain_brr/  # Review each occurrence
 | 2025-10-05 10:15 | Added implementation roadmap (~6.75 hours total) | AI Assistant |
 | 2025-10-05 11:00 | **Added detailed P4.1 analysis with Modal cost calculations** | AI Assistant |
 | 2025-10-05 11:00 | Fixed P0 test failures (random data threshold 0.8→2.0) | AI Assistant |
+| 2025-10-05 11:15 | **IRONCLAD REVISION: Complete P3.3 pass statement list (all 9)** | AI Assistant |
+| 2025-10-05 11:15 | Fixed verification command constant count (56→58/90) | AI Assistant |
 
 ---
 
