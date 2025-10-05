@@ -618,6 +618,9 @@ class ValidationDataset(Dataset):
 
         self._entries: list[tuple[Path, int]] = indices
 
+        # Worker-local cache with LRU eviction (matches other datasets)
+        self._cache_data: OrderedDict[Path, dict[str, Any]] = OrderedDict()
+
         # Calculate seizure ratio
         n_seizure = len(partial) + len(full)
         n_total = len(self._entries)
@@ -642,12 +645,28 @@ class ValidationDataset(Dataset):
     def __getitem__(self, idx: int) -> dict[str, Any]:
         """Return window with metadata dict for timeline stitching."""
         cache_file, w_idx = self._entries[idx]
-        with np.load(cache_file) as data:
-            window = data["windows"][w_idx].astype(np.float32)
-            if "labels" in data:
-                label = data["labels"][w_idx].astype(np.float32)
-            else:
-                label = np.zeros((window.shape[-1],), dtype=np.float32)
+
+        cached = self._cache_data.get(cache_file)
+        if cached is None:
+            with np.load(cache_file) as data:
+                cached = {
+                    "windows": data["windows"][:],
+                    "labels": data["labels"][:] if "labels" in data else None,
+                }
+            self._cache_data[cache_file] = cached
+            self._cache_data.move_to_end(cache_file)
+
+            # LRU eviction to cap memory footprint (reuse class constant)
+            if len(self._cache_data) > EEGWindowDataset.MAX_CACHE_FILES_PER_WORKER:
+                self._cache_data.popitem(last=False)
+        else:
+            self._cache_data.move_to_end(cache_file)
+
+        window = cached["windows"][w_idx].astype(np.float32)
+        if cached["labels"] is not None:
+            label = cached["labels"][w_idx].astype(np.float32)
+        else:
+            label = np.zeros((window.shape[-1],), dtype=np.float32)
 
         # Extract file_id from cache filename (remove _windows suffix)
         file_id = cache_file.stem.replace("_windows", "")
