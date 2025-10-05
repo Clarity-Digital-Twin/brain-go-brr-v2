@@ -1,8 +1,11 @@
 # Technical Debt Priority List
 
-**Last Updated:** 2025-10-05 (Comprehensive Audit Complete)
-**Status:** ✅ **ZERO P0/P1** · 🟡 3 P2 issues · 4 P3 polish items
+**Last Updated:** 2025-10-05 (Zero-Debt Policy Enforcement)
+**Status:** 🔴 **TRAINING BLOCKED** · 2 P2 + 4 P3 items REQUIRED before Modal A100
 **Comprehensive Audit:** See `COMPREHENSIVE_DEBT_AUDIT.md` for full first-principles analysis
+**Total Effort:** ~6.75 hours
+
+**🚨 ZERO-DEBT POLICY: NO TRAINING UNTIL ALL P2/P3 PAID DOWN 🚨**
 
 Key reminder from earlier investigation: `BGB_SANITIZE_GRADS=1` remains informational; gradient sanitisation relies on clipping + logging.
 
@@ -12,8 +15,9 @@ Key reminder from earlier investigation: `BGB_SANITIZE_GRADS=1` remains informat
 
 - **P0 (BLOCKER):** must fix before production deployment
 - **P1 (HIGH):** significant impact on maintainability/velocity
-- **P2 (MEDIUM):** should fix but not urgent
-- **P3 (LOW):** nice to have / future polish
+- **P2 (MEDIUM):** **MUST FIX BEFORE TRAINING** (zero-debt policy)
+- **P3 (LOW):** **MUST FIX BEFORE TRAINING** (zero-debt policy)
+- **P4-P5 (OPTIMIZATION):** DEFER until after training (no premature optimization)
 - **✅ RESOLVED:** completed items (kept for reference)
 
 ---

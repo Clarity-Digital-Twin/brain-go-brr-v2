@@ -37,19 +37,25 @@
 
 ---
 
-## Outstanding Items
+## Outstanding Items (MUST FIX BEFORE TRAINING)
 
-| Priority | Item | Status | Notes |
-|----------|------|--------|-------|
-| ~~P1~~ CLOSED | ~~Validation loss / BCE mode~~ | ✅ Removed | Focal-only production (v3.7.0) - BCE mode deleted |
-| P2 | Deprecated env vars (`BGB_MID_EPOCH_*`) | Open | Remove in v3.8.0 (30 min) |
-| P2 | Flaky performance test | ✅ **FIXED** | WSL2 degradation threshold (2.5× multiplier) |
-| P2 | 32 unused constants | Open | Audit in v3.8.0 polish sprint (1 hour) |
-| P3 | 21 type ignore comments | Open | Audit and remove where possible (2 hours) |
-| P3 | Debug assertions in production | Open | Convert to exceptions (2-3 hours) |
-| P3 | Documentation refresh | Open | Post-training sprint (4-6 hours) |
+| Priority | Item | Effort | Status |
+|----------|------|--------|--------|
+| **P2** | **Deprecated env vars** (`BGB_MID_EPOCH_*`) | 30 min | 🔴 **REQUIRED** |
+| **P2** | **Unused constants** (32/90 = 35.6% dead code) | 1 hour | 🔴 **REQUIRED** |
+| **P3** | **Type ignore comments** (21 occurrences) | 2 hours | 🔴 **REQUIRED** |
+| **P3** | **Debug assertions** (11 in detector.py) | 1.5 hours | 🔴 **REQUIRED** |
+| **P3** | **Pass statements** (9 occurrences) | 45 min | 🔴 **REQUIRED** |
+| **P3** | **Documentation accuracy** | 1 hour | 🔴 **REQUIRED** |
 
-**Full details:** See `COMPREHENSIVE_DEBT_AUDIT.md`
+**Total:** 6 items, ~6.75 hours
+
+**Completed:**
+- ✅ Flaky performance test (WSL2 degradation threshold)
+- ✅ BCE mode removed (focal-only production)
+- ✅ SSOT constants wired
+
+**Full details:** See `COMPREHENSIVE_DEBT_AUDIT.md` → Implementation Roadmap
 
 ---
 
@@ -66,6 +72,8 @@ rg 'alpha: float = 0\.05' src/    # should return nothing
 
 ## Quick Facts
 
-- Training configuration unchanged: Modal run still targeting 100 epochs (batch 32, grad accum 2)
-- Constant utilization: 56/88 used (63.6%), 32 optional constants remain
-- Schema defaults: 23 constants imported, 129 literal defaults (expected)
+- **Training:** BLOCKED until all P2/P3 items fixed (~6.75 hours of work)
+- **Target config:** Modal A100, 100 epochs, batch 32, grad accum 2 (~$319 cost)
+- **Constant utilization:** 58/90 used (64.4%), 32 cleanup candidates
+- **Code metrics:** 63 modules, 21 type ignores, 11 assertions (need conversion), 9 pass statements
+- **Schema defaults:** 23 constants imported, 129 literal defaults (expected)
