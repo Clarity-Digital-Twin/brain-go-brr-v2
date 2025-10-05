@@ -534,9 +534,10 @@ class BalancedSeizureDataset(Dataset):
         # Old NPZ: Decompress to RAM → 387 GB total → OOM on Modal
         # New mmap: OS page cache → <1 GB per worker → ✅ Scales to any size
         windows_mmap, labels_mmap = self._load_cache_for_worker(cache_file)
-        window = windows_mmap[w_idx].astype(np.float32)
+        # Zero-copy: Data already float32, copy=False avoids duplication
+        window = windows_mmap[w_idx].astype(np.float32, copy=False)
         if labels_mmap is not None:
-            label = labels_mmap[w_idx].astype(np.float32)
+            label = labels_mmap[w_idx].astype(np.float32, copy=False)
         else:
             label = np.zeros((window.shape[-1],), dtype=np.float32)
 
@@ -701,9 +702,10 @@ class ValidationDataset(Dataset):
         # Old: Re-decompress on every access → 1,124ms per window
         # New: Memory-map once per worker → 23ms per window
         windows_mmap, labels_mmap = self._load_cache_for_worker(cache_file)
-        window = windows_mmap[w_idx].astype(np.float32)
+        # Zero-copy: Data already float32, copy=False avoids duplication
+        window = windows_mmap[w_idx].astype(np.float32, copy=False)
         if labels_mmap is not None:
-            label = labels_mmap[w_idx].astype(np.float32)
+            label = labels_mmap[w_idx].astype(np.float32, copy=False)
         else:
             label = np.zeros((window.shape[-1],), dtype=np.float32)
 
