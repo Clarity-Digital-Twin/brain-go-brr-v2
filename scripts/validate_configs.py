@@ -29,8 +29,6 @@ CRITICAL_CONSTANTS = {
     "data.n_channels": constants.N_CHANNELS,
     "data.window_size": constants.WINDOW_SIZE_SEC,
     "data.stride": constants.STRIDE_SIZE_SEC,
-    "graph.edge_top_k": constants.EDGE_TOP_K,
-    "graph.edge_similarity_margin": constants.EDGE_SIMILARITY_MARGIN,
 }
 
 
