@@ -26,7 +26,7 @@ try:
     HAS_TENSORBOARD = True
 except ImportError:
     HAS_TENSORBOARD = False
-    SummaryWriter = None  # type: ignore[assignment, misc]
+    SummaryWriter: Any = None  # Fallback when TensorBoard not available
 
 from src.brain_brr.config.schemas import Config
 from src.brain_brr.constants import (
