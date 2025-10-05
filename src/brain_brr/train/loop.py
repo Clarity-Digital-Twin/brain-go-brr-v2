@@ -22,14 +22,14 @@ from torch.utils.data import DataLoader
 # Make TensorBoard optional
 if TYPE_CHECKING:
     from torch.utils.tensorboard import SummaryWriter
-else:
-    try:
-        from torch.utils.tensorboard import SummaryWriter
 
-        HAS_TENSORBOARD = True
-    except ImportError:
-        HAS_TENSORBOARD = False
-        SummaryWriter = None  # type: ignore[misc,assignment]
+try:
+    from torch.utils.tensorboard import SummaryWriter
+
+    HAS_TENSORBOARD = True
+except ImportError:
+    HAS_TENSORBOARD = False
+    SummaryWriter = None  # type: ignore[misc,assignment]
 
 from src.brain_brr.config.schemas import Config
 from src.brain_brr.constants import (
