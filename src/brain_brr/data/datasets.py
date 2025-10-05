@@ -58,7 +58,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         # Worker-local cache for NPZ files (40,000x speedup vs re-opening compressed files)
         # Each worker process loads files into RAM once, then indexes directly
         # CRITICAL: This dict is per-worker after DataLoader fork
-        self._cache_data: dict[Path, dict[str, np.ndarray]] = {}
+        self._cache_data: dict[Path, dict[str, Any]] = {}
 
         if self.cache_dir is not None:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -236,7 +236,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         # Fallback: no labels
         return np.zeros((n_samples,), dtype=np.float32)
 
-    def _load_cache_for_worker(self, cache_path: Path) -> dict[str, np.ndarray | None]:
+    def _load_cache_for_worker(self, cache_path: Path) -> dict[str, Any]:
         """Load NPZ cache file into memory once per worker (40,000x speedup).
 
         CRITICAL PERFORMANCE FIX:
@@ -247,7 +247,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
             cache_path: Path to .npz cache file
 
         Returns:
-            Dict with "windows" and "labels" arrays (labels may be None)
+            Dict with "windows" (ndarray) and "labels" (ndarray | None) keys
         """
         if cache_path not in self._cache_data:
             with np.load(cache_path) as data:
@@ -425,7 +425,7 @@ class BalancedSeizureDataset(Dataset):
         # Worker-local cache for NPZ files (40,000x speedup vs re-opening compressed files)
         # Each worker process loads files into RAM once, then indexes directly
         # CRITICAL: This dict is per-worker after DataLoader fork
-        self._cache_data: dict[Path, dict[str, np.ndarray]] = {}
+        self._cache_data: dict[Path, dict[str, Any]] = {}
 
         # Log dataset composition based on actual kept entries
         n_partial_used = n_partial_kept
@@ -462,7 +462,7 @@ class BalancedSeizureDataset(Dataset):
         """
         return self._seizure_ratio
 
-    def _load_cache_for_worker(self, cache_path: Path) -> dict[str, np.ndarray | None]:
+    def _load_cache_for_worker(self, cache_path: Path) -> dict[str, Any]:
         """Load NPZ cache file into memory once per worker (40,000x speedup).
 
         CRITICAL PERFORMANCE FIX:
@@ -473,7 +473,7 @@ class BalancedSeizureDataset(Dataset):
             cache_path: Path to .npz cache file
 
         Returns:
-            Dict with "windows" and "labels" arrays (labels may be None)
+            Dict with "windows" (ndarray) and "labels" (ndarray | None) keys
         """
         if cache_path not in self._cache_data:
             with np.load(cache_path) as data:
