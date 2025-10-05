@@ -77,59 +77,24 @@ def mid_epoch_keep() -> int:
 - Functions emit deprecation warnings via `_warn_once()`
 
 **Recommendation:**
-**REMOVE in v3.8.0** - Check if any external scripts/configs use these env vars, then delete:
+**MUST FIX** - Delete deprecated functions:
 ```bash
-# Verification:
+# Step 1: Verify no usage
 rg "BGB_MID_EPOCH_MINUTES|BGB_MID_EPOCH_KEEP" configs/ deploy/
-# If no matches, safe to delete lines 103-128 from env.py
+
+# Step 2: Delete lines 103-128 from src/brain_brr/utils/env.py
+# (Functions: mid_epoch_minutes, mid_epoch_keep, and their deprecation warnings)
 ```
+
+**Effort:** 30 minutes (verification + deletion + test)
 
 **Rationale:**
-Google/DeepMind practice: Deprecate → Migrate → Remove within 2 versions. These were deprecated for config-based equivalents. Time to clean up.
+Google/DeepMind practice: Deprecate → Migrate → Remove within 2 versions. Config-based equivalents exist. Clean API surface required for production.
 
 ---
 
-### P2.2: Flaky Performance Test (FIXED)
-**Location:** `tests/performance/test_latency.py:474-551`
-
-**Issue:**
-Test `test_latency_stability` failed with:
-```
-AssertionError: Latency degraded by 43.5% over time (P50 early: 469.17ms → late: 673.18ms, max: 24.0%)
-assert 0.434822638228427 < 0.24
-```
-
-**Root Cause:**
-- WSL2 thermal throttling + system noise causes latency variance
-- Degradation threshold (24%) too strict for development environments
-- Test already had WSL2-aware CV threshold but not degradation threshold
-
-**Fix Applied:**
-Added WSL2-specific degradation multiplier:
-```python
-# WSL2 needs higher tolerance due to thermal/system noise
-base_max_degradation = thresholds.latency_degradation_pct() / 100
-max_degradation = base_max_degradation * 2.5 if os.getenv("WSL_DISTRO_NAME") else base_max_degradation
-```
-
-**New thresholds:**
-- Base: 24% (unchanged)
-- WSL2: 60% (24% × 2.5)
-- Observed degradation: 43.5% → **PASSES**
-
-**Status:** ✅ **FIXED** (as of this audit)
-
-**Follow-up:**
-Re-run performance tests to verify fix:
-```bash
-make test-performance
-# Expected: PASSED (was FAILED before)
-```
-
----
-
-### P2.3: Unused Constants Cleanup
-**Location:** `src/brain_brr/constants.py` (32/90 constants unused)
+### P2.2: Unused Constants Cleanup
+**Location:** `src/brain_brr/constants.py` (32/90 constants unused, 58 used = 64.4%)
 
 **Issue:**
 32 constants defined but never imported/used in production code:
@@ -140,27 +105,32 @@ make test-performance
 **Evidence:**
 ```bash
 python /tmp/complete_audit.py
-# Output: 56/88 constants used (63.6%), 32 unused
+# Output: 58/90 constants used (64.4%), 32 unused
 ```
 
+**Full unused list:** ADAMW_BETA1, ADAMW_BETA2, ADAMW_EPS, AGGREGATE_WINDOW, CSV_VERSION_HEADER, DROPOUT_GNN, FA_TARGETS, FOCAL_GAMMA_PRODUCTION, FOCAL_LOSS_MAX_CLAMP, LABEL_* (9 seizure type labels), LOG_BUFFER_CAPACITY, METRIC_* (7 metric name strings), POS_WEIGHT_MAX_CLAMP, PROB_THRESHOLD_DEFAULT, SECONDS_PER_DAY, SEIZURE_LABELS, ZSCORE_CLIP_SIGMA
+
 **Impact:**
-- Low (constants don't hurt runtime)
-- Clutters namespace
-- Potential confusion about which constants are "real"
+- Clutters namespace (32/90 = 35.6% dead code)
+- Confuses which constants are "real" vs optional
+- May indicate incomplete features or premature abstraction
 
 **Recommendation:**
-**DEFER to v3.8.0 polish sprint**
-Option A: Remove unused constants
-Option B: Add `# OPTIONAL:` prefix to document intentional reserves
+**MUST AUDIT** - For each constant, choose:
+1. **DELETE** if truly unused (e.g., CSV_VERSION_HEADER, AGGREGATE_WINDOW)
+2. **KEEP with `# OPTIONAL:`** prefix if intentional reserve (e.g., LABEL_* for future multi-class)
+3. **WIRE** if it should be used but isn't (e.g., FOCAL_GAMMA_PRODUCTION)
+
+**Effort:** 1 hour (audit each constant, decide, delete or annotate)
 
 **Rationale:**
-Not blocking production. Constants may be needed for future features (e.g., multi-class seizure detection). Clean up after v3.7.0 training validates architecture.
+35.6% unused code violates clean code principles. Must document intent or remove.
 
 ---
 
-## P3: LOW PRIORITY (Nice to Have)
+## P3: LOW PRIORITY (Must Fix Before Training)
 
-**COUNT: 4**
+**COUNT: 4** (all required for production-quality codebase)
 
 ### P3.1: 21 Type Ignore Comments
 **Location:** Scattered across codebase
