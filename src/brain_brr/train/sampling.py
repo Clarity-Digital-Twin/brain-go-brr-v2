@@ -12,13 +12,15 @@ from typing import Any
 import torch
 from torch.utils.data import WeightedRandomSampler
 
-from src.brain_brr.constants import EPSILON_ZERO_CHECK
+from src.brain_brr.constants import BALANCED_SAMPLER_SAMPLE_SIZE, EPSILON_ZERO_CHECK
 from src.brain_brr.utils.env import env
 
 logger = logging.getLogger(__name__)
 
 
-def create_balanced_sampler(dataset: Any, sample_size: int = 500) -> WeightedRandomSampler | None:
+def create_balanced_sampler(
+    dataset: Any, sample_size: int = BALANCED_SAMPLER_SAMPLE_SIZE
+) -> WeightedRandomSampler | None:
     """Create positive-aware balanced sampler for imbalanced datasets.
 
     Args:
