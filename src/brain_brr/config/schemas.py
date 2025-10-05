@@ -631,7 +631,9 @@ class Config(StrictModel):
                     f"Must use {WINDOW_SIZE_SEC}s windows, got {self.data.window_size}s"
                 )
             if self.data.stride != STRIDE_SIZE_SEC:
-                raise ValueError(f"Must use 10s stride, got {self.data.stride}s")
+                raise ValueError(
+                    f"Must use {STRIDE_SIZE_SEC}s stride, got {self.data.stride}s"
+                )
         elif phase == "model":
             # Phase 2 needs model config
             if self.model.tcn.num_layers < 4:

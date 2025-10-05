@@ -285,6 +285,55 @@ Standard calibration curve resolution per Guo et al. 2017:
 https://arxiv.org/abs/1706.04599
 """
 
+TAES_ALPHA_DEFAULT: float = 0.15
+"""Default false alarm penalty weight for TAES metric."""
+
+# ==============================================================================
+# Balanced Sampling Configuration
+# ==============================================================================
+
+BALANCED_SAMPLER_SAMPLE_SIZE: int = 500
+"""Number of windows to sample when checking seizure presence in balanced sampler."""
+
+BALANCED_SAMPLER_MAX_SAMPLE: int = 20000
+"""Maximum number of windows to check for safety in balanced sampler."""
+
+DATASET_DISTRIBUTION_SAMPLE_SIZE: int = 100
+"""Number of windows to sample when checking dataset distribution."""
+
+# ==============================================================================
+# Statistics and Logging
+# ==============================================================================
+
+PERCENTILE_P25: float = 25.0
+"""25th percentile for gradient/weight statistics."""
+
+PERCENTILE_P50: float = 50.0
+"""50th percentile (median) for gradient/weight statistics."""
+
+PERCENTILE_P75: float = 75.0
+"""75th percentile for gradient/weight statistics."""
+
+PERCENTILE_P95: float = 95.0
+"""95th percentile for gradient/weight statistics (outlier detection)."""
+
+# ==============================================================================
+# GNN Configuration Defaults
+# ==============================================================================
+
+GNN_SSGCONV_ALPHA_DEFAULT: float = 0.05
+"""Default alpha mixing parameter for GNN SSGConv layer (when not specified in config)."""
+
+EIGENVALUE_CLAMP_MAX: float = 2.0
+"""Maximum eigenvalue for Laplacian stability (prevents numerical overflow)."""
+
+# ==============================================================================
+# Model Architecture Defaults
+# ==============================================================================
+
+LAYERSCALE_ALPHA_FALLBACK: float = 0.1
+"""Fallback LayerScale alpha when config is missing (defensive default)."""
+
 # ==============================================================================
 # Metric Key Formatting
 # ==============================================================================
