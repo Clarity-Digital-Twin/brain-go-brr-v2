@@ -25,22 +25,22 @@ Key reminder from earlier investigation: `BGB_SANITIZE_GRADS=1` remains informat
 
 ## P1: HIGH PRIORITY
 
-### ✅ RESOLVED: Validation Loss Weighting Under Imbalance (CLOSED 2025-10-05)
+### ✅ RESOLVED: BCE Mode Removed (CLOSED 2025-10-05)
 
-**Original Concern:** Training loss uses `pos_weight`; validation loss does not.
+**Original Concern:** Validation loss weighting inconsistency between BCE and focal modes.
 
-**Audit Verdict:** ✅ **NOT A BUG** – Production uses focal loss, not BCE+pos_weight.
+**Final Action:** **BCE MODE DELETED** – Codebase now focal-only.
 
-**Evidence:**
-- ✅ All configs use `loss: focal` (configs/local/train.yaml:148, configs/modal/train.yaml:127)
-- ✅ Training uses focal loss (train_step.py:306-317), NOT BCEWithLogitsLoss with pos_weight
-- ✅ Validation computes focal loss (val_step.py:290-300) with same alpha/gamma parameters
-- ✅ Model selection uses `sensitivity_at_10fa`, not loss (all configs)
-- ✅ Both `val_loss` (unweighted BCE reference) and `val_loss_focal` (primary) are logged
+**Changes:**
+- ✅ Removed BCE criterion from train_step.py and val_step.py
+- ✅ Removed pos_weight computation (unused in focal mode)
+- ✅ Locked schema to `loss: Literal["focal"]` only
+- ✅ Updated tests to use focal mode
+- ✅ Validation always uses focal loss (matches training)
 
-**Conclusion:** Issue only affects hypothetical BCE mode (not used). Production is correct.
+**Rationale:** Focal loss is the proven standard for rare event detection (RetinaNet, medical AI). BCE mode was never tested on this dataset and added code complexity with no benefit.
 
-**See:** `P1_VALIDATION_LOSS_AUDIT.md` for complete first-principles analysis.
+**Result:** Clean, single-path production code. Ready for training.
 
 ---
 
