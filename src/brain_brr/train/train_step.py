@@ -222,10 +222,8 @@ def train_epoch(
 
     is_smoke_test = env.smoke_test()
     if is_smoke_test:
-        logger.info("[SMOKE TEST MODE] Skipping dataset sampling - using default pos_weight=1.0")
-        pos_weight_val = 1.0
+        logger.info("[SMOKE TEST MODE] Skipping dataset sampling")
         pos_ratio = 0.5
-
     else:
         from src.brain_brr.data.datasets import BalancedSeizureDataset
 
