@@ -272,3 +272,27 @@ SEIZURE_LABELS: set[str] = {
     LABEL_TONIC,
     LABEL_MYOCLONIC,
 }
+
+# ==============================================================================
+# Metric Key Formatting
+# ==============================================================================
+
+METRIC_SENSITIVITY_TEMPLATE: str = "sensitivity_at_{}fa"
+
+
+def format_sensitivity_key(fa_rate: float) -> str:
+    """Format sensitivity metric key for given FA rate.
+
+    Args:
+        fa_rate: False alarm rate (e.g., 10.0 for 10 FA/24h)
+
+    Returns:
+        Formatted metric key (e.g., "sensitivity_at_10.0fa")
+
+    Example:
+        >>> format_sensitivity_key(10.0)
+        'sensitivity_at_10.0fa'
+        >>> format_sensitivity_key(1)
+        'sensitivity_at_1fa'
+    """
+    return METRIC_SENSITIVITY_TEMPLATE.format(fa_rate)
