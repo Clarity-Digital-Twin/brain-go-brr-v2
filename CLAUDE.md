@@ -145,7 +145,7 @@ data:
   cache_dir: cache/tusz          # MUST exist: train (4667) + dev (1832)
   num_workers: 0                  # WSL2 multiprocessing fix
 training:
-  batch_size: 12                  # Conservative for 24GB VRAM
+  batch_size: 8                   # OPTIMIZED: 2x faster than batch=4 (~20GB VRAM)
   mixed_precision: false          # DISABLED - causes NaNs
   loss: focal                     # REQUIRED for 12:1 imbalance
   use_balanced_sampling: true     # CRITICAL or no seizures in batches
@@ -161,8 +161,8 @@ data:
   num_workers: 4                  # SAFE: 8 caused overhead
   prefetch_factor: 2              # SAFE: 4/8 caused OOM
 training:
-  batch_size: 32                  # CRITICAL: 64 causes 77GB OOM (see below)
-  gradient_accumulation_steps: 2  # Maintains effective batch=64
+  batch_size: 48                  # EXPERIMENT: ~58GB peak (testing if faster than 32×2)
+  gradient_accumulation_steps: 1  # Effective batch=48 (no accumulation)
   mixed_precision: true           # A100 tensor cores (3.8x faster)
 model:
   graph:
@@ -172,10 +172,10 @@ resources:
   memory: 98304                   # 96GB RAM
 ```
 
-**🚨 CRITICAL A100 Memory Lesson (Oct 2025)**:
+**🚨 CRITICAL A100 Memory Lessons (Oct 2025)**:
 - `batch_size=64` + `gradient_accumulation_steps=1` → **77GB peak → OOM ❌**
-- `batch_size=32` + `gradient_accumulation_steps=2` → **50GB peak → SAFE ✅**
-- Both configurations have **identical effective batch (64)** and **same learning dynamics**
+- `batch_size=32` + `gradient_accumulation_steps=2` → **50GB peak → SAFE ✅** (effective batch=64)
+- `batch_size=48` + `gradient_accumulation_steps=1` → **~58GB peak → EXPERIMENTING** (current config)
 - Key insight: **batch_size controls peak memory**, **grad_accum splits backward** into chunks
 - See `configs/README.md` for full OOM analysis
 
@@ -271,7 +271,7 @@ make test-gpu       # GPU-specific tests (stop training first)
 ```
 
 **CRITICAL: Testing During Training**
-- Training uses ~12GB GPU memory on RTX 4090
+- Training uses ~20GB GPU memory on RTX 4090 (batch_size=8)
 - Performance tests (`make test-performance`) will OOM during training
 - **Solution**: Use `make ts` or `make test-cpu` for concurrent testing
 - Test suite auto-detects training and limits GPU usage to 3GB
