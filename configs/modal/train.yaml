@@ -23,7 +23,7 @@ data:
   stride: 10
   num_workers: 4                        # SAFE: Prevents spawn delays (8 caused overhead)
   pin_memory: true                      # Fast GPU transfer
-  persistent_workers: false             # CRITICAL: Prevents 1h spawn delay + memory leaks
+  persistent_workers: true              # CRITICAL: Keep workers alive to preserve NPZ cache (40,000x speedup)
   prefetch_factor: 2                    # SAFE: Prevents memory pressure (4/8 caused OOM)
   # ⚠️ CRITICAL: Without balanced sampling, batches may have ZERO seizures! ⚠️
   use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling
