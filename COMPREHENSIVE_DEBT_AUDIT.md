@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-We enforced the zero-debt policy *before* spending ~$250 on the Modal A100 run. All previously identified P2/P3 items are closed, documentation matches reality, and the codebase is pristine for the 100-epoch training campaign.
+We enforced the zero-debt policy *before* launching the Modal A100 run. All previously identified P2/P3 items are closed, documentation matches reality, and the codebase is pristine for the 100-epoch training campaign.
 
 **Current State:**
 - ✅ **P0 (Blockers):** 0

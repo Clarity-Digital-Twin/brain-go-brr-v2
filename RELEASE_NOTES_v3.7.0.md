@@ -1,6 +1,6 @@
 # v3.7.0: Zero Debt Modal Baseline 🏆
 
-**FINAL production-ready release before $250 Modal A100 training**
+**FINAL production-ready release before Modal A100 training**
 
 ---
 
@@ -220,4 +220,4 @@ Zero-debt policy enforcement and systematic cleanup following:
 
 **Tag**: `v3.7.0-zero-debt-modal-baseline`
 **Status**: ✅ **PRODUCTION READY**
-**Next**: Modal A100 training (~$250, 100 hours) → <1 FA/24h @ >75% sensitivity
+**Next**: Modal A100 training (100 epochs) → <1 FA/24h @ >75% sensitivity
