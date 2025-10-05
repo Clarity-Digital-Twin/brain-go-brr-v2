@@ -130,9 +130,11 @@
 
 ---
 
-### Category 3: Unused Constants - Action Required (36 constants)
+### Category 3: Unused Constants - Action Required (38 constants)
 
 **Purpose**: Defined in `constants.py` but NOT imported anywhere.
+
+**🔴 CORRECTED COUNT** (was 36, now 38 after removing CSV_VERSION_HEADER and SECONDS_PER_DAY from Code-Guard)
 
 #### 3A. HIGH-VALUE - Should Be Wired Into Code (6 constants)
 
