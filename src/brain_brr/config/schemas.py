@@ -40,8 +40,8 @@ class StrictModel(BaseModel):
 class DataConfig(StrictModel):
     """Data loading and batching configuration."""
 
-    dataset: Literal["tuh_eeg", "chb_mit"] = Field(
-        default="tuh_eeg", description="Dataset to use for training"
+    dataset: Literal["tuh_eeg"] = Field(
+        default="tuh_eeg", description="Dataset to use for training (only TUH EEG Seizure supported)"
     )
     data_dir: Path = Field(default=Path("data"), description="Root directory containing EDF files")
     cache_dir: Path = Field(default=Path("cache/data"), description="Data cache directory")
@@ -79,14 +79,6 @@ class DataConfig(StrictModel):
     def validate_data_dir(cls, v: Path) -> Path:
         """Ensure data_dir is Path object."""
         return Path(v) if not isinstance(v, Path) else v
-
-    @field_validator("dataset")
-    @classmethod
-    def check_dataset(cls, v: str) -> str:
-        """Ensure only implemented datasets are used."""
-        if v != "tuh_eeg":
-            raise ValueError("Only 'tuh_eeg' dataset is currently supported")
-        return v
 
 
 class PreprocessingConfig(StrictModel):
