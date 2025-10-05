@@ -19,6 +19,7 @@ import torch.nn as nn
 # sklearn type stubs incomplete (known third-party issue)
 from sklearn.metrics import average_precision_score, roc_auc_score  # type: ignore[attr-defined]
 from torch.utils.data import DataLoader
+
 # tqdm has no type stubs (third-party library)
 from tqdm import tqdm  # type: ignore[import-untyped]
 
