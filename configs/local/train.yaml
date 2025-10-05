@@ -14,7 +14,7 @@ experiment:
   description: "Full training - TCN+BiMamba+GNN on RTX 4090"
   seed: 42
   output_dir: results/local_training
-  cache_dir: cache/tusz                # Same as data.cache_dir for consistency
+  cache_dir: cache/tusz_mmap  # Memory-mapped uncompressed NPY cache (2025 ML best practice)                # Same as data.cache_dir for consistency
   device: cuda
   log_level: INFO
   save_model: true
@@ -103,7 +103,7 @@ model:
 data:
   dataset: tuh_eeg
   data_dir: data_ext4/tusz/edf        # Parent dir containing train/dev/eval
-  cache_dir: cache/tusz                # Will create train/ and dev/ subdirs
+  cache_dir: cache/tusz_mmap  # Memory-mapped uncompressed NPY cache (2025 ML best practice)                # Will create train/ and dev/ subdirs
   sampling_rate: 256
   n_channels: 19
   window_size: 60

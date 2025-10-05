@@ -97,7 +97,7 @@ model:
 data:
   dataset: tuh_eeg
   data_dir: data_ext4/tusz/edf
-  cache_dir: cache/tusz
+  cache_dir: cache/tusz_mmap  # Memory-mapped uncompressed NPY cache (2025 ML best practice)
   sampling_rate: 256
   n_channels: 19
   window_size: 60
