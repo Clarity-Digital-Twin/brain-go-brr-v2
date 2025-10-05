@@ -1,4 +1,4 @@
-# Configuration Consistency Check (v3.6.1)
+# Configuration Consistency Check (v3.6.2)
 
 ## Local Configs (RTX 4090 - 24GB)
 

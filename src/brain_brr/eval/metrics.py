@@ -20,6 +20,7 @@ from src.brain_brr.constants import (
     SAMPLING_RATE,
     SECONDS_PER_HOUR,
     STRIDE_SIZE_SEC,
+    TAES_ALPHA_DEFAULT,
     THRESHOLD_SEARCH_MAX_ITERS,
     THRESHOLD_SEARCH_TOLERANCE,
     WINDOW_SIZE_SEC,
@@ -78,7 +79,7 @@ def calculate_ece(probs: np.ndarray, labels: np.ndarray, n_bins: int = ECE_NUM_B
 def calculate_taes(
     pred_events: list[tuple[float, float]],
     ref_events: list[tuple[float, float]],
-    alpha: float = 0.15,
+    alpha: float = TAES_ALPHA_DEFAULT,
 ) -> float:
     """Calculate Time-Aligned Event Scoring (TAES).
 
