@@ -173,7 +173,7 @@ def test_extract_windows_with_labels_alignment() -> None:
 @pytest.mark.integration
 def test_dataset_len_and_item_shapes(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # Monkeypatch load_edf_file to avoid MNE dependency
-    def _fake_load(_path: Path):
+    def _fake_load(_path: Path, apply_montage: bool = True):
         # Build a deterministic synthetic signal (exactly 3 windows @ 256 Hz)
         n = constants.WINDOW_SAMPLES + 2 * constants.STRIDE_SAMPLES
         sig = np.zeros((19, n), dtype=np.float32)

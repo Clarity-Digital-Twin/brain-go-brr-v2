@@ -344,12 +344,17 @@ def sensitivity_at_fa_rates(
         window_starts = [i * stride_samples for i in range(probs.shape[0])]
         total_samples = window_starts[-1] + probs.shape[1] if window_starts else probs.shape[1]
 
+        # Determine stitching method from config (default to overlap_add if not specified)
+        stitch_method = (
+            post_cfg.stitching.method if hasattr(post_cfg, "stitching") else "overlap_add"
+        )
+
         # Stitch probabilities and labels
         probs_stitched = stitch_fn(
             window_probs=list(probs),
             window_starts=window_starts,
             total_length=total_samples,
-            method="overlap_add",
+            method=stitch_method,
         )
         labels_stitched = stitch_fn(
             window_probs=list(labels.float()),

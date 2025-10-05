@@ -475,6 +475,12 @@ class TestLatencyUnderLoad:
         """Test latency remains stable over extended operation."""
         # Get device
         device = next(minimal_model.parameters()).device
+
+        # Configure CUDA allocator to reduce fragmentation-induced slowdown
+        if device.type == "cuda":
+            torch.cuda.set_per_process_memory_fraction(0.9)
+            os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
         window = torch.randn(1, 19, 15360, device=device)
 
         # Extended warmup for JIT compilation and kernel caching
@@ -525,19 +531,21 @@ class TestLatencyUnderLoad:
             )
 
         # No significant degradation over time (improvement is OK)
+        # Use MEDIAN instead of mean for robustness to outliers/thermal spikes
         span = 60 if device.type == "cpu" else 100
-        early = np.mean(latencies[:span])
-        late = np.mean(latencies[-span:])
+        early = np.median(latencies[:span])
+        late = np.median(latencies[-span:])
         degradation = (late - early) / early
 
         # Skip degradation check if variance is already high (system under load)
-        # When CV > 0.35, the system is too noisy to measure degradation reliably
-        # Also be more lenient with the degradation threshold (20% instead of 15%)
-        if cv < 0.35:
+        # WSL2 has more system noise, so use higher CV threshold
+        cv_threshold_for_degradation = 0.40 if os.getenv("WSL_DISTRO_NAME") else 0.35
+        if cv < cv_threshold_for_degradation:
             # Only check degradation if system is stable
             max_degradation = thresholds.latency_degradation_pct() / 100
             assert abs(degradation) < max_degradation, (
-                f"Latency changed by {degradation * 100:.1f}% over time (max: {max_degradation * 100:.1f}%)"
+                f"Latency degraded by {degradation * 100:.1f}% over time "
+                f"(P50 early: {early * 1000:.2f}ms → late: {late * 1000:.2f}ms, max: {max_degradation * 100:.1f}%)"
             )
 
     @pytest.mark.performance

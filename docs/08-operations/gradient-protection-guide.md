@@ -131,12 +131,87 @@ The following flags were documented but **never implemented**. They have been re
 
 ---
 
+## ML 2025 Best Practices: Gradient Logging
+
+### Why Median Over Mean?
+
+**Problem with Mean**: Arithmetic mean is **outlier-sensitive**. A single FP16 overflow (`65504`) can dominate the mean, hiding the true gradient distribution.
+
+**Example (100 batches)**:
+- 99 batches with gradient norm ~2.0
+- 1 batch with FP16 overflow (65504)
+- **Mean**: `(99×2 + 65504)/100 = 657` (misleading!)
+- **Median (P50)**: `2.0` (robust, accurate)
+
+### New Gradient Logging Format (v3.6.1)
+
+```
+[GRADIENTS] Last 100 batches: P50=2.19 | IQR=2.39 | P95=11.38 | Max=14.82
+```
+
+**Metrics**:
+- **P50 (Median)**: Central tendency, immune to outliers
+- **IQR (P75 - P25)**: Robust spread measurement (better than std for heavy-tailed)
+- **P95**: High percentile for detecting spikes
+- **Max**: Absolute maximum (useful for sanity checks)
+
+### Why IQR Over Standard Deviation?
+
+**IQR advantages**:
+- ✅ Robust to extreme outliers (FP16 overflow)
+- ✅ Describes middle 50% of distribution
+- ✅ Interpretable: "Most gradients are within X ± IQR/2"
+
+**Standard deviation problems**:
+- ❌ Squared deviations amplify outliers
+- ❌ Assumes Gaussian distribution (gradients are heavy-tailed)
+- ❌ Can be infinite with extreme values
+
+### Why This Matters for Seizure Detection
+
+**Clinical ML requirements**:
+1. **Stability**: Must train for 100 epochs (80-100 hours)
+2. **Reproducibility**: Same hyperparameters across runs
+3. **Debugging**: Quickly identify instability patterns
+
+**Percentile-based logging provides**:
+- Early warning of instability (P95 trending up)
+- Confidence in median behavior (P50 stable)
+- Immune to transient FP16 overflows
+- Better basis for hyperparameter tuning
+
+### Migration from v3.6.0
+
+**Old format (mean-based)**:
+```
+[GRADIENTS] Last 50 batches (finite): Mean=inf | P50=2.19 | P95=11.38 | Max=14.82
+```
+
+**Problems**:
+- Mean could be `inf` despite "(finite)" label (contradictory)
+- Mean highly sensitive to outliers
+- Hard to interpret true gradient health
+
+**New format (median-first)**:
+```
+[GRADIENTS] Last 100 batches: P50=2.19 | IQR=2.39 | P95=11.38 | Max=14.82
+```
+
+**Improvements**:
+- ✅ P50 emphasized (most important metric)
+- ✅ IQR added (robust spread)
+- ✅ Mean removed (outlier-sensitive)
+- ✅ Cleaner output (no contradictory labels)
+
+---
+
 ## Related Documentation
 
 - Industry best practices: [PyTorch Tutorials](https://pytorch.org/tutorials)
 - Mixed precision: [PyTorch AMP](https://pytorch.org/docs/stable/amp.html)
 - Gradient clipping: [torch.nn.utils.clip_grad_norm_](https://pytorch.org/docs/stable/generated/torch.nn.utils.clip_grad_norm_.html)
+- Gradient logging implementation: `src/brain_brr/train/train_step.py:336-347`
 
 ---
 
-**Key Takeaway**: Gradient clipping from config is your primary protection. The `BGB_SANITIZE_GRADS` flag is purely a debugging tool for investigating gradient issues, not a requirement for training.
+**Key Takeaway**: Gradient clipping from config is your primary protection. The `BGB_SANITIZE_GRADS` flag is purely a debugging tool for investigating gradient issues, not a requirement for training. Use median-based logging (v3.6.1+) for robust gradient monitoring.

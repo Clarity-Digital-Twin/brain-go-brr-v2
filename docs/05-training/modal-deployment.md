@@ -86,23 +86,26 @@ modal secret create wandb WANDB_API_KEY=<your-key>
 ## Configuration (A100-optimized)
 
 ```yaml
-# configs/modal/train.yaml
+# configs/modal/train.yaml (actual configuration)
 data:
-  cache_dir: /results/cache/tusz  # SSD volume, not S3!
-  num_workers: 8                   # A100 handles parallel IO
+  cache_dir: /results/cache/tusz         # SSD volume, not S3!
+  num_workers: 4                          # Reduced from 8 (overhead issues)
+  prefetch_factor: 2                      # Reduced from 4 (memory)
 
 training:
-  batch_size: 64                   # Larger batch for 80GB
-  learning_rate: 3e-5              # Conservative for stability
-  gradient_clip: 0.5               # Strong clipping
-  mixed_precision: true            # A100 tensor cores
+  batch_size: 48                          # Optimized for A100-80GB (~58GB peak)
+  learning_rate: 8.0e-5                   # Batch-size scaled from 3e-5
+  gradient_clip: 0.5                      # NaN protection
+  mixed_precision: true                   # A100 tensor cores (3.8x faster)
+  gradient_accumulation_steps: 1          # No accumulation with batch_size=48
 
   scheduler:
-    warmup_ratio: 0.03              # 3% warmup
+    type: cosine
+    warmup_ratio: 0.03
 
-resources:
-  distributed: false                # Single GPU training
-  mixed_precision: true             # FP16 on A100
+  # Mid-epoch checkpointing (critical for 6-7h epochs)
+  mid_checkpoint_interval_s: 1800         # Every 30 minutes
+  mid_epoch_keep: 3                       # Keep last 3 snapshots
 
 experiment:
   output_dir: /results/train/
@@ -110,7 +113,7 @@ experiment:
   wandb:
     enabled: true
     project: "seizure-v3"
-    entity: "your-team"             # Set your team name
+    entity: "your-team"                   # Set your team name
 ```
 
 ## Expected Performance

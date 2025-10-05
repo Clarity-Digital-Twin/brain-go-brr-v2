@@ -28,6 +28,16 @@
 
 > ❗️ `BGB_SANITIZE_GRADS` is no longer required for normal training. Gradient clipping handles stability. Enable the flag only when you want to investigate why gradients went non-finite.
 
+### DEPRECATED/UNUSED Flags (Documented but Never Implemented)
+
+The following flags were documented in various places but **never actually checked in the code**. They are listed here for historical reference:
+
+- ❌ `BGB_SANITIZE_INPUTS` — **REMOVED**: Never implemented. Input sanitization masks data quality issues. Use preprocessing outlier clipping (±10σ in `preprocess.py`) instead.
+- ❌ `BGB_SKIP_OPT_STEP_ON_NAN` — **REMOVED**: Never implemented. Skipping optimizer steps breaks LR schedules and distributed training. Investigate root cause instead.
+- ❌ `BGB_SAFE_CLAMP` — **REMOVED**: Never implemented. Global activation clamping indicates architectural problems. LayerNorm is the correct solution (always enabled via config).
+
+**Note**: Gradient clipping (`training.gradient_clip: 0.5` in config) is the REAL protection mechanism and has always been the primary safeguard.
+
 ## Checkpoint Cadence
 
 - `BGB_MID_EPOCH_MINUTES=M` — Save mid-epoch checkpoints every _M_ minutes
@@ -39,6 +49,8 @@
 - `BGB_FORCE_TCN_EXT=1` — Force internal TCN implementation (bypass extension module)
 
 ## Performance Testing
+
+**Scope:** Performance test suite only (`tests/performance/`) — NOT used during training
 
 - `BGB_PERF_ALLOW_GPU=1` — Allow GPU usage in performance tests
 - `BGB_PERF_THREADS=N` — Pin CPU thread count for perf tests

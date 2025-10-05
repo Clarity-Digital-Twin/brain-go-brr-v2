@@ -23,6 +23,7 @@ W&B (optional)
 
 Mid-epoch checkpoints
 
-- Control cadence via env vars:
-  - `BGB_MID_EPOCH_MINUTES` — interval (minutes)
-  - `BGB_MID_EPOCH_KEEP` — retention count
+- **Recommended (v3.6+)**: Set in config YAML:
+  - `training.mid_checkpoint_interval_s` — interval (seconds)
+  - `training.mid_epoch_keep` — retention count
+- **Legacy (deprecated)**: Env vars `BGB_MID_EPOCH_MINUTES`, `BGB_MID_EPOCH_KEEP` (backward compatible, config takes precedence)

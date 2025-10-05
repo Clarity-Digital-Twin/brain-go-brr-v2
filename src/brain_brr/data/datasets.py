@@ -36,12 +36,24 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         cache_dir: Path | None = None,
         transform: Callable[[torch.Tensor], torch.Tensor] | None = None,
         allow_on_demand: bool = True,
+        bandpass: tuple[float, float] = (0.5, 120.0),
+        notch_freq: int = 60,
+        normalize: bool = True,
+        apply_montage: bool = True,
+        max_samples: int | None = None,
+        max_hours: float | None = None,
     ) -> None:
         self.edf_files = edf_files
         self.label_files = label_files
         self.cache_dir = cache_dir
         self.transform = transform
         self.allow_on_demand = bool(allow_on_demand)
+        self.bandpass = bandpass
+        self.notch_freq = notch_freq
+        self.normalize = normalize
+        self.apply_montage = apply_montage
+        self.max_samples = max_samples
+        self.max_hours = max_hours
 
         if self.cache_dir is not None:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -115,6 +127,35 @@ class EEGWindowDataset(torch.utils.data.Dataset):
             for w_idx in range(n_windows):
                 self._index_map.append((i, w_idx))
 
+        # Apply debug limits (max_samples or max_hours) if specified
+        total_windows_before = len(self._index_map)
+        if self.max_samples is not None or self.max_hours is not None:
+            # Calculate hours from window count (60s window / 3600s per hour)
+            window_duration_hours = constants.WINDOW_SIZE_SEC / 3600.0
+            total_hours_before = total_windows_before * window_duration_hours
+
+            limit_windows = total_windows_before
+            limit_reason = None
+
+            if self.max_samples is not None and self.max_samples < limit_windows:
+                limit_windows = self.max_samples
+                limit_reason = f"max_samples={self.max_samples}"
+
+            if self.max_hours is not None:
+                max_windows_from_hours = int(self.max_hours / window_duration_hours)
+                if max_windows_from_hours < limit_windows:
+                    limit_windows = max_windows_from_hours
+                    limit_reason = f"max_hours={self.max_hours:.2f}h"
+
+            if limit_windows < total_windows_before:
+                self._index_map = self._index_map[:limit_windows]
+                total_hours_after = limit_windows * window_duration_hours
+                logger.warning(
+                    f"[DATA] Applied debug limit ({limit_reason}): "
+                    f"{total_windows_before} → {limit_windows} windows "
+                    f"({total_hours_before:.2f}h → {total_hours_after:.2f}h)"
+                )
+
         # Save the index cache for next time
         if index_cache_path is not None:
             import json
@@ -136,8 +177,14 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         self, edf_path: Path, file_idx: int
     ) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.float32] | None]:
         # Load & preprocess
-        data_uv, fs = load_edf_file(edf_path)
-        data_proc = preprocess_recording(data_uv, fs_original=fs)
+        data_uv, fs = load_edf_file(edf_path, apply_montage=self.apply_montage)
+        data_proc = preprocess_recording(
+            data_uv,
+            fs_original=fs,
+            bandpass=self.bandpass,
+            notch_freq=self.notch_freq,
+            normalize=self.normalize,
+        )
 
         # Labels (optional)
         labels = None

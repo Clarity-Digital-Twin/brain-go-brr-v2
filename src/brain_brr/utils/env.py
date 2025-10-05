@@ -13,7 +13,21 @@ NOTE: Environment variables are cached at module import time to support
 torch.compile which cannot trace through os.getenv() calls.
 """
 
+import logging
 import os
+
+logger = logging.getLogger(__name__)
+
+# Track which deprecation warnings we've already issued
+_warned: set[str] = set()
+
+
+def _warn_once(key: str, msg: str) -> None:
+    """Issue a warning only once per key."""
+    if key not in _warned:
+        logger.warning(msg)
+        _warned.add(key)
+
 
 # Cache environment variables at import time for torch.compile compatibility
 # Model/forward pass variables
@@ -30,7 +44,6 @@ _DISABLE_TENSORBOARD = os.getenv("BGB_DISABLE_TB", "0") == "1"
 _MID_EPOCH_MINUTES = os.getenv("BGB_MID_EPOCH_MINUTES")
 _MID_EPOCH_KEEP = int(os.getenv("BGB_MID_EPOCH_KEEP", "2"))
 _NAN_DEBUG = os.getenv("BGB_NAN_DEBUG", "0") == "1"
-_NAN_DEBUG_MAX = int(os.getenv("BGB_NAN_DEBUG_MAX", "10"))
 _SANITIZE_GRADS = os.getenv("BGB_SANITIZE_GRADS", "0") == "1"
 _ANOMALY_DETECT = os.getenv("BGB_ANOMALY_DETECT", "0") == "1"
 _PERF_ALLOW_GPU = os.getenv("BGB_PERF_ALLOW_GPU", "0") == "1"
@@ -88,12 +101,30 @@ class EnvConfig:
 
     @staticmethod
     def mid_epoch_minutes() -> int | None:
-        """Save checkpoint every N minutes during epoch."""
+        """DEPRECATED: Use config.training.mid_checkpoint_interval_s instead.
+
+        Save checkpoint every N minutes during epoch.
+        """
+        if _MID_EPOCH_MINUTES:
+            _warn_once(
+                "BGB_MID_EPOCH_MINUTES",
+                "BGB_MID_EPOCH_MINUTES is DEPRECATED. "
+                "Use 'training.mid_checkpoint_interval_s' in config instead.",
+            )
         return int(_MID_EPOCH_MINUTES) if _MID_EPOCH_MINUTES else None
 
     @staticmethod
     def mid_epoch_keep() -> int:
-        """Number of mid-epoch checkpoints to keep (default: 2)."""
+        """DEPRECATED: Use config.training.mid_epoch_keep instead.
+
+        Number of mid-epoch checkpoints to keep (default: 2).
+        """
+        if _MID_EPOCH_KEEP != 2:
+            _warn_once(
+                "BGB_MID_EPOCH_KEEP",
+                "BGB_MID_EPOCH_KEEP is DEPRECATED. "
+                "Use 'training.mid_epoch_keep' in config instead.",
+            )
         return _MID_EPOCH_KEEP
 
     # NaN/Debug controls
@@ -101,11 +132,6 @@ class EnvConfig:
     def nan_debug() -> bool:
         """Enable NaN debugging mode."""
         return _NAN_DEBUG
-
-    @staticmethod
-    def nan_debug_max() -> int:
-        """Maximum NaN occurrences before stopping (default: 10)."""
-        return _NAN_DEBUG_MAX
 
     @staticmethod
     def sanitize_grads() -> bool:

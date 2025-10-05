@@ -10,20 +10,18 @@ from src.brain_brr.constants import CHANNEL_NAMES_10_20, CHANNEL_SYNONYMS
 def handle_channel_synonyms(names: list[str]) -> list[str]:
     """Normalize channel names to canonical 10-20 montage.
 
-    - Applies synonym mapping (e.g., T7->T3, T8->T4, P7->T5, P8->T6)
-    - Case-insensitive normalization to canonical capitalization (e.g., FP1->Fp1)
+    Applies synonym mapping (e.g., T7→T3) and normalizes casing so downstream calls
+    receive the exact canonical names. Kept for compatibility with tests and any
+    downstream utilities that rely on this helper.
     """
-    # Build uppercase lookup to canonical
-    alias_map: dict[str, str] = {}
-    for canon in CHANNEL_NAMES_10_20:
-        alias_map[canon.upper()] = canon
-    for alt, canon in CHANNEL_SYNONYMS.items():
-        alias_map[alt.upper()] = canon
+
+    alias_map: dict[str, str] = {canon.upper(): canon for canon in CHANNEL_NAMES_10_20}
+    alias_map.update({alt.upper(): canon for alt, canon in CHANNEL_SYNONYMS.items()})
 
     normalized: list[str] = []
-    for n in names:
-        key = n.strip().upper()
-        normalized.append(alias_map.get(key, n))
+    for name in names:
+        key = name.strip().upper()
+        normalized.append(alias_map.get(key, name))
     return normalized
 
 

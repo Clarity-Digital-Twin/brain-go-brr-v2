@@ -10,12 +10,22 @@ Professional checkpoint strategy for long-running EEG training on both local (RT
 
 ## Local Training (RTX 4090)
 
-### Environment Variables (REQUIRED)
+### Configuration (RECOMMENDED - v3.6+)
+Set mid-epoch checkpointing in your config YAML:
+```yaml
+training:
+  mid_checkpoint_interval_s: 1800  # Save every 30 minutes
+  mid_epoch_keep: 3                # Keep last 3 snapshots (rotating)
+```
+
+### Environment Variables (LEGACY - Deprecated)
+For backward compatibility only:
 ```bash
-# Set BEFORE starting training
+# DEPRECATED: Use config fields above instead
 export BGB_MID_EPOCH_MINUTES=30  # Save every 30 minutes
 export BGB_MID_EPOCH_KEEP=5      # Keep last 5 snapshots (rotating)
 ```
+**Note:** Config fields take precedence over env vars.
 
 ### What Gets Saved
 1. **Every epoch**: `last.pt` (for resume)
