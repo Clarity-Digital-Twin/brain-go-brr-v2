@@ -225,7 +225,7 @@ model:
 | Config | Platform | Time/Epoch | Total Time | Cost |
 |--------|----------|------------|------------|------|
 | Local Train | RTX 4090 | ~3-4 hours | ~300-400 hours | Electricity |
-| Modal Train | A100-80GB | ~1 hour | ~100 hours | ~$319 |
+| Modal Train | A100-80GB | ~1 hour | ~100 hours | ~$250 @ $2.50/hr |
 | Smoke Test | Both | ~5 mins | 5 mins | Minimal |
 
 **Note**: Local is slower due to smaller batch size (4 vs 32) but more stable on 24GB VRAM.

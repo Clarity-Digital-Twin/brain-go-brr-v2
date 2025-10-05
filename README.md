@@ -30,7 +30,7 @@ V3 implements a **dual-stream architecture** grounded in state-space models and 
 
 **Theoretical foundation**: [EvoBrain (NeurIPS 2025)](literature/markdown/EVOBRAIN.md) proves time-then-graph ordering achieves +23% AUROC over alternatives.
 
-**Status**: v3.7.0 - Zero Debt Modal Baseline. FINAL production-ready release before $319 A100 training. All P2/P3 debt eliminated, 84 constants (69% utilization), type-safe exceptions, docs perfectly aligned. See [release notes](RELEASE_NOTES.md) for details.
+**Status**: v3.7.0 - Zero Debt Modal Baseline. FINAL production-ready release before $250 A100 training. All P2/P3 debt eliminated, 84 constants (69% utilization), type-safe exceptions, docs perfectly aligned. See [release notes](RELEASE_NOTES.md) for details.
 
 ## 🏗️ Architecture: Theory & Design
 

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🏆 Zero Debt Modal Baseline: Complete Technical Debt Elimination
 
-**FINAL production-ready release before $319 Modal A100 training.** This release achieves complete technical debt elimination through systematic cleanup of constants, type safety improvements, production robustness enhancements, and comprehensive documentation alignment.
+**FINAL production-ready release before $250 Modal A100 training.** This release achieves complete technical debt elimination through systematic cleanup of constants, type safety improvements, production robustness enhancements, and comprehensive documentation alignment.
 
 **Tag**: `v3.7.0-zero-debt-modal-baseline`
 **Status**: ✅ **ZERO TECHNICAL DEBT - PRODUCTION READY FOR MODAL A100**
@@ -192,7 +192,7 @@ git checkout v3.7.0-zero-debt-modal-baseline
 ### Production Readiness
 
 **This release is FINAL for**:
-- ✅ Modal A100-80GB production training (~100 hours, ~$319)
+- ✅ Modal A100-80GB production training (~100 hours, ~$250)
 - ✅ 100-epoch training campaign
 - ✅ Zero technical debt baseline
 - ✅ Clean monitoring and logging
@@ -206,7 +206,7 @@ git checkout v3.7.0-zero-debt-modal-baseline
 **Next Steps**:
 1. ✅ Smoke test completes (~10 min, 50 files, batch_size=48)
 2. → Full Modal training if smoke test passes
-3. → 100 epochs, ~100 hours, target <1 FA/24h @ >75% sensitivity
+3. → 100 epochs, ~100 hours, ~$250 total cost, target <1 FA/24h @ >75% sensitivity
 
 ---
 
@@ -228,7 +228,7 @@ git checkout v3.7.0-zero-debt-modal-baseline
 
 **Code Quality Progression**: 95% → **100% debt-free** 🎉
 
-This is the cleanest, most professional baseline for production training. Zero technical debt, zero documentation drift, zero phantom features. Ready for the $319 Modal A100 training campaign.
+This is the cleanest, most professional baseline for production training. Zero technical debt, zero documentation drift, zero phantom features. Ready for the $250 Modal A100 training campaign.
 
 ---
 

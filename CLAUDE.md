@@ -84,9 +84,9 @@ docker compose run dev
 modal run deploy/modal/app.py --action test-mamba
 
 # Smoke test (50 files, ~10 min - quick validation)
-modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
 
-# Full training (detached for long runs)
+# Full training (ALWAYS use --detach for long runs)
 modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
 
 # Monitor training
