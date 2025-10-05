@@ -189,6 +189,7 @@ class LoggingConfig:
             if enable_ring_buffer:
                 self.ring_buffer = RingBufferHandler(LOG_RING_BUFFER_SIZE)
                 self.ring_buffer.setLevel(logging.DEBUG)
+                # Dynamic attribute for tracking BGB-owned handlers (cleanup safety)
                 self.ring_buffer._bgb_owned = True  # type: ignore[attr-defined]
                 root_logger.addHandler(self.ring_buffer)
 
@@ -245,6 +246,7 @@ class LoggingConfig:
         )
         handler.setLevel(level)
         handler.setFormatter(logging.Formatter("%(message)s"))
+        # Dynamic attribute for tracking BGB-owned handlers (cleanup safety)
         handler._bgb_owned = True  # type: ignore[attr-defined]
 
         logger.addHandler(handler)
@@ -261,6 +263,7 @@ class LoggingConfig:
             datefmt="%Y-%m-%d %H:%M:%S",
         )
         handler.setFormatter(formatter)
+        # Dynamic attribute for tracking BGB-owned handlers (cleanup safety)
         handler._bgb_owned = True  # type: ignore[attr-defined]
 
         logger.addHandler(handler)
@@ -279,6 +282,7 @@ class LoggingConfig:
             '"message":"%(message)s","module":"%(module)s","function":"%(funcName)s"}'
         )
         handler.setFormatter(formatter)
+        # Dynamic attribute for tracking BGB-owned handlers (cleanup safety)
         handler._bgb_owned = True  # type: ignore[attr-defined]
 
         logger.addHandler(handler)
@@ -313,7 +317,7 @@ class LoggingConfig:
         )
         handler.setFormatter(formatter)
 
-        # Mark as owned by us for cleanup
+        # Dynamic attribute for tracking BGB-owned handlers (cleanup safety)
         handler._bgb_owned = True  # type: ignore[attr-defined]
 
         logger.addHandler(handler)
