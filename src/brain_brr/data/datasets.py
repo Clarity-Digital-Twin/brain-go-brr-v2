@@ -116,7 +116,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
                     ) from None
             else:
                 # No cache_dir: process on-demand (for tests or non-cached workflows)
-                windows_arr, labels_arr = self._process_file(edf_path, i)
+                windows_arr, _labels_arr = self._process_file(edf_path, i)
                 n_windows = windows_arr.shape[0]
 
             self._file_window_counts.append(n_windows)
