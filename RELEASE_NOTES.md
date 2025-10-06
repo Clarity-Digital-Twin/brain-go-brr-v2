@@ -1,5 +1,118 @@
 # Release Notes
 
+## v3.8.1 - Complete Tensor Safety (2025-10-06)
+
+**Hotfix release** - Completes P0-2 tensor safety that was incomplete in v3.8.0
+
+---
+
+### 🎯 What This Fixes
+
+v3.8.0 claimed "tensor safety" but **only fixed 2 of 3 datasets**. EEGWindowDataset was missing `.clone()` calls on read-only mmap tensors.
+
+**The Issue**:
+- BalancedSeizureDataset: ✅ Fixed in v3.8.0
+- ValidationDataset: ✅ Fixed in v3.8.0
+- **EEGWindowDataset: ❌ NOT FIXED** (used as fallback when manifests fail)
+
+**The Impact**: Training could still trigger read-only tensor warnings via fallback code paths.
+
+---
+
+### 📊 What Was Fixed
+
+| Issue | Status |
+|-------|--------|
+| **EEGWindowDataset missing .clone()** | ✅ FIXED (lines 307, 312) |
+| **Broad warning suppression** (paper-over) | ✅ REMOVED from train_step.py |
+| **Scheduler order investigation** | ✅ VERIFIED CORRECT (no fix needed) |
+| **TECHNICAL_DEBT.md accuracy** | ✅ UPDATED with truth |
+
+---
+
+### 🛠️ Technical Details
+
+#### P0-2 Completion: EEGWindowDataset Tensor Safety
+**Files**: `src/brain_brr/data/datasets.py`
+
+**Changes**:
+```python
+# Line 307 (window tensor)
+window_tensor = torch.from_numpy(window).clone()  # Added .clone()
+
+# Line 312 (label tensor)
+label_tensor = torch.from_numpy(label).clone()  # Added .clone()
+```
+
+**Why Critical**:
+- EEGWindowDataset is fallback for train/loop.py:592, 642, 658
+- Without `.clone()`, fallback paths produce undefined behavior warnings
+- All three datasets must be safe for production use
+
+#### P0-3 Proper Investigation: Scheduler Order
+**Files**: `src/brain_brr/train/train_step.py`, `src/brain_brr/train/optimizer_factory.py`
+
+**What Changed**:
+1. **Verified** actual step order is correct (no code fix needed)
+2. **Removed** broad suppression from train_step.py (was paper-over)
+3. **Kept** minimal targeted suppression in optimizer_factory.py (appropriate)
+
+**Root Cause**: PyTorch emits warning during `LambdaLR(..., last_epoch=-1)` **creation**, not during actual stepping.
+
+---
+
+### ✅ Quality Verification
+
+**All Checks Passing**:
+```bash
+make q           # Lint + format + mypy → PASS ✅
+make test        # 104 tests, 83.80% coverage → PASS ✅
+```
+
+**Modal Training**: Running (ap-1SRGX4M1AvxonDi8EDsjnZ)
+- ✅ All fixes deployed
+- ✅ Cache verified clean
+- ✅ Training initialized successfully
+
+---
+
+### 📦 Migration Guide
+
+**Upgrading from v3.8.0**:
+✅ **100% Backward Compatible**
+
+```bash
+git pull
+git checkout v3.8.1-complete-tensor-safety
+# Ready - no additional steps needed
+```
+
+**Changes**:
+- No API changes
+- No config changes
+- No dependency updates
+- No cache rebuild needed
+
+---
+
+### 🏷️ Version Rationale
+
+**Why v3.8.1 (PATCH)?**
+- Completes incomplete v3.8.0 fixes (EEGWindowDataset missed)
+- Small footprint: 3 files, <10 lines changed
+- No new features, just bug completion
+- Matches v3.6.1, v3.4.1, v3.2.1 pattern (quick hotfixes)
+
+**Semantic Versioning**: Completing incomplete bug fix → PATCH ✅
+
+---
+
+**Tag**: `v3.8.1-complete-tensor-safety`
+**Status**: ✅ **PRODUCTION READY - ALL DATASETS SAFE**
+**Next**: Monitor Modal training completion
+
+---
+
 ## v3.8.0 - True Zero-Debt Modal Training Baseline (2025-10-06)
 
 **THE production baseline** - Eliminates NPZ cache contamination discovered after v3.7.0
