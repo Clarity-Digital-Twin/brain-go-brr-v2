@@ -17,7 +17,7 @@ Data
 
 - `dataset: tuh_eeg` (TUSZ is the only supported dataset)
 - `data_dir: path` — raw EDF root containing `train/`, `dev/`, `eval/`
-- `cache_dir: path` — NPZ cache root (`train/` + `dev/` subdirectories)
+- `cache_dir: path` — Memory-mapped cache root (`train/` + `dev/` subdirectories containing `*_data.npy` / `*_labels.npy` + manifests)
 - `use_balanced_sampling: bool` — use manifest‑driven balanced dataset
 - `sampling_rate: 256`, `n_channels: 19`, `window_size: 60`, `stride: 10`
 - `num_workers: 0..32` (WSL2: prefer 0), `pin_memory`, `persistent_workers`, `prefetch_factor`

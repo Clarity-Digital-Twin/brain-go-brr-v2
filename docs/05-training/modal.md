@@ -9,7 +9,7 @@ Modal functions will stop after ~8 minutes when terminal disconnects unless you 
 ## Quick Commands
 
 - Populate cache (one-time, from S3): `modal run --detach deploy/modal/app.py --action populate-cache`
-  - **IMPORTANT**: This command removes existing `/results/cache/tusz/{train,dev}` before copying fresh data from S3
+  - **IMPORTANT**: This command removes existing `/results/cache/tusz_mmap/{train,dev}` before copying fresh data from S3
   - Training uses the SSD cache and will NOT clear it unless you re-run populate-cache or clean-cache
 - Test Mamba CUDA: `modal run deploy/modal/app.py --action test-mamba`
 - Smoke: `modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml`
@@ -135,7 +135,7 @@ BGB_NAN_DEBUG=1          # Extra NaN logging
 | Preflight batch | ~2 min | Test forward/backward pass |
 | **Total to epoch start** | **~10-15 min** | When training actually begins |
 
-**v3.4.1 Fix**: Worker spawn reduced from 1h+ to <5 min by setting `persistent_workers: false` and `num_workers: 4` (see MODAL_TRAINING_HANG_INVESTIGATION.md). See **DataLoader profiles** below for throughput-oriented variants once the baseline is stable.
+**Mmap cache update:** Worker spawn remains <5 min with `num_workers: 4` and `persistent_workers: true` because the memory-mapped cache lets workers share pages safely. See the profiles below for alternative trade-offs.
 
 ## DataLoader profiles
 
@@ -144,26 +144,26 @@ Baseline (safe)
 ```yaml
 data:
   num_workers: 4
-  persistent_workers: false
+  persistent_workers: true
   prefetch_factor: 2
 training:
-  batch_size: 32
-  gradient_accumulation_steps: 2  # effective 64
+  batch_size: 48
+  gradient_accumulation_steps: 1
 ```
 
-- Crash-proof configuration used for day-to-day runs.
-- Keeps first epoch under ~15 minutes and peak VRAM comfortably below 50 GB.
+- Matches `configs/modal/train.yaml` and keeps peak VRAM ≈58 GB.
+- Keeps first epoch under ~15 minutes on the A100 baseline.
 
 Throughput profile (after smoke verification)
 
 ```yaml
 data:
   num_workers: 8
-  persistent_workers: false
+  persistent_workers: true
   prefetch_factor: 4
 ```
 
-- Doubles data-loading throughput while keeping startup predictable.
+- Doubles data-loading throughput while keeping the mmap cache warm.
 
 Aggressive profile (benchmarking only)
 
@@ -177,15 +177,15 @@ training:
   gradient_accumulation_steps: 1
 ```
 
-- Re-enables persistent workers after capping prefetch. Only keep if the first epoch remains <15 minutes and VRAM stays <70 GB; otherwise drop back to the safe profile.
+- Benchmarking only. Monitor VRAM (<70 GB) and startup time before adopting.
 
 ## Cache and Volumes
 
 - Raw data mounted at `/data/edf/` (read‑only dataset mount)
-- Cache on persistent SSD volume at `/results/cache/tusz` (patient‑disjoint subdirs: `{train,dev}`)
+- Cache on persistent SSD volume at `/results/cache/tusz_mmap` (patient‑disjoint subdirs: `{train,dev}`)
 - Results saved to `/results/` (same persistent volume)
 - Ensure `data.data_dir: /data/edf`; the loader enforces official patient-disjoint splits automatically (no `split_policy` field required)
-- Ensure `data.cache_dir: /results/cache/tusz` in configs
+- Ensure `data.cache_dir: /results/cache/tusz_mmap` in configs
 - Do not use S3 for cache on Modal; prebuilt caches should be synced into the Modal volume
 
 ## Patient Disjointness
@@ -229,7 +229,7 @@ Expect to see:
 **Expected**: 10-15 minutes with the safe dataloader profile
 - Check logs: `modal app logs <app-id>`
 - Look for the cache validation lines and the first `[BATCH START]` message.
-- If startup exceeds ~15 minutes, inspect worker spawn counts; revert to the baseline profile (4 workers, `persistent_workers: false`) before investigating further.
+- If startup exceeds ~15 minutes, inspect worker spawn counts; revert to the baseline profile (4 workers, `persistent_workers: true`) before investigating further.
 
 ### XID 31 GPU crashes
 **Cause**: A100 memory fragmentation or stale Triton cache
@@ -241,7 +241,7 @@ Expect to see:
 ### Zero seizures in batches
 **Cause**: Missing manifest or balanced sampling disabled
 **Fix**:
-1. Verify manifest exists: `modal volume ls seizure-detection-data results/cache/tusz/train/manifest.json`
+1. Verify manifest exists: `modal volume ls seizure-detection-data results/cache/tusz_mmap/train/manifest.json`
 2. Ensure `use_balanced_sampling: true` in config
 3. Rebuild cache if needed: `modal run --detach deploy/modal/app.py --action populate-cache`
 
