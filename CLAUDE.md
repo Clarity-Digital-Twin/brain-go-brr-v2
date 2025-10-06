@@ -318,7 +318,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 
 ### Modal-Specific Settings
 - **Resources**: 24 CPU cores + 96GB RAM (defaults are too low!)
-- **Storage**: Cache on `/results/cache/tusz/` (persistent SSD), outputs to `/results/`; avoid S3 for training hot path
+- **Storage**: Cache on `/results/cache/tusz_mmap/` (persistent SSD), outputs to `/results/`; avoid S3 for training hot path
 - **W&B**: Set entity to team name if using team API key
 - **Detached runs**: Use `--detach` for long training sessions
 
