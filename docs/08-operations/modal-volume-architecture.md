@@ -1,189 +1,142 @@
-# Modal Volume Architecture - FINAL CLARITY
+# Modal Volume Architecture (Mmap Edition)
 
-## Overview
-After thorough investigation and cleanup (Sep 25, 2025), here's the **CORRECT** Modal architecture:
+**Last Updated**: October 6, 2025
+**Goal**: Keep the Modal A100 runtime fast and reliable now that the cache uses memory-mapped NPY files.
 
-## 1. Cache Architecture
+---
 
-### Local Caches
-- **Location**: `cache/tusz/`
-  - `train/`: 4,667 NPZ files (306GB)
-  - `dev/`: 1,832 NPZ files (143GB) - **CRITICAL: Named 'dev' to match TUSZ official splits!**
-  - **Total**: 449GB
-- **Smoke tests**: Use SAME cache with `BGB_LIMIT_FILES=3` env var
-- **NO SEPARATE SMOKE CACHE EXISTS OR IS NEEDED**
+## 1. Cache Locations
 
-### S3 Bucket Structure
-- **Bucket**: `s3://brain-go-brr-eeg-data-20250919/`
-- **Contents**:
-  ```
-  tusz/edf/           # Raw EDF data (266GB)
-  cache/tusz/         # NPZ caches (449GB) - uploaded after local rebuild
-    ├── train/        # 4,667 NPZ files
-    └── dev/          # 1,832 NPZ files (NOT 'val' - matches TUSZ naming!)
-  ```
-  NPZ caches should NOT be used directly from S3 for training - copy to Modal SSD first!
+| Environment | Path | Contents |
+|-------------|------|----------|
+| Local | `cache/tusz_mmap/{train,dev}` | `_data.npy` / `_labels.npy` pairs + `manifest.json` + `_dataset_index.json` |
+| Modal SSD | `/results/cache/tusz_mmap/{train,dev}` | Same structure as local (populated once, reused) |
+| S3 Backup | `s3://brain-go-brr-eeg-data-20250919/cache/tusz_mmap/` | Authoritative backup used by `populate-cache` |
 
-### Modal Cache Location
-- **Method**: Modal persistent volume (fast SSD)
-- **Mount point**: `/results/cache/tusz/{train,dev}`
-- Populate once (e.g., by copying from local or S3), then reuse across runs.
-- **IMPORTANT**: The `populate-cache` command intentionally removes existing cache directories before copying fresh data from S3
-- Training uses the SSD cache as-is and does NOT clear it (only populate-cache or clean-cache commands remove cache)
+All configs (local + Modal) now point at the mmap cache paths. The original NPZ cache (`cache/tusz/`) should be treated as a legacy backup only.
 
-## 2. Modal Persistence Volume
+---
 
-### Purpose
-- **Name**: `brain-go-brr-results`
-- **Size**: 431 MiB (after cleanup)
-- **Purpose**: Store training outputs ONLY (not caches!)
+## 2. Why the mmap cache matters
 
-### Directory Structure (AFTER CLEANUP)
+- **Zero-copy reads**: DataLoader workers open files with `np.load(..., mmap_mode='r')`; the OS page cache keeps hot pages in RAM and evicts cold pages automatically.
+- **Shared pages**: Multiple workers (and epochs) reuse the same cached pages, keeping per-worker RSS below 2 GB instead of the 85 GB required by compressed NPZ queues.
+- **Latency**: Window access falls from ~1.1 s (decompress NPZ) to ~0.01 ms (mmap page fault), which is critical for validation and Modal throughput.
+
+---
+
+## 3. Modal volume layout
+
 ```
 /results/
-├── smoke/          # Smoke test results
-│   ├── checkpoints/
-│   ├── tensorboard/
-│   └── wandb/
-├── train/          # Full training results (created when needed)
-├── checkpoints/    # Model checkpoints (created when needed)
-├── tensorboard/    # TB logs (created when needed)
-└── wandb/          # W&B logs (created when needed)
+├── cache/
+│   └── tusz_mmap/        # Memory-mapped cache (train/dev)
+├── checkpoints/          # Optional global checkpoint stash
+├── smoke/                # Smoke job outputs (small)
+├── train/                # Full training outputs (checkpoints, TB, W&B)
+└── tensorboard/, wandb/  # Created on demand
 ```
 
-### DELETED Directories
-- `/results/results/` - DELETED (confusing duplicate)
+Guidelines:
+- Keep **only** the mmap cache under `/results/cache/`; delete the legacy NPZ cache (`/results/cache/tusz/`) to free ~450 GB once you have migrated.
+- Prune old training runs (checkpoints, TB logs, W&B artifacts) regularly so the 958 GiB quota is never exhausted before new populate jobs run.
 
-## 3. Modal Function Volumes
+---
+
+## 4. Function mounts
 
 ```python
 @app.function(
     volumes={
-        "/data": data_mount,         # S3: Raw EDF data (read‑only)
-        "/results": results_volume,  # Persistent: Training outputs + NPZ caches
+        "/data": data_mount,              # S3 (EDF corpus, read-only)
+        "/results": results_volume,       # Modal SSD with cache + outputs
     }
 )
 ```
 
-## 4. Key Insights
+- `/data` remains a CloudBucketMount pointed at `tusz/edf/`; streaming EDFs from S3 is fine.
+- `/results` is the persistent SSD volume holding both the mmap cache and run artefacts.
 
-### Why Modal Volumes Were Confusing
-1. **Keep caches on the Modal SSD volume** — avoids S3 throttling and network variability
-2. **One-time population** — copy NPZ caches into `/results/cache/tusz` once and reuse
-3. **EDFs via S3 mount are fine** — raw inputs are streamed; caches are hot-path and must be local
+---
 
-### Smoke Tests Don't Need Separate Cache
-- Smoke tests use `BGB_LIMIT_FILES=3` (local) or `=50` (Modal)
-- This limits how many files are loaded from the SAME cache
-- No need to maintain separate smoke cache!
+## 5. Populate / clean workflow
 
-## 5. Configuration Summary
+### One-time populate
 
-### Local Training
-```yaml
-data:
-  cache_dir: cache/tusz  # Local cache directory
-```
-
-### Modal Training
-```yaml
-data:
-  cache_dir: /results/cache/tusz  # Modal persistent SSD volume
-```
-
-### Environment Variables
-- `BGB_LIMIT_FILES=3` - Local smoke tests
-- `BGB_LIMIT_FILES=50` - Modal smoke tests
-- `BGB_SMOKE_TEST=1` - Skip seizure sampling for smoke tests
-
-## 6. Cache Population Strategy
-
-### Why NOT S3 Mount for Cache?
-- **S3 is SLOW**: Network latency kills training performance
-- **S3 throttling**: Can hit rate limits with parallel data loading
-- **S3 costs**: Egress charges for repeatedly reading 450GB cache
-- **Reliability**: Network hiccups can crash training
-
-### Why Modal SSD Volume?
-- **FAST**: Local NVMe SSD with microsecond latency
-- **Reliable**: No network issues
-- **Persistent**: Survives between runs
-- **Cost-effective**: One-time population, then free reads
-
-### One-Time Cache Population
-```python
-@app.function(
-    volumes={
-        "/results": results_volume,
-        "/s3_cache": modal.CloudBucketMount(...),  # Temporary S3 mount
-    },
-    timeout=7200,  # 2 hours for 450GB copy
-    cpu=24,
-    memory=65536,
-)
-def populate_cache():
-    """One-time copy of cache from S3 to Modal SSD volume."""
-    import shutil
-    from pathlib import Path
-
-    src = Path("/s3_cache")  # S3 mount
-    dst = Path("/results/cache/tusz")  # SSD volume
-
-    # Copy train
-    print(f"Copying {src}/train to {dst}/train...")
-    shutil.copytree(src / "train", dst / "train", dirs_exist_ok=True)
-
-    # Copy dev
-    print(f"Copying {src}/dev to {dst}/dev...")
-    shutil.copytree(src / "dev", dst / "dev", dirs_exist_ok=True)
-
-    # Verify
-    train_files = len(list((dst / "train").glob("*.npz")))
-    dev_files = len(list((dst / "dev").glob("*.npz")))
-    print(f"✅ Populated cache: {train_files} train, {dev_files} dev files")
-```
-
-### Commands Reference
 ```bash
-# One-time cache population from S3 to Modal SSD (use --detach!)
+# Copy mmap cache from S3 → Modal SSD (use --detach)
 modal run --detach deploy/modal/app.py --action populate-cache
 ```
 
-### Modal Volume Management
+The populate routine:
+1. Mounts the S3 bucket at `/s3_cache/cache/tusz_mmap`.
+2. Removes existing `/results/cache/tusz_mmap` directories (train + dev).
+3. Copies train and dev splits, including manifests and index files.
+4. Logs counts of `_data.npy` / `_labels.npy` pairs for verification.
+
+### Cleaning the cache
+
 ```bash
-# Inspect volume
-modal run deploy/modal/inspect_volume.py
-
-# Clean up volume
-modal run deploy/modal/cleanup_volume.py
+modal run deploy/modal/app.py --action clean-cache
 ```
 
-### Modal Training
+Use this before repopulating if you suspect corruption or want to reclaim space. Training itself never removes cache files; only the populate/clean commands manage them.
+
+---
+
+## 6. When to copy vs stream
+
+| Scenario | Recommendation |
+|----------|----------------|
+| Standard 100-epoch run | Copy to `/results/cache/tusz_mmap` and reuse (fastest, proven) |
+| Experimenting with new cache | Rebuild locally → upload to S3 → populate Modal |
+| Emergency / no SSD space | You can experiment with mounting S3 directly, but expect higher latency and potential throttling. Clean old runs first instead. |
+
+If populate-cache fails with “No space left on device”, delete legacy directories and stale checkpoints before retrying:
 ```bash
-# Smoke test
-modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
-
-# Full training
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+modal run deploy/modal/app.py --action clean-cache                # optional
+modal volume ls brain-go-brr-results                              # inspect size
+modal run deploy/modal/app.py --action cleanup-old-runs --days 14  # custom util if available
 ```
 
-## 7. Final Architecture
+---
 
+## 7. Smoke vs full training
+
+- **Smoke jobs** (`configs/modal/smoke.yaml`) use the same cache but limit file consumption with `BGB_LIMIT_FILES=50`.
+- **Full training** (`configs/modal/train.yaml`) accesses every file and relies on the mmap cache for performance.
+- No separate “smoke cache” is required; keeping a single mmap cache avoids duplication.
+
+---
+
+## 8. Quick health checks
+
+```bash
+# Verify cache file counts
+modal run deploy/modal/app.py --action check-cache
+
+# Inspect volume usage
+modal volume ls brain-go-brr-results
+
+# Download manifests for inspection
+modal run deploy/modal/app.py --action dump-manifest --split train > train_manifest.json
 ```
-LOCAL                      MODAL (volume)
-─────                      ──────────────
-cache/tusz/
-  ├── train/ ──sync──► /results/cache/tusz/train/
-  └── dev/   ──sync──► /results/cache/tusz/dev/  # TUSZ naming: dev not val!
 
-results/                  /results/
-  └── local_runs/           ├── cache/tusz/{train,dev}
-                             ├── smoke/
-                             └── train/
-```
+Use these before expensive runs or after cleanups to ensure the cache is populated and manifests are present.
 
-## Summary
-- **Caches**: Stored on Modal persistent volume at `/results/cache/tusz`
-- **Results**: Stored on Modal persistent volume at `/results/`
-- **Smoke tests**: Use same cache with file limits (no separate cache)
- - **Avoid S3 for caches**: eliminate throttling and timeouts on the hot path
+---
+
+## 9. FAQ
+
+**Q: Why not stream mmap files directly from S3?**  
+A: Page faults would incur S3 GET requests; balanced sampling touches thousands of files per epoch. The SSD cache keeps everything hot and avoids network noise.
+
+**Q: Do I still need the NPZ cache?**  
+A: Only as a legacy backup. Once the mmap migration is stable, delete `/results/cache/tusz/` on Modal and `cache/tusz/` locally to reclaim space.
+
+**Q: How big should the Modal volume be?**  
+A: Keep at least 600 GB free (≈500 GB cache + headroom for checkpoints). Routine cleanup of old runs prevents populate jobs from failing.
+
+---
+
+By keeping the mmap cache warm on the Modal SSD and pruning legacy artefacts, the A100 jobs stay fast and predictable.
