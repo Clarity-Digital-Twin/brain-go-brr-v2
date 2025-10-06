@@ -109,7 +109,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
 
             if cache_path is not None:
                 try:
-                    windows_mmap, labels_mmap = self._load_cache_for_worker(cache_path)
+                    windows_mmap, _labels_mmap = self._load_cache_for_worker(cache_path)
                     n_windows = windows_mmap.shape[0]
                 except FileNotFoundError:
                     raise FileNotFoundError(

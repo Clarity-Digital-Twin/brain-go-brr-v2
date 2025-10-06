@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    from wandb.sdk.wandb_run import Run as WandBRun
+    from wandb.sdk.wandb_run import Run as WandBRun  # type: ignore[import-not-found]
 
 import torch
 import torch.nn as nn
