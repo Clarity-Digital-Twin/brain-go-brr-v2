@@ -527,8 +527,8 @@ class BalancedSeizureDataset(Dataset):
         window_start_s = w_idx * constants.STRIDE_SIZE_SEC
 
         return {
-            "window": torch.from_numpy(window),
-            "label": torch.from_numpy(label),
+            "window": torch.from_numpy(window).clone(),
+            "label": torch.from_numpy(label).clone(),
             "file_id": file_id,
             "window_start_s": float(window_start_s),
         }
@@ -596,12 +596,24 @@ class ValidationDataset(Dataset):
         file_to_windows: dict[str, list[tuple[int, Path]]] = defaultdict(list)
         missing_ref_count = 0
 
+        def cache_file_exists(cache_path: Path) -> bool:
+            """Check if cache file exists in NPY mmap format.
+
+            Manifest references legacy NPZ naming (*_windows) but actual files
+            are NPY format (*_data.npy + *_labels.npy). This helper translates.
+            """
+            if cache_path.exists():
+                return True
+            stem = cache_path.stem.replace("_windows", "")
+            data_file = cache_path.parent / f"{stem}_data.npy"
+            return data_file.exists()
+
         for item in all_entries:
             cache_file_name = item["cache_file"]
             if allowed_cache_files is not None and cache_file_name not in allowed_cache_files:
                 continue
             cache_file_path = self.cache_dir / cache_file_name
-            if cache_file_path.exists():
+            if cache_file_exists(cache_file_path):
                 file_to_windows[cache_file_name].append((int(item["window_idx"]), cache_file_path))
             else:
                 missing_ref_count += 1
@@ -682,8 +694,8 @@ class ValidationDataset(Dataset):
         window_start_s = w_idx * constants.STRIDE_SIZE_SEC
 
         return {
-            "window": torch.from_numpy(window),
-            "label": torch.from_numpy(label),
+            "window": torch.from_numpy(window).clone(),
+            "label": torch.from_numpy(label).clone(),
             "file_id": file_id,
             "window_start_s": float(window_start_s),
         }
