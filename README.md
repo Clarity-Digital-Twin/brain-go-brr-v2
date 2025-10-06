@@ -6,7 +6,7 @@
 [![PyTorch 2.5.0](https://img.shields.io/badge/pytorch-2.5.0-red.svg)](https://pytorch.org)
 [![CUDA 12.4](https://img.shields.io/badge/cuda-12.4-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
-[![v3.7.0](https://img.shields.io/badge/version-3.7.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.7.0-zero-debt-modal-baseline)
+[![v3.8.1](https://img.shields.io/badge/version-3.8.1-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.8.1-complete-tensor-safety)
 
 ## Overview
 
@@ -30,7 +30,7 @@ V3 implements a **dual-stream architecture** grounded in state-space models and 
 
 **Theoretical foundation**: [EvoBrain (NeurIPS 2025)](literature/markdown/EVOBRAIN.md) proves time-then-graph ordering achieves +23% AUROC over alternatives.
 
-**Status**: v3.7.0 - Zero Debt Modal Baseline. FINAL production-ready release before Modal A100 training. All P2/P3 debt eliminated, 84 constants (69% utilization), type-safe exceptions, docs perfectly aligned. See [release notes](RELEASE_NOTES.md) for details.
+**Status**: v3.8.1 - Complete Tensor Safety. All 3 datasets now safe from read-only mmap tensor warnings. EEGWindowDataset .clone() added (missed in v3.8.0), scheduler order verified. Production-ready for Modal A100 training. See [release notes](RELEASE_NOTES.md) for details.
 
 ## 🏗️ Architecture: Theory & Design
 
@@ -313,15 +313,17 @@ We welcome contributions! See [development docs](docs/09-development/) for:
 
 Run `make q` before committing (lint + format + type check).
 
-## Training Status (v3.8.0)
+## Training Status (v3.8.1)
 
-**v3.8.0 – Read-Only Mmap Baseline:**
-- ✅ Datasets now fail fast on cache misses (no more silent NPZ rebuilds)
+**v3.8.1 – Complete Tensor Safety:**
+- ✅ All 3 datasets safe from read-only mmap tensor warnings (EEGWindowDataset .clone() added)
+- ✅ Scheduler order verified correct (optimizer → scheduler), paper-over removed from train_step.py
+- ✅ Datasets fail fast on cache misses (no silent NPZ rebuilds)
 - ✅ Shared mmap loader removes 120 duplicate lines and standardises logging
 - ✅ Modal automation: `check-cache` warns about stray NPZ, `clean_stray_npz.py` fixes in one command
-- ✅ Documentation refreshed end-to-end (AGENTS, modal/local guides, config references)
+- ✅ Documentation fully aligned with v3.8.1 release
 - ✅ Tests: 104 unit/integration + clinical suites, 83.8% coverage, all green
-- ✅ Production-ready for modal A100-80GB and local RTX 4090
+- ✅ Production-ready for Modal A100-80GB and local RTX 4090
 
 See [release notes](RELEASE_NOTES.md) for historical details.
 

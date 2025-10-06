@@ -1,7 +1,7 @@
-# Brain-Go-Brr Documentation (v3.8.0)
+# Brain-Go-Brr Documentation (v3.8.1)
 
 **Last Updated**: October 6, 2025
-**Codebase Version**: v3.8.0 (True Zero-Debt Modal Training Baseline)
+**Codebase Version**: v3.8.1 (Complete Tensor Safety)
 **Architecture**: V3 Dual-Stream (TCN + BiMamba + GNN + Dynamic LPE)
 **Status**: 🟢 Zero active debt, full Modal training in progress
 
@@ -136,7 +136,7 @@ Learn by doing:
 
 ## ⚙️ Key Technical Details
 
-### Architecture (v3.8.0)
+### Architecture (v3.8.1)
 - **TCN**: 8 layers, channels [64,128,256,512], stride=16
 - **Node Mamba**: 6 layers, d_model=64, bidirectional SSM
 - **Edge Mamba**: 2 layers, d_model=16, learned adjacency
@@ -144,7 +144,8 @@ Learn by doing:
 - **Parameters**: ~31M total
 - **Dynamic PE**: Always enabled with safeguards (v3.3.1+)
 
-### Training Stability (v3.8.0)
+### Training Stability (v3.8.1)
+- ✅ **Complete tensor safety** (v3.8.1): All 3 datasets use .clone() for mmap tensors
 - ✅ **Zero NPZ contamination** (v3.8.0): Datasets read-only, fail-fast on cache miss
 - ✅ **Memory-mapped cache** (v3.8.0): <1 GB RAM vs 387 GB NPZ, 99.6% faster startup
 - ✅ **Gradient stability** (v3.8.0): P95 decreasing 62.52 → 7.42 during training
@@ -267,9 +268,10 @@ This documentation follows the **Diátaxis framework**:
 
 ## 🎯 Project Status
 
-**Current Version**: v3.8.0 (October 6, 2025) - True Zero-Debt Modal Training Baseline
+**Current Version**: v3.8.1 (October 6, 2025) - Complete Tensor Safety
 
 **Recent Milestones**:
+- ✅ v3.8.1 (Oct 6): Complete tensor safety - all datasets fixed (EEGWindowDataset .clone() added)
 - ✅ v3.8.0 (Oct 6): NPZ contamination eliminated, zero active debt
 - ✅ v3.7.0 (Oct 5): All P2/P3 debt eliminated
 - ✅ v3.6.2 (Oct 5): Complete debt elimination baseline

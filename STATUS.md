@@ -1,9 +1,9 @@
-# Brain-Go-Brr v3.8.0 – Current Status
+# Brain-Go-Brr v3.8.1 – Current Status
 
-**Last Updated:** 2025-10-06 (14:45 UTC)
-**Branch:** `development`
-**Version:** v3.8.0 (True Zero-Debt Modal Training Baseline)
-**Deployment:** Modal smoke test running (ap-39MmeGlcwE1KgLEibaq8Cg)
+**Last Updated:** 2025-10-06 (22:11 UTC)
+**Branch:** `main`
+**Version:** v3.8.1 (Complete Tensor Safety)
+**Deployment:** Modal full training running (100 epochs on A100-80GB)
 
 ---
 
@@ -26,19 +26,21 @@
 
 ---
 
-## Latest Improvements (v3.8.0 - October 6, 2025)
+## Latest Improvements (v3.8.1 - October 6, 2025)
 
-### NPZ Cache Contamination Fix (P0 - BLOCKER)
+### Complete Tensor Safety (P0 - BLOCKER)
+- ✅ Added `.clone()` to EEGWindowDataset (lines 307, 312) - missed in v3.8.0
+- ✅ All 3 datasets now safe from read-only mmap tensor undefined behavior
+- ✅ Removed broad warning suppression from train_step.py (paper-over eliminated)
+- ✅ Verified scheduler step order is correct (optimizer → scheduler)
+- ✅ Updated TECHNICAL_DEBT.md to reflect truth (verified vs fixed)
+
+### Previous Fixes (v3.8.0)
 - ✅ Cleaned 3 stray NPZ files from Modal cache (66.1 MiB freed)
 - ✅ Fixed datasets.py NPZ creation bug (removed all `np.savez_compressed` calls)
 - ✅ Updated cache validation to check NPY files (mmap format)
-- ✅ Fixed test regression (cache_dir=None support restored)
-
-### Code Quality Improvements (P2)
 - ✅ Fixed all type annotations (WandBRun, Console instead of Any)
 - ✅ Extracted duplicate `_load_cache_for_worker` to shared function (120 lines eliminated)
-- ✅ Updated NPZ references in comments to reflect NPY mmap format
-- ✅ Fixed clean_cache() paths (cache/tusz → cache/tusz_mmap)
 
 ### Architecture Enhancements
 - ✅ V3 dual-stream with edge similarity clamping (prevents ±1.0 explosions)
@@ -51,15 +53,16 @@
 
 ## Current Deployment
 
-**Modal Smoke Test (Running)**:
-- App ID: `ap-39MmeGlcwE1KgLEibaq8Cg`
-- URL: https://modal.com/apps/clarity-digital-twin/main/ap-39MmeGlcwE1KgLEibaq8Cg
-- Config: 50 files, 1 epoch (~10 min)
-- Status: ✅ Launched successfully with zero debt baseline
+**Modal Full Training (Running)**:
+- App ID: `ap-1SRGX4M1AvxonDi8EDsjnZ` (launched Oct 6, 21:56 UTC)
+- Config: 100 epochs, batch_size=48, A100-80GB
+- Cache: 4667 train + 1832 dev NPY files (verified)
+- Status: ✅ Epoch 1 started successfully with v3.8.1 fixes
+- W&B: https://wandb.ai/jj-vcmcswaggins-novamindnyc/seizure-detection-a100/runs/e3c9f710e17747359f19819e4e4ec4bd
 
 **Next Steps**:
-1. Monitor smoke test completion
-2. Launch full training (100 epochs, ~$319)
+1. Monitor training progress (~100 hours expected)
+2. Analyze results and validate TAES metrics
 3. Optional post-training optimizations (P4/P5)
 
 ---
