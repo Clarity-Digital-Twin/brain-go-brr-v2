@@ -97,40 +97,48 @@ def inspect_volume():
         train_dir = os.path.join(cache_root, "train")
         if os.path.exists(train_dir):
             train_npz = len([f for f in os.listdir(train_dir) if f.endswith('.npz')])
+            train_data_npy = len([f for f in os.listdir(train_dir) if f.endswith('_data.npy')])
+            train_labels_npy = len([f for f in os.listdir(train_dir) if f.endswith('_labels.npy')])
             train_manifest = os.path.join(train_dir, "manifest.json")
             train_index = os.path.join(train_dir, "_dataset_index.json")
             logger.info(f"\nTrain split:")
-            logger.info(f"  → NPZ files: {train_npz}")
+            logger.info(f"  → NPZ files: {train_npz} (legacy, should be 0)")
+            logger.info(f"  → NPY data files: {train_data_npy} (expected 4667)")
+            logger.info(f"  → NPY label files: {train_labels_npy} (expected 4667)")
             logger.info(f"  → manifest.json: {'✅ EXISTS' if os.path.exists(train_manifest) else '❌ MISSING'}")
-            logger.info(f"  → _dataset_index.json: {'✅ EXISTS' if os.path.exists(train_index) else '❌ MISSING'}")
+            logger.info(f"  → _dataset_index.json: {'✅ EXISTS' if os.path.exists(train_index) else '❌ MISSING (optional)'}")
             if os.path.exists(train_manifest):
-                size_mb = os.path.getsize(train_manifest) / 1024 / 1024
-                logger.info(f"     Size: {size_mb:.1f} MB")
+                size_kb = os.path.getsize(train_manifest) / 1024
+                logger.info(f"     Manifest size: {size_kb:.1f} KB")
 
         # Check dev split
         dev_dir = os.path.join(cache_root, "dev")
         if os.path.exists(dev_dir):
             dev_npz = len([f for f in os.listdir(dev_dir) if f.endswith('.npz')])
+            dev_data_npy = len([f for f in os.listdir(dev_dir) if f.endswith('_data.npy')])
+            dev_labels_npy = len([f for f in os.listdir(dev_dir) if f.endswith('_labels.npy')])
             dev_manifest = os.path.join(dev_dir, "manifest.json")
             dev_index = os.path.join(dev_dir, "_dataset_index.json")
             logger.info(f"\nDev split:")
-            logger.info(f"  → NPZ files: {dev_npz}")
-            logger.info(f"  → manifest.json: {'✅ EXISTS' if os.path.exists(dev_manifest) else '❌ MISSING'}")
-            logger.info(f"  → _dataset_index.json: {'✅ EXISTS' if os.path.exists(dev_index) else '❌ MISSING'}")
-            if os.path.exists(dev_index):
-                size_kb = os.path.getsize(dev_index) / 1024
-                logger.info(f"     Size: {size_kb:.1f} KB")
+            logger.info(f"  → NPZ files: {dev_npz} (legacy, should be 0)")
+            logger.info(f"  → NPY data files: {dev_data_npy} (expected 1832)")
+            logger.info(f"  → NPY label files: {dev_labels_npy} (expected 1832)")
+            logger.info(f"  → manifest.json: {'✅ EXISTS' if os.path.exists(dev_manifest) else '❌ MISSING [CRITICAL]'}")
+            logger.info(f"  → _dataset_index.json: {'✅ EXISTS' if os.path.exists(dev_index) else '❌ MISSING (optional)'}")
+            if os.path.exists(dev_manifest):
+                size_kb = os.path.getsize(dev_manifest) / 1024
+                logger.info(f"     Manifest size: {size_kb:.1f} KB")
 
-        # Readiness check
+        # Readiness check (NPY mmap format)
         train_ready = (
             os.path.exists(train_dir) and
             os.path.exists(os.path.join(train_dir, "manifest.json")) and
-            len([f for f in os.listdir(train_dir) if f.endswith('.npz')]) >= 4600
+            len([f for f in os.listdir(train_dir) if f.endswith('_data.npy')]) >= 4600
         )
         dev_ready = (
             os.path.exists(dev_dir) and
-            os.path.exists(os.path.join(dev_dir, "_dataset_index.json")) and
-            len([f for f in os.listdir(dev_dir) if f.endswith('.npz')]) >= 1800
+            os.path.exists(os.path.join(dev_dir, "manifest.json")) and
+            len([f for f in os.listdir(dev_dir) if f.endswith('_data.npy')]) >= 1800
         )
 
         logger.info(f"\n🚀 TRAINING READINESS:")
