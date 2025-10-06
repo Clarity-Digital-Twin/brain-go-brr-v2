@@ -11,7 +11,7 @@ import time
 from collections.abc import Sized
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run as WandBRun
@@ -182,7 +182,7 @@ def train_epoch(
     log_every_n_steps: int = LOG_EVERY_N_STEPS,
     log_gradients: bool = False,
     log_weights: bool = False,
-    wandb_logger: "WandBRun | None" = None,
+    wandb_logger: WandBRun | None = None,
 ) -> float | tuple[float, int]:
     """Train for one epoch.
 

@@ -11,6 +11,7 @@ from collections import deque
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+
 from rich.console import Console, Optional, cast
 
 from src.brain_brr.constants import LOG_EVERY_N_STEPS

@@ -18,10 +18,10 @@ import os
 import sys
 import time
 from collections import deque
-
-from rich.console import Console
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
+
+from rich.console import Console
 
 if TYPE_CHECKING:  # pragma: no cover - type checking only
     pass

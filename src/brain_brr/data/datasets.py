@@ -251,21 +251,9 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         Returns:
             Tuple of (windows_mmap, labels_mmap) where mmap arrays are OS-managed
         """
-        if cache_path not in self._mmap_handles:
-            # Convert NPZ path to NPY paths
-            # Format: aaaaaajy_s001_t000_data.npy + aaaaaajy_s001_t000_labels.npy (mmap)
-            stem = cache_path.stem.replace("_windows", "")
-            windows_file = cache_path.parent / f"{stem}_data.npy"
-            labels_file = cache_path.parent / f"{stem}_labels.npy"
+        from src.brain_brr.data.cache_utils import load_cache_mmap
 
-            # Open as memory-mapped (ZERO copies to RAM!)
-            # OS manages memory automatically via page cache
-            windows_mmap = np.load(windows_file, mmap_mode="r")
-            labels_mmap = np.load(labels_file, mmap_mode="r") if labels_file.exists() else None
-
-            self._mmap_handles[cache_path] = (windows_mmap, labels_mmap)
-
-        return self._mmap_handles[cache_path]
+        return load_cache_mmap(cache_path, self._mmap_handles)
 
     def __len__(self) -> int:
         return len(self._index_map)
@@ -504,21 +492,9 @@ class BalancedSeizureDataset(Dataset):
         Returns:
             Tuple of (windows_mmap, labels_mmap) where mmap arrays are OS-managed
         """
-        if cache_path not in self._mmap_handles:
-            # Convert NPZ path to NPY paths
-            # Format: aaaaaajy_s001_t000_data.npy + aaaaaajy_s001_t000_labels.npy (mmap)
-            stem = cache_path.stem.replace("_windows", "")
-            windows_file = cache_path.parent / f"{stem}_data.npy"
-            labels_file = cache_path.parent / f"{stem}_labels.npy"
+        from src.brain_brr.data.cache_utils import load_cache_mmap
 
-            # Open as memory-mapped (ZERO copies to RAM!)
-            # OS manages memory automatically via page cache
-            windows_mmap = np.load(windows_file, mmap_mode="r")
-            labels_mmap = np.load(labels_file, mmap_mode="r") if labels_file.exists() else None
-
-            self._mmap_handles[cache_path] = (windows_mmap, labels_mmap)
-
-        return self._mmap_handles[cache_path]
+        return load_cache_mmap(cache_path, self._mmap_handles)
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
         """Return window with metadata dict for timeline stitching.
@@ -679,21 +655,9 @@ class ValidationDataset(Dataset):
         Returns:
             Tuple of (windows_mmap, labels_mmap) where mmap arrays are OS-managed
         """
-        if cache_path not in self._mmap_handles:
-            # Convert NPZ path to NPY paths
-            # Format: aaaaaajy_s001_t000_data.npy + aaaaaajy_s001_t000_labels.npy (mmap)
-            stem = cache_path.stem.replace("_windows", "")
-            windows_file = cache_path.parent / f"{stem}_data.npy"
-            labels_file = cache_path.parent / f"{stem}_labels.npy"
+        from src.brain_brr.data.cache_utils import load_cache_mmap
 
-            # Open as memory-mapped (ZERO copies to RAM!)
-            # OS manages memory automatically via page cache
-            windows_mmap = np.load(windows_file, mmap_mode="r")
-            labels_mmap = np.load(labels_file, mmap_mode="r") if labels_file.exists() else None
-
-            self._mmap_handles[cache_path] = (windows_mmap, labels_mmap)
-
-        return self._mmap_handles[cache_path]
+        return load_cache_mmap(cache_path, self._mmap_handles)
 
     def __getitem__(self, idx: int) -> dict[str, Any]:
         """Return window with metadata dict for timeline stitching."""
