@@ -6,15 +6,14 @@ V3 dual-stream architecture combining:
 - GNN (Graph Neural Network) with dynamic Laplacian positional encoding
 - Multi-head gated fusion for node/edge stream combination
 
-v3.8.1: Complete Tensor Safety (All Datasets)
-- Completes P0-2 tensor safety by adding .clone() to EEGWindowDataset (missed in v3.8.0)
-- Removes paper-over broad warning suppression from train_step.py
-- Verifies scheduler step order is correct (no fix needed, cosmetic warning only)
-- All THREE datasets now safe from read-only tensor undefined behavior
-- TECHNICAL_DEBT.md updated with truth (verified correct, not "fixed")
+v3.8.2: Zero Warnings - Professional Fixes
+- Eliminates read-only tensor warnings at source (np.array copy pattern in all 3 datasets)
+- Fixes GradScaler + LRScheduler interaction (proper scale tracking, 2 locations)
+- Training logs now 100% clean with accurate LR schedule
+- Follows official PyTorch AMP best practices
 """
 
-__version__ = "3.8.1"
+__version__ = "3.8.2"
 
 # NO HEAVY IMPORTS AT PACKAGE LEVEL
 # Models should be imported explicitly when needed:

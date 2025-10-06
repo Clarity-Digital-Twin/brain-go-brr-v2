@@ -395,16 +395,25 @@ def train_epoch(
                             step=global_step,
                         )
 
+                # Track optimizer step status for scheduler
+                optimizer_stepped = False
+
                 if scaler.is_enabled():
+                    # Track scale to detect if optimizer step was skipped (inf gradients)
+                    scale_before = scaler.get_scale()
                     scaler.step(optimizer)
                     scaler.update()
+                    # Optimizer stepped if scale didn't decrease (no inf detected)
+                    optimizer_stepped = scaler.get_scale() >= scale_before
                 else:
                     optimizer.step()
+                    optimizer_stepped = True
 
                 accumulation_counter = 0
                 gradient_norms.append(float(pre_clip_norm))
 
-                if scheduler is not None:
+                # Only advance scheduler if optimizer actually updated weights
+                if optimizer_stepped and scheduler is not None:
                     scheduler.step()
                     global_step += 1
 
@@ -546,13 +555,22 @@ def train_epoch(
             pre_clip_norm = nn.utils.clip_grad_norm_(model.parameters(), gradient_clip)
             gradient_norms.append(float(pre_clip_norm))
 
+            # Track optimizer step status for scheduler (end-of-epoch handling)
+            optimizer_stepped = False
+
             if scaler.is_enabled():
+                # Track scale to detect if optimizer step was skipped (inf gradients)
+                scale_before = scaler.get_scale()
                 scaler.step(optimizer)
                 scaler.update()
+                # Optimizer stepped if scale didn't decrease (no inf detected)
+                optimizer_stepped = scaler.get_scale() >= scale_before
             else:
                 optimizer.step()
+                optimizer_stepped = True
 
-            if scheduler is not None:
+            # Only advance scheduler if optimizer actually updated weights
+            if optimizer_stepped and scheduler is not None:
                 scheduler.step()
                 global_step += 1
 

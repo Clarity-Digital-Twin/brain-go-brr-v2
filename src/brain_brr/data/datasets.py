@@ -303,13 +303,13 @@ class EEGWindowDataset(torch.utils.data.Dataset):
             window = windows_arr[window_idx]
             label = labels_arr[window_idx] if labels_arr is not None else None
 
-        # Convert to tensors
-        window_tensor = torch.from_numpy(window).clone()
+        # Convert to tensors (copy on numpy side to avoid read-only warnings)
+        window_tensor = torch.from_numpy(np.array(window, copy=True, dtype=np.float32, order="C"))
         if self.transform is not None:
             window_tensor = self.transform(window_tensor)
 
         if label is not None:
-            label_tensor = torch.from_numpy(label).clone()
+            label_tensor = torch.from_numpy(np.array(label, copy=True, dtype=np.float32, order="C"))
         else:
             # ALWAYS return dict with zero labels when none exist
             # Shape matches window's time dimension for per-timestep labels
@@ -527,8 +527,8 @@ class BalancedSeizureDataset(Dataset):
         window_start_s = w_idx * constants.STRIDE_SIZE_SEC
 
         return {
-            "window": torch.from_numpy(window).clone(),
-            "label": torch.from_numpy(label).clone(),
+            "window": torch.from_numpy(np.array(window, copy=True, dtype=np.float32, order="C")),
+            "label": torch.from_numpy(np.array(label, copy=True, dtype=np.float32, order="C")),
             "file_id": file_id,
             "window_start_s": float(window_start_s),
         }
@@ -694,8 +694,8 @@ class ValidationDataset(Dataset):
         window_start_s = w_idx * constants.STRIDE_SIZE_SEC
 
         return {
-            "window": torch.from_numpy(window).clone(),
-            "label": torch.from_numpy(label).clone(),
+            "window": torch.from_numpy(np.array(window, copy=True, dtype=np.float32, order="C")),
+            "label": torch.from_numpy(np.array(label, copy=True, dtype=np.float32, order="C")),
             "file_id": file_id,
             "window_start_s": float(window_start_s),
         }
