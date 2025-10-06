@@ -224,40 +224,70 @@ def populate_cache():
     # Create destination if needed
     dst.mkdir(parents=True, exist_ok=True)
 
-    # Copy train split
+    # Copy train split (SMART: skip if already complete)
     train_src = src / "train"
     train_dst = dst / "train"
     if train_src.exists():
-        train_data_files = list(train_src.glob("*_data.npy"))
-        logger.info(f"[COPY] Found {len(train_data_files)} train data files to copy (+ {len(train_data_files)} labels files)...")
+        # Check if train split already complete
         if train_dst.exists():
-            logger.info(f"[COPY] Removing existing {train_dst}...")
-            shutil.rmtree(train_dst)
-        logger.info(f"[COPY] Copying {train_src} → {train_dst}...")
-        shutil.copytree(train_src, train_dst)
-        copied_data = len(list(train_dst.glob("*_data.npy")))
-        copied_labels = len(list(train_dst.glob("*_labels.npy")))
-        logger.info(f"[COPY] ✅ Copied {copied_data} data files + {copied_labels} labels files")
+            existing_data = len(list(train_dst.glob("*_data.npy")))
+            expected_data = len(list(train_src.glob("*_data.npy")))
+
+            if existing_data == expected_data:
+                logger.info(f"[SKIP] Train split already complete: {existing_data}/{expected_data} files")
+                logger.info(f"[SKIP] Skipping train copy to preserve existing data")
+            else:
+                logger.info(f"[INCOMPLETE] Train split: {existing_data}/{expected_data} files")
+                logger.info(f"[COPY] Removing incomplete {train_dst}...")
+                shutil.rmtree(train_dst)
+                logger.info(f"[COPY] Copying {train_src} → {train_dst}...")
+                shutil.copytree(train_src, train_dst)
+                copied_data = len(list(train_dst.glob("*_data.npy")))
+                copied_labels = len(list(train_dst.glob("*_labels.npy")))
+                logger.info(f"[COPY] ✅ Copied {copied_data} data files + {copied_labels} labels files")
+        else:
+            train_data_files = list(train_src.glob("*_data.npy"))
+            logger.info(f"[COPY] Found {len(train_data_files)} train data files to copy (+ {len(train_data_files)} labels files)...")
+            logger.info(f"[COPY] Copying {train_src} → {train_dst}...")
+            shutil.copytree(train_src, train_dst)
+            copied_data = len(list(train_dst.glob("*_data.npy")))
+            copied_labels = len(list(train_dst.glob("*_labels.npy")))
+            logger.info(f"[COPY] ✅ Copied {copied_data} data files + {copied_labels} labels files")
     else:
         logger.info(f"[WARNING] No train split found at {train_src}")
 
-    # Copy dev split (TUSZ 'dev' → cache 'dev')
+    # Copy dev split (SMART: skip if already complete)
     # CRITICAL: We use 'dev' naming to match TUSZ's official split naming!
     # TUSZ provides train/dev/eval - we use dev for validation/tuning during training.
     # DO NOT rename to 'val' - this causes confusion with TUSZ documentation.
     dev_src = src / "dev"
     dev_dst = dst / "dev"
     if dev_src.exists():
-        dev_data_files = list(dev_src.glob("*_data.npy"))
-        logger.info(f"[COPY] Found {len(dev_data_files)} dev data files to copy (+ {len(dev_data_files)} labels files)...")
+        # Check if dev split already complete
         if dev_dst.exists():
-            logger.info(f"[COPY] Removing existing {dev_dst}...")
-            shutil.rmtree(dev_dst)
-        logger.info(f"[COPY] Copying {dev_src} → {dev_dst}...")
-        shutil.copytree(dev_src, dev_dst)
-        copied_data = len(list(dev_dst.glob("*_data.npy")))
-        copied_labels = len(list(dev_dst.glob("*_labels.npy")))
-        logger.info(f"[COPY] ✅ Copied {copied_data} data files + {copied_labels} labels files")
+            existing_data = len(list(dev_dst.glob("*_data.npy")))
+            expected_data = len(list(dev_src.glob("*_data.npy")))
+
+            if existing_data == expected_data:
+                logger.info(f"[SKIP] Dev split already complete: {existing_data}/{expected_data} files")
+                logger.info(f"[SKIP] Skipping dev copy to preserve existing data")
+            else:
+                logger.info(f"[INCOMPLETE] Dev split: {existing_data}/{expected_data} files")
+                logger.info(f"[COPY] Removing incomplete {dev_dst}...")
+                shutil.rmtree(dev_dst)
+                logger.info(f"[COPY] Copying {dev_src} → {dev_dst}...")
+                shutil.copytree(dev_src, dev_dst)
+                copied_data = len(list(dev_dst.glob("*_data.npy")))
+                copied_labels = len(list(dev_dst.glob("*_labels.npy")))
+                logger.info(f"[COPY] ✅ Copied {copied_data} data files + {copied_labels} labels files")
+        else:
+            dev_data_files = list(dev_src.glob("*_data.npy"))
+            logger.info(f"[COPY] Found {len(dev_data_files)} dev data files to copy (+ {len(dev_data_files)} labels files)...")
+            logger.info(f"[COPY] Copying {dev_src} → {dev_dst}...")
+            shutil.copytree(dev_src, dev_dst)
+            copied_data = len(list(dev_dst.glob("*_data.npy")))
+            copied_labels = len(list(dev_dst.glob("*_labels.npy")))
+            logger.info(f"[COPY] ✅ Copied {copied_data} data files + {copied_labels} labels files")
     else:
         logger.info(f"[WARNING] No dev split found at {dev_src}")
 
