@@ -30,19 +30,19 @@ configs/
 ### Local (RTX 4090)
 ```yaml
 data:
-  cache_dir: cache/tusz     # MUST use existing cache for train/dev splits
+  cache_dir: cache/tusz_mmap  # Memory-mapped NPY cache for train/dev splits
 ```
-- **Location**: `cache/tusz/train/` (≈4667 NPZ) + `cache/tusz/dev/` (≈1832 NPZ)
-- **Warning**: Do NOT use `cache/v2.6_full/` - it's empty!
+- **Location**: `cache/tusz_mmap/train/` (4667 NPY data+labels) + `cache/tusz_mmap/dev/` (1832 NPY data+labels)
+- **Format**: Uncompressed NPY (mmap-enabled) replaces old compressed NPZ
 
 ### Modal (A100)
 ```yaml
 data:
-  cache_dir: /results/cache/tusz  # Persistent SSD volume
+  cache_dir: /results/cache/tusz_mmap  # Persistent SSD volume (mmap NPY)
 ```
-- **Location**: `/results/cache/tusz/train/` + `/results/cache/tusz/dev/`
-- **Built once**: First run builds cache, all subsequent runs reuse
-- **NOT on S3**: Cache is on fast Modal SSD, never touches S3 after build
+- **Location**: `/results/cache/tusz_mmap/train/` + `/results/cache/tusz_mmap/dev/`
+- **Built once**: populate-cache copies from S3, subsequent runs reuse
+- **Format**: Memory-mapped NPY for minimal RAM usage (<1 GB vs 387 GB)
 
 ## 🚀 Usage Examples
 
@@ -90,7 +90,7 @@ modal app logs <app-id>
 | Persistent Workers | false | false | Prevents spawn delay + memory leaks |
 | **Mid-Epoch Checkpoints** | **30 min** | **30 min** | Crash recovery for long epochs |
 | **Mid-Epoch Keep** | **3** | **3** | Rolling window of snapshots |
-| Cache Location | `cache/tusz/` | `/results/cache/tusz/` | Filesystem differences |
+| Cache Location | `cache/tusz_mmap/` | `/results/cache/tusz_mmap/` | Mmap NPY format |
 
 ## ⚡ Oct 2025 Speed Optimizations
 
@@ -169,8 +169,8 @@ See `docs/05-training/modal.md` for full memory profiling.
 ## ⚠️ Common Pitfalls
 
 1. **Wrong Cache Directory**:
-   - ❌ Local: `cache/v2.6_full/` (empty)
-   - ✅ Local: `cache/tusz/{train,dev}/` (4667 + 1832 files) - Using TUSZ's 'dev' naming!
+   - ❌ Local: `cache/v2.6_full/` (empty) or `cache/tusz/` (old NPZ format)
+   - ✅ Local: `cache/tusz_mmap/{train,dev}/` (4667 + 1832 NPY files) - Using TUSZ's 'dev' naming!
 
 2. **Modal Cache Misconception**:
    - ❌ "Cache is on S3 causing slowdowns"

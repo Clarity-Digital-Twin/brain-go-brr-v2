@@ -28,6 +28,7 @@ from src.brain_brr.constants import (
     DATASET_DISTRIBUTION_SAMPLE_SIZE,
     FOCAL_ALPHA_DEFAULT,
     FOCAL_GAMMA_DEFAULT,
+    HEARTBEAT_INTERVAL_SEC,
     LOG_EVERY_N_STEPS,
     PERCENTILE_P25,
     PERCENTILE_P50,
@@ -209,7 +210,7 @@ def train_epoch(
             supports_training_state = False
 
     last_heartbeat = time.time()
-    heartbeat_interval = 120
+    heartbeat_interval = HEARTBEAT_INTERVAL_SEC
     last_mid_save = time.time()
     mid_interval_s = (
         None if mid_epoch_minutes is None else float(max(0.0, mid_epoch_minutes)) * 60.0

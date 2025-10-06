@@ -20,8 +20,8 @@ from tests.performance.utils import thresholds
 
 # Allow skipping performance tests entirely
 skip_perf_tests = pytest.mark.skipif(
-    os.getenv("SKIP_PERF_TESTS", "0") == "1",
-    reason="Performance tests skipped via SKIP_PERF_TESTS=1",
+    os.getenv("BGB_SKIP_PERF_TESTS", "0") == "1",
+    reason="Performance tests skipped via BGB_SKIP_PERF_TESTS=1",
 )
 
 # Mark all tests in this module as performance tests (excluded from CI)

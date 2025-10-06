@@ -211,6 +211,10 @@ ADAMW_EPS: float = 1e-8
 # Note: Can be overridden via BGB_LOG_EVERY_N_STEPS env var
 LOG_EVERY_N_STEPS: int = int(os.getenv("BGB_LOG_EVERY_N_STEPS", "50"))
 
+# Heartbeat interval for long-running training jobs (seconds)
+# Periodic "still alive" logging during training to detect hangs/crashes
+HEARTBEAT_INTERVAL_SEC: int = 120
+
 # Validation sanity checks
 AUROC_FAILURE_THRESHOLD: float = 0.55  # Stop if model barely better than random (0.5)
 AUROC_FAILURE_MIN_EPOCH: int = 2  # Grace period for warmup (don't check first 2 epochs)
