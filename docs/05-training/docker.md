@@ -171,6 +171,8 @@ services:
 - ./data_ext4:/app/data_ext4:ro
 ```
 
+> **Why the original container failed:** the first revision mounted only the preprocessed cache, assuming EDFs were unnecessary once NPZ files existed. The smoke test still uses `EEGWindowDataset`, which reads EDFs directly, so the container aborted as soon as it tried to locate `data_ext4/tusz/edf/train`. Mounting all three directories (EDFs + cache + results) restores parity with the local and Modal setups.
+
 ### Slow Training Performance
 
 **Symptoms**: Training slower than local (outside Docker)
