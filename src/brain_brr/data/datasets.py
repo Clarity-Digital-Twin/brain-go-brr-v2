@@ -103,11 +103,8 @@ class EEGWindowDataset(torch.utils.data.Dataset):
                 logger.info(
                     f"[DATA] Processing file {i + 1}/{len(self.edf_files)}: {edf_path.name}"
                 )
-            cache_path = None
             if self.cache_dir is not None:
                 cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"
-
-            if cache_path is not None:
                 try:
                     windows_mmap, _labels_mmap = self._load_cache_for_worker(cache_path)
                     n_windows = windows_mmap.shape[0]
@@ -118,10 +115,9 @@ class EEGWindowDataset(torch.utils.data.Dataset):
                         f"modal run deploy/modal/app.py --action populate-cache"
                     ) from None
             else:
-                raise ValueError(
-                    f"cache_dir is None - cannot load cache for {edf_path.name}. "
-                    f"Set cache_dir in config or run populate_cache first."
-                )
+                # No cache_dir: process on-demand (for tests or non-cached workflows)
+                windows_arr, labels_arr = self._process_file(edf_path, i)
+                n_windows = windows_arr.shape[0]
 
             self._file_window_counts.append(n_windows)
             for w_idx in range(n_windows):
@@ -275,27 +271,34 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         edf_path = self.edf_files[file_idx]
 
         # Load from cache or compute
-        cache_path = None
         if self.cache_dir is not None:
             cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"
-
-        if cache_path is not None and cache_path.exists():
-            # CRITICAL PERFORMANCE FIX: Use memory-mapped arrays (OS-managed, <1 GB RAM)
-            # Old NPZ: Decompress to RAM → 387 GB total → OOM on Modal
-            # New mmap: OS page cache → <1 GB per worker → ✅ Scales to any size
-            windows_mmap, labels_mmap = self._load_cache_for_worker(cache_path)
-            # Zero-copy: Data already float32, copy=False avoids duplication
-            window = windows_mmap[window_idx].astype(np.float32, copy=False)
-            label = (
-                labels_mmap[window_idx].astype(np.float32, copy=False)
-                if labels_mmap is not None
-                else None
-            )
-        else:
-            if not self.allow_on_demand:
-                raise RuntimeError(
-                    f"Cache missing for {edf_path.name} at {cache_path}; on-demand disabled"
+            try:
+                # CRITICAL PERFORMANCE FIX: Use memory-mapped arrays (OS-managed, <1 GB RAM)
+                # Old NPZ: Decompress to RAM → 387 GB total → OOM on Modal
+                # New mmap: OS page cache → <1 GB per worker → ✅ Scales to any size
+                windows_mmap, labels_mmap = self._load_cache_for_worker(cache_path)
+                # Zero-copy: Data already float32, copy=False avoids duplication
+                window = windows_mmap[window_idx].astype(np.float32, copy=False)
+                label = (
+                    labels_mmap[window_idx].astype(np.float32, copy=False)
+                    if labels_mmap is not None
+                    else None
                 )
+            except FileNotFoundError:
+                # Cache miss: fail fast unless on-demand allowed
+                if not self.allow_on_demand:
+                    raise RuntimeError(
+                        f"Cache missing for {edf_path.name} at {cache_path}; on-demand disabled"
+                    ) from None
+                # Fall back to on-demand processing
+                windows_arr, labels_arr = self._process_file(edf_path, file_idx)
+                window = windows_arr[window_idx]
+                label = labels_arr[window_idx] if labels_arr is not None else None
+        else:
+            # No cache_dir: process on-demand if allowed
+            if not self.allow_on_demand:
+                raise RuntimeError(f"No cache_dir set and on-demand disabled for {edf_path.name}")
             windows_arr, labels_arr = self._process_file(edf_path, file_idx)
             window = windows_arr[window_idx]
             label = labels_arr[window_idx] if labels_arr is not None else None

@@ -15,13 +15,15 @@ def test_check_cache_completeness(tmp_path: Path) -> None:
     for p in edf_files:
         p.write_bytes(b"")
 
-    # Create cache only for some files
+    # Create cache only for some files (NPY format)
     present = {0, 2, 4}
     for i, p in enumerate(edf_files):
         if i in present:
-            np.savez_compressed(
-                cache_file_path(cache_root, p), windows=np.zeros((1, 19, 10), dtype=np.float32)
-            )
+            # Create NPY files (mmap format)
+            data_path = cache_file_path(cache_root, p)
+            labels_path = data_path.parent / data_path.name.replace("_data.npy", "_labels.npy")
+            np.save(data_path, np.zeros((1, 19, 10), dtype=np.float32))
+            np.save(labels_path, np.zeros((1, 10), dtype=np.float32))
 
     status = check_cache_completeness(edf_files, cache_root)
     assert status.total_files == 5

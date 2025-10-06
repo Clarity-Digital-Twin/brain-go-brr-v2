@@ -37,8 +37,12 @@ class CacheStatus:
 
 
 def cache_file_path(cache_dir: Path, edf_path: Path) -> Path:
-    """Return expected cache npz path for an EDF file."""
-    return cache_dir / f"{edf_path.stem}_windows.npz"
+    """Return expected cache path for an EDF file (NPY data file).
+
+    Note: Returns path to _data.npy file (mmap format).
+    Companion _labels.npy file is expected to exist alongside.
+    """
+    return cache_dir / f"{edf_path.stem}_windows_data.npy"
 
 
 def load_cache_mmap(
@@ -110,14 +114,16 @@ def load_cache_mmap(
 
 
 def check_cache_completeness(edf_files: Iterable[Path], cache_dir: Path) -> CacheStatus:
-    """Check how many EDF files have a corresponding cache npz file present.
+    """Check how many EDF files have a corresponding cache NPY file present.
 
     Args:
         edf_files: Iterable of EDF file paths
-        cache_dir: Root directory where cache npz files live
+        cache_dir: Root directory where cache NPY files live
 
     Returns:
         CacheStatus with counts and missing file list
+
+    Note: Checks for NPY format (_data.npy files) used by mmap cache.
     """
     edf_list = list(edf_files)
     missing: list[Path] = []
