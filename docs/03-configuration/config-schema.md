@@ -12,11 +12,10 @@ Top-level sections
 - `evaluation` — metrics and FA rates
 - `experiment` — device, output dirs, W&B, logging level
 - `logging` — gradient/weight logging options
-- `resources` — optional compute settings
 
 Data
 
-- `dataset: tuh_eeg|chb_mit` (default `tuh_eeg`)
+- `dataset: tuh_eeg` (TUSZ is the only supported dataset)
 - `data_dir: path` — raw EDF root containing `train/`, `dev/`, `eval/`
 - `cache_dir: path` — NPZ cache root (`train/` + `dev/` subdirectories)
 - `use_balanced_sampling: bool` — use manifest‑driven balanced dataset
@@ -31,7 +30,6 @@ Preprocessing
 - `bandpass: [0.5, 120.0]` — low < high; within [0.1, 200]
 - `notch_freq: 50|60`
 - `normalize: true` — per‑channel z‑score
-- `use_mne: true` — use MNE EDF loader
 
 Model
 
@@ -64,8 +62,8 @@ Training
 
 - `epochs`, `batch_size`
 - `loss: bce|focal` with `focal_alpha` (0.5 neutral), `focal_gamma`
-- `learning_rate`, `weight_decay`, `optimizer: adamw` (only AdamW supported)
-- `scheduler: { type: cosine, warmup_ratio }` (only cosine supported)
+- `learning_rate`, `weight_decay`, `optimizer: adamw` (AdamW is the only supported optimiser)
+- `scheduler: { type: cosine, warmup_ratio }` (cosine is the only supported scheduler)
 - `gradient_clip`, `mixed_precision`, `resume`, `early_stopping`
 
 Evaluation

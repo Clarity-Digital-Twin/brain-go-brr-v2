@@ -67,30 +67,34 @@ modal secret create wandb WANDB_API_KEY=<your-key>
 
 ### Volume Structure
 ```
-/results/                    # Persistent SSD volume
-├── cache/                   # Pre-populated cache (450GB)
-│   └── tusz/
-│       ├── train/          # 4667 NPZ files (~306GB)
-│       └── dev/            # 1832 NPZ files (~143GB) - TUSZ's 'dev' split!
-├── checkpoints/            # Training checkpoints
-├── tensorboard/            # Training logs
-└── wandb/                  # W&B artifacts
+/results/                        # Persistent SSD volume
+├── cache/
+│   └── tusz_mmap/              # Memory-mapped NPY cache (train/dev pairs)
+│       ├── train/              # 4,667 *_data.npy + *_labels.npy files + manifest.json
+│       └── dev/                # 1,832 *_data.npy + *_labels.npy files + manifest.json
+├── checkpoints/                # Training checkpoints
+├── tensorboard/                # TensorBoard logs
+└── wandb/                      # Weights & Biases artifacts
 ```
 
 ### Cache Strategy
-- **Location**: `/results/cache/tusz` on SSD volume
-- **NOT**: `/cache` from S3 mount (too slow!)
-- **Method**: One-time population, then reuse across runs
-- **Performance**: 10x faster than S3 mount
+- **Location**: `/results/cache/tusz_mmap` (memory-mapped uncompressed NPY cache)
+- **NOT**: Direct S3 streaming — always populate the SSD volume first
+- **Method**: One-time `populate-cache`, then reuse across runs
+- **Performance**: <1 ms window access, <2 GB RSS per worker (81× improvement over NPZ)
 
 ## Configuration (A100-optimized)
 
 ```yaml
 # configs/modal/train.yaml (actual configuration)
 data:
-  cache_dir: /results/cache/tusz         # SSD volume, not S3!
-  num_workers: 4                          # Reduced from 8 (overhead issues)
-  prefetch_factor: 2                      # Reduced from 4 (memory)
+  dataset: tuh_eeg
+  data_dir: /data/edf                      # TUSZ EDF mount (train/dev/eval)
+  cache_dir: /results/cache/tusz_mmap      # Memory-mapped NPY cache on SSD
+  use_balanced_sampling: true              # Required for seizure-heavy batches
+  num_workers: 4                           # Stable worker count on Modal
+  persistent_workers: true                 # Keep workers alive between epochs
+  prefetch_factor: 2                       # Prevent loader memory spikes
 
 training:
   batch_size: 48                          # Optimized for A100-80GB (~58GB peak)
@@ -107,13 +111,20 @@ training:
   mid_checkpoint_interval_s: 1800         # Every 30 minutes
   mid_epoch_keep: 3                       # Keep last 3 snapshots
 
+  warmup_schedule:
+    enabled: true
+    warmup_steps: 1000
+    adj_temperature_enabled: true
+    focal_gamma_enabled: true
+
 experiment:
-  output_dir: /results/train/
+  output_dir: /results/v3_full_training
+  cache_dir: /results/cache/tusz_mmap
 
   wandb:
     enabled: true
-    project: "seizure-v3"
-    entity: "your-team"                   # Set your team name
+    project: seizure-detection-a100
+    entity: your-team                     # Replace with your W&B entity
 ```
 
 ## Expected Performance

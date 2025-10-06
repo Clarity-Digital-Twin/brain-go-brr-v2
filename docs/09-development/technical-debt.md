@@ -17,6 +17,12 @@
 - **Rationale**: Keeps documentation honest, provides a supported debugging mode, and avoids masking architectural issues by default.
 - **Effort**: Estimated 7–10 hours once post-training bandwidth is available.
 
+### P3: Unused Constants Cleanup (Deferred)
+
+- **Issue**: 32 constants remain defined but unused (label enums, legacy metric names, optional clamps) per the v3.7.0 SSOT audit.
+- **Impact**: None at runtime, but trimming or repurposing them would reduce confusion for new contributors.
+- **Action**: Track for a future polish sprint (see `docs/archive_v3/POLISH_ITEMS.md`).
+
 Completed items from earlier phases remain documented below for context.
 
 ## Completion Summary
