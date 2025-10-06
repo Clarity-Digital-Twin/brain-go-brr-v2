@@ -231,6 +231,21 @@ rm -f cache/tusz_mmap/train/aaaaaaac_s002_t000_windows.npz
 
 ## 3. Migration Execution Plan
 
+### ⚠️ CRITICAL SEQUENCING NOTE
+
+**MUST UPDATE CODE BEFORE REGENERATING MANIFESTS!**
+
+Why? `build_manifest()` is hardcoded to emit NPZ-style naming (line 208):
+```python
+manifest_filename = f"{stem}_windows.npz"  # Current behavior
+```
+
+If we rebuild BEFORE fixing code → generates NPZ-style manifests again (migration fails!)
+
+**CORRECT ORDER**: Phase 1 → Phase 2 (code) → Phase 3 (manifests) → Phase 4 (cleanup)
+
+---
+
 ### Phase 1: Pre-Flight Validation (30 min)
 
 **Goal**: Verify current state before changes
@@ -274,77 +289,15 @@ rm -f cache/tusz_mmap/train/aaaaaaac_s002_t000_windows.npz
 
 **VALIDATION GATE**: All checks must pass before proceeding
 
-### Phase 2: Manifest Regeneration (45 min)
+---
 
-**Goal**: Create new manifests with NPY-style naming
-
-**Option A: Rebuild from scratch (SAFER)**
-```bash
-# Force rebuild with NPY naming
-export BGB_FORCE_MANIFEST_REBUILD=1
-python -c "
-from pathlib import Path
-from src.brain_brr.data.cache_utils import build_manifest
-
-# Train manifest
-train_cache = Path('cache/tusz_mmap/train')
-print('[TRAIN] Rebuilding manifest with NPY naming...')
-build_manifest(
-    cache_dir=train_cache,
-    split_name='train',
-    require_labels=True,
-    force_rebuild=True
-)
-
-# Dev manifest
-dev_cache = Path('cache/tusz_mmap/dev')
-print('[DEV] Rebuilding manifest with NPY naming...')
-build_manifest(
-    cache_dir=dev_cache,
-    split_name='dev',
-    require_labels=True,
-    force_rebuild=True
-)
-print('[SUCCESS] Manifests regenerated!')
-"
-```
-
-**Option B: In-place conversion (FASTER but riskier)**
-```python
-import json
-from pathlib import Path
-
-def convert_manifest(manifest_path: Path) -> None:
-    """Convert NPZ-style manifest to NPY-style in-place."""
-    with open(manifest_path) as f:
-        data = json.load(f)
-
-    # Convert all cache_file entries
-    for category in ["partial_seizure", "full_seizure"]:
-        for entry in data.get(category, []):
-            old_name = entry["cache_file"]
-            # aaaaaaac_s001_t000_windows.npz → aaaaaaac_s001_t000_data.npy
-            new_name = old_name.replace("_windows.npz", "_data.npy")
-            entry["cache_file"] = new_name
-
-    # Write back
-    with open(manifest_path, 'w') as f:
-        json.dump(data, f, indent=2)
-
-    print(f"[✓] Converted {manifest_path}")
-
-# Execute
-convert_manifest(Path("cache/tusz_mmap/train/manifest.json"))
-convert_manifest(Path("cache/tusz_mmap/dev/manifest.json"))
-```
-
-**RECOMMENDATION**: Use Option A (rebuild) for guaranteed correctness
-
-### Phase 3: Code Updates (60 min)
+### Phase 2: Code Updates (60 min)
 
 **Goal**: Update all 11 code locations to use NPY-style naming
 
-#### Step 3.1: Update `src/brain_brr/data/cache_utils.py`
+**⚠️ CRITICAL**: Must complete BEFORE manifest regeneration!
+
+#### Step 2.1: Update `src/brain_brr/data/cache_utils.py`
 
 **Edit 1** - Line 45 (function `get_cache_path`):
 ```python
@@ -369,10 +322,12 @@ if cache_path not in mmap_handles:
 if cache_path not in mmap_handles:
     # Manifest now uses *_data.npy naming directly
     # Format: aaaaaajy_s001_t000_data.npy + aaaaaajy_s001_t000_labels.npy (mmap)
-    windows_file = cache_path
-    stem = cache_path.stem.replace("_data", "")
+    windows_file = cache_path  # cache_path IS *_data.npy from manifest
+    stem = cache_path.stem.replace("_data", "")  # CRITICAL: Extract base for labels
     labels_file = cache_path.parent / f"{stem}_labels.npy"
 ```
+
+**⚠️ LABELS PATH DERIVATION**: After migration, cache_path.stem = "file_data", so we MUST do `.replace("_data", "")` to get base stem "file" for constructing "file_labels.npy"
 
 **Edit 3** - Lines 205-209 (function `build_manifest`):
 ```python
@@ -402,7 +357,7 @@ npy_set = {p.stem.replace("_data", "") + "_windows.npz" for p in npy_data_files}
 npy_set = {p.name for p in npy_data_files}  # Direct NPY naming
 ```
 
-#### Step 3.2: Update `src/brain_brr/data/datasets.py`
+#### Step 2.2: Update `src/brain_brr/data/datasets.py`
 
 **Edit 5** - Line 107 (EEGWindowDataset `__init__`):
 ```python
@@ -471,7 +426,7 @@ file_id = cache_file.stem.replace("_windows", "")
 file_id = cache_file.stem.replace("_data", "")
 ```
 
-#### Step 3.3: Update `src/brain_brr/train/loop.py`
+#### Step 2.3: Update `src/brain_brr/train/loop.py`
 
 **Edit 11** - Line 629:
 ```python
@@ -482,9 +437,76 @@ file_id = cache_file.stem.replace("_data", "")
 {f"{val_file.stem}_data.npy" for val_file in val_files} if val_files else None
 ```
 
+---
+
+### Phase 3: Manifest Regeneration (45 min)
+
+**Goal**: Rebuild manifests with NPY-style naming using UPDATED code
+
+**⚠️ PREREQUISITE**: Phase 2 (code updates) MUST be complete!
+
+Now that `build_manifest()` emits NPY-style naming (line 208 fixed), we can rebuild:
+
+```bash
+# Force rebuild with NPY naming (code now emits *_data.npy)
+export BGB_FORCE_MANIFEST_REBUILD=1
+python -c "
+from pathlib import Path
+from src.brain_brr.data.cache_utils import build_manifest
+
+# Train manifest
+train_cache = Path('cache/tusz_mmap/train')
+print('[TRAIN] Rebuilding manifest with NPY naming...')
+build_manifest(
+    cache_dir=train_cache,
+    split_name='train',
+    require_labels=True,
+    force_rebuild=True
+)
+
+# Dev manifest
+dev_cache = Path('cache/tusz_mmap/dev')
+print('[DEV] Rebuilding manifest with NPY naming...')
+build_manifest(
+    cache_dir=dev_cache,
+    split_name='dev',
+    require_labels=True,
+    force_rebuild=True
+)
+print('[SUCCESS] Manifests regenerated with NPY naming!')
+"
+```
+
+**Verification**:
+```bash
+# Check manifest format (should show *_data.npy)
+head -20 cache/tusz_mmap/train/manifest.json
+```
+
+**Expected Output**:
+```json
+{
+  "partial_seizure": [
+    {"cache_file": "aaaaaaac_s001_t000_data.npy", "window_idx": 0}
+  ],
+  ...
+}
+```
+
+---
+
 ### Phase 4: Cache Cleanup (5 min)
 
-**Goal**: Remove stray NPZ files
+**Goal**: Remove NPZ files (AFTER manifest conversion!)
+
+**⚠️ CRITICAL TIMING**: Must delete AFTER Phase 3 (manifest regen)!
+
+Why? These 3 NPZ files are currently referenced in old manifests:
+- `aaaaaaac_s001_t000_windows.npz` (64 references)
+- `aaaaaaac_s001_t001_windows.npz`
+- `aaaaaaac_s002_t000_windows.npz`
+
+Deleting before manifest update = rollback will fail!
 
 ```bash
 # Verify files before deletion
@@ -749,13 +771,15 @@ modal run --detach deploy/modal/app.py --action train --config configs/modal/tra
 | Phase | Duration | Cumulative |
 |-------|----------|------------|
 | 1. Pre-flight validation | 30 min | 0:30 |
-| 2. Manifest regeneration | 45 min | 1:15 |
-| 3. Code updates (11 locations) | 60 min | 2:15 |
+| 2. Code updates (11 locations) | 60 min | 1:30 |
+| 3. Manifest regeneration | 45 min | 2:15 |
 | 4. Cache cleanup | 5 min | 2:20 |
 | 5. Validation testing | 45 min | 3:05 |
 | 6. Documentation & release | 30 min | 3:35 |
 
 **Total**: ~3.5 hours (single developer, focused work)
+
+**⚠️ SEQUENCING**: Code updates (Phase 2) MUST complete before manifest regen (Phase 3)
 
 ---
 
