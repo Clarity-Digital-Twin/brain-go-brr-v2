@@ -527,8 +527,8 @@ class BalancedSeizureDataset(Dataset):
         window_start_s = w_idx * constants.STRIDE_SIZE_SEC
 
         return {
-            "window": torch.from_numpy(window).clone(),
-            "label": torch.from_numpy(label).clone(),
+            "window": torch.from_numpy(np.array(window, copy=True, dtype=np.float32, order="C")),
+            "label": torch.from_numpy(np.array(label, copy=True, dtype=np.float32, order="C")),
             "file_id": file_id,
             "window_start_s": float(window_start_s),
         }
@@ -694,8 +694,8 @@ class ValidationDataset(Dataset):
         window_start_s = w_idx * constants.STRIDE_SIZE_SEC
 
         return {
-            "window": torch.from_numpy(window).clone(),
-            "label": torch.from_numpy(label).clone(),
+            "window": torch.from_numpy(np.array(window, copy=True, dtype=np.float32, order="C")),
+            "label": torch.from_numpy(np.array(label, copy=True, dtype=np.float32, order="C")),
             "file_id": file_id,
             "window_start_s": float(window_start_s),
         }
