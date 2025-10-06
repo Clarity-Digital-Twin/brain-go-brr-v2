@@ -1,9 +1,31 @@
 # Manifest Naming Migration Plan
 
-**Version**: 1.0
+**Version**: 2.0 (CORRECTED)
 **Date**: 2025-10-06
 **Author**: AI Planning Agent
-**Status**: 🟡 DRAFT - Awaiting External Validation
+**Status**: ✅ VALIDATED - Critical Issues Fixed
+
+## 🔴 CRITICAL UPDATES (v2.0)
+
+**External validation identified 3 FATAL flaws in v1.0 - ALL FIXED:**
+
+1. **SEQUENCING FAILURE** ✅ FIXED
+   - v1.0: Phase 2 (manifest regen) → Phase 3 (code updates) ❌ WRONG ORDER
+   - Issue: `build_manifest()` hardcoded to emit NPZ-style (line 208)
+   - v2.0: Phase 2 (code updates) → Phase 3 (manifest regen) ✅ CORRECT
+   - Fix: Update code FIRST, THEN rebuild manifests
+
+2. **NPZ FILES NOT "STRAY"** ✅ FIXED
+   - v1.0: Delete NPZ files in Phase 4 ❌ BREAKS ROLLBACK
+   - Issue: 3 NPZ files ARE in manifest (64+ references), deleting before manifest update breaks rollback
+   - v2.0: Delete NPZ files AFTER manifest regen (Phase 4) ✅ SAFE
+
+3. **LABELS PATH DERIVATION** ✅ CLARIFIED
+   - v1.0: Showed correct code but lacked explanation
+   - Issue: Critical to do `stem.replace("_data", "")` for labels path
+   - v2.0: Added explicit warning + explanation in Edit 2
+
+**Key Insight**: Must maintain exact execution order or migration FAILS!
 
 ---
 
