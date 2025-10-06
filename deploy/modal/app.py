@@ -313,7 +313,7 @@ def populate_cache():
             "dev_patients": 53,
             "train_data_files": 4667,
             "dev_data_files": 1832,
-            "version": "v3.6.2"
+            "version": "v3.8.0"
         }
         with open(metadata_dst, "w") as f:
             json.dump(metadata, f, indent=2)

@@ -1,4 +1,4 @@
-# Dockerfile for Brain-Go-Brr v3.6.1
+# Dockerfile for Brain-Go-Brr v3.8.0
 # Multi-stage build: Compile GPU libraries → Lightweight runtime
 # ============================================================================
 # Stage 1: Builder - Compile GPU libraries

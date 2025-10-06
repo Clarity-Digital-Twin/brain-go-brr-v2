@@ -313,17 +313,17 @@ We welcome contributions! See [development docs](docs/09-development/) for:
 
 Run `make q` before committing (lint + format + type check).
 
-## Training Status (v3.6.1)
+## Training Status (v3.8.0)
 
-**v3.6.1 - Gradient Logging Enhancement:**
-- ✅ ML 2025 best practices: P50 (median) + IQR + P95 + Max
-- ✅ Removed outlier-sensitive mean in favor of percentiles
-- ✅ Modal image rebuilt with latest gradient logging code
-- ✅ Documentation fixed (removed contradictory examples)
-- ✅ 435 tests passing, 78% coverage
-- ✅ Production-ready for A100-80GB training
+**v3.8.0 – Read-Only Mmap Baseline:**
+- ✅ Datasets now fail fast on cache misses (no more silent NPZ rebuilds)
+- ✅ Shared mmap loader removes 120 duplicate lines and standardises logging
+- ✅ Modal automation: `check-cache` warns about stray NPZ, `clean_stray_npz.py` fixes in one command
+- ✅ Documentation refreshed end-to-end (AGENTS, modal/local guides, config references)
+- ✅ Tests: 104 unit/integration + clinical suites, 83.8% coverage, all green
+- ✅ Production-ready for modal A100-80GB and local RTX 4090
 
-See [v3.6.1 release notes](RELEASE_NOTES.md) for full details.
+See [release notes](RELEASE_NOTES.md) for historical details.
 
 ## Citation
 

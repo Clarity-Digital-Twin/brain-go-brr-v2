@@ -1,4 +1,4 @@
-# Configuration Consistency Check (v3.6.2)
+# Configuration Consistency Check (v3.8.0)
 
 ## Local Configs (RTX 4090 - 24GB)
 
@@ -14,7 +14,7 @@ gradient_clip: 0.5            # Increased from 0.1 (eigendecomp fix allows this)
 mid_checkpoint_interval_s: 1800  # Save every 30 min
 mid_epoch_keep: 3             # Keep last 3 mid-epoch snapshots
 ```
-**Status**: ✅ PRODUCTION STABLE (v3.6.1)
+**Status**: ✅ PRODUCTION STABLE (v3.8.0)
 
 ### smoke.yaml (Quick Test)
 ```yaml
@@ -42,7 +42,7 @@ gradient_clip: 0.5            # NaN protection
 mid_checkpoint_interval_s: 1800  # Save every 30 min (CRITICAL for 6-7h epochs)
 mid_epoch_keep: 3             # Keep last 3 mid-epoch snapshots
 ```
-**Status**: ✅ PRODUCTION READY (v3.6.1)
+**Status**: ✅ PRODUCTION READY (v3.8.0)
 
 ### modal/smoke.yaml
 ```yaml
@@ -105,4 +105,4 @@ Memory (GB) ≈ batch_size × (3.5 + 0.94 × (960/semi_dynamic_interval))
 2. **Local smoke.yaml**: ✅ CORRECT (1 epoch, no mid-epoch needed)
 3. **Modal train.yaml**: ✅ PRODUCTION READY (batch=48, mid-epoch=1800s)
 4. **Modal smoke.yaml**: ✅ VERIFIED (validates production config)
-5. **Documentation**: ✅ All docs updated to v3.6.1 settings
+5. **Documentation**: ✅ All docs updated to v3.8.0 mmap baseline

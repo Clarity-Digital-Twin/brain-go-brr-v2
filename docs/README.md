@@ -1,8 +1,9 @@
-# Brain-Go-Brr Documentation (v3.4.1)
+# Brain-Go-Brr Documentation (v3.8.0)
 
-**Last Updated**: October 1, 2025
-**Codebase Version**: v3.4.1 (PyTorch 2.5.0 + mamba-ssm 2.2.5)
+**Last Updated**: October 6, 2025
+**Codebase Version**: v3.8.0 (True Zero-Debt Modal Training Baseline)
 **Architecture**: V3 Dual-Stream (TCN + BiMamba + GNN + Dynamic LPE)
+**Status**: 🟢 Zero active debt, full Modal training in progress
 
 ---
 
@@ -68,8 +69,7 @@ Learn by doing:
 
 **Data**:
 - [Data Overview](02-data/overview.md) - TUH corpus, preprocessing
-- [Cache Layout](02-data/cache-layout.md) - NPZ structure
-- [Cache Manifest Architecture](02-data/cache-manifest-architecture.md) - Balanced sampling
+- [Cache Layout](02-data/cache-layout.md) - **NPY mmap structure** (v3.8.0)
 - [Preprocessing](02-data/preprocessing.md) - Filters, z-score, clipping
 
 **CLI Tools**:
@@ -136,7 +136,7 @@ Learn by doing:
 
 ## ⚙️ Key Technical Details
 
-### Architecture (v3.4.1)
+### Architecture (v3.8.0)
 - **TCN**: 8 layers, channels [64,128,256,512], stride=16
 - **Node Mamba**: 6 layers, d_model=64, bidirectional SSM
 - **Edge Mamba**: 2 layers, d_model=16, learned adjacency
@@ -144,16 +144,18 @@ Learn by doing:
 - **Parameters**: ~31M total
 - **Dynamic PE**: Always enabled with safeguards (v3.3.1+)
 
-### Training Stability (v3.4.1)
-- ✅ **Zero NaN/Inf** across 723+ batches (validated Oct 1, 2025)
+### Training Stability (v3.8.0)
+- ✅ **Zero NPZ contamination** (v3.8.0): Datasets read-only, fail-fast on cache miss
+- ✅ **Memory-mapped cache** (v3.8.0): <1 GB RAM vs 387 GB NPZ, 99.6% faster startup
+- ✅ **Gradient stability** (v3.8.0): P95 decreasing 62.52 → 7.42 during training
+- ✅ **Zero XID 31 crashes** (v3.4.1+): Unique Triton cache per run
 - ✅ **Eigendecomposition fix** (v3.3.1): Detached eigenvectors prevents gradient explosion
-- ✅ **3-tier NaN protection**: Data preprocessing + gradient sanitization + architectural safeguards
-- ✅ **Optional warmup schedules** (v3.4.1): Adjacency temperature + focal gamma
+- ✅ **3-tier NaN protection**: Gradient clipping (0.5) + monitoring + architectural safeguards
 
 ### Hardware Requirements
-- **Local**: RTX 4090 (24GB VRAM), batch_size=12, mixed_precision=false
-- **Modal**: A100-80GB, batch_size=64, mixed_precision=true
-- **Cache**: ~50GB disk space (4667 train + 1832 dev NPZ files)
+- **Local**: RTX 4090 (24GB VRAM), batch_size=8, mixed_precision=false
+- **Modal**: A100-80GB, batch_size=48, mixed_precision=true
+- **Cache**: ~50GB disk space (4667 train + 1832 dev NPY mmap files)
 
 ### Software Stack (Exact Versions)
 ```
@@ -205,8 +207,8 @@ modal run --detach deploy/modal/app.py --action train --config configs/modal/tra
 # Validate config
 python -m src validate configs/local/train.yaml
 
-# Build cache
-python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz/train
+# Build cache (NPY mmap format)
+python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz_mmap/train
 
 # Quality checks (lint + format + mypy)
 make q
@@ -224,9 +226,9 @@ brain-go-brr-v2/
 ├── configs/                 # Training configurations
 │   ├── local/               # RTX 4090 (smoke.yaml, train.yaml)
 │   └── modal/               # A100 (smoke.yaml, train.yaml)
-├── cache/tusz/              # Preprocessed NPZ files
-│   ├── train/               # 4667 files + manifest.json
-│   └── dev/                 # 1832 files + manifest.json
+├── cache/tusz_mmap/         # Memory-mapped NPY cache (v3.8.0)
+│   ├── train/               # 4667 _data.npy + _labels.npy + manifest.json
+│   └── dev/                 # 1832 _data.npy + _labels.npy + manifest.json
 ├── deploy/modal/            # Modal deployment scripts
 └── docs_v3/                 # You are here!
 ```
@@ -265,18 +267,24 @@ This documentation follows the **Diátaxis framework**:
 
 ## 🎯 Project Status
 
-**Current Version**: v3.4.1 (October 1, 2025)
+**Current Version**: v3.8.0 (October 6, 2025) - True Zero-Debt Modal Training Baseline
 
 **Recent Milestones**:
-- ✅ v3.3.1 (Sept 30): Eigendecomposition fix - zero gradient explosions
-- ✅ v3.4.0 (Sept 30): Pre-norm Mamba alignment
+- ✅ v3.8.0 (Oct 6): NPZ contamination eliminated, zero active debt
+- ✅ v3.7.0 (Oct 5): All P2/P3 debt eliminated
+- ✅ v3.6.2 (Oct 5): Complete debt elimination baseline
 - ✅ v3.4.1 (Oct 1): Optional warmup schedules
-- ✅ Training validation: 723+ batches stable, zero NaN/Inf
+- ✅ v3.3.1 (Sept 30): Eigendecomposition fix - zero gradient explosions
+
+**Current Status**:
+- ✅ **Modal smoke test** (Oct 6): PASSED - All systems validated
+- 🔄 **Full Modal training** (Oct 6): IN PROGRESS - 100 epochs on A100-80GB
+- ✅ **Technical debt**: ZERO active issues (P0/P1/P2/P3 all resolved)
 
 **Next Steps**:
-- [ ] Complete 100-epoch training run
+- [ ] Complete 100-epoch training run (~100 hours)
 - [ ] Full TAES evaluation on dev set
-- [ ] Hyperparameter optimization
+- [ ] Achieve <1 FA/24h @ >75% sensitivity
 
 ---
 

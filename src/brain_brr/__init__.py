@@ -6,16 +6,16 @@ V3 dual-stream architecture combining:
 - GNN (Graph Neural Network) with dynamic Laplacian positional encoding
 - Multi-head gated fusion for node/edge stream combination
 
-v3.7.0: Zero Debt Modal Baseline - FINAL release before A100 training
-- Complete P2/P3 technical debt elimination (0 blockers)
-- Constants cleanup: 90→84 total, 58 used (69% utilization), 26 documented reserves
-- Type safety: 21→17 ignores (all third-party/dynamic, documented)
-- Production robustness: All assertions → proper exceptions
-- Documentation: 100% accuracy, configs/code perfectly aligned
-- Test suite: 40 tests, 82.88% coverage, all passing
+v3.8.0: Read-Only Mmap Baseline (Zero Debt)
+- Finalized NPY mmap cache workflow with read-only datasets (fail-fast on cache miss)
+- Modal automation: cache validation, stray NPZ cleanup, and health checks baked in
+- Shared mmap loader eliminates 120 duplicate lines across datasets
+- Type safety tightened (Console/WandB typing, lint clean)
+- Documentation refreshed end-to-end for the mmap pipeline and Modal operations
+- Test suite: 104 unit/integration tests + clinical suite, 83.8% coverage, all passing
 """
 
-__version__ = "3.7.0"
+__version__ = "3.8.0"
 
 # NO HEAVY IMPORTS AT PACKAGE LEVEL
 # Models should be imported explicitly when needed:
