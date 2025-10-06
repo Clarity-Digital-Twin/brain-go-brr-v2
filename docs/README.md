@@ -268,9 +268,10 @@ This documentation follows the **Diátaxis framework**:
 
 ## 🎯 Project Status
 
-**Current Version**: v3.8.1 (October 6, 2025) - Complete Tensor Safety
+**Current Version**: v3.8.2 (October 6, 2025) - Zero Warnings
 
 **Recent Milestones**:
+- ✅ v3.8.2 (Oct 6): Zero warnings - copy-on-read tensors + AMP scheduler guard
 - ✅ v3.8.1 (Oct 6): Complete tensor safety - all datasets fixed (EEGWindowDataset .clone() added)
 - ✅ v3.8.0 (Oct 6): NPZ contamination eliminated, zero active debt
 - ✅ v3.7.0 (Oct 5): All P2/P3 debt eliminated
@@ -280,7 +281,7 @@ This documentation follows the **Diátaxis framework**:
 
 **Current Status**:
 - ✅ **Modal smoke test** (Oct 6): PASSED - All systems validated
-- 🔄 **Full Modal training** (Oct 6): IN PROGRESS - 100 epochs on A100-80GB
+- 🔄 **Full Modal training** (Oct 6): IN PROGRESS - 100 epochs on A100-80GB (app: ap-uitgvl8kXZoKJ4fZoSehsI)
 - ✅ **Technical debt**: ZERO active issues (P0/P1/P2/P3 all resolved)
 
 **Next Steps**:

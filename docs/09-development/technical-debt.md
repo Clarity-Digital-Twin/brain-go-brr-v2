@@ -1,6 +1,6 @@
 # Technical Debt & Cleanup Status
 
-**Last Updated**: October 6, 2025 (v3.8.1)
+**Last Updated**: October 6, 2025 (v3.8.2)
 **Status**: 🟢 **ZERO ACTIVE DEBT** - All P0/P1/P2/P3 issues resolved
 
 ## Executive Summary
@@ -17,9 +17,14 @@
 
 ---
 
-## Recently Resolved (October 6, 2025 - v3.8.1)
+## Recently Resolved (October 6, 2025 - v3.8.2)
 
-### Complete Tensor Safety (P0)
+### Zero Warnings (P2 → Closed)
+- ✅ Replaced `.clone()` calls with NumPy copy-on-read tensors across all datasets to eliminate read-only warnings without touching mmap cache
+- ✅ Added AMP scheduler guard (main loop + accumulation flush) so `scheduler.step()` only runs after a successful optimizer update
+- ✅ Verified `make q`, `make test`, and Modal training logs: 0 warnings, accurate LR schedule
+
+### Complete Tensor Safety (P0, v3.8.1)
 - ✅ Added `.clone()` to EEGWindowDataset (lines 307, 312) - missed in v3.8.0
 - ✅ All 3 datasets now safe from read-only mmap tensor undefined behavior
 - ✅ Removed broad warning suppression from train_step.py (paper-over eliminated)
@@ -91,7 +96,7 @@
 
 ## Quality Verification
 
-**All Checks Passing** (v3.8.0):
+**All Checks Passing** (v3.8.2):
 - ✅ `make q` - Lint + format + mypy + config validation → PASS
 - ✅ `make test` - 104 tests, 83.80% coverage → PASS
 - ✅ Modal cache - 4667 train + 1832 dev NPY files, 0 NPZ
@@ -101,7 +106,7 @@
 
 **Status**: 🟢 **ZERO ACTIVE DEBT** - Ready for production training
 **Next**: Full Modal A100 training (100 epochs)
-**Smoke Test**: ✅ PASSED - All critical systems validated (v3.8.0)
+**Smoke Test**: ✅ PASSED - All critical systems validated (v3.8.2)
 
 Completed items from earlier phases remain documented below for context.
 
