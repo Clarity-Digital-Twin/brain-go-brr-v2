@@ -33,10 +33,12 @@ Notes
 
 Cache and manifest
 
-- Ensure `cache/tusz/train` contains NPZs and `manifest.json`.
-- Build via CLI if needed:
-  - `python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz/train`
-  - `python -m src scan-cache --cache-dir cache/tusz/train`
+- Ensure `cache/tusz_mmap/train` contains the memory-mapped `*_data.npy`/`*_labels.npy` pairs plus `manifest.json`.
+- Build or refresh via CLI if needed:
+  - `python scripts/convert_cache_to_mmap.py --source cache/tusz/train --dest cache/tusz_mmap/train`
+  - `python scripts/convert_cache_to_mmap.py --source cache/tusz/dev --dest cache/tusz_mmap/dev`
+  - `python -m src scan-cache --cache-dir cache/tusz_mmap/train`
+  - `python -m src scan-cache --cache-dir cache/tusz_mmap/dev`
 
 Monitoring
 
@@ -64,7 +66,7 @@ After crash or restart
 Pre‑flight checklist (recommended before long runs)
 
 - Run quality and config validation: `make q` and `python -m src validate configs/local/train.yaml`.
-- Verify cache and manifest: `python -m src scan-cache --cache-dir cache/tusz/train` → ensure partial>0 or full>0.
+- Verify cache and manifest: `python -m src scan-cache --cache-dir cache/tusz_mmap/train` → ensure partial>0 or full>0.
 - Confirm BalancedSeizureDataset logs appear at startup (see Data docs for expected lines).
 - WSL2: set `data.num_workers: 0` if you see dataloader hangs.
 - RTX 4090: keep `training.mixed_precision: false` if you see NaNs; reduce LR or batch size if needed.
