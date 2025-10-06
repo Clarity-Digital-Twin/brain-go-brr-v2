@@ -86,65 +86,77 @@
 - **Estimated time**: 1 hour (refactor + test)
 
 ### Issue 3: Type Annotation Inconsistency
-- **Location**: `src/brain_brr/train/train_step.py:181`, `src/brain_brr/train/training_logger.py:111`
+- **Location**:
+  - `src/brain_brr/train/train_step.py:181` (wandb_logger)
+  - `src/brain_brr/utils/training_logger.py:111` (console)
+  - `src/brain_brr/utils/logging_config.py:147` (console)
 - **Problem**: Using `Any | None` instead of proper types
 - **Evidence**:
   ```python
-  wandb_logger: Any | None = None  # Should be WandBLogger | None
+  wandb_logger: Any | None = None  # Should be WandBRun | None
   self.console: Any | None = None  # Should be Console | None (rich.console.Console)
   ```
 - **Impact**: Weakens type safety
 - **Fix**: Replace `Any` with proper types (import required types)
-- **Estimated time**: 30 minutes
+- **Estimated time**: 15 minutes
 
 ---
 
 ## What's Working Well ✅
 
-1. **NPZ→NPY Mmap Conversion**: Complete and correct across all 3 dataset classes
+1. **NPZ→NPY Mmap Conversion**: Mostly complete (populate_cache ✅, _load_cache_for_worker ✅, write paths ❌ still create NPZ)
 2. **ValidationDataset**: Successfully uses mmap (49x speedup achieved)
 3. **Manifest System**: Properly supports both NPZ (legacy) and NPY (production)
-4. **Type Hints**: Strong coverage (only ~10 `Any` instances in thousands of lines)
+4. **Type Hints**: Strong coverage (~10 `Any` instances need fixing)
 5. **Testing**: 54 test files, proper GPU guards, good coverage
 6. **Error Handling**: Robust NaN protection, gradient sanitization
 7. **Configuration**: Pydantic schemas prevent runtime config errors
 8. **No TODO/FIXME/HACK**: Clean codebase with no technical marker comments
 9. **Modal Deployment**: Well-structured with A100 XID 31 fixes
-10. **Documentation**: Extensive (just needs path updates)
+10. **Documentation**: Extensive and accurate
 
 ---
 
 ## Risk Assessment
 
-**Training Risk**: ✅ **ZERO** - No P0 blockers, all issues are documentation/style
+**Training Risk**: 🔴 **P0 BLOCKER** - NPZ contamination and code bugs must be fixed
 
 **Detected Issues**:
-- ❌ **No Reward Hacking** - All metrics properly computed and wired
-- ❌ **No Unwired Features** - All config options used, no dead code
-- ❌ **No Critical Bugs** - Mmap implementation complete and correct
-- ❌ **No AI Deception** - Code does what it claims to do
+- ✅ **Reward Hacking** - None detected, all metrics properly computed
+- ✅ **Unwired Features** - None detected, all config options used
+- 🔴 **Critical Bug** - datasets.py creates NPZ files on cache miss (wrong format!)
+- 🔴 **Format Drift** - Mixed NPZ/NPY files in cache (3 stray NPZ files)
 
-**Recommended Before Full Training**:
-1. Fix P1 doc paths (10 min) - prevents confusion
-2. Optional: P2 code quality fixes (2-3 hours) - improves maintainability
-3. P3 polish can wait until after training completes
+**Required Before Training**:
+1. ✅ Fix P0 cache path hardcoding (COMPLETED)
+2. 🔴 Clean 3 stray NPZ files from Modal cache (REQUIRED)
+3. 🔴 Fix datasets.py NPZ creation bug (REQUIRED)
+4. 🔴 Update cache validation logic (REQUIRED)
+5. 🟡 Fix P2 code quality issues (2-3 hours, improves maintainability)
 
 ---
 
 ## Implementation Priority
 
 **Completed (October 6, 2025)**:
-- [x] ✅ P1: Update CLAUDE.md cache paths (10 min)
-- [x] ✅ P2: Move magic numbers to constants (15 min)
-- [x] ✅ P2: Fix env var naming (10 min)
-- [x] ✅ P3: Clean YAML comments (15 min)
+- [x] ✅ P0: Fix cache path hardcoding (app.py lines 658, 811, 821)
+- [x] ✅ P1: Update CLAUDE.md cache paths
+- [x] ✅ P2: Move magic numbers to constants
+- [x] ✅ P2: Fix env var naming
+- [x] ✅ P3: Clean YAML comments
 
-**Remaining (After Modal Training Starts)**:
-- [ ] P2: Extract shared `_load_cache_for_worker` (1 hour) - **Requires planning**
-- [ ] P2: Update NPZ comments/variable names (30 min) - **Requires planning**
-- [ ] P2: Improve type annotations (30 min) - **Requires planning**
+**P0 Remaining (BLOCKS TRAINING)**:
+- [ ] 🔴 Clean 3 stray NPZ files from Modal cache (10 min)
+- [ ] 🔴 Fix datasets.py NPZ creation bug (30 min)
+- [ ] 🔴 Update cache validation logic (15 min)
 
-**Total remaining time**: ~2 hours (all optional, non-blocking)
+**P2 Remaining (After P0)**:
+- [ ] 🟡 Fix clean_cache() old path (5 min)
+- [ ] 🟡 Fix type annotations - 3 files (15 min)
+- [ ] 🟡 Update NPZ comments/variable names (30 min)
+- [ ] 🟡 Extract shared `_load_cache_for_worker` (1 hour)
+
+**Total remaining time**: P0 ~1 hour (BLOCKING), P2 ~2 hours (non-blocking)
 
 ---
 

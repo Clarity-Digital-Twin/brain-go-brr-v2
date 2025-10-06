@@ -18,6 +18,8 @@ import os
 import sys
 import time
 from collections import deque
+
+from rich.console import Console
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -108,7 +110,7 @@ class TrainingLogger:
             and not os.getenv("PYTEST_CURRENT_TEST")
             and not os.getenv("MODAL_FUNCTION_ID")
         )
-        self.console: Any | None = None
+        self.console: Console | None = None
         if self.use_rich:
             try:
                 from rich.console import Console as RichConsoleRuntime

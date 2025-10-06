@@ -163,43 +163,71 @@ modal run deploy/modal/clean_stray_npz.py --confirm
 
 **Two Options**:
 
-##### Option A (RECOMMENDED): Remove On-The-Fly Cache Creation
+##### Option A: Remove On-The-Fly Cache Creation ✅ CONSENSUS DECISION
 **Philosophy**: Datasets should ONLY read cache, never write it.
 
-**Changes**:
-```python
-# datasets.py:108-130
-# BEFORE (current code):
-cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"
-if cache_path.exists():
-    # Load from cache...
-else:
-    # Process file and CREATE NPZ CACHE ❌
-    windows_arr, labels_arr = self._process_file(edf_path, i)
-    np.savez_compressed(cache_path, windows=windows_arr, labels=labels_arr)
+**Rationale**: Industry best practice (matches DeepMind/Google approach), clean architecture, deterministic training, we already run populate_cache first.
 
-# AFTER (Option A):
-cache_stem = self.cache_dir / f"{edf_path.stem}_windows"
-# Try to load from cache (NPY format)
-windows_mmap, labels_mmap = self._load_cache_for_worker(cache_stem)
-if windows_mmap is None:
+**Implementation Details**:
+
+**Current _load_cache_for_worker behavior**:
+- Takes `cache_path` (Path with .npz extension)
+- Internally converts to NPY stems (`_data.npy`, `_labels.npy`)
+- **RAISES FileNotFoundError on cache miss** (doesn't return None!)
+- Returns tuple `(windows_mmap, labels_mmap)`
+
+**Changes Required**:
+```python
+# datasets.py:107-130 (4 locations with this pattern)
+
+# BEFORE (current code):
+cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"  # NPZ extension!
+if cache_path is not None and cache_path.exists():
+    try:
+        with np.load(cache_path) as cached:  # Try to open NPZ
+            n_windows = cached["windows"].shape[0]
+    except Exception:
+        # On error, process file and WRITE NPZ ❌
+        windows_arr, labels_arr = self._process_file(edf_path, i)
+        n_windows = windows_arr.shape[0]
+        if cache_path is not None:
+            np.savez_compressed(cache_path, windows=windows_arr, labels=labels_arr)
+else:
+    # No cache, process file and WRITE NPZ ❌
+    windows_arr, labels_arr = self._process_file(edf_path, i)
+    n_windows = windows_arr.shape[0]
+    if cache_path is not None:
+        np.savez_compressed(cache_path, windows=windows_arr, labels=labels_arr)
+
+# AFTER (Option A - remove all NPZ write logic):
+cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"  # Keep .npz for compat
+# _load_cache_for_worker converts internally to NPY paths
+
+# Load from mmap cache (read-only)
+try:
+    windows_mmap, labels_mmap = self._load_cache_for_worker(cache_path)
+    n_windows = windows_mmap.shape[0]
+except FileNotFoundError as e:
     # Cache miss - FAIL FAST with helpful error
     raise FileNotFoundError(
         f"Cache not found for {edf_path.name}. "
         f"Run populate_cache first: "
         f"modal run deploy/modal/app.py --action populate-cache"
-    )
+    ) from e
 ```
+
+**Key Implementation Note**: Keep passing `.npz` extension to `_load_cache_for_worker()` because it handles the NPY conversion internally (lines 240-275). This maintains backward compatibility with existing code structure.
 
 **Pros**:
 - ✅ Clear separation: populate_cache writes, datasets read
 - ✅ No accidental cache creation with wrong format
 - ✅ Forces proper cache pre-population workflow
 - ✅ Simpler code (no write paths in datasets)
+- ✅ Matches industry standard practices
 
 **Cons**:
 - ❌ Requires populate_cache to run first (but we already do this!)
-- ❌ Loses "just-in-time" cache building (was this ever used?)
+- ❌ Loses "just-in-time" cache building (was never actually used in production)
 
 ##### Option B: Convert NPZ → NPY Creation
 **Philosophy**: Keep on-the-fly caching, but fix format
@@ -240,7 +268,7 @@ if labels_arr is not None:
 
 #### Part 3: Update Cache Validation (15 min)
 
-**Location**: `deploy/modal/app.py:672`
+**Location**: `deploy/modal/app.py:672` (actual line may vary ~670-680)
 
 **Current Code**:
 ```python
@@ -475,6 +503,9 @@ cache_stem = self.cache_dir / f"{edf_path.stem}_windows"
 ```python
 # src/brain_brr/data/cache_utils.py
 
+from pathlib import Path
+import numpy as np
+
 def load_cache_mmap(
     cache_stem: Path,
     mmap_handles: dict[Path, tuple[np.ndarray, np.ndarray | None]],
@@ -490,6 +521,12 @@ def load_cache_mmap(
 
     Raises:
         FileNotFoundError: If cache files don't exist
+
+    Notes:
+        - Requires numpy and pathlib imports
+        - Mmap handles are stored in mmap_handles dict to prevent re-opening
+        - OS manages memory automatically via page cache
+        - Multiple workers share same physical pages (zero-copy)
     """
     if cache_stem not in mmap_handles:
         # Construct NPY file paths

@@ -456,8 +456,8 @@ def clean_cache():
     logger.info("=" * 60)
 
     cache_paths = [
-        Path("/results/cache/tusz"),
-        Path("/results/cache/smoke"),
+        Path("/results/cache/tusz_mmap"),  # Current mmap cache
+        Path("/results/cache/tusz"),       # Legacy NPZ cache (if exists)
     ]
 
     for cache_path in cache_paths:
@@ -669,7 +669,18 @@ def train(
         cache_valid = False
 
         if cache_path.exists():
+            # Check for NPY files (mmap format - correct)
+            npy_data_files = list(cache_path.glob("*_data.npy"))
+            npy_labels_files = list(cache_path.glob("*_labels.npy"))
+
+            # Check for stray NPZ files (contamination - wrong!)
             npz_files = list(cache_path.glob("*.npz"))
+
+            if npz_files:
+                logger.warning(
+                    f"[CACHE] ⚠️  Found {len(npz_files)} stray NPZ files (contamination!). "
+                    f"Run: modal run deploy/modal/clean_stray_npz.py --confirm"
+                )
 
             # Check if metadata exists and validates
             if cache_metadata_file.exists():
@@ -680,6 +691,7 @@ def train(
                     # Check if built with official_tusz policy
                     if metadata.get("split_policy") == "official_tusz":
                         logger.info(f"[CACHE] ✅ Cache built with official_tusz policy")
+                        logger.info(f"[CACHE] ✅ Using valid Modal SSD cache: {len(npy_data_files)} NPY data files")
                         cache_valid = True
                     else:
                         logger.info(f"[CACHE] ⚠️ Cache built with old policy: {metadata.get('split_policy', 'unknown')}")
@@ -689,14 +701,14 @@ def train(
                     cache_valid = False
             else:
                 # No metadata = old cache from before fix
-                if len(npz_files) > 0:
+                if len(npy_data_files) > 0:
                     logger.info(f"[CACHE] ⚠️ No metadata found - cache built before patient fix!")
-                    logger.info(f"[CACHE] ❌ MUST INVALIDATE {len(npz_files)} contaminated files")
+                    logger.info(f"[CACHE] ❌ MUST INVALIDATE {len(npy_data_files)} files")
                 else:
                     logger.info("[CACHE] No metadata found - cache is empty (will build fresh)")
                 cache_valid = False
 
-            if not cache_valid and len(npz_files) > 0:
+            if not cache_valid and len(npy_data_files) > 0:
                 logger.info("[CACHE] 🧹 Auto-cleaning contaminated cache...")
                 shutil.rmtree(cache_dir, ignore_errors=True)
                 logger.info("[CACHE] ✅ Old cache deleted")

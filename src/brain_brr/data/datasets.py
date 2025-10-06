@@ -107,27 +107,21 @@ class EEGWindowDataset(torch.utils.data.Dataset):
             if self.cache_dir is not None:
                 cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"
 
-            if cache_path is not None and cache_path.exists():
+            if cache_path is not None:
                 try:
-                    with np.load(cache_path) as cached:
-                        n_windows = cached["windows"].shape[0]
-                except Exception:
-                    windows_arr, labels_arr = self._process_file(edf_path, i)
-                    n_windows = windows_arr.shape[0]
-                    if cache_path is not None:
-                        if labels_arr is not None:
-                            np.savez_compressed(cache_path, windows=windows_arr, labels=labels_arr)
-                        else:
-                            np.savez_compressed(cache_path, windows=windows_arr)
+                    windows_mmap, labels_mmap = self._load_cache_for_worker(cache_path)
+                    n_windows = windows_mmap.shape[0]
+                except FileNotFoundError:
+                    raise FileNotFoundError(
+                        f"Cache not found for {edf_path.name} at {cache_path.parent}. "
+                        f"Run populate_cache first: "
+                        f"modal run deploy/modal/app.py --action populate-cache"
+                    ) from None
             else:
-                logger.info(f"[DATA] Building cache for {edf_path.name}...")
-                windows_arr, labels_arr = self._process_file(edf_path, i)
-                n_windows = windows_arr.shape[0]
-                if cache_path is not None:
-                    if labels_arr is not None:
-                        np.savez_compressed(cache_path, windows=windows_arr, labels=labels_arr)
-                    else:
-                        np.savez_compressed(cache_path, windows=windows_arr)
+                raise ValueError(
+                    f"cache_dir is None - cannot load cache for {edf_path.name}. "
+                    f"Set cache_dir in config or run populate_cache first."
+                )
 
             self._file_window_counts.append(n_windows)
             for w_idx in range(n_windows):
@@ -402,7 +396,7 @@ class BalancedSeizureDataset(Dataset):
             """Check if cache file exists in either NPZ or NPY format."""
             if cache_path.exists():
                 return True  # NPZ format
-            # Check NPY format: convert a_windows.npz → a_data.npy
+            # NPY format: convert a_windows stem → a_data.npy
             stem = cache_path.stem.replace("_windows", "")
             data_file = cache_path.parent / f"{stem}_data.npy"
             return data_file.exists()

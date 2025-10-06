@@ -11,7 +11,7 @@ from collections import deque
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Optional, cast
+from rich.console import Console, Optional, cast
 
 from src.brain_brr.constants import LOG_EVERY_N_STEPS
 
@@ -144,7 +144,7 @@ class LoggingConfig:
         self.handlers: dict[str, logging.Handler] = {}
         self.ring_buffer: RingBufferHandler | None = None
         self.performance_filter: PerformanceFilter | None = None
-        self.console: Any | None = None
+        self.console: Console | None = None
         self._original_levels: dict[str, int] = {}
 
     def setup(
