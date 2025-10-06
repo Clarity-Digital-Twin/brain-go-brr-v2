@@ -1,12 +1,12 @@
 # AGENTS.md
 
-This document is automatically consumed by AI coding agents. It summarises the **current** Brain-Go-Brr v3.8.0 baseline so every task starts with the right context.
+This document is automatically consumed by AI coding agents. It summarises the **current** Brain-Go-Brr v3.8.1 baseline so every task starts with the right context.
 
 ---
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.8.0 – "Read-Only Mmap Baseline" – is a clinical EEG seizure detector built on the **V3 dual-stream architecture**:
+Brain-Go-Brr v3.8.1 – "Complete Tensor Safety" – is a clinical EEG seizure detector built on the **V3 dual-stream architecture**:
 
 - **TCN** (8 layers, stride_down=16) for multi-scale temporal encoding.
 - **Node BiMamba-2** (6 layers, d_model=64) for O(N) global context per electrode.
@@ -217,7 +217,9 @@ Resource usage:
 
 ---
 
-## 📌 Current Release – v3.8.0 Summary
+## 📌 Current Release – v3.8.1 Summary
+- ✅ **Complete tensor safety**: All 3 datasets (BalancedSeizureDataset, ValidationDataset, EEGWindowDataset) use `.clone()` for read-only mmap tensors
+- ✅ **Scheduler order verified**: train_step.py paper-over removed, proper order confirmed (optimizer → scheduler)
 - ✅ Read-only mmap cache pipeline (no NPZ drift possible).
 - ✅ Shared mmap loader (`cache_utils.load_cache_mmap`) with uniform logging.
 - ✅ Modal `check-cache`/`clean_stray_npz.py` health tooling.

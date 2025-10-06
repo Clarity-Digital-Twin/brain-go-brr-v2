@@ -1,6 +1,6 @@
 # Technical Debt & Cleanup Status
 
-**Last Updated**: October 6, 2025 (v3.8.0)
+**Last Updated**: October 6, 2025 (v3.8.1)
 **Status**: 🟢 **ZERO ACTIVE DEBT** - All P0/P1/P2/P3 issues resolved
 
 ## Executive Summary
@@ -13,19 +13,24 @@
 | **P3 LOW** | 0 | None |
 | **P4 OPTIONAL** | 3 | None (future enhancements) |
 
-**Current Status**: All known technical debt has been eliminated. Codebase is clean and ready for Modal A100 training.
+**Current Status**: All known technical debt has been eliminated. Codebase is clean and Modal A100 training is running.
 
 ---
 
-## Recently Resolved (October 6, 2025 - v3.8.0)
+## Recently Resolved (October 6, 2025 - v3.8.1)
 
-### NPZ Cache Contamination Fix (P0)
+### Complete Tensor Safety (P0)
+- ✅ Added `.clone()` to EEGWindowDataset (lines 307, 312) - missed in v3.8.0
+- ✅ All 3 datasets now safe from read-only mmap tensor undefined behavior
+- ✅ Removed broad warning suppression from train_step.py (paper-over eliminated)
+- ✅ Verified scheduler step order is correct (optimizer → scheduler)
+- ✅ Updated TECHNICAL_DEBT.md to reflect truth (verified vs fixed)
+
+### Previous Fixes (v3.8.0)
 - ✅ Cleaned 3 stray NPZ files from Modal cache (66.1 MiB freed)
 - ✅ Fixed datasets.py NPZ creation bug (removed all `np.savez_compressed` calls)
 - ✅ Updated cache validation to check NPY files (mmap format)
 - ✅ Fixed test regression (cache_dir=None support restored)
-
-### Code Quality Improvements (P2)
 - ✅ Fixed all type annotations (WandBRun, Console instead of Any)
 - ✅ Extracted duplicate `_load_cache_for_worker` to shared function (120 lines eliminated)
 - ✅ Updated NPZ references in comments to reflect NPY mmap format

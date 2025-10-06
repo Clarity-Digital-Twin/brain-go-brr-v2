@@ -1,4 +1,4 @@
-# Configuration Consistency Check (v3.8.0)
+# Configuration Consistency Check (v3.8.1)
 
 ## Local Configs (RTX 4090 - 24GB)
 
@@ -14,7 +14,7 @@ gradient_clip: 0.5            # Increased from 0.1 (eigendecomp fix allows this)
 mid_checkpoint_interval_s: 1800  # Save every 30 min
 mid_epoch_keep: 3             # Keep last 3 mid-epoch snapshots
 ```
-**Status**: ✅ PRODUCTION STABLE (v3.8.0)
+**Status**: ✅ PRODUCTION STABLE (v3.8.1)
 
 ### smoke.yaml (Quick Test)
 ```yaml
@@ -42,7 +42,7 @@ gradient_clip: 0.5            # NaN protection
 mid_checkpoint_interval_s: 1800  # Save every 30 min (CRITICAL for 6-7h epochs)
 mid_epoch_keep: 3             # Keep last 3 mid-epoch snapshots
 ```
-**Status**: ✅ PRODUCTION READY (v3.8.0)
+**Status**: ✅ PRODUCTION READY (v3.8.1)
 
 ### modal/smoke.yaml
 ```yaml
