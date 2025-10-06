@@ -164,7 +164,7 @@ data_mount = modal.CloudBucketMount(
 )
 
 # REMOVED: We don't mount cache from S3 anymore!
-# Cache lives on Modal SSD volume at /results/cache/tusz for performance.
+# Cache lives on Modal SSD volume at /results/cache/tusz_mmap (mmap NPY format).
 # See populate_cache() function below for one-time S3→SSD copy.
 
 # Persistent volume for TRAINING OUTPUTS ONLY (not caches!)
@@ -549,7 +549,7 @@ def test_mamba_cuda():
     volumes={
         "/data": data_mount,  # S3 bucket with raw EDF data (optional)
         "/results": results_volume,  # SSD volume with cache AND outputs!
-        # NO /cache mount! Cache is on SSD at /results/cache/tusz
+        # NO /cache mount! Cache is on SSD at /results/cache/tusz_mmap (mmap NPY)
     },
     memory=98304,  # SAFE: 96GB RAM (was 32GB, now 3x for safety)
     cpu=24,  # SAFE: 24 CPU cores (3 cores per 8 DataLoader workers)
@@ -654,8 +654,9 @@ def train(
         with open(cfg_abs, "r") as f:
             config_data = yaml.safe_load(f)
 
-        # ALWAYS use SSD cache on Modal, NOT S3!
-        cache_dir = "/results/cache/tusz"  # Fixed path on SSD volume
+        # Use cache_dir from config (supports both NPZ and NPY mmap formats)
+        # Default to mmap format if not specified
+        cache_dir = config_data.get("data", {}).get("cache_dir", "/results/cache/tusz_mmap")
 
         # CRITICAL: Cache structure should be cache_dir/{train,dev}/ for patient disjointness
         # We use 'dev' NOT 'val' to match TUSZ's official split naming convention!
@@ -805,10 +806,11 @@ def train(
     exp["output_dir"] = f"/results/{out_name}"
 
     # CRITICAL: Cache architecture
-    # - Cache is on Modal SSD volume at /results/cache/tusz
+    # - Cache is on Modal SSD volume (mmap NPY format at /results/cache/tusz_mmap)
     # - Smoke tests use SAME cache with BGB_LIMIT_FILES=50
     # - NO SEPARATE SMOKE CACHE EXISTS OR IS NEEDED
-    cache_dir = "/results/cache/tusz"  # SSD volume, NOT S3!
+    # Use cache_dir from config (already loaded from YAML)
+    cache_dir = data.get("data", {}).get("cache_dir", "/results/cache/tusz_mmap")
 
     # Ensure cache directories exist with correct structure
     from pathlib import Path
@@ -816,9 +818,9 @@ def train(
     (Path(cache_dir) / "train").mkdir(exist_ok=True)
     (Path(cache_dir) / "dev").mkdir(exist_ok=True)
 
-    # Set cache_dir in both data and experiment sections
+    # Set cache_dir in experiment section (data section already has it from config)
     exp["cache_dir"] = cache_dir
-    data.setdefault("data", {})["cache_dir"] = cache_dir
+    # DO NOT overwrite data["data"]["cache_dir"] - respect the config!
 
     logger.info(f"[CONFIG] Using cache directory: {cache_dir}")
     logger.info(f"[CONFIG] Output directory: {exp['output_dir']}")

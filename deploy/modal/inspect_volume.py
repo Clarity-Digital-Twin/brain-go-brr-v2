@@ -79,7 +79,8 @@ def inspect_volume():
 
     # Check cache structure (CRITICAL for training startup)
     logger.info("\n=== Cache Structure (Training Readiness) ===")
-    cache_root = "/results/cache/tusz"
+    # Check new mmap cache first, fallback to old NPZ cache
+    cache_root = "/results/cache/tusz_mmap" if os.path.exists("/results/cache/tusz_mmap") else "/results/cache/tusz"
     if os.path.exists(cache_root):
         import json
 
