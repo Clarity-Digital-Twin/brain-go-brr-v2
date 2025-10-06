@@ -100,6 +100,48 @@ uv pip install pytorch-tcn==1.2.3
 python -c "import torch; from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; print('✅ Mamba CUDA kernels working!')"
 ```
 
+## Docker Setup (Optional)
+
+Docker containers let you mirror the local/Modal environment without managing Python tooling on the host. The full workflow lives at `docs/05-training/docker.md`; the essentials are below.
+
+### Required Volume Mounts
+
+Mount all three directories so smoke tests and full training behave exactly like local runs:
+
+```
+- ./data_ext4:/app/data_ext4:ro   # Original EDFs (109 GB, enables smoke tests)
+- ./cache/tusz:/app/cache/tusz:ro # Preprocessed cache with manifests (449 GB)
+- ./results:/app/results:rw       # Checkpoints, logs, TensorBoard runs
+```
+
+These paths match the defaults in `configs/local/*.yaml` (`data_dir: data_ext4/tusz/edf`, `cache_dir: cache/tusz`).
+
+### Quick Start Commands
+
+```
+# Fast validation (3 files, ~5 minutes)
+docker compose up smoke-test
+
+# Full local-equivalent training (100 epochs)
+docker compose up train
+
+# Development shell for custom commands
+docker compose run --rm dev
+```
+
+### Pre-Run Checklist
+
+```
+ls -lh data_ext4/tusz/edf/train/ | head -5     # Verify EDF mount exists
+ls -lh cache/tusz/train/manifest.json          # 27 MB manifest (balanced dataset)
+ls -lh cache/tusz/dev/manifest.json            # 13 MB manifest (validation)
+ls -1 cache/tusz/train/*.npz | wc -l           # Expect 4667 train NPZ files
+ls -1 cache/tusz/dev/*.npz | wc -l             # Expect 1832 dev NPZ files
+df -h .                                        # Ensure ~560 GB free for mounts
+```
+
+Once the mounts and manifests are in place, Docker training loads instantly using the cached datasets, just like the RTX 4090 workflow.
+
 ## Modal Cloud Installation
 
 Modal uses a custom container system (not Docker). The image is built in `deploy/modal/app.py`:

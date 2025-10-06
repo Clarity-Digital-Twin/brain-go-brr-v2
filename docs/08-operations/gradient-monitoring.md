@@ -32,6 +32,28 @@
 
 ---
 
+## ML 2025 Gradient Logging Practices
+
+The logger already follows the current PyTorch/W&B guidance: we compute statistics on finite pre-clip norms, then track overflow batches separately. Use the metrics below when reviewing logs or dashboards:
+
+- **P50 (median)** is the primary stability signal. It reflects the typical gradient scale and remains stable even when a single batch overflows in FP16.
+- **IQR (P75 − P25)** measures spread without being dominated by outliers. A shrinking IQR indicates training is settling; a growing IQR means gradients are getting more volatile.
+- **P95** complements IQR by showing the tail behaviour. Watch for large upward trends (>100 for many steps) as an early warning sign.
+- **Overflow percentage** (`[GRADIENTS] x/y batches had inf pre-clip norm`) tells you how often FP16 overflow occurred before clipping; occasional overflow is normal when mixed precision is enabled.
+
+When you need longer-term visibility, log the same metrics to Weights & Biases:
+
+```python
+wandb.log({
+    "gradients/pre_clip_p50": p50,
+    "gradients/pre_clip_iqr": iqr,
+    "gradients/pre_clip_p95": p95,
+    "gradients/overflow_pct": overflow_pct,
+}, step=batch_idx)
+```
+
+That time-series mirrors the console output and makes it easier to correlate gradient behaviour with loss curves or data-loader changes. See `docs/08-operations/gradient-protection-guide.md` for the full discussion behind these metrics.
+
 ## Understanding "Large Grad Norm" Messages
 
 ### What You See

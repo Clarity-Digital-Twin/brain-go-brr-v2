@@ -1,7 +1,23 @@
 # Technical Debt & Cleanup Status
 
-**Last Updated**: October 2, 2025
-**Status**: 100% COMPLETE ✅ (Including loop.py refactoring)
+**Last Updated**: October 5, 2025
+**Status**: ✅ No open P0/P1 blockers; active follow-up items listed below
+
+## Open Items
+
+### P1: Unused Protection Environment Variables
+
+- **Issue**: `BGB_SANITIZE_GRADS`, `BGB_SANITIZE_INPUTS`, `BGB_SKIP_OPT_STEP_ON_NAN`, and `BGB_SAFE_CLAMP` are defined in `src/brain_brr/utils/env.py` but never read by the training loop. Modal still sets some of them, giving a false sense of extra protection.
+- **Impact**: Training remains stable because gradient clipping (`training.gradient_clip: 0.5`) is always active, but documentation and logs over-promise functionality that is not implemented.
+- **Action**: Decide whether to implement the debugging behaviour for `BGB_SANITIZE_GRADS` or delete the flags entirely, then update docs accordingly. Reference: `docs/archive/INCOMPLETE_IMPLEMENTATIONS_AUDIT.md` and `docs/archive/PROTECTION_IMPLEMENTATION_SSOT.md`.
+
+### P2: Protection System Overhaul (Optional Defensive Layer)
+
+- **Proposal**: Implement the scoped sanitization pipeline described in `docs/archive/PROTECTION_IMPLEMENTATION_SSOT.md` (opt-in gradient sanitization, removal of unused flags, dedicated tests and benchmarks).
+- **Rationale**: Keeps documentation honest, provides a supported debugging mode, and avoids masking architectural issues by default.
+- **Effort**: Estimated 7–10 hours once post-training bandwidth is available.
+
+Completed items from earlier phases remain documented below for context.
 
 ## Completion Summary
 - **V3 Architecture**: Fully implemented, V2 removed
