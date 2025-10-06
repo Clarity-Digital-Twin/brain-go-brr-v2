@@ -253,8 +253,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         """
         if cache_path not in self._mmap_handles:
             # Convert NPZ path to NPY paths
-            # Old: aaaaaajy_s001_t000_windows.npz
-            # New: aaaaaajy_s001_t000_data.npy + aaaaaajy_s001_t000_labels.npy
+            # Format: aaaaaajy_s001_t000_data.npy + aaaaaajy_s001_t000_labels.npy (mmap)
             stem = cache_path.stem.replace("_windows", "")
             windows_file = cache_path.parent / f"{stem}_data.npy"
             labels_file = cache_path.parent / f"{stem}_labels.npy"
@@ -507,8 +506,7 @@ class BalancedSeizureDataset(Dataset):
         """
         if cache_path not in self._mmap_handles:
             # Convert NPZ path to NPY paths
-            # Old: aaaaaajy_s001_t000_windows.npz
-            # New: aaaaaajy_s001_t000_data.npy + aaaaaajy_s001_t000_labels.npy
+            # Format: aaaaaajy_s001_t000_data.npy + aaaaaajy_s001_t000_labels.npy (mmap)
             stem = cache_path.stem.replace("_windows", "")
             windows_file = cache_path.parent / f"{stem}_data.npy"
             labels_file = cache_path.parent / f"{stem}_labels.npy"
@@ -683,8 +681,7 @@ class ValidationDataset(Dataset):
         """
         if cache_path not in self._mmap_handles:
             # Convert NPZ path to NPY paths
-            # Old: aaaaaajy_s001_t000_windows.npz
-            # New: aaaaaajy_s001_t000_data.npy + aaaaaajy_s001_t000_labels.npy
+            # Format: aaaaaajy_s001_t000_data.npy + aaaaaajy_s001_t000_labels.npy (mmap)
             stem = cache_path.stem.replace("_windows", "")
             windows_file = cache_path.parent / f"{stem}_data.npy"
             labels_file = cache_path.parent / f"{stem}_labels.npy"
