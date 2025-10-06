@@ -1,9 +1,9 @@
-# Brain-Go-Brr v3.8.1 – Current Status
+# Brain-Go-Brr v3.8.2 – Current Status
 
 **Last Updated:** 2025-10-06 (22:11 UTC)
 **Branch:** `main`
-**Version:** v3.8.1 (Complete Tensor Safety)
-**Deployment:** Modal full training running (100 epochs on A100-80GB)
+**Version:** v3.8.2 (Zero Warnings)
+**Deployment:** Modal full training running (100 epochs on A100-80GB, zero-warning baseline)
 
 ---
 
@@ -26,14 +26,13 @@
 
 ---
 
-## Latest Improvements (v3.8.1 - October 6, 2025)
+## Latest Improvements (v3.8.2 - October 6, 2025)
 
-### Complete Tensor Safety (P0 - BLOCKER)
-- ✅ Added `.clone()` to EEGWindowDataset (lines 307, 312) - missed in v3.8.0
-- ✅ All 3 datasets now safe from read-only mmap tensor undefined behavior
-- ✅ Removed broad warning suppression from train_step.py (paper-over eliminated)
-- ✅ Verified scheduler step order is correct (optimizer → scheduler)
-- ✅ Updated TECHNICAL_DEBT.md to reflect truth (verified vs fixed)
+### Zero Warnings (P2 → Closed)
+- ✅ Replaced dataset `.clone()` hotfix with NumPy copy-on-read tensors (Balanced, Validation, EEGWindow) – no read-only warnings, mmap safety intact
+- ✅ Added AMP scheduler guard (main loop + accumulation flush) so `scheduler.step()` only runs after a real optimizer update
+- ✅ Verified `make q`, `make test`, and Modal training logs: 0 warnings, accurate LR schedule
+- ✅ Updated docs (AGENTS.md, RELEASE_NOTES.md, technical debt) to reflect v3.8.2 baseline
 
 ### Previous Fixes (v3.8.0)
 - ✅ Cleaned 3 stray NPZ files from Modal cache (66.1 MiB freed)
@@ -54,10 +53,10 @@
 ## Current Deployment
 
 **Modal Full Training (Running)**:
-- App ID: `ap-1SRGX4M1AvxonDi8EDsjnZ` (launched Oct 6, 21:56 UTC)
+- App ID: `ap-uitgvl8kXZoKJ4fZoSehsI` (launched Oct 6, 22:42 UTC)
 - Config: 100 epochs, batch_size=48, A100-80GB
 - Cache: 4667 train + 1832 dev NPY files (verified)
-- Status: ✅ Epoch 1 started successfully with v3.8.1 fixes
+- Status: ✅ Launch succeeded with v3.8.2 zero-warning fixes
 - W&B: https://wandb.ai/jj-vcmcswaggins-novamindnyc/seizure-detection-a100/runs/e3c9f710e17747359f19819e4e4ec4bd
 
 **Next Steps**:

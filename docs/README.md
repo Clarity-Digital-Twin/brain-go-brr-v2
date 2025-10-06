@@ -1,7 +1,7 @@
-# Brain-Go-Brr Documentation (v3.8.1)
+# Brain-Go-Brr Documentation (v3.8.2)
 
 **Last Updated**: October 6, 2025
-**Codebase Version**: v3.8.1 (Complete Tensor Safety)
+**Codebase Version**: v3.8.2 (Zero Warnings)
 **Architecture**: V3 Dual-Stream (TCN + BiMamba + GNN + Dynamic LPE)
 **Status**: 🟢 Zero active debt, full Modal training in progress
 
@@ -136,7 +136,7 @@ Learn by doing:
 
 ## ⚙️ Key Technical Details
 
-### Architecture (v3.8.1)
+### Architecture (v3.8.2)
 - **TCN**: 8 layers, channels [64,128,256,512], stride=16
 - **Node Mamba**: 6 layers, d_model=64, bidirectional SSM
 - **Edge Mamba**: 2 layers, d_model=16, learned adjacency
@@ -144,8 +144,8 @@ Learn by doing:
 - **Parameters**: ~31M total
 - **Dynamic PE**: Always enabled with safeguards (v3.3.1+)
 
-### Training Stability (v3.8.1)
-- ✅ **Complete tensor safety** (v3.8.1): All 3 datasets use .clone() for mmap tensors
+### Training Stability (v3.8.2)
+- ✅ **Complete tensor safety** (v3.8.2): All 3 datasets use copy-on-read tensors for mmap safety (no PyTorch warnings)
 - ✅ **Zero NPZ contamination** (v3.8.0): Datasets read-only, fail-fast on cache miss
 - ✅ **Memory-mapped cache** (v3.8.0): <1 GB RAM vs 387 GB NPZ, 99.6% faster startup
 - ✅ **Gradient stability** (v3.8.0): P95 decreasing 62.52 → 7.42 during training
@@ -268,9 +268,10 @@ This documentation follows the **Diátaxis framework**:
 
 ## 🎯 Project Status
 
-**Current Version**: v3.8.1 (October 6, 2025) - Complete Tensor Safety
+**Current Version**: v3.8.2 (October 6, 2025) - Zero Warnings
 
 **Recent Milestones**:
+- ✅ v3.8.2 (Oct 6): Zero warnings - copy-on-read tensors + AMP scheduler guard
 - ✅ v3.8.1 (Oct 6): Complete tensor safety - all datasets fixed (EEGWindowDataset .clone() added)
 - ✅ v3.8.0 (Oct 6): NPZ contamination eliminated, zero active debt
 - ✅ v3.7.0 (Oct 5): All P2/P3 debt eliminated
@@ -280,7 +281,7 @@ This documentation follows the **Diátaxis framework**:
 
 **Current Status**:
 - ✅ **Modal smoke test** (Oct 6): PASSED - All systems validated
-- 🔄 **Full Modal training** (Oct 6): IN PROGRESS - 100 epochs on A100-80GB
+- 🔄 **Full Modal training** (Oct 6): IN PROGRESS - 100 epochs on A100-80GB (app: ap-uitgvl8kXZoKJ4fZoSehsI)
 - ✅ **Technical debt**: ZERO active issues (P0/P1/P2/P3 all resolved)
 
 **Next Steps**:

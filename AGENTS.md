@@ -1,12 +1,12 @@
 # AGENTS.md
 
-This document is automatically consumed by AI coding agents. It summarises the **current** Brain-Go-Brr v3.8.1 baseline so every task starts with the right context.
+This document is automatically consumed by AI coding agents. It summarises the **current** Brain-Go-Brr v3.8.2 baseline so every task starts with the right context.
 
 ---
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.8.1 – "Complete Tensor Safety" – is a clinical EEG seizure detector built on the **V3 dual-stream architecture**:
+Brain-Go-Brr v3.8.2 – "Zero Warnings" – is a clinical EEG seizure detector built on the **V3 dual-stream architecture**:
 
 - **TCN** (8 layers, stride_down=16) for multi-scale temporal encoding.
 - **Node BiMamba-2** (6 layers, d_model=64) for O(N) global context per electrode.
@@ -16,8 +16,9 @@ Brain-Go-Brr v3.8.1 – "Complete Tensor Safety" – is a clinical EEG seizure d
 
 Key properties:
 - Entire cache pipeline now uses **memory-mapped `_data.npy` / `_labels.npy` pairs** (no NPZ writes anywhere).
-- Datasets operate in **read-only** mode; cache misses raise helpful errors directing the user to repopulate.
-- Technical debt is at zero: lint, type checks, and full test/clinical suites are green (104 unit/integration + clinical, 83.8% cov).
+- Datasets operate in **read-only** mode with **NumPy copy-on-read tensors** so PyTorch never emits writable warnings; cache misses raise helpful errors directing the user to repopulate.
+- Technical debt is at zero: lint, type checks, and full test/clinical suites are green (104 unit/integration + clinical, 83.8% cov) with **zero runtime warnings**.
+- Mixed-precision runs now **guard the LR scheduler** so it only advances after a real optimizer step—no skipped-step warnings, accurate warmup/cosine decay.
 - Modal automation: `check-cache` validates counts, and `clean_stray_npz.py` removes accidental NPZ files after aborted runs.
 
 See `docs/04-model/v3-architecture.md` and `docs/04-model/v3-stability-evolution.md` for architecture and safeguard details.
@@ -217,9 +218,9 @@ Resource usage:
 
 ---
 
-## 📌 Current Release – v3.8.1 Summary
-- ✅ **Complete tensor safety**: All 3 datasets (BalancedSeizureDataset, ValidationDataset, EEGWindowDataset) use `.clone()` for read-only mmap tensors
-- ✅ **Scheduler order verified**: train_step.py paper-over removed, proper order confirmed (optimizer → scheduler)
+## 📌 Current Release – v3.8.2 Summary
+- ✅ **Zero warnings**: NumPy copy-on-read pattern removes read-only tensor warnings; AMP scheduler guard only advances after real optimizer steps.
+- ✅ **Complete tensor safety**: All 3 datasets keep read-only mmap semantics without ever mutating cache data.
 - ✅ Read-only mmap cache pipeline (no NPZ drift possible).
 - ✅ Shared mmap loader (`cache_utils.load_cache_mmap`) with uniform logging.
 - ✅ Modal `check-cache`/`clean_stray_npz.py` health tooling.

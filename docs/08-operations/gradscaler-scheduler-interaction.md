@@ -1,8 +1,8 @@
-# GradScaler + LRScheduler Interaction (Known Issue)
+# GradScaler + LRScheduler Interaction (Resolved)
 
-**Status**: Known issue in v3.8.1, fix planned for v3.8.2
-**Priority**: P2 (minor quality issue, not a blocker)
-**Impact**: Cosmetic warning + slightly suboptimal LR schedule when gradients are inf
+**Status**: Resolved in v3.8.2 (Zero Warnings release)
+**Priority**: Closed (former P2 cosmetic issue)
+**Impact**: Scheduler only advances when optimizer updates; no cosmetic warnings, accurate LR schedule
 
 ---
 
@@ -20,7 +20,9 @@ UserWarning: Detected call of `lr_scheduler.step()` before `optimizer.step()`.
 
 ## Root Cause
 
-### Current Code (train_step.py:398-409)
+*This section documents the behaviour observed during the v3.8.1 training run before the fix shipped in v3.8.2.*
+
+### Pre-v3.8.2 Code (train_step.py:398-409)
 
 ```python
 if scaler.is_enabled():
@@ -75,7 +77,7 @@ The warning fires on batch 0, which has `pre=inf` gradients!
 
 ---
 
-## The Correct Fix
+## Fix Implemented in v3.8.2
 
 ### Official PyTorch Pattern
 
@@ -100,68 +102,38 @@ if scale_after >= scale_before:
 
 **Logic**: If `scaler.get_scale()` decreased, it means inf gradients were detected and optimizer was skipped.
 
-### Alternative (More Explicit)
+### Implementation Snapshot (train_step.py v3.8.2)
 
 ```python
-# Use scaler's internal state to check if step was skipped
-optimizer_stepped = scaler.step(optimizer)  # Returns scale unchanged status
-scaler.update()
+# Track optimizer step status for scheduler
+optimizer_stepped = False
 
-if optimizer_stepped or not scaler.is_enabled():
+if scaler.is_enabled():
+    scale_before = scaler.get_scale()
+    scaler.step(optimizer)
+    scaler.update()
+    optimizer_stepped = scaler.get_scale() >= scale_before
+else:
+    optimizer.step()
+    optimizer_stepped = True
+
+# Only advance scheduler if optimizer actually updated weights
+if optimizer_stepped and scheduler is not None:
     scheduler.step()
     global_step += 1
 ```
 
----
+This guard exists in both the main microbatch loop and the gradient-accumulation flush (lines 399‑418 and 563‑574).
 
-## Implementation Plan (v3.8.2)
+### Testing Summary
 
-### Changes Required
-
-1. **train_step.py** (2 locations):
-   - Line 398-409: Main training loop
-   - Line 550-557: End-of-epoch handling
-
-2. **Pattern**:
-   ```python
-   # Before
-   if scaler.is_enabled():
-       scaler.step(optimizer)
-       scaler.update()
-   else:
-       optimizer.step()
-
-   if scheduler is not None:
-       scheduler.step()
-       global_step += 1
-
-   # After
-   if scaler.is_enabled():
-       scale_before = scaler.get_scale()
-       scaler.step(optimizer)
-       scaler.update()
-
-       # Only step scheduler if optimizer actually updated
-       if scaler.get_scale() >= scale_before and scheduler is not None:
-           scheduler.step()
-           global_step += 1
-   else:
-       optimizer.step()
-       if scheduler is not None:
-           scheduler.step()
-           global_step += 1
-   ```
-
-### Testing
-
-- Local smoke test with `BGB_NAN_DEBUG=1`
-- Modal smoke test (50 files)
-- Verify warning disappears
-- Verify LR schedule matches expected values in W&B
+- `make q` (ruff + mypy) – pass  
+- `make test` (full clinical suite) – pass, 83.8 % coverage  
+- Modal training run (config `configs/modal/train.yaml`) – no scheduler warning emitted; LR trace matches cosine schedule
 
 ---
 
-## Why We Didn't Catch This Earlier
+## Historical Postmortem (v3.8.1)
 
 ### What We Got Right (v3.8.1)
 
@@ -190,7 +162,7 @@ with warnings.catch_warnings():
 
 ---
 
-## Why We Should NOT Stop Current Training
+## Historical Decision Log (v3.8.1 Run)
 
 | Factor | Assessment |
 |--------|-----------|

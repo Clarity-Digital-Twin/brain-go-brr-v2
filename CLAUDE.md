@@ -4,7 +4,7 @@ This file provides critical project context for Claude Code (claude.ai/code) whe
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.8.1 (Complete Tensor Safety): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks.
+Brain-Go-Brr v3.8.2 (Zero Warnings): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks.
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
@@ -12,15 +12,15 @@ Brain-Go-Brr v3.8.1 (Complete Tensor Safety): Clinical EEG seizure detection usi
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-Current Architecture (v3.8.1 - October 6, 2025):
+Current Architecture (v3.8.2 - October 6, 2025):
 - **V3 dual-stream** → Node (19×) and Edge (171×) parallel processing
 - **Memory-mapped cache (NPY)** → <1 GB RAM vs 387 GB for NPZ, 99.6% faster startup
-- **Complete tensor safety** → All 3 datasets use .clone() for read-only mmap tensors (v3.8.1)
+- **Complete tensor safety** → All 3 datasets use copy-on-read tensors for read-only mmap safety (no PyTorch warnings)
 - **Edge similarity clamping** → Prevents ±1.0 boundary explosions (PR-5)
 - **Dynamic Laplacian PE** → Time-evolving graph structure, fully dynamic every timestep
 - **Detached eigenvectors** → Prevents gradient explosion through eigendecomposition (gnn_pyg.py:205)
 - **3-tier NaN protection** → Gradient sanitization + clamping + monitoring
-- **Zero technical debt** → All P0/P1/P2/P3 issues resolved
+- **Zero technical debt** → All P0/P1/P2/P3 issues resolved, zero runtime warnings in training logs
 
 ## 🚀 Quick Commands
 
@@ -363,17 +363,18 @@ Due to hardware differences, integration tests have adjusted thresholds:
 
 **Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
 
-**Current Status (v3.8.1 - October 6, 2025)**:
-- ✅ **Complete tensor safety** - All 3 datasets use .clone() for read-only mmap tensors
-- ✅ **EEGWindowDataset fixed** - Added missing .clone() calls (lines 307, 312) from v3.8.0
-- ✅ **Scheduler order verified** - Removed paper-over, confirmed optimizer → scheduler correct
+**Current Status (v3.8.2 - October 6, 2025)**:
+- ✅ **Zero warnings** - NumPy copy-on-read tensors + AMP scheduler guard (two sites) eliminate PyTorch runtime warnings
+- ✅ **Complete tensor safety** - Read-only mmap cache preserved with copy-on-read tensors (no cache mutation risk)
+- ✅ **EEGWindowDataset hardened** - Missing clone fixed in v3.8.1, now upgraded to copy-on-read safety
+- ✅ **Scheduler guard implemented** - Optimizer-only advancement prevented; warmup + cosine schedule accurate
 - ✅ **NPZ cache contamination ELIMINATED** - 3 stray files cleaned, datasets.py bug fixed
 - ✅ **Memory-mapped NPY cache** - <1 GB RAM vs 387 GB NPZ, 99.6% faster startup
 - ✅ **Code quality refactoring** - 120 lines eliminated (extracted shared cache loader)
 - ✅ **Type safety enhanced** - All `Any` types replaced with proper types (WandBRun, Console)
 - ✅ **Zero active debt** - All P0/P1/P2/P3 issues resolved (104 tests passing, 83.80% coverage)
-- ✅ **Modal training running** - 100 epochs, batch_size=48, A100-80GB (app: ap-1SRGX4M1AvxonDi8EDsjnZ)
+- ✅ **Modal training running** - 100 epochs, batch_size=48, A100-80GB (app: ap-uitgvl8kXZoKJ4fZoSehsI)
 - ✅ PyTorch 2.5.0 + mamba-ssm 2.2.5 (A100 XID 31 crashes resolved)
 - ✅ V3 dual-stream with edge similarity clamping (PR-5)
 - 🟢 **0 active P0/P1/P2/P3** - Complete production baseline
-- **Modal training in progress** - v3.8.1 fully deployed
+- **Modal training in progress** - v3.8.2 zero-warnings baseline fully deployed
