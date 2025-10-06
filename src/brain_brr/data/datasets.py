@@ -304,12 +304,12 @@ class EEGWindowDataset(torch.utils.data.Dataset):
             label = labels_arr[window_idx] if labels_arr is not None else None
 
         # Convert to tensors
-        window_tensor = torch.from_numpy(window)
+        window_tensor = torch.from_numpy(window).clone()
         if self.transform is not None:
             window_tensor = self.transform(window_tensor)
 
         if label is not None:
-            label_tensor = torch.from_numpy(label)
+            label_tensor = torch.from_numpy(label).clone()
         else:
             # ALWAYS return dict with zero labels when none exist
             # Shape matches window's time dimension for per-timestep labels
