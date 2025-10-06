@@ -6,7 +6,7 @@
 [![PyTorch 2.5.0](https://img.shields.io/badge/pytorch-2.5.0-red.svg)](https://pytorch.org)
 [![CUDA 12.4](https://img.shields.io/badge/cuda-12.4-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
-[![v3.8.1](https://img.shields.io/badge/version-3.8.1-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.8.1-complete-tensor-safety)
+[![v3.8.2](https://img.shields.io/badge/version-3.8.2-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.8.2-zero-warnings)
 
 ## Overview
 
