@@ -1,9 +1,9 @@
 # Manifest Naming Migration Plan
 
-**Version**: 2.0 (CORRECTED)
+**Version**: 2.1 (FINAL)
 **Date**: 2025-10-06
 **Author**: AI Planning Agent
-**Status**: ✅ VALIDATED - Critical Issues Fixed
+**Status**: ✅ VALIDATED & APPROVED - Ready for Execution
 
 ## 🔴 CRITICAL UPDATES (v2.0)
 
@@ -560,7 +560,30 @@ python -m src train configs/local/smoke.yaml
 - ✅ No warnings about missing files
 - ✅ Training completes 1 epoch
 
-#### Test 2: Full Test Suite
+#### Test 2: Update Test Fixtures (Optional)
+
+**File**: `tests/unit/data/test_manifest_validation.py`
+
+These test fixtures use NPZ-style naming - update for consistency:
+
+```python
+# OLD (lines 24-25, 45):
+_save_npz(cache_dir / "a_windows.npz", w, y)
+_save_npz(cache_dir / "b_windows.npz", w, y)
+_save_npz(cache_dir / "keep_windows.npz", w, y)
+
+# NEW:
+_save_npy(cache_dir / "a_data.npy", w)
+_save_npy(cache_dir / "a_labels.npy", y)
+_save_npy(cache_dir / "b_data.npy", w)
+_save_npy(cache_dir / "b_labels.npy", y)
+_save_npy(cache_dir / "keep_data.npy", w)
+_save_npy(cache_dir / "keep_labels.npy", y)
+```
+
+**Note**: Not blocking - tests currently pass with NPZ fixtures (legacy format still supported)
+
+#### Test 3: Full Test Suite
 ```bash
 make test
 ```
@@ -570,7 +593,73 @@ make test
 - ✅ Dataset tests verify NPY loading
 - ✅ Manifest tests verify new format
 
-#### Test 3: Manifest Integrity
+#### Test 4: Manifest Spot-Check (CRITICAL)
+
+**Goal**: Verify BOTH train + dev manifests use NPY naming
+
+```bash
+# Check train manifest (should show *_data.npy)
+echo "=== TRAIN MANIFEST ==="
+head -20 cache/tusz_mmap/train/manifest.json
+
+# Check dev manifest (should show *_data.npy)
+echo "=== DEV MANIFEST ==="
+head -20 cache/tusz_mmap/dev/manifest.json
+
+# Count entries
+python3 -c "
+import json
+train = json.load(open('cache/tusz_mmap/train/manifest.json'))
+dev = json.load(open('cache/tusz_mmap/dev/manifest.json'))
+
+# Verify all entries use *_data.npy
+train_files = {e['cache_file'] for cat in ['partial_seizure', 'full_seizure'] for e in train.get(cat, [])}
+dev_files = {e['cache_file'] for cat in ['partial_seizure', 'full_seizure'] for e in dev.get(cat, [])}
+
+npz_in_train = [f for f in train_files if '_windows.npz' in f]
+npz_in_dev = [f for f in dev_files if '_windows.npz' in f]
+
+print(f'Train: {len(train_files)} unique files')
+print(f'Dev: {len(dev_files)} unique files')
+print(f'NPZ in train: {len(npz_in_train)} (should be 0!)')
+print(f'NPZ in dev: {len(npz_in_dev)} (should be 0!)')
+
+if npz_in_train or npz_in_dev:
+    print('[✗] MIGRATION FAILED - Still has NPZ naming!')
+    exit(1)
+else:
+    print('[✓] MIGRATION SUCCESS - All NPY naming!')
+"
+```
+
+**Expected Output**:
+```json
+=== TRAIN MANIFEST ===
+{
+  "partial_seizure": [
+    {"cache_file": "aaaaaaac_s001_t000_data.npy", "window_idx": 0},
+    ...
+  ],
+  ...
+}
+
+=== DEV MANIFEST ===
+{
+  "partial_seizure": [
+    {"cache_file": "aaaaaaab_s001_t000_data.npy", "window_idx": 0},
+    ...
+  ],
+  ...
+}
+
+Train: 857 unique files
+Dev: 1832 unique files
+NPZ in train: 0 (should be 0!)
+NPZ in dev: 0 (should be 0!)
+[✓] MIGRATION SUCCESS - All NPY naming!
+```
+
+#### Test 5: Manifest Integrity
 ```python
 import json
 from pathlib import Path
