@@ -1,9 +1,9 @@
 # P0 BLOCKER: Modal Cache Path Hardcoded to Wrong Location
 
 **Date**: October 6, 2025
-**Severity**: **P0 CRITICAL** - Blocks all Modal training
-**Status**: ❌ IDENTIFIED - Requires immediate fix
-**Impact**: 93 minutes of cache population wasted, mmap conversion not being used
+**Severity**: **P0 CRITICAL** - Blocked Modal training
+**Status**: ✅ FIXED - Lines 658, 811, 821 corrected
+**Impact**: 93 minutes of cache population wasted (now recovered)
 
 ---
 
@@ -275,6 +275,24 @@ If we had run `check-cache` before smoke test, we would have seen:
 
 ---
 
-**Status**: Ready to fix immediately
-**Assignee**: AI Agent (this fix)
-**Timeline**: Fix now, smoke test in 10 min, full training after smoke passes
+## Update: October 6, 2025 (12:38pm) - FIXED
+
+**All fixes applied**:
+- ✅ Line 658: Now reads from config (`config_data.get("data", {}).get("cache_dir", "/results/cache/tusz_mmap")`)
+- ✅ Line 813: Now reads from config (`data.get("data", {}).get("cache_dir", "/results/cache/tusz_mmap")`)
+- ✅ Line 821: Removed config overwrite (respects YAML configs now)
+- ✅ Comments updated: Lines 167, 552 reference `tusz_mmap`
+
+**Verification**:
+```bash
+# Smoke test logs now show:
+[CONFIG] Using cache directory: /results/cache/tusz_mmap ✅ CORRECT!
+```
+
+**New Issue Discovered**: While testing fixed smoke test, found 3 stray NPZ files in Modal cache from first failed test. See `COMPREHENSIVE_FIX_PLAN.md` for full NPZ contamination fix plan.
+
+---
+
+**Status**: ✅ FIXED - Cache path override issue resolved
+**New Blocker**: NPZ contamination (see COMPREHENSIVE_FIX_PLAN.md)
+**Timeline**: Original issue fixed in 30 min, NPZ cleanup in progress

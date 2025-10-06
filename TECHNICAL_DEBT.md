@@ -1,8 +1,8 @@
 # Technical Debt
 
-**Date**: October 6, 2025 (Updated after fixes)
-**Status**: 3 issues remaining (0 P0, 0 P1, 3 P2, 0 P3)
-**Training Impact**: No blockers - training ready
+**Date**: October 6, 2025 (Updated after NPZ discovery)
+**Status**: 4 issues remaining (1 P0, 0 P1, 3 P2, 0 P3)
+**Training Impact**: 1 P0 blocker - NPZ contamination must be fixed
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Priority | Count | Training Impact |
 |----------|-------|-----------------|
-| **P0 BLOCKER** | 0 | None - ready to train |
+| **P0 BLOCKER** | 1 | NPZ cache contamination |
 | **P1 URGENT** | 0 | None - all fixed! |
 | **P2 MEDIUM** | 3 | Code quality/maintenance |
 | **P3 LOW** | 0 | None - all fixed! |
@@ -19,10 +19,43 @@
 - ✅ NPZ→NPY mmap conversion (387 GB RAM → <1 GB)
 - ✅ ValidationDataset caching (49x speedup)
 - ✅ Modal SSD cache population (train + dev splits)
+- ✅ **P0 Cache path hardcoding** - Fixed app.py lines 658, 811, 821
 - ✅ **P1 Documentation paths** - Updated all `cache/tusz` → `cache/tusz_mmap`
 - ✅ **P2 Magic numbers** - Added `HEARTBEAT_INTERVAL_SEC` to constants
 - ✅ **P2 Env var naming** - Renamed to `BGB_SKIP_PERF_TESTS`
 - ✅ **P3 YAML comments** - Cleaned double comments in configs
+
+**New Issue Discovered (October 6, 2025)**:
+- 🔴 **P0 NPZ contamination** - 3 stray NPZ files in Modal cache from failed smoke test
+- 🔴 **P0 datasets.py bug** - Creates NPZ files on cache miss (should create NPY!)
+- See `COMPREHENSIVE_FIX_PLAN.md` for complete analysis and fix plan
+
+---
+
+## P0: NPZ Cache Contamination (BLOCKS TRAINING)
+
+### Critical Issue: Mixed NPZ/NPY Cache Files
+
+**Problem**: Modal cache at `/results/cache/tusz_mmap/` contains BOTH:
+- ✅ 4667+1832 NPY files (correct, from populate_cache)
+- ❌ 3 NPZ files (wrong, from first failed smoke test)
+
+**Root Cause**: `datasets.py:117-130` creates NPZ files on cache miss, not NPY files
+
+**Impact**:
+- Current: Confusing logs, wasted disk space
+- Future: ANY cache miss will create more NPZ files (format drift!)
+
+**Fix Required**:
+1. Clean 3 stray NPZ files from Modal cache (30 min)
+2. Fix datasets.py to either:
+   - Option A (recommended): Remove on-the-fly cache creation entirely
+   - Option B: Convert NPZ creation to NPY format
+3. Update cache validation to check for NPY files (15 min)
+
+**See**: `COMPREHENSIVE_FIX_PLAN.md` for complete analysis, implementation plan, and testing strategy
+
+**Timeline**: 1-2 hours to fix, smoke test to validate
 
 ---
 
@@ -115,4 +148,21 @@
 
 ---
 
-**Status**: Training ready - proceed with confidence! 🚀
+## Next Steps
+
+**Before Training** (P0 - Required):
+1. Review `COMPREHENSIVE_FIX_PLAN.md` with AI agent for consensus
+2. Implement NPZ cleanup script (30 min)
+3. Fix datasets.py NPZ creation bug (30-60 min)
+4. Update cache validation logic (15 min)
+5. Run smoke test to validate fixes (10 min)
+
+**After Training Starts** (P2 - Optional):
+- P2 fixes can be done in parallel with training
+- Total time: ~2-3 hours
+- No impact on training performance
+
+---
+
+**Status**: 🔴 BLOCKED - Must fix P0 NPZ contamination before training
+**See**: `COMPREHENSIVE_FIX_PLAN.md` for detailed implementation plan

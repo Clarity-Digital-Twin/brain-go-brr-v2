@@ -1,8 +1,18 @@
 # Remaining Technical Debt - Implementation Plan
 
+**⚠️ DEPRECATED**: This document has been superseded by `COMPREHENSIVE_FIX_PLAN.md`
+
 **Date**: October 6, 2025
-**Status**: Ready for AI agent review and implementation
-**Scope**: 3 P2 code quality issues (2 hours estimated)
+**Status**: See `COMPREHENSIVE_FIX_PLAN.md` for current fix plan
+**Scope**: Originally 3 P2 issues, NOW 1 P0 + 3 P2 issues
+
+**New P0 Blocker Discovered**: NPZ cache contamination (3 stray files + datasets.py creates NPZ on cache miss)
+
+**👉 GO TO**: `COMPREHENSIVE_FIX_PLAN.md` for complete analysis and implementation plan
+
+---
+
+## Historical Content (For Reference Only)
 
 ---
 
