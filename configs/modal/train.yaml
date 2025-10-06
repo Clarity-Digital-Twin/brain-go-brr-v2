@@ -16,14 +16,14 @@
 data:
   dataset: tuh_eeg
   data_dir: /data/edf                    # Parent dir containing train/dev/eval
-  cache_dir: /results/cache/tusz_mmap  # Memory-mapped NPY cache on persistent SSD (train/dev)
+  cache_dir: /results/cache/tusz_mmap  # Memory-mapped `_data.npy`/`_labels.npy` pairs on Modal SSD (read-only)
   sampling_rate: 256
   n_channels: 19
   window_size: 60
   stride: 10
   num_workers: 4                        # SAFE: Prevents spawn delays (8 caused overhead)
   pin_memory: true                      # Fast GPU transfer
-  persistent_workers: true              # CRITICAL: Keep workers alive to preserve NPZ cache (40,000x speedup)
+  persistent_workers: true              # Keeps mmap pages hot across epochs (fast start-up)
   prefetch_factor: 2                    # SAFE: Prevents memory pressure (4/8 caused OOM)
   # ⚠️ CRITICAL: Without balanced sampling, batches may have ZERO seizures! ⚠️
   use_balanced_sampling: true          # CRITICAL: Use positive-aware sampling

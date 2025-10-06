@@ -228,7 +228,7 @@ model:
 | Modal Train | A100-80GB | ~1 hour | ~100 hours |
 | Smoke Test | Both | ~5 mins | 5 mins |
 
-**Note**: Local is slower due to smaller batch size (4 vs 32) but more stable on 24GB VRAM.
+**Note**: Local remains slower because of the smaller batch size (8 vs 48) required by the 24 GB RTX 4090.
 
 ## 🔧 Environment Variables
 

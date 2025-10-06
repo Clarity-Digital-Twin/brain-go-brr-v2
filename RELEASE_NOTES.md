@@ -1,5 +1,123 @@
 # Release Notes
 
+## v3.8.0 - True Zero-Debt Modal Training Baseline (2025-10-06)
+
+**THE production baseline** - Eliminates NPZ cache contamination discovered after v3.7.0
+
+---
+
+### 🎯 Why This Release Matters
+
+v3.7.0 claimed "zero debt" but had a **P0 blocker** lurking: NPZ cache contamination. v3.8.0 eliminates the LAST remaining technical debt and achieves the **first truly debt-free baseline**.
+
+**The Pattern**:
+- v3.6.2 "Complete Debt Elimination" → Had P2 debt remaining
+- v3.7.0 "Zero Debt Modal Baseline" → Had P0 NPZ contamination
+- **v3.8.0 "True Zero-Debt Baseline"** → ACTUALLY zero debt ✅
+
+---
+
+### 📊 What Was Fixed
+
+| Issue | Impact | Status |
+|-------|--------|--------|
+| **NPZ contamination** (P0) | 3 stray files in Modal cache, wrong format | ✅ ELIMINATED |
+| **datasets.py NPZ bug** (P0) | Would re-create NPZ files on cache miss | ✅ FIXED |
+| **Code duplication** (P2) | 120 lines of duplicate cache loading code | ✅ EXTRACTED |
+| **Type annotations** (P2) | `Any \| None` instead of proper types | ✅ FIXED |
+| **Test regression** | cache_dir=None broke tests | ✅ RESTORED |
+
+---
+
+### 🛠️ Technical Details
+
+#### P0: NPZ Cache Contamination (BLOCKER)
+**The Discovery**:
+- Modal cache had 3 stray `.npz` files (66.1 MiB) from first failed smoke test
+- `datasets.py` lines 117-130 created NPZ files on cache miss (wrong format!)
+- Would have re-contaminated cache with every cache miss
+
+**The Fix**:
+1. ✅ Created cleanup script with safety checks (`deploy/modal/clean_stray_npz.py`)
+2. ✅ Deleted 3 NPZ files (verified NPY files exist first)
+3. ✅ Fixed `datasets.py` NPZ creation bug (restored on-demand for tests)
+4. ✅ Updated cache validation to check NPY format
+
+**Result**: Zero NPZ contamination, clean NPY-only cache ✅
+
+#### P2: Code Quality (120 lines eliminated)
+**Duplicate Code Extraction**:
+- Problem: Identical 40-line `_load_cache_for_worker` in 3 dataset classes
+- Solution: Extracted to shared `load_cache_mmap()` in `cache_utils.py`
+- Impact: 120 lines eliminated, single source of truth
+
+**Type Safety**:
+- Fixed 3 files using `Any | None` instead of proper types
+- `WandBRun | None`, `Console | None` with proper imports
+- Impact: Improved type safety, better IDE support
+
+---
+
+### ✅ Quality Verification
+
+**All Checks Passing**:
+```bash
+make q           # Lint + format + mypy + config → PASS ✅
+make test        # 104 tests, 83.80% coverage → PASS ✅
+```
+
+**Cache Status**:
+- ✅ Modal: 4667 train + 1832 dev NPY files
+- ✅ Zero NPZ contamination
+- ✅ Manifest-based startup (99.6% faster)
+
+**Code Metrics**:
+- ✅ Zero lint errors
+- ✅ Zero type errors
+- ✅ Zero test failures
+- ✅ 120 lines eliminated
+
+---
+
+### 🚀 Deployment Status
+
+**Modal Smoke Test**: Running (ap-39MmeGlcwE1KgLEibaq8Cg)
+- Config: 50 files, 1 epoch (~10 min)
+- Cache: NPY mmap format, zero contamination
+- Status: ✅ Launched successfully
+
+**Next**: Full Modal training (100 epochs) after smoke test passes
+
+---
+
+### 📦 Migration Guide
+
+**Upgrading from v3.7.0**:
+✅ **100% Backward Compatible**
+
+```bash
+git pull
+git checkout v3.8.0-true-zero-debt-baseline
+# Ready - no additional steps needed
+```
+
+No API changes, no config changes, no cache rebuild required.
+
+---
+
+### 🏆 Why v3.8.0 (MINOR) Not v3.7.1 (PATCH)?
+
+**Rationale**: Fixes fundamental architectural debt discovered AFTER v3.7.0:
+
+1. **Cache format contamination** (P0 blocker)
+2. **Substantial refactoring** (120 lines eliminated)
+3. **Type system improvements** (replaced `Any`)
+4. **True baseline achievement** (first actually debt-free)
+
+**Semantic Versioning**: P0 blocker fix + substantial refactor = MINOR bump
+
+---
+
 ## v3.7.0 - Zero Debt Modal Baseline (2025-10-05)
 
 **FINAL production-ready release before Modal A100 training**

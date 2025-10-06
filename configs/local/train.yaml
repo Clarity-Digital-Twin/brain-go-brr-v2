@@ -4,7 +4,7 @@
 #
 # IMPORTANT:
 # - GPU stack: run `make setup-gpu` (installs Mamba+PyG with prebuilt wheels)
-# - Ensure cache exists at cache/tusz/{train,dev} with 4667 train + 1832 dev NPZ (see configs/README.md for cache build instructions)
+# - Ensure memory-mapped cache exists at cache/tusz_mmap/{train,dev} (4667 + 1832 NPY stems; see configs/README.md)
 # - Optional NaN debugging: export BGB_NAN_DEBUG=1 (enables extra logging)
 # - If local training stalls/hangs (esp. on WSL2): set data.num_workers: 0
 # - If NaNs persist on RTX 4090: set training.mixed_precision: false; reduce batch_size or learning_rate
@@ -103,7 +103,7 @@ model:
 data:
   dataset: tuh_eeg
   data_dir: data_ext4/tusz/edf        # Parent dir containing train/dev/eval
-  cache_dir: cache/tusz_mmap  # Will create train/ and dev/ subdirs (mmap NPY format)
+  cache_dir: cache/tusz_mmap  # Memory-mapped `_data.npy`/`_labels.npy` pairs (read-only)
   sampling_rate: 256
   n_channels: 19
   window_size: 60

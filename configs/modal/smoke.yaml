@@ -17,14 +17,14 @@
 data:
   dataset: tuh_eeg
   data_dir: /data/edf                   # Parent dir containing train/dev/eval
-  cache_dir: /results/cache/tusz_mmap  # Persistent SSD cache, mmap NPY format (NOT S3!)
+  cache_dir: /results/cache/tusz_mmap  # Persistent SSD cache with `_data.npy`/`_labels.npy` stems (read-only)
   sampling_rate: 256
   n_channels: 19
   window_size: 60
   stride: 10
   num_workers: 4                       # SAFE: Prevents spawn delays (8 caused overhead)
   pin_memory: true                     # Fast GPU transfer
-  persistent_workers: true             # CRITICAL: Keep workers alive to preserve NPZ cache (40,000x speedup)
+  persistent_workers: true             # Keeps mmap pages warm so worker restarts are instant
   prefetch_factor: 2                   # SAFE: Prevents memory pressure (4/8 caused OOM)
   use_balanced_sampling: false         # Must be false for BGB_LIMIT_FILES to work
 
