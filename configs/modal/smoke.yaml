@@ -17,7 +17,7 @@
 data:
   dataset: tuh_eeg
   data_dir: /data/edf                   # Parent dir containing train/dev/eval
-  cache_dir: /results/cache/tusz_mmap  # Memory-mapped uncompressed NPY cache (2025 ML best practice)       # Persistent SSD cache (NOT S3!)
+  cache_dir: /results/cache/tusz_mmap  # Persistent SSD cache, mmap NPY format (NOT S3!)
   sampling_rate: 256
   n_channels: 19
   window_size: 60

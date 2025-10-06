@@ -8,15 +8,15 @@ Targets (TAES)
 
 Training times (typical)
 
-- Local (RTX 4090): ~3–4 hours/epoch; 100 epochs ~300–400 hours
-- Modal (A100‑80GB): ~1 hour/epoch; 100 epochs ~100 hours (~$319)
-- Smoke test: ~5 minutes
+- Local (RTX 4090, batch 8): ~3–4 hours/epoch; 100 epochs ~300–400 hours
+- Modal (A100‑80GB, batch 48): ~1 hour/epoch; 100 epochs ~100 hours (~$319)
+- Smoke test (local or Modal): ~5 minutes
 
-Resource usage
+Resource usage (current configs)
 
-- VRAM: ~10-16GB (RTX 4090 with V3, batch 4); 60–75GB (A100 with batch 32, grad_accum 2)
-- Cache size: ~50GB processed NPZ files
-- Checkpoint: ~125MB per epoch
+- VRAM: ~20 GB on RTX 4090 (batch 8, mixed precision off); ~55–60 GB on A100‑80GB (batch 48, mixed precision on)
+- Cache size: ≈500 GB memory-mapped NPY pairs (`cache/tusz_mmap/*`)
+- Checkpoints: ~125 MB per epoch (per run)
 
 Complexity summary
 

@@ -16,7 +16,7 @@
 data:
   dataset: tuh_eeg
   data_dir: /data/edf                    # Parent dir containing train/dev/eval
-  cache_dir: /results/cache/tusz_mmap  # Memory-mapped uncompressed NPY cache (2025 ML best practice)        # Persistent SSD with cached NPZ files (train/dev)
+  cache_dir: /results/cache/tusz_mmap  # Memory-mapped NPY cache on persistent SSD (train/dev)
   sampling_rate: 256
   n_channels: 19
   window_size: 60
@@ -167,7 +167,7 @@ experiment:
   seed: 42
   device: cuda                         # Explicit GPU for consistency
   output_dir: /results/v3_full_training   # Modal volume mount
-  cache_dir: /results/cache/tusz_mmap  # Memory-mapped uncompressed NPY cache (2025 ML best practice)       # Must match data.cache_dir
+  cache_dir: /results/cache/tusz_mmap  # Must match data.cache_dir (mmap NPY format)
   log_level: INFO
   save_model: true
   save_best_only: true

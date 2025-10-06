@@ -1,7 +1,7 @@
 # Technical Debt
 
-**Date**: October 6, 2025
-**Status**: 9 issues identified (0 P0, 1 P1, 5 P2, 3 P3)
+**Date**: October 6, 2025 (Updated after fixes)
+**Status**: 3 issues remaining (0 P0, 0 P1, 3 P2, 0 P3)
 **Training Impact**: No blockers - training ready
 
 ---
@@ -11,39 +11,22 @@
 | Priority | Count | Training Impact |
 |----------|-------|-----------------|
 | **P0 BLOCKER** | 0 | None - ready to train |
-| **P1 URGENT** | 1 | Documentation confusion only |
-| **P2 MEDIUM** | 5 | Code quality/maintenance |
-| **P3 LOW** | 3 | Polish/style issues |
+| **P1 URGENT** | 0 | None - all fixed! |
+| **P2 MEDIUM** | 3 | Code quality/maintenance |
+| **P3 LOW** | 0 | None - all fixed! |
 
 **Recent Debt Eliminated**:
 - ✅ NPZ→NPY mmap conversion (387 GB RAM → <1 GB)
 - ✅ ValidationDataset caching (49x speedup)
 - ✅ Modal SSD cache population (train + dev splits)
+- ✅ **P1 Documentation paths** - Updated all `cache/tusz` → `cache/tusz_mmap`
+- ✅ **P2 Magic numbers** - Added `HEARTBEAT_INTERVAL_SEC` to constants
+- ✅ **P2 Env var naming** - Renamed to `BGB_SKIP_PERF_TESTS`
+- ✅ **P3 YAML comments** - Cleaned double comments in configs
 
 ---
 
-## P1: Documentation/Config Inconsistency
-
-### Issue: CLAUDE.md References Old Cache Paths
-- **Location**: `CLAUDE.md:133,137,145,160,231,307,321`, `configs/README.md:33,41`
-- **Problem**: Documentation shows `cache/tusz/` but code uses `cache/tusz_mmap/`
-- **Evidence**:
-  ```markdown
-  CLAUDE.md:133: cache/tusz/             # Pre-processed data (local)
-  CLAUDE.md:137: /results/cache/tusz/    # Modal persistent SSD volume
-  ```
-  But actual configs:
-  ```yaml
-  cache_dir: cache/tusz_mmap          # Local
-  cache_dir: /results/cache/tusz_mmap # Modal
-  ```
-- **Impact**: Developer confusion, potential to use wrong cache directory
-- **Fix**: Global find-replace `cache/tusz` → `cache/tusz_mmap` in docs (exclude archive/)
-- **Estimated time**: 10 minutes
-
----
-
-## P2: Code Quality Issues
+## P2: Remaining Code Quality Issues
 
 ### Issue 1: Lingering NPZ References in Comments
 - **Location**: `src/brain_brr/data/datasets.py:108,262,299,405,516,692`
@@ -69,30 +52,7 @@
 - **Fix**: Extract to shared `_load_cache_for_worker_mmap()` in `cache_utils.py`
 - **Estimated time**: 1 hour (refactor + test)
 
-### Issue 3: Magic Numbers in Logging
-- **Location**: `src/brain_brr/train/train_step.py:212,441,454`
-- **Problem**: Hardcoded constants not in `constants.py`
-- **Evidence**:
-  ```python
-  heartbeat_interval = 120  # Should be HEARTBEAT_INTERVAL_SEC
-  ```
-- **Impact**: Inconsistent with constants centralization effort
-- **Fix**: Add `HEARTBEAT_INTERVAL_SEC = 120` to `constants.py`
-- **Estimated time**: 15 minutes
-
-### Issue 4: Inconsistent Environment Variable Naming
-- **Location**: `tests/performance/test_latency.py:23`
-- **Problem**: Some env vars missing `BGB_` prefix
-- **Evidence**:
-  ```python
-  @pytest.mark.skipif(
-      os.getenv("SKIP_PERF_TESTS", "0") == "1",  # Missing BGB_ prefix
-  ```
-- **Impact**: Minor naming inconsistency
-- **Fix**: Rename to `BGB_SKIP_PERF_TESTS` for consistency
-- **Estimated time**: 10 minutes
-
-### Issue 5: Type Annotation Inconsistency
+### Issue 3: Type Annotation Inconsistency
 - **Location**: `src/brain_brr/train/train_step.py:181`, `src/brain_brr/train/training_logger.py:111`
 - **Problem**: Using `Any | None` instead of proper types
 - **Evidence**:
@@ -103,45 +63,6 @@
 - **Impact**: Weakens type safety
 - **Fix**: Replace `Any` with proper types (import required types)
 - **Estimated time**: 30 minutes
-
----
-
-## P3: Polish Items
-
-### Issue 1: Double Comments in YAML Files
-- **Location**: `configs/local/train.yaml:17,106` and similar
-- **Problem**: Trailing comment duplication from find-replace operation
-- **Evidence**:
-  ```yaml
-  cache_dir: cache/tusz_mmap  # Memory-mapped NPY cache  # Same as data.cache_dir
-  ```
-- **Impact**: Minor readability issue
-- **Fix**: Clean up double comments
-- **Estimated time**: 15 minutes
-
-### Issue 2: Verbose Docstring Duplication
-- **Location**: Same as P2 Issue #2 (duplicate `_load_cache_for_worker`)
-- **Problem**: 45-line docstring duplicated 3x
-- **Impact**: Documentation maintenance burden
-- **Fix**: Solved by extracting shared function (P2 Issue #2)
-
-### Issue 3: Complex Import Guards
-- **Location**: `src/brain_brr/train/loop.py:22-32`
-- **Problem**: Verbose TensorBoard import guard pattern
-- **Evidence**:
-  ```python
-  if TYPE_CHECKING:
-      from torch.utils.tensorboard import SummaryWriter
-  try:
-      from torch.utils.tensorboard import SummaryWriter
-      HAS_TENSORBOARD = True
-  except ImportError:
-      HAS_TENSORBOARD = False
-      SummaryWriter = None  # type: ignore
-  ```
-- **Impact**: Minor code complexity
-- **Fix**: Simplify (TensorBoard is in requirements, always available)
-- **Estimated time**: 10 minutes
 
 ---
 
@@ -179,19 +100,18 @@
 
 ## Implementation Priority
 
-**Before Modal Training**:
-- [ ] P1: Update CLAUDE.md cache paths (10 min) - **RECOMMENDED**
+**Completed (October 6, 2025)**:
+- [x] ✅ P1: Update CLAUDE.md cache paths (10 min)
+- [x] ✅ P2: Move magic numbers to constants (15 min)
+- [x] ✅ P2: Fix env var naming (10 min)
+- [x] ✅ P3: Clean YAML comments (15 min)
 
-**After Modal Training Starts**:
-- [ ] P2: Extract shared `_load_cache_for_worker` (1 hour)
-- [ ] P2: Update NPZ comments/variable names (30 min)
-- [ ] P2: Move magic numbers to constants (15 min)
-- [ ] P2: Fix env var naming (10 min)
-- [ ] P2: Improve type annotations (30 min)
-- [ ] P3: Clean YAML comments (15 min)
-- [ ] P3: Simplify import guards (10 min)
+**Remaining (After Modal Training Starts)**:
+- [ ] P2: Extract shared `_load_cache_for_worker` (1 hour) - **Requires planning**
+- [ ] P2: Update NPZ comments/variable names (30 min) - **Requires planning**
+- [ ] P2: Improve type annotations (30 min) - **Requires planning**
 
-**Total estimated time**: ~3 hours (all optional, non-blocking)
+**Total remaining time**: ~2 hours (all optional, non-blocking)
 
 ---
 
