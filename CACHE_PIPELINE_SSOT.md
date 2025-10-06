@@ -41,32 +41,32 @@ SIZES:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ PHASE 1: Local Build (RTX 4090)                             │
-│ - Build cache: python -m src build-cache                   │
-│ - Create manifests: python -m src scan-cache               │
-│ - Result: cache/tusz/{train,dev}/ (~449 GB)                │
+│ - Build cache: python -m src build-cache                    │
+│ - Create manifests: python -m src scan-cache                │
+│ - Result: cache/tusz/{train,dev}/ (~449 GB)                 │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ PHASE 2: S3 Upload (Intermediate Storage)                   │
-│ - aws s3 sync cache/tusz/train/ s3://.../cache/tusz/train/ │
-│ - aws s3 sync cache/tusz/dev/ s3://.../cache/tusz/dev/     │
+│ - aws s3 sync cache/tusz/train/ s3://.../cache/tusz/train/  │
+│ - aws s3 sync cache/tusz/dev/ s3://.../cache/tusz/dev/      │
 │ - Cost: ~$40 one-time egress                                │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ PHASE 3: Modal Populate Cache (Persistent SSD)              │
-│ - modal run --detach app.py --action populate-cache        │
-│ - Copies from S3 to /results/cache/tusz/ (Modal SSD)       │
+│ - modal run --detach app.py --action populate-cache         │
+│ - Copies from S3 to /results/cache/tusz/ (Modal SSD)        │
 │ - Cost: ~$0.50-1.00 CPU compute                             │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │ PHASE 4: Modal Training (A100)                              │
-│ - modal run --detach app.py --action train                 │
-│ - Reads from /results/cache/tusz/ (fast SSD)               │
+│ - modal run --detach app.py --action train                  │
+│ - Reads from /results/cache/tusz/ (fast SSD)                │
 │ - Cost: ~$300-400 for 100 epochs                            │
 └─────────────────────────────────────────────────────────────┘
 ```
