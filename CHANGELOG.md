@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.8.2] - 2025-10-06
+
+### 🔧 Fixed: Zero Warnings - Professional PyTorch Patterns
+
+**Eliminates ALL training warnings** with proper PyTorch best practices.
+
+**Tag**: `v3.8.2-zero-warnings`
+**Status**: ✅ **100% CLEAN LOGS** - No warnings, accurate LR schedule
+
+#### 1. Read-Only Tensor Warnings ELIMINATED (All 3 Datasets)
+
+**Problem**: `torch.from_numpy()` on read-only mmap arrays triggered warnings even though `.clone()` made tensors safe.
+
+**Root Cause**: Warning fires at `from_numpy()` time, BEFORE `.clone()` fixes it.
+
+**Solution**: Copy on NumPy side using `np.array(copy=True)` pattern - eliminates warning at source, same single-copy performance.
+
+**Files Changed**:
+- `BalancedSeizureDataset` (datasets.py:530-531)
+- `ValidationDataset` (datasets.py:697-698)
+- `EEGWindowDataset` (datasets.py:307, 312)
+
+#### 2. GradScaler + LRScheduler Interaction FIXED (2 Locations)
+
+**Problem**: Scheduler advanced even when GradScaler skipped optimizer due to inf gradients, causing PyTorch warning.
+
+**Root Cause**: Mixed precision occasionally produces inf gradients → GradScaler skips `optimizer.step()` → scheduler still calls `.step()` → warning.
+
+**Solution**: Track scale before/after to detect skipped updates, only advance scheduler when optimizer actually updated weights.
+
+**Files Changed**:
+- `train_step.py` lines 398-418 (main training loop)
+- `train_step.py` lines 558-575 (end-of-epoch handling)
+
+**Impact**: Accurate LR schedule, no scheduler.step() warnings.
+
+**See Also**: `docs/08-operations/gradscaler-scheduler-interaction.md` for complete technical explanation.
+
+---
+
 ## [3.8.1] - 2025-10-06
 
 ### 🔧 Hotfix: Complete Tensor Safety (All Datasets)

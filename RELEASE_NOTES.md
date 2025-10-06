@@ -1,5 +1,33 @@
 # Release Notes
 
+## v3.8.2 - Zero Warnings (2025-10-06)
+
+**Tag**: `v3.8.2-zero-warnings`
+
+### 🎯 What This Fixes
+
+Eliminates ALL training warnings with professional PyTorch patterns:
+
+1. **Read-Only Tensor Warnings** - Fixed in all 3 datasets using `np.array(copy=True)` pattern (eliminates warning at source)
+2. **GradScaler + Scheduler Warning** - Proper scale tracking prevents scheduler advancing when optimizer skips due to inf gradients
+
+### 📊 Impact
+
+- ✅ 100% clean training logs (no cosmetic warnings)
+- ✅ Accurate LR schedule (no skipped steps on inf gradients)
+- ✅ Same performance (single copy, proper PyTorch AMP pattern)
+
+### 🛠️ Files Changed
+
+- `src/brain_brr/data/datasets.py` (all 3 dataset classes)
+- `src/brain_brr/train/train_step.py` (2 locations - main loop + end-of-epoch)
+
+### 🚀 Migration
+
+**100% backward compatible** - No config changes, same functionality, cleaner logs.
+
+---
+
 ## v3.8.1 - Complete Tensor Safety (2025-10-06)
 
 **Hotfix release** - Completes P0-2 tensor safety that was incomplete in v3.8.0
