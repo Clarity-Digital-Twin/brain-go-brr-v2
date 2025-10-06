@@ -1101,6 +1101,11 @@ git checkout HEAD~1 -- src/brain_brr/train/loop.py
 
 ## Changelog
 
+**v2.1 (2025-10-06)** - Final additions from external review
+- Added: Test fixture update in Phase 5 (test_manifest_validation.py)
+- Added: Manifest spot-check for BOTH train/dev splits (Phase 5 Test 4)
+- Enhanced: Validation now explicitly checks NPZ count = 0
+
 **v2.0 (2025-10-06)** - Critical corrections after external validation
 - Fixed: Code updates BEFORE manifest regen (Phase 2 ↔ Phase 3 swap)
 - Fixed: NPZ deletion AFTER manifest regen (Phase 4 timing)
