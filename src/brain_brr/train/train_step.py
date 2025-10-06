@@ -201,6 +201,13 @@ def train_epoch(
     Returns:
         Average training loss (default) or tuple of (loss, global_step) if return_step=True
     """
+    import warnings
+
+    # Suppress PyTorch 1.1.0+ warning about scheduler.step() order
+    # Our code correctly calls optimizer.step() before scheduler.step()
+    # but PyTorch may emit warning on first step
+    warnings.filterwarnings("ignore", message="Detected call of.*lr_scheduler")
+
     model.train()
     device_obj = torch.device(device)
     scaler = GradScaler(enabled=(use_amp and device == "cuda"))
