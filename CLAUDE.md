@@ -130,11 +130,11 @@ configs/                 # Training configurations
     ├── smoke.yaml      # 1 epoch, 50 files
     └── train.yaml      # 100 epochs (official train/dev splits)
 
-cache/tusz/             # Pre-processed data (local)
-├── train/              # 4667 NPZ files + manifest.json
-└── dev/                # 1832 NPZ files + manifest.json
+cache/tusz_mmap/        # Pre-processed data (local, memory-mapped NPY)
+├── train/              # 4667 NPY files (data + labels) + manifest.json
+└── dev/                # 1832 NPY files (data + labels) + manifest.json
 
-/results/cache/tusz/    # Modal persistent SSD volume (preferred; not S3)
+/results/cache/tusz_mmap/  # Modal persistent SSD volume (preferred; not S3)
 ```
 
 ## ⚙️ Critical Configuration
@@ -142,7 +142,7 @@ cache/tusz/             # Pre-processed data (local)
 ### Local Training (RTX 4090)
 ```yaml
 data:
-  cache_dir: cache/tusz          # MUST exist: train (4667) + dev (1832)
+  cache_dir: cache/tusz_mmap     # Memory-mapped NPY cache: train (4667) + dev (1832)
   num_workers: 0                  # WSL2 multiprocessing fix
 training:
   batch_size: 8                   # OPTIMIZED: 2x faster than batch=4 (~20GB VRAM)
@@ -157,8 +157,8 @@ model:
 ### Modal Cloud (A100-80GB)
 ```yaml
 data:
-  cache_dir: /results/cache/tusz  # Persistent SSD volume (Modal)
-  num_workers: 4                  # SAFE: 8 caused overhead
+  cache_dir: /results/cache/tusz_mmap  # Persistent SSD volume (Modal, mmap NPY)
+  num_workers: 4                       # SAFE: 8 caused overhead
   prefetch_factor: 2              # SAFE: 4/8 caused OOM
 training:
   batch_size: 48                  # EXPERIMENT: ~58GB peak (testing if faster than 32×2)
@@ -228,7 +228,7 @@ sudo apt-get install -y cuda-toolkit-12-4
 
 ### CRITICAL: Naming Convention
 - **We use `dev` NOT `val`** for validation split to match TUSZ official naming
-- Cache structure: `cache/tusz/{train,dev}/` NOT `{train,val}/`
+- Cache structure: `cache/tusz_mmap/{train,dev}/` NOT `{train,val}/`
 - This prevents confusion when reading TUSZ documentation
 
 ### CRITICAL: Dataset Strategy (This is CORRECT, not a bug!)
@@ -304,7 +304,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 |-------|----------|
 | **Symbol mismatch: `_ZN3c104cuda9SetDeviceEab`** | **Rebuild mamba-ssm from source with `--no-binary` flag (see INSTALLATION.md#1)** |
 | **CUDA 12.4 toolkit not found** | **Install: `sudo apt-get install -y cuda-toolkit-12-4`** |
-| Cache directory wrong | Local: `cache/tusz/`, Modal: `/results/cache/tusz/` |
+| Cache directory wrong | Local: `cache/tusz_mmap/`, Modal: `/results/cache/tusz_mmap/` |
 | Zero seizures in batches | Enable `use_balanced_sampling: true` |
 | NaN losses on RTX 4090 | Set `mixed_precision: false` |
 | **Non-finite logits** | **Rebuild cache after Sep 26 fix (gradient clipping handles it)** |
