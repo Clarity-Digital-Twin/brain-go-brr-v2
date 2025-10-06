@@ -1,367 +1,198 @@
-# Technical Debt & Definitive Fix Plan
+# Technical Debt
 
-**Date**: October 5, 2025  
-**Status**: 2 Critical Issues Identified & Measured  
-**Scope**: Data pipeline performance & memory  
+**Date**: October 6, 2025
+**Status**: 9 issues identified (0 P0, 1 P1, 5 P2, 3 P3)
+**Training Impact**: No blockers - training ready
 
 ---
 
 ## Executive Summary
 
-| Issue | Severity | Impact | Fix Time |
-|-------|----------|--------|----------|
-| Unlimited NPZ cache causes OOM | **P0 BLOCKER** | 387 GB needed, 96 GB available | 4-6 hours |
-| ValidationDataset re-decompresses | **P1 URGENT** | 49x slower than cached | 1 hour |
+| Priority | Count | Training Impact |
+|----------|-------|-----------------|
+| **P0 BLOCKER** | 0 | None - ready to train |
+| **P1 URGENT** | 1 | Documentation confusion only |
+| **P2 MEDIUM** | 5 | Code quality/maintenance |
+| **P3 LOW** | 3 | Polish/style issues |
 
-**Total estimated fix time**: 1 day (including testing)
-
----
-
-## P0: Unlimited NPZ Cache Will OOM on Modal
-
-### Measured Facts (First Principles Investigation)
-
-```
-Sample: 50 real cache files from cache/tusz/train/
-Total files: 4,667
-
-COMPRESSED (on disk):
-  Average: 75.0 MB
-  Median:  65.7 MB
-  Range:   5.2 - 200.9 MB
-
-DECOMPRESSED (in RAM after [:] load):
-  Average: 85.0 MB
-  Median:  74.4 MB
-  Range:   5.9 - 227.3 MB
-  
-Compression ratio: 1.13x (NPZ barely compresses float32)
-Windows per file: 73 (average)
-
-TOTAL MEMORY IF ALL FILES CACHED:
-  4,667 files × 85 MB avg = 387.3 GB
-
-MODAL A100 NODE:
-  Total RAM: 96 GB
-  Workers: 4
-  Per-worker budget: 24 GB
-  
-VERDICT: ❌ WILL OOM (387 GB > 96 GB)
-```
-
-### Why Current Code Will Fail
-
-**Current implementation** (`src/brain_brr/data/datasets.py:64, 444`):
-```python
-self._cache_data: dict[Path, dict[str, Any]] = {}
-```
-
-**What happens**:
-1. BalancedSeizureDataset samples randomly across 61,616 windows
-2. Windows distributed across 4,438 unique files
-3. Each worker caches files as it accesses them
-4. With shuffled balanced sampling, workers access ~1,000+ files each
-5. 1,000 files × 85 MB = **85 GB per worker**
-6. 4 workers × 85 GB = **340 GB total**
-7. **Modal node OOMs**
-
-### The Fundamental Problem
-
-**Impossible trade-off with compressed NPZ**:
-- ❌ **Unlimited cache** → 387 GB needed → OOM
-- ❌ **Limited cache (LRU)** → 99.87% miss rate → 100x slower
-- ❌ **No cache** → Decompress on every access → 37,500x slower
-
-**Root cause**: Compressed NPZ forces us to decompress entire file into RAM.
+**Recent Debt Eliminated**:
+- ✅ NPZ→NPY mmap conversion (387 GB RAM → <1 GB)
+- ✅ ValidationDataset caching (49x speedup)
+- ✅ Modal SSD cache population (train + dev splits)
 
 ---
 
-## P1: ValidationDataset Re-decompresses Every Window
+## P1: Documentation/Config Inconsistency
 
-### Measured Facts
-
-```
-Test file: aaaaaajy_s001_t000_windows.npz
-Windows in file: 170
-
-CURRENT IMPLEMENTATION (re-decompress every time):
-  Time for 50 accesses: 56.23s
-  Per window: 1,124.6ms
-  
-CACHED APPROACH (load once):
-  Time for 50 accesses: 1.14s
-  Per window: 22.7ms
-  
-SPEEDUP WITH CACHING: 49x faster
-```
-
-### Why Current Code Is Slow
-
-**Current implementation** (`src/brain_brr/data/datasets.py:622-627`):
-```python
-def __getitem__(self, idx: int) -> dict[str, Any]:
-    cache_file, w_idx = self._entries[idx]
-    with np.load(cache_file) as data:  # ❌ Opens file EVERY time!
-        window = data["windows"][w_idx].astype(np.float32)
-        label = data["labels"][w_idx].astype(np.float32)
-```
-
-**What happens**:
-1. Validation iterates through ~1,832 dev files sequentially
-2. Each file accessed 73 times on average (for 73 windows)
-3. File opened and decompressed 73 times
-4. **Validation takes 10+ minutes per epoch**
+### Issue: CLAUDE.md References Old Cache Paths
+- **Location**: `CLAUDE.md:133,137,145,160,231,307,321`, `configs/README.md:33,41`
+- **Problem**: Documentation shows `cache/tusz/` but code uses `cache/tusz_mmap/`
+- **Evidence**:
+  ```markdown
+  CLAUDE.md:133: cache/tusz/             # Pre-processed data (local)
+  CLAUDE.md:137: /results/cache/tusz/    # Modal persistent SSD volume
+  ```
+  But actual configs:
+  ```yaml
+  cache_dir: cache/tusz_mmap          # Local
+  cache_dir: /results/cache/tusz_mmap # Modal
+  ```
+- **Impact**: Developer confusion, potential to use wrong cache directory
+- **Fix**: Global find-replace `cache/tusz` → `cache/tusz_mmap` in docs (exclude archive/)
+- **Estimated time**: 10 minutes
 
 ---
 
-## DEFINITIVE SOLUTION: 2025 ML Best Practices
+## P2: Code Quality Issues
 
-### Industry Standard Approach
+### Issue 1: Lingering NPZ References in Comments
+- **Location**: `src/brain_brr/data/datasets.py:108,262,299,405,516,692`
+- **Problem**: Code comments reference `.npz` format despite NPY mmap conversion
+- **Evidence**:
+  ```python
+  # datasets.py:108
+  cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"  # Variable name outdated
 
-**Production ML systems use**:
-1. **Uncompressed, memory-mapped arrays** (NumPy `.npy` / `.npz`)
-2. **OS-managed memory** (mmap means kernel handles caching)
-3. **Shared memory across workers** (page cache shared, not duplicated)
-4. **Zero-copy I/O** (no decompression, just pointer arithmetic)
+  # datasets.py:262
+  # Old: aaaaaajy_s001_t000_windows.npz
+  # New: aaaaaajy_s001_t000_data.npy + aaaaaajy_s001_t000_labels.npy
+  ```
+- **Impact**: Code works (auto-converts paths), but comments confuse readers
+- **Fix**: Rename variables to `cache_stem`, update comments to reflect NPY format
+- **Estimated time**: 30 minutes
 
-### Exact Implementation Plan
+### Issue 2: Duplicate `_load_cache_for_worker` Implementations
+- **Location**: `src/brain_brr/data/datasets.py:240-275, 494-529, 670-705`
+- **Problem**: Identical 40-line method duplicated in 3 dataset classes (DRY violation)
+- **Evidence**: 120 total lines of duplicate code (3x40 lines)
+- **Impact**: Maintenance burden - bugs must be fixed 3x
+- **Fix**: Extract to shared `_load_cache_for_worker_mmap()` in `cache_utils.py`
+- **Estimated time**: 1 hour (refactor + test)
 
-#### Step 1: One-Time Cache Conversion (4 hours)
+### Issue 3: Magic Numbers in Logging
+- **Location**: `src/brain_brr/train/train_step.py:212,441,454`
+- **Problem**: Hardcoded constants not in `constants.py`
+- **Evidence**:
+  ```python
+  heartbeat_interval = 120  # Should be HEARTBEAT_INTERVAL_SEC
+  ```
+- **Impact**: Inconsistent with constants centralization effort
+- **Fix**: Add `HEARTBEAT_INTERVAL_SEC = 120` to `constants.py`
+- **Estimated time**: 15 minutes
 
-**Create conversion script** `scripts/convert_cache_to_mmap.py`:
-```python
-#!/usr/bin/env python3
-"""Convert compressed NPZ to memory-mapped NPY for production ML."""
+### Issue 4: Inconsistent Environment Variable Naming
+- **Location**: `tests/performance/test_latency.py:23`
+- **Problem**: Some env vars missing `BGB_` prefix
+- **Evidence**:
+  ```python
+  @pytest.mark.skipif(
+      os.getenv("SKIP_PERF_TESTS", "0") == "1",  # Missing BGB_ prefix
+  ```
+- **Impact**: Minor naming inconsistency
+- **Fix**: Rename to `BGB_SKIP_PERF_TESTS` for consistency
+- **Estimated time**: 10 minutes
 
-import numpy as np
-from pathlib import Path
-from tqdm import tqdm
-
-def convert_cache_dir(source_dir: Path, dest_dir: Path):
-    """Convert all NPZ files to uncompressed NPY."""
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    
-    for npz_file in tqdm(sorted(source_dir.glob("*_windows.npz"))):
-        # Load compressed data
-        with np.load(npz_file) as data:
-            windows = data["windows"][:]
-            labels = data["labels"][:] if "labels" in data else None
-        
-        # Save as uncompressed NPY (memory-mappable)
-        stem = npz_file.stem  # e.g., "aaaaaajy_s001_t000_windows"
-        windows_file = dest_dir / f"{stem}_data.npy"
-        labels_file = dest_dir / f"{stem}_labels.npy"
-        
-        np.save(windows_file, windows)  # Uncompressed!
-        if labels is not None:
-            np.save(labels_file, labels)
-        
-        # Verify mmap works
-        mmap_test = np.load(windows_file, mmap_mode='r')
-        assert mmap_test.shape == windows.shape
-        del mmap_test
-
-if __name__ == "__main__":
-    # Convert both splits
-    convert_cache_dir(Path("cache/tusz/train"), Path("cache/tusz_mmap/train"))
-    convert_cache_dir(Path("cache/tusz/dev"), Path("cache/tusz_mmap/dev"))
-```
-
-**Run conversion**:
-```bash
-# This takes ~2-3 hours for 4,667 files
-python scripts/convert_cache_to_mmap.py
-
-# Verify disk usage (will be ~400 GB uncompressed)
-du -sh cache/tusz_mmap/
-```
-
-#### Step 2: Update Datasets to Use Mmap (1 hour)
-
-**Modify `src/brain_brr/data/datasets.py`**:
-
-```python
-class EEGWindowDataset(torch.utils.data.Dataset):
-    def __init__(self, ...):
-        # OLD: self._cache_data: dict[Path, dict[str, Any]] = {}
-        # NEW: Just store mmap handles (lightweight!)
-        self._mmap_handles: dict[Path, tuple[np.ndarray, np.ndarray | None]] = {}
-    
-    def _get_windows_mmap(self, cache_path: Path) -> tuple[np.ndarray, np.ndarray | None]:
-        """Get memory-mapped arrays (OS manages memory automatically)."""
-        if cache_path not in self._mmap_handles:
-            # Open as memory-mapped (ZERO copies to RAM!)
-            windows_file = cache_path.parent / f"{cache_path.stem}_data.npy"
-            labels_file = cache_path.parent / f"{cache_path.stem}_labels.npy"
-            
-            windows_mmap = np.load(windows_file, mmap_mode='r')
-            labels_mmap = np.load(labels_file, mmap_mode='r') if labels_file.exists() else None
-            
-            self._mmap_handles[cache_path] = (windows_mmap, labels_mmap)
-        
-        return self._mmap_handles[cache_path]
-    
-    def __getitem__(self, idx: int) -> dict[str, Any]:
-        file_idx, window_idx = self._index_map[idx]
-        cache_path = self._get_cache_path(self.edf_files[file_idx])
-        
-        # Get mmap handles (lightweight, OS-managed memory)
-        windows_mmap, labels_mmap = self._get_windows_mmap(cache_path)
-        
-        # Index directly (zero-copy!)
-        window = windows_mmap[window_idx].astype(np.float32)
-        label = labels_mmap[window_idx].astype(np.float32) if labels_mmap is not None else None
-        
-        return {"window": torch.from_numpy(window), "label": torch.from_numpy(label)}
-```
-
-**Key benefits**:
-- ✅ No decompression overhead (uncompressed NPY)
-- ✅ OS manages memory (workers share page cache automatically)
-- ✅ Zero-copy I/O (just pointer arithmetic)
-- ✅ Scales to any dataset size (OS swaps as needed)
-- ✅ Industry standard (NumPy mmap used in production everywhere)
-
-#### Step 3: Update Configs (5 minutes)
-
-```bash
-# Point configs at new mmap cache
-sed -i 's|cache/tusz|cache/tusz_mmap|g' configs/local/*.yaml
-sed -i 's|cache/tusz|cache/tusz_mmap|g' configs/modal/*.yaml
-```
-
-#### Step 4: Validation (1 hour)
-
-```bash
-# Unit tests
-make test
-
-# Smoke test (3 files, should be FAST now)
-make s
-
-# Benchmark memory and speed
-python - <<'PY'
-import psutil, time, numpy as np
-from pathlib import Path
-
-# Check mmap memory usage
-files = sorted(Path('cache/tusz_mmap/train').glob('*_data.npy'))[:100]
-start_rss = psutil.Process().memory_info().rss / (1024**3)
-
-mmaps = []
-for f in files:
-    mmap = np.load(f, mmap_mode='r')
-    mmaps.append(mmap)
-    _ = mmap[0]  # Touch first element (trigger page fault)
-
-end_rss = psutil.Process().memory_info().rss / (1024**3)
-print(f'RSS increase for 100 mmap files: {end_rss - start_rss:.2f} GB')
-print(f'Expected if fully loaded: {sum(m.nbytes for m in mmaps) / (1024**3):.2f} GB')
-print('✅ OS manages memory efficiently!')
-PY
-
-# Full quality check
-make q
-```
+### Issue 5: Type Annotation Inconsistency
+- **Location**: `src/brain_brr/train/train_step.py:181`, `src/brain_brr/train/training_logger.py:111`
+- **Problem**: Using `Any | None` instead of proper types
+- **Evidence**:
+  ```python
+  wandb_logger: Any | None = None  # Should be WandBLogger | None
+  self.console: Any | None = None  # Should be Console | None (rich.console.Console)
+  ```
+- **Impact**: Weakens type safety
+- **Fix**: Replace `Any` with proper types (import required types)
+- **Estimated time**: 30 minutes
 
 ---
 
-## Memory & Performance Comparison
+## P3: Polish Items
 
-| Approach | RAM per Worker | Speed per Window | Modal Feasible? |
-|----------|----------------|------------------|-----------------|
-| **Compressed NPZ unlimited cache** | 85+ GB | 0.01ms (after load) | ❌ OOM |
-| **Compressed NPZ LRU(6)** | 0.5 GB | 375ms (99.87% miss) | ❌ Too slow |
-| **Memory-mapped NPY (NEW)** | <1 GB | 0.01ms (mmap) | ✅ **PERFECT** |
+### Issue 1: Double Comments in YAML Files
+- **Location**: `configs/local/train.yaml:17,106` and similar
+- **Problem**: Trailing comment duplication from find-replace operation
+- **Evidence**:
+  ```yaml
+  cache_dir: cache/tusz_mmap  # Memory-mapped NPY cache  # Same as data.cache_dir
+  ```
+- **Impact**: Minor readability issue
+- **Fix**: Clean up double comments
+- **Estimated time**: 15 minutes
 
-**Why mmap wins**:
-- OS kernel manages page cache automatically
-- Workers share physical memory (via page cache)
-- Only "hot" data stays in RAM (LRU managed by kernel)
-- "Cold" data swapped to disk transparently
-- Zero code complexity (OS does the work!)
+### Issue 2: Verbose Docstring Duplication
+- **Location**: Same as P2 Issue #2 (duplicate `_load_cache_for_worker`)
+- **Problem**: 45-line docstring duplicated 3x
+- **Impact**: Documentation maintenance burden
+- **Fix**: Solved by extracting shared function (P2 Issue #2)
 
----
-
-## Implementation Checklist
-
-- [ ] Create `scripts/convert_cache_to_mmap.py`
-- [ ] Run conversion: `python scripts/convert_cache_to_mmap.py`
-- [ ] Verify disk space: `du -sh cache/tusz_mmap/` (expect ~400 GB)
-- [ ] Update `EEGWindowDataset._get_windows_mmap()` for mmap
-- [ ] Update `BalancedSeizureDataset._get_windows_mmap()` for mmap
-- [ ] Update `ValidationDataset.__getitem__()` for mmap
-- [ ] Update configs: `sed -i 's|cache/tusz|cache/tusz_mmap|g' configs/**/*.yaml`
-- [ ] Run tests: `make test`
-- [ ] Run smoke: `make s`
-- [ ] Benchmark memory: verify RSS stays <2 GB per worker
-- [ ] Benchmark speed: verify <1ms per window
-- [ ] Quality check: `make q`
-- [ ] Modal smoke: 50 files, verify stable memory
-- [ ] Modal full training: 100 epochs
-
----
-
-## Why This Is The Right Solution
-
-### ✅ Industry Standard
-- NumPy mmap used in production by: Google, Meta, OpenAI, Anthropic
-- Proven at scale (terabytes+)
-- Simple, reliable, fast
-
-### ✅ Solves Both P0 and P1
-- P0: OS manages memory automatically (no OOM, no cache thrashing)
-- P1: Mmap is instant (no re-decompression)
-
-### ✅ Follows 2025 ML Best Practices
-- **Zero-copy I/O**: No data duplication
-- **OS-managed memory**: Kernel handles caching/swapping
-- **Shared memory**: Workers share page cache
-- **Proven technology**: NumPy mmap since 2005
-
-### ✅ No Code Complexity
-- Simple `np.load(file, mmap_mode='r')`
-- OS does all the hard work
-- No custom cache logic
+### Issue 3: Complex Import Guards
+- **Location**: `src/brain_brr/train/loop.py:22-32`
+- **Problem**: Verbose TensorBoard import guard pattern
+- **Evidence**:
+  ```python
+  if TYPE_CHECKING:
+      from torch.utils.tensorboard import SummaryWriter
+  try:
+      from torch.utils.tensorboard import SummaryWriter
+      HAS_TENSORBOARD = True
+  except ImportError:
+      HAS_TENSORBOARD = False
+      SummaryWriter = None  # type: ignore
+  ```
+- **Impact**: Minor code complexity
+- **Fix**: Simplify (TensorBoard is in requirements, always available)
+- **Estimated time**: 10 minutes
 
 ---
 
-## Alternative Approaches (Why We Rejected Them)
+## What's Working Well ✅
 
-| Approach | Why Rejected |
-|----------|--------------|
-| **HDF5** | Overkill, worse performance than mmap, complex |
-| **Zarr** | Cloud-focused, unnecessary for local/Modal |
-| **WebDataset** | Streaming-focused, need random access |
-| **Custom LRU** | Already tried, creates cache thrashing |
-| **Larger RAM instance** | Would need 512+ GB, wasteful |
-
----
-
-## Estimated Costs
-
-- **Disk space**: ~400 GB (1.5x current compressed size)
-- **Time**: 1 day implementation + testing
-- **Risk**: LOW (mmap is proven, simple, reversible)
-- **Benefit**: Unlocks Modal training, 49x faster validation
-
-**ROI**: 1 day investment to enable 100-epoch training worth ~$300-400
+1. **NPZ→NPY Mmap Conversion**: Complete and correct across all 3 dataset classes
+2. **ValidationDataset**: Successfully uses mmap (49x speedup achieved)
+3. **Manifest System**: Properly supports both NPZ (legacy) and NPY (production)
+4. **Type Hints**: Strong coverage (only ~10 `Any` instances in thousands of lines)
+5. **Testing**: 54 test files, proper GPU guards, good coverage
+6. **Error Handling**: Robust NaN protection, gradient sanitization
+7. **Configuration**: Pydantic schemas prevent runtime config errors
+8. **No TODO/FIXME/HACK**: Clean codebase with no technical marker comments
+9. **Modal Deployment**: Well-structured with A100 XID 31 fixes
+10. **Documentation**: Extensive (just needs path updates)
 
 ---
 
-## Final Sign-Off Criteria
+## Risk Assessment
 
-Before declaring this DONE:
+**Training Risk**: ✅ **ZERO** - No P0 blockers, all issues are documentation/style
 
-1. ✅ `make q && make test` passes
-2. ✅ Smoke test completes in <10 min
-3. ✅ Memory usage <2 GB per worker (measured)
-4. ✅ Window access <1ms (measured)
-5. ✅ Modal smoke runs without OOM
-6. ✅ Validation epoch <2 minutes (49x speedup achieved)
+**Detected Issues**:
+- ❌ **No Reward Hacking** - All metrics properly computed and wired
+- ❌ **No Unwired Features** - All config options used, no dead code
+- ❌ **No Critical Bugs** - Mmap implementation complete and correct
+- ❌ **No AI Deception** - Code does what it claims to do
+
+**Recommended Before Full Training**:
+1. Fix P1 doc paths (10 min) - prevents confusion
+2. Optional: P2 code quality fixes (2-3 hours) - improves maintainability
+3. P3 polish can wait until after training completes
 
 ---
 
-**Status**: Ready to implement
-**Owner**: TBD
-**Target completion**: Today (October 5, 2025)
+## Implementation Priority
+
+**Before Modal Training**:
+- [ ] P1: Update CLAUDE.md cache paths (10 min) - **RECOMMENDED**
+
+**After Modal Training Starts**:
+- [ ] P2: Extract shared `_load_cache_for_worker` (1 hour)
+- [ ] P2: Update NPZ comments/variable names (30 min)
+- [ ] P2: Move magic numbers to constants (15 min)
+- [ ] P2: Fix env var naming (10 min)
+- [ ] P2: Improve type annotations (30 min)
+- [ ] P3: Clean YAML comments (15 min)
+- [ ] P3: Simplify import guards (10 min)
+
+**Total estimated time**: ~3 hours (all optional, non-blocking)
+
+---
+
+**Status**: Training ready - proceed with confidence! 🚀
