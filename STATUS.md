@@ -1,72 +1,119 @@
-# Brain-Go-Brr v3.7.0 – Current Status
+# Brain-Go-Brr v3.6.2 – Current Status
 
-**Last Updated:** 2025-10-05 (13:45 UTC)
-**Branch:** `main`
-**Version:** v3.7.0 (Focal-only production, zero debt)
-**Audit:** `COMPREHENSIVE_DEBT_AUDIT.md` (SSOT, zero-debt verified)
+**Last Updated:** 2025-10-06 (14:30 UTC)
+**Branch:** `development`
+**Version:** v3.6.2 (Complete Debt Elimination - Production Baseline)
+**Deployment:** Modal smoke test running (ap-39MmeGlcwE1KgLEibaq8Cg)
 
 ---
 
 ## Production Readiness
 
-**🟢 READY FOR MODAL A100 TRAINING – ZERO-DEBT POLICY SATISFIED**
+**🟢 READY FOR MODAL A100 TRAINING – ZERO-DEBT ACHIEVED**
 
-- ✅ **P0/P1:** 0 issues (clean)
-- ✅ **P2:** 0 issues (deprecated env helpers removed, constants audited)
-- ✅ **P3:** 0 issues (type ignores audited, assertions converted, pass statements justified, docs synced)
+- ✅ **P0/P1:** 0 issues (all blockers resolved)
+- ✅ **P2:** 0 issues (all code quality debt paid)
+- ✅ **P3:** 0 issues (clean codebase)
 - 🟡 **P4/P5:** Optional ideas (post-training optimization only)
 
-**Key Verification (2025-10-05):**
-- `make q` → pass (ruff, mypy, config validation)
-- `make test` → pass (40 tests, 0 failures, 82.88% coverage)
-- `make test-performance` → pass (WSL2-aware latency guard)
-- `python /tmp/complete_audit.py` → 84 constants, 58 used (69.0%), 0 literals
+**Quality Verification (2025-10-06)**:
+- `make q` → ✅ PASS (lint + format + mypy + config validation)
+- `make test` → ✅ PASS (104 tests, 83.80% coverage)
+- Cache validation → ✅ PASS (4667 train + 1832 dev NPY files)
+- NPZ contamination → ✅ RESOLVED (3 stray files cleaned)
 
 **Policy:** Maintain zero debt before every major training run. Any new debt must be paid down immediately.
 
 ---
 
-## Latest Improvements (v3.7.0)
+## Latest Improvements (v3.6.2 - October 6, 2025)
 
-- Deprecated env helpers removed (`src/brain_brr/utils/env.py`)
-- Six dead constants deleted; reserves documented (`src/brain_brr/constants.py`)
-- All `assert` statements in production replaced with exceptions (`models/detector.py`)
-- Type ignore audit: 21 → 17 (all remaining documented third-party gaps)
-- Pass statements reviewed and annotated (no silent failures)
-- Documentation synced (focal-only, batch_size=8/48, memory 20GB/58GB)
-- Integration tests hardened (random-loss tolerance 0.8 → 2.0)
+### NPZ Cache Contamination Fix (P0 - BLOCKER)
+- ✅ Cleaned 3 stray NPZ files from Modal cache (66.1 MiB freed)
+- ✅ Fixed datasets.py NPZ creation bug (removed all `np.savez_compressed` calls)
+- ✅ Updated cache validation to check NPY files (mmap format)
+- ✅ Fixed test regression (cache_dir=None support restored)
+
+### Code Quality Improvements (P2)
+- ✅ Fixed all type annotations (WandBRun, Console instead of Any)
+- ✅ Extracted duplicate `_load_cache_for_worker` to shared function (120 lines eliminated)
+- ✅ Updated NPZ references in comments to reflect NPY mmap format
+- ✅ Fixed clean_cache() paths (cache/tusz → cache/tusz_mmap)
+
+### Architecture Enhancements
+- ✅ V3 dual-stream with edge similarity clamping (prevents ±1.0 explosions)
+- ✅ Dynamic Laplacian PE (time-evolving graph structure)
+- ✅ Detached eigenvectors (prevents gradient explosion through eigendecomposition)
+- ✅ 3-tier NaN protection (gradient sanitization + clamping + monitoring)
+- ✅ Unique Triton cache dirs (prevents XID 31 GPU crashes on Modal)
+
+---
+
+## Current Deployment
+
+**Modal Smoke Test (Running)**:
+- App ID: `ap-39MmeGlcwE1KgLEibaq8Cg`
+- URL: https://modal.com/apps/clarity-digital-twin/main/ap-39MmeGlcwE1KgLEibaq8Cg
+- Config: 50 files, 1 epoch (~10 min)
+- Status: ✅ Launched successfully with zero debt baseline
+
+**Next Steps**:
+1. Monitor smoke test completion
+2. Launch full training (100 epochs, ~$319)
+3. Optional post-training optimizations (P4/P5)
 
 ---
 
 ## Outstanding Items
 
-None. Codebase is clean. Optional ideas deferred:
-- Profile `.item()` calls post-training if profiling shows >1% GPU sync time
-- Consider detector refactor only if future features reduce readability
+**Active Debt**: None - codebase is clean
+
+**Optional Improvements** (post-training only):
+- Profile `.item()` calls if profiling shows >1% GPU sync time
+- Consider detector refactor if future features reduce readability
 
 ---
 
 ## Validation Checklist (should stay green)
 
 ```bash
-make q
-make test
-make test-performance
-python /tmp/complete_audit.py
+make q                 # Lint + format + mypy + config validation
+make test              # Full test suite with coverage
+make test-performance  # GPU performance tests
 ```
 
 ---
 
 ## Quick Facts
 
-- **Training plan:**
-  ```bash
-  modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
-  modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
-  ```
-- **Constants:** 84 total · 58 used (69.0%) · 26 documented reserves
-- **Type ignores:** 17 documented third-party/dynamic cases
-- **Code footprint:** 63 modules · 82.88% coverage · 0 production assertions
-- **Loss:** Focal-only (train + val) · BCE path removed
+**Training Commands**:
+```bash
+# Smoke test (50 files, ~10 min)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
 
-Keep this document in sync with every audit or training cycle.
+# Full training (100 epochs, ~100 hours)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+```
+
+**Architecture**:
+- TCN: 8 layers, channels [64,128,256,512], stride_down=16
+- BiMamba: 6 layers, d_model=64 per electrode, O(N) complexity
+- GNN: SSGConv, α=0.05, 2 layers, Dynamic LPE (k=16)
+- Fusion: Multi-head gated fusion (4 heads)
+- Total: 31M parameters
+
+**Cache System**:
+- Format: NPY mmap (memory-efficient, <1 GB RAM vs 387 GB for NPZ)
+- Modal: 4667 train + 1832 dev files at `/results/cache/tusz_mmap/`
+- Startup: Manifest-based (99.6% faster than NPZ scan)
+- Strategy: Read-only datasets, populate_cache sole writer
+
+**Code Quality**:
+- 65 source files, 83.80% test coverage
+- 104 tests (64 integration + 40 clinical)
+- Zero lint/format/type errors
+- Zero active technical debt
+
+---
+
+Keep this document in sync with every deployment or training cycle.

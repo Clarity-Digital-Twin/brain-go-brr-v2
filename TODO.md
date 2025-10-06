@@ -1,63 +1,65 @@
-# Technical Debt Priority List
+# TODO - Active Tasks
 
-**Last Updated:** 2025-10-05 (13:45 UTC)
-**Status:** 🟢 **ZERO TECHNICAL DEBT** · Training approved
-**Comprehensive Audit:** `COMPREHENSIVE_DEBT_AUDIT.md` (SSOT)
-
-Key reminder: keep `BGB_SANITIZE_GRADS=1` informational; gradient sanitisation relies on clipping + logging.
+**Last Updated:** 2025-10-06 (14:30 UTC)
+**Status:** 🟢 **ZERO ACTIVE TASKS** - All known work completed
 
 ---
 
-## Priority Legend
+## Current Status
 
-- **P0 (BLOCKER):** must fix before production
-- **P1 (HIGH):** significant maintainability impact
-- **P2 (MEDIUM):** none outstanding (policy satisfied)
-- **P3 (LOW):** none outstanding (policy satisfied)
-- **P4-P5 (OPTIMISATIONS):** optional, post-training only
-- **✅ RESOLVED:** historical reference of recent fixes
+**Active Work**: None - codebase is ready for production training
 
----
+**In Progress**:
+- Modal smoke test running (ap-39MmeGlcwE1KgLEibaq8Cg)
 
-## Open Items
-
-🟢 None. Codebase is clean. Maintain the zero-debt bar for future work.
-
-Optional ideas (post-training):
-1. Profile `.item()` calls (train/) after a successful run—optimise only if >1% wall-clock in GPU sync.
-2. Consider modularising `models/detector.py` if future features make it unwieldy.
+**Next Steps**:
+1. Monitor smoke test completion (~10 min)
+2. Launch full Modal training if smoke test passes
+3. Optional post-training optimizations (P4/P5)
 
 ---
 
-## Recently Completed
+## Recently Completed (October 6, 2025)
 
-| Item | Details | Status |
-|------|---------|--------|
-| Deprecated env vars | Removed `mid_epoch_minutes()` / `mid_epoch_keep()` | ✅ DONE |
-| Unused constants | Deleted 6 dead constants, documented 26 reserves | ✅ DONE |
-| Type ignore audit | 21 → 17 (all remaining documented) | ✅ DONE |
-| Assertions → exceptions | All 11 in `models/detector.py` converted | ✅ DONE |
-| Pass statements | All 9 occurrences reviewed and annotated | ✅ DONE |
-| Documentation | CLAUDE.md + guides synced (focal-only, batch sizes, memory) | ✅ DONE |
-| Full verification | `make q`, `make test`, `make test-performance`, `/tmp/complete_audit.py` | ✅ DONE |
+### P0 Blockers - NPZ Cache Contamination
+- [x] Clean 3 stray NPZ files from Modal cache
+- [x] Fix datasets.py NPZ creation bug
+- [x] Update cache validation to check NPY files
+- [x] Fix test regression (cache_dir=None support)
 
----
+### P2 Code Quality
+- [x] Fix all type annotations (3 files)
+- [x] Extract duplicate `_load_cache_for_worker` (120 lines eliminated)
+- [x] Update NPZ references in comments
+- [x] Fix clean_cache() paths
 
-## Historical Reference
-
-- ✅ BCE mode removed – focal-only production
-- ✅ Comprehensive debt audit (v3.7.0) – zero-debt policy adopted
-- ✅ WSL2 performance guard – latency degradation multiplier
-- ✅ SSOT constant wiring – 84 constants tracked, 69% utilisation
-- ✅ Test infrastructure hygiene – batch size fixture, GPU memory parametrisation, FA sweep refactor, metric key helper
+### Quality Verification
+- [x] Run `make q` (lint + format + mypy + config validation)
+- [x] Run `make test` (104 tests, 83.80% coverage)
+- [x] Archive old debt documentation to `docs/archive_v1/`
 
 ---
 
-## Next Step
+## Optional Future Work (Post-Training)
 
+**Performance Optimization** (only if profiling shows need):
+- Profile `.item()` calls - optimize if >1% GPU sync time
+- Consider detector.py refactor if readability degrades
+
+**No action required** - these are ideas only, not active tasks.
+
+---
+
+## Quality Maintenance
+
+**Before Each Training Run**:
 ```bash
-modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+make q        # Ensure zero lint/format/type errors
+make test     # Ensure all tests pass
 ```
 
-Keep this file in sync with every audit or training cycle.
+**Policy**: Maintain zero active TODO items. New work should be completed or explicitly deferred with justification.
+
+---
+
+Keep this file minimal - only active tasks belong here.
