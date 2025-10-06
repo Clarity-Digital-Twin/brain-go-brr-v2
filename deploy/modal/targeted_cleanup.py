@@ -29,12 +29,13 @@ results_volume = modal.Volume.from_name("brain-go-brr-results", create_if_missin
 )
 def targeted_cleanup():
     """Delete old NPZ cache and diagnostic runs to free space."""
-    from src.brain_brr.utils.logging_config import setup_logging
-
-    setup_logging(format_style="simple", force=True)
-
     import logging
 
+    logging.basicConfig(
+        level=logging.INFO,
+        format='[%(asctime)s][%(name)s][%(levelname)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
     logger = logging.getLogger(__name__)
 
     logger.info("=" * 70)
