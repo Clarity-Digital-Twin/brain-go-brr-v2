@@ -1,8 +1,9 @@
-# Brain-Go-Brr v3.7.0 – Technical Debt Status
+# Brain-Go-Brr v3.7.0 – Technical Debt Status (ARCHIVED)
 
 **Date:** October 5, 2025
 **Status:** ✅ **ZERO P0/P1 DEBT** - Focal-only production ready · 🟡 Low-priority polish remaining
-**Verification:** make q · `/tmp/complete_audit.py` · manual line reviews
+**Superseded By:** `COMPREHENSIVE_DEBT_AUDIT.md` (root directory)
+**Verification:** make q · `/tmp/complete_audit.py` · comprehensive first-principles audit
 
 ---
 
