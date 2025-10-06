@@ -82,6 +82,14 @@ modal run deploy/modal/app.py --action clean-cache
 
 Use this before repopulating if you suspect corruption or want to reclaim space. Training itself never removes cache files; only the populate/clean commands manage them.
 
+### Remove stray NPZ files after aborted jobs
+
+```bash
+modal run deploy/modal/clean_stray_npz.py --confirm
+```
+
+This utility deletes any lingering `*_windows.npz` files that might be left behind if a run was started before the mmap cache was copied. It verifies the matching `_data.npy/_labels.npy` pair exists before deleting, so it is safe to run when cache checks warn about NPZ contamination.
+
 ---
 
 ## 6. When to copy vs stream

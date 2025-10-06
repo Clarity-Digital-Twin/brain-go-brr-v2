@@ -1,7 +1,14 @@
 # Technical Debt & Cleanup Status
 
-**Last Updated**: October 5, 2025
-**Status**: ✅ No open P0/P1 blockers; active follow-up items listed below
+**Last Updated**: October 6, 2025
+**Status**: ✅ All P0/P1 blockers resolved (NPZ cache migration complete)
+
+## Recently Closed Items (October 6, 2025)
+- Eliminated stray NPZ files on Modal (`deploy/modal/clean_stray_npz.py`)
+- Made datasets read-only: mmap cache loads now fail fast instead of rebuilding NPZ
+- Centralised mmap loading via `cache_utils.load_cache_mmap()` (removed 120 duplicate lines)
+- Updated Modal tooling: cache validation and `clean_cache()` now target `/results/cache/tusz_mmap`
+- Strengthened typing in `train_step.py`, `utils/training_logger.py`, and `utils/logging_config.py`
 
 ## Open Items
 

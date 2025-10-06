@@ -1,6 +1,6 @@
 # Modal Training (A100-80GB)
 
-**Last Updated**: October 1, 2025 (v3.4.1)
+**Last Updated**: October 6, 2025 (v3.6.0)
 
 ## CRITICAL: Always Use --detach
 Modal functions will stop after ~8 minutes when terminal disconnects unless you use `--detach`.
@@ -15,6 +15,8 @@ Modal functions will stop after ~8 minutes when terminal disconnects unless you 
 - Smoke: `modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml`
 - Full (detached): `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml`
 - Clean old cache (if needed): `modal run deploy/modal/app.py --action clean-cache`
+- Remove stray NPZ files (after aborted runs): `modal run deploy/modal/clean_stray_npz.py --confirm`
+- Verify cache health: `modal run deploy/modal/app.py --action check-cache`
 
 ## Monitoring
 
@@ -22,7 +24,7 @@ Modal functions will stop after ~8 minutes when terminal disconnects unless you 
 - Stream logs: `modal app logs <app-id>`
 - Stop training: `modal app stop <app-id>`
 
-## Configuration (v3.4.1)
+## Configuration (v3.6.0)
 
 ### Resources (deploy/modal/app.py:501-503)
 ```python
@@ -119,6 +121,11 @@ BGB_NAN_DEBUG=1          # Extra NaN logging
 ```
 
 > Gradient clipping (0.5) remains the primary protection. Enable `BGB_SANITIZE_GRADS=1` manually if you want to zero/log non-finite gradients while investigating an issue.
+
+### Cache Integrity Safeguards (October 2025)
+- Datasets now operate in **read-only** mode. Cache misses raise a clear `FileNotFoundError` instructing you to rerun `populate-cache` instead of silently rebuilding NPZ files.
+- `deploy/modal/app.py --action check-cache` now reports the number of `_data.npy` / `_labels.npy` pairs and warns if any legacy `.npz` files appear.
+- If a run crashes before the mmap cache is copied, clean up with `modal run deploy/modal/clean_stray_npz.py --confirm`. The script verifies the matching NPY pair exists before deletion.
 
 ## Initialization Timeline (v3.4.1)
 

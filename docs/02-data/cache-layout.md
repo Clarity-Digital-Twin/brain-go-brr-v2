@@ -18,7 +18,7 @@
 
 ## Memory-Mapped File Layout
 
-Each EDF recording produces two uncompressed `.npy` files:
+Each EDF recording produces two uncompressed `.npy` files (cache is strictly read-only; datasets raise `FileNotFoundError` if a stem is missing so you know to repopulate):
 
 | File                    | Shape                       | Dtype    | Description |
 |-------------------------|-----------------------------|----------|-------------|
@@ -90,6 +90,7 @@ Training logs should include:
 
 - To rebuild locally: `rm -rf cache/tusz_mmap && make train-local` (training will recreate the cache).
 - To clean Modal cache: `modal run deploy/modal/app.py --action clean-cache` before re-populating.
+- To remove stray NPZ files left by aborted runs: `modal run deploy/modal/clean_stray_npz.py --confirm`.
 - Keep the old NPZ cache (`cache/tusz/`) until the migration is fully validated; switching back only requires pointing configs to the old path.
 
 ## Cost Notes
