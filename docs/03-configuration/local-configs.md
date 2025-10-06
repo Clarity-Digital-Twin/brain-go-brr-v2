@@ -1,6 +1,6 @@
 # Local Configs (RTX 4090)
 
-**Last Updated**: October 1, 2025 (v3.4.1)
+**Last Updated**: October 6, 2025 (v3.7.0)
 **Target Hardware**: RTX 4090 24GB (WSL2 or native Linux)
 
 ## Overview
@@ -10,13 +10,14 @@ V3 dual-stream architecture is the **only supported** architecture. V2 heuristic
 ## Key Recommendations (v3.4.1)
 
 ### Data
-- `data.cache_dir: cache/tusz` (local SSD)
+- `data.cache_dir: cache/tusz_mmap` (memory-mapped NPY cache on local SSD/NVMe)
 - `data.num_workers: 0` (WSL2 stability) or `4` (native Linux with `pin_memory: true`)
 - `data.use_balanced_sampling: true` (CRITICAL for full training)
 - `data.prefetch_factor: 2` (conservative for memory stability)
+- Run `scripts/convert_cache_to_mmap.py` + `python -m src scan-cache --cache-dir cache/tusz_mmap/train` if you are migrating from the legacy NPZ cache.
 
 ### Training
-- `training.batch_size: 4` (conservative for 24GB VRAM)
+- `training.batch_size: 8` (measured safe on 24GB VRAM; double throughput vs batch 4)
 - `training.mixed_precision: false` (DISABLED - causes NaNs on RTX 4090)
 - `training.loss: focal` (REQUIRED for 12:1 imbalance)
 - `training.focal_gamma: 2.0` (with warmup in v3.4.1)
@@ -51,14 +52,14 @@ export BGB_NAN_DEBUG=1         # Additional NaN logging
 data:
   dataset: tuh_eeg
   data_dir: /mnt/ssd/tuh_eeg_seizure/v2.0.3/edf  # Adjust to your path
-  cache_dir: cache/tusz                           # Local: train (4667) + dev (1832)
+  cache_dir: cache/tusz_mmap                      # Memory-mapped cache (train/dev pairs)
   sampling_rate: 256
   n_channels: 19
   window_size: 60
   stride: 10
-  num_workers: 0                   # WSL2: MUST be 0
+  num_workers: 0                   # WSL2: MUST be 0 (set to 4 on native Linux)
   pin_memory: true                 # Fast GPU transfer
-  persistent_workers: false        # Must be false when num_workers=0
+  persistent_workers: false        # Keep false when num_workers=0 (set true if >0 workers)
   prefetch_factor: 2               # Conservative for memory stability
   use_balanced_sampling: true      # CRITICAL: Oversample seizures
 
@@ -70,7 +71,6 @@ preprocessing:
   bandpass: [0.5, 120]
   notch_freq: 60
   normalize: true
-  use_mne: true
 
 model:
   architecture: v3                 # V3 dual-stream ONLY
