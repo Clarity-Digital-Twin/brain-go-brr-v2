@@ -1,13 +1,19 @@
-# Doc 1: Edge Stream Migration - Implementation Plan
+# Doc 1: Edge Stream Validation - Implementation Plan
 
 **Parent Document**: [FLASH_LINEAR_ATTENTION_RESEARCH.md](FLASH_LINEAR_ATTENTION_RESEARCH.md) (Doc 0 - SSOT)
-**Phase**: 1a (HIGHEST PRIORITY)
-**Target**: Replace Edge Stream BiMamba2 → BiGatedDeltaNet
+**Phase**: 1a (Validation - after Phase 0 infrastructure)
+**Target**: Validate Edge Stream with BiGatedDeltaNet (node stays BiMamba2)
 **Date**: October 7, 2025
-**Version**: 1.1 (Config workflow + W&B analysis fixes)
-**Status**: Ready for Implementation
+**Version**: 2.0 (Coexistence + Infrastructure Prerequisites)
+**Status**: Ready for Implementation (AFTER Phase 0 complete)
+
+**⚠️ CRITICAL PREREQUISITE**: Complete **Doc 0 Section 14 (Phase 0 Infrastructure)** FIRST (4-6 days). This doc assumes config schema, constants, dependencies, builders, and tests already exist.
 
 **Changelog**:
+- v2.0 (Oct 7, 2025): Added coexistence strategy (BiMamba2 default, GDN experimental)
+- v2.0 (Oct 7, 2025): Added Phase 0 prerequisites (infrastructure must exist first)
+- v2.0 (Oct 7, 2025): Changed "migration" → "validation" (not replacement)
+- v2.0 (Oct 7, 2025): Added rollback procedure (instant via config)
 - v1.1 (Oct 7, 2025): Fixed CLI commands to use proper config workflow (no --experiment.name hacks)
 - v1.1 (Oct 7, 2025): Fixed W&B analysis to query by config.experiment.name (robust to name suffixes)
 - v1.0 (Oct 7, 2025): Initial version
@@ -16,15 +22,31 @@
 
 ## Executive Summary
 
-This document provides **surgical implementation details** for migrating the edge stream (and ONLY the edge stream) from BiMamba2 to BiGatedDeltaNet. This is Phase 1a of the phased migration strategy.
+This document provides **implementation details** for **validating edge stream with BiGatedDeltaNet** while keeping the node stream on BiMamba2. This is Phase 1a of the coexistence validation strategy.
 
-**Scope of Changes**:
-- ✅ Create `src/brain_brr/models/gated_deltanet.py` (BiGatedDeltaNet wrapper)
-- ✅ Update `src/brain_brr/models/builders/edge_stream.py` (return BiGatedDeltaNet)
-- ✅ Add config schema support in `src/brain_brr/config/schemas.py`
-- ✅ Write unit tests (`tests/unit/models/test_gated_deltanet.py`)
-- ✅ Write integration test (`tests/integration/test_edge_gdn_migration.py`)
-- ❌ **DO NOT TOUCH**: Node stream, GNN, TCN, decoder (keep v3.8.3 baseline)
+**Key Philosophy**: This is NOT a "migration" or "replacement". BiMamba2 remains the **DEFAULT**. We are **VALIDATING** GDN as an experimental option by testing edge stream in isolation.
+
+**Phase 1a Configuration**:
+```yaml
+model:
+  mamba:
+    temporal_type: "bimamba2"              # Global default (stable)
+    temporal_type_node: null               # null = use global (BiMamba2)
+    temporal_type_edge: "gated_deltanet"   # Override edge only (experimental)
+```
+
+**Scope of Phase 1a**:
+- ✅ Edge stream: BiMamba2 → BiGatedDeltaNet (experimental validation)
+- ❌ **Node stream**: KEEP BiMamba2 (stable baseline)
+- ❌ **DO NOT TOUCH**: GNN, TCN, decoder (keep v3.8.3 baseline)
+
+**What Should Already Exist** (Phase 0 infrastructure):
+- ✅ Config schema with `temporal_type_edge` field (Doc 0 Section 14.1)
+- ✅ Constants extracted to `constants.py` (Doc 0 Section 14.2)
+- ✅ `flash-linear-attention` in `pyproject.toml` (Doc 0 Section 14.3)
+- ✅ Builder factory pattern (Doc 0 Section 14.4)
+- ✅ BiGatedDeltaNet wrapper (Doc 0 Section 14.5)
+- ✅ Test infrastructure (Doc 0 Section 14.6)
 
 **Expected Outcome**:
 - Edge stream: **10.3K params BiMamba2 → ~7.3K params BiGatedDeltaNet** (29% reduction due to 0.75× q/k projection)
