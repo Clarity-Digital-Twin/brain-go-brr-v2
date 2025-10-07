@@ -4,8 +4,13 @@
 **Phase**: 1b (Validation Phase)
 **Target**: Replace Node Stream BiMamba2 → BiGatedDeltaNet
 **Date**: October 7, 2025
-**Version**: 1.0
+**Version**: 1.1 (Config workflow + W&B analysis fixes)
 **Status**: Ready for Implementation (pending Phase 1a success)
+
+**Changelog**:
+- v1.1 (Oct 7, 2025): Fixed CLI commands to use proper config workflow (no --experiment.name hacks)
+- v1.1 (Oct 7, 2025): Fixed W&B analysis to query by config.experiment.name (robust to name suffixes)
+- v1.0 (Oct 7, 2025): Initial version
 
 ---
 
@@ -659,36 +664,84 @@ python -m src train configs/local/node_gdn_test.yaml
 
 ### 5.3. A/B Comparison
 
+**CRITICAL**: CLI does NOT support `--experiment.name` overrides. Create separate configs for each experiment.
+
 **Baseline (BiMamba2 node)**:
 ```bash
 # Run baseline first
 cp configs/local/train.yaml configs/local/baseline_node.yaml
-# Edit: set training.epochs: 10
+# Edit configs/local/baseline_node.yaml:
+#   experiment.name: "baseline_node"
+#   training.epochs: 10
 export BGB_LIMIT_FILES=50
-python -m src train configs/local/baseline_node.yaml --experiment.name baseline_node
+python -m src train configs/local/baseline_node.yaml
 ```
 
 **Phase 1b (GDN node)**:
 ```bash
 # Run Phase 1b
-python -m src train configs/local/node_gdn_test.yaml --experiment.name phase1b_gdn_node
+cp configs/local/node_gdn_test.yaml configs/local/phase1b_gdn_node.yaml
+# Edit configs/local/phase1b_gdn_node.yaml:
+#   experiment.name: "phase1b_gdn_node"
+#   training.epochs: 10
+python -m src train configs/local/phase1b_gdn_node.yaml
 ```
 
-**Compare**:
+**Compare** (using robust W&B analysis):
 ```python
+"""Compare Phase 1b results against baseline.
+
+USAGE:
+    python scripts/analyze_phase1b_results.py --project seizure-v3-node-gdn
+"""
 import wandb
 
+
+def find_run_by_experiment_name(runs: list, experiment_name: str):
+    """Find run by experiment.name config field (robust to W&B name suffixes).
+
+    Args:
+        runs: List of W&B runs
+        experiment_name: Expected value of config.experiment.name
+
+    Returns:
+        Matching run or None if not found
+    """
+    matches = [
+        r for r in runs
+        if r.config.get('experiment', {}).get('name') == experiment_name
+    ]
+
+    if not matches:
+        print(f"ERROR: No runs found with experiment.name='{experiment_name}'")
+        return None
+    if len(matches) > 1:
+        print(f"Warning: Found {len(matches)} runs with experiment.name='{experiment_name}', using first")
+        print(f"  Run IDs: {[r.id for r in matches]}")
+
+    return matches[0]
+
+
+# Initialize W&B API
 api = wandb.Api()
 runs = api.runs("seizure-v3-node-gdn")
 
-baseline = [r for r in runs if r.name == "baseline_node"][0]
-phase1b = [r for r in runs if r.name == "phase1b_gdn_node"][0]
+# Find runs by experiment.name (robust to W&B suffixes like "baseline_node-1")
+baseline = find_run_by_experiment_name(runs, "baseline_node")
+phase1b = find_run_by_experiment_name(runs, "phase1b_gdn_node")
+
+if not baseline or not phase1b:
+    print("\nAvailable runs:")
+    for r in runs:
+        exp_name = r.config.get('experiment', {}).get('name', 'UNKNOWN')
+        print(f"  - {r.id}: {r.name} (experiment.name={exp_name})")
+    exit(1)
 
 # Compare metrics
-print(f"Baseline loss: {baseline.summary['val_loss']:.4f}")
-print(f"Phase 1b loss: {phase1b.summary['val_loss']:.4f}")
-print(f"Baseline sens@10FA: {baseline.summary['sensitivity_at_10fa']:.2%}")
-print(f"Phase 1b sens@10FA: {phase1b.summary['sensitivity_at_10fa']:.2%}")
+print(f"Baseline loss: {baseline.summary.get('val_loss', 'N/A'):.4f}")
+print(f"Phase 1b loss: {phase1b.summary.get('val_loss', 'N/A'):.4f}")
+print(f"Baseline sens@10FA: {baseline.summary.get('sensitivity_at_10fa', 0):.2%}")
+print(f"Phase 1b sens@10FA: {phase1b.summary.get('sensitivity_at_10fa', 0):.2%}")
 
 # Expected: Phase 1b slightly better (+1-2%)
 ```
