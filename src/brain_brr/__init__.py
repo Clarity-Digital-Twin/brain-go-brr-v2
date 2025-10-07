@@ -6,14 +6,15 @@ V3 dual-stream architecture combining:
 - GNN (Graph Neural Network) with dynamic Laplacian positional encoding
 - Multi-head gated fusion for node/edge stream combination
 
-v3.8.2: Zero Warnings - Professional Fixes
-- Eliminates read-only tensor warnings at source (np.array copy pattern in all 3 datasets)
-- Fixes GradScaler + LRScheduler interaction (proper scale tracking, 2 locations)
-- Training logs now 100% clean with accurate LR schedule
-- Follows official PyTorch AMP best practices
+v3.8.3: Manifest Naming Cleanup - Zero Technical Debt
+- Eliminates NPZ-style naming from manifests (now uses *_data.npy directly)
+- Removed all 11 .replace("_windows", "") string manipulation workarounds
+- Simplified cache_utils.py and datasets.py for better maintainability
+- Regenerated manifests: train (303,990 windows), dev (148,224 windows)
+- Zero P0/P1/P2/P3 technical debt remaining
 """
 
-__version__ = "3.8.2"
+__version__ = "3.8.3"
 
 # NO HEAVY IMPORTS AT PACKAGE LEVEL
 # Models should be imported explicitly when needed:
