@@ -4,7 +4,13 @@
 **Branch**: `feature/flash-linear-attention`
 **Researcher**: Claude Code
 **Status**: Production-Ready Implementation Plan
-**Version**: 4.0 (Production-Ready with Coexistence Strategy)
+**Version**: 4.1 (Bug Fixes + Coexistence Strategy)
+
+**Changelog**:
+- v4.1 (Oct 7, 2025): Fixed transformers version (4.53.0 not 4.45.0) per FLA requirements
+- v4.1 (Oct 7, 2025): Fixed mypy override instruction (append to existing, don't replace)
+- v4.1 (Oct 7, 2025): Added explicit import instruction for constants in schemas.py
+- v4.0 (Oct 7, 2025): Added coexistence strategy and infrastructure prerequisites
 
 ---
 
@@ -267,7 +273,8 @@ pip install flash-linear-attention
 #   - PyTorch >= 2.5.0
 #   - Triton >= 3.0.0 (or nightly)
 #   - einops >= 0.6.0
-#   - transformers >= 4.45.0
+#   - transformers >= 4.53.0  # FLA's actual requirement (not 4.45.0)
+#   - datasets (pulled in by transformers)
 # Note: causal-conv1d NOT required (FLA provides Triton conv1d)
 ```
 
@@ -1051,7 +1058,23 @@ This version (3.0) incorporates ALL feedback and codebase verification for 100% 
 
 **Current state**: `MambaConfig` only supports BiMamba2 (no `temporal_type` field)
 
-**Required changes**:
+**Step 1: Import new constants** (add to top of file after existing imports):
+
+**⚠️ PREREQUISITE**: Section 14.2 (Constants Extraction) must be completed FIRST, otherwise these imports will fail.
+
+```python
+from src.brain_brr.constants import (
+    DROPOUT_MAMBA,  # Existing
+    # ✅ NEW: Add GDN constants for validation (from Section 14.2)
+    GDN_NODE_NUM_HEADS_DEFAULT,
+    GDN_NODE_HEADDIM_DEFAULT,
+    GDN_EDGE_NUM_HEADS_DEFAULT,
+    GDN_EDGE_HEADDIM_DEFAULT,
+    GDN_QK_PROJECTION_RATIO,
+)
+```
+
+**Step 2: Update MambaConfig class**:
 
 ```python
 class MambaConfig(StrictModel):
@@ -1238,16 +1261,21 @@ fla = [
 ]
 ```
 
-**Add to `[tool.mypy]` overrides** (after existing ignores):
+**Update `[tool.mypy]` overrides** (append to existing list):
 
 ```toml
+# Find existing override block in pyproject.toml (lines ~236-247)
+# and ADD "fla.*" to the module list:
 [[tool.mypy.overrides]]
 module = [
     "torch.*",
-    "mamba_ssm.*",
-    "fla.*",  # ✅ NEW: Ignore FLA missing stubs
+    "torch_geometric.*",  # Keep existing
+    "mamba_ssm.*",        # Keep existing
+    "fla.*",              # ✅ NEW: Add this line
 ]
 ignore_missing_imports = true
+
+# DO NOT create a new [[tool.mypy.overrides]] block - just append "fla.*" to existing
 ```
 
 **File**: `Makefile`
@@ -1661,13 +1689,14 @@ else:
 ---
 
 **Document Metadata**:
-- **Version**: 4.0 (Production-Ready with Coexistence Strategy)
+- **Version**: 4.1 (Bug Fixes + Coexistence Strategy)
 - **Last Updated**: October 7, 2025
 - **Author**: Claude Code (Automated Research Agent)
 - **External Review**: Incorporated (v2.0, October 7, 2025)
 - **Codebase Verification**: Completed (v3.0, October 7, 2025)
 - **Coexistence Strategy**: Added (v4.0, October 7, 2025)
 - **Infrastructure Plan**: Completed (v4.0, October 7, 2025)
+- **Critical Bug Fixes**: Applied (v4.1, October 7, 2025)
 - **Status**: ✅ Ready for Phase 0 (Infrastructure Setup)
 
 **Verification Checklist**:
@@ -1688,3 +1717,6 @@ else:
 - ✅ **Validation gates specified** (metrics thresholds before changing default)
 - ✅ **Rollback procedures documented** (instant via config flag)
 - ✅ **FLA library vs GDN algorithm clarified** (FLA is PyPI library, GDN is algorithm)
+- ✅ **transformers version corrected** (4.53.0 per FLA, not 4.45.0)
+- ✅ **mypy override fixed** (append to existing, don't replace torch_geometric.*)
+- ✅ **Import instruction added** (constants must be imported in schemas.py)
