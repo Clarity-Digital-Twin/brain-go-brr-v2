@@ -153,8 +153,13 @@ def build_node_stream(cfg: "ModelConfig") -> BiMamba2 | "BiGatedDeltaNet":
     use_layerscale = bool(norms_cfg and norms_cfg.boundary_norm != "none")
     layerscale_init = float(norms_cfg.layerscale_alpha if norms_cfg else LAYERSCALE_ALPHA_FALLBACK)
 
-    # Determine which temporal model to use
-    temporal_type = getattr(mamba_cfg, "temporal_type", "bimamba2")  # Default to BiMamba2
+    # Determine which temporal model to use (STREAM-SPECIFIC for Phase 1b isolation)
+    # Priority: temporal_type_node > temporal_type (fallback)
+    temporal_type = getattr(mamba_cfg, "temporal_type_node", None)
+    if temporal_type is None:
+        temporal_type = getattr(mamba_cfg, "temporal_type", "bimamba2")
+
+    logger.debug(f"Node stream temporal_type: {temporal_type} (stream-specific or fallback)")
 
     if temporal_type == "gated_deltanet":
         if not GDN_AVAILABLE:
@@ -253,10 +258,12 @@ model:
     conv_kernel: 4
     dropout: 0.1
 
-    # PHASE 1b: Enable GDN for node stream ONLY
-    temporal_type: gated_deltanet  # NEW: Applies to node stream
-    fusion_mode: sum               # NEW: Start with simpler sum fusion
-    allow_neg_eigval: false        # NEW: Conservative start
+    # PHASE 1b: Enable GDN for node stream ONLY (stream-specific control)
+    temporal_type: bimamba2              # Fallback for edge stream
+    temporal_type_node: gated_deltanet   # Override: node uses GDN
+    temporal_type_edge: null             # Edge uses fallback (BiMamba2)
+    fusion_mode: sum                     # Start with simpler sum fusion
+    allow_neg_eigval: false              # Conservative start
 
   # Graph configuration (V3)
   graph:
@@ -572,6 +579,37 @@ class TestNodeStreamGDNMigration:
             f"Parameter count outside expected range: {params:,} "
             f"(expected ~284K due to GDN's 0.75× q/k projection)"
         )
+
+    def test_stream_isolation_phase1b(self, base_config):
+        """Test Phase 1b isolation: Node GDN, Edge BiMamba2.
+
+        CRITICAL: Verify edge stream remains BiMamba2 when node uses GDN.
+        This is the WHOLE POINT of stream-specific config fields.
+        """
+        from src.brain_brr.models.builders.edge_stream import build_edge_stream
+        from src.brain_brr.models.gated_deltanet import BiGatedDeltaNet
+        from src.brain_brr.models.mamba import BiMamba2
+
+        # Phase 1b config: node=GDN, edge=BiMamba2
+        base_config.mamba.temporal_type = "bimamba2"           # Fallback
+        base_config.mamba.temporal_type_node = "gated_deltanet"  # Override node
+        base_config.mamba.temporal_type_edge = None            # Use fallback
+
+        # Add GraphConfig for edge stream
+        from src.brain_brr.config.schemas import GraphConfig
+        base_config.graph = GraphConfig(
+            enabled=True,
+            edge_mamba_layers=2,
+            edge_mamba_d_state=8,
+            edge_mamba_d_model=16,
+        )
+
+        node_mamba = build_node_stream(base_config)
+        edge_components = build_edge_stream(base_config)
+
+        # Verify isolation
+        assert isinstance(node_mamba, BiGatedDeltaNet), "Node should be GDN in Phase 1b"
+        assert isinstance(edge_components.edge_mamba, BiMamba2), "Edge should be BiMamba2 in Phase 1b"
 ```
 
 **Run integration tests**:
