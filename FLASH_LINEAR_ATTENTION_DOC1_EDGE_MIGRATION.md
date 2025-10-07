@@ -1190,6 +1190,7 @@ python -m src train configs/local/phase1a_gdn_edge.yaml
 USAGE:
     python scripts/analyze_phase1a_results.py --project seizure-v3-edge-gdn
 """
+import sys
 import wandb
 
 
@@ -1231,13 +1232,27 @@ if not baseline or not phase1a:
     for r in runs:
         exp_name = r.config.get('experiment', {}).get('name', 'UNKNOWN')
         print(f"  - {r.id}: {r.name} (experiment.name={exp_name})")
-    exit(1)
+    sys.exit(1)
+
+
+def get_metric(run, metric: str, default: float = 0.0) -> float:
+    """Safely fetch a scalar metric from W&B run summary."""
+    value = run.summary.get(metric)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 # Compare metrics
-print(f"Baseline loss: {baseline.summary.get('val_loss', 'N/A'):.4f}")
-print(f"Phase 1a loss: {phase1a.summary.get('val_loss', 'N/A'):.4f}")
-print(f"Baseline sens@10FA: {baseline.summary.get('sensitivity_at_10fa', 0):.2%}")
-print(f"Phase 1a sens@10FA: {phase1a.summary.get('sensitivity_at_10fa', 0):.2%}")
+baseline_loss = get_metric(baseline, "val_loss")
+phase1a_loss = get_metric(phase1a, "val_loss")
+baseline_sens = get_metric(baseline, "sensitivity_at_10fa")
+phase1a_sens = get_metric(phase1a, "sensitivity_at_10fa")
+
+print(f"Baseline loss: {baseline_loss:.4f}")
+print(f"Phase 1a loss: {phase1a_loss:.4f}")
+print(f"Baseline sens@10FA: {baseline_sens:.2%}")
+print(f"Phase 1a sens@10FA: {phase1a_sens:.2%}")
 
 # Expected: Phase 1a slightly better (+1-2%)
 ```
