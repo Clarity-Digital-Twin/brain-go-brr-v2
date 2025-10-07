@@ -384,9 +384,7 @@ class BalancedSeizureDataset(Dataset):
         # Helper to check if cache file exists (supports both NPZ and NPY formats)
         def cache_file_exists(cache_path: Path) -> bool:
             """Check if cache file exists in either NPZ or NPY format."""
-            if cache_path.exists():
-                return True
-            return False
+            return cache_path.exists()
 
         # Add ALL partial seizure windows (most informative)
         for item in partial:
@@ -598,9 +596,7 @@ class ValidationDataset(Dataset):
 
             Manifest now uses direct NPY naming (*_data.npy).
             """
-            if cache_path.exists():
-                return True
-            return False
+            return cache_path.exists()
 
         for item in all_entries:
             cache_file_name = item["cache_file"]
