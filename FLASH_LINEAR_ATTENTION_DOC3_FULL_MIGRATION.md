@@ -4,8 +4,13 @@
 **Phase**: 2 (Full Migration)
 **Target**: Replace BOTH Edge + Node Streams BiMamba2 → BiGatedDeltaNet
 **Date**: October 7, 2025
-**Version**: 1.0
+**Version**: 1.1 (Config workflow + W&B analysis fixes)
 **Status**: Ready for Implementation (pending Phase 1a AND Phase 1b success)
+
+**Changelog**:
+- v1.1 (Oct 7, 2025): Fixed CLI commands to use proper config workflow (no --experiment.name hacks)
+- v1.1 (Oct 7, 2025): Fixed W&B analysis to query by config.experiment.name (robust to name suffixes)
+- v1.0 (Oct 7, 2025): Initial version
 
 ---
 
@@ -463,22 +468,41 @@ pytest tests/integration/test_full_gdn_migration.py -xvs
 
 **Purpose**: Determine optimal fusion mode (sum vs concat) for both streams
 
+**CRITICAL**: CLI does NOT support `--experiment.name` overrides. Create separate configs for each experiment.
+
 ```bash
-# Config matrix (10 epochs each, 50 files)
+# Set limited file count for all experiments
 export BGB_LIMIT_FILES=50
 
 # 1. Baseline: BiMamba2 (both streams)
-python -m src train configs/local/train.yaml --experiment.name baseline_bimamba2
+cp configs/local/train.yaml configs/local/baseline_bimamba2.yaml
+# Edit configs/local/baseline_bimamba2.yaml:
+#   experiment.name: "baseline_bimamba2"
+#   training.epochs: 10
+python -m src train configs/local/baseline_bimamba2.yaml
 
 # 2. Phase 2 Sum fusion (both streams)
-python -m src train configs/local/full_gdn_test.yaml --experiment.name phase2_sum
+cp configs/local/full_gdn_test.yaml configs/local/phase2_sum.yaml
+# Edit configs/local/phase2_sum.yaml:
+#   experiment.name: "phase2_sum"
+#   mamba.temporal_type: "gated_deltanet"
+#   mamba.fusion_mode: "sum"
+#   training.epochs: 10
+python -m src train configs/local/phase2_sum.yaml
 
 # 3. Phase 2 Concat fusion (both streams)
-# Edit full_gdn_test.yaml: fusion_mode: concat
-python -m src train configs/local/full_gdn_test.yaml --experiment.name phase2_concat
+cp configs/local/full_gdn_test.yaml configs/local/phase2_concat.yaml
+# Edit configs/local/phase2_concat.yaml:
+#   experiment.name: "phase2_concat"
+#   mamba.temporal_type: "gated_deltanet"
+#   mamba.fusion_mode: "concat"
+#   training.epochs: 10
+python -m src train configs/local/phase2_concat.yaml
 
-# 4. Phase 2 Mixed: Node sum, Edge concat
-# Edit: Add fusion_mode_node, fusion_mode_edge fields (future enhancement)
+# NOTE: Phase 2 Mixed (per-stream fusion modes) requires future enhancement:
+# - Add mamba.fusion_mode_node and mamba.fusion_mode_edge config fields
+# - Update node_stream.py and edge_stream.py builders to check stream-specific first
+# - Not implemented in Phase 2 (A/B test determines global fusion mode first)
 ```
 
 ### 4.2. Comparison with Individual Phases
@@ -486,40 +510,206 @@ python -m src train configs/local/full_gdn_test.yaml --experiment.name phase2_co
 **Purpose**: Verify combined effect ≥ individual effects
 
 ```bash
-# Compare:
-# - Phase 1a (edge only): +X% sensitivity
-# - Phase 1b (node only): +Y% sensitivity
-# - Phase 2 (both): Expected +3-5% (may not equal X+Y due to interaction)
+# Expected outcomes:
+# - Phase 1a (edge only): +X% sensitivity improvement
+# - Phase 1b (node only): +Y% sensitivity improvement
+# - Phase 2 (both): Expected +3-5% (may not equal X+Y due to interaction effects)
 ```
 
-**Analysis script**:
+**Analysis script** (`scripts/analyze_phase2_results.py`):
 
 ```python
+"""Analyze Phase 2 A/B testing results from W&B.
+
+USAGE:
+    python scripts/analyze_phase2_results.py --project seizure-v3-full-gdn
+"""
+import argparse
+import sys
+from typing import Optional
+
 import wandb
 
-api = wandb.Api()
-runs = api.runs("seizure-v3-full-gdn")
 
-baseline = [r for r in runs if r.name == "baseline_bimamba2"][0]
-phase1a = [r for r in runs if r.name == "phase1a_gdn_edge"][0]
-phase1b = [r for r in runs if r.name == "phase1b_gdn_node"][0]
-phase2_sum = [r for r in runs if r.name == "phase2_sum"][0]
-phase2_concat = [r for r in runs if r.name == "phase2_concat"][0]
+def find_run_by_experiment_name(runs: list, experiment_name: str) -> Optional[wandb.apis.public.Run]:
+    """Find run by experiment.name config field (robust to W&B name suffixes).
 
-# Compare sensitivity improvements
-baseline_sens = baseline.summary['sensitivity_at_10fa']
-phase1a_gain = (phase1a.summary['sensitivity_at_10fa'] - baseline_sens) / baseline_sens
-phase1b_gain = (phase1b.summary['sensitivity_at_10fa'] - baseline_sens) / baseline_sens
-phase2_sum_gain = (phase2_sum.summary['sensitivity_at_10fa'] - baseline_sens) / baseline_sens
-phase2_concat_gain = (phase2_concat.summary['sensitivity_at_10fa'] - baseline_sens) / baseline_sens
+    Args:
+        runs: List of W&B runs
+        experiment_name: Expected value of config.experiment.name
 
-print(f"Baseline sensitivity@10FA: {baseline_sens:.2%}")
-print(f"Phase 1a (edge) gain: {phase1a_gain:+.2%}")
-print(f"Phase 1b (node) gain: {phase1b_gain:+.2%}")
-print(f"Phase 2 (sum) gain: {phase2_sum_gain:+.2%}")
-print(f"Phase 2 (concat) gain: {phase2_concat_gain:+.2%}")
+    Returns:
+        Matching run or None if not found
+    """
+    matches = [
+        r for r in runs
+        if r.config.get('experiment', {}).get('name') == experiment_name
+    ]
 
-# Expected: Phase 2 ≥ max(Phase 1a, Phase 1b) and ideally Phase 2 ≈ Phase 1a + Phase 1b
+    if not matches:
+        return None
+    if len(matches) > 1:
+        print(f"Warning: Found {len(matches)} runs with experiment.name='{experiment_name}', using first")
+        print(f"  Run IDs: {[r.id for r in matches]}")
+
+    return matches[0]
+
+
+def get_metric(run: wandb.apis.public.Run, metric: str, default: float = 0.0) -> float:
+    """Safely extract metric from run summary.
+
+    Args:
+        run: W&B run object
+        metric: Metric name (e.g., 'sensitivity_at_10fa')
+        default: Default value if metric missing
+
+    Returns:
+        Metric value or default
+    """
+    return run.summary.get(metric, default)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Analyze Phase 2 A/B testing results")
+    parser.add_argument('--project', required=True, help='W&B project name')
+    parser.add_argument('--entity', default=None, help='W&B entity (optional)')
+    args = parser.parse_args()
+
+    # Initialize API
+    api = wandb.Api()
+    project_path = f"{args.entity}/{args.project}" if args.entity else args.project
+    runs = api.runs(project_path)
+
+    # Find runs by experiment.name config field (robust to W&B suffixes)
+    baseline = find_run_by_experiment_name(runs, "baseline_bimamba2")
+    phase1a = find_run_by_experiment_name(runs, "phase1a_gdn_edge")
+    phase1b = find_run_by_experiment_name(runs, "phase1b_gdn_node")
+    phase2_sum = find_run_by_experiment_name(runs, "phase2_sum")
+    phase2_concat = find_run_by_experiment_name(runs, "phase2_concat")
+
+    # Verify all runs found
+    missing = []
+    if not baseline: missing.append("baseline_bimamba2")
+    if not phase1a: missing.append("phase1a_gdn_edge")
+    if not phase1b: missing.append("phase1b_gdn_node")
+    if not phase2_sum: missing.append("phase2_sum")
+    if not phase2_concat: missing.append("phase2_concat")
+
+    if missing:
+        print(f"ERROR: Missing runs: {missing}")
+        print("\nAvailable runs:")
+        for r in runs:
+            exp_name = r.config.get('experiment', {}).get('name', 'UNKNOWN')
+            print(f"  - {r.id}: {r.name} (experiment.name={exp_name})")
+        sys.exit(1)
+
+    # Extract metrics
+    baseline_sens = get_metric(baseline, 'sensitivity_at_10fa')
+    phase1a_sens = get_metric(phase1a, 'sensitivity_at_10fa')
+    phase1b_sens = get_metric(phase1b, 'sensitivity_at_10fa')
+    phase2_sum_sens = get_metric(phase2_sum, 'sensitivity_at_10fa')
+    phase2_concat_sens = get_metric(phase2_concat, 'sensitivity_at_10fa')
+
+    # Calculate gains (avoid division by zero)
+    if baseline_sens > 0:
+        phase1a_gain = (phase1a_sens - baseline_sens) / baseline_sens
+        phase1b_gain = (phase1b_sens - baseline_sens) / baseline_sens
+        phase2_sum_gain = (phase2_sum_sens - baseline_sens) / baseline_sens
+        phase2_concat_gain = (phase2_concat_sens - baseline_sens) / baseline_sens
+    else:
+        print(f"ERROR: Baseline sensitivity is zero or missing")
+        sys.exit(1)
+
+    # Print results
+    print("=" * 80)
+    print("Phase 2 A/B Testing Results")
+    print("=" * 80)
+    print(f"\nBaseline (BiMamba2 both streams):")
+    print(f"  Sensitivity@10FA: {baseline_sens:.2%}")
+    print(f"\nPhase 1a (Edge GDN only):")
+    print(f"  Sensitivity@10FA: {phase1a_sens:.2%} ({phase1a_gain:+.2%} vs baseline)")
+    print(f"\nPhase 1b (Node GDN only):")
+    print(f"  Sensitivity@10FA: {phase1b_sens:.2%} ({phase1b_gain:+.2%} vs baseline)")
+    print(f"\nPhase 2 Sum Fusion (Both GDN):")
+    print(f"  Sensitivity@10FA: {phase2_sum_sens:.2%} ({phase2_sum_gain:+.2%} vs baseline)")
+    print(f"\nPhase 2 Concat Fusion (Both GDN):")
+    print(f"  Sensitivity@10FA: {phase2_concat_sens:.2%} ({phase2_concat_gain:+.2%} vs baseline)")
+
+    # Decision logic
+    print("\n" + "=" * 80)
+    print("Recommendations")
+    print("=" * 80)
+
+    best_phase1 = max(phase1a_gain, phase1b_gain)
+    best_phase2 = max(phase2_sum_gain, phase2_concat_gain)
+
+    if best_phase2 >= 0.03 and best_phase2 >= best_phase1:
+        winner = "Sum" if phase2_sum_gain > phase2_concat_gain else "Concat"
+        print(f"✅ PROCEED with Phase 2 ({winner} fusion): {best_phase2:+.2%} gain")
+        print(f"   - Combined effect ({best_phase2:+.2%}) ≥ individual effects (max {best_phase1:+.2%})")
+        print(f"   - Meets +3% target for full migration")
+    elif best_phase1 > best_phase2:
+        winner = "Phase 1a (Edge)" if phase1a_gain > phase1b_gain else "Phase 1b (Node)"
+        print(f"⚠️  PARTIAL MIGRATION recommended: {winner} ({max(phase1a_gain, phase1b_gain):+.2%} gain)")
+        print(f"   - Individual phase outperforms combined (Phase 2: {best_phase2:+.2%})")
+        print(f"   - Possible interaction penalty detected")
+    else:
+        print(f"❌ REVERT to baseline: No significant improvement")
+        print(f"   - Best gain: {max(best_phase1, best_phase2):+.2%} (below +3% target)")
+
+    print("=" * 80)
+
+
+if __name__ == '__main__':
+    main()
+```
+
+**Setup analysis script**:
+
+```bash
+# Create scripts directory if it doesn't exist
+mkdir -p scripts
+
+# Create the analysis script
+cat > scripts/analyze_phase2_results.py << 'EOF'
+# (Copy the Python script from above)
+EOF
+
+chmod +x scripts/analyze_phase2_results.py
+```
+
+**Run analysis**:
+
+```bash
+python scripts/analyze_phase2_results.py --project seizure-v3-full-gdn
+
+# Example output:
+# ================================================================================
+# Phase 2 A/B Testing Results
+# ================================================================================
+#
+# Baseline (BiMamba2 both streams):
+#   Sensitivity@10FA: 87.50%
+#
+# Phase 1a (Edge GDN only):
+#   Sensitivity@10FA: 88.75% (+1.43% vs baseline)
+#
+# Phase 1b (Node GDN only):
+#   Sensitivity@10FA: 89.20% (+1.94% vs baseline)
+#
+# Phase 2 Sum Fusion (Both GDN):
+#   Sensitivity@10FA: 91.10% (+4.11% vs baseline)
+#
+# Phase 2 Concat Fusion (Both GDN):
+#   Sensitivity@10FA: 90.80% (+3.77% vs baseline)
+#
+# ================================================================================
+# Recommendations
+# ================================================================================
+# ✅ PROCEED with Phase 2 (Sum fusion): +4.11% gain
+#    - Combined effect (+4.11%) ≥ individual effects (max +1.94%)
+#    - Meets +3% target for full migration
+# ================================================================================
 ```
 
 ---
