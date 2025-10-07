@@ -626,7 +626,7 @@ def main() -> None:
     if val_manifest_path.exists():
         try:
             allowed_cache_files = (
-                {f"{val_file.stem}_windows.npz" for val_file in val_files} if val_files else None
+                {f"{val_file.stem}_data.npy" for val_file in val_files} if val_files else None
             )
             val_dataset = ValidationDataset(
                 val_cache_dir,

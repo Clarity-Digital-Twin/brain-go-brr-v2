@@ -1,49 +1,13 @@
 # Active Technical Debt
 
-**Last Updated**: 2025-10-06
-**Status**: 🟢 **0 P0/P1/P2 issues** (production-ready)
+**Last Updated**: 2025-10-07
+**Status**: 🟢 **0 P0/P1/P2/P3 issues** (all debt resolved!)
 
 ---
 
 ## P3: Minor Cleanup (Non-Blocking)
 
-### P3-1: Manifest Naming Convention Mismatch
-
-**Status**: 🟡 Active (low priority)
-**Impact**: Cognitive overhead, no runtime issues
-**Effort**: ~2 hours (regenerate manifests + cleanup)
-
-**Problem**:
-- Manifests use NPZ-style naming: `"file_windows.npz"`
-- Actual cache files are NPY format: `file_data.npy` + `file_labels.npy`
-- Code has to strip `"_windows"` suffix in 4+ locations to convert names
-
-**Locations Affected**:
-```python
-# src/brain_brr/data/cache_utils.py:95
-stem = cache_path.stem.replace("_windows", "")
-
-# src/brain_brr/data/datasets.py (3 locations)
-stem = cache_path.stem.replace("_windows", "")
-file_id = cache_file.stem.replace("_windows", "")
-```
-
-**Why It Exists**:
-- Migrated NPZ → NPY for memory efficiency (v3.7.0)
-- Kept manifest NPZ-style naming for compatibility
-- Avoided regenerating 6499 manifests during hot-fix cycle
-
-**Fix Plan**:
-1. Regenerate manifests with NPY naming: `"file_data.npy"` entries
-2. Remove all `.replace("_windows", "")` logic
-3. Update `build_manifest()` to use NPY stems directly
-
-**When to Fix**:
-- After v3.8.2 Modal training completes
-- During next maintenance window
-- NOT urgent - current code works fine
-
-**Benefit**: Cleaner code, less confusion, easier onboarding
+**🎉 ALL RESOLVED** as of v3.8.3
 
 ---
 
@@ -74,14 +38,15 @@ torch.as_tensor(window).contiguous().to(torch.float32)
 
 ---
 
-## P0/P1/P2: Critical/High/Medium
+## P0/P1/P2/P3: Resolved Issues
 
-**🎉 ALL RESOLVED** as of v3.8.2:
-- ✅ Read-only tensor warnings (P1) → Fixed in v3.8.2
-- ✅ GradScaler + scheduler interaction (P2) → Fixed in v3.8.2
-- ✅ ValidationDataset NPY mapping (P0) → Fixed in v3.8.1
-- ✅ Edge similarity clamping (P1) → Fixed in v3.3.0
-- ✅ Gradient explosion (P0) → Fixed in v3.3.1
+**🎉 ALL RESOLVED**:
+- ✅ **P3-1**: Manifest naming mismatch → Fixed in v3.8.3 (eliminated 11 `.replace()` workarounds)
+- ✅ **P1**: Read-only tensor warnings → Fixed in v3.8.2
+- ✅ **P2**: GradScaler + scheduler interaction → Fixed in v3.8.2
+- ✅ **P0**: ValidationDataset NPY mapping → Fixed in v3.8.1
+- ✅ **P1**: Edge similarity clamping → Fixed in v3.3.0
+- ✅ **P0**: Gradient explosion → Fixed in v3.3.1
 
 See `CHANGELOG.md` for full resolution history.
 

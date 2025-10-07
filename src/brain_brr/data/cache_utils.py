@@ -42,7 +42,7 @@ def cache_file_path(cache_dir: Path, edf_path: Path) -> Path:
     Note: Returns path to _data.npy file (mmap format).
     Companion _labels.npy file is expected to exist alongside.
     """
-    return cache_dir / f"{edf_path.stem}_windows_data.npy"
+    return cache_dir / f"{edf_path.stem}_data.npy"
 
 
 def load_cache_mmap(
@@ -90,10 +90,10 @@ def load_cache_mmap(
         - Multiple workers reading same file → same physical memory pages
     """
     if cache_path not in mmap_handles:
-        # Convert NPZ path to NPY paths
+        # Manifest now uses *_data.npy naming directly
         # Format: aaaaaajy_s001_t000_data.npy + aaaaaajy_s001_t000_labels.npy (mmap)
-        stem = cache_path.stem.replace("_windows", "")
-        windows_file = cache_path.parent / f"{stem}_data.npy"
+        windows_file = cache_path
+        stem = cache_path.stem.replace("_data", "")
         labels_file = cache_path.parent / f"{stem}_labels.npy"
 
         if not windows_file.exists():
@@ -204,8 +204,8 @@ def scan_existing_cache(cache_dir: Path) -> dict[str, list[dict[str, Any]]]:
                     continue
 
                 labels = np.load(labels_path, mmap_mode="r")
-                # For manifest, reference the stem without _data suffix
-                manifest_filename = f"{stem}_windows.npz"  # Keep NPZ-style naming for compatibility
+                # For manifest, reference the stem with _data suffix (direct NPY naming)
+                manifest_filename = f"{stem}_data.npy"
             else:
                 # NPZ format (legacy)
                 with np.load(cache_path) as data:
@@ -279,14 +279,13 @@ def validate_manifest(cache_dir: Path, manifest: dict[str, Any]) -> bool:
         cache_dir = Path(cache_dir)
 
         # Build set of available files (both NPZ and NPY formats)
-        # NPZ format: filename_windows.npz
-        # NPY format: filename_data.npy + filename_labels.npy
-        #   → Manifest references filename_windows.npz (for compatibility)
-        #   → We check if filename_data.npy exists
+        # NPZ format: filename_windows.npz (legacy)
+        # NPY format: filename_data.npy + filename_labels.npy (current)
+        #   → Manifest now references filename_data.npy directly
         npz_set = {p.name for p in cache_dir.glob("*.npz")}
         npy_data_files = cache_dir.glob("*_data.npy")
-        # Convert NPY data files to NPZ-style names for manifest comparison
-        npy_set = {p.stem.replace("_data", "") + "_windows.npz" for p in npy_data_files}
+        # Use direct NPY naming (no conversion needed)
+        npy_set = {p.name for p in npy_data_files}
 
         available_files = npz_set | npy_set
 
