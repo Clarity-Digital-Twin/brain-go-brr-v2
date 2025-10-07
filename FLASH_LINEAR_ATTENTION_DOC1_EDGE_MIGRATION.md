@@ -53,7 +53,7 @@ model:
 - Hypothesis: +5-10% better connectivity modeling → +1-2% sensitivity @ 1 FA/24h
 - Risk: **VERY LOW** (only ~1.8% of stream parameters affected, 7.3K out of 405K total)
 
-**Timeline**: 2-3 days development + 6-8 hours integration test + 1 day analysis
+**Timeline**: 1 day config setup + 6-8 hours validation + 1 day analysis (assumes Phase 0 complete)
 
 ---
 
@@ -77,83 +77,368 @@ model:
 
 ---
 
-## 1. Prerequisites
+## 1. Prerequisites (MUST Complete Phase 0 First)
 
-### 1.1. Environment Setup
+**⚠️ BLOCKING**: You CANNOT proceed with Phase 1a until Phase 0 is complete. See **Doc 0 Section 14** for full infrastructure setup.
 
-```bash
-# Install FLA library
-pip install flash-linear-attention
+### 1.1. Verify Phase 0 Complete
 
-# Verify dependencies
-python -c "import torch; print(f'PyTorch: {torch.__version__}')"  # Should be 2.5.0+cu124
-python -c "import triton; print(f'Triton: {triton.__version__}')"  # Should be 3.0.0+
-python -c "from fla.layers import GatedDeltaNet; print('FLA OK')"
-
-# Backup current state
-git checkout -b feature/edge-gdn-migration
-git tag v3.8.3-pre-edge-migration
-```
-
-### 1.2. Verify Current Edge Stream
+**Checklist** (from Doc 0 Section 14.8):
 
 ```bash
-# Run baseline to establish metrics
+# 1. Verify config schema has temporal_type fields
+python -c "
+from src.brain_brr.config.schemas import MambaConfig
+cfg = MambaConfig()
+assert hasattr(cfg, 'temporal_type_edge'), 'Missing temporal_type_edge field!'
+print('✅ Config schema updated')
+"
+
+# 2. Verify constants exist
+python -c "
+from src.brain_brr.constants import (
+    GDN_EDGE_NUM_HEADS_DEFAULT,
+    GDN_EDGE_HEADDIM_DEFAULT,
+    EDGE_D_MODEL,
+)
+print(f'✅ Constants exist: EDGE_D_MODEL={EDGE_D_MODEL}')
+"
+
+# 3. Verify FLA installed
+python -c "
+from fla.layers import GatedDeltaNet
+print('✅ FLA library installed')
+"
+
+# 4. Verify BiGatedDeltaNet wrapper exists
+python -c "
+from src.brain_brr.models.gated_deltanet import BiGatedDeltaNet
+print('✅ BiGatedDeltaNet wrapper exists')
+"
+
+# 5. Verify builder factory pattern works
 python -c "
 from src.brain_brr.models.builders.edge_stream import build_edge_stream
-from src.brain_brr.config.schemas import ModelConfig
+from src.brain_brr.config.schemas import ModelConfig, MambaConfig
 
-cfg = ModelConfig()
-edge_components = build_edge_stream(cfg)
-print(f'Edge Mamba params: {sum(p.numel() for p in edge_components.edge_mamba.parameters()):,}')
-print(f'd_model: {edge_components.edge_mamba.d_model}')
-print(f'headdim: {edge_components.edge_mamba.headdim}')
-print(f'num_layers: {edge_components.edge_mamba.num_layers}')
+# Test BiMamba2 (default)
+cfg = ModelConfig(mamba=MambaConfig(temporal_type='bimamba2'))
+edge = build_edge_stream(cfg)
+print(f'✅ Builder returns BiMamba2: {type(edge.edge_mamba).__name__}')
+
+# Test GDN (experimental)
+cfg.mamba.temporal_type_edge = 'gated_deltanet'
+edge_gdn = build_edge_stream(cfg)
+print(f'✅ Builder returns BiGatedDeltaNet: {type(edge_gdn.edge_mamba).__name__}')
 "
-# Expected output (BiMamba2 baseline):
-# Edge Mamba params: 10,304
-# d_model: 16
-# headdim: 4
-# num_layers: 2
+```
 
-# Expected output (BiGatedDeltaNet - after migration):
-# Edge GDN params: ~7,352 (29% reduction due to GDN's 0.75× q/k projection)
+**If ANY check fails**: Go back to Doc 0 Section 14 and complete Phase 0 infrastructure.
+
+### 1.2. Establish Baseline Metrics (Optional)
+
+**Purpose**: Record current BiMamba2 edge stream performance for comparison.
+
+```bash
+# Run baseline (BiMamba2 edge, 10 epochs, 50 files)
+export BGB_LIMIT_FILES=50
+cp configs/local/train.yaml configs/local/baseline_edge.yaml
+
+# Edit configs/local/baseline_edge.yaml:
+#   experiment.name: "baseline_edge"
+#   training.epochs: 10
+
+python -m src train configs/local/baseline_edge.yaml
+
+# Record metrics from W&B:
+# - val_loss
+# - sensitivity_at_10fa
+# - sensitivity_at_5fa
+# - sensitivity_at_1fa
+```
+
+**Note**: This step is OPTIONAL if you already have v3.8.3 baseline metrics.
+
+---
+
+## 2. Phase 1a-Specific Implementation
+
+**⚠️ NOTE**: Sections 2-4 from v1.x (BiGatedDeltaNet wrapper, builder updates, schema updates) have been **MOVED TO PHASE 0** (Doc 0 Section 14).
+
+**What Phase 1a Actually Does**:
+1. ✅ Create test config with `temporal_type_edge: "gated_deltanet"`
+2. ✅ Run validation experiments
+3. ✅ Compare against baseline
+4. ✅ Analyze results
+
+**Phase 1a does NOT**:
+- ❌ Implement wrapper (that's Phase 0 Section 14.5)
+- ❌ Update builders (that's Phase 0 Section 14.4)
+- ❌ Update schema (that's Phase 0 Section 14.1)
+
+If you need those implementations, see **Doc 0 Section 14**.
+
+### 2.1. Architecture References (Phase 0)
+
+For implementation details, see:
+- **BiGatedDeltaNet wrapper**: Doc 0 Section 14.5
+- **Builder factory pattern**: Doc 0 Section 14.4
+- **Config schema**: Doc 0 Section 14.1
+- **Constants**: Doc 0 Section 14.2
+
+These should ALREADY EXIST before starting Phase 1a.
+
+---
+
+## 3. Removed Section
+
+**Section 2 (BiGatedDeltaNet wrapper) removed** - see Doc 0 Section 14.5 instead.
+
+The wrapper code is ~200 lines and was duplicated here. It belongs in Phase 0.
+
+---
+
+## 4. Removed Section
+
+**Section 3 (Builder update) removed** - see Doc 0 Section 14.4 instead.
+
+The builder factory pattern is ~100 lines and was duplicated here. It belongs in Phase 0.
+
+**Section 4 (Schema update) removed** - see Doc 0 Section 14.1 instead.
+
+The schema changes are ~50 lines and were duplicated here. They belong in Phase 0.
+
+---
+
+## 5. Phase 1a Config Creation
+
+**This is the ACTUAL Phase 1a work** - creating a test config that enables GDN for edge stream only.
+
+### 5.1. File: `configs/local/phase1a_edge_gdn.yaml`
+
+**Purpose**: Test edge stream with GDN while keeping node stream on BiMamba2 (isolation).
+
+**Create config**:
+
+```bash
+# Copy base config
+cp configs/local/train.yaml configs/local/phase1a_edge_gdn.yaml
+```
+
+**Edit `configs/local/phase1a_edge_gdn.yaml`** - make these changes:
+
+```yaml
+# 1. Update experiment section
+experiment:
+  name: phase1a_edge_gdn  # CHANGE THIS
+  description: "Phase 1a - Edge stream GDN validation"
+  output_dir: results/phase1a_edge_gdn
+
+  wandb:
+    enabled: true
+    project: seizure-v3-fla-validation  # CHANGE THIS
+    entity: null
+
+# 2. Enable GDN for edge stream ONLY (stream-specific control)
+model:
+  mamba:
+    temporal_type: bimamba2              # Global default (fallback for node)
+    temporal_type_node: null             # null = use global (BiMamba2)
+    temporal_type_edge: gated_deltanet   # Override: edge uses GDN
+    gdn_fusion_mode: sum                 # Start with simpler sum fusion
+    gdn_allow_neg_eigval: false          # Conservative start
+
+# 3. Short validation run
+training:
+  epochs: 10  # Short test (not full 100)
+```
+
+**Full config template**: See the complete config file example in the next section.
+
+---
+
+### 5.2. Complete Config Example
+
+**File**: `configs/local/phase1a_edge_gdn.yaml` (complete)
+
+```yaml
+# Phase 1a: Edge Stream GDN Validation
+# Tests edge stream with BiGatedDeltaNet while keeping node stream on BiMamba2
+
+experiment:
+  name: phase1a_edge_gdn
+  description: "Phase 1a - Edge stream GDN validation (node stays BiMamba2)"
+  seed: 42
+  output_dir: results/phase1a_edge_gdn
+  cache_dir: cache/tusz_mmap
+  device: cuda
+  log_level: INFO
+  save_model: true
+  save_best_only: true
+
+  wandb:
+    enabled: true
+    project: seizure-v3-fla-validation
+    entity: null
+
+model:
+  architecture: v3
+
+  norms:
+    boundary_norm: layernorm
+    boundary_eps: 1.0e-5
+    layerscale_alpha: 0.1
+    after_tcn_proj: true
+    after_node_mamba: true
+    after_edge_mamba: true
+    after_gnn: true
+    before_decoder: true
+
+  tcn:
+    num_layers: 8
+    kernel_size: 7
+    dropout: 0.15
+    causal: false
+    stride_down: 16
+    use_cuda_optimizations: true
+
+  mamba:
+    n_layers: 6
+    d_model: 512
+    d_state: 16
+    conv_kernel: 4
+    dropout: 0.1
+
+    # PHASE 1a: GDN for edge stream ONLY
+    temporal_type: bimamba2              # Global default (node fallback)
+    temporal_type_node: null             # null = use global (BiMamba2)
+    temporal_type_edge: gated_deltanet   # Override: edge uses GDN
+    gdn_fusion_mode: sum                 # Bidirectional fusion
+    gdn_allow_neg_eigval: false          # Conservative start
+
+  graph:
+    enabled: true
+    edge_lift_activation: tanh
+    edge_lift_norm: layernorm
+    edge_lift_init_gain: 0.1
+    edge_features: cosine
+    edge_top_k: 3
+    edge_threshold: 1.0e-4
+    edge_mamba_layers: 2
+    edge_mamba_d_state: 8
+    edge_mamba_d_model: 16
+    edge_similarity_margin: 0.01
+    adj_row_softmax: true
+    adj_softmax_tau: 1.0
+    adj_ema_beta: 0.95
+    adj_force_symmetric: true
+    laplacian_eps: 1.0e-3
+    laplacian_normalize: true
+    n_layers: 2
+    dropout: 0.1
+    use_residual: true
+    alpha: 0.05
+    k_eigenvectors: 16
+    use_dynamic_pe: true
+    semi_dynamic_interval: 5
+    pe_sign_consistency: true
+
+data:
+  dataset: tuh_eeg
+  data_dir: data_ext4/tusz/edf
+  cache_dir: cache/tusz_mmap
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60
+  stride: 10
+  use_balanced_sampling: true
+  num_workers: 0
+  pin_memory: true
+  persistent_workers: false
+  prefetch_factor: 2
+
+preprocessing:
+  montage: "10-20"
+  bandpass: [0.5, 120.0]
+  notch_freq: 60
+  normalize: true
+
+training:
+  epochs: 10  # Short validation run
+
+  batch_size: 8
+  learning_rate: 1.0e-4
+  weight_decay: 0.01
+  optimizer: adamw
+  gradient_clip: 0.5
+  mixed_precision: false
+
+  loss: focal
+  focal_alpha: 0.5
+  focal_gamma: 2.0
+
+  scheduler:
+    type: cosine
+    warmup_ratio: 0.03
+
+  warmup_schedule:
+    enabled: true
+    warmup_steps: 1000
+    adj_temperature_enabled: true
+    adj_temperature_start: 2.0
+    adj_temperature_end: 1.0
+    focal_gamma_enabled: true
+    focal_gamma_start: 1.0
+    focal_gamma_end: 2.0
+
+  early_stopping:
+    patience: 5
+    metric: sensitivity_at_10fa
+
+  checkpoint_interval: 1
+  mid_checkpoint_interval_s: 1800
+  mid_epoch_keep: 3
+  gradient_accumulation_steps: 1
+
+postprocessing:
+  hysteresis:
+    tau_on: 0.86
+    tau_off: 0.78
+  morphology:
+    opening_kernel: 11
+    closing_kernel: 31
+  duration:
+    min_duration_s: 3.0
+    max_duration_s: 600.0
+  events:
+    tau_merge: 2.0
+    confidence_method: mean
+
+evaluation:
+  fa_rates: [10, 5, 2.5, 1]
+  save_predictions: false
+  save_plots: false
+
+logging:
+  log_every_n_steps: 50
+  log_gradients: false
+  log_weights: false
 ```
 
 ---
 
-## 2. Implementation: BiGatedDeltaNet Wrapper
+## 6. Validation Workflow
 
-### 2.1. File: `src/brain_brr/models/gated_deltanet.py`
+### 6.1. Run Phase 1a Validation
 
-**Purpose**: Bidirectional wrapper around FLA's GatedDeltaNet, compatible with our BiMamba2 interface.
+```bash
+# Set file limit for faster testing
+export BGB_LIMIT_FILES=50  # Use 50 files instead of full dataset
 
-**Implementation**:
+# Run Phase 1a validation
+python -m src train configs/local/phase1a_edge_gdn.yaml
 
-```python
-"""Bidirectional Gated DeltaNet wrapper for EEG seizure detection.
-
-Replaces BiMamba2 with FLA's GatedDeltaNet while maintaining interface compatibility.
-This is a SHARED module that processes flattened (B*N, d_model, T) tensors.
-"""
-
-import logging
-import torch
-import torch.nn as nn
-
-try:
-    from fla.layers import GatedDeltaNet as FLAGatedDeltaNet
-    FLA_AVAILABLE = True
-except ImportError:
-    FLA_AVAILABLE = False
-
-logger = logging.getLogger(__name__)
-
-
-class BiGatedDeltaNet(nn.Module):
-    """Bidirectional Gated DeltaNet wrapper for EEG seizure detection.
-
-    Wraps FLA's GatedDeltaNet with bidirectional processing similar to BiMamba2.
+# Expected:
     IMPORTANT: This is a SHARED module that processes flattened (B*N, d_model, T) tensors,
     NOT separate instances per electrode/pair.
 
