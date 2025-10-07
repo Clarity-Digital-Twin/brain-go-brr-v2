@@ -9,11 +9,34 @@
 
 ## Executive Summary
 
-Your training run hit **Modal's hard 24-hour timeout** (86430s) and was killed mid-epoch. Most of the AI-generated feedback suggests fixes for things **you already implemented correctly** (event-level FA counting, temporal smoothing, post-processing). The real issues are:
+Your training run hit **Modal's hard 24-hour timeout** and was killed at epoch 2. After deep investigation, here's the reality:
 
-1. **P0 - Modal timeout** (need checkpointing strategy)
-2. **P2 - Logging bug** (confusing "0.0000" messages)
-3. **P3 - Low metrics investigation** (may be legitimate for epoch 1)
+### 🔴 Critical Issues Found (MUST FIX)
+
+1. **P0 - Modal 24h timeout**: Training cannot complete 100 epochs in one run (will hit wall at epoch 2-3)
+   - **Fix**: Implement 23h timeout + checkpoint every 100 batches to Modal Volumes
+
+2. **P1 - Gradient instability (>90% inf norms)**: AMP scaler is skipping optimizer steps on >90% of batches
+   - **Why BAD**: Model is barely learning (effective LR is ~0.1x configured)
+   - **Root cause**: Focal loss with unclamped probabilities causing log(0) = -inf gradients
+   - **Fix**: Clamp probabilities + increase edge margin + regularize eigenvalues
+
+### 🟢 NOT Problems (Normal for Hard EEG Tasks)
+
+3. **AUROC 0.78 vs Sens@10FA 0.16**: ✅ **EXPECTED** for epoch 1 (see literature trajectory table below)
+4. **3h validation time**: ✅ **ACCEPTABLE** for event-level metrics with 1832 recordings
+5. **34% train vs 7.7% val seizure ratio**: ✅ **BY DESIGN** (balanced training, natural validation)
+6. **GPU memory 0.35GB alloc / 80GB reserved**: ✅ **NORMAL** PyTorch caching allocator behavior
+
+### 🎯 What AI Feedback Got Wrong
+
+Most AI suggestions were for things **you already implemented correctly**:
+- Event-level FA counting with overlap detection ✅ (already in `metrics.py:149-178`)
+- Temporal smoothing via timeline stitching ✅ (already in `metrics.py:425-461`)
+- Hysteresis thresholding (tau_on/tau_off) ✅ (already in `postprocess.py`)
+- Post-processing (morphology, event merging) ✅ (already implemented)
+
+**Bottom line**: Fix gradient stability (P1) + Modal timeout (P0), then let it train to epoch 20. Current low metrics are normal for early training.
 
 ---
 
