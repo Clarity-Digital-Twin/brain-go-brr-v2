@@ -507,38 +507,96 @@ probs = torch.sigmoid(logits)
 
 ---
 
-## Action Plan (Prioritized)
+## Action Plan (Prioritized by Severity)
 
-### Immediate (Before Next Training Run)
+### 🔴 P0: MUST FIX BEFORE NEXT TRAINING RUN
 
-1. **Fix Modal timeout** (P0)
-   - [ ] Implement Solution 1 (23h timeout + checkpoint every 100 batches)
-   - [ ] Test with smoke test: `modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml`
-   - [ ] Verify checkpoint saves to `/results/checkpoints/latest.pt`
+**1. Fix Modal 24h Timeout**
+- [ ] Implement 23h timeout + checkpoint every 100 batches (see Solution 1 above)
+- [ ] Test with smoke test: `modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml`
+- [ ] Verify checkpoint saves to `/results/checkpoints/latest.pt`
+- **Why critical**: Training cannot complete 100 epochs without this (will timeout at epoch 2-3 every time)
 
-2. **Fix logging bug** (P2)
-   - [ ] Edit `src/brain_brr/train/loop.py:309-317` to use `is_new_best` flag
-   - [ ] Test with `make s` (smoke test)
-   - [ ] Verify log shows correct "New best" value
+### 🔴 P1: FIX IMMEDIATELY (Gradient Stability)
 
-### Short-Term (Next 1-2 Weeks)
+**2. Fix Inf Gradient Norms**
 
-3. **Monitor metrics through epoch 20** (P3)
-   - [ ] Let training run to epoch 20
-   - [ ] Check if Sensitivity@10FA improves above 0.5
-   - [ ] If not, investigate calibration (logit shift, temperature scaling)
+Step-by-step implementation:
 
-4. **Optional: External orchestrator** (P0 - for multi-day runs)
-   - [ ] Implement `deploy/modal/orchestrator.py` (Solution 2)
-   - [ ] Deploy as scheduled function
-   - [ ] Test auto-resume logic
+**Fix 1: Clamp probabilities in focal loss**
+```bash
+# Edit src/brain_brr/train/train_step.py:299-319
+# After line: probs = torch.sigmoid(logits)
+# Add: probs = torch.clamp(probs, min=1e-7, max=1.0 - 1e-7)
+```
+- [ ] Add probability clamping to `train_step.py:299-319`
+- [ ] Test with `make s` (smoke test)
+- [ ] Verify gradient norms are finite (check logs for "pre_clip_norm")
 
-### Long-Term (After 100 Epochs)
+**Fix 2: Increase edge similarity margin**
+```bash
+# Edit configs/modal/train.yaml:84
+# Change: edge_similarity_margin: 0.01
+# To: edge_similarity_margin: 0.05
+```
+- [ ] Update Modal config `edge_similarity_margin: 0.01 → 0.05`
+- [ ] Also update local config `configs/local/train.yaml` for consistency
 
-5. **Post-processing tuning** (only if final metrics are poor)
-   - [ ] Sweep `tau_on` / `tau_off` thresholds
-   - [ ] Experiment with different merge windows
-   - [ ] Try temperature scaling for calibration
+**Fix 3: Add eigenvalue regularization**
+```bash
+# Edit src/brain_brr/models/gnn_pyg.py
+# In compute_dynamic_laplacian(), after eigendecomposition
+# Add: eigenvalues = torch.clamp(eigenvalues, min=1e-6, max=1e3)
+```
+- [ ] Add eigenvalue clamping to `gnn_pyg.py` (find eigendecomposition call)
+- [ ] Test with `make test-gpu` to verify GNN still works
+
+**Verification**:
+- [ ] Run smoke test with all 3 fixes
+- [ ] Check W&B logs for optimizer step skip rate (should be <10%, not >90%)
+- [ ] Verify gradient norms are finite (no more inf values)
+
+**Why critical**: Model is barely learning with >90% optimizer step skips. This is the #1 reason for poor performance.
+
+### 🟡 P2: FIX SOON (Quality of Life)
+
+**3. Fix "Best Sensitivity" Logging Bug**
+- [ ] Edit `src/brain_brr/train/loop.py:309-317` to use `is_new_best` flag instead of stale comparison
+- [ ] Test with `make s` (smoke test)
+- [ ] Verify log shows correct "New best" value (not 0.0000)
+
+**Why important**: Confusing logs make debugging harder, but doesn't affect actual training
+
+### 🟢 P3: MONITOR (Wait and See)
+
+**4. Monitor Sensitivity@10FA Through Epoch 20**
+- [ ] Let training run to epoch 10 with gradient fixes applied
+- [ ] Check if Sensitivity@10FA improves above 0.3 (expected: 0.3-0.5 by epoch 10)
+- [ ] If still <0.3 by epoch 20, THEN investigate calibration fixes
+- [ ] If >0.5 by epoch 20, everything is on track
+
+**Why defer**: Current low metrics (0.16) are NORMAL for epoch 1. Don't fix what isn't broken.
+
+**5. Optimize Validation Speed (Only if Needed)**
+- [ ] Monitor epoch duration—if >8 hours, apply `val_every_n_epochs: 2`
+- [ ] If validation becomes a bottleneck, implement Numba JIT for timeline stitching
+- [ ] Current 3h validation is acceptable for 6-7h epochs
+
+### 🟢 P4: OPTIONAL ENHANCEMENTS (After 100 Epochs)
+
+**6. External Orchestrator for Multi-Day Runs**
+- [ ] Implement `deploy/modal/orchestrator.py` (Solution 2 above)
+- [ ] Deploy as scheduled function
+- [ ] Test auto-resume logic
+
+**Why optional**: 23h timeout + manual resume is sufficient for 100 epochs. Orchestrator is nice-to-have for convenience.
+
+**7. Post-Processing Tuning (Only if Final Metrics Poor)**
+- [ ] If final Sensitivity@10FA <0.7, sweep `tau_on` / `tau_off` thresholds
+- [ ] Experiment with temperature scaling for calibration
+- [ ] Try logit shift for class-prior adjustment (Δ ≈ -1.83)
+
+**Why defer**: Post-processing tuning is a last resort. Gradient fixes + proper training should get you >0.7 sensitivity.
 
 ---
 
