@@ -407,8 +407,13 @@ def build_edge_stream(cfg: "ModelConfig") -> EdgeStreamComponents:
     use_layerscale = bool(norms_cfg and norms_cfg.boundary_norm != "none")
     layerscale_init = float(norms_cfg.layerscale_alpha if norms_cfg else LAYERSCALE_ALPHA_FALLBACK)
 
-    # Determine which temporal model to use
-    temporal_type = getattr(mamba_cfg, "temporal_type", "bimamba2")  # Default to BiMamba2
+    # Determine which temporal model to use (STREAM-SPECIFIC for Phase 1a isolation)
+    # Priority: temporal_type_edge > temporal_type (fallback)
+    temporal_type = getattr(mamba_cfg, "temporal_type_edge", None)
+    if temporal_type is None:
+        temporal_type = getattr(mamba_cfg, "temporal_type", "bimamba2")
+
+    logger.debug(f"Edge stream temporal_type: {temporal_type} (stream-specific or fallback)")
 
     if temporal_type == "gated_deltanet":
         if not GDN_AVAILABLE:
