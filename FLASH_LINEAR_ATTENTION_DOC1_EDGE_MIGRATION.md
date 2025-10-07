@@ -502,13 +502,23 @@ class MambaConfig(BaseModel):
     conv_kernel: int = Field(default=4, ge=2, le=4)
     dropout: float = Field(default=0.1, ge=0.0, le=0.5)
 
-    # NEW: Temporal model type
-    temporal_type: str = Field(
-        default="bimamba2",
-        description="Temporal model type: 'bimamba2' or 'gated_deltanet'"
+    # NEW: Stream-specific temporal types (for Phase 1a/1b isolation)
+    temporal_type_node: str | None = Field(
+        default=None,
+        description="Node stream temporal type: 'bimamba2' or 'gated_deltanet' (overrides temporal_type)"
+    )
+    temporal_type_edge: str | None = Field(
+        default=None,
+        description="Edge stream temporal type: 'bimamba2' or 'gated_deltanet' (overrides temporal_type)"
     )
 
-    # NEW: GDN-specific settings
+    # LEGACY: Fallback for both streams (Phase 2 convenience)
+    temporal_type: str = Field(
+        default="bimamba2",
+        description="Temporal model type (fallback if stream-specific not set): 'bimamba2' or 'gated_deltanet'"
+    )
+
+    # GDN-specific settings
     fusion_mode: str = Field(
         default="sum",
         description="Bidirectional fusion: 'sum' or 'concat'"
@@ -518,10 +528,10 @@ class MambaConfig(BaseModel):
         description="Allow negative eigenvalues (β_t ∈ (0,2))"
     )
 
-    @field_validator("temporal_type")
+    @field_validator("temporal_type", "temporal_type_node", "temporal_type_edge")
     @classmethod
-    def validate_temporal_type(cls, v: str) -> str:
-        if v not in ["bimamba2", "gated_deltanet"]:
+    def validate_temporal_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in ["bimamba2", "gated_deltanet"]:
             raise ValueError(f"temporal_type must be 'bimamba2' or 'gated_deltanet', got {v}")
         return v
 
@@ -590,10 +600,12 @@ model:
     conv_kernel: 4
     dropout: 0.1
 
-    # PHASE 1a: Enable GDN for edge stream ONLY
-    temporal_type: gated_deltanet  # NEW: Applies to edge stream
-    fusion_mode: sum               # NEW: Start with simpler sum fusion
-    allow_neg_eigval: false        # NEW: Conservative start
+    # PHASE 1a: Enable GDN for edge stream ONLY (stream-specific control)
+    temporal_type: bimamba2              # Fallback for node stream
+    temporal_type_edge: gated_deltanet   # Override: edge uses GDN
+    temporal_type_node: null             # Node uses fallback (BiMamba2)
+    fusion_mode: sum                     # Start with simpler sum fusion
+    allow_neg_eigval: false              # Conservative start
 
   # Graph configuration (V3)
   graph:
@@ -1072,6 +1084,28 @@ class TestEdgeStreamGDNMigration:
         assert x.grad is not None
         for name, param in components.edge_mamba.named_parameters():
             assert param.grad is not None, f"No gradient for {name}"
+
+    def test_stream_isolation_phase1a(self, base_config):
+        """Test Phase 1a isolation: Edge GDN, Node BiMamba2.
+
+        CRITICAL: Verify node stream remains BiMamba2 when edge uses GDN.
+        This is the WHOLE POINT of stream-specific config fields.
+        """
+        from src.brain_brr.models.builders.node_stream import build_node_stream
+        from src.brain_brr.models.gated_deltanet import BiGatedDeltaNet
+        from src.brain_brr.models.mamba import BiMamba2
+
+        # Phase 1a config: edge=GDN, node=BiMamba2
+        base_config.mamba.temporal_type = "bimamba2"           # Fallback
+        base_config.mamba.temporal_type_edge = "gated_deltanet"  # Override edge
+        base_config.mamba.temporal_type_node = None            # Use fallback
+
+        edge_components = build_edge_stream(base_config)
+        node_mamba = build_node_stream(base_config)
+
+        # Verify isolation
+        assert isinstance(edge_components.edge_mamba, BiGatedDeltaNet), "Edge should be GDN in Phase 1a"
+        assert isinstance(node_mamba, BiMamba2), "Node should be BiMamba2 in Phase 1a"
 ```
 
 **Run integration tests**:
