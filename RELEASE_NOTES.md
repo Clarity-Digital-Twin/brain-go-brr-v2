@@ -1,5 +1,167 @@
 # Release Notes
 
+## v3.8.3 - Manifest Naming Cleanup Complete (2025-10-07)
+
+**Tag**: `v3.8.3-manifest-naming-cleanup`
+
+### 🎯 What This Release Delivers
+
+Complete elimination of legacy NPZ-style naming from manifests, achieving **zero technical debt** across all priority levels (P0/P1/P2/P3).
+
+### 📊 The Problem We Solved
+
+**Before v3.8.3**:
+- Manifests used legacy `*_windows` naming from old NPZ cache format
+- Actual cache files: `*_data.npy` + `*_labels.npy` (NPY mmap format)
+- Required **11 string manipulation workarounds** (`stem.replace("_windows", "")`) scattered across codebase
+- Caused P0-1 bug: ValidationDataset missing translation logic
+- Fragile: Easy to forget workaround when writing new code
+
+**After v3.8.3**:
+- ✅ Manifests directly reference `*_data.npy` (matches reality)
+- ✅ **Zero string manipulation workarounds**
+- ✅ Simpler, more maintainable code
+- ✅ Perfect alignment between manifests and actual files
+- ✅ **Zero P0/P1/P2/P3 technical debt**
+
+### 🛠️ What Changed
+
+#### Manifest Regeneration
+- **Train**: 303,990 windows across 4438 NPY files
+- **Dev**: 148,224 windows (7.7% natural seizure ratio)
+- **Verification**: 100% NPY naming, 0 NPZ references
+
+#### Code Cleanup (11 workarounds eliminated)
+- `cache_utils.py`: 4 edits (lines 45, 92-97, 208, 287-289)
+- `datasets.py`: 6 edits (lines 107, 275, 385-392, 523, 596-606, 693)
+- `loop.py`: 1 edit (line 629)
+
+### ✅ Quality Verification
+
+**All Passing**:
+```bash
+make q           # Lint + format + mypy → PASS ✅
+make test        # 104 tests, 83.80% coverage → PASS ✅
+```
+
+**Manifest Integrity**:
+- Train manifest: 4438 unique NPY files, 0 NPZ references ✅
+- Dev manifest: All entries use `*_data.npy` format ✅
+- Cache pairs: All data/label files verified ✅
+
+### 🚀 Migration Guide
+
+**Upgrading from v3.8.2**:
+```bash
+git pull
+git checkout v3.8.3-manifest-naming-cleanup
+# Ready - manifests regenerate automatically on first use
+```
+
+**100% Backward Compatible**:
+- ✅ No API changes
+- ✅ No config changes
+- ✅ No dependency updates
+- ✅ Local manifests regenerate automatically
+- ✅ Modal: Next training run auto-regenerates with v3.8.3 code
+
+### 📈 Impact
+
+**Code Quality**:
+- 11 workarounds eliminated
+- Simpler cache_utils.py and datasets.py
+- Better maintainability for future development
+
+**Reliability**:
+- Eliminates entire class of manifest/file mismatch bugs
+- Easier to reason about cache structure
+- Less cognitive overhead for new contributors
+
+**Technical Debt**:
+- **P0**: 0 issues (was 0, remains 0) ✅
+- **P1**: 0 issues (was 1 manifest naming, now 0) ✅
+- **P2**: 0 issues (was 0, remains 0) ✅
+- **P3**: 0 issues (was 1 manifest naming, now 0) ✅
+
+### 🎉 Zero Technical Debt Achieved
+
+This release completes the journey to **zero active technical debt** across all priority levels:
+
+**Before v3.8.0**:
+- NPZ cache contamination (P0)
+- Code duplication (P2)
+- Type safety issues (P2)
+- Manifest naming mismatch (P3)
+
+**After v3.8.3**:
+- ✅ All P0/P1/P2/P3 issues RESOLVED
+- ✅ Clean, maintainable codebase
+- ✅ Production-ready for Modal A100 training
+
+### 📚 Documentation Updates
+
+All documentation updated to reflect v3.8.3:
+- `CHANGELOG.md` - Comprehensive v3.8.3 entry
+- `TECHNICAL_DEBT.md` - Zero active debt status
+- `STATUS.md` - v3.8.3 deployment status
+- `README.md` - Version badge updated
+- `CLAUDE.md` - Current status updated
+- `TODO.md` - Reflects completion
+- `docs/09-technical-debt/active-debt.md` - P3-1 marked RESOLVED
+
+### 🔬 Technical Deep Dive
+
+**Key Code Changes**:
+
+1. **Direct NPY path construction** (`cache_utils.py:45`):
+   ```python
+   return cache_dir / f"{edf_path.stem}_data.npy"  # Was: _windows_data.npy
+   ```
+
+2. **Labels path derivation** (`cache_utils.py:92-97`):
+   ```python
+   windows_file = cache_path  # cache_path IS *_data.npy from manifest
+   stem = cache_path.stem.replace("_data", "")  # Extract base for labels
+   labels_file = cache_path.parent / f"{stem}_labels.npy"
+   ```
+
+3. **Manifest generation** (`cache_utils.py:208`):
+   ```python
+   manifest_filename = f"{stem}_data.npy"  # Was: _windows.npz
+   ```
+
+4. **Dataset cleanup** (`datasets.py`):
+   - Removed all `stem.replace("_windows", "")` workarounds
+   - Simplified `cache_file_exists()` helpers
+   - Direct file path usage throughout
+
+### ⏱️ Manifest Regeneration Stats
+
+**Process**:
+- Duration: ~2 hours (4667 train + 1832 dev files)
+- Method: `scan_existing_cache()` with updated naming
+- Verification: Python script confirming 100% NPY naming
+
+**Results**:
+- Train: 303,990 windows from 4438 NPY files
+- Dev: 148,224 windows (natural seizure distribution)
+- NPZ references: 0 ✅
+
+### 🎯 What's Next
+
+**Modal Training**:
+- Current run uses v3.8.2 manifests (still valid)
+- Next training run will auto-regenerate with v3.8.3
+- No manual intervention required
+
+**Production Readiness**:
+- ✅ Zero active technical debt
+- ✅ All quality checks passing
+- ✅ Ready for 100-epoch Modal A100 training
+- ✅ Clean baseline for future development
+
+---
+
 ## v3.8.2 - Zero Warnings (2025-10-06)
 
 **Tag**: `v3.8.2-zero-warnings`

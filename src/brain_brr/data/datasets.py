@@ -104,7 +104,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
                     f"[DATA] Processing file {i + 1}/{len(self.edf_files)}: {edf_path.name}"
                 )
             if self.cache_dir is not None:
-                cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"
+                cache_path = self.cache_dir / f"{edf_path.stem}_data.npy"
                 try:
                     windows_mmap, _labels_mmap = self._load_cache_for_worker(cache_path)
                     n_windows = windows_mmap.shape[0]
@@ -272,7 +272,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
 
         # Load from cache or compute
         if self.cache_dir is not None:
-            cache_path = self.cache_dir / f"{edf_path.stem}_windows.npz"
+            cache_path = self.cache_dir / f"{edf_path.stem}_data.npy"
             try:
                 # CRITICAL PERFORMANCE FIX: Use memory-mapped arrays (OS-managed, <1 GB RAM)
                 # Old NPZ: Decompress to RAM → 387 GB total → OOM on Modal
@@ -384,12 +384,7 @@ class BalancedSeizureDataset(Dataset):
         # Helper to check if cache file exists (supports both NPZ and NPY formats)
         def cache_file_exists(cache_path: Path) -> bool:
             """Check if cache file exists in either NPZ or NPY format."""
-            if cache_path.exists():
-                return True  # NPZ format
-            # NPY format: convert a_windows stem → a_data.npy
-            stem = cache_path.stem.replace("_windows", "")
-            data_file = cache_path.parent / f"{stem}_data.npy"
-            return data_file.exists()
+            return cache_path.exists()
 
         # Add ALL partial seizure windows (most informative)
         for item in partial:
@@ -522,8 +517,8 @@ class BalancedSeizureDataset(Dataset):
         else:
             label = np.zeros((window.shape[-1],), dtype=np.float32)
 
-        # Extract file_id from cache filename (remove _windows suffix)
-        file_id = cache_file.stem.replace("_windows", "")
+        # Extract file_id from cache filename (remove _data suffix)
+        file_id = cache_file.stem.replace("_data", "")
         window_start_s = w_idx * constants.STRIDE_SIZE_SEC
 
         return {
@@ -599,14 +594,9 @@ class ValidationDataset(Dataset):
         def cache_file_exists(cache_path: Path) -> bool:
             """Check if cache file exists in NPY mmap format.
 
-            Manifest references legacy NPZ naming (*_windows) but actual files
-            are NPY format (*_data.npy + *_labels.npy). This helper translates.
+            Manifest now uses direct NPY naming (*_data.npy).
             """
-            if cache_path.exists():
-                return True
-            stem = cache_path.stem.replace("_windows", "")
-            data_file = cache_path.parent / f"{stem}_data.npy"
-            return data_file.exists()
+            return cache_path.exists()
 
         for item in all_entries:
             cache_file_name = item["cache_file"]
@@ -689,8 +679,8 @@ class ValidationDataset(Dataset):
         else:
             label = np.zeros((window.shape[-1],), dtype=np.float32)
 
-        # Extract file_id from cache filename (remove _windows suffix)
-        file_id = cache_file.stem.replace("_windows", "")
+        # Extract file_id from cache filename (remove _data suffix)
+        file_id = cache_file.stem.replace("_data", "")
         window_start_s = w_idx * constants.STRIDE_SIZE_SEC
 
         return {

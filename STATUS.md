@@ -1,52 +1,64 @@
-# Brain-Go-Brr v3.8.2 – Current Status
+# Brain-Go-Brr v3.8.3 – Current Status
 
-**Last Updated:** 2025-10-06 (22:11 UTC)
+**Last Updated:** 2025-10-07
 **Branch:** `main`
-**Version:** v3.8.2 (Zero Warnings)
-**Deployment:** Modal full training running (100 epochs on A100-80GB, zero-warning baseline)
+**Version:** v3.8.3 (Manifest Naming Cleanup Complete)
+**Deployment:** Modal full training running (100 epochs on A100-80GB, zero-debt baseline)
 
 ---
 
 ## Production Readiness
 
-**🟢 READY FOR MODAL A100 TRAINING – ZERO-DEBT ACHIEVED**
+**🟢 READY FOR MODAL A100 TRAINING – ZERO TECHNICAL DEBT ACHIEVED**
 
 - ✅ **P0/P1:** 0 issues (all blockers resolved)
 - ✅ **P2:** 0 issues (all code quality debt paid)
-- ✅ **P3:** 0 issues (clean codebase)
+- ✅ **P3:** 0 issues (manifest naming cleanup complete)
 - 🟡 **P4/P5:** Optional ideas (post-training optimization only)
 
-**Quality Verification (2025-10-06)**:
+**Quality Verification (2025-10-07)**:
 - `make q` → ✅ PASS (lint + format + mypy + config validation)
 - `make test` → ✅ PASS (104 tests, 83.80% coverage)
 - Cache validation → ✅ PASS (4667 train + 1832 dev NPY files)
-- NPZ contamination → ✅ RESOLVED (3 stray files cleaned)
+- Manifest validation → ✅ PASS (100% NPY naming, 0 NPZ references)
 
 **Policy:** Maintain zero debt before every major training run. Any new debt must be paid down immediately.
 
 ---
 
-## Latest Improvements (v3.8.2 - October 6, 2025)
+## Latest Improvements (v3.8.3 - October 7, 2025)
 
-### Zero Warnings (P2 → Closed)
-- ✅ Replaced dataset `.clone()` hotfix with NumPy copy-on-read tensors (Balanced, Validation, EEGWindow) – no read-only warnings, mmap safety intact
-- ✅ Added AMP scheduler guard (main loop + accumulation flush) so `scheduler.step()` only runs after a real optimizer update
-- ✅ Verified `make q`, `make test`, and Modal training logs: 0 warnings, accurate LR schedule
-- ✅ Updated docs (AGENTS.md, RELEASE_NOTES.md, technical debt) to reflect v3.8.2 baseline
+### Manifest Naming Cleanup Complete (P1/P3 → Closed)
+- ✅ Regenerated train manifest: 303,990 windows across 4438 NPY files
+- ✅ Regenerated dev manifest: 148,224 windows (7.7% natural seizure ratio)
+- ✅ Removed all 11 `.replace("_windows", "")` string manipulation workarounds
+- ✅ Simplified cache_utils.py and datasets.py for better maintainability
+- ✅ Verification: 100% NPY naming, 0 NPZ references
+- ✅ **ZERO P0/P1/P2/P3 TECHNICAL DEBT** - All priority levels cleared
 
-### Previous Fixes (v3.8.0)
-- ✅ Cleaned 3 stray NPZ files from Modal cache (66.1 MiB freed)
-- ✅ Fixed datasets.py NPZ creation bug (removed all `np.savez_compressed` calls)
-- ✅ Updated cache validation to check NPY files (mmap format)
+### Previous Improvements
+
+#### v3.8.2 - Zero Warnings (October 6, 2025)
+- ✅ NumPy copy-on-read tensors (Balanced, Validation, EEGWindow) – no read-only warnings
+- ✅ AMP scheduler guard (main loop + accumulation flush) for accurate LR schedule
+- ✅ Verified 0 warnings in Modal training logs
+
+#### v3.8.1 - Complete Tensor Safety (October 6, 2025)
+- ✅ Completed tensor safety across all 3 dataset classes
+- ✅ EEGWindowDataset hardened with proper .clone() calls
+
+#### v3.8.0 - NPZ Cache Cleanup (October 6, 2025)
+- ✅ Cleaned 3 stray NPZ files from Modal cache
+- ✅ Fixed datasets.py NPZ creation bug
 - ✅ Fixed all type annotations (WandBRun, Console instead of Any)
-- ✅ Extracted duplicate `_load_cache_for_worker` to shared function (120 lines eliminated)
+- ✅ Extracted duplicate `_load_cache_for_worker` (120 lines eliminated)
 
-### Architecture Enhancements
-- ✅ V3 dual-stream with edge similarity clamping (prevents ±1.0 explosions)
+#### Architecture (v3.3.0-v3.4.1)
+- ✅ V3 dual-stream with edge similarity clamping
 - ✅ Dynamic Laplacian PE (time-evolving graph structure)
-- ✅ Detached eigenvectors (prevents gradient explosion through eigendecomposition)
-- ✅ 3-tier NaN protection (gradient sanitization + clamping + monitoring)
-- ✅ Unique Triton cache dirs (prevents XID 31 GPU crashes on Modal)
+- ✅ Detached eigenvectors (prevents gradient explosion)
+- ✅ 3-tier NaN protection
+- ✅ Unique Triton cache dirs (prevents XID 31 GPU crashes)
 
 ---
 

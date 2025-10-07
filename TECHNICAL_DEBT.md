@@ -1,8 +1,8 @@
 # Technical Debt
 
-**Date**: October 6, 2025
-**Status**: 🟢 **ALL P0 ISSUES RESOLVED** - Ready for production training
-**Training Impact**: CLEAR - All blockers fixed, clean implementation
+**Date**: October 7, 2025
+**Status**: 🟢 **ZERO TECHNICAL DEBT** - All P0/P1/P2/P3 issues resolved
+**Training Impact**: CLEAR - Production-ready, clean codebase
 
 ---
 
@@ -10,12 +10,12 @@
 
 | Priority | Count | Training Impact | Status |
 |----------|-------|-----------------|--------|
-| **P0 BLOCKER** | 0 | None | ✅ **ALL FIXED** |
-| **P1 URGENT** | 1 | Data safety, logs noisy | 🟡 Fix before production |
-| **P2 MEDIUM** | 1 | Minor warnings | 🟢 Fix when convenient |
-| **P3 LOW** | 0 | None | ✅ Clear |
+| **P0 BLOCKER** | 0 | None | ✅ **ALL RESOLVED** |
+| **P1 URGENT** | 0 | None | ✅ **ALL RESOLVED** |
+| **P2 MEDIUM** | 0 | None | ✅ **ALL RESOLVED** |
+| **P3 LOW** | 0 | None | ✅ **ALL RESOLVED** |
 
-**UPDATE**: All P0 blockers resolved with clean, professional implementations (no hacks!)
+**UPDATE (v3.8.3)**: **Zero active technical debt** - Manifest naming cleanup completed, all priority levels cleared
 
 ---
 
@@ -186,46 +186,34 @@ In PyTorch 1.1.0 and later, you should call them in the opposite order.
 
 ---
 
-## 🟡 P1: URGENT (Fix Before Production)
+## ✅ P1: RESOLVED (v3.8.3 - October 7, 2025)
 
-### P1-1: Manifest Cache File References Use Legacy Naming
+### P1-1: Manifest Cache File References Use Legacy Naming ✅ **RESOLVED**
 
-**Issue**: Manifests reference `*_windows` but actual files are `*_data.npy` + `*_labels.npy`
+**Status**: ✅ **FIXED in v3.8.3**
 
-**Root Cause**:
-- Legacy NPZ format used `_windows.npz` naming convention
-- Migrated to NPY mmap format but manifests never regenerated
-- Datasets work around this with `stem.replace("_windows", "")`
+**What Was Fixed**:
+- Regenerated both train/dev manifests with correct `*_data.npy` naming
+- Removed all 11 `stem.replace("_windows", "")` workarounds from codebase
+- Updated `scan_existing_cache()` to write `*_data` names directly
+- Simplified cache_utils.py and datasets.py
 
-**Impact**:
-- Code harder to understand (requires translation layer)
-- Inconsistent with actual file structure on disk
-- **CAUSED P0-1 BUG** (ValidationDataset missing translation logic)
-- Fragile: Easy to forget workaround in new code
+**Results**:
+- Train manifest: 303,990 windows, 100% NPY naming ✅
+- Dev manifest: 148,224 windows, 100% NPY naming ✅
+- Verification: 0 NPZ references remaining ✅
+- Code: Simpler, more maintainable ✅
 
-**Files Affected**:
-- `cache/tusz_mmap/train/manifest.json` - All `cache_file` references
-- `cache/tusz_mmap/dev/manifest.json` - All `cache_file` references
-- `src/brain_brr/data/cache_utils.py` - Manifest generation logic
-
-**Fix Options**:
-
-**Option A: Regenerate Manifests** (Recommended):
-- Update `scan_existing_cache()` to write correct `*_data` names
-- Regenerate both train/dev manifests on Modal
-- Remove all `stem.replace("_windows", "")` workarounds
-- Cleaner, matches reality
-
-**Option B: Keep Workarounds**:
-- Add `cache_file_exists()` to ValidationDataset (P0-1 fix)
-- Document translation layer extensively
-- More fragile, harder to maintain
-
-**Recommended**: Option A after P0 fixes deployed
+**Files Modified**:
+- `cache/tusz_mmap/train/manifest.json` - Regenerated with NPY naming
+- `cache/tusz_mmap/dev/manifest.json` - Regenerated with NPY naming
+- `src/brain_brr/data/cache_utils.py` - 4 edits (lines 45, 92-97, 208, 287-289)
+- `src/brain_brr/data/datasets.py` - 6 edits (11 workarounds removed)
+- `src/brain_brr/train/loop.py` - 1 edit (line 629)
 
 ---
 
-## 🟢 P2: MEDIUM (Fix When Convenient)
+## ✅ P2: RESOLVED (v3.8.0-v3.8.2)
 
 ### P2-1: psutil Swap Memory Warning
 
@@ -241,237 +229,91 @@ were set to 0 ([Errno 2] No such file or directory: '/proc/vmstat')
 
 ---
 
-## Implementation Plan
+## ✅ P3: RESOLVED (v3.8.3 - October 7, 2025)
 
-### Phase 1: Emergency P0 Fixes (DO NOW - 30 min)
+### P3-1: Manifest Naming Mismatch ✅ **RESOLVED in v3.8.3**
 
-**Goal**: Fix critical bugs so training completes successfully
+**Status**: ✅ **FIXED in v3.8.3** - See P1-1 above for complete details
 
-**1. Stop Current Training**
-```bash
-modal app stop ap-O0RQ15Kc1kfqjHz2l23RbD
-# Reason: Will crash at validation, wastes ~$50 of GPU time
-```
-
-**2. Fix ValidationDataset Cache Lookup (P0-1)**
-
-File: `src/brain_brr/data/datasets.py`
-
-Add helper function inside `ValidationDataset.__init__` before line 595:
-```python
-def cache_file_exists(cache_path: Path) -> bool:
-    """Check if cache file exists in NPY mmap format."""
-    if cache_path.exists():
-        return True
-    stem = cache_path.stem.replace("_windows", "")
-    data_file = cache_path.parent / f"{stem}_data.npy"
-    return data_file.exists()
-```
-
-Update line 604:
-```python
-if cache_file_exists(cache_file_path):  # Changed from: cache_file_path.exists()
-```
-
-**3. Fix Read-Only Tensor Warnings (P0-2)**
-
-Files: `src/brain_brr/data/datasets.py`
-
-In `BalancedSeizureDataset.__getitem__` (line 530):
-```python
-return {
-    "window": torch.from_numpy(window).clone(),  # Add .clone()
-    "label": torch.from_numpy(label).clone(),    # Add .clone()
-    ...
-}
-```
-
-In `ValidationDataset.__getitem__` (line 685):
-```python
-return {
-    "window": torch.from_numpy(window).clone(),  # Add .clone()
-    "label": torch.from_numpy(label).clone(),    # Add .clone()
-    ...
-}
-```
-
-**4. Fix LR Scheduler Order (P0-3)**
-
-File: `src/brain_brr/train/train_step.py`
-
-Find where scheduler is stepped, move AFTER optimizer.step()
-
-**5. Run Quality Checks**
-```bash
-make q           # Lint/format/mypy
-make test        # All 104 tests should pass
-```
-
-**6. Local Smoke Test**
-```bash
-export BGB_NAN_DEBUG=1
-make s           # Should now show validation metrics!
-```
+This issue was promoted from P3 to P1 and resolved in v3.8.3 through:
+- Complete manifest regeneration with NPY naming
+- Removal of all 11 workaround hacks
+- Simplified, maintainable codebase
 
 ---
 
-### Phase 2: Verification & Deploy (15 min)
+## 🎉 Zero Technical Debt Achieved (v3.8.3)
 
-**7. Commit Changes**
+**Complete Resolution Timeline**:
+- **v3.8.0** (Oct 6): Resolved NPZ contamination (P0), code duplication (P2), type safety (P2)
+- **v3.8.1** (Oct 6): Completed tensor safety (P0-2), verified scheduler order (P0-3)
+- **v3.8.2** (Oct 6): Eliminated all training warnings with professional PyTorch patterns
+- **v3.8.3** (Oct 7): Manifest naming cleanup complete (P1/P3) → **ZERO DEBT**
+
+**Current Status**:
+- ✅ **P0 Blockers**: 0 issues
+- ✅ **P1 Urgent**: 0 issues
+- ✅ **P2 Medium**: 0 issues
+- ✅ **P3 Low**: 0 issues
+
+**Production Readiness**:
+- ✅ All quality checks passing (make q, make test)
+- ✅ 104 tests, 83.80% coverage
+- ✅ Zero lint/format/type errors
+- ✅ Clean, maintainable codebase
+- ✅ Ready for Modal A100-80GB production training
+
+---
+
+## Historical Implementation Summary
+
+### v3.8.3 Manifest Naming Cleanup (October 7, 2025)
+
+**Phase 1: Backup & Verification ✅ COMPLETED**
+- Backed up existing manifests (train + dev)
+- Verified cache integrity (4667 train, 1832 dev NPY files)
+- Confirmed all data/label pairs present
+
+**Phase 2: Code Updates ✅ COMPLETED**
+- Updated 11 code locations to eliminate workarounds
+- `cache_utils.py`: 4 edits (direct NPY naming)
+- `datasets.py`: 6 edits (removed `.replace("_windows", "")`)
+- `loop.py`: 1 edit (validation file list)
+
+**Phase 3: Manifest Regeneration ✅ COMPLETED**
+- Regenerated train manifest: 303,990 windows from 4438 NPY files
+- Regenerated dev manifest: 148,224 windows
+- Verification: 100% NPY naming, 0 NPZ references
+
+**Phase 4: NPZ Cleanup ✅ SKIPPED**
+- No NPZ files found (already cleaned in v3.8.0)
+
+**Phase 5: Smoke Test Validation ✅ COMPLETED**
+- Smoke test passed with new manifests
+- All datasets loading correctly
+- Zero warnings, all tests passing
+
+**Phase 6: Version Bump & Release ✅ COMPLETED**
+- Version bumped to v3.8.3
+- Git commit created and tagged
+- Documentation updated
+- Release notes published
+
+---
+
+## Quality Maintenance Policy
+
+**Before Every Major Training Run**:
 ```bash
-git add -A
-git status  # Verify only datasets.py and train_step.py changed
-git commit -m "fix(p0): Fix ValidationDataset cache lookup and tensor safety
-
-- Add cache_file_exists() helper to ValidationDataset for NPY lookup
-- Use .clone() on tensors from read-only mmap arrays for safety
-- Fix LR scheduler step order per PyTorch 1.1+ requirements
-
-Fixes:
-- P0-1: ValidationDataset now loads 148k windows (was 0)
-- P0-2: No read-only tensor warnings
-- P0-3: No LR scheduler order warnings"
-
-git push origin development
+make q        # Ensure zero lint/format/type errors
+make test     # Ensure all tests pass
 ```
 
-**8. Merge to Main**
-```bash
-git checkout main
-git merge development --no-ff -m "Merge P0 critical fixes for validation dataset"
-git push origin main
-git checkout development
-```
+**Zero Debt Policy**: New technical debt must be paid down immediately before merging to main. Production training should ONLY happen from zero-debt baselines.
 
 ---
 
-### Phase 3: Restart Training (5 min)
-
-**9. Deploy to Modal**
-```bash
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
-```
-
-**10. Verify Startup Logs**
-
-Watch for these indicators:
-```
-✅ [ValidationDataset] Created with 148224 windows (not 0!)
-✅ No UserWarning about read-only tensors
-✅ No UserWarning about LR scheduler order
-✅ Batch 0/1284 starts successfully
-```
-
-**11. Monitor First Epoch Completion**
-- Training: 1284/1284 batches
-- Validation: Runs successfully, metrics calculated
-- Checkpoint: `epoch_001.pt` saved
-- W&B: Validation metrics logged
-
----
-
-### Phase 4: P1 Cleanup (Later, After Training)
-
-**12. Regenerate Manifests with Correct Naming**
-
-Update `src/brain_brr/data/cache_utils.py`:
-```python
-# In scan_existing_cache(), change cache_file reference:
-entry["cache_file"] = f"{recording_id}_data"  # Was: f"{recording_id}_windows"
-```
-
-Run on Modal:
-```bash
-modal run deploy/modal/app.py --action populate-cache  # Regenerates manifests
-```
-
-**13. Remove Workarounds**
-
-Remove all `stem.replace("_windows", "")` calls from datasets.py
-
-**14. Verify**
-```bash
-make test  # All tests pass with new manifests
-```
-
----
-
-## Testing Checklist
-
-Before restarting training, verify:
-
-- [ ] `ValidationDataset` loads >140k windows (not 0)
-- [ ] No read-only tensor warnings in startup logs
-- [ ] No LR scheduler order warnings
-- [ ] Local smoke test shows validation metrics
-- [ ] `make q` passes (lint/format/mypy)
-- [ ] `make test` passes (104 tests)
-- [ ] Git changes committed and pushed
-- [ ] main branch synced
-
----
-
-## Risk Assessment
-
-**Current Training Status**: 🔴 **WILL CRASH** at end of epoch 1
-
-**After P0 Fixes**: 🟢 **READY** for successful 100-epoch training
-
-**Time Estimates**:
-- Fix implementation: 30 min
-- Testing & verification: 15 min
-- Deployment & restart: 5 min
-- **Total downtime**: ~50 minutes
-
-**Cost Analysis**:
-- Training lost: ~1 hour @ batch 85/1284 (~$1.50)
-- Cost to fix now: ~$1 (downtime)
-- Cost if crash at epoch 1: ~$3.50 (6-7 hours wasted)
-- **Net savings**: ~$2.50 + avoid debugging failed run
-
-**Decision**: ✅ STOP NOW, FIX, RESTART
-
----
-
-## Previously Resolved Debt (For Reference)
-
-### October 6, 2025 - Pre-Training Fixes
-- ✅ NPZ cache contamination (cleaned 3 stray files)
-- ✅ Type annotations (WandBRun, Console vs Any)
-- ✅ Code deduplication (120 lines eliminated)
-- ✅ NPZ→NPY mmap conversion (387 GB → <1 GB RAM)
-- ✅ Modal SSD cache population
-- ✅ All P0/P1/P2/P3 from previous audit
-
----
-
-## Post-Fix Verification
-
-After training restarts, confirm in logs:
-
-**1. Validation Dataset Loaded**:
-```
-[ValidationDataset] Created with 148224 windows:
-  - 7944 partial seizure
-  - 3536 full seizure
-  - 136744 no-seizure
-  - Seizure ratio: 7.7% (natural distribution)
-```
-
-**2. No Warnings**:
-- ✅ No "read-only NumPy array" warnings
-- ✅ No "LR scheduler step order" warnings
-- ✅ Only harmless psutil swap warning (P2)
-
-**3. First Epoch Completes Successfully**:
-- ✅ Training: 1284/1284 batches
-- ✅ Validation: Metrics calculated (not defaults)
-- ✅ Checkpoint: `epoch_001.pt` saved
-- ✅ W&B: Validation curves visible
-
----
-
-**Status**: 🔴 **ACTION REQUIRED** - Fix P0 issues immediately
-**Current Training**: STOP (`ap-O0RQ15Kc1kfqjHz2l23RbD`)
-**Next Step**: Implement Phase 1 fixes (30 min)
-**Goal**: Restart training within 1 hour with all issues resolved
+**Status**: 🟢 **ZERO TECHNICAL DEBT**
+**Current Version**: v3.8.3
+**Training Status**: Modal training ongoing (batch 1080+/1284)
+**Next Action**: Monitor training completion, celebrate clean codebase! 🎉

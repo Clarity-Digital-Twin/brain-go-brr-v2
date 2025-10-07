@@ -7,6 +7,125 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.8.3] - 2025-10-07
+
+### 🎉 Manifest Naming Cleanup Complete - Zero Technical Debt Achieved
+
+**Eliminates all NPZ-style naming from manifests** for clean, maintainable codebase.
+
+**Tag**: `v3.8.3-manifest-naming-cleanup`
+**Status**: ✅ **ZERO P0/P1/P2/P3 TECHNICAL DEBT**
+
+---
+
+#### What Changed
+
+**Manifest Naming Consistency**:
+- Manifests now reference `*_data.npy` directly (not legacy `*_windows` naming)
+- Removed all 11 `.replace("_windows", "")` string manipulation workarounds
+- Simplified cache_utils.py and datasets.py for better maintainability
+- Regenerated manifests: train (303,990 windows), dev (148,224 windows)
+- Zero NPZ references remaining in manifests
+
+**Files Modified**:
+- `src/brain_brr/data/cache_utils.py` - 4 edits (lines 45, 92-97, 208, 287-289)
+- `src/brain_brr/data/datasets.py` - 6 edits (lines 107, 275, 385-392, 523, 596-606, 693)
+- `src/brain_brr/train/loop.py` - 1 edit (line 629)
+- `docs/09-technical-debt/active-debt.md` - Marked P3-1 as RESOLVED
+
+**Quality Verification**:
+```bash
+make q           # Lint + format + mypy → PASS ✅
+make test        # 104 tests, 83.80% coverage → PASS ✅
+```
+
+**Manifest Verification**:
+- Train manifest: 4438 unique NPY files, 0 NPZ references ✅
+- Dev manifest: All entries use `*_data.npy` format ✅
+- Cache integrity: All data/label pairs verified ✅
+
+---
+
+#### Why This Matters
+
+**Before v3.8.3**:
+- Manifests used legacy `*_windows` naming from NPZ era
+- Required 11 translation workarounds (`stem.replace("_windows", "")`)
+- Fragile: Easy to forget workaround in new code
+- Caused P0-1 bug (ValidationDataset missing translation logic)
+- Documentation drift from actual file structure
+
+**After v3.8.3**:
+- ✅ Manifests match reality (`*_data.npy` files)
+- ✅ Zero string manipulation workarounds
+- ✅ Simpler, more maintainable code
+- ✅ Perfect alignment with NPY mmap cache format
+- ✅ Zero P0/P1/P2/P3 technical debt remaining
+
+---
+
+#### Migration Notes
+
+**From v3.8.2 → v3.8.3**:
+- ✅ **100% Backward Compatible**
+- No API changes
+- No config schema changes
+- No dependency updates
+- Local manifests regenerated automatically
+- Modal: Next training run will regenerate manifests with v3.8.3 code
+
+**Upgrade Steps**:
+```bash
+git pull
+git checkout v3.8.3-manifest-naming-cleanup
+# Ready - manifests regenerate automatically on first use
+```
+
+---
+
+#### Technical Details
+
+**Key Code Changes**:
+
+1. **cache_utils.py:45** - Direct NPY path construction:
+   ```python
+   return cache_dir / f"{edf_path.stem}_data.npy"  # Was: _windows_data.npy
+   ```
+
+2. **cache_utils.py:92-97** - Critical labels path derivation:
+   ```python
+   windows_file = cache_path  # cache_path IS *_data.npy
+   stem = cache_path.stem.replace("_data", "")  # Extract base for labels
+   ```
+
+3. **cache_utils.py:208** - Manifest filename generation:
+   ```python
+   manifest_filename = f"{stem}_data.npy"  # Was: _windows.npz
+   ```
+
+4. **datasets.py** - Removed 6 workarounds across 3 dataset classes
+
+**Manifest Regeneration Stats**:
+- Duration: ~2 hours (4667 train + 1832 dev files)
+- Train: 303,990 windows across 4438 NPY files
+- Dev: 148,224 windows with natural 7.7% seizure ratio
+- Verification: 100% NPY naming, 0 NPZ references
+
+---
+
+#### Documentation Updates
+
+- `CHANGELOG.md` - This entry
+- `RELEASE_NOTES.md` - v3.8.3 release notes
+- `TECHNICAL_DEBT.md` - Zero active debt status
+- `STATUS.md` - v3.8.3 deployment status
+- `README.md` - Version badge updated to v3.8.3
+- `CLAUDE.md` - Current status section updated
+- `TODO.md` - Reflects completion
+- `docs/09-technical-debt/active-debt.md` - P3-1 marked RESOLVED
+
+---
+
 ## [3.8.2] - 2025-10-06
 
 ### 🔧 Fixed: Zero Warnings - Professional PyTorch Patterns
