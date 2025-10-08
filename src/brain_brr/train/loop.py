@@ -738,6 +738,8 @@ def main() -> None:
 
     # Validate dev manifest if it exists (prevent stale NPZ-named manifests)
     if val_manifest_path.exists():
+        from src.brain_brr.data.cache_utils import check_manifest_stale
+
         logger.debug("[DATA] Validating dev manifest...")
         try:
             with val_manifest_path.open() as f:
