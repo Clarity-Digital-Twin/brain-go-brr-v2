@@ -1,7 +1,7 @@
 # Technical Debt & Cleanup Status
 
-**Last Updated**: October 6, 2025 (v3.8.2)
-**Status**: 🟢 **ZERO ACTIVE DEBT** - All P0/P1/P2/P3 issues resolved
+**Last Updated**: October 8, 2025 (v3.9.0)
+**Status**: 🟢 **ZERO ACTIVE DEBT** - Atomic checkpoints, timeout guard, and Modal production run live
 
 ## Executive Summary
 
@@ -16,6 +16,12 @@
 **Current Status**: All known technical debt has been eliminated. Codebase is clean and Modal A100 training is running.
 
 ---
+
+## Recently Resolved (October 8, 2025 - v3.9.0)
+
+- **Atomic checkpoint system** (checkpoint.py): temp-file + fsync + rename, plus AMP scaler & RNG capture for deterministic resume.
+- **Timeout guard** (timeout_guard.py + loop.py): exits ~23 h with `timeout_exit.pt`, prevents Modal hard kill mid-save.
+- **Operational polish**: metric key normalization (`metrics_utils.py`), W&B run persistence, and Modal docs refreshed (`docs/05-training/modal.md` / `modal-deployment.md`).
 
 ## Recently Resolved (October 6, 2025 - v3.8.2)
 

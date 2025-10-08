@@ -2,7 +2,8 @@
 
 Common issues
 
-- Wrong cache dir: local `cache/tusz/`, Modal `/results/cache/tusz/` (persistent SSD)
+- Wrong cache dir: local `cache/tusz_mmap/`, Modal `/results/cache/tusz_mmap/` (persistent SSD)
+- Dev manifest stale: `modal run deploy/modal/app.py --action check-cache`, delete bad manifest, relaunch (auto rebuild)
 - No seizures in batches: enable `use_balanced_sampling`
 - NaN losses on 4090: set `mixed_precision: false`
 - Modal stuck: increase CPU (24) and RAM (96GB)
@@ -17,7 +18,7 @@ Operational P0 checklist (must pass)
 - GPU stack versions match exactly (Torch 2.5.0+cu124, mamba-ssm 2.2.5, PyG 2.6.1 from cu124 wheels). Install order: `make setup` then `make setup-gpu`.
 - Cache present with seizures and manifest built: run `python -m src scan-cache --cache-dir <cache_split_dir>`; expect partial>0 or full>0.
 - Dynamic PE deps present if `graph.enabled: true`: `pip show torch_geometric` should list installed wheels.
-- After preprocessing changes (e.g., ±10σ clip), rebuild cache: `rm -rf cache/tusz && python -m src build-cache ...`.
+- After preprocessing changes (e.g., ±10σ clip), rebuild cache: `rm -rf cache/tusz_mmap && python -m src build-cache ...` (or rerun the conversion pipeline).
 
 V3 NaN issues
 
@@ -64,8 +65,10 @@ NaN logits root cause quick summary
 
 Modal cache hygiene
 
-- Do not use S3 for caches; keep NPZs on Modal volume at `/results/cache/tusz/`
-- Modal persistent volume only used for results at `/results/`
+- Always use the mmap cache at `/results/cache/tusz_mmap/` (populate from S3 once, then reuse).
+- After deployment run `modal run deploy/modal/app.py --action check-cache` to validate train/dev counts and manifest health.
+- If stray NPZ files are reported, clean them with `modal run deploy/modal/clean_stray_npz.py --confirm` (script verifies matching `_data.npy/_labels.npy` first).
+- Results and checkpoints live under `/results/`; keep raw data mounted at `/data/edf`.
 - Ensure `data.data_dir: /data/edf`; the loader enforces official patient-disjoint splits automatically (legacy `split_policy` field was removed in V4).
 
 ## Emergency Recovery Procedures
@@ -74,15 +77,18 @@ Modal cache hygiene
 **Symptom**: "Seizure ratio: 0%" in logs
 **Cause**: Missing or corrupted manifest file
 ```bash
+# Validate Modal cache manifests first
+modal run deploy/modal/app.py --action check-cache
+
 # Force manifest rebuild locally
-BGB_FORCE_MANIFEST_REBUILD=1 python -m src scan-cache --cache-dir cache/tusz/train
+BGB_FORCE_MANIFEST_REBUILD=1 python -m src scan-cache --cache-dir cache/tusz_mmap/train
 
 # Re-upload to S3 (including JSONs!)
-aws s3 sync cache/tusz/train/ s3://brain-go-brr-eeg-data-20250919/cache/tusz/train/ \
+aws s3 sync cache/tusz_mmap/train/ s3://brain-go-brr-eeg-data-20250919/cache/tusz_mmap/train/ \
   --exclude "*.log" --exclude "__pycache__/*"
 
 # Verify manifest uploaded
-aws s3 ls s3://brain-go-brr-eeg-data-20250919/cache/tusz/train/manifest.json
+aws s3 ls s3://brain-go-brr-eeg-data-20250919/cache/tusz_mmap/train/manifest.json
 
 # Re-run Modal populate-cache
 modal run --detach deploy/modal/app.py --action populate-cache
@@ -102,6 +108,19 @@ modal run deploy/modal/app.py --action populate-cache
 tmux attach -t populate  # To reattach
 ```
 
+### Modal training exits after ~23 h
+**Symptom**: Logs show `[TIMEOUT] Wall-clock limit approaching …` followed by `[TIMEOUT] Saved timeout_exit.pt, resume with --resume flag`
+**Cause**: Timeout guard (v3.9.0+) exiting cleanly before Modal’s 24 h limit
+```bash
+# Relaunch training with resume flag (loads timeout_exit.pt or latest mid_epoch_*.pt)
+modal run --detach deploy/modal/app.py \
+  --action train \
+  --config configs/modal/train.yaml \
+  --resume true
+```
+
+This is expected; no progress is lost beyond the last 10–30 minutes.
+
 ### Cache Corruption
 **Symptom**: Unexpected errors during data loading
 ```bash
@@ -109,13 +128,13 @@ tmux attach -t populate  # To reattach
 modal run deploy/modal/app.py --action clean-cache
 
 # Delete local cache
-rm -rf cache/tusz/
+rm -rf cache/tusz_mmap/
 
 # Rebuild from scratch (takes 2-3 hours)
 make train-local  # Will rebuild cache automatically
 
 # Upload fixed cache to S3
-aws s3 sync cache/tusz/ s3://brain-go-brr-eeg-data-20250919/cache/tusz/ \
+aws s3 sync cache/tusz_mmap/ s3://brain-go-brr-eeg-data-20250919/cache/tusz_mmap/ \
   --exclude "*.log" --exclude "__pycache__/*"
 
 # Repopulate Modal
@@ -125,8 +144,8 @@ modal run --detach deploy/modal/app.py --action populate-cache
 ### Manifest Issues Quick Reference
 | Issue | Solution |
 |-------|----------|
-| No train manifest | `python -m src scan-cache --cache-dir cache/tusz/train` |
-| No dev manifest | `python -m src scan-cache --cache-dir cache/tusz/dev` (optional) |
+| No train manifest | `python -m src scan-cache --cache-dir cache/tusz_mmap/train` |
+| No dev manifest | `python -m src scan-cache --cache-dir cache/tusz_mmap/dev` (optional) |
 | Stale manifest | `BGB_FORCE_MANIFEST_REBUILD=1` before scan-cache |
 | Upload excluded JSONs | Remove `--exclude "*.json"` from S3 sync |
 | Verify manifest size | Train: ~27MB, Dev: ~13MB |

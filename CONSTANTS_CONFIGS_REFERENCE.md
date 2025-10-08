@@ -1,7 +1,7 @@
 # Constants vs Configs: COMPLETE SSOT Reference (v3.0)
 
-**Version**: v3.7.0 (Zero-Debt Baseline)
-**Date**: October 5, 2025
+**Version**: v3.9.0 (Production Training Baseline)
+**Date**: October 8, 2025
 **Purpose**: **100% COMPLETE** authoritative decision matrix for EVERY constant (84/84) and config field (152/152) in Brain-Go-Brr v3
 **Principle**: Single Source of Truth (SSOT) - Robert C. Martin's Clean Code + Google/DeepMind ML Best Practices
 **Status**: ✅ **ZERO TECHNICAL DEBT** - 6 dead constants removed, 26 reserves documented, production ready

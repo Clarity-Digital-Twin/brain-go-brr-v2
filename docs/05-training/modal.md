@@ -1,271 +1,160 @@
 # Modal Training (A100-80GB)
 
-**Last Updated**: October 6, 2025 (v3.6.0)
+**Last Updated**: October 8, 2025  
+**Baseline**: v3.9.0 – Production Training (Bulletproof Resume)
 
-## CRITICAL: Always Use --detach
-Modal functions will stop after ~8 minutes when terminal disconnects unless you use `--detach`.
-**All long-running commands MUST use --detach or run in tmux!**
+Modal is the production environment for the 100‑epoch A100 run. This guide covers the recommended workflow, timeout guard behaviour, cache hygiene, and observability.
 
-## Quick Commands
+---
 
-- Populate cache (one-time, from S3): `modal run --detach deploy/modal/app.py --action populate-cache`
-  - **IMPORTANT**: This command removes existing `/results/cache/tusz_mmap/{train,dev}` before copying fresh data from S3
-  - Training uses the SSD cache and will NOT clear it unless you re-run populate-cache or clean-cache
-- Test Mamba CUDA: `modal run deploy/modal/app.py --action test-mamba`
-- Smoke: `modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml`
-- Full (detached): `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml`
-- Clean old cache (if needed): `modal run deploy/modal/app.py --action clean-cache`
-- Remove stray NPZ files (after aborted runs): `modal run deploy/modal/clean_stray_npz.py --confirm`
-- Verify cache health: `modal run deploy/modal/app.py --action check-cache`
+## 1. Quick Command Reference
 
-## Monitoring
+```bash
+# Populate mmap cache from S3 (use --detach)
+modal run --detach deploy/modal/app.py --action populate-cache
 
-- List running apps: `modal app list`
-- Stream logs: `modal app logs <app-id>`
-- Stop training: `modal app stop <app-id>`
+# CUDA sanity check (verifies Mamba kernels)
+modal run deploy/modal/app.py --action test-mamba
 
-## Configuration (v3.6.0)
+# Cache health / manifest validation (train + dev)
+modal run deploy/modal/app.py --action check-cache
 
-### Resources (deploy/modal/app.py:501-503)
-```python
-gpu: modal.gpu.A100(count=1, size="80GB")
-memory: 98304  # 96GB RAM (3x safety margin)
-cpu: 24        # 24 cores (avoids CPU bottleneck during data loading)
+# Smoke test (50 files, 1 epoch, ~5 min)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+
+# Full training (exits ~23 h with timeout_exit.pt)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+
+# Resume after timeout/interruption
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml --resume true
+
+# Clean stray NPZ files if check-cache reports them
+modal run deploy/modal/clean_stray_npz.py --confirm
+
+# Monitoring
+modal app list
+modal app logs <app-id>
+modal app stop <app-id>
 ```
 
-### Model Parameters (configs/modal/train.yaml)
-```yaml
-training:
-  batch_size: 32                # v3.4.1: Reduced from 64 (OOM fix)
-  gradient_accumulation_steps: 2  # v3.4.1: Maintain effective batch=64
-  mixed_precision: true         # CRITICAL: 3.8x faster on A100
-  learning_rate: 8.0e-5         # Batch-scaled
-  gradient_clip: 0.5            # Gradient protection
-  loss: focal                   # REQUIRED for 12:1 imbalance
-  focal_gamma: 2.0             # Warmup from 1.0 → 2.0 (v3.4.1)
+---
 
-model:
-  architecture: v3              # Dual-stream (node + edge Mamba)
-  warmup_schedule:              # v3.4.1: Gradient stabilization
-    enabled: true
-    warmup_steps: 1000
-    adj_temperature_enabled: true
-    focal_gamma_enabled: true
+## 2. Resources & Configuration
 
-  graph:
-    edge_similarity_margin: 0.01  # v3.3.0: Boundary safety
-    use_dynamic_pe: true          # Always enabled with safeguards
-    semi_dynamic_interval: 5      # Optimal update rate
-```
+### Hardware (deploy/modal/app.py)
+- **GPU**: 1 × A100‑80GB (`modal.gpu.A100`)
+- **CPU**: 24 cores
+- **RAM**: 96 GB
+- **Volume**: `/results` persistent SSD (~500 GB)
 
-## Critical Fixes (v3.4.1)
-
-### A100 OOM Fix (October 2025)
-**Problem**: Training crashed at batch 0 backward pass with OOM
-**Error**: `CUDA out of memory. Tried to allocate 10.69 GiB. GPU 0 has total capacity of 79.25 GiB of which 2.04 GiB is free. Process 1 has 77.20 GiB memory in use.`
-
-**Root Cause**:
-- `batch_size=64` + `gradient_accumulation_steps=1` processes **64 samples in forward+backward**
-- Peak memory during backward: **~77GB** (exceeds A100-80GB capacity)
-
-**Memory Profile**:
-```
-batch_size=64, grad_accum=1:  Peak = 77GB (CRASH ❌)
-batch_size=32, grad_accum=2:  Peak = 50GB (SAFE ✅)
-```
-
-**Fix Applied**:
-```yaml
-# configs/modal/train.yaml
-training:
-  batch_size: 32                # Reduced from 64
-  gradient_accumulation_steps: 2  # Increased from 1
-  # Effective batch still 64, peak memory reduced by ~35%
-```
-
-**Key Insight**:
-- **batch_size** controls **peak memory** (forward+backward activations stored simultaneously)
-- **gradient_accumulation** splits backward into smaller chunks, reducing peak
-- Both configs have **identical effective batch** (64) and **same learning dynamics**
-- Only difference: memory footprint
-
-See `configs/README.md` for full OOM analysis.
-
-### Hang Detection & Logging (deploy/modal/app.py:722-723, loop.py:440)
-**Problem**: Training appeared to hang for 60+ minutes during initialization
-**Fix**: Enhanced logging and faster heartbeats
-```python
-# Modal auto-sets environment variables:
-BGB_LOG_EVERY_N_STEPS=10     # Log every 10 batches (vs default 50)
-heartbeat_interval=120        # 2-minute heartbeats (vs 5 minutes)
-```
-
-### XID 31 GPU Crash Prevention (deploy/modal/app.py:541-551)
-**Problem**: A100 crashes with "XID 31 MMU Fault" due to memory fragmentation
-**Fix**: Memory allocator optimization + unique Triton cache per run
-```python
-# deploy/modal/app.py:541-542
-PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True,max_split_size_mb:512"
-
-# deploy/modal/app.py:549-550 - Prevent stale kernel cache
-TRITON_CACHE_DIR=f"/tmp/triton_cache_run_{run_id}"
-TORCHINDUCTOR_CACHE_DIR=f"/tmp/tii_cache_run_{run_id}"
-```
-
-See `docs_v2/reference/incidents/modal-xid31-recurrence.md` for detailed investigation.
-
-### NaN Protection (deploy/modal/app.py:720-723)
-Modal automatically enables NaN debugging:
-```python
-BGB_NAN_DEBUG=1          # Extra NaN logging
-```
-
-> Gradient clipping (0.5) remains the primary protection. Enable `BGB_SANITIZE_GRADS=1` manually if you want to zero/log non-finite gradients while investigating an issue.
-
-### Cache Integrity Safeguards (October 2025)
-- Datasets now operate in **read-only** mode. Cache misses raise a clear `FileNotFoundError` instructing you to rerun `populate-cache` instead of silently rebuilding NPZ files.
-- `deploy/modal/app.py --action check-cache` now reports the number of `_data.npy` / `_labels.npy` pairs and warns if any legacy `.npz` files appear.
-- If a run crashes before the mmap cache is copied, clean up with `modal run deploy/modal/clean_stray_npz.py --confirm`. The script verifies the matching NPY pair exists before deletion.
-
-## Initialization Timeline (v3.4.1)
-
-**Total initialization: ~10-15 minutes** before first epoch starts
-
-| Phase | Duration | What's Happening |
-|-------|----------|------------------|
-| Startup | ~1 min | Container launch, env setup |
-| Train manifest load | ~2-3 min | Load 61,616 windows from manifest.json (cached) |
-| Dev manifest load | ~2-3 min | Load 148,224 windows from manifest.json (cached) |
-| Model creation | ~10 sec | Initialize 31M parameters |
-| W&B initialization | ~3 sec | Connect to Weights & Biases |
-| Worker spawn | **~3-5 min** | DataLoader workers (v3.4.1: fixed from 1h+) |
-| Preflight batch | ~2 min | Test forward/backward pass |
-| **Total to epoch start** | **~10-15 min** | When training actually begins |
-
-**Mmap cache update:** Worker spawn remains <5 min with `num_workers: 4` and `persistent_workers: true` because the memory-mapped cache lets workers share pages safely. See the profiles below for alternative trade-offs.
-
-## DataLoader profiles
-
-Baseline (safe)
-
+### Training Profile (configs/modal/train.yaml)
 ```yaml
 data:
+  data_dir: /data/edf
+  cache_dir: /results/cache/tusz_mmap
   num_workers: 4
   persistent_workers: true
   prefetch_factor: 2
 training:
   batch_size: 48
   gradient_accumulation_steps: 1
+  mixed_precision: true
+  gradient_clip: 0.5
+  mid_checkpoint_interval_s: 1800
+  mid_epoch_keep: 3
+experiment:
+  output_dir: /results/v3_full_training
 ```
 
-- Matches `configs/modal/train.yaml` and keeps peak VRAM ≈58 GB.
-- Keeps first epoch under ~15 minutes on the A100 baseline.
+The job exports:
+- `BGB_WALL_CLOCK_LIMIT_S=82800` (timeout guard)
+- `BGB_LIMIT_FILES=50` for smoke configs
+- `BGB_NAN_DEBUG=1` for additional NaN logging
+- `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:512`
+- Unique Triton/Inductor cache directories per run
 
-Throughput profile (after smoke verification)
+---
 
-```yaml
-data:
-  num_workers: 8
-  persistent_workers: true
-  prefetch_factor: 4
-```
+## 3. Timeout Guard & Resume Workflow
 
-- Doubles data-loading throughput while keeping the mmap cache warm.
+- The timeout guard monitors wall-clock time and, after ~23 h, saves `timeout_exit.pt`, logs a warning, and exits cleanly. Modal never hard-kills mid-checkpoint.
+- Relaunch training with `--resume true`. The loader prefers, in order: newest `mid_epoch_*.pt`, `timeout_exit.pt`, then `last.pt`.
+- Expect 4–5 resume cycles for a 100‑epoch run (~5 days wall-clock, ~$350).
+- Each checkpoint contains model, optimizer, scheduler, AMP scaler, and RNG state (Python/NumPy/torch CPU/torch CUDA). Resumes are deterministic—no repeated batches.
+- `.wandb_run_id` is stored in the checkpoint directory; resumed runs continue the same W&B dashboard (`[W&B] Run resumed: …` in logs).
 
-Aggressive profile (benchmarking only)
+---
 
-```yaml
-data:
-  num_workers: 8
-  persistent_workers: true
-  prefetch_factor: 4
-training:
-  batch_size: 64
-  gradient_accumulation_steps: 1
-```
+## 4. Cache Hygiene & Manifest Health
 
-- Benchmarking only. Monitor VRAM (<70 GB) and startup time before adopting.
+| Action | Command | Notes |
+|--------|---------|-------|
+| Verify cache + manifests | `modal run deploy/modal/app.py --action check-cache` | Lists train/dev counts, warns about stale manifests or NPZ files |
+| Remove stray NPZ files | `modal run deploy/modal/clean_stray_npz.py --confirm` | Confirms matching `_data.npy/_labels.npy` before deletion |
+| Re-populate from S3 | `modal run --detach deploy/modal/app.py --action populate-cache` | Clears `/results/cache/tusz_mmap/{train,dev}` then copies fresh mmap cache |
+| Clean cache completely | `modal run deploy/modal/app.py --action clean-cache` | Use prior to re-populating if you want a full refresh |
 
-## Cache and Volumes
+Manifests live alongside the data (`/results/cache/tusz_mmap/{train,dev}/manifest.json`). If `check-cache` reports a stale dev manifest, delete it and re-run training; the loader rebuilds it from the mmap cache on startup.
 
-- Raw data mounted at `/data/edf/` (read‑only dataset mount)
-- Cache on persistent SSD volume at `/results/cache/tusz_mmap` (patient‑disjoint subdirs: `{train,dev}`)
-- Results saved to `/results/` (same persistent volume)
-- Ensure `data.data_dir: /data/edf`; the loader enforces official patient-disjoint splits automatically (no `split_policy` field required)
-- Ensure `data.cache_dir: /results/cache/tusz_mmap` in configs
-- Do not use S3 for cache on Modal; prebuilt caches should be synced into the Modal volume
+---
 
-## Patient Disjointness
+## 5. Launch Checklist
 
-On startup, the app verifies that patient sets in `/data/edf/train` and `/data/edf/dev` are disjoint and aborts if not (deploy/modal/app.py:569-581).
+1. **Cache present**: `modal run deploy/modal/app.py --action check-cache` shows 4,667 train + 1,832 dev stems.
+2. **Secrets**: `wandb` secret configured if you need logging (`modal secret create wandb …`).
+3. **Smoke test**: Run the smoke config once after any significant change.
+4. **Monitoring**: `modal app logs <app-id>` in one terminal, W&B dashboard in another.
+5. **Resume plan**: Add a reminder to relaunch every ~23 h with `--resume true`.
 
-## Resuming
+---
 
-- Use `--resume` flag or set `training.resume: true`.
-- Training prioritizes `mid_epoch_*.pt` when resuming; falls back to `last.pt`.
+## 6. Observability
 
-## Verification Checklist
+### Logs
+- Initialization takes ~10–15 min (manifest load, worker spawn, preflight batch).
+- Heartbeat logging every ~10 batches; gradient norms printed when they spike (expected with FP16).
+- Timeout guard emits `[TIMEOUT] Wall-clock limit approaching …` followed by `[TIMEOUT] Saved timeout_exit.pt`.
 
-### After populate-cache
-Check logs for:
-```
-[COPY] ✅ Copied 4667 train files
-[COPY] ✅ Copied 1832 dev files
-[COPY] ✅ Copied metadata file
-✅ Cache population complete! 4667 train, 1832 dev files
-```
+### W&B
+- Metrics continue seamlessly thanks to `.wandb_run_id`.
+- Check that new runs include “Epoch” panel resetting to the resumed epoch rather than restarting at 1.
 
-### During training startup
-Expect to see:
-```
-[CACHE] ✅ Cache built with official_tusz policy
-[DATASET] BalancedSeizureDataset: XXXX windows from manifest
-[DATASET] Seizure ratio: XX% (from manifest)
-[DATASET] Using pos_weight: X.XX (sqrt scaling)
-```
+---
 
-### Warning Signs
-- "Seizure ratio: 0%" → Missing manifest, rebuild and re-upload
-- "Falling back to EEGWindowDataset" → Manifest creation failed
-- Training hangs at epoch boundaries → Increase CPU/RAM allocation
-- No W&B logs after 20+ minutes → Check Modal logs for actual errors (baseline emits W&B within the first 10 minutes)
+## 7. Common Issues
 
-## Troubleshooting
+| Symptom | Likely Cause | Fix |
+|---------|--------------|-----|
+| `ValidationDataset` loads 0 windows | Stale dev manifest | `check-cache` → delete manifest → relaunch (auto rebuild) |
+| Modal times out at 24 h and kills job | No timeout guard (old build) | Ensure you’re on v3.9.0+; guard saves `timeout_exit.pt` |
+| New W&B run after resume | `.wandb_run_id` missing | Check checkpoint directory permissions; file must be writable |
+| NPZ files reported | Old aborted run | `modal run deploy/modal/clean_stray_npz.py --confirm` |
+| Cache mismatch warnings | Wrong cache path in configs | Ensure `data.cache_dir: /results/cache/tusz_mmap` |
+| OOM | Batch size incorrectly changed | Keep `batch_size: 48`, `gradient_accumulation_steps: 1` |
 
-### Training appears stuck during initialization
-**Expected**: 10-15 minutes with the safe dataloader profile
-- Check logs: `modal app logs <app-id>`
-- Look for the cache validation lines and the first `[BATCH START]` message.
-- If startup exceeds ~15 minutes, inspect worker spawn counts; revert to the baseline profile (4 workers, `persistent_workers: true`) before investigating further.
+---
 
-### XID 31 GPU crashes
-**Cause**: A100 memory fragmentation or stale Triton cache
-**Fix**: Already implemented in v3.4.1 (deploy/modal/app.py:541-551)
-- `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`
-- Unique Triton cache per run
-- If still occurring: Check Modal logs for kernel compilation errors
+## 8. FAQ
 
-### Zero seizures in batches
-**Cause**: Missing manifest or balanced sampling disabled
-**Fix**:
-1. Verify manifest exists: `modal volume ls seizure-detection-data results/cache/tusz_mmap/train/manifest.json`
-2. Ensure `use_balanced_sampling: true` in config
-3. Rebuild cache if needed: `modal run --detach deploy/modal/app.py --action populate-cache`
+**How often should I resume?**  
+Modal exits ~23 h after launch; relaunch with `--resume true` as soon as you see the timeout log (max progress loss <30 min).
 
-### PyG/Mamba import issues
-**Stack versions** (deploy/modal/app.py:16-18,36-38):
-- CUDA 12.4.0
-- PyTorch 2.5.0+cu124
-- mamba-ssm 2.2.5 (with PR #708 patch applied)
-- causal-conv1d 1.5.2
-- PyTorch Geometric 2.6.1
+**Can I delete `timeout_exit.pt`?**  
+Yes—it’s treated like a mid-epoch checkpoint. Once you resume successfully you may delete older snapshots to save space.
 
-If imports fail: Check Modal image build logs for compilation errors.
+**Do I need to rebuild manifests manually?**  
+Only if `check-cache` reports they’re stale. Training rebuilds them automatically when missing.
 
-### Slow epoch boundaries
-**Fix**: Already implemented - 24 CPU + 96GB RAM (deploy/modal/app.py:501-502)
+**What happens if W&B fails?**  
+Training continues. A warning is logged and the job runs without telemetry; checkpoints remain intact.
 
-### Commands
-- View logs: `modal app logs <app-id>`
-- Stop training: `modal app stop <app-id>`
-- List volumes: `modal volume ls seizure-detection-data`
+---
+
+## 9. Related Docs
+
+- `docs/05-training/checkpoint-strategy.md` – Mid-epoch cadence, atomic save details.
+- `docs/05-training/resume.md` – Resume prioritisation, W&B persistence.
+- `docs/02-data/cache-layout.md` – Manifest format + mmap structure.
+- `docs/08-operations/troubleshooting.md` – Modal-specific triage tips.
+
+Keep this workflow and you’ll never lose more than ~30 minutes of progress, even across week-long Modal training runs.

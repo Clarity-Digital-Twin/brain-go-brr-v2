@@ -1,6 +1,6 @@
-# Installation Guide - Brain-Go-Brr V3.4.1
+# Installation Guide - Brain-Go-Brr V3.9.0
 
-**Last Updated**: 2025-10-02
+**Last Updated**: 2025-10-08
 **Stack**: PyTorch 2.5.0+cu124, CUDA 12.4, mamba-ssm 2.2.5
 
 ---

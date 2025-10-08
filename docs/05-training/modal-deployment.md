@@ -1,6 +1,6 @@
 # Modal Cloud Deployment Guide
 
-**Last Updated**: September 26, 2025
+**Last Updated**: October 8, 2025
 **Architecture**: V3 dual-stream (A100-80GB optimized)
 **Status**: Production-ready
 
@@ -20,7 +20,7 @@ modal secret create wandb WANDB_API_KEY=<your-key>
 
 ### Deployment Steps
 
-1. **Populate Cache** (one-time only - use --detach!)
+1. **Populate Cache** (one-time only — use --detach!)
    ```bash
    modal run --detach deploy/modal/app.py --action populate-cache
    # Expected: 4667 train + 1832 dev files
@@ -33,19 +33,25 @@ modal secret create wandb WANDB_API_KEY=<your-key>
    modal run deploy/modal/app.py --action test-mamba
    ```
 
-3. **Run Smoke Test**
+3. **Verify Cache Health**
    ```bash
-   modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+   modal run deploy/modal/app.py --action check-cache
+   # Confirms train/dev counts, warns about stale manifests or stray NPZ files
+   ```
+
+4. **Run Smoke Test**
+   ```bash
+   modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
    # Time: ~5 minutes, AUROC: ~0.6-0.7
    ```
 
-4. **Launch Full Training**
+5. **Launch Full Training**
    ```bash
    modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
-   # Time: ~100 hours, Cost: ~$319
+   # Exits ~23 h with timeout_exit.pt (timeout guard); expect 4-5 resumes for 100 epochs
    ```
 
-5. **Monitor Training**
+6. **Monitor & Resume**
    ```bash
    # List running apps
    modal app list
@@ -55,6 +61,10 @@ modal secret create wandb WANDB_API_KEY=<your-key>
 
    # Stop if needed
    modal app stop <app-id>
+
+   # Resume after timeout
+   modal run --detach deploy/modal/app.py --action train \
+       --config configs/modal/train.yaml --resume true
    ```
 
 ## Modal Architecture
@@ -79,9 +89,11 @@ modal secret create wandb WANDB_API_KEY=<your-key>
 
 ### Cache Strategy
 - **Location**: `/results/cache/tusz_mmap` (memory-mapped uncompressed NPY cache)
-- **NOT**: Direct S3 streaming — always populate the SSD volume first
-- **Method**: One-time `populate-cache`, then reuse across runs
-- **Performance**: <1 ms window access, <2 GB RSS per worker (81× improvement over NPZ)
+- **Health checks**: `modal run deploy/modal/app.py --action check-cache` validates train/dev counts, manifests, and flags stray NPZ files.
+- **Cleanup**: If `check-cache` reports NPZ contamination, run `modal run deploy/modal/clean_stray_npz.py --confirm` (script verifies matching `_data.npy/_labels.npy` before deletion).
+- **NOT**: Direct S3 streaming — always populate the SSD volume first.
+- **Reuse**: Populate once, then reuse across runs (only rerun `populate-cache` when you want a fresh copy).
+- **Performance**: <1 ms window access, <2 GB RSS per worker (81× improvement over NPZ).
 
 ## Configuration (A100-optimized)
 
@@ -141,6 +153,7 @@ experiment:
 - Sensitivity@10FA: >90%
 - Memory: 40-60GB
 - Cost: ~$319
+- Expect the timeout guard to exit every ~23 h; relaunch with `--resume true` to continue.
 
 ## Monitoring & Debugging
 
@@ -158,11 +171,14 @@ experiment:
 
 | Issue | Solution |
 |-------|----------|
-| Cache not found | Run `populate-cache` action first |
-| NaN losses | Confirm gradient clipping (0.5) & cache; optionally enable `BGB_SANITIZE_GRADS=1` while debugging |
-| OOM errors | Reduce batch size to 32 |
-| Slow training | Verify using SSD cache, not S3 |
-| Connection lost | Use `--detach` for long runs |
+| Cache not found | Run `populate-cache`, then `check-cache` to verify counts |
+| Dev manifest warnings / 0 validation windows | Delete dev `manifest.json` and relaunch; loader rebuilds automatically |
+| NaN losses | Confirm gradient clipping (0.5); optionally enable `BGB_SANITIZE_GRADS=1` while debugging |
+| Modal job killed at 24 h | Use v3.9.0+ (timeout guard writes `timeout_exit.pt`); resume with `--resume true` |
+| W&B shows new run after resume | Ensure checkpoint directory is writable so `.wandb_run_id` can be updated |
+| OOM errors | Keep `batch_size: 48`, `gradient_accumulation_steps: 1`; reverting to 32/2 is the fallback |
+| Slow training | Confirm using SSD cache (`/results/cache/tusz_mmap`) instead of S3 |
+| Connection lost | Always run with `--detach` or inside `tmux` |
 
 ### Debug Environment Variables
 ```bash
@@ -170,6 +186,7 @@ experiment:
 export BGB_NAN_DEBUG=1           # Verbose NaN reporting
 # export BGB_SANITIZE_GRADS=1    # Optional: zero/log non-finite gradients
 export BGB_DEBUG_FINITE=1        # Check tensor finiteness
+export BGB_WALL_CLOCK_LIMIT_S=82800  # (Modal sets automatically) timeout guard writes timeout_exit.pt
 
 # Limit data for testing
 export BGB_LIMIT_FILES=50        # Use only 50 files
@@ -226,6 +243,8 @@ modal secret create wandb WANDB_API_KEY=<key>
 
 # Cache Management
 modal run --detach deploy/modal/app.py --action populate-cache
+modal run deploy/modal/app.py --action check-cache
+modal run deploy/modal/clean_stray_npz.py --confirm
 
 # Testing
 modal run deploy/modal/app.py --action test-mamba

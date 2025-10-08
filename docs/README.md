@@ -271,26 +271,24 @@ This documentation follows the **Diátaxis framework**:
 
 ## 🎯 Project Status
 
-**Current Version**: v3.8.2 (October 6, 2025) - Zero Warnings
+**Current Version**: v3.9.0 (October 8, 2025) – Production Training Baseline
 
 **Recent Milestones**:
-- ✅ v3.8.2 (Oct 6): Zero warnings - copy-on-read tensors + AMP scheduler guard
-- ✅ v3.8.1 (Oct 6): Complete tensor safety - all datasets fixed (EEGWindowDataset .clone() added)
-- ✅ v3.8.0 (Oct 6): NPZ contamination eliminated, zero active debt
-- ✅ v3.7.0 (Oct 5): All P2/P3 debt eliminated
-- ✅ v3.6.2 (Oct 5): Complete debt elimination baseline
-- ✅ v3.4.1 (Oct 1): Optional warmup schedules
-- ✅ v3.3.1 (Sept 30): Eigendecomposition fix - zero gradient explosions
+- ✅ v3.9.0 (Oct 8): Atomic checkpoints, timeout guard, W&B persistence, Modal training live
+- ✅ v3.8.3 (Oct 7): Manifest naming cleanup, zero technical debt
+- ✅ v3.8.2 (Oct 6): Zero warnings – copy-on-read tensors + AMP scheduler guard
+- ✅ v3.8.1 (Oct 6): Complete tensor safety – all datasets fixed (EEGWindowDataset `.clone()`)
+- ✅ v3.8.0 (Oct 6): NPZ contamination eliminated, cache tooling consolidated
 
 **Current Status**:
-- ✅ **Modal smoke test** (Oct 6): PASSED - All systems validated
-- 🔄 **Full Modal training** (Oct 6): IN PROGRESS - 100 epochs on A100-80GB (app: ap-uitgvl8kXZoKJ4fZoSehsI)
+- ✅ **Modal training**: LIVE – 100 epochs on A100-80GB (app: ap-weaDyLGsgK5TEz8sLLOxO6), resumes every ~23 h via timeout guard
+- ✅ **Smoke tests**: PASS – Local (3 files) & Modal (50 files) validated after each change
 - ✅ **Technical debt**: ZERO active issues (P0/P1/P2/P3 all resolved)
 
 **Next Steps**:
-- [ ] Complete 100-epoch training run (~100 hours)
-- [ ] Full TAES evaluation on dev set
-- [ ] Achieve <1 FA/24h @ >75% sensitivity
+- [ ] Monitor/relauch Modal run after each timeout guard exit (`--resume true`)
+- [ ] Full TAES evaluation on dev set once training completes
+- [ ] Tune post-processing for <1 FA/24 h @ >75 % sensitivity
 
 ---
 

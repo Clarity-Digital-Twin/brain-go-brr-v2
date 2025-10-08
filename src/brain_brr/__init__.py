@@ -6,15 +6,14 @@ V3 dual-stream architecture combining:
 - GNN (Graph Neural Network) with dynamic Laplacian positional encoding
 - Multi-head gated fusion for node/edge stream combination
 
-v3.8.3: Manifest Naming Cleanup - Zero Technical Debt
-- Eliminates NPZ-style naming from manifests (now uses *_data.npy directly)
-- Removed all 11 .replace("_windows", "") string manipulation workarounds
-- Simplified cache_utils.py and datasets.py for better maintainability
-- Regenerated manifests: train (303,990 windows), dev (148,224 windows)
-- Zero P0/P1/P2/P3 technical debt remaining
+v3.9.0: Production Training Baseline – Bulletproof Resume
+- Atomic checkpoint saves (temp + fsync + rename) with AMP scaler & RNG capture
+- Wall-clock timeout guard exits ~23 h with timeout_exit.pt (Modal-friendly resume)
+- Metric key normalization + W&B run persistence for seamless dashboards
+- Documentation refreshed for Modal operations / checkpoint strategy
 """
 
-__version__ = "3.8.3"
+__version__ = "3.9.0"
 
 # NO HEAVY IMPORTS AT PACKAGE LEVEL
 # Models should be imported explicitly when needed:

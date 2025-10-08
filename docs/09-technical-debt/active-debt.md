@@ -1,13 +1,13 @@
 # Active Technical Debt
 
-**Last Updated**: 2025-10-07
-**Status**: 🟢 **0 P0/P1/P2/P3 issues** (all debt resolved!)
+**Last Updated**: 2025-10-08
+**Status**: 🟢 **0 P0/P1/P2/P3 issues** (all debt resolved!) — v3.9.0 production training baseline
 
 ---
 
 ## P3: Minor Cleanup (Non-Blocking)
 
-**🎉 ALL RESOLVED** as of v3.8.3
+**🎉 ALL RESOLVED** as of v3.9.0
 
 ---
 
@@ -19,7 +19,7 @@
 **Impact**: Micro-performance (~1-2% potential gain)
 **Effort**: ~30 minutes
 
-**Current Pattern** (v3.8.2):
+**Current Pattern** (v3.9.0):
 ```python
 torch.from_numpy(np.array(window, copy=True, dtype=np.float32, order="C"))
 ```
