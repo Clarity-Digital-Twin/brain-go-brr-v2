@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.brain_brr.config.schemas import Config, ExperimentConfig, WandBConfig
+from src.brain_brr.config.schemas import Config, ExperimentConfig, WandbConfig
 from src.brain_brr.train.wandb_integration import WandBLogger
 
 
@@ -22,7 +22,7 @@ def mock_config():
     """Create config with W&B enabled."""
     config = Config()
     config.experiment = ExperimentConfig()
-    config.experiment.wandb = WandBConfig(
+    config.experiment.wandb = WandbConfig(
         enabled=True, project="test-project", entity="test-entity"
     )
     config.experiment.name = "test-run"
@@ -235,7 +235,7 @@ class TestWandBGracefulFallback:
         """Should disable W&B if not in config."""
         config = Config()
         config.experiment = ExperimentConfig()
-        config.experiment.wandb = WandBConfig(enabled=False)
+        config.experiment.wandb = WandbConfig(enabled=False)
 
         logger = WandBLogger(config, resume=False)
 
