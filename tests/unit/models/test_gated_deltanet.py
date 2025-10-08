@@ -114,11 +114,15 @@ class TestBiGatedDeltaNetForward:
         assert y.dtype == torch.bfloat16
 
     def test_edge_stream_shape_preservation(self):
-        """Test edge stream preserves shape through forward pass."""
+        """Test edge stream preserves shape through forward pass.
+
+        Note: Uses d_model=32 instead of production edge stream d_model=16
+        due to FLA causal_conv1d requirement (channels divisible by 8+).
+        """
         model = (
             BiGatedDeltaNet(
-                d_model=24,
-                headdim=6,
+                d_model=32,
+                headdim=8,
                 num_layers=2,
                 conv_size=4,
                 fusion_mode="sum",
@@ -127,7 +131,7 @@ class TestBiGatedDeltaNetForward:
             .to(torch.bfloat16)
         )
 
-        batch, edges, channels, length = 2, 171, 24, 960
+        batch, edges, channels, length = 2, 171, 32, 960
         x = torch.randn(batch * edges, channels, length, device="cuda", dtype=torch.bfloat16)
 
         y = model(x)
