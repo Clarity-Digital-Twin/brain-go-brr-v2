@@ -277,14 +277,21 @@ class TestValidationDatasetEdgeCases:
             cache_dir = Path(tmpdir)
             yield cache_dir
 
-    def test_missing_manifest_raises_error(self, temp_cache_dir):
+    def test_missing_manifest_builds_automatically(self, temp_cache_dir):
+        data_file = temp_cache_dir / "patient_001_data.npy"
+        labels_file = temp_cache_dir / "patient_001_labels.npy"
+        np.save(data_file, np.random.randn(5, 19, 15360).astype(np.float32))
+        np.save(labels_file, np.zeros((5,), dtype=np.int64))
+
         allowed_cache_files = {"patient_001_data.npy"}
 
-        with patch("src.brain_brr.data.datasets.logger"), pytest.raises(FileNotFoundError):
-            ValidationDataset(
+        with patch("src.brain_brr.data.datasets.logger"):
+            dataset = ValidationDataset(
                 cache_dir=str(temp_cache_dir),
                 allowed_cache_files=allowed_cache_files,
             )
+
+            assert len(dataset) == 5
 
     def test_corrupted_manifest_raises_error(self, temp_cache_dir):
         manifest_path = temp_cache_dir / "manifest.json"
