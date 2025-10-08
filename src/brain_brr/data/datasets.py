@@ -337,6 +337,7 @@ class BalancedSeizureDataset(Dataset):
         self,
         cache_dir: Path,
         *,
+        file_list: list[Path] | None = None,
         full_ratio: float = 0.3,
         background_ratio: float = 2.5,
         seed: int | None = 42,
@@ -346,6 +347,7 @@ class BalancedSeizureDataset(Dataset):
 
         Args:
             cache_dir: Path to cache directory containing NPZ files and manifest.json
+            file_list: Optional list of cache files to limit dataset to (for smoke tests)
             full_ratio: Ratio of full-seizure windows to partial (default: 0.3)
             background_ratio: Ratio of no-seizure windows to partial (default: 2.5)
             seed: Random seed for reproducible sampling (default: 42)
@@ -365,6 +367,14 @@ class BalancedSeizureDataset(Dataset):
         partial: list[dict] = list(manifest.get("partial_seizure", []))
         full: list[dict] = list(manifest.get("full_seizure", []))
         no_seizure: list[dict] = list(manifest.get("no_seizure", []))
+
+        if file_list is not None:
+            file_basenames = {f.name for f in file_list}
+            partial = [item for item in partial if Path(item["cache_file"]).name in file_basenames]
+            full = [item for item in full if Path(item["cache_file"]).name in file_basenames]
+            no_seizure = [
+                item for item in no_seizure if Path(item["cache_file"]).name in file_basenames
+            ]
 
         # Validate we have seizures to work with
         if not partial:

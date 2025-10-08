@@ -685,7 +685,7 @@ def main() -> None:
     train_dataset: BalancedSeizureDataset | EEGWindowDataset
     if use_balanced and manifest_path.exists():
         try:
-            train_dataset = BalancedSeizureDataset(train_cache_dir)
+            train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=train_files)
             logger.info(
                 f"[DATASET] BalancedSeizureDataset: {len(train_dataset)} windows from manifest"
             )
@@ -827,7 +827,7 @@ def main() -> None:
             _ = scan_existing_cache(train_cache_dir)
             if manifest_path.exists():
                 # Switch to BalancedSeizureDataset now that manifest exists
-                train_dataset = BalancedSeizureDataset(train_cache_dir)
+                train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=train_files)
                 logger.info(
                     f"[DATA] Switched to BalancedSeizureDataset: {len(train_dataset)} windows"
                 )
