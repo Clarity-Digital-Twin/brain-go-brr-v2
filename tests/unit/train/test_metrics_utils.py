@@ -32,7 +32,10 @@ class TestNormalizeMetricKey:
     def test_normalize_edge_cases(self):
         """Edge cases like empty string or unusual formats."""
         assert normalize_metric_key("") == ""
-        assert normalize_metric_key("sensitivity_at_10.0fa_precision") == "sensitivity_at_10fa_precision"
+        assert (
+            normalize_metric_key("sensitivity_at_10.0fa_precision")
+            == "sensitivity_at_10fa_precision"
+        )
 
 
 class TestNormalizeMetricsDict:
