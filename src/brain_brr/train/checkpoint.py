@@ -185,6 +185,8 @@ def load_checkpoint(
         logger.warning("[CHECKPOINT] No RNG state in checkpoint (old checkpoint?)")
 
     epoch = checkpoint["epoch"]
-    best_metric = checkpoint.get("best_metric", float("inf"))
+    # Backward compat: try best_metric, fallback to metric, then 0.0
+    # This prevents inf from propagating through old checkpoints
+    best_metric = checkpoint.get("best_metric", checkpoint.get("metric", 0.0))
 
     return epoch, best_metric
