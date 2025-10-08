@@ -289,36 +289,54 @@ Possible causes:
 
 ## 🔧 Investigation Commands
 
-### On Modal (via check_cache function)
+### 1. Run Enhanced Cache Check (PRIMARY)
 
 ```bash
-modal run deploy/modal/app.py --action check-cache
+# Run the enhanced check_cache() with dev manifest inspection
+modal run deploy/modal/app.py::check_cache
 ```
 
-**Expected output we need**:
+**What it will show**:
+- ✅/❌ Dev cache file counts (expect 1832 NPY files)
+- ✅/❌ Dev manifest existence and size
+- 🔍 **NEW**: Dev manifest deep inspection:
+  - Total windows in manifest
+  - Sample manifest entry format
+  - File existence check
+  - Naming mismatch diagnosis (NPZ vs NPY)
+  - Actual file names on disk for comparison
+
+**Expected diagnosis**:
 ```
-Dev Split (/results/cache/tusz_mmap/dev):
-  manifest.json:         ✅ or ❌
-  _dataset_index.json:   ✅ or ❌
-  *_data.npy files:      ✅ 1832 or ⚠️  N
-  *_labels.npy files:    ✅ 1832 or ⚠️  N
+[DEV SPLIT]
+  manifest.json:         ✅ (XXX bytes) [REQUIRED for ValidationDataset]
+  *_data.npy files:      ✅ 1,832 (expected 1832)
+
+  🔍 DEV MANIFEST INSPECTION:
+     Windows: 7944 partial + 3536 full + 136744 bg = 148224 total
+     Sample ref: aaaaaajy_s001_t000_windows.npz   ← OLD NPZ NAMING!
+     File check: ❌ aaaaaajy_s001_t000_windows.npz MISSING!
+     Actual files on disk (first 5):
+       - aaaaaajy_s001_t000_data.npy   ← NEW NPY NAMING
+       - ...
+     ⚠️  DIAGNOSIS: Manifest uses OLD NPZ naming!
+     💡 FIX: Rebuild dev manifest with scan_existing_cache()
 ```
 
-### Inspect Dev Manifest Content
+### 2. Alternative: Use inspect_volume.py
 
 ```bash
-# View first entry in dev manifest
-modal run deploy/modal/app.py --action inspect-manifest --split dev
+# Uses the existing inspect_volume.py script
+modal run deploy/modal/inspect_volume.py
 ```
 
-### List Dev Cache Files
+This shows broader volume structure but less detail on manifest validity.
+
+### 3. Manual File Listing (if needed)
 
 ```bash
-# Count files
-modal run --detach -q "python -c 'from pathlib import Path; print(len(list(Path(\"/results/cache/tusz_mmap/dev\").glob(\"*_data.npy\"))))'"
-
-# Show first 10 filenames
-modal run --detach -q "python -c 'from pathlib import Path; [print(p.name) for p in sorted(Path(\"/results/cache/tusz_mmap/dev\").glob(\"*_data.npy\"))[:10]]'"
+# Count dev cache files directly
+modal run deploy/modal/app.py::check_cache  # Already includes this!
 ```
 
 ## 🎯 Proposed Fix Strategy (DO NOT IMPLEMENT YET)
