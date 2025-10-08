@@ -10,7 +10,7 @@
 **Active Work**: None - codebase is ready for production training
 
 **In Progress**:
-- Modal full training (batch 1080+/1284, epoch 1, v3.8.3 baseline)
+- Modal full training (100 epochs, v3.9.0 production baseline, app: ap-weaDyLGsgK5TEz8sLLOxO6)
 
 **Next Steps**:
 1. Monitor Modal training completion (~100 hours total)

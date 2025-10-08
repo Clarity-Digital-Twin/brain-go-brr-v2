@@ -34,7 +34,7 @@
 - ✅ **Comprehensive Validation**: Pre-training validation report, metrics pipeline verified from first principles
 - ✅ **Test Suite Enhancement**: Manifest validation tests, checkpoint robustness tests, 75%+ coverage maintained
 - ✅ **Full Training Launched**: Modal A100-80GB (100 epochs, app: ap-weaDyLGsgK5TEz8sLLOxO6)
-- ✅ **Documentation**: MODAL_TRAINING_DIAGNOSTICS.md + PRE_TRAINING_VALIDATION.md added to root
+- ✅ **Documentation**: PRE_TRAINING_VALIDATION.md (root) + updated `docs/05-training/modal.md`; full historical analysis archived at `docs/archive_v1/MODAL_TRAINING_DIAGNOSTICS.md`
 
 ### v3.8.3 - Manifest Naming Cleanup (October 7, 2025)
 - ✅ Regenerated train manifest: 303,990 windows across 4438 NPY files

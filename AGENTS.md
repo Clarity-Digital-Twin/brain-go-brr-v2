@@ -1,27 +1,30 @@
 # AGENTS.md
 
-This document is automatically consumed by AI coding agents. It summarises the **current** Brain-Go-Brr v3.8.2 baseline so every task starts with the right context.
+This document is automatically consumed by AI coding agents. It summarises the **current** Brain-Go-Brr v3.9.0 production baseline so every task starts with the right context.
 
 ---
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.8.2 – "Zero Warnings" – is a clinical EEG seizure detector built on the **V3 dual-stream architecture**:
+Brain-Go-Brr v3.9.0 – “Bulletproof Resume” – is a clinical EEG seizure detector built on the **V3 dual-stream architecture**:
 
 - **TCN** (8 layers, stride_down=16) for multi-scale temporal encoding.
 - **Node BiMamba-2** (6 layers, d_model=64) for O(N) global context per electrode.
 - **Edge BiMamba-2** (2 layers, d_model=16) for learned adjacency dynamics.
 - **GNN (SSGConv)** with **dynamic Laplacian positional encoding** (α=0.05, k=16, sign-consistent eigenvectors).
 - **Gated fusion** for node/edge streams, plus clamping safeguards (edge_similarity_margin = 0.01).
+- **Atomic checkpoints** capture model, optimizer, scheduler, AMP scaler, and RNG for deterministic resume.
+- **Timeout guard** exits ~23 h (before Modal’s 24 h kill) and writes `timeout_exit.pt` with full state.
+- **W&B persistence** stores `.wandb_run_id` in the checkpoint directory so resumes continue the same run.
 
 Key properties:
-- Entire cache pipeline now uses **memory-mapped `_data.npy` / `_labels.npy` pairs** (no NPZ writes anywhere).
-- Datasets operate in **read-only** mode with **NumPy copy-on-read tensors** so PyTorch never emits writable warnings; cache misses raise helpful errors directing the user to repopulate.
-- Technical debt is at zero: lint, type checks, and full test/clinical suites are green (104 unit/integration + clinical, 83.8% cov) with **zero runtime warnings**.
-- Mixed-precision runs now **guard the LR scheduler** so it only advances after a real optimizer step—no skipped-step warnings, accurate warmup/cosine decay.
-- Modal automation: `check-cache` validates counts, and `clean_stray_npz.py` removes accidental NPZ files after aborted runs.
+- Cache pipeline uses **memory-mapped `_data.npy` / `_labels.npy` pairs** only (datasets are read-only and fail-fast on cache miss).
+- NumPy copy-on-read tensors eliminate PyTorch read-only warnings.
+- Technical debt is zero: lint, format, mypy, config validation, and 104 tests (83.8 % cov) are green with **zero runtime warnings**.
+- Mixed-precision runs guard the LR scheduler so it only advances after a real optimizer step—no skipped-step warnings, accurate warmup/cosine decay.
+- Modal automation: `check-cache` validates cache health / manifests; `clean_stray_npz.py` removes accidental NPZ files; training sets `BGB_WALL_CLOCK_LIMIT_S=82800` for the timeout guard.
 
-See `docs/04-model/v3-architecture.md` and `docs/04-model/v3-stability-evolution.md` for architecture and safeguard details.
+See `docs/05-training/modal.md`, `docs/05-training/checkpoint-strategy.md`, and `docs/04-model/v3-architecture.md` for deep dives on architecture and safeguards.
 
 ---
 
@@ -60,11 +63,17 @@ modal run --detach deploy/modal/app.py --action populate-cache
 # Verify CUDA availability
 modal run deploy/modal/app.py --action test-mamba
 
+# Cache health / manifest sanity
+modal run deploy/modal/app.py --action check-cache
+
 # Smoke test (50 files, 1 epoch)
 modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
 
-# Full training (detached long run)
+# Full training (exits ~23h with timeout_exit.pt, resume required)
 modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+
+# Resume after timeout / interrupts
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml --resume true
 
 # Monitoring helpers
 modal app list
@@ -126,6 +135,8 @@ training:
   gradient_accumulation_steps: 1
   mixed_precision: true
   gradient_clip: 0.5
+  mid_checkpoint_interval_s: 1800
+  mid_epoch_keep: 3
 model:
   graph:
     edge_similarity_margin: 0.01
@@ -134,7 +145,7 @@ resources:
   memory: 98304
 ```
 
-Both environments rely on the same mmap cache produced by `populate-cache`. Datasets never regenerate cache files.
+Both environments rely on the same mmap cache produced by `populate-cache`. Datasets never regenerate cache files; cache misses raise a descriptive error instructing you to rebuild.
 
 ---
 
@@ -179,13 +190,16 @@ export BGB_SANITIZE_GRADS=1     # Debug utility (logs/zeros NaN grads) – optio
 export BGB_SMOKE_TEST=1         # Local smoke helper (3 files)
 export BGB_LIMIT_FILES=50       # Custom file cap
 
-# Cache maintenance
-export BGB_FORCE_MANIFEST_REBUILD=1   # Force manifest regeneration
+# Cache maintenance / manifest rebuild
+export BGB_FORCE_MANIFEST_REBUILD=1   # Force manifest regeneration locally
+
+# Timeout guard (Modal sets 82800 automatically)
+export BGB_WALL_CLOCK_LIMIT_S=82800
 
 # WSL2
 export UV_LINK_MODE=copy
 ```
-Modal sets `BGB_NAN_DEBUG=1`, `BGB_LIMIT_FILES=50`, and logging cadence automatically.
+Modal sets `BGB_NAN_DEBUG=1`, `BGB_LIMIT_FILES=50`, timeout guard, and logging cadence automatically.
 
 ---
 
@@ -195,8 +209,11 @@ Modal sets `BGB_NAN_DEBUG=1`, `BGB_LIMIT_FILES=50`, and logging cadence automati
 |-------|------------|
 | Wrong cache path | Local: `cache/tusz_mmap/`; Modal: `/results/cache/tusz_mmap/` |
 | Stray NPZ files after aborted runs | `modal run deploy/modal/clean_stray_npz.py --confirm` |
-| Cache miss errors | Run `populate-cache` (Modal) or rebuild locally; datasets no longer create NPZ fallbacks |
+| Dev manifest stale / 0 validation windows | `modal run deploy/modal/app.py --action check-cache` and rebuild manifest if prompted |
+| Cache miss errors | Run `populate-cache` (Modal) or rebuild locally; datasets fail fast and never create NPZ fallbacks |
 | A100 OOM with batch 64 | Use `batch_size: 48`, `gradient_accumulation_steps: 1` |
+| Modal 24 h timeout | Timeout guard writes `timeout_exit.pt`; rerun training with `--resume true` |
+| W&B run duplicates after resume | `.wandb_run_id` saved alongside checkpoints; ensure `wandb` section enabled |
 | NaNs on RTX 4090 | Keep `mixed_precision: false`; optional `BGB_SANITIZE_GRADS=1` when investigating |
 | PyG install failures | Use prebuilt wheels matching Torch 2.5.0 + cu124 |
 | Modal hangs | Ensure `/results` volume has ≥600 GB free; `check-cache` validates counts |
@@ -208,25 +225,23 @@ Modal sets `BGB_NAN_DEBUG=1`, `BGB_LIMIT_FILES=50`, and logging cadence automati
 | Scenario | Time/Epoch | Notes |
 |----------|------------|-------|
 | Local train (batch 8) | ~3 h | ~300 h total for 100 epochs |
-| Modal train (batch 48) | ~1 h | ~100 h total (~$319 @ $3.19/hr blended) |
+| Modal train (batch 48) | ~1 h | ~100 h total (~$319 at $3.19/hr blended) |
 | Smoke tests | ~5 min | Local (3 files) or Modal (50 files) |
 
 Resource usage:
 - VRAM: 20 GB (4090), 58 GB (A100).
 - Cache size: ~50 GB (mmap NPY).
-- Checkpoints: ~125 MB per epoch, mid-epoch snapshots every 30 min (keep last 3).
+- Checkpoints: ~195 MB each; atomic saves keep `best.pt`, `last.pt`, rotating `mid_epoch_*.pt`, plus `timeout_exit.pt` on guard-triggered exits.
 
 ---
 
-## 📌 Current Release – v3.8.2 Summary
-- ✅ **Zero warnings**: NumPy copy-on-read pattern removes read-only tensor warnings; AMP scheduler guard only advances after real optimizer steps.
-- ✅ **Complete tensor safety**: All 3 datasets keep read-only mmap semantics without ever mutating cache data.
-- ✅ Read-only mmap cache pipeline (no NPZ drift possible).
-- ✅ Shared mmap loader (`cache_utils.load_cache_mmap`) with uniform logging.
-- ✅ Modal `check-cache`/`clean_stray_npz.py` health tooling.
-- ✅ Type safety and lint clean (0 blockers).
-- ✅ Documentation + configs fully aligned with reality.
-- ✅ Tests: 104 automated + clinical; 83.8% coverage.
+## 📌 Current Release – v3.9.0 Summary
+- ✅ **Bulletproof checkpoints**: Atomic saves (temp + fsync + rename), AMP scaler capture, RNG persistence.
+- ✅ **Timeout guard**: 23 h wall-clock limit with 10 min safety buffer; writes `timeout_exit.pt`.
+- ✅ **Metric key normalization**: `metrics_utils.normalize_metrics_dict` stops “New best 0.0000” logs.
+- ✅ **W&B persistence**: Run ID saved to `.wandb_run_id` for continuous dashboards across resumes.
+- ✅ **Modal automation**: `check-cache` and `clean_stray_npz.py` surfaced in standard workflow.
+- ✅ **Zero warnings / zero debt**: Lint, type, and tests (104) all green with 83.8 % coverage.
 - 🚧 Next ideas (post-training): optional gradient sanitisation filter, print→logging sweep.
 
-Mission remains unchanged: **<1 FA/24h clinical-grade seizure detection** with a fully reproducible, debt-free codebase.
+Mission remains unchanged: **<1 FA/24 h clinical-grade seizure detection** with a fully reproducible, debt-free codebase.

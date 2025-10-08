@@ -1,9 +1,9 @@
-# Brain-Go-Brr Documentation (v3.8.2)
+# Brain-Go-Brr Documentation (v3.9.0)
 
-**Last Updated**: October 6, 2025
-**Codebase Version**: v3.8.2 (Zero Warnings)
+**Last Updated**: October 8, 2025
+**Codebase Version**: v3.9.0 (Production Training Baseline)
 **Architecture**: V3 Dual-Stream (TCN + BiMamba + GNN + Dynamic LPE)
-**Status**: 🟢 Zero active debt, full Modal training in progress
+**Status**: 🟢 Zero active debt with bulletproof checkpoints, timeout guard, and live Modal training
 
 ---
 
@@ -136,7 +136,7 @@ Learn by doing:
 
 ## ⚙️ Key Technical Details
 
-### Architecture (v3.8.2)
+### Architecture (v3.9.0)
 - **TCN**: 8 layers, channels [64,128,256,512], stride=16
 - **Node Mamba**: 6 layers, d_model=64, bidirectional SSM
 - **Edge Mamba**: 2 layers, d_model=16, learned adjacency
@@ -144,13 +144,16 @@ Learn by doing:
 - **Parameters**: ~31M total
 - **Dynamic PE**: Always enabled with safeguards (v3.3.1+)
 
-### Training Stability (v3.8.2)
-- ✅ **Complete tensor safety** (v3.8.2): All 3 datasets use copy-on-read tensors for mmap safety (no PyTorch warnings)
-- ✅ **Zero NPZ contamination** (v3.8.0): Datasets read-only, fail-fast on cache miss
-- ✅ **Memory-mapped cache** (v3.8.0): <1 GB RAM vs 387 GB NPZ, 99.6% faster startup
-- ✅ **Gradient stability** (v3.8.0): P95 decreasing 62.52 → 7.42 during training
-- ✅ **Zero XID 31 crashes** (v3.4.1+): Unique Triton cache per run
-- ✅ **Eigendecomposition fix** (v3.3.1): Detached eigenvectors prevents gradient explosion
+### Training Stability (v3.9.0)
+- ✅ **Atomic checkpoints**: Temp-file + fsync + rename with AMP scaler & RNG capture (deterministic resume)
+- ✅ **Timeout guard**: Wall-clock monitor exits ~23 h with `timeout_exit.pt` before Modal’s 24 h limit
+- ✅ **Metric normalization**: `metrics_utils.normalize_metrics_dict` eliminates “New best 0.0000” logs
+- ✅ **W&B persistence**: `.wandb_run_id` stored in checkpoint dir for seamless resumes
+- ✅ **Complete tensor safety**: Datasets use copy-on-read tensors for mmap safety (no PyTorch warnings)
+- ✅ **Zero NPZ contamination**: Datasets read-only, fail-fast on cache miss
+- ✅ **Memory-mapped cache**: <1 GB RAM vs 387 GB NPZ, 99.6 % faster startup
+- ✅ **Zero XID 31 crashes**: Unique Triton / Inductor cache per run
+- ✅ **Eigendecomposition fix**: Detached eigenvectors prevents gradient explosion
 - ✅ **3-tier NaN protection**: Gradient clipping (0.5) + monitoring + architectural safeguards
 
 ### Hardware Requirements
@@ -186,7 +189,7 @@ export BGB_NAN_DEBUG=1         # Enable NaN warnings
 | 5 FA/24h | >90% ⭐ |
 | 1 FA/24h | >75% |
 
-**Current status (v3.4.1)**: Architecture validated, full training in progress.
+**Current status (v3.9.0)**: Production training live with bulletproof resume safeguards.
 
 ---
 

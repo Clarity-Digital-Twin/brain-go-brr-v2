@@ -6,7 +6,7 @@
 [![PyTorch 2.5.0](https://img.shields.io/badge/pytorch-2.5.0-red.svg)](https://pytorch.org)
 [![CUDA 12.4](https://img.shields.io/badge/cuda-12.4-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
-[![v3.8.3](https://img.shields.io/badge/version-3.8.3-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.8.3-manifest-naming-cleanup)
+[![v3.9.0](https://img.shields.io/badge/version-3.9.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.9.0-production-training-baseline)
 
 ## Overview
 
@@ -30,7 +30,7 @@ V3 implements a **dual-stream architecture** grounded in state-space models and 
 
 **Theoretical foundation**: [EvoBrain (NeurIPS 2025)](literature/markdown/EVOBRAIN.md) proves time-then-graph ordering achieves +23% AUROC over alternatives.
 
-**Status**: v3.8.3 - Manifest Naming Cleanup Complete. Zero P0/P1/P2/P3 technical debt achieved. Manifests use direct NPY naming, all 11 workaround hacks eliminated, clean maintainable codebase. See [release notes](RELEASE_NOTES.md) for details.
+**Status**: v3.9.0 – Production Training Baseline. Atomic checkpoints + deterministic resume, timeout guard exits before Modal’s 24 h limit, W&B run persistence, and zero technical debt. See [release notes](RELEASE_NOTES.md) for details.
 
 ## 🏗️ Architecture: Theory & Design
 
@@ -313,19 +313,18 @@ We welcome contributions! See [development docs](docs/09-development/) for:
 
 Run `make q` before committing (lint + format + type check).
 
-## Training Status (v3.8.3)
+## Training Status (v3.9.0)
 
-**v3.8.3 – Manifest Naming Cleanup Complete:**
-- ✅ **Zero P0/P1/P2/P3 technical debt** - All priority levels cleared
-- ✅ Manifests now use direct NPY naming (`*_data.npy`) - matches reality
-- ✅ Removed all 11 `.replace("_windows", "")` string manipulation workarounds
-- ✅ Simplified cache_utils.py and datasets.py for better maintainability
-- ✅ Regenerated manifests: train (303,990 windows), dev (148,224 windows)
-- ✅ Verification: 100% NPY naming, 0 NPZ references
-- ✅ Tests: 104 unit/integration + clinical suites, 83.80% coverage, all green
-- ✅ Production-ready for Modal A100-80GB and local RTX 4090
+**v3.9.0 – Production Training Baseline (LIVE):**
+- ✅ **Full Modal A100 training launched** - 100 epochs running (app: ap-weaDyLGsgK5TEz8sLLOxO6)
+- ✅ **Bulletproof checkpoints** - Atomic saves every 30min, AMP scaler + RNG capture, verified integrity
+- ✅ **Timeout guard** - 23h wall-clock limit, 1h safety margin, graceful exit before Modal kill
+- ✅ **Comprehensive validation** - PRE_TRAINING_VALIDATION.md, metrics pipeline verified from first principles
+- ✅ **Test suite enhanced** - Manifest validation, checkpoint robustness, 75%+ coverage maintained
+- ✅ **Zero technical debt** - All P0/P1/P2/P3 issues resolved, production training LIVE
 
 **Previous Milestones:**
+- v3.8.3: Manifest naming cleanup complete, zero P0/P1/P2/P3 debt achieved
 - v3.8.2: Zero PyTorch warnings (NumPy copy-on-read, AMP scheduler guard)
 - v3.8.1: Complete tensor safety across all 3 dataset classes
 - v3.8.0: NPZ cache cleanup, type safety, code deduplication

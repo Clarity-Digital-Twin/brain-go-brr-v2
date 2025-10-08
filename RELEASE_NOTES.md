@@ -33,7 +33,7 @@ Full Modal A100 production training launched with **bulletproof checkpoint syste
 - **Cache integrity**: 0 NPZ contamination, 100% NPY naming verified
 - **Zero blockers found**: P0/P1/P2/P3 all clear
 
-**Files**: `PRE_TRAINING_VALIDATION.md`, `MODAL_TRAINING_DIAGNOSTICS.md`
+**Files**: `PRE_TRAINING_VALIDATION.md`, modal training playbook consolidated into `docs/05-training/modal.md` (historical analysis archived at `docs/archive_v1/MODAL_TRAINING_DIAGNOSTICS.md`)
 
 #### Test Suite Enhancements
 - **Manifest validation tests**: Real code coverage for `check_manifest_stale` function
@@ -64,7 +64,7 @@ Full Modal A100 production training launched with **bulletproof checkpoint syste
 - `checkpoint.py`: Complete rewrite with atomic saves, scaler capture, RNG persistence
 - `timeout_guard.py`: Wall-clock monitoring with safety margin
 - `PRE_TRAINING_VALIDATION.md`: Comprehensive validation report (metrics, gradients, cache)
-- `MODAL_TRAINING_DIAGNOSTICS.md`: Complete Modal training analysis (moved from `docs/archive_v1/`)
+- `docs/05-training/modal.md`: Updated with production timeout/resume workflow (detailed October 7 analysis archived at `docs/archive_v1/MODAL_TRAINING_DIAGNOSTICS.md`)
 
 #### Enhanced Files
 - `loop.py`: Integrated timeout guard, enhanced checkpoint loading
