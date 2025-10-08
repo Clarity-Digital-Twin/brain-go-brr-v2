@@ -736,6 +736,49 @@ def main() -> None:
     val_cache_dir = data_cache_root / val_split_name
     val_manifest_path = val_cache_dir / MANIFEST_FILENAME
 
+    # Validate dev manifest if it exists (prevent stale NPZ-named manifests)
+    if val_manifest_path.exists():
+        logger.debug("[DATA] Validating dev manifest...")
+        try:
+            with val_manifest_path.open() as f:
+                val_manifest_data = json.load(f)
+
+            def validate_manifest(cache_dir: Path, manifest_data: dict) -> bool:
+                """Check if manifest references match actual NPY cache files."""
+                # Sample first entry from each category
+                for category in ["partial_seizure", "full_seizure", "no_seizure"]:
+                    entries = manifest_data.get(category, [])
+                    if entries:
+                        first_entry = entries[0]
+                        cache_file_ref = first_entry.get("cache_file", "")
+
+                        # Check if using old NPZ naming (stale manifest)
+                        if "_windows.npz" in cache_file_ref or ".npz" in cache_file_ref:
+                            logger.warning(
+                                f"[DATA] Manifest uses old NPZ naming: {cache_file_ref}"
+                            )
+                            return False
+
+                        # Check if referenced file exists
+                        cache_file_path = cache_dir / cache_file_ref
+                        if not cache_file_path.exists():
+                            logger.warning(
+                                f"[DATA] Manifest references missing file: {cache_file_ref}"
+                            )
+                            return False
+
+                return True
+
+            if not validate_manifest(val_cache_dir, val_manifest_data):
+                logger.warning(
+                    "[DATA] Invalid/stale dev manifest detected → deleting for rebuild"
+                )
+                val_manifest_path.unlink()
+
+        except Exception as e:
+            logger.warning(f"[DATA] Dev manifest validation failed: {e} → deleting")
+            val_manifest_path.unlink()
+
     # Try ValidationDataset (instant load from manifest)
     # Falls back to EEGWindowDataset if manifest missing
     val_dataset: ValidationDataset | EEGWindowDataset
