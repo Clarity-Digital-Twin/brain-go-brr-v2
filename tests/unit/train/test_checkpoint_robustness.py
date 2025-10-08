@@ -160,8 +160,11 @@ class TestCheckpointScalerPersistence:
             )
 
             new_scaler_state = new_scaler.state_dict()
-            assert "scale" in new_scaler_state
-            assert new_scaler_state["scale"] == scaler_state["scale"]
+
+            if scaler_state:
+                assert new_scaler_state == scaler_state
+            else:
+                assert new_scaler_state == {}
 
 
 class TestCheckpointRNGPersistence:
@@ -391,7 +394,11 @@ class TestCheckpointFullState:
 
             assert epoch == 10
             assert best_metric == 0.92
-            assert scaler_state_after["scale"] == scaler_state_before["scale"]
+
+            if scaler_state_before:
+                assert scaler_state_after == scaler_state_before
+            else:
+                assert scaler_state_after == {}
 
             for key in model_state_before:
                 assert torch.allclose(model_state_before[key], model_state_after[key])
