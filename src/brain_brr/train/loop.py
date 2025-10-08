@@ -190,7 +190,7 @@ def train(
         )
 
     # Mutable state for signal handler (updated during training loop)
-    signal_state = {"epoch": start_epoch, "best_metric": 0.0}
+    signal_state = {"epoch": start_epoch, "best_metric": best_metric}
 
     # Signal handlers for graceful shutdown (SIGTERM from Modal, SIGINT from user)
     def _signal_handler(signum: int, frame: Any) -> None:
