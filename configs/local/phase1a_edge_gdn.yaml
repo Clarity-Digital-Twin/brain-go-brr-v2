@@ -7,13 +7,13 @@
 #
 # Configuration:
 #   - Node stream: BiMamba2 (stable baseline - unchanged)
-#   - Edge stream: BiGatedDeltaNet (experimental - 29% param reduction)
+#   - Edge stream: BiGatedDeltaNet (experimental)
+#   - Edge d_model: 24 (increased from baseline 16 due to FLA causal_conv1d requirement)
 #   - GNN/TCN/Decoder: v3.8.3 baseline (unchanged)
 #
-# Expected outcome:
-#   - Edge stream: 10.3K BiMamba2 params → ~7.3K GDN params (-29% from 0.75× q/k)
-#   - Hypothesis: +5-10% better connectivity → +1-2% sensitivity@10FA
-#   - Risk: VERY LOW (only ~1.8% of stream parameters affected)
+# NOTE: FLA's causal_conv1d requires d_model >= 24 (hardware alignment)
+# This increases edge stream capacity vs baseline (16 → 24 = +50%)
+# Parameter impact will be recalculated after smoke test
 #
 # Usage:
 #   export BGB_LIMIT_FILES=50
@@ -82,7 +82,7 @@ model:
     edge_threshold: 1.0e-4
     edge_mamba_layers: 2
     edge_mamba_d_state: 8
-    edge_mamba_d_model: 16
+    edge_mamba_d_model: 24
     edge_similarity_margin: 0.01
 
     adj_row_softmax: true
