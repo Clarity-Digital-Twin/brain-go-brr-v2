@@ -79,6 +79,9 @@ tcn = [
 #   pip install torch_scatter torch_sparse torch_cluster -f https://data.pyg.org/whl/torch-2.5.0+cu124.html
 #   pip install torch-geometric==2.6.1
 graph = []  # Placeholder - see installation instructions above
+fla = [
+    "flash-linear-attention>=0.3.0,<0.4.0",  # FLA library for Gated DeltaNet experiments
+]
 
 [tool.uv]
 managed = true
@@ -251,5 +254,6 @@ module = [
     "torch_scatter.*",
     "torch_sparse.*",
     "torch_cluster.*",
+    "fla.*",
 ]
 ignore_missing_imports = true

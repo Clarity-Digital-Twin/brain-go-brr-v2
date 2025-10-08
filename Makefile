@@ -188,6 +188,13 @@ setup-gpu: ## Setup GPU support with mamba-ssm and PyG (requires CUDA 12.4)
 	@.venv/bin/python -c "import pytorch_tcn; print('${GREEN}✓ TCN installed${NC}')"
 	@echo "${GREEN}✓ GPU stack ready (TCN + BiMamba + GNN + LPE; V3)${NC}"
 
+setup-fla: ## Install FLA library for Gated DeltaNet experiments
+	@echo "${CYAN}Installing Flash Linear Attention (FLA) library...${NC}"
+	@uv pip install 'flash-linear-attention>=0.3.0,<0.4.0'
+	@echo "${CYAN}Verifying FLA installation...${NC}"
+	@.venv/bin/python -c "from fla.layers import GatedDeltaNet; print('${GREEN}✓ FLA library ready (Gated DeltaNet available)${NC}')"
+	@echo "${YELLOW}Note: FLA is experimental. BiMamba2 remains the default.${NC}"
+
 hooks: ## Run pre-commit hooks on all files
 	@echo "${CYAN}Running pre-commit hooks...${NC}"
 	.venv/bin/pre-commit run --all-files || uv run pre-commit run --all-files

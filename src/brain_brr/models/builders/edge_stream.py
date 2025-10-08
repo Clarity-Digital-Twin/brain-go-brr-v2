@@ -1,10 +1,20 @@
 """Edge stream builder - per-edge BiMamba component with learned lift/project."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import torch.nn as nn
 
-from src.brain_brr.constants import LAYERSCALE_ALPHA_FALLBACK
+from src.brain_brr.constants import (
+    EDGE_D_MODEL,
+    EDGE_D_STATE,
+    EDGE_EXPAND,
+    EDGE_HEADDIM_BIMAMBA2,
+    EDGE_NUM_LAYERS,
+    GDN_EDGE_HEADDIM_DEFAULT,
+    GDN_EDGE_NUM_HEADS_DEFAULT,
+    GDN_FUSION_MODE_DEFAULT,
+    LAYERSCALE_ALPHA_FALLBACK,
+)
 
 from ..mamba import BiMamba2
 from ..norms import create_norm_layer
@@ -12,13 +22,22 @@ from ..norms import create_norm_layer
 if TYPE_CHECKING:
     from src.brain_brr.config.schemas import ModelConfig
 
+try:
+    from fla.layers import GatedDeltaNet as FLAGatedDeltaNet
+
+    from ..gated_deltanet import BiGatedDeltaNet
+
+    FLA_AVAILABLE = True
+except ImportError:
+    FLA_AVAILABLE = False
+
 
 class EdgeStreamComponents:
     """Container for edge stream components (avoids tuple unpacking)."""
 
     def __init__(
         self,
-        edge_mamba: BiMamba2,
+        edge_mamba: Union[BiMamba2, "BiGatedDeltaNet"],
         edge_in_proj: nn.Conv1d,
         edge_out_proj: nn.Conv1d,
         edge_activate: nn.Softplus,

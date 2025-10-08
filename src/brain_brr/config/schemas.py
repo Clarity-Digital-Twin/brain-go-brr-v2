@@ -10,6 +10,7 @@ from src.brain_brr.constants import (
     BANDPASS_LOW_HZ,
     DROPOUT_MAMBA,
     DROPOUT_TCN,
+    EDGE_D_MODEL,
     EPSILON_LAPLACIAN,
     EPSILON_NORM,
     EPSILON_NUMERICAL,
@@ -18,6 +19,12 @@ from src.brain_brr.constants import (
     FOCAL_GAMMA_DEFAULT,
     FOCAL_GAMMA_WARMUP_END,
     FOCAL_GAMMA_WARMUP_START,
+    GDN_EDGE_HEADDIM_DEFAULT,
+    GDN_EDGE_NUM_HEADS_DEFAULT,
+    GDN_FUSION_MODE_DEFAULT,
+    GDN_NODE_HEADDIM_DEFAULT,
+    GDN_NODE_NUM_HEADS_DEFAULT,
+    GDN_QK_PROJECTION_RATIO,
     HYSTERESIS_TAU_OFF,
     HYSTERESIS_TAU_ON,
     MAX_EVENT_DURATION_S,
@@ -25,6 +32,7 @@ from src.brain_brr.constants import (
     MORPHOLOGY_CLOSING_KERNEL,
     MORPHOLOGY_OPENING_KERNEL,
     N_CHANNELS,
+    NODE_D_MODEL,
     NOTCH_FILTER_HZ,
     SAMPLING_RATE,
     STRIDE_SIZE_SEC,
@@ -113,7 +121,7 @@ class PreprocessingConfig(StrictModel):
 
 
 class MambaConfig(StrictModel):
-    """Bi-Mamba-2 configuration."""
+    """Mamba/GDN configuration with optional temporal layer selection."""
 
     n_layers: int = Field(default=6, ge=1, le=12, description="Number of Mamba layers")
     d_model: Literal[512] = Field(default=512, description="Model dimension")
@@ -122,6 +130,96 @@ class MambaConfig(StrictModel):
         default=4, ge=2, le=4, description="Mamba convolution kernel (CUDA supports 2-4)"
     )
     dropout: float = Field(default=DROPOUT_MAMBA, ge=0.0, le=0.5, description="Dropout rate")
+
+    temporal_type: Literal["bimamba2", "gated_deltanet"] = Field(
+        default="bimamba2",
+        description="SSM type: bimamba2 (stable default) or gated_deltanet (experimental via FLA)",
+    )
+
+    temporal_type_node: Literal["bimamba2", "gated_deltanet"] | None = Field(
+        default=None,
+        description="Override temporal_type for node stream (None = use global temporal_type)",
+    )
+    temporal_type_edge: Literal["bimamba2", "gated_deltanet"] | None = Field(
+        default=None,
+        description="Override temporal_type for edge stream (None = use global temporal_type)",
+    )
+
+    gdn_fusion_mode: Literal["sum", "concat"] = Field(
+        default=GDN_FUSION_MODE_DEFAULT,
+        description="Bidirectional fusion: 'sum' (lower capacity) or 'concat' (higher capacity)",
+    )
+    gdn_allow_neg_eigval: bool = Field(
+        default=False,
+        description="Allow β_t ∈ (0,2) for better state tracking (research feature, start false)",
+    )
+
+    hybrid_attention: "HybridAttentionConfig | None" = Field(
+        default=None,
+        description="Hybrid GDN+SWA configuration (Phase 3 only, requires Phase 2 success)",
+    )
+
+    @model_validator(mode="after")
+    def validate_gdn_constraints(self) -> "MambaConfig":
+        """Validate GDN-specific 0.75× constraint."""
+        if (
+            self.temporal_type == "gated_deltanet"
+            or self.temporal_type_node == "gated_deltanet"
+            or self.temporal_type_edge == "gated_deltanet"
+        ):
+            node_constraint = GDN_NODE_NUM_HEADS_DEFAULT * GDN_NODE_HEADDIM_DEFAULT
+            if node_constraint != int(NODE_D_MODEL * GDN_QK_PROJECTION_RATIO):
+                raise ValueError(
+                    f"Node stream GDN constraint violated: "
+                    f"num_heads({GDN_NODE_NUM_HEADS_DEFAULT}) × headdim({GDN_NODE_HEADDIM_DEFAULT}) "
+                    f"= {node_constraint} must equal {int(NODE_D_MODEL * GDN_QK_PROJECTION_RATIO)} "
+                    f"(0.75 × {NODE_D_MODEL})"
+                )
+
+            edge_constraint = GDN_EDGE_NUM_HEADS_DEFAULT * GDN_EDGE_HEADDIM_DEFAULT
+            if edge_constraint != int(EDGE_D_MODEL * GDN_QK_PROJECTION_RATIO):
+                raise ValueError(
+                    f"Edge stream GDN constraint violated: "
+                    f"num_heads({GDN_EDGE_NUM_HEADS_DEFAULT}) × headdim({GDN_EDGE_HEADDIM_DEFAULT}) "
+                    f"= {edge_constraint} must equal {int(EDGE_D_MODEL * GDN_QK_PROJECTION_RATIO)} "
+                    f"(0.75 × {EDGE_D_MODEL})"
+                )
+
+        return self
+
+
+class HybridAttentionConfig(StrictModel):
+    """Hybrid GDN+SWA configuration (Phase 3 only)."""
+
+    enabled: bool = Field(default=False, description="Enable hybrid GDN+SWA architecture")
+    layers: list[int] = Field(
+        default_factory=list,
+        description="Layer indices for SWA replacement (e.g., [2, 5] for 6-layer stack)",
+    )
+    window_size: int = Field(
+        default=256,
+        ge=64,
+        le=1024,
+        description="SWA window size in samples (256 = 1 second @ 256Hz)",
+    )
+    overlap_ratio: float = Field(
+        default=0.5,
+        ge=0.0,
+        lt=1.0,
+        description="SWA window overlap ratio (0.5 = 50% overlap)",
+    )
+
+    @field_validator("layers")
+    @classmethod
+    def validate_layers(cls, v: list[int]) -> list[int]:
+        """Validate layer indices for hybrid architecture."""
+        if not v:
+            raise ValueError("layers must not be empty when hybrid_attention enabled")
+        if any(x < 0 or x >= 6 for x in v):
+            raise ValueError("layer indices must be in range [0, 6) for 6-layer node stream")
+        if len(v) != len(set(v)):
+            raise ValueError("layer indices must be unique (no duplicates)")
+        return sorted(v)
 
 
 # Legacy decoder config removed in V3-only schema

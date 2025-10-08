@@ -351,6 +351,80 @@ LAYERSCALE_ALPHA_FALLBACK: float = 0.1
 """Fallback LayerScale alpha when config is missing (defensive default)."""
 
 # ==============================================================================
+# FLA / Gated DeltaNet Constants (v4.0+)
+# ==============================================================================
+
+FLA_LIBRARY_NAME: str = "flash-linear-attention"
+"""PyPI package name for Flash Linear Attention library."""
+
+FLA_MIN_VERSION: str = "0.3.0"
+"""Minimum FLA library version (tested and compatible)."""
+
+FLA_MAX_VERSION: str = "0.4.0"
+"""Maximum FLA library version (API stability boundary)."""
+
+GDN_QK_PROJECTION_RATIO: float = 0.75
+"""GDN design: 0.75× q/k projection for parameter efficiency.
+
+Source: ICLR 2025 paper (arxiv.org/abs/2412.06464), Section 3.2
+Maintains ~6× hidden_size² parameter budget when use_gate=True.
+"""
+
+GDN_FUSION_MODE_DEFAULT: str = "sum"
+"""Bidirectional fusion default: 'sum' (additive) is simpler than 'concat'."""
+
+GDN_ALLOW_NEG_EIGVAL_DEFAULT: bool = False
+"""Conservative default: disable β_t ∈ (0,2) until validated."""
+
+GDN_USE_SHORT_CONV_DEFAULT: bool = True
+"""CRUCIAL: Short convolution (ablation shows 5.6% ppl drop if disabled)."""
+
+GDN_USE_GATE_DEFAULT: bool = True
+"""CRUCIAL: Output gating (ablation shows 6.5% ppl drop if disabled)."""
+
+NODE_D_MODEL: int = 64
+"""Node stream model dimension (per-electrode features)."""
+
+NODE_D_STATE: int = 16
+"""Node stream SSM state dimension."""
+
+NODE_NUM_LAYERS: int = 6
+"""Node stream number of bidirectional layers."""
+
+NODE_EXPAND: int = 2
+"""Node stream expansion factor for inner dimension."""
+
+NODE_HEADDIM_BIMAMBA2: int = 8
+"""BiMamba2 node stream head dimension (no constraint)."""
+
+GDN_NODE_HEADDIM_DEFAULT: int = 8
+"""GDN node stream head dimension: 6 heads × 8 = 48 = 0.75 × 64."""
+
+GDN_NODE_NUM_HEADS_DEFAULT: int = 6
+"""GDN node stream number of heads (computed from 0.75× constraint)."""
+
+EDGE_D_MODEL: int = 16
+"""Edge stream model dimension (inter-electrode connectivity)."""
+
+EDGE_D_STATE: int = 8
+"""Edge stream SSM state dimension."""
+
+EDGE_NUM_LAYERS: int = 2
+"""Edge stream number of bidirectional layers."""
+
+EDGE_EXPAND: int = 2
+"""Edge stream expansion factor for inner dimension."""
+
+EDGE_HEADDIM_BIMAMBA2: int = 4
+"""BiMamba2 edge stream head dimension (no constraint)."""
+
+GDN_EDGE_HEADDIM_DEFAULT: int = 4
+"""GDN edge stream head dimension: 3 heads × 4 = 12 = 0.75 × 16."""
+
+GDN_EDGE_NUM_HEADS_DEFAULT: int = 3
+"""GDN edge stream number of heads (computed from 0.75× constraint)."""
+
+# ==============================================================================
 # Metric Key Formatting
 # ==============================================================================
 
