@@ -4,7 +4,7 @@
 **Phase**: 1b (Validation - after Phase 0 infrastructure AND Phase 1a success)
 **Target**: Validate Node Stream with BiGatedDeltaNet (edge stream determined by Phase 1a results)
 **Date**: October 8, 2025
-**Version**: 2.1 (Critical Fixes - Config Preservation + Attribute Path)
+**Version**: 2.2 (Validation Strategy Update - Smoke-Only)
 **Status**: Ready for Implementation (AFTER Phase 0 complete AND Phase 1a succeeds)
 
 **⚠️ CRITICAL PREREQUISITES**:
@@ -13,6 +13,7 @@
 3. This doc assumes config schema, constants, dependencies, builders, and tests already exist
 
 **Changelog**:
+- v2.2 (Oct 8, 2025): **VALIDATION STRATEGY UPDATE** - removed 50-file validation (smoke-only, medium validation deferred to Phase 2)
 - v2.1 (Oct 8, 2025): **CRITICAL FIX**: Changed `temporal_type_edge: null` to explicit value (preserves Phase 1a choice)
 - v2.1 (Oct 8, 2025): **CRITICAL FIX**: Fixed attribute path `model.edge_stream.edge_mamba` → `model.edge_mamba`
 - v2.0 (Oct 8, 2025): Removed Phase 0 duplication (builder code moved to Doc 0)
@@ -450,23 +451,28 @@ python -m src train configs/local/phase1b_node_gdn.yaml
 # - Logs show edge stream from Phase 1a
 ```
 
-### 3.2. Full Validation (50 files, 10 epochs)
+### 3.2. Full Validation (DEPRECATED - NEW STRATEGY)
 
-**Purpose**: Validate Phase 1b hypothesis against baseline.
+**⚠️ NO LONGER APPLICABLE** (as of Oct 8, 2025):
 
+Under the new validation strategy, Phase 1b uses **smoke test ONLY** (3 files). Full 50-file validation is **NOT performed** for individual phases.
+
+**NEW STRATEGY**:
+- Phase 1a/1b: Smoke tests only (3 files, quick validation)
+- After Phase 2 complete: ONE medium validation run (40-50 files, 5-6 epochs)
+- Then: Full Modal training for A/B comparison
+
+**Rationale**: 50-file per-phase validation has high variance with 12:1 imbalance, insufficient for statistical significance. Full validation deferred to Phase 2 medium run.
+
+**OLD WORKFLOW** (for reference - DO NOT USE):
 ```bash
-# Run Phase 1b validation
+# OLD: 50-file validation per phase (DEPRECATED)
 export BGB_LIMIT_FILES=50
 python -m src train configs/local/phase1b_node_gdn.yaml
-
-# Monitor during training:
-# - Loss curve (should decrease)
-# - Gradient norms (should be stable)
-# - Memory usage (~20GB on RTX 4090, similar to baseline)
-# - Throughput (may be 5-10% slower than baseline)
-
 # Training time: ~6-8 hours on RTX 4090
 ```
+
+**See**: Doc 1 Implementation Status section for complete validation strategy
 
 ### 3.3. Verify Isolation (Node GDN, Edge from Phase 1a)
 

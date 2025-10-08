@@ -3,13 +3,16 @@
 **Parent Document**: [FLASH_LINEAR_ATTENTION_RESEARCH.md](FLASH_LINEAR_ATTENTION_RESEARCH.md) (Doc 0 - SSOT)
 **Phase**: 1a (Validation - after Phase 0 infrastructure)
 **Target**: Validate Edge Stream with BiGatedDeltaNet (node stays BiMamba2)
-**Date**: October 7, 2025
-**Version**: 2.0 (Coexistence + Infrastructure Prerequisites)
-**Status**: Ready for Implementation (AFTER Phase 0 complete)
+**Date**: October 7, 2025 (Updated: October 8, 2025)
+**Version**: 2.1 (Phase 1a Complete + Validation Strategy Update)
+**Status**: ✅ **IMPLEMENTATION COMPLETE** (October 8, 2025)
 
 **⚠️ CRITICAL PREREQUISITE**: Complete **Doc 0 Section 14 (Phase 0 Infrastructure)** FIRST (4-6 days). This doc assumes config schema, constants, dependencies, builders, and tests already exist.
 
 **Changelog**:
+- v2.1 (Oct 8, 2025): **PHASE 1a COMPLETE** - smoke test v4 passed, marked complete
+- v2.1 (Oct 8, 2025): **VALIDATION STRATEGY UPDATE** - removed 50-file validation (smoke-only per phase, medium validation before Modal)
+- v2.1 (Oct 8, 2025): Added Implementation Status section documenting completion and bugfixes
 - v2.0 (Oct 7, 2025): Removed Phase 0 duplication (wrapper/builder/schema code moved to Doc 0)
 - v2.0 (Oct 7, 2025): Added coexistence strategy (BiMamba2 default, GDN experimental)
 - v2.0 (Oct 7, 2025): Added Phase 0 prerequisites verification checklist
@@ -18,6 +21,54 @@
 - v1.1 (Oct 7, 2025): Fixed CLI commands to use proper config workflow (no --experiment.name hacks)
 - v1.1 (Oct 7, 2025): Fixed W&B analysis to query by config.experiment.name (robust to name suffixes)
 - v1.0 (Oct 7, 2025): Initial version
+
+---
+
+## ✅ Implementation Status (October 8, 2025)
+
+**Phase 1a: COMPLETE** ✅
+
+**Completion Date**: October 8, 2025
+**Config**: `configs/local/phase1a_edge_gdn.yaml`
+**Smoke Test**: v4 - PASSED (early stop at Epoch 4, best: Epoch 3)
+**Evidence**: `/tmp/phase1a_smoke_v4.log`
+
+### Critical Bugfixes Applied
+
+1. **Selective BF16 Conversion** (gated_deltanet.py:110-116):
+   - **Problem**: `self.to(torch.bfloat16)` converted ALL parameters to bf16 → optimizer instability
+   - **Fix**: Convert ONLY FLA layers (fwd/bwd/fusion_proj) to bf16, keep rest in fp32
+   - **Impact**: FLA kernels get required bf16, AdamW stays numerically stable
+
+2. **Node Override Fields Wired** (node_stream.py:78-91):
+   - **Problem**: `gdn_node_num_heads` / `gdn_node_headdim` existed but were ignored
+   - **Fix**: Added config override reading + 0.75× constraint validation
+   - **Impact**: Phase 1b/2 can now customize node GDN heads
+
+3. **Doc 1 Template Corrected** (line 277):
+   - **Problem**: Template showed `edge_mamba_d_model: 16` (causes FLA errors)
+   - **Fix**: Updated to `edge_mamba_d_model: 32` (FLA hardware requirement)
+   - **Impact**: Users following Doc 1 won't hit causal_conv1d alignment errors
+
+### Validation Strategy Update
+
+**NEW STRATEGY** (agreed Oct 8, 2025):
+- ✅ Phase 1a: Smoke test ONLY (3 files) - DONE
+- → Phase 1b: Smoke test ONLY (3 files) - NEXT
+- → Phase 2: Smoke test ONLY (3 files) + Medium validation (40-50 files, 5-6 epochs)
+- → Full Modal training: A/B comparison vs BiMamba2
+
+**Rationale**: 50-file per-phase validation has high variance with 12:1 imbalance, insufficient for statistical significance. Build complete FLA stack with smoke tests, validate once at medium scale, then Modal.
+
+**OLD STRATEGY** (removed): 50-file validation after Phase 1a → NO LONGER APPLICABLE
+
+### Next Steps
+
+1. ✅ Phase 1a complete - ALL infrastructure validated
+2. → **Proceed to Phase 1b** (Doc 2): Node stream GDN validation
+3. → **Proceed to Phase 2** (Doc 3): Both streams GDN validation
+4. → **Medium validation**: 40-50 files, 5-6 epochs (before Modal)
+5. → **Full Modal training**: 100 epochs, A/B comparison
 
 ---
 
@@ -274,7 +325,7 @@ model:
     edge_threshold: 1.0e-4
     edge_mamba_layers: 2
     edge_mamba_d_state: 8
-    edge_mamba_d_model: 16
+    edge_mamba_d_model: 32
     edge_similarity_margin: 0.01
     adj_row_softmax: true
     adj_softmax_tau: 1.0
@@ -393,23 +444,28 @@ python -m src train configs/local/phase1a_edge_gdn.yaml
 # - Logs show "Edge stream: BiGatedDeltaNet"
 ```
 
-### 3.2. Full Validation (50 files, 10 epochs)
+### 3.2. Full Validation (DEPRECATED - NEW STRATEGY)
 
-**Purpose**: Validate Phase 1a hypothesis against baseline.
+**⚠️ NO LONGER APPLICABLE** (as of Oct 8, 2025):
 
+Under the new validation strategy, Phase 1a uses **smoke test ONLY** (3 files). Full 50-file validation is **NOT performed** for individual phases.
+
+**NEW STRATEGY**:
+- Phase 1a/1b/2: Smoke tests only (3 files, quick validation)
+- After Phase 2 complete: ONE medium validation run (40-50 files, 5-6 epochs)
+- Then: Full Modal training for A/B comparison
+
+**Rationale**: 50-file per-phase validation has high variance with 12:1 imbalance, insufficient for statistical significance.
+
+**OLD WORKFLOW** (for reference - DO NOT USE):
 ```bash
-# Run Phase 1a validation
+# OLD: 50-file validation per phase (DEPRECATED)
 export BGB_LIMIT_FILES=50
 python -m src train configs/local/phase1a_edge_gdn.yaml
-
-# Monitor during training:
-# - Loss curve (should decrease)
-# - Gradient norms (should be stable)
-# - Memory usage (~20GB on RTX 4090, similar to baseline)
-# - Throughput (may be 5-10% slower than baseline)
-
 # Training time: ~6-8 hours on RTX 4090
 ```
+
+**See**: Implementation Status section (top of doc) for current validation strategy
 
 ### 3.3. Verify Isolation (Edge GDN, Node BiMamba2)
 

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Union
 from src.brain_brr.constants import (
     GDN_FUSION_MODE_DEFAULT,
     GDN_NODE_HEADDIM_DEFAULT,
+    GDN_NODE_NUM_HEADS_DEFAULT,
     LAYERSCALE_ALPHA_FALLBACK,
     NODE_D_MODEL,
     NODE_D_STATE,
@@ -74,9 +75,24 @@ def build_node_stream(cfg: "ModelConfig") -> Union[BiMamba2, "BiGatedDeltaNet"]:
         fusion_mode = getattr(cfg.mamba, "gdn_fusion_mode", GDN_FUSION_MODE_DEFAULT)
         allow_neg_eigval = getattr(cfg.mamba, "gdn_allow_neg_eigval", False)
 
+        node_num_heads = (
+            getattr(cfg.mamba, "gdn_node_num_heads", None) or GDN_NODE_NUM_HEADS_DEFAULT
+        )
+        node_headdim = getattr(cfg.mamba, "gdn_node_headdim", None) or GDN_NODE_HEADDIM_DEFAULT
+
+        node_constraint = node_num_heads * node_headdim
+        node_required = int(NODE_D_MODEL * 0.75)
+        if node_constraint != node_required:
+            raise ValueError(
+                f"Node stream GDN constraint violated: "
+                f"num_heads({node_num_heads}) * headdim({node_headdim}) = {node_constraint} "
+                f"must equal {node_required} (0.75 * NODE_D_MODEL={NODE_D_MODEL}). "
+                f"Set mamba.gdn_node_num_heads and mamba.gdn_node_headdim in config."
+            )
+
         return BiGatedDeltaNet(
             d_model=NODE_D_MODEL,
-            headdim=GDN_NODE_HEADDIM_DEFAULT,
+            headdim=node_headdim,
             num_layers=NODE_NUM_LAYERS,
             conv_size=cfg.mamba.conv_kernel,
             dropout=cfg.mamba.dropout,

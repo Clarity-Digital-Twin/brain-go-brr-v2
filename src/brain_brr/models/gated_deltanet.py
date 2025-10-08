@@ -107,7 +107,12 @@ class BiGatedDeltaNet(nn.Module):
         else:
             self.fusion_proj = None
 
-        self.to(torch.bfloat16)
+        for layer in self.layers:
+            layer["fwd"].to(torch.bfloat16)
+            layer["bwd"].to(torch.bfloat16)
+
+        if self.fusion_proj is not None:
+            self.fusion_proj.to(torch.bfloat16)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Bidirectional processing: forward + backward (flipped).
