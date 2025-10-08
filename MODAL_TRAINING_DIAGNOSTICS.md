@@ -40,6 +40,12 @@ Your training run hit **Modal's hard 24-hour timeout** and was killed at epoch 2
 4. **Hysteresis + post-processing**: ✅ ALREADY IMPLEMENTED
    - **Evidence**: `postprocess.py` - tau_on/tau_off, morphology, event merging
 
+5. **Dev/validation cache**: ✅ CORRECTLY USED
+   - **Evidence**: `loop.py:626-636` checks for `dev/manifest.json`, uses `ValidationDataset` (instant load)
+   - **Confirmed**: `cache/tusz_mmap/dev/manifest.json` exists (13MB, 148,224 windows)
+   - **Benefit**: 99.6% faster startup vs scanning NPY files
+   - **Action**: NONE - already optimal
+
 ### 🟢 Things That Are NORMAL (Not Problems)
 
 1. **Inf gradient norms**: ✅ NORMAL WITH FP16
@@ -65,7 +71,424 @@ Your training run hit **Modal's hard 24-hour timeout** and was killed at epoch 2
 
 ---
 
-## The ONLY Fix Needed: Handle Modal Timeout
+## 🔧 Critical Fixes Required
+
+### Fix 1: "New best 0.0000" Logging Bug (P0)
+
+**Root Cause**: Metric key mismatch between config and validation output
+
+**The Problem**:
+- Config: `early_stopping.metric: "sensitivity_at_10fa"` (no decimal)
+- Validation: Creates `"sensitivity_at_10.0fa"` (with `.0` decimal via `format_sensitivity_key(10.0)`)
+- Lookup: `val_metrics.get("sensitivity_at_10fa", 0.0)` → returns `0.0` (key not found!)
+
+**Evidence from code**:
+```python
+# loop.py:295
+current_metric = val_metrics.get(metric_name, 0.0)  # ← Gets 0.0 because key mismatch!
+
+# val_step.py:175
+sensitivity_results[format_sensitivity_key(fa)] = result.sensitivity  # ← Creates "sensitivity_at_10.0fa"
+
+# constants.py:375
+return METRIC_SENSITIVITY_TEMPLATE.format(fa_rate)  # ← "sensitivity_at_{}fa".format(10.0) = "sensitivity_at_10.0fa"
+```
+
+**The Fix (Recommended - Code Fix)**:
+
+Normalize metric keys by stripping trailing `.0` in loop.py:
+
+```python
+# src/brain_brr/train/loop.py:294-295
+metric_name = config.training.early_stopping.metric
+# Normalize: "sensitivity_at_10.0fa" → "sensitivity_at_10fa" OR vice versa
+for key in list(val_metrics.keys()):
+    if "fa" in key:
+        normalized_key = key.replace(".0fa", "fa")
+        if normalized_key != key and normalized_key not in val_metrics:
+            val_metrics[normalized_key] = val_metrics[key]
+
+current_metric = val_metrics.get(metric_name, 0.0)
+```
+
+**Alternative Fix (Config Fix)**:
+
+Update all configs to match format_sensitivity_key():
+
+```yaml
+# configs/modal/train.yaml, configs/local/train.yaml
+early_stopping:
+  metric: sensitivity_at_10.0fa  # ← Add .0 to match format_sensitivity_key()
+```
+
+---
+
+### Fix 2: Atomic Checkpoint Saves (P0)
+
+**Root Cause**: Modal timeout kills training mid-checkpoint write → corrupt checkpoint file
+
+**The Problem**:
+- `torch.save()` writes directly to final path
+- If Modal kills process during write → partial/corrupt `.pt` file
+- Resume fails with "unexpected EOF" or unpickling errors
+
+**The Fix**:
+
+```python
+# src/brain_brr/train/checkpoints.py (add new function)
+
+import os
+import tempfile
+from pathlib import Path
+import torch
+
+def atomic_save(state: dict, path: Path) -> None:
+    """Save checkpoint atomically to prevent corruption on kill signal.
+
+    Uses atomic rename: write to temp file, fsync, then rename.
+    Rename is atomic on POSIX, so either full file exists or none.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Write to temp file in same directory (same filesystem for atomic rename)
+    with tempfile.NamedTemporaryFile(
+        dir=str(path.parent),
+        delete=False,
+        suffix=".pt.tmp"
+    ) as tmp:
+        torch.save(state, tmp.name)
+        os.fsync(tmp.fileno())  # Force write to disk before rename
+        tmp_path = tmp.name
+
+    # Atomic rename (replaces existing file atomically)
+    os.replace(tmp_path, str(path))
+```
+
+**Update save_checkpoint()**:
+
+```python
+# src/brain_brr/train/checkpoints.py (modify existing function)
+
+def save_checkpoint(
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    epoch: int,
+    metric: float,
+    path: Path | str,
+    scheduler: torch.optim.lr_scheduler._LRScheduler | None = None,
+    config: TrainingConfig | None = None,
+    scaler: torch.cuda.amp.GradScaler | None = None,  # ← ADD
+    extra: dict[str, Any] | None = None,
+) -> None:
+    """Save training checkpoint atomically."""
+    state = {
+        "model_state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "epoch": epoch,
+        "metric": metric,
+    }
+
+    if scheduler is not None:
+        state["scheduler_state_dict"] = scheduler.state_dict()
+    if config is not None:
+        state["config"] = config.model_dump()
+    if scaler is not None:  # ← ADD
+        state["scaler_state_dict"] = scaler.state_dict()
+    if extra is not None:
+        state["extra"] = extra
+
+    atomic_save(state, Path(path))  # ← Use atomic save instead of torch.save
+    logger.info(f"Checkpoint saved: {Path(path).name}")
+```
+
+---
+
+### Fix 3: Full State Capture for Resume (P0)
+
+**Root Cause**: Missing grad scaler + RNG states → non-deterministic resume, potential NaN explosion
+
+**The Problem**:
+- Current checkpoints save: model, optimizer, scheduler, epoch, batch_idx
+- Missing: **grad scaler (AMP)**, **RNG states** (torch, cuda, numpy, random), sampler state
+- Result: Resume has different RNG sequence → different batch sampling → non-reproducible
+
+**The Fix**:
+
+```python
+# src/brain_brr/train/checkpoints.py (enhance save/load functions)
+
+import random
+import numpy as np
+
+def save_checkpoint(
+    # ... existing params ...
+    scaler: torch.cuda.amp.GradScaler | None = None,
+    save_rng: bool = True,
+) -> None:
+    """Save checkpoint with full reproducibility state."""
+    state = {
+        "model_state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "epoch": epoch,
+        "metric": metric,
+    }
+
+    # ... existing scheduler/config ...
+
+    # AMP scaler (CRITICAL for FP16 training)
+    if scaler is not None:
+        state["scaler_state_dict"] = scaler.state_dict()
+
+    # RNG states for reproducibility
+    if save_rng:
+        state["rng_state"] = {
+            "torch": torch.get_rng_state(),
+            "torch_cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
+            "numpy": np.random.get_state(),
+            "python": random.getstate(),
+        }
+
+    atomic_save(state, Path(path))
+
+def load_checkpoint(
+    path: Path | str,
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer | None = None,
+    scheduler: torch.optim.lr_scheduler._LRScheduler | None = None,
+    scaler: torch.cuda.amp.GradScaler | None = None,  # ← ADD
+    restore_rng: bool = True,
+    device: str = "cpu",
+) -> dict:
+    """Load checkpoint and restore full training state."""
+    ckpt = torch.load(path, map_location=device, weights_only=False)
+
+    model.load_state_dict(ckpt["model_state_dict"])
+
+    if optimizer is not None and "optimizer_state_dict" in ckpt:
+        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+
+    if scheduler is not None and "scheduler_state_dict" in ckpt:
+        scheduler.load_state_dict(ckpt["scheduler_state_dict"])
+
+    # Restore AMP scaler
+    if scaler is not None and "scaler_state_dict" in ckpt:
+        scaler.load_state_dict(ckpt["scaler_state_dict"])
+
+    # Restore RNG states
+    if restore_rng and "rng_state" in ckpt:
+        rng = ckpt["rng_state"]
+        torch.set_rng_state(rng["torch"])
+        if torch.cuda.is_available() and rng["torch_cuda"] is not None:
+            torch.cuda.set_rng_state_all(rng["torch_cuda"])
+        np.random.set_state(rng["numpy"])
+        random.setstate(rng["python"])
+
+    return ckpt
+```
+
+**Update train_step.py and loop.py**:
+
+```python
+# train_step.py:530 - pass scaler to save_checkpoint
+save_checkpoint(
+    model, optimizer, epoch_index, 0.0, mid_path,
+    scheduler, None, scaler=scaler,  # ← ADD scaler
+    extra={"batch_idx": batch_idx, "kind": "mid_epoch"}
+)
+
+# loop.py:153-160 - load scaler state
+if config.training.resume:
+    ckpt = load_checkpoint(
+        latest_mid, model, optimizer, scheduler,
+        scaler=scaler,  # ← ADD scaler
+        device=device
+    )
+```
+
+---
+
+### Fix 4: Graceful Exit Guard (P1 - Nice to Have)
+
+**Root Cause**: Modal hard-kills at 24h → last hour of progress lost
+
+**The Problem**:
+- Training runs until Modal sends SIGTERM at 24h
+- Last checkpoint might be 30 min old → lose up to 30 min progress
+- No warning before kill
+
+**The Fix**:
+
+```python
+# src/brain_brr/train/loop.py (add wall-clock guard)
+
+import time
+
+def train(
+    model: nn.Module,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    config: TrainingConfig,
+    wall_clock_limit_s: int | None = None,  # ← ADD (e.g., 23*3600 for Modal)
+) -> dict[str, Any]:
+    """Train with optional wall-clock timeout guard."""
+
+    start_time = time.time()
+    should_exit = False
+
+    def check_wall_clock():
+        """Check if approaching wall-clock limit."""
+        if wall_clock_limit_s is None:
+            return False
+        elapsed = time.time() - start_time
+        # Exit when 10 min remaining (safety margin for checkpoint save)
+        return elapsed >= (wall_clock_limit_s - 600)
+
+    # Training loop
+    for epoch in range(start_epoch, config.training.epochs):
+
+        # Check before starting epoch
+        if check_wall_clock():
+            logger.warning(
+                f"[TIMEOUT] Approaching wall-clock limit ({wall_clock_limit_s}s), "
+                f"exiting gracefully after epoch {epoch}"
+            )
+            should_exit = True
+            break
+
+        # ... train epoch ...
+
+        # Check after validation
+        if check_wall_clock():
+            logger.warning(
+                f"[TIMEOUT] Approaching wall-clock limit, exiting after validation"
+            )
+            should_exit = True
+            break
+
+    if should_exit:
+        # Save final checkpoint before exit
+        save_checkpoint(
+            model, optimizer, epoch, current_metric,
+            checkpoint_dir / "timeout_exit.pt",
+            scheduler, config, scaler
+        )
+        logger.info("[TIMEOUT] Saved timeout_exit.pt, safe to resume")
+
+    return best_metrics
+```
+
+**Update Modal deployment**:
+
+```python
+# deploy/modal/app.py
+
+@app.function(
+    gpu="a100-80gb",
+    timeout=24 * 3600,  # Modal's hard limit
+    # ... other config ...
+)
+def train(config_path: str, resume: bool = False):
+    # Pass wall-clock limit to training loop (23h = exit before kill)
+    best_metrics = train_loop(
+        model, train_loader, val_loader, config,
+        wall_clock_limit_s=23 * 3600  # ← Exit 1h before Modal kills
+    )
+```
+
+---
+
+### Fix 5: W&B Run ID Persistence (P1 - Nice to Have)
+
+**Root Cause**: Each resume creates new W&B run → fragmented curves, hard to track progress
+
+**The Problem**:
+- `wandb.init()` without `id=` creates new run on each resume
+- Metrics charts show gaps between runs
+- Hard to see continuous training progress
+
+**The Fix**:
+
+```python
+# src/brain_brr/logging/wandb_logger.py (add run ID persistence)
+
+def init_wandb(config: TrainingConfig, resume: bool = False, checkpoint_dir: Path | None = None):
+    """Initialize W&B with resume support."""
+
+    run_id_path = checkpoint_dir / ".wandb_run_id" if checkpoint_dir else None
+    run_id = None
+
+    # Load existing run ID if resuming
+    if resume and run_id_path and run_id_path.exists():
+        run_id = run_id_path.read_text().strip()
+        logger.info(f"[W&B] Resuming run: {run_id}")
+
+    # Initialize (creates new run if run_id is None)
+    run = wandb.init(
+        project="brain-go-brr",
+        entity=config.experiment.wandb_entity,
+        name=config.experiment.name,
+        config=config.model_dump(),
+        id=run_id,  # ← Resume existing run if available
+        resume="allow",  # Allow resuming existing run
+    )
+
+    # Save run ID for future resumes
+    if run_id_path:
+        run_id_path.write_text(run.id)
+        logger.info(f"[W&B] Saved run ID: {run.id}")
+
+    return run
+```
+
+**Update loop.py**:
+
+```python
+# loop.py:100-110
+if config.experiment.use_wandb:
+    wandb_logger.init(
+        config,
+        resume=config.training.resume,  # ← Pass resume flag
+        checkpoint_dir=checkpoint_dir
+    )
+```
+
+---
+
+## Recommended Implementation Plan
+
+### 🔴 P0: MUST FIX (Blocking Production)
+
+1. **Fix metric key mismatch** (5 min)
+   - [ ] Add key normalization in `loop.py:295`
+   - [ ] Test: Check logs show correct sensitivity values
+
+2. **Atomic checkpoint saves** (30 min)
+   - [ ] Implement `atomic_save()` in `checkpoints.py`
+   - [ ] Replace all `torch.save()` calls
+   - [ ] Test: Kill process during save, verify no corruption
+
+3. **Full state capture** (30 min)
+   - [ ] Add scaler + RNG states to checkpoints
+   - [ ] Update save/load functions in `checkpoints.py`
+   - [ ] Update `train_step.py` and `loop.py` to pass scaler
+   - [ ] Test: Resume and verify identical batch sequences
+
+### 🟢 P1: SHOULD FIX (Quality of Life)
+
+4. **Graceful exit guard** (1 hour)
+   - [ ] Add wall-clock check to training loop
+   - [ ] Set 23h limit for Modal deployment
+   - [ ] Test: Verify exits cleanly before timeout
+
+5. **W&B run persistence** (30 min)
+   - [ ] Save run ID to `.wandb_run_id` file
+   - [ ] Load on resume in `wandb_logger.py`
+   - [ ] Test: Verify continuous metrics in W&B UI
+
+---
+
+## Handle Modal Timeout (After Fixes)
 
 ### Option 1: Manual Resume (Simple, Immediate)
 
