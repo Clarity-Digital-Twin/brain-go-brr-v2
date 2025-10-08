@@ -22,8 +22,6 @@ if TYPE_CHECKING:
     from src.brain_brr.config.schemas import ModelConfig
 
 try:
-    from fla.layers import GatedDeltaNet as FLAGatedDeltaNet
-
     from ..gated_deltanet import BiGatedDeltaNet
 
     FLA_AVAILABLE = True
@@ -90,9 +88,7 @@ def build_edge_stream(cfg: "ModelConfig") -> EdgeStreamComponents:
     assert edge_d_model > 0, f"edge_mamba_d_model must be positive, got {edge_d_model}"
 
     use_layerscale = bool(norms_cfg and norms_cfg.boundary_norm != "none")
-    layerscale_init = float(
-        norms_cfg.layerscale_alpha if norms_cfg else LAYERSCALE_ALPHA_FALLBACK
-    )
+    layerscale_init = float(norms_cfg.layerscale_alpha if norms_cfg else LAYERSCALE_ALPHA_FALLBACK)
 
     if temporal_type == "gated_deltanet":
         if not FLA_AVAILABLE:

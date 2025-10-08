@@ -60,7 +60,7 @@ class BiGatedDeltaNet(nn.Module):
 
         print(
             f"[BiGatedDeltaNet] d_model={d_model}, headdim={headdim}, "
-            f"num_heads={num_heads} (constraint: {num_heads}*{headdim}={num_heads*headdim}=0.75*{d_model})"
+            f"num_heads={num_heads} (constraint: {num_heads}*{headdim}={num_heads * headdim}=0.75*{d_model})"
         )
 
         self.layers = nn.ModuleList()

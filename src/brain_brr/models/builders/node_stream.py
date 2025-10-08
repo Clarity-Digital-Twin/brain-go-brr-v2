@@ -56,9 +56,7 @@ def build_node_stream(cfg: "ModelConfig") -> Union[BiMamba2, "BiGatedDeltaNet"]:
 
     norms_cfg = getattr(cfg, "norms", None)
     use_layerscale = bool(norms_cfg and norms_cfg.boundary_norm != "none")
-    layerscale_init = float(
-        norms_cfg.layerscale_alpha if norms_cfg else LAYERSCALE_ALPHA_FALLBACK
-    )
+    layerscale_init = float(norms_cfg.layerscale_alpha if norms_cfg else LAYERSCALE_ALPHA_FALLBACK)
 
     if temporal_type == "gated_deltanet":
         if not FLA_AVAILABLE:
