@@ -1,13 +1,82 @@
 # Doc 4: Hybrid GDN-H1 with Sliding Window Attention - Implementation Plan
 
 **Parent Document**: [FLASH_LINEAR_ATTENTION_RESEARCH.md](FLASH_LINEAR_ATTENTION_RESEARCH.md) (Doc 0 - SSOT)
-**Phase**: 3 (Optional Hybrid Enhancement)
+**Phase**: 3 (OPTIONAL Hybrid Enhancement - ONLY if Phase 2 has short-event deficiency)
 **Target**: Add Sliding Window Attention to BiGatedDeltaNet for short-seizure improvement
-**Date**: October 7, 2025
-**Version**: 1.1 (Critical bug fixes)
-**Status**: Ready for Implementation (pending Phase 2 success AND short-event deficiency)
+**Date**: October 8, 2025
+**Version**: 2.0 (CONDITIONAL ROADMAP - Only Execute If Phase 2 Has Short-Event Gap)
+**Status**: 🚧 **CONDITIONAL ROADMAP** - DO NOT EXECUTE UNLESS PHASE 2 SHOWS SHORT-EVENT DEFICIENCY 🚧
+
+---
+
+## 🛑 STOP - READ THIS FIRST 🛑
+
+**THIS DOCUMENT DESCRIBES A FUTURE STATE THAT DOES NOT EXIST YET.**
+
+**THIS IS THE MOST CONDITIONAL DOC - ONLY PROCEED IF:**
+1. ✅ Phase 0 complete (infrastructure built)
+2. ✅ Phase 1a complete (edge validated, GO decision)
+3. ✅ Phase 1b complete (node validated, GO decision)
+4. ✅ **Phase 2 complete (both streams validated, GO decision)**
+5. ✅ **CRITICAL**: Manual analysis shows **short-duration (<5s) recall deficiency > 5%**
+
+**Current Reality (October 8, 2025)**:
+- ❌ SlidingWindowAttention does NOT exist (`src/brain_brr/models/sliding_window_attention.py` missing)
+- ❌ HybridNodeStream does NOT exist (no hybrid builder logic in `node_stream.py`)
+- ❌ HybridAttentionConfig does NOT exist (`schemas.py` has no hybrid config)
+- ❌ Hybrid config file does NOT exist (`configs/local/hybrid_gdn_test.yaml` missing)
+- ❌ Analysis scripts do NOT exist (`scripts/analyze_phase3_results.py` missing)
+- ❌ Phase 2 NOT complete yet (no results to analyze for short-event deficiency)
+
+**What This Means**:
+- 🚫 **DO NOT** attempt to follow these instructions today - they will fail
+- 🚫 **DO NOT** proceed with Phase 3 unless Phase 2 shows specific short-event problems
+- ✅ **DO** use this document for planning ONLY IF Phase 2 succeeds but has <5s recall gap
+- ✅ **DO** complete Phase 0 → 1a → 1b → 2 FIRST, then analyze for short-event deficiency
+
+**Execution Order with CONDITIONAL Gate**:
+```
+Phase 0 (4-6d)   Phase 1a (2-3d)   Phase 1b (2-3d)   Phase 2 (2-3d)        DECISION GATE           Phase 3 (2-3d)
+    BUILD           VALIDATE          VALIDATE          VALIDATE          CONDITIONAL CHECK         OPTIONAL BUILD
+      ↓                 ↓                 ↓                 ↓                      ↓                       ↓
+   Doc 0 §14         Doc 1             Doc 2             Doc 3          Analyze Phase 2 Results    >>> Doc 4 (YOU ARE HERE)
+   ─────────         ──────            ──────            ──────          ───────────────────────        ──────
+   • Wrapper         • Edge            • Node            • Both          IF short-event recall       • SWA Layer
+   • Schema          • GDN only        • GDN only        • GDN both      < overall - 5%:             • Hybrid Builder
+   • Builders        • Risk: LOW       • Risk: MED       • Risk: HIGH        ├─ YES → Doc 4          • Config
+   • Tests                                                                    └─ NO → Skip Phase 3     • Tests
+                                                                              (Pure GDN sufficient)
+
+CRITICAL: If Phase 2 overall recall is 85% but <5s recall is 75% → DEFICIENCY = 10% → PROCEED
+         If Phase 2 overall recall is 85% and <5s recall is 82% → DEFICIENCY = 3% → SKIP PHASE 3
+```
+
+---
+
+## ⚠️ BLOCKING PREREQUISITES
+
+**YOU MUST COMPLETE THESE BEFORE EVEN CONSIDERING PHASE 3**:
+
+1. ✅ **Phase 0 Infrastructure Complete** (Doc 0 Section 14 - 4-6 days)
+2. ✅ **Phase 1a Complete with GO decision** (Doc 1 - 2-3 days)
+3. ✅ **Phase 1b Complete with GO decision** (Doc 2 - 2-3 days)
+4. ✅ **Phase 2 Complete with GO decision** (Doc 3 - 2-3 days)
+5. 🔬 **Manual Short-Event Analysis** (REQUIRED - see Section 1.1):
+   - Export Phase 2 predictions
+   - Filter ground truth for <5s seizures
+   - Calculate: `short_recall_deficiency = overall_recall - short_recall`
+   - **ONLY proceed if deficiency > 5%**
+
+**If Phase 2 overall recall is good AND <5s recall is similar → SKIP PHASE 3 (pure GDN is sufficient)**
+
+---
 
 **Changelog**:
+- v2.0 (Oct 8, 2025): Added MASSIVE conditional warning banner (🛑 STOP section)
+- v2.0 (Oct 8, 2025): Added execution order diagram with DECISION GATE
+- v2.0 (Oct 8, 2025): Changed status to "CONDITIONAL ROADMAP" (was "Ready for Implementation")
+- v2.0 (Oct 8, 2025): Listed current reality (❌ nothing exists yet)
+- v2.0 (Oct 8, 2025): Emphasized Phase 3 is OPTIONAL (only if short-event gap exists)
 - v1.1 (Oct 7, 2025): Fixed missing `import torch.nn as nn` in builder code
 - v1.1 (Oct 7, 2025): Removed dependency on non-existent `sensitivity_short_seizures` metric
 - v1.1 (Oct 7, 2025): Added manual short-duration analysis workflow for Phase 3 decision
@@ -17,14 +86,14 @@
 
 ## Executive Summary
 
-This document provides **surgical implementation details** for adding Sliding Window Attention (SWA) to the BiGatedDeltaNet architecture. This is Phase 3 of the phased migration strategy and is **OPTIONAL** - only implement if Phase 2 succeeds but short-duration seizure recall needs improvement.
+This document provides **surgical implementation details** for adding Sliding Window Attention (SWA) to the BiGatedDeltaNet architecture. This is Phase 3 of the phased validation strategy and is **HIGHLY CONDITIONAL** - only implement if Phase 2 succeeds but shows specific short-duration seizure recall deficiency.
 
-**Scope of Changes**:
-- ✅ Create `src/brain_brr/models/sliding_window_attention.py` (SWA layer wrapper)
-- ✅ Update `src/brain_brr/models/builders/node_stream.py` (interleaved GDN+SWA)
-- ✅ Add hybrid config support in `src/brain_brr/config/schemas.py`
-- ✅ Write integration test (`tests/integration/test_hybrid_gdn_swa.py`)
-- ✅ A/B test: Pure GDN vs Hybrid GDN-H1
+**Scope of Changes** (TO BE BUILT if Phase 3 warranted):
+- 🔨 Create `src/brain_brr/models/sliding_window_attention.py` (TO BE BUILT)
+- 🔨 Update `src/brain_brr/models/builders/node_stream.py` (TO BE BUILT)
+- 🔨 Add hybrid config support in `src/brain_brr/config/schemas.py` (TO BE BUILT)
+- 🔨 Write integration test (`tests/integration/test_hybrid_gdn_swa.py`) (TO BE BUILT)
+- 🔬 A/B test: Pure GDN vs Hybrid GDN-H1 (TO BE DONE)
 - ❌ **DO NOT TOUCH**: Edge stream (keep pure GDN), GNN, TCN, decoder
 
 **Expected Outcome**:
@@ -157,11 +226,13 @@ git tag v3.8.3-pre-hybrid-swa
 
 ## 2. Implementation: Sliding Window Attention Layer
 
-### 2.1. File: `src/brain_brr/models/sliding_window_attention.py`
+**🚨 REMINDER**: This section describes code that **DOES NOT EXIST YET**. Only create this file if you've completed Phase 0-2 AND confirmed short-event deficiency.
+
+### 2.1. File: `src/brain_brr/models/sliding_window_attention.py` (TO BE CREATED)
 
 **Purpose**: Efficient sliding window attention layer using FLA's attention primitive.
 
-**Implementation**:
+**Reference Implementation** (create this file when Phase 3 is warranted):
 
 ```python
 """Sliding Window Attention layer for hybrid GDN-H1 architecture.
@@ -401,9 +472,11 @@ print('✅ SWA layer works!')
 
 ## 3. Implementation: Hybrid Node Stream Builder
 
-### 3.1. File: `src/brain_brr/models/builders/node_stream.py`
+**🚨 REMINDER**: This section describes modifications that **SHOULD NOT BE MADE YET**. Only modify this file if you've completed Phase 0-2 AND confirmed short-event deficiency.
 
-**Changes Required**:
+### 3.1. File: `src/brain_brr/models/builders/node_stream.py` (TO BE MODIFIED)
+
+**Changes Required** (only make these if Phase 3 is warranted):
 
 1. Import SlidingWindowAttention
 2. Support `hybrid_attention` config option
@@ -642,9 +715,11 @@ class HybridNodeStream(nn.Module):
 
 ## 4. Implementation: Config Schema Update
 
-### 4.1. File: `src/brain_brr/config/schemas.py`
+**🚨 REMINDER**: This section describes schema additions that **DO NOT EXIST YET**. Only add these if you've completed Phase 0-2 AND confirmed short-event deficiency.
 
-**Add to MambaConfig**:
+### 4.1. File: `src/brain_brr/config/schemas.py` (TO BE MODIFIED)
+
+**Add to MambaConfig** (only if Phase 3 is warranted):
 
 ```python
 class HybridAttentionConfig(BaseModel):
@@ -741,9 +816,11 @@ class MambaConfig(BaseModel):
 
 ## 5. Implementation: Config File Update
 
-### 5.1. File: `configs/local/hybrid_gdn_test.yaml`
+**🚨 REMINDER**: This config file **DOES NOT EXIST YET**. Only create it if you've completed Phase 0-2 AND confirmed short-event deficiency.
 
-**Create new config for Phase 3 testing**:
+### 5.1. File: `configs/local/hybrid_gdn_test.yaml` (TO BE CREATED)
+
+**Reference config for Phase 3 testing** (create this when Phase 3 is warranted):
 
 ```yaml
 # Hybrid GDN-H1 Test Config

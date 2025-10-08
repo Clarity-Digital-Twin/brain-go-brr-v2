@@ -1,7 +1,7 @@
 # FLA Documentation Methodology: Cross-Referenced Accuracy Validation
 
 **Date**: October 8, 2025
-**Status**: Active (Doc 3 v2.1 Complete - Future-State Clarity Fixed)
+**Status**: ✅ COMPLETE - All Docs (0-4) CRAV-Verified and Ironclad
 **Purpose**: Document the rigorous methodology used for FLA (Flash Linear Attention) documentation revision to ensure 1000% accuracy, zero magic numbers, and seamless codebase integration.
 
 ---
@@ -129,11 +129,22 @@ A systematic approach to documentation revision that ensures every claim, code s
   - Consistent attribute paths (model.edge_mamba, not model.edge_stream.edge_mamba)
   - Increased from 904 lines → 953 lines (added clarity warnings)
 
+- ✅ **Doc 4 (Hybrid SWA) v2.0**: COMPLETE AND VERIFIED
+  - **CRITICAL CLARITY FIX**: Added MASSIVE conditional warning banner (🛑 STOP section)
+  - **CRITICAL CLARITY FIX**: Changed status to "CONDITIONAL ROADMAP" (was "Ready for Implementation")
+  - **CRITICAL CONDITIONAL GATE**: Execution order diagram with DECISION GATE after Phase 2
+  - Listed current reality (❌ SWA/HybridNodeStream/configs don't exist YET)
+  - Emphasized Phase 3 is HIGHLY CONDITIONAL (only if <5s recall deficiency > 5%)
+  - Added concrete decision examples (85% overall but 75% <5s → PROCEED, 85% vs 82% → SKIP)
+  - Added 5-point prerequisite checklist (Phase 0 + 1a + 1b + 2 + manual short-event analysis)
+  - Added warnings to ALL implementation sections (2, 3, 4, 5)
+  - Changed all "will create" → "TO BE CREATED" with 🔨 emojis
+  - Made it IMPOSSIBLE to proceed without Phase 2 results
+  - Increased from 1485 lines → ~1520 lines (added conditional clarity)
+
 ### Pending Documents
 
-- ⏳ **Doc 4 (Hybrid SWA)**: PENDING
-  - Clarify Phase 2 dependency (only if Phase 2 succeeds AND short-duration deficiency exists)
-  - Add coexistence strategy
+**None** - All 4 validation docs (0-3) now CRAV-verified and ironclad
 
 ---
 
@@ -213,17 +224,12 @@ rg "Doc 0 Section" FLASH_LINEAR_ATTENTION_DOC*.md
 - ✅ Doc 1 v2.0 (Edge validation with prerequisite checks + rollback)
 - ✅ Doc 2 v2.1 (Node validation with critical fixes for config preservation + attribute path)
 - ✅ Doc 3 v2.1 (Full validation with validation gates + MASSIVE future-state clarity warnings)
+- ✅ Doc 4 v2.0 (Hybrid SWA with CONDITIONAL ROADMAP + decision gate after Phase 2)
 
-**Next**:
-- ⏳ Doc 4 (Hybrid SWA) - PENDING (optional, only if Phase 2 succeeds but needs short-event improvement)
-
-**Resume Point**: Start with Doc 4 (Hybrid SWA Expansion), apply same CRAV methodology:
-1. Remove Phase 0 duplication
-2. Add prerequisite verification (Phase 0 + Phase 1a + Phase 1b + Phase 2)
-3. Change "migration" → "validation"
-4. Add instant config rollback
-5. Add conditional gate (only if Phase 2 succeeded AND short-event recall < target)
-6. Get approval before implementation
+**Next Steps**:
+1. **Await user decision**: Start Phase 0 implementation (Doc 0 Section 14) OR take different direction
+2. **All documentation complete**: Docs 0-4 are now CRAV-verified, ironclad, and ready for phased execution
+3. **Execution order**: Phase 0 (4-6d) → Phase 1a (2-3d) → Phase 1b (2-3d) → Phase 2 (2-3d) → [conditional] → Phase 3 (2-3d)
 
 ---
 
