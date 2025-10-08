@@ -1,10 +1,12 @@
 # Dev/Val Cache Zero Windows Investigation
 
 **Date**: October 8, 2025
-**Status**: ACTIVE INVESTIGATION - DO NOT FIX REACTIVELY
-**Severity**: P0 - Training blocked on Modal
+**Status**: ENHANCED DIAGNOSTIC READY - Run `modal run deploy/modal/app.py::check_cache` to confirm
+**Severity**: P0 - Training runs but validation fails
 
-## 🔴 Problem Statement
+## 🎯 SSOT (Single Source of Truth)
+
+### What's Actually Happening
 
 Modal training run `ap-uitgvl8kXZoKJ4fZoSehsI` shows:
 
@@ -16,7 +18,62 @@ Modal training run `ap-uitgvl8kXZoKJ4fZoSehsI` shows:
   - Seizure ratio: 0.0% (natural distribution)
 ```
 
-**This is contradictory**: The dataset reports it has seizure windows in the manifest BUT the final count is 0 with ratio 0.0%.
+**Clarification** (this log is misleading):
+- **"0 windows (filtered)"** = Final dataset size AFTER `allowed_cache_files` whitelist filtering
+- **"7944 partial + 3536 full + 136744 bg"** = Manifest counts BEFORE filtering
+- **Result**: Manifest has 148,224 entries, but ALL got filtered out by whitelist check
+
+### Impact Assessment
+
+✅ **Training works**: Uses `BalancedSeizureDataset` with 61,616 windows (from train manifest)
+❌ **Validation fails**: Uses `ValidationDataset` with 0 windows (all filtered out)
+💥 **Result**: Training runs for hours with NO validation metrics (burns GPU for nothing)
+
+## 🔴 Root Cause: Whitelist Mismatch
+
+The training loop builds `allowed_cache_files` whitelist from EDF files in `/data/edf/dev/`:
+
+```python
+# loop.py:744-746
+val_files, _ = splits["dev"]  # Load EDF files from /data/edf/dev/
+allowed_cache_files = {f"{val_file.stem}_data.npy" for val_file in val_files}
+```
+
+Then `ValidationDataset` filters manifest entries by this whitelist:
+
+```python
+# datasets.py:603-604
+if allowed_cache_files is not None and cache_file_name not in allowed_cache_files:
+    continue  # Skip this entry
+```
+
+**The Problem**: Dev manifest was built from a DIFFERENT set of EDF files (or old naming), so manifest entries don't match the current whitelist. Result: ALL 148,224 entries filtered out.
+
+## ⚡ Quick Action Guide
+
+**Before you fix anything**, run the enhanced diagnostic:
+
+```bash
+modal run deploy/modal/app.py::check_cache
+```
+
+This will show you:
+1. Exactly which manifest entries don't match the whitelist
+2. Sample manifest entries vs whitelist entries
+3. Whether it's naming (NPZ vs NPY) or source file mismatch
+
+**If diagnosis confirms whitelist mismatch**, the fix is simple:
+
+```bash
+# Delete the stale dev manifest on Modal volume
+modal volume get clarity-digital-twin-results /results/cache/tusz_mmap/dev/manifest.json local_manifest.json  # Backup
+modal volume rm clarity-digital-twin-results /results/cache/tusz_mmap/dev/manifest.json  # Delete
+
+# Restart training - it will auto-rebuild from cache
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+```
+
+**Why this works**: Training loop will see missing manifest, scan the NPY cache, and rebuild manifest with correct file references.
 
 ## 📊 Expected Behavior
 

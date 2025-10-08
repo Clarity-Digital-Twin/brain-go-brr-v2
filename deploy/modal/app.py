@@ -481,6 +481,63 @@ def check_cache():
                             print("     ⚠️  DIAGNOSIS: Manifest references non-existent files!")
                             print("     💡 FIX: Delete stale manifest and rebuild")
 
+                # CRITICAL: Simulate the whitelist check that ValidationDataset does
+                print(f"\n  🔍 WHITELIST VALIDATION (simulating loop.py behavior):")
+                edf_dir = Path("/data/edf/dev")
+                if edf_dir.exists():
+                    edf_files = list(edf_dir.glob("**/*.edf"))
+                    print(f"     EDF files found: {len(edf_files)}")
+
+                    # Build whitelist exactly like loop.py does
+                    allowed_cache_files = {f"{edf.stem}_data.npy" for edf in edf_files}
+                    print(f"     Whitelist size: {len(allowed_cache_files)} entries")
+
+                    # Check how many manifest entries would match
+                    if n_partial + n_full + n_none > 0:
+                        matched = 0
+                        unmatched_samples = []
+                        for category in ["partial_seizure", "full_seizure", "no_seizure"]:
+                            for entry in manifest_data.get(category, [])[:10]:  # Sample first 10
+                                cache_file_ref = entry.get("cache_file", "")
+                                if cache_file_ref in allowed_cache_files:
+                                    matched += 1
+                                else:
+                                    if len(unmatched_samples) < 5:
+                                        unmatched_samples.append(cache_file_ref)
+
+                        total_checked = min(
+                            30, n_partial + n_full + n_none
+                        )  # Checked up to 30 samples
+                        print(f"     Sample check (first 30 entries):")
+                        print(f"       ✅ Matched: {matched}/{total_checked}")
+                        print(f"       ❌ Unmatched: {total_checked - matched}/{total_checked}")
+
+                        if unmatched_samples:
+                            print(
+                                f"\n     ⚠️  UNMATCHED SAMPLES (manifest entries NOT in whitelist):"
+                            )
+                            for sample in unmatched_samples:
+                                print(f"       - {sample}")
+
+                            # Show whitelist samples for comparison
+                            whitelist_samples = sorted(allowed_cache_files)[:5]
+                            print(f"\n     📋 WHITELIST SAMPLES (from /data/edf/dev/):")
+                            for sample in whitelist_samples:
+                                print(f"       - {sample}")
+
+                            if matched == 0:
+                                print(f"\n     ❌ CRITICAL: 0% manifest entries match whitelist!")
+                                print(f"     💥 This causes ValidationDataset to have 0 windows!")
+                                print(f"     💡 FIX: Manifest built from DIFFERENT EDF source")
+                                print(
+                                    f"     💡 ACTION: Delete /results/cache/tusz_mmap/dev/manifest.json"
+                                )
+                                print(f"     💡 ACTION: Let training rebuild it from current cache")
+                        else:
+                            print(f"     ✅ All sampled entries match whitelist")
+                else:
+                    print(f"     ⚠️  /data/edf/dev/ not found - cannot validate whitelist")
+
             except Exception as e:
                 print(f"     ❌ Failed to inspect manifest: {e}")
     else:
