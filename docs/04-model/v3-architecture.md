@@ -1,8 +1,8 @@
-# V3 Architecture (v3.4.1 - Single Source of Truth)
+# V3 Architecture (Single Source of Truth)
 
-**Last Updated**: October 1, 2025
-**Current Version**: v3.4.1
-**Status**: VALIDATED - Rock solid training (batch 723+, zero NaN/Inf)
+**Last Updated**: October 8, 2025
+**Current Version**: v3.9.0 (architecture unchanged since v3.4.1; added bulletproof checkpoints and timeout guard)
+**Status**: VALIDATED - Production training on Modal A100
 
 ## Version History
 

@@ -1,6 +1,6 @@
 # Performance Optimization
 
-**Last Updated**: October 3, 2025 (v3.4.1)
+**Last Updated**: October 8, 2025 (v3.9.0)
 
 ## Dynamic Laplacian PE (V3)
 

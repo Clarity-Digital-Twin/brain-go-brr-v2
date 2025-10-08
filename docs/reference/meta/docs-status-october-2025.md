@@ -1,14 +1,14 @@
 # Documentation Status & Reality Check - October 1, 2025
 
+> **HISTORICAL META DOCUMENT**: This document captured the state of documentation as of Oct 1, 2025 (v3.4.1).
+> **Current version**: v3.9.0 (Production Training Baseline).
+> **For current docs**: See [docs/README.md](../../README.md) for the latest navigation and status.
+
 **Purpose**: Align all root documentation with actual implementation status and realistic expectations.
 
 **Last Updated**: October 1, 2025
-**Current Version**: v3.4.1 (with warmup schedules)
+**Historical Version**: v3.4.1 (with warmup schedules)
 **Training Status**: Running smoothly on both local (RTX 4090) and Modal (A100-80GB)
-
-**NOTE**: This is a historical meta document from Oct 1, 2025. For current documentation:
-- Stability evolution → `docs/04-model/v3-stability-evolution.md`
-- NaN protection → `docs/08-operations/nan-prevention-complete.md`
 
 ---
 

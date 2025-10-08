@@ -1,7 +1,11 @@
 # V3 Architecture Stability: Evolution & Validation
 
+> **HISTORICAL DOCUMENT**: This document covers the evolution from v3.3.0 → v3.4.1 (Sept 27 - Oct 1, 2025).
+> **Current version**: v3.9.0 (Production Training Baseline with bulletproof checkpoints and timeout guard).
+> **For current status**: See [STATUS.md](../../STATUS.md) and [checkpoint-strategy.md](../05-training/checkpoint-strategy.md).
+
 **Last Updated**: October 1, 2025
-**Current Version**: v3.4.1
+**Historical Version**: v3.4.1
 **Status**: VALIDATED - Rock solid training (batch 723+)
 
 ---

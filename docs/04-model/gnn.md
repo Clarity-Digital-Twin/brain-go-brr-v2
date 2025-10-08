@@ -1,6 +1,6 @@
 # GraphChannelMixer (PyG)
 
-**Last Updated**: October 1, 2025 (v3.4.1)
+**Last Updated**: October 8, 2025 (v3.9.0 - architecture unchanged since v3.4.1)
 **File**: `src/brain_brr/models/gnn_pyg.py`
 
 ## Overview

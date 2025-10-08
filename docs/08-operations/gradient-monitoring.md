@@ -1,8 +1,8 @@
 # Gradient Monitoring Guide
 
-**Last Updated**: October 1, 2025
-**Codebase Version**: v3.4.1 (PyTorch 2.5.0 + mamba-ssm 2.2.5)
-**Status**: VALIDATED with production training data (batch 723)
+**Last Updated**: October 8, 2025
+**Codebase Version**: v3.9.0 (PyTorch 2.5.0 + mamba-ssm 2.2.5)
+**Status**: VALIDATED with production training data and Modal A100 runs
 
 ---
 

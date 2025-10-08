@@ -1,13 +1,13 @@
 # Local Configs (RTX 4090)
 
-**Last Updated**: October 6, 2025 (v3.7.0)
+**Last Updated**: October 8, 2025 (v3.9.0)
 **Target Hardware**: RTX 4090 24GB (WSL2 or native Linux)
 
 ## Overview
 
 V3 dual-stream architecture is the **only supported** architecture. V2 heuristic path has been removed.
 
-## Key Recommendations (v3.4.1)
+## Key Recommendations (v3.9.0)
 
 ### Data
 - `data.cache_dir: cache/tusz_mmap` (memory-mapped NPY cache on local SSD/NVMe)
@@ -31,7 +31,7 @@ V3 dual-stream architecture is the **only supported** architecture. V2 heuristic
 - `model.graph.semi_dynamic_interval: 5` (optimal)
 - `model.graph.edge_similarity_margin: 0.01` (v3.3.0 PR-5)
 
-### Warmup Schedules (v3.4.1 - Optional but Recommended)
+### Warmup Schedules (Optional but Recommended)
 - `training.warmup_schedule.enabled: true`
 - `training.warmup_schedule.warmup_steps: 1000`
 - `training.warmup_schedule.adj_temperature_enabled: true`
@@ -43,7 +43,7 @@ export BGB_NAN_DEBUG=1         # Additional NaN logging
 # export BGB_SANITIZE_GRADS=1  # Optional debugging helper
 ```
 
-## Complete V3.4.1 Configuration
+## Complete v3.9.0 Configuration
 
 ```yaml
 # Local RTX 4090: TCN + Bi-Mamba + GNN Stack (V3)

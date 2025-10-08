@@ -1,7 +1,7 @@
 # Warmup Schedules Guide
 
-**Last Updated**: October 1, 2025
-**Version**: v3.4.1
+**Last Updated**: October 8, 2025
+**Version**: v3.9.0 (feature introduced in v3.4.1, still optional)
 **Status**: Production ready, optional feature
 
 ---
