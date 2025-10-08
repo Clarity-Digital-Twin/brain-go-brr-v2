@@ -117,6 +117,10 @@ class BiGatedDeltaNet(nn.Module):
         Returns:
             x: (B, C, L) bidirectional output
         """
+        input_dtype = x.dtype
+        if input_dtype != torch.bfloat16:
+            x = x.to(torch.bfloat16)
+
         x = x.transpose(1, 2).contiguous()
 
         for layer in self.layers:
@@ -136,4 +140,9 @@ class BiGatedDeltaNet(nn.Module):
 
             x = residual + self.dropout(x)
 
-        return x.transpose(1, 2).contiguous()
+        x = x.transpose(1, 2).contiguous()
+
+        if input_dtype != torch.bfloat16:
+            x = x.to(input_dtype)
+
+        return x
