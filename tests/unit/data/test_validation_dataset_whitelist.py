@@ -301,12 +301,14 @@ class TestValidationDatasetEdgeCases:
 
         allowed_cache_files = {"patient_001_data.npy"}
 
-        with patch("src.brain_brr.data.datasets.logger"):
-            with pytest.raises(json.JSONDecodeError):
-                ValidationDataset(
-                    cache_dir=str(temp_cache_dir),
-                    allowed_cache_files=allowed_cache_files,
-                )
+        with (
+            patch("src.brain_brr.data.datasets.logger"),
+            pytest.raises(json.JSONDecodeError),
+        ):
+            ValidationDataset(
+                cache_dir=str(temp_cache_dir),
+                allowed_cache_files=allowed_cache_files,
+            )
 
     def test_empty_manifest_creates_empty_dataset(self, temp_cache_dir):
         manifest = {"partial_seizure": [], "full_seizure": [], "no_seizure": []}

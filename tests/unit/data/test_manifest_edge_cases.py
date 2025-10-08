@@ -145,9 +145,11 @@ class TestManifestBuilding:
         data = np.random.randn(5, 19, 15360).astype(np.float32)
         np.save(data_file, data)
 
-        with patch("src.brain_brr.data.cache_utils.logger"):
-            with pytest.warns(UserWarning, match="has NO LABELS FILE"):
-                manifest = scan_existing_cache(temp_cache_dir)
+        with (
+            patch("src.brain_brr.data.cache_utils.logger"),
+            pytest.warns(UserWarning, match="has NO LABELS FILE"),
+        ):
+            manifest = scan_existing_cache(temp_cache_dir)
 
         total_windows = (
             len(manifest["partial_seizure"])
