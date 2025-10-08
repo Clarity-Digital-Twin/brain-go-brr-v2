@@ -6,7 +6,7 @@ V3 dual-stream architecture combining:
 - GNN (Graph Neural Network) with dynamic Laplacian positional encoding
 - Multi-head gated fusion for node/edge stream combination
 
-v3.9.0: Production Training Baseline – Bulletproof Resume
+v3.9.0: Production Training Baseline - Bulletproof Resume
 - Atomic checkpoint saves (temp + fsync + rename) with AMP scaler & RNG capture
 - Wall-clock timeout guard exits ~23 h with timeout_exit.pt (Modal-friendly resume)
 - Metric key normalization + W&B run persistence for seamless dashboards
