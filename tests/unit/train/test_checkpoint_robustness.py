@@ -136,8 +136,6 @@ class TestCheckpointScalerPersistence:
             optimizer = torch.optim.AdamW(model.parameters())
             scaler = GradScaler(enabled=True)
 
-            scaler._scale = torch.tensor(1024.0)
-
             save_checkpoint(
                 model,
                 optimizer,
@@ -146,6 +144,8 @@ class TestCheckpointScalerPersistence:
                 checkpoint_path=checkpoint_path,
                 scaler=scaler,
             )
+
+            scaler_state = scaler.state_dict()
 
             new_model = DummyModel()
             new_optimizer = torch.optim.AdamW(new_model.parameters())
@@ -159,7 +159,9 @@ class TestCheckpointScalerPersistence:
                 device="cpu",
             )
 
-            assert new_scaler._scale == scaler._scale
+            new_scaler_state = new_scaler.state_dict()
+            assert "scale" in new_scaler_state
+            assert new_scaler_state["scale"] == scaler_state["scale"]
 
 
 class TestCheckpointRNGPersistence:
@@ -353,10 +355,9 @@ class TestCheckpointFullState:
             model = DummyModel()
             optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
             scaler = GradScaler(enabled=True)
-            scaler._scale = torch.tensor(512.0)
 
             model_state_before = model.state_dict()
-            optim_state_before = optimizer.state_dict()
+            scaler_state_before = scaler.state_dict()
 
             save_checkpoint(
                 model,
@@ -386,11 +387,11 @@ class TestCheckpointFullState:
             )
 
             model_state_after = new_model.state_dict()
-            optim_state_after = new_optimizer.state_dict()
+            scaler_state_after = new_scaler.state_dict()
 
             assert epoch == 10
             assert best_metric == 0.92
-            assert new_scaler._scale == scaler._scale
+            assert scaler_state_after["scale"] == scaler_state_before["scale"]
 
             for key in model_state_before:
                 assert torch.allclose(model_state_before[key], model_state_after[key])

@@ -7,13 +7,17 @@ Focus on run ID file handling - minimal wandb mocking.
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
 from src.brain_brr.config.schemas import Config, ExperimentConfig, WandbConfig
+
+pytest.importorskip("wandb", reason="W&B tests require wandb package")
+
 from src.brain_brr.train.wandb_integration import WandBLogger
 
 
