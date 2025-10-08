@@ -1,6 +1,8 @@
 """Edge stream builder - per-edge BiMamba component with learned lift/project."""
 
-from typing import TYPE_CHECKING, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import torch.nn as nn
 
@@ -34,7 +36,7 @@ class EdgeStreamComponents:
 
     def __init__(
         self,
-        edge_mamba: Union[BiMamba2, "BiGatedDeltaNet"],
+        edge_mamba: BiMamba2 | BiGatedDeltaNet,
         edge_in_proj: nn.Conv1d,
         edge_out_proj: nn.Conv1d,
         edge_activate: nn.Softplus,
@@ -49,7 +51,7 @@ class EdgeStreamComponents:
         self.edge_lift_norm = edge_lift_norm
 
 
-def build_edge_stream(cfg: "ModelConfig") -> EdgeStreamComponents:
+def build_edge_stream(cfg: ModelConfig) -> EdgeStreamComponents:
     """Build edge stream: BiMamba2 (default) or BiGatedDeltaNet (experimental).
 
     V3 Architecture: Processes edge similarities (171 pairs) with shared SSM.
