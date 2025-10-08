@@ -160,7 +160,7 @@ def train(
                 _last = torch.load(
                     checkpoint_dir / CHECKPOINT_LAST, map_location="cpu", weights_only=False
                 )
-                best_metric = _last.get("best_metric", 0.0)
+                best_metric = _last.get("best_metric", _last.get("metric", 0.0))
             except Exception:
                 # Corrupt checkpoint file, proceed with best_metric=0.0
                 pass
