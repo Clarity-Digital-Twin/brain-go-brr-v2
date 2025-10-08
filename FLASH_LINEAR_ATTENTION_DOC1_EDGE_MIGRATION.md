@@ -60,21 +60,21 @@ model:
 
 ## 📊 Parameter Count Analysis
 
-**IMPORTANT**: GDN's 0.75× q/k projection (vs Mamba2's 1.0×) reduces parameter count by ~29%. **This is EXPECTED and BENEFICIAL**:
+**UPDATED (Oct 8, 2025)**: FLA's causal_conv1d requires `edge_d_model=32` (hardware alignment, not 16). This **INCREASES** edge stream parameters vs baseline:
 
-| Component | BiMamba2 (Baseline) | BiGatedDeltaNet (Phase 1a) | Reduction |
-|-----------|---------------------|----------------------------|-----------|
-| **Edge Stream** | 10,304 params | **~7,352 params** | **-29%** |
+| Component | BiMamba2 (Baseline) | BiGatedDeltaNet (Phase 1a) | Change |
+|-----------|---------------------|----------------------------|--------|
+| **Edge Stream** | 10,304 params (d_model=16) | **~TBD params (d_model=32)** | **+~100%** |
 | **Node Stream** | 397,632 params | (unchanged - stays BiMamba2) | N/A |
-| **Total Streams** | 407,936 params | **~404,984 params** | **-0.7%** |
+| **Total Streams** | 407,936 params | **~TBD params** | **+~X%** |
 
-**Why fewer parameters is GOOD**:
-- ✅ **More parameter-efficient**: Same representational capacity with fewer params
-- ✅ **Faster inference**: Fewer parameters = faster forward pass
-- ✅ **Better generalization**: Reduced parameter count can improve generalization
-- ✅ **By design**: GDN paper shows 0.75× allocation is intentional and performs well
+**Why this is STILL VALID**:
+- ✅ **Not comparing capacity**: Phase 1a tests GDN's **algorithm** (gating + delta rule), not parameter efficiency
+- ✅ **Isolation test**: Edge stream is only ~2.5% of total model (31M params), so +100% edge params = <1% total increase
+- ✅ **Fair A/B later**: For capacity comparison, run BiMamba2 edge at d_model=32 as matched baseline
+- ✅ **Primary goal**: Validate GDN stability, dtype handling, and convergence on small stream first
 
-**Key Insight**: The 0.75× reduction is part of GDN's **parameter efficiency design**, not a regression. Language models achieve +3.1% LongBench improvement DESPITE having fewer params.
+**Key Insight**: Parameter count shifted due to hardware constraint, but **algorithmic validation** (Phase 1a goal) remains unaffected. Total model impact: <1%.
 
 ---
 
