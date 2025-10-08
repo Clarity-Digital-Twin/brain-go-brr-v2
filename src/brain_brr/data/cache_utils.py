@@ -306,3 +306,44 @@ def validate_manifest(cache_dir: Path, manifest: dict[str, Any]) -> bool:
         return not (total > 0 and (missing_refs / total) > 0.05)
     except Exception:
         return False
+
+
+def check_manifest_stale(cache_dir: Path, manifest_data: dict[str, Any]) -> bool:
+    """Quick check if manifest references stale NPZ files or missing cache files.
+
+    Used during validation dataset loading to detect manifests that need rebuilding.
+    Returns True if manifest is stale (needs rebuild), False if OK.
+
+    Checks:
+    - Old NPZ naming (_windows.npz or .npz extension) → stale
+    - Referenced files don't exist → stale
+
+    Args:
+        cache_dir: Path to cache directory
+        manifest_data: Loaded manifest dict
+
+    Returns:
+        True if manifest is stale/invalid, False if valid
+    """
+    try:
+        cache_dir = Path(cache_dir)
+
+        for category in ["partial_seizure", "full_seizure", "no_seizure"]:
+            entries = manifest_data.get(category, [])
+            if entries:
+                first_entry = entries[0]
+                cache_file_ref = first_entry.get("cache_file", "")
+
+                if "_windows.npz" in cache_file_ref or ".npz" in cache_file_ref:
+                    logger.warning(f"Manifest uses old NPZ naming: {cache_file_ref}")
+                    return True
+
+                cache_file_path = cache_dir / cache_file_ref
+                if not cache_file_path.exists():
+                    logger.warning(f"Manifest references missing file: {cache_file_ref}")
+                    return True
+
+        return False
+    except Exception as e:
+        logger.warning(f"Manifest check failed: {e}")
+        return True
