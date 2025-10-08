@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import sys
 import time
+import warnings
 from collections.abc import Sized
 from contextlib import suppress
 from pathlib import Path
@@ -15,6 +16,8 @@ from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run as WandBRun  # type: ignore[import-not-found]
+
+warnings.filterwarnings("ignore", message=".*swap memory stats.*", category=RuntimeWarning)
 
 import torch
 import torch.nn as nn
