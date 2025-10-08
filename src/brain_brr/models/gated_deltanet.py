@@ -26,6 +26,7 @@ class BiGatedDeltaNet(nn.Module):
         d_model: Model dimension (64 for node stream, 16 for edge stream)
         headdim: Head dimension (8 for node, 4 for edge - MUST satisfy 0.75* constraint)
         num_layers: Number of bidirectional layers (6 for node, 2 for edge)
+        conv_size: Short convolution kernel size (default 4, from config)
         dropout: Dropout after fusion (0.1 default)
         fusion_mode: 'sum' or 'concat' (A/B test both!)
         allow_neg_eigval: Research feature for β_t ∈ (0,2) (start False)
@@ -36,6 +37,7 @@ class BiGatedDeltaNet(nn.Module):
         d_model: int = 64,
         headdim: int = 8,
         num_layers: int = 6,
+        conv_size: int = 4,
         dropout: float = 0.1,
         fusion_mode: str = "sum",
         allow_neg_eigval: bool = False,
@@ -73,7 +75,7 @@ class BiGatedDeltaNet(nn.Module):
                         expand_v=2.0,
                         mode="chunk",
                         use_short_conv=True,
-                        conv_size=4,
+                        conv_size=conv_size,
                         use_gate=True,
                         allow_neg_eigval=allow_neg_eigval,
                         conv_bias=False,
@@ -86,7 +88,7 @@ class BiGatedDeltaNet(nn.Module):
                         expand_v=2.0,
                         mode="chunk",
                         use_short_conv=True,
-                        conv_size=4,
+                        conv_size=conv_size,
                         use_gate=True,
                         allow_neg_eigval=allow_neg_eigval,
                         conv_bias=False,

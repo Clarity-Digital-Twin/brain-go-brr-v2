@@ -367,7 +367,7 @@ GDN_QK_PROJECTION_RATIO: float = 0.75
 """GDN design: 0.75* q/k projection for parameter efficiency.
 
 Source: ICLR 2025 paper (arxiv.org/abs/2412.06464), Section 3.2
-Maintains ~6* hidden_size² parameter budget when use_gate=True.
+Maintains ~6* hidden_size**2 parameter budget when use_gate=True.
 """
 
 GDN_FUSION_MODE_DEFAULT: str = "sum"

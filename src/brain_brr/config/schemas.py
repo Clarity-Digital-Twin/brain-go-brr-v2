@@ -208,17 +208,21 @@ class HybridAttentionConfig(StrictModel):
         description="SWA window overlap ratio (0.5 = 50% overlap)",
     )
 
-    @field_validator("layers")
-    @classmethod
-    def validate_layers(cls, v: list[int]) -> list[int]:
-        """Validate layer indices for hybrid architecture."""
-        if not v:
-            raise ValueError("layers must not be empty when hybrid_attention enabled")
-        if any(x < 0 or x >= 6 for x in v):
+    @model_validator(mode="after")
+    def validate_layers(self) -> "HybridAttentionConfig":
+        """Validate layer indices for hybrid architecture (only if enabled)."""
+        if not self.enabled:
+            return self
+
+        if not self.layers:
+            raise ValueError("layers must not be empty when hybrid_attention enabled=true")
+        if any(x < 0 or x >= 6 for x in self.layers):
             raise ValueError("layer indices must be in range [0, 6) for 6-layer node stream")
-        if len(v) != len(set(v)):
+        if len(self.layers) != len(set(self.layers)):
             raise ValueError("layer indices must be unique (no duplicates)")
-        return sorted(v)
+
+        self.layers = sorted(self.layers)
+        return self
 
 
 # Legacy decoder config removed in V3-only schema

@@ -18,10 +18,13 @@ from ..mamba import BiMamba2
 if TYPE_CHECKING:
     from src.brain_brr.config.schemas import ModelConfig
 
-try:
     from ..gated_deltanet import BiGatedDeltaNet
 
+try:
+    from fla.layers import GatedDeltaNet
+
     FLA_AVAILABLE = True
+    del GatedDeltaNet
 except ImportError:
     FLA_AVAILABLE = False
 
@@ -75,6 +78,7 @@ def build_node_stream(cfg: "ModelConfig") -> Union[BiMamba2, "BiGatedDeltaNet"]:
             d_model=NODE_D_MODEL,
             headdim=GDN_NODE_HEADDIM_DEFAULT,
             num_layers=NODE_NUM_LAYERS,
+            conv_size=cfg.mamba.conv_kernel,
             dropout=cfg.mamba.dropout,
             fusion_mode=fusion_mode,
             allow_neg_eigval=allow_neg_eigval,
