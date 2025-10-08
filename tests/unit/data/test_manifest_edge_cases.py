@@ -59,7 +59,17 @@ class TestManifestBuilding:
         labels_file = temp_cache_dir / "test_labels.npy"
 
         data = np.random.randn(6, 19, 15360).astype(np.float32)
-        labels = np.array([0, 0, 1, 1, 2, 2], dtype=np.int64)
+        labels = np.array(
+            [
+                np.zeros(15360),
+                np.zeros(15360),
+                np.ones(15360),
+                np.ones(15360),
+                np.concatenate([np.zeros(7680), np.ones(7680)]),
+                np.concatenate([np.zeros(7680), np.ones(7680)]),
+            ],
+            dtype=np.int64,
+        )
 
         np.save(data_file, data)
         np.save(labels_file, labels)
