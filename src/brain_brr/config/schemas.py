@@ -161,7 +161,7 @@ class MambaConfig(StrictModel):
 
     @model_validator(mode="after")
     def validate_gdn_constraints(self) -> "MambaConfig":
-        """Validate GDN-specific 0.75× constraint."""
+        """Validate GDN-specific 0.75* constraint."""
         if (
             self.temporal_type == "gated_deltanet"
             or self.temporal_type_node == "gated_deltanet"
@@ -171,18 +171,18 @@ class MambaConfig(StrictModel):
             if node_constraint != int(NODE_D_MODEL * GDN_QK_PROJECTION_RATIO):
                 raise ValueError(
                     f"Node stream GDN constraint violated: "
-                    f"num_heads({GDN_NODE_NUM_HEADS_DEFAULT}) × headdim({GDN_NODE_HEADDIM_DEFAULT}) "
+                    f"num_heads({GDN_NODE_NUM_HEADS_DEFAULT}) * headdim({GDN_NODE_HEADDIM_DEFAULT}) "
                     f"= {node_constraint} must equal {int(NODE_D_MODEL * GDN_QK_PROJECTION_RATIO)} "
-                    f"(0.75 × {NODE_D_MODEL})"
+                    f"(0.75 * {NODE_D_MODEL})"
                 )
 
             edge_constraint = GDN_EDGE_NUM_HEADS_DEFAULT * GDN_EDGE_HEADDIM_DEFAULT
             if edge_constraint != int(EDGE_D_MODEL * GDN_QK_PROJECTION_RATIO):
                 raise ValueError(
                     f"Edge stream GDN constraint violated: "
-                    f"num_heads({GDN_EDGE_NUM_HEADS_DEFAULT}) × headdim({GDN_EDGE_HEADDIM_DEFAULT}) "
+                    f"num_heads({GDN_EDGE_NUM_HEADS_DEFAULT}) * headdim({GDN_EDGE_HEADDIM_DEFAULT}) "
                     f"= {edge_constraint} must equal {int(EDGE_D_MODEL * GDN_QK_PROJECTION_RATIO)} "
-                    f"(0.75 × {EDGE_D_MODEL})"
+                    f"(0.75 * {EDGE_D_MODEL})"
                 )
 
         return self

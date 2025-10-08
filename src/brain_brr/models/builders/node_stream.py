@@ -3,10 +3,8 @@
 from typing import TYPE_CHECKING, Union
 
 from src.brain_brr.constants import (
-    EDGE_D_MODEL,
     GDN_FUSION_MODE_DEFAULT,
     GDN_NODE_HEADDIM_DEFAULT,
-    GDN_NODE_NUM_HEADS_DEFAULT,
     LAYERSCALE_ALPHA_FALLBACK,
     NODE_D_MODEL,
     NODE_D_STATE,
@@ -21,8 +19,6 @@ if TYPE_CHECKING:
     from src.brain_brr.config.schemas import ModelConfig
 
 try:
-    from fla.layers import GatedDeltaNet as FLAGatedDeltaNet
-
     from ..gated_deltanet import BiGatedDeltaNet
 
     FLA_AVAILABLE = True
@@ -50,7 +46,7 @@ def build_node_stream(cfg: "ModelConfig") -> Union[BiMamba2, "BiGatedDeltaNet"]:
 
     Notes:
         - BiMamba2: headdim=8 ensures (64 * 2) / 8 = 16 (CUDA requirement)
-        - GDN: num_heads × headdim = 0.75 × 64 = 48 (6 × 8 = 48)
+        - GDN: num_heads * headdim = 0.75 * 64 = 48 (6 * 8 = 48)
         - LayerScale enabled if boundary_norm != "none"
         - Fixed architecture params from constants
     """

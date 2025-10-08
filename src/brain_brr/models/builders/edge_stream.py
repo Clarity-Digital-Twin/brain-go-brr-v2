@@ -11,7 +11,6 @@ from src.brain_brr.constants import (
     EDGE_HEADDIM_BIMAMBA2,
     EDGE_NUM_LAYERS,
     GDN_EDGE_HEADDIM_DEFAULT,
-    GDN_EDGE_NUM_HEADS_DEFAULT,
     GDN_FUSION_MODE_DEFAULT,
     LAYERSCALE_ALPHA_FALLBACK,
 )
@@ -70,7 +69,7 @@ def build_edge_stream(cfg: "ModelConfig") -> EdgeStreamComponents:
     Notes:
         - edge_d_model must be multiple of 8 for CUDA alignment
         - BiMamba2: headdim=4 ensures (16 * 2) / 4 = 8 (CUDA requirement)
-        - GDN: num_heads × headdim = 0.75 × 16 = 12 (3 × 4 = 12)
+        - GDN: num_heads * headdim = 0.75 * 16 = 12 (3 * 4 = 12)
         - PR-2: Supports bounded edge stream (activation + norm on lift)
         - LayerScale enabled if boundary_norm != "none"
     """
