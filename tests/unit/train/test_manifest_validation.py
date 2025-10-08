@@ -1,4 +1,3 @@
-import json
 import tempfile
 from pathlib import Path
 
@@ -38,9 +37,7 @@ class TestManifestNPZDetection:
         labels_file.touch()
 
         manifest = {
-            "partial_seizure": [
-                {"cache_file": "test_001_data.npy", "window_idx": 0, "label": 1}
-            ],
+            "partial_seizure": [{"cache_file": "test_001_data.npy", "window_idx": 0, "label": 1}],
             "full_seizure": [],
             "no_seizure": [],
         }
@@ -80,9 +77,7 @@ class TestManifestFileExistence:
         labels_file.touch()
 
         manifest = {
-            "partial_seizure": [
-                {"cache_file": "test_001_data.npy", "window_idx": 0, "label": 1}
-            ],
+            "partial_seizure": [{"cache_file": "test_001_data.npy", "window_idx": 0, "label": 1}],
             "full_seizure": [],
             "no_seizure": [],
         }
