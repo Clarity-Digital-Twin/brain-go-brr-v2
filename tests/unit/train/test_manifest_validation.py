@@ -1,21 +1,23 @@
+import json
 import tempfile
 from pathlib import Path
 
 import pytest
 
+from src.brain_brr.constants import MANIFEST_FILENAME
+from src.brain_brr.data.cache_utils import check_manifest_stale
 
-class TestManifestNPZDetection:
+
+class TestCheckManifestStale:
     @pytest.fixture
     def temp_cache_dir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_dir = Path(tmpdir)
             yield cache_dir
 
-    def test_detects_npz_naming_in_manifest(self, temp_cache_dir):
-        data_file = temp_cache_dir / "test_001_data.npy"
-        labels_file = temp_cache_dir / "test_001_labels.npy"
-        data_file.touch()
-        labels_file.touch()
+    def test_detects_npz_naming_as_stale(self, temp_cache_dir):
+        (temp_cache_dir / "test_001_data.npy").touch()
+        (temp_cache_dir / "test_001_labels.npy").touch()
 
         manifest = {
             "partial_seizure": [
@@ -25,16 +27,11 @@ class TestManifestNPZDetection:
             "no_seizure": [],
         }
 
-        first_entry = manifest["partial_seizure"][0]
-        cache_file_ref = first_entry.get("cache_file", "")
+        assert check_manifest_stale(temp_cache_dir, manifest) is True
 
-        assert "_windows.npz" in cache_file_ref or ".npz" in cache_file_ref
-
-    def test_does_not_detect_npy_naming(self, temp_cache_dir):
-        data_file = temp_cache_dir / "test_001_data.npy"
-        labels_file = temp_cache_dir / "test_001_labels.npy"
-        data_file.touch()
-        labels_file.touch()
+    def test_accepts_npy_naming_as_valid(self, temp_cache_dir):
+        (temp_cache_dir / "test_001_data.npy").touch()
+        (temp_cache_dir / "test_001_labels.npy").touch()
 
         manifest = {
             "partial_seizure": [{"cache_file": "test_001_data.npy", "window_idx": 0, "label": 1}],
@@ -42,21 +39,9 @@ class TestManifestNPZDetection:
             "no_seizure": [],
         }
 
-        first_entry = manifest["partial_seizure"][0]
-        cache_file_ref = first_entry.get("cache_file", "")
+        assert check_manifest_stale(temp_cache_dir, manifest) is False
 
-        assert "_windows.npz" not in cache_file_ref
-        assert ".npz" not in cache_file_ref
-
-
-class TestManifestFileExistence:
-    @pytest.fixture
-    def temp_cache_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cache_dir = Path(tmpdir)
-            yield cache_dir
-
-    def test_detects_missing_file(self, temp_cache_dir):
+    def test_detects_missing_file_as_stale(self, temp_cache_dir):
         manifest = {
             "partial_seizure": [
                 {"cache_file": "nonexistent_data.npy", "window_idx": 0, "label": 1}
@@ -65,129 +50,97 @@ class TestManifestFileExistence:
             "no_seizure": [],
         }
 
-        first_entry = manifest["partial_seizure"][0]
-        cache_file_ref = first_entry.get("cache_file", "")
-        cache_file_path = temp_cache_dir / cache_file_ref
+        assert check_manifest_stale(temp_cache_dir, manifest) is True
 
-        assert not cache_file_path.exists()
-
-    def test_detects_existing_file(self, temp_cache_dir):
-        data_file = temp_cache_dir / "test_001_data.npy"
-        labels_file = temp_cache_dir / "test_001_labels.npy"
-        data_file.touch()
-        labels_file.touch()
-
+    def test_empty_manifest_not_stale(self, temp_cache_dir):
         manifest = {
-            "partial_seizure": [{"cache_file": "test_001_data.npy", "window_idx": 0, "label": 1}],
+            "partial_seizure": [],
             "full_seizure": [],
             "no_seizure": [],
         }
 
-        first_entry = manifest["partial_seizure"][0]
-        cache_file_ref = first_entry.get("cache_file", "")
-        cache_file_path = temp_cache_dir / cache_file_ref
+        assert check_manifest_stale(temp_cache_dir, manifest) is False
 
-        assert cache_file_path.exists()
+    def test_checks_all_categories(self, temp_cache_dir):
+        (temp_cache_dir / "test_001_data.npy").touch()
+        (temp_cache_dir / "test_002_data.npy").touch()
+
+        manifest = {
+            "partial_seizure": [{"cache_file": "test_001_data.npy", "window_idx": 0}],
+            "full_seizure": [{"cache_file": "test_002_windows.npz", "window_idx": 0}],
+            "no_seizure": [],
+        }
+
+        assert check_manifest_stale(temp_cache_dir, manifest) is True
+
+    def test_exception_handling_returns_stale(self, temp_cache_dir):
+        invalid_manifest = {"partial_seizure": "not a list"}
+
+        assert check_manifest_stale(temp_cache_dir, invalid_manifest) is True
 
 
-class TestWhitelistMatching:
+class TestManifestValidationInLoop:
+    """Integration test: manifest validation triggers rebuild in training loop."""
+
     @pytest.fixture
     def temp_cache_dir(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_dir = Path(tmpdir)
-            edf_dir = Path(tmpdir) / "edf" / "dev"
-            edf_dir.mkdir(parents=True)
-            yield cache_dir, edf_dir
+            (cache_dir / "dev").mkdir()
+            yield cache_dir
 
-    def test_whitelist_mismatch_filters_all(self, temp_cache_dir):
-        cache_dir, edf_dir = temp_cache_dir
+    def test_stale_manifest_deleted_on_load(self, temp_cache_dir):
+        dev_dir = temp_cache_dir / "dev"
+        manifest_path = dev_dir / MANIFEST_FILENAME
 
-        data_file = cache_dir / "patient_001_data.npy"
-        labels_file = cache_dir / "patient_001_labels.npy"
-        data_file.touch()
-        labels_file.touch()
+        (dev_dir / "test_001_data.npy").touch()
+        (dev_dir / "test_001_labels.npy").touch()
 
-        edf_file = edf_dir / "patient_002.edf"
-        edf_file.touch()
-
-        manifest = {
+        stale_manifest = {
             "partial_seizure": [
-                {"cache_file": "patient_001_data.npy", "window_idx": 0, "label": 1}
+                {"cache_file": "test_001_windows.npz", "window_idx": 0, "label": 1}
             ],
             "full_seizure": [],
             "no_seizure": [],
         }
 
-        edf_files = list(edf_dir.glob("**/*.edf"))
-        allowed_cache_files = {f"{edf.stem}_data.npy" for edf in edf_files}
+        with manifest_path.open("w") as f:
+            json.dump(stale_manifest, f)
 
-        matched = 0
-        for category in ["partial_seizure", "full_seizure", "no_seizure"]:
-            entries = manifest.get(category, [])
-            for entry in entries:
-                if entry.get("cache_file") in allowed_cache_files:
-                    matched += 1
+        assert manifest_path.exists()
 
-        assert matched == 0
+        with manifest_path.open() as f:
+            manifest_data = json.load(f)
 
-    def test_whitelist_match_succeeds(self, temp_cache_dir):
-        cache_dir, edf_dir = temp_cache_dir
+        if check_manifest_stale(dev_dir, manifest_data):
+            manifest_path.unlink()
 
-        data_file = cache_dir / "patient_001_data.npy"
-        labels_file = cache_dir / "patient_001_labels.npy"
-        data_file.touch()
-        labels_file.touch()
+        assert not manifest_path.exists()
 
-        edf_file = edf_dir / "patient_001.edf"
-        edf_file.touch()
+    def test_valid_manifest_preserved(self, temp_cache_dir):
+        dev_dir = temp_cache_dir / "dev"
+        manifest_path = dev_dir / MANIFEST_FILENAME
 
-        manifest = {
+        (dev_dir / "test_001_data.npy").touch()
+        (dev_dir / "test_001_labels.npy").touch()
+
+        valid_manifest = {
             "partial_seizure": [
-                {"cache_file": "patient_001_data.npy", "window_idx": 0, "label": 1}
+                {"cache_file": "test_001_data.npy", "window_idx": 0, "label": 1}
             ],
             "full_seizure": [],
             "no_seizure": [],
         }
 
-        edf_files = list(edf_dir.glob("**/*.edf"))
-        allowed_cache_files = {f"{edf.stem}_data.npy" for edf in edf_files}
+        with manifest_path.open("w") as f:
+            json.dump(valid_manifest, f)
 
-        matched = 0
-        for category in ["partial_seizure", "full_seizure", "no_seizure"]:
-            entries = manifest.get(category, [])
-            for entry in entries:
-                if entry.get("cache_file") in allowed_cache_files:
-                    matched += 1
+        assert manifest_path.exists()
 
-        assert matched == 1
+        with manifest_path.open() as f:
+            manifest_data = json.load(f)
 
-    def test_npz_naming_causes_whitelist_mismatch(self, temp_cache_dir):
-        cache_dir, edf_dir = temp_cache_dir
+        if check_manifest_stale(dev_dir, manifest_data):
+            manifest_path.unlink()
 
-        data_file = cache_dir / "patient_001_data.npy"
-        labels_file = cache_dir / "patient_001_labels.npy"
-        data_file.touch()
-        labels_file.touch()
-
-        edf_file = edf_dir / "patient_001.edf"
-        edf_file.touch()
-
-        manifest = {
-            "partial_seizure": [
-                {"cache_file": "patient_001_windows.npz", "window_idx": 0, "label": 1}
-            ],
-            "full_seizure": [],
-            "no_seizure": [],
-        }
-
-        edf_files = list(edf_dir.glob("**/*.edf"))
-        allowed_cache_files = {f"{edf.stem}_data.npy" for edf in edf_files}
-
-        matched = 0
-        for category in ["partial_seizure", "full_seizure", "no_seizure"]:
-            entries = manifest.get(category, [])
-            for entry in entries:
-                if entry.get("cache_file") in allowed_cache_files:
-                    matched += 1
-
-        assert matched == 0
+        assert manifest_path.exists()
