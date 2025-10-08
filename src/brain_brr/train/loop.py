@@ -227,6 +227,9 @@ def train(
     global_step = 0  # Track global step across epochs for scheduler
 
     for epoch in range(start_epoch, config.training.epochs):
+        # Update signal handler state for current epoch
+        signal_state["epoch"] = epoch
+
         # Check wall-clock timeout before starting epoch
         if timeout_guard.check():
             remaining = timeout_guard.remaining_seconds()
@@ -392,6 +395,7 @@ def train(
         # Track best metrics (always, regardless of save_model)
         if current_metric == early_stopping.best_score:
             best_metric = current_metric
+            signal_state["best_metric"] = best_metric  # Update for signal handler
             best_metrics = {
                 "best_epoch": epoch + 1,
                 "best_taes": val_metrics["taes"],
