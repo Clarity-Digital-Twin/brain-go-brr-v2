@@ -175,6 +175,13 @@ source = ["src"]
 omit = [
     "*/tests/*",
     "*/test_*",
+    # Infrastructure files - tested via integration/E2E, not unit tests
+    "src/brain_brr/cli/*",
+    "src/brain_brr/utils/logging_config.py",
+    "src/brain_brr/utils/logging_patterns.py",
+    "src/brain_brr/utils/training_logger.py",
+    "src/brain_brr/__main__.py",
+    "src/__main__.py",
 ]
 
 [tool.ruff]
