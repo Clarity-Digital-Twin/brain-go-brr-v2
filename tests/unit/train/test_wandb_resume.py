@@ -7,10 +7,9 @@ Focus on run ID file handling - minimal wandb mocking.
 from __future__ import annotations
 
 import os
-import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
