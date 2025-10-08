@@ -73,6 +73,12 @@ modal run --detach deploy/modal/app.py \
     --resume true
 ```
 
+### Atomic Save Mechanics (v3.9.0)
+
+- `save_checkpoint()` writes to `<name>.pt.tmp`, calls `os.fsync()`, then atomically renames to `<name>.pt`. Partial or corrupted files cannot appear even if Modal terminates mid-save.
+- Checkpoints include AMP scaler state and RNG seeds for Python, NumPy, torch CPU, and torch CUDA so resumes reproduce the exact batch order after timeouts.
+- `load_checkpoint()` handles legacy checkpoints gracefully—missing scaler/RNG fields trigger a warning but training continues.
+
 ## Best Practices
 
 ### DO's

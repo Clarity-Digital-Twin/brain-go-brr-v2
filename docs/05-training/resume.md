@@ -1,22 +1,45 @@
 # Checkpointing and Resume
 
-- Resume: add `--resume true` to training command
-- Checkpoints: `results/<run>/` (`best.pt`, `last.pt`)
+The training loop is designed to survive Modal’s 24 h timeout and to recover from local interruptions without losing progress.
 
-Tmux tips
+## Quick Reference
 
-- Attach: `tmux attach -t train` ; Detach: `Ctrl+B, D` ; Stop: `Ctrl+C`
+- **Local**: `python -m src train configs/local/train.yaml --resume`
+- **Modal**: `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml --resume true`
+- `training.resume: true` in a YAML config has the same effect as `--resume` on the CLI.
 
-Details
+## Load Order (Highest Priority First)
 
-- The training loop prefers mid-epoch checkpoints named `mid_epoch_*.pt` when `training.resume: true`.
-- If no mid-epoch snapshot exists, it loads `last.pt`; `best.pt` is by metric.
-- **Mid-epoch cadence and retention** (v3.6+):
-  - **Recommended**: Set in config: `training.mid_checkpoint_interval_s` (seconds), `training.mid_epoch_keep` (count)
-  - **Legacy (deprecated)**: Env vars `BGB_MID_EPOCH_MINUTES`, `BGB_MID_EPOCH_KEEP` (backward compatible)
-  - Config fields take precedence over env vars
+When `resume` is enabled, checkpoints are loaded in this order:
 
-Examples
+1. Latest `mid_epoch_*.pt` (saved every `training.mid_checkpoint_interval_s`, default 1800 s).
+2. `timeout_exit.pt` (written when the wall-clock guard triggers at ~23 h on Modal).
+3. `last.pt` (end-of-epoch snapshot).
+4. Fresh start (no checkpoints found).
 
-- Local: `python -m src train configs/local/train.yaml --resume`
-- Modal: `modal run deploy/modal/app.py --action train --config configs/modal/train.yaml --resume true`
+Each file contains model weights, optimizer, scheduler, AMP scaler, and RNG state (Python, NumPy, torch CPU, torch CUDA) so the resumed run continues exactly where it stopped.
+
+## Atomic Saves & Deterministic State (v3.9.0)
+
+- `save_checkpoint()` now writes to `<name>.pt.tmp`, calls `os.fsync()`, and atomically renames to `<name>.pt`. Partial/corrupt checkpoints can no longer appear if a job is killed mid-write.
+- Loading legacy checkpoints (pre-v3.9.0) still works; the loader logs a warning when scaler/RNG fields are missing and falls back to best-effort resume.
+- Mid-epoch saves are rotational (`training.mid_epoch_keep`, default 3) to keep disk usage small (<2 GB total).
+
+## Modal Timeout Behaviour
+
+- `deploy/modal/app.py` sets `BGB_WALL_CLOCK_LIMIT_S=82800` (23 h). The guard writes `timeout_exit.pt`, logs a warning, and exits cleanly about an hour before Modal’s enforced 24 h limit.
+- Relaunch training with `--resume true`; the loader prefers `timeout_exit.pt` and training continues with no repeated batches.
+- After a resume the guard resets automatically—expect to relaunch ~4–5 times over a 100-epoch run.
+
+## W&B Run Persistence
+
+- `wandb_integration.py` now stores the run ID in `.wandb_run_id` inside the checkpoint directory. This file is rewritten on every launch so resumes pick up the same dashboard automatically.
+- Logs show `[W&B] Run resumed: …` when continuity succeeds. If the file is missing, the code creates a new run ID and logs `[W&B] Run created: …`.
+
+## Verifying a Resume
+
+- Check the logs for `[CHECKPOINT] Loading … mid_epoch_...` or `timeout_exit.pt`.
+- Ensure the next log line reports the same epoch/batch you expect (e.g., `Resumed from epoch 3`).
+- In W&B, metrics continue on the prior run; no new sweep entry should appear.
+
+For deeper details see `docs/05-training/checkpoint-strategy.md` and `src/brain_brr/train/checkpoint.py`.
