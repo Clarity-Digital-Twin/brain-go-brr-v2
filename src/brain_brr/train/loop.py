@@ -743,7 +743,7 @@ def main() -> None:
             with val_manifest_path.open() as f:
                 val_manifest_data = json.load(f)
 
-            def validate_manifest(cache_dir: Path, manifest_data: dict) -> bool:
+            def _validate_dev_manifest(cache_dir: Path, manifest_data: dict) -> bool:
                 """Check if manifest references match actual NPY cache files."""
                 # Sample first entry from each category
                 for category in ["partial_seizure", "full_seizure", "no_seizure"]:
@@ -754,9 +754,7 @@ def main() -> None:
 
                         # Check if using old NPZ naming (stale manifest)
                         if "_windows.npz" in cache_file_ref or ".npz" in cache_file_ref:
-                            logger.warning(
-                                f"[DATA] Manifest uses old NPZ naming: {cache_file_ref}"
-                            )
+                            logger.warning(f"[DATA] Manifest uses old NPZ naming: {cache_file_ref}")
                             return False
 
                         # Check if referenced file exists
@@ -769,10 +767,8 @@ def main() -> None:
 
                 return True
 
-            if not validate_manifest(val_cache_dir, val_manifest_data):
-                logger.warning(
-                    "[DATA] Invalid/stale dev manifest detected → deleting for rebuild"
-                )
+            if not _validate_dev_manifest(val_cache_dir, val_manifest_data):
+                logger.warning("[DATA] Invalid/stale dev manifest detected → deleting for rebuild")
                 val_manifest_path.unlink()
 
         except Exception as e:
@@ -794,6 +790,18 @@ def main() -> None:
             logger.info(
                 f"[DATASET] ValidationDataset: {len(val_dataset)} windows from manifest (instant load)"
             )
+
+            # CRITICAL: Fail fast if validation dataset is empty (prevents hours of blind training)
+            if len(val_dataset) == 0:
+                logger.error(
+                    "[DATA] ValidationDataset has 0 windows! This means manifest entries don't match EDF files."
+                )
+                logger.error(f"[DATA] Manifest path: {val_manifest_path} (deleting stale manifest)")
+                logger.error("[DATA] Will rebuild from cache. This will take ~5-10 minutes.")
+                val_manifest_path.unlink()
+                raise ValueError(
+                    "ValidationDataset has 0 windows - manifest/EDF mismatch (deleted, retry training)"
+                )
         except Exception as e:
             logger.warning(
                 f"[DATA] ValidationDataset failed: {e}; falling back to EEGWindowDataset"
