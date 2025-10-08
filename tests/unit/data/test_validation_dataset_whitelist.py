@@ -25,7 +25,7 @@ class TestValidationDatasetWhitelist:
                 labels_file = temp_cache_dir / f"{stem}_labels.npy"
 
                 np.save(data_file, np.random.randn(10, 19, 15360).astype(np.float32))
-                np.save(labels_file, np.zeros((10,), dtype=np.int64))
+                np.save(labels_file, np.zeros((10, 15360), dtype=np.int64))
 
         return _create
 
