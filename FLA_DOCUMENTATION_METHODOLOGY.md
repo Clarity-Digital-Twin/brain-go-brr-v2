@@ -100,18 +100,28 @@ A systematic approach to documentation revision that ensures every claim, code s
   - Fixed checkpoint loading bug (torch.load returns dict, not model)
   - Reduced from 1681 lines → 726 lines
 
-### Pending Documents
-- ⏳ **Doc 2 (Node Validation)**: PENDING
-  - Similar cleanup as Doc 1
-  - Remove Phase 0 duplication
-  - Add prerequisite verification
-  - Add coexistence strategy
-  - Fix any checkpoint loading bugs
+- ✅ **Doc 2 (Node Validation) v2.1**: COMPLETE AND VERIFIED
+  - **CRITICAL FIX**: Changed `temporal_type_edge: null` to explicit value (preserves Phase 1a choice)
+  - **CRITICAL FIX**: Fixed attribute path `model.edge_stream.edge_mamba` → `model.edge_mamba`
+  - Removed ~200 lines of Phase 0 duplication (builder implementation)
+  - Changed "migration" → "validation" throughout
+  - Added Phase 0 AND Phase 1a prerequisite verification
+  - Added coexistence strategy (BiMamba2 default, GDN experimental)
+  - Added instant config rollback (prioritized over git)
+  - Fixed checkpoint loading (consistent with Doc 1)
+  - Reduced from 913 lines → 827 lines
 
-- ⏳ **Doc 3 (Full Validation)**: PENDING
-  - Add validation gates (require Phase 1a+1b success)
-  - Add coexistence strategy
-  - Add instant rollback
+- ✅ **Doc 3 (Full Validation) v2.0**: COMPLETE AND VERIFIED
+  - Changed "migration" → "validation" throughout (18 instances)
+  - Added Phase 0 + Phase 1a + Phase 1b prerequisite verification
+  - Added coexistence strategy (BiMamba2 default, GDN experimental)
+  - Added instant config rollback (prioritized over git)
+  - Added validation gates (require both Phase 1a+1b success)
+  - Added partial deployment option (if Phase 2 < individual phases)
+  - Consistent attribute paths (model.edge_mamba, not model.edge_stream.edge_mamba)
+  - Reduced from 904 lines → 925 lines (added validation gate logic)
+
+### Pending Documents
 
 - ⏳ **Doc 4 (Hybrid SWA)**: PENDING
   - Clarify Phase 2 dependency (only if Phase 2 succeeds AND short-duration deficiency exists)
@@ -182,29 +192,29 @@ rg "Doc 0 Section" FLASH_LINEAR_ATTENTION_DOC*.md
 4. **Import order**: Constants must be defined BEFORE being imported in schemas
 5. **Version precision**: Check exact versions (e.g., transformers>=4.53.0, not 4.45.0)
 6. **Duplication**: Phase 0 infrastructure only in Doc 0, not in Doc 1-4
+7. **Config preservation**: Never use `null` for stream-specific overrides - use explicit values to preserve prior phase results
+8. **Attribute paths**: Verify against actual detector code (e.g., `model.edge_mamba` not `model.edge_stream.edge_mamba`)
 
 ---
 
-## 📍 Current Status (October 7, 2025)
+## 📍 Current Status (October 8, 2025)
 
 **Completed**:
 - ✅ Doc 0 v4.1 (SSOT with Phase 0 infrastructure + coexistence strategy)
 - ✅ Doc 1 v2.0 (Edge validation with prerequisite checks + rollback)
+- ✅ Doc 2 v2.1 (Node validation with critical fixes for config preservation + attribute path)
+- ✅ Doc 3 v2.0 (Full validation with validation gates + partial deployment option)
 
 **Next**:
-- ⏳ Doc 2 (Node validation) - PENDING
-- ⏳ Doc 3 (Full validation) - PENDING
-- ⏳ Doc 4 (Hybrid SWA) - PENDING
+- ⏳ Doc 4 (Hybrid SWA) - PENDING (optional, only if Phase 2 succeeds but needs short-event improvement)
 
-**Pause Reason**: Pivoting to different task temporarily.
-
-**Resume Point**: Start with Doc 2 (Node Validation), apply same CRAV methodology:
+**Resume Point**: Start with Doc 4 (Hybrid SWA Expansion), apply same CRAV methodology:
 1. Remove Phase 0 duplication
-2. Add prerequisite verification
+2. Add prerequisite verification (Phase 0 + Phase 1a + Phase 1b + Phase 2)
 3. Change "migration" → "validation"
 4. Add instant config rollback
-5. Fix any checkpoint loading bugs
-6. Get approval before moving to Doc 3
+5. Add conditional gate (only if Phase 2 succeeded AND short-event recall < target)
+6. Get approval before implementation
 
 ---
 

@@ -1,39 +1,67 @@
-# Doc 3: Full Migration - Both Streams → BiGatedDeltaNet
+# Doc 3: Full Stream Validation - Implementation Plan
 
 **Parent Document**: [FLASH_LINEAR_ATTENTION_RESEARCH.md](FLASH_LINEAR_ATTENTION_RESEARCH.md) (Doc 0 - SSOT)
-**Phase**: 2 (Full Migration)
-**Target**: Replace BOTH Edge + Node Streams BiMamba2 → BiGatedDeltaNet
-**Date**: October 7, 2025
-**Version**: 1.1 (Config workflow + W&B analysis fixes)
-**Status**: Ready for Implementation (pending Phase 1a AND Phase 1b success)
+**Phase**: 2 (Full Validation - after Phase 0 + Phase 1a + Phase 1b)
+**Target**: Validate BOTH Edge + Node Streams with BiGatedDeltaNet
+**Date**: October 8, 2025
+**Version**: 2.0 (Coexistence + Infrastructure + Validation Gates)
+**Status**: Ready for Implementation (AFTER Phase 0 + Phase 1a + Phase 1b complete)
+
+**⚠️ CRITICAL PREREQUISITES**:
+1. Complete **Doc 0 Section 14 (Phase 0 Infrastructure)** FIRST (4-6 days)
+2. Complete **Phase 1a (Edge Validation)** and confirm GO decision
+3. Complete **Phase 1b (Node Validation)** and confirm GO decision
+4. This doc assumes config schema, constants, dependencies, builders, and tests already exist
 
 **Changelog**:
-- v1.1 (Oct 7, 2025): Fixed CLI commands to use proper config workflow (no --experiment.name hacks)
-- v1.1 (Oct 7, 2025): Fixed W&B analysis to query by config.experiment.name (robust to name suffixes)
+- v2.0 (Oct 8, 2025): Changed "migration" → "validation" throughout (testing, not replacing)
+- v2.0 (Oct 8, 2025): Added Phase 0 + Phase 1a + Phase 1b prerequisite verification
+- v2.0 (Oct 8, 2025): Added coexistence strategy (BiMamba2 default, GDN experimental)
+- v2.0 (Oct 8, 2025): Added instant config rollback (prioritized over git)
+- v2.0 (Oct 8, 2025): Added validation gates (require both Phase 1a+1b success)
+- v1.1 (Oct 7, 2025): Fixed CLI commands to use proper config workflow
+- v1.1 (Oct 7, 2025): Fixed W&B analysis to query by config.experiment.name
 - v1.0 (Oct 7, 2025): Initial version
 
 ---
 
 ## Executive Summary
 
-This document provides **surgical implementation details** for migrating BOTH edge and node streams from BiMamba2 to BiGatedDeltaNet simultaneously. This is Phase 2 of the phased migration strategy.
+This document provides **validation workflow** for **testing BOTH edge and node streams with BiGatedDeltaNet** simultaneously. This is Phase 2 of the coexistence validation strategy.
 
-**Scope of Changes**:
-- ✅ Set both streams to BiGatedDeltaNet via config
-- ✅ Reuse existing `gated_deltanet.py` wrapper (from Phase 1a)
-- ✅ Reuse existing builder logic (from Phases 1a/1b)
-- ✅ Write integration test (`tests/integration/test_full_gdn_migration.py`)
-- ✅ A/B test fusion modes (sum vs concat) for both streams
-- ❌ **DO NOT TOUCH**: GNN, TCN, decoder (keep v3.8.3 baseline)
+**Key Philosophy**: This is NOT a "migration" or "replacement". BiMamba2 remains the **DEFAULT**. We are **VALIDATING** GDN as an experimental option by testing both streams together.
+
+**Phase 2 Configuration** (assumes Phase 1a AND Phase 1b both succeeded):
+```yaml
+model:
+  mamba:
+    temporal_type: "gated_deltanet"   # Global setting applies to both streams
+    gdn_fusion_mode: sum              # Start with sum fusion
+    gdn_allow_neg_eigval: false       # Conservative start
+```
+
+**Scope of Phase 2**:
+- ✅ Both streams: BiMamba2 → BiGatedDeltaNet (experimental validation)
+- ❌ **DO NOT TOUCH**: GNN, TCN, decoder (keep v3.9.0 baseline)
+
+**What Should Already Exist**:
+- ✅ Config schema with `temporal_type` field (Doc 0 Section 14.1)
+- ✅ Constants extracted to `constants.py` (Doc 0 Section 14.2)
+- ✅ `flash-linear-attention` in `pyproject.toml` (Doc 0 Section 14.3)
+- ✅ Builder factory pattern (Doc 0 Section 14.4)
+- ✅ BiGatedDeltaNet wrapper (Doc 0 Section 14.5)
+- ✅ Test infrastructure (Doc 0 Section 14.6)
+- ✅ **Phase 1a completed successfully** (edge stream validated)
+- ✅ **Phase 1b completed successfully** (node stream validated)
 
 **Expected Outcome**:
 - Edge stream: **10.3K → ~7.3K params** (29% reduction)
 - Node stream: **398K → ~284K params** (29% reduction)
 - **Total streams: 408K → ~291K params** (29% reduction, -117K params)
 - Hypothesis: **+3-5% sensitivity @ 1 FA/24h** (combined effect from both streams)
-- Risk: **HIGH** (100% of stream parameters affected, ~291K out of 291K)
+- Risk: **HIGH** (100% of stream parameters affected)
 
-**Timeline**: 1 day config + 6-8 hours integration test + 1 day analysis
+**Timeline**: 1 day config + 6-8 hours validation + 1 day analysis (assumes Phase 0 + Phase 1a + Phase 1b complete)
 
 ---
 
@@ -47,7 +75,7 @@ This document provides **surgical implementation details** for migrating BOTH ed
 | **Node Stream** | 397,632 params | **~284,000 params** | **-29%** |
 | **Total Streams** | **407,936 params** | **~291,352 params** | **-29%** |
 
-**Why this is EXPECTED and GOOD**:
+**Why fewer parameters is GOOD**:
 - ✅ **Consistent efficiency**: Both streams benefit from 0.75× design
 - ✅ **Faster inference**: -117K params = faster forward pass
 - ✅ **Proven design**: GDN paper + Qwen3-Next production use
@@ -55,56 +83,239 @@ This document provides **surgical implementation details** for migrating BOTH ed
 
 ---
 
-## 1. Prerequisites
+## 1. Prerequisites (MUST Complete Phase 0 + Phase 1a + Phase 1b First)
 
-### 1.1. Phase 1a AND Phase 1b Must Succeed
+**⚠️ BLOCKING**: You CANNOT proceed with Phase 2 until:
+1. Phase 0 is complete (See **Doc 0 Section 14**)
+2. Phase 1a is complete and resulted in **GO decision**
+3. Phase 1b is complete and resulted in **GO decision**
 
-**Critical Decision Point**:
+### 1.1. Verify Phase 0 Complete
+
+**Checklist** (from Doc 0 Section 14.8):
+
 ```bash
-# Review Phase 1a results
-cat PHASE1A_RESULTS.md  # Should show +1-2% sensitivity, no regressions
+# 1. Verify config schema has temporal_type fields
+python -c "
+from src.brain_brr.config.schemas import MambaConfig
+cfg = MambaConfig()
+assert hasattr(cfg, 'temporal_type'), 'Missing temporal_type field!'
+print('✅ Config schema updated')
+"
 
-# Review Phase 1b results
-cat PHASE1B_RESULTS.md  # Should show +1-2% sensitivity, no regressions
+# 2. Verify constants exist
+python -c "
+from src.brain_brr.constants import (
+    GDN_NODE_NUM_HEADS_DEFAULT,
+    GDN_EDGE_NUM_HEADS_DEFAULT,
+)
+print('✅ Constants exist')
+"
 
-# Decision matrix:
-# ✅ Both succeed → Proceed to Phase 2
-# ❌ Either fails → Deploy only the successful phase, skip Phase 2
+# 3. Verify FLA installed
+python -c "
+from fla.layers import GatedDeltaNet
+print('✅ FLA library installed')
+"
+
+# 4. Verify BiGatedDeltaNet wrapper exists
+python -c "
+from src.brain_brr.models.gated_deltanet import BiGatedDeltaNet
+print('✅ BiGatedDeltaNet wrapper exists')
+"
+
+# 5. Verify builder factory pattern works for both streams
+python -c "
+from src.brain_brr.models.builders.node_stream import build_node_stream
+from src.brain_brr.models.builders.edge_stream import build_edge_stream
+from src.brain_brr.config.schemas import ModelConfig, MambaConfig, GraphConfig
+
+# Test BiMamba2 (default)
+cfg = ModelConfig(
+    mamba=MambaConfig(temporal_type='bimamba2'),
+    graph=GraphConfig(enabled=True, edge_mamba_layers=2, edge_mamba_d_state=8, edge_mamba_d_model=16)
+)
+node = build_node_stream(cfg)
+edge_components = build_edge_stream(cfg)
+print(f'✅ Builders return BiMamba2: node={type(node).__name__}, edge={type(edge_components.edge_mamba).__name__}')
+
+# Test GDN (experimental)
+cfg.mamba.temporal_type = 'gated_deltanet'
+node_gdn = build_node_stream(cfg)
+edge_gdn_components = build_edge_stream(cfg)
+print(f'✅ Builders return BiGatedDeltaNet: node={type(node_gdn).__name__}, edge={type(edge_gdn_components.edge_mamba).__name__}')
+"
 ```
 
-### 1.2. Environment Setup
+**If ANY check fails**: Go back to Doc 0 Section 14 and complete Phase 0 infrastructure.
+
+### 1.2. Verify Phase 1a AND Phase 1b Complete
+
+**Checklist**:
 
 ```bash
-# Verify both phases completed
-git log --oneline | head -10  # Should show Phase 1a and 1b commits
+# 1. Check Phase 1a results exist
+python -c "
+import wandb
+api = wandb.Api()
+runs = api.runs('seizure-v3-fla-validation')  # Or your W&B project
 
-# Verify BiGatedDeltaNet wrapper exists
-python -c "from src.brain_brr.models.gated_deltanet import BiGatedDeltaNet; print('✅ Wrapper exists')"
+# Find Phase 1a run
+phase1a = [r for r in runs if r.config.get('experiment', {}).get('name') == 'phase1a_edge_gdn']
+if not phase1a:
+    print('❌ Phase 1a run not found')
+    exit(1)
 
-# Create Phase 2 branch
-git checkout -b feature/full-gdn-migration
-git tag v3.8.3-pre-full-migration
+run = phase1a[0]
+sens_10fa = run.summary.get('sensitivity_at_10fa', 0)
+print(f'✅ Phase 1a complete: sensitivity@10FA={sens_10fa:.2%}')
+"
+
+# 2. Check Phase 1b results exist
+python -c "
+import wandb
+api = wandb.Api()
+runs = api.runs('seizure-v3-fla-validation')
+
+# Find Phase 1b run
+phase1b = [r for r in runs if r.config.get('experiment', {}).get('name') == 'phase1b_node_gdn']
+if not phase1b:
+    print('❌ Phase 1b run not found')
+    exit(1)
+
+run = phase1b[0]
+sens_10fa = run.summary.get('sensitivity_at_10fa', 0)
+print(f'✅ Phase 1b complete: sensitivity@10FA={sens_10fa:.2%}')
+"
+
+# 3. Confirm BOTH phases resulted in GO decision
+# Review Phase 1a results manually:
+# - sensitivity@10FA improvement >= +1% OR no regression > -0.5%
+# - No training instabilities (NaNs, divergence)
+# - Throughput acceptable (<= 10% slower)
+
+# Review Phase 1b results manually:
+# - sensitivity@10FA improvement >= +1% OR no regression > -0.5%
+# - No training instabilities (NaNs, divergence)
+# - Throughput acceptable (<= 10% slower)
+
+# If EITHER phase was NO-GO, you should NOT proceed to Phase 2
+# Instead, deploy only the successful phase (partial deployment)
+```
+
+**If Either Phase 1a OR Phase 1b was NO-GO**: Do NOT proceed with Phase 2. Instead:
+- **Phase 1a succeeded, Phase 1b failed**: Deploy edge stream only
+- **Phase 1b succeeded, Phase 1a failed**: Deploy node stream only
+- **Both failed**: Revert to BiMamba2 baseline
+
+### 1.3. Validation Gate: Combined Effect Hypothesis
+
+**Purpose**: Verify that combining both streams is justified.
+
+```bash
+# Calculate expected combined effect
+python -c "
+import wandb
+api = wandb.Api()
+runs = api.runs('seizure-v3-fla-validation')
+
+# Get baseline
+baseline = [r for r in runs if r.config.get('experiment', {}).get('name') == 'baseline_bimamba2']
+if not baseline:
+    print('❌ Baseline run not found')
+    exit(1)
+
+baseline_sens = baseline[0].summary.get('sensitivity_at_10fa', 0)
+
+# Get Phase 1a and 1b
+phase1a = [r for r in runs if r.config.get('experiment', {}).get('name') == 'phase1a_edge_gdn']
+phase1b = [r for r in runs if r.config.get('experiment', {}).get('name') == 'phase1b_node_gdn']
+
+if not phase1a or not phase1b:
+    print('❌ Phase 1a or 1b runs not found')
+    exit(1)
+
+phase1a_sens = phase1a[0].summary.get('sensitivity_at_10fa', 0)
+phase1b_sens = phase1b[0].summary.get('sensitivity_at_10fa', 0)
+
+phase1a_gain = (phase1a_sens - baseline_sens) / baseline_sens if baseline_sens > 0 else 0
+phase1b_gain = (phase1b_sens - baseline_sens) / baseline_sens if baseline_sens > 0 else 0
+
+print(f'Baseline: {baseline_sens:.2%}')
+print(f'Phase 1a gain: {phase1a_gain:+.2%}')
+print(f'Phase 1b gain: {phase1b_gain:+.2%}')
+print(f'Expected Phase 2 gain: {phase1a_gain + phase1b_gain:+.2%} (if additive)')
+print(f'Minimum target: +3% (may have interaction penalties)')
+
+if phase1a_gain + phase1b_gain < 0.03:
+    print('⚠️  WARNING: Combined expected gain < +3% target')
+    print('   Consider partial deployment instead of full Phase 2')
+else:
+    print('✅ Combined effect hypothesis justified')
+"
 ```
 
 ---
 
-## 2. Implementation: Config Update Only
+## 2. Phase 2 Configuration
 
-**Key Insight**: Phase 2 requires **ZERO new code** - only config changes!
+**This is the ACTUAL Phase 2 work** - creating a test config that enables GDN for both streams.
 
-### 2.1. File: `configs/local/full_gdn_test.yaml`
+### 2.1. Create Phase 2 Config
 
-**Create new config for Phase 2 testing**:
+```bash
+# Copy Phase 1b config (which already has edge stream from Phase 1a)
+cp configs/local/phase1b_node_gdn.yaml configs/local/phase2_both_gdn.yaml
+
+# Edit to enable GDN for BOTH streams via global fallback
+```
+
+### 2.2. Edit Config - Key Changes
+
+**File**: `configs/local/phase2_both_gdn.yaml`
+
+**Make these changes**:
 
 ```yaml
-# Full Migration Test Config
-# Phase 2: Replace BOTH edge and node streams with BiGatedDeltaNet
+# 1. Update experiment section
+experiment:
+  name: phase2_both_gdn  # CHANGE THIS
+  description: "Phase 2 - Both streams GDN validation"
+  output_dir: results/phase2_both_gdn
+
+  wandb:
+    enabled: true
+    project: seizure-v3-fla-validation  # CHANGE THIS
+    entity: null
+
+# 2. Enable GDN for BOTH streams (simplified global approach)
+model:
+  mamba:
+    temporal_type: gated_deltanet   # Global setting (both streams use GDN)
+    gdn_fusion_mode: sum            # Start with sum fusion
+    gdn_allow_neg_eigval: false     # Conservative start
+
+# NOTE: Stream-specific fields (temporal_type_node/edge) are NOT set,
+# so both streams use the global fallback (gated_deltanet).
+
+# 3. Short validation run
+training:
+  epochs: 10  # Short test (not full 100)
+```
+
+### 2.3. Complete Config Template
+
+**File**: `configs/local/phase2_both_gdn.yaml` (complete example)
+
+```yaml
+# Phase 2: Both Streams GDN Validation
+# Tests BOTH edge and node streams with BiGatedDeltaNet
 
 experiment:
-  name: full_gdn_migration_test
-  description: "Phase 2 - Both streams BiGatedDeltaNet test"
+  name: phase2_both_gdn
+  description: "Phase 2 - Both streams GDN validation"
   seed: 42
-  output_dir: results/full_gdn_test
+  output_dir: results/phase2_both_gdn
   cache_dir: cache/tusz_mmap
   device: cuda
   log_level: INFO
@@ -113,13 +324,12 @@ experiment:
 
   wandb:
     enabled: true
-    project: seizure-v3-full-gdn
+    project: seizure-v3-fla-validation
     entity: null
 
 model:
   architecture: v3
 
-  # PR-1: Boundary Normalization (ENABLED)
   norms:
     boundary_norm: layernorm
     boundary_eps: 1.0e-5
@@ -145,47 +355,34 @@ model:
     conv_kernel: 4
     dropout: 0.1
 
-    # PHASE 2: Enable GDN for BOTH streams (simplified fallback approach)
-    temporal_type: gated_deltanet  # Fallback applies to both streams
-    # temporal_type_node: null     # Not set → uses fallback (GDN)
-    # temporal_type_edge: null     # Not set → uses fallback (GDN)
-    fusion_mode: sum               # Start with sum (A/B test concat later)
-    allow_neg_eigval: false        # Conservative start
+    # PHASE 2: GDN for BOTH streams (global fallback)
+    temporal_type: gated_deltanet   # Both streams use this
+    gdn_fusion_mode: sum            # Bidirectional fusion
+    gdn_allow_neg_eigval: false     # Conservative start
 
-  # Graph configuration (V3)
   graph:
     enabled: true
-
-    # PR-2: Bounded Edge Stream (ENABLED)
     edge_lift_activation: tanh
     edge_lift_norm: layernorm
     edge_lift_init_gain: 0.1
-
-    # V3: Edge stream config (now using GDN)
     edge_features: cosine
     edge_top_k: 3
     edge_threshold: 1.0e-4
-    edge_mamba_layers: 2       # Edge GDN layers
-    edge_mamba_d_state: 8      # Ignored for GDN
-    edge_mamba_d_model: 16     # Edge GDN model dim
+    edge_mamba_layers: 2
+    edge_mamba_d_state: 8
+    edge_mamba_d_model: 16
     edge_similarity_margin: 0.01
-
-    # PR-3: Adjacency Conditioning (ENABLED)
     adj_row_softmax: true
     adj_softmax_tau: 1.0
     adj_ema_beta: 0.95
     adj_force_symmetric: true
     laplacian_eps: 1.0e-3
     laplacian_normalize: true
-
-    # GNN architecture
     n_layers: 2
     dropout: 0.1
     use_residual: true
     alpha: 0.05
     k_eigenvectors: 16
-
-    # Dynamic PE config (v3) - OPTIMIZED FOR RTX 4090
     use_dynamic_pe: true
     semi_dynamic_interval: 5
     pe_sign_consistency: true
@@ -211,16 +408,13 @@ preprocessing:
   normalize: true
 
 training:
-  epochs: 10  # Short test run
+  epochs: 10  # Short validation run
 
   batch_size: 8
-
   learning_rate: 1.0e-4
   weight_decay: 0.01
   optimizer: adamw
-
   gradient_clip: 0.5
-
   mixed_precision: false
 
   loss: focal
@@ -275,302 +469,141 @@ logging:
   log_weights: false
 ```
 
-**Alternative: Explicit Stream-Specific Config** (if you want to be extra clear):
-
-```yaml
-mamba:
-  # Explicit approach (same result as fallback)
-  temporal_type: bimamba2            # Not used (overrides present)
-  temporal_type_node: gated_deltanet  # Node uses GDN
-  temporal_type_edge: gated_deltanet  # Edge uses GDN
-  fusion_mode: sum
-  allow_neg_eigval: false
-```
-
 ---
 
-## 3. Testing Strategy
+## 3. Validation Workflow
 
-### 3.1. Integration Test: `tests/integration/test_full_gdn_migration.py`
+### 3.1. Smoke Test (Optional - 3 files, 1 epoch)
 
-```python
-"""Integration test for full GDN migration (both streams)."""
-
-import pytest
-import torch
-
-from src.brain_brr.models.builders.edge_stream import build_edge_stream
-from src.brain_brr.models.builders.node_stream import build_node_stream
-from src.brain_brr.config.schemas import ModelConfig, MambaConfig, GraphConfig
-
-# Skip if FLA not installed
-pytest.importorskip("fla")
-
-
-class TestFullGDNMigration:
-    """Test full migration: BOTH edge and node streams use BiGatedDeltaNet."""
-
-    @pytest.fixture
-    def base_config(self):
-        """Base config with both streams enabled for GDN."""
-        return ModelConfig(
-            mamba=MambaConfig(
-                n_layers=6,
-                d_model=512,
-                d_state=16,
-                conv_kernel=4,
-                dropout=0.1,
-                temporal_type="gated_deltanet",  # Fallback for both streams
-            ),
-            graph=GraphConfig(
-                enabled=True,
-                edge_mamba_layers=2,
-                edge_mamba_d_state=8,
-                edge_mamba_d_model=16,
-            ),
-        )
-
-    def test_both_streams_use_gdn(self, base_config):
-        """Test both streams build as BiGatedDeltaNet."""
-        from src.brain_brr.models.gated_deltanet import BiGatedDeltaNet
-
-        node_mamba = build_node_stream(base_config)
-        edge_components = build_edge_stream(base_config)
-
-        # Verify both are GDN
-        assert isinstance(node_mamba, BiGatedDeltaNet), "Node should be BiGatedDeltaNet"
-        assert isinstance(edge_components.edge_mamba, BiGatedDeltaNet), "Edge should be BiGatedDeltaNet"
-
-    def test_combined_parameter_count(self, base_config):
-        """Test combined parameter count matches expected reduction.
-
-        Both streams should have ~29% fewer params than BiMamba2 baseline.
-        Total: 408K → ~291K params.
-        """
-        node_mamba = build_node_stream(base_config)
-        edge_components = build_edge_stream(base_config)
-
-        node_params = sum(p.numel() for p in node_mamba.parameters())
-        edge_params = sum(p.numel() for p in edge_components.edge_mamba.parameters())
-        total_params = node_params + edge_params
-
-        print(f"Node GDN params: {node_params:,}")
-        print(f"Edge GDN params: {edge_params:,}")
-        print(f"Total GDN params: {total_params:,}")
-        print(f"Expected: ~291K (29% reduction from 408K BiMamba2)")
-
-        # Total should be 280K-310K (allowing some variance)
-        assert 280_000 < total_params < 310_000, (
-            f"Total parameter count outside expected range: {total_params:,} "
-            f"(expected ~291K due to GDN's 0.75× q/k projection)"
-        )
-
-    def test_dual_stream_forward_pass(self, base_config):
-        """Test full dual-stream forward pass (detector-like context)."""
-        from src.brain_brr.models.edge_features import edge_scalar_series
-
-        batch_size = 2
-        num_electrodes = 19
-        num_edges = 171
-        seq_len = 960
-        d_features = 64
-
-        node_mamba = build_node_stream(base_config)
-        edge_components = build_edge_stream(base_config)
-
-        # Simulate detector flow
-        # 1. TCN output projected to electrodes
-        elec_feats = torch.randn(batch_size, num_electrodes, seq_len, d_features)
-
-        # 2. Node stream processing
-        node_flat = elec_feats.permute(0, 1, 3, 2).reshape(
-            batch_size * num_electrodes, d_features, seq_len
-        )
-        node_processed = node_mamba(node_flat)
-        node_feats = node_processed.reshape(batch_size, num_electrodes, d_features, seq_len)
-
-        # 3. Edge stream processing
-        edge_feats = edge_scalar_series(elec_feats, metric="cosine", edge_similarity_margin=0.01)
-        edge_flat = edge_feats.squeeze(-1).reshape(batch_size * num_edges, 1, seq_len)
-        edge_in = edge_components.edge_in_proj(edge_flat)
-        edge_processed = edge_components.edge_mamba(edge_in)
-        edge_out = edge_components.edge_out_proj(edge_processed)
-        edge_weights = edge_out.squeeze(1).reshape(batch_size, num_edges, seq_len)
-
-        # Verify shapes
-        assert node_feats.shape == (batch_size, num_electrodes, d_features, seq_len)
-        assert edge_weights.shape == (batch_size, num_edges, seq_len)
-
-        # Verify no NaNs
-        assert not torch.isnan(node_feats).any(), "NaNs in node stream output"
-        assert not torch.isnan(edge_weights).any(), "NaNs in edge stream output"
-
-    def test_gradient_flow_dual_stream(self, base_config):
-        """Test gradients flow through both streams."""
-        node_mamba = build_node_stream(base_config)
-        edge_components = build_edge_stream(base_config)
-
-        # Node stream
-        node_x = torch.randn(8 * 19, 64, 960, requires_grad=True)
-        node_y = node_mamba(node_x)
-        node_loss = node_y.sum()
-        node_loss.backward()
-        assert node_x.grad is not None, "Node gradients not flowing"
-
-        # Edge stream
-        edge_x = torch.randn(8 * 171, 16, 960, requires_grad=True)
-        edge_y = edge_components.edge_mamba(edge_x)
-        edge_loss = edge_y.sum()
-        edge_loss.backward()
-        assert edge_x.grad is not None, "Edge gradients not flowing"
-
-    def test_fusion_mode_sum(self, base_config):
-        """Test sum fusion mode for both streams."""
-        node_mamba = build_node_stream(base_config)
-        edge_components = build_edge_stream(base_config)
-
-        assert node_mamba.fusion_mode == "sum"
-        assert edge_components.edge_mamba.fusion_mode == "sum"
-
-    def test_cuda_compatibility_dual_stream(self, base_config):
-        """Test CUDA compatibility with both streams."""
-        if not torch.cuda.is_available():
-            pytest.skip("CUDA not available")
-
-        node_mamba = build_node_stream(base_config).cuda()
-        edge_components = build_edge_stream(base_config)
-        edge_components.edge_mamba = edge_components.edge_mamba.cuda()
-
-        # Test node stream
-        node_x = torch.randn(8 * 19, 64, 960).cuda()
-        node_y = node_mamba(node_x)
-        assert node_y.is_cuda
-        assert not torch.isnan(node_y).any()
-
-        # Test edge stream
-        edge_x = torch.randn(8 * 171, 16, 960).cuda()
-        edge_y = edge_components.edge_mamba(edge_x)
-        assert edge_y.is_cuda
-        assert not torch.isnan(edge_y).any()
-```
-
-**Run integration tests**:
+**Purpose**: Quick sanity check before full validation.
 
 ```bash
-pytest tests/integration/test_full_gdn_migration.py -xvs
+# Run smoke test
+export BGB_SMOKE_TEST=1
+python -m src train configs/local/phase2_both_gdn.yaml
+
+# Expected output:
+# - Loads 3 files
+# - Completes 1 epoch
+# - No crashes, no NaNs
+# - Logs show "Node stream: BiGatedDeltaNet"
+# - Logs show "Edge stream: BiGatedDeltaNet"
 ```
 
----
+### 3.2. Full Validation (50 files, 10 epochs)
 
-## 4. A/B Testing Matrix
-
-### 4.1. Fusion Mode Experiments
-
-**Purpose**: Determine optimal fusion mode (sum vs concat) for both streams
-
-**CRITICAL**: CLI does NOT support `--experiment.name` overrides. Create separate configs for each experiment.
+**Purpose**: Validate Phase 2 hypothesis against Phase 1a and Phase 1b.
 
 ```bash
-# Set limited file count for all experiments
+# Run Phase 2 validation
 export BGB_LIMIT_FILES=50
+python -m src train configs/local/phase2_both_gdn.yaml
 
-# 1. Baseline: BiMamba2 (both streams)
-cp configs/local/train.yaml configs/local/baseline_bimamba2.yaml
-# Edit configs/local/baseline_bimamba2.yaml:
-#   experiment.name: "baseline_bimamba2"
-#   training.epochs: 10
-python -m src train configs/local/baseline_bimamba2.yaml
+# Monitor during training:
+# - Loss curve (should decrease)
+# - Gradient norms (should be stable)
+# - Memory usage (~20GB on RTX 4090, similar to baseline)
+# - Throughput (may be 5-10% slower than baseline)
 
-# 2. Phase 2 Sum fusion (both streams)
-cp configs/local/full_gdn_test.yaml configs/local/phase2_sum.yaml
-# Edit configs/local/phase2_sum.yaml:
-#   experiment.name: "phase2_sum"
-#   mamba.temporal_type: "gated_deltanet"
-#   mamba.fusion_mode: "sum"
-#   training.epochs: 10
-python -m src train configs/local/phase2_sum.yaml
-
-# 3. Phase 2 Concat fusion (both streams)
-cp configs/local/full_gdn_test.yaml configs/local/phase2_concat.yaml
-# Edit configs/local/phase2_concat.yaml:
-#   experiment.name: "phase2_concat"
-#   mamba.temporal_type: "gated_deltanet"
-#   mamba.fusion_mode: "concat"
-#   training.epochs: 10
-python -m src train configs/local/phase2_concat.yaml
-
-# NOTE: Phase 2 Mixed (per-stream fusion modes) requires future enhancement:
-# - Add mamba.fusion_mode_node and mamba.fusion_mode_edge config fields
-# - Update node_stream.py and edge_stream.py builders to check stream-specific first
-# - Not implemented in Phase 2 (A/B test determines global fusion mode first)
+# Training time: ~6-8 hours on RTX 4090
 ```
 
-### 4.2. Comparison with Individual Phases
+### 3.3. Verify Both Streams (Node GDN, Edge GDN)
 
-**Purpose**: Verify combined effect ≥ individual effects
+**Purpose**: Confirm both streams are using GDN.
 
 ```bash
-# Expected outcomes:
-# - Phase 1a (edge only): +X% sensitivity improvement
-# - Phase 1b (node only): +Y% sensitivity improvement
-# - Phase 2 (both): Expected +3-5% (may not equal X+Y due to interaction effects)
+# Check logs for confirmation
+grep "Node stream:" <logfile>
+# Expected: "Node stream: BiGatedDeltaNet"
+
+grep "Edge stream:" <logfile>
+# Expected: "Edge stream: BiGatedDeltaNet"
+
+# Or verify in Python (correct way - checkpoint is a dict, not model):
+python -c "
+import torch
+from src.brain_brr.config.schemas import Config
+from src.brain_brr.models.detector import SeizureDetector
+
+# Load config
+config = Config.from_yaml('configs/local/phase2_both_gdn.yaml')
+
+# Instantiate model
+model = SeizureDetector(config.model)
+
+# Load checkpoint dict
+checkpoint = torch.load('results/phase2_both_gdn/checkpoints/best.pt', map_location='cpu', weights_only=False)
+
+# Load state dict into model
+model.load_state_dict(checkpoint['model_state_dict'])
+
+# Verify both streams
+print(f'Node: {type(model.node_mamba).__name__}')
+print(f'Edge: {type(model.edge_mamba).__name__}')
+"
+# Expected:
+# Node: BiGatedDeltaNet
+# Edge: BiGatedDeltaNet
 ```
 
-**Analysis script** (`scripts/analyze_phase2_results.py`):
+---
+
+## 4. A/B Comparison
+
+### 4.1. Metrics to Compare
+
+| Metric | Source | Why Important |
+|--------|--------|---------------|
+| `val_loss` | W&B | Overall convergence |
+| `sensitivity_at_10fa` | W&B | Primary metric (10 FA/24h) |
+| `sensitivity_at_5fa` | W&B | Secondary metric (5 FA/24h) |
+| `sensitivity_at_1fa` | W&B | Stretch goal (1 FA/24h) |
+| `throughput` | Logs | Training efficiency |
+| `memory_peak` | Logs | Resource usage |
+
+### 4.2. Analysis Script
+
+**File**: `scripts/analyze_phase2.py` (robust W&B analysis)
 
 ```python
-"""Analyze Phase 2 A/B testing results from W&B.
+"""Compare Phase 2 (both streams GDN) results against Phase 1a and Phase 1b.
 
 USAGE:
-    python scripts/analyze_phase2_results.py --project seizure-v3-full-gdn
+    python scripts/analyze_phase2.py --project seizure-v3-fla-validation
 """
 import argparse
 import sys
-from typing import Optional
-
 import wandb
 
 
-def find_run_by_experiment_name(runs: list, experiment_name: str) -> Optional[wandb.apis.public.Run]:
-    """Find run by experiment.name config field (robust to W&B name suffixes).
-
-    Args:
-        runs: List of W&B runs
-        experiment_name: Expected value of config.experiment.name
-
-    Returns:
-        Matching run or None if not found
-    """
+def find_run_by_experiment_name(runs: list, experiment_name: str):
+    """Find run by experiment.name config field (robust to W&B name suffixes)."""
     matches = [
         r for r in runs
         if r.config.get('experiment', {}).get('name') == experiment_name
     ]
 
     if not matches:
+        print(f"ERROR: No runs found with experiment.name='{experiment_name}'")
         return None
     if len(matches) > 1:
-        print(f"Warning: Found {len(matches)} runs with experiment.name='{experiment_name}', using first")
-        print(f"  Run IDs: {[r.id for r in matches]}")
+        print(f"Warning: Found {len(matches)} runs, using first")
 
     return matches[0]
 
 
-def get_metric(run: wandb.apis.public.Run, metric: str, default: float = 0.0) -> float:
-    """Safely extract metric from run summary.
-
-    Args:
-        run: W&B run object
-        metric: Metric name (e.g., 'sensitivity_at_10fa')
-        default: Default value if metric missing
-
-    Returns:
-        Metric value or default
-    """
-    return run.summary.get(metric, default)
+def get_metric(run, metric: str, default: float = 0.0) -> float:
+    """Safely fetch a scalar metric from W&B run summary."""
+    value = run.summary.get(metric)
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Analyze Phase 2 A/B testing results")
+    parser = argparse.ArgumentParser(description="Analyze Phase 2 validation results")
     parser.add_argument('--project', required=True, help='W&B project name')
     parser.add_argument('--entity', default=None, help='W&B entity (optional)')
     args = parser.parse_args()
@@ -580,23 +613,14 @@ def main():
     project_path = f"{args.entity}/{args.project}" if args.entity else args.project
     runs = api.runs(project_path)
 
-    # Find runs by experiment.name config field (robust to W&B suffixes)
+    # Find runs by experiment.name (robust to W&B suffixes)
     baseline = find_run_by_experiment_name(runs, "baseline_bimamba2")
-    phase1a = find_run_by_experiment_name(runs, "phase1a_gdn_edge")
-    phase1b = find_run_by_experiment_name(runs, "phase1b_gdn_node")
-    phase2_sum = find_run_by_experiment_name(runs, "phase2_sum")
-    phase2_concat = find_run_by_experiment_name(runs, "phase2_concat")
+    phase1a = find_run_by_experiment_name(runs, "phase1a_edge_gdn")
+    phase1b = find_run_by_experiment_name(runs, "phase1b_node_gdn")
+    phase2 = find_run_by_experiment_name(runs, "phase2_both_gdn")
 
-    # Verify all runs found
-    missing = []
-    if not baseline: missing.append("baseline_bimamba2")
-    if not phase1a: missing.append("phase1a_gdn_edge")
-    if not phase1b: missing.append("phase1b_gdn_node")
-    if not phase2_sum: missing.append("phase2_sum")
-    if not phase2_concat: missing.append("phase2_concat")
-
-    if missing:
-        print(f"ERROR: Missing runs: {missing}")
+    # Verify all found
+    if not baseline or not phase1a or not phase1b or not phase2:
         print("\nAvailable runs:")
         for r in runs:
             exp_name = r.config.get('experiment', {}).get('name', 'UNKNOWN')
@@ -604,58 +628,86 @@ def main():
         sys.exit(1)
 
     # Extract metrics
-    baseline_sens = get_metric(baseline, 'sensitivity_at_10fa')
-    phase1a_sens = get_metric(phase1a, 'sensitivity_at_10fa')
-    phase1b_sens = get_metric(phase1b, 'sensitivity_at_10fa')
-    phase2_sum_sens = get_metric(phase2_sum, 'sensitivity_at_10fa')
-    phase2_concat_sens = get_metric(phase2_concat, 'sensitivity_at_10fa')
+    baseline_loss = get_metric(baseline, "val_loss")
+    phase1a_loss = get_metric(phase1a, "val_loss")
+    phase1b_loss = get_metric(phase1b, "val_loss")
+    phase2_loss = get_metric(phase2, "val_loss")
 
-    # Calculate gains (avoid division by zero)
-    if baseline_sens > 0:
-        phase1a_gain = (phase1a_sens - baseline_sens) / baseline_sens
-        phase1b_gain = (phase1b_sens - baseline_sens) / baseline_sens
-        phase2_sum_gain = (phase2_sum_sens - baseline_sens) / baseline_sens
-        phase2_concat_gain = (phase2_concat_sens - baseline_sens) / baseline_sens
-    else:
-        print(f"ERROR: Baseline sensitivity is zero or missing")
-        sys.exit(1)
+    baseline_sens_10fa = get_metric(baseline, "sensitivity_at_10fa")
+    baseline_sens_5fa = get_metric(baseline, "sensitivity_at_5fa")
+    baseline_sens_1fa = get_metric(baseline, "sensitivity_at_1fa")
+
+    phase1a_sens_10fa = get_metric(phase1a, "sensitivity_at_10fa")
+    phase1a_sens_5fa = get_metric(phase1a, "sensitivity_at_5fa")
+    phase1a_sens_1fa = get_metric(phase1a, "sensitivity_at_1fa")
+
+    phase1b_sens_10fa = get_metric(phase1b, "sensitivity_at_10fa")
+    phase1b_sens_5fa = get_metric(phase1b, "sensitivity_at_5fa")
+    phase1b_sens_1fa = get_metric(phase1b, "sensitivity_at_1fa")
+
+    phase2_sens_10fa = get_metric(phase2, "sensitivity_at_10fa")
+    phase2_sens_5fa = get_metric(phase2, "sensitivity_at_5fa")
+    phase2_sens_1fa = get_metric(phase2, "sensitivity_at_1fa")
+
+    # Calculate gains
+    loss_delta_phase1a = (baseline_loss - phase1a_loss) / baseline_loss if baseline_loss > 0 else 0
+    loss_delta_phase1b = (baseline_loss - phase1b_loss) / baseline_loss if baseline_loss > 0 else 0
+    loss_delta_phase2 = (baseline_loss - phase2_loss) / baseline_loss if baseline_loss > 0 else 0
+
+    sens_10fa_gain_phase1a = (phase1a_sens_10fa - baseline_sens_10fa) / baseline_sens_10fa if baseline_sens_10fa > 0 else 0
+    sens_10fa_gain_phase1b = (phase1b_sens_10fa - baseline_sens_10fa) / baseline_sens_10fa if baseline_sens_10fa > 0 else 0
+    sens_10fa_gain_phase2 = (phase2_sens_10fa - baseline_sens_10fa) / baseline_sens_10fa if baseline_sens_10fa > 0 else 0
+
+    sens_5fa_gain_phase2 = (phase2_sens_5fa - baseline_sens_5fa) / baseline_sens_5fa if baseline_sens_5fa > 0 else 0
+    sens_1fa_gain_phase2 = (phase2_sens_1fa - baseline_sens_1fa) / baseline_sens_1fa if baseline_sens_1fa > 0 else 0
 
     # Print results
     print("=" * 80)
-    print("Phase 2 A/B Testing Results")
+    print("Phase 2: Both Streams GDN Validation Results")
     print("=" * 80)
-    print(f"\nBaseline (BiMamba2 both streams):")
-    print(f"  Sensitivity@10FA: {baseline_sens:.2%}")
-    print(f"\nPhase 1a (Edge GDN only):")
-    print(f"  Sensitivity@10FA: {phase1a_sens:.2%} ({phase1a_gain:+.2%} vs baseline)")
-    print(f"\nPhase 1b (Node GDN only):")
-    print(f"  Sensitivity@10FA: {phase1b_sens:.2%} ({phase1b_gain:+.2%} vs baseline)")
-    print(f"\nPhase 2 Sum Fusion (Both GDN):")
-    print(f"  Sensitivity@10FA: {phase2_sum_sens:.2%} ({phase2_sum_gain:+.2%} vs baseline)")
-    print(f"\nPhase 2 Concat Fusion (Both GDN):")
-    print(f"  Sensitivity@10FA: {phase2_concat_sens:.2%} ({phase2_concat_gain:+.2%} vs baseline)")
 
-    # Decision logic
+    print(f"\n📊 Baseline (BiMamba2 both streams):")
+    print(f"  val_loss: {baseline_loss:.4f}")
+    print(f"  sensitivity@10FA: {baseline_sens_10fa:.2%}")
+    print(f"  sensitivity@5FA:  {baseline_sens_5fa:.2%}")
+    print(f"  sensitivity@1FA:  {baseline_sens_1fa:.2%}")
+
+    print(f"\n📊 Phase 1a (edge GDN only):")
+    print(f"  val_loss: {phase1a_loss:.4f} ({loss_delta_phase1a:+.2%})")
+    print(f"  sensitivity@10FA: {phase1a_sens_10fa:.2%} ({sens_10fa_gain_phase1a:+.2%})")
+
+    print(f"\n📊 Phase 1b (node GDN only):")
+    print(f"  val_loss: {phase1b_loss:.4f} ({loss_delta_phase1b:+.2%})")
+    print(f"  sensitivity@10FA: {phase1b_sens_10fa:.2%} ({sens_10fa_gain_phase1b:+.2%})")
+
+    print(f"\n📊 Phase 2 (both streams GDN):")
+    print(f"  val_loss: {phase2_loss:.4f} ({loss_delta_phase2:+.2%})")
+    print(f"  sensitivity@10FA: {phase2_sens_10fa:.2%} ({sens_10fa_gain_phase2:+.2%})")
+    print(f"  sensitivity@5FA:  {phase2_sens_5fa:.2%} ({sens_5fa_gain_phase2:+.2%})")
+    print(f"  sensitivity@1FA:  {phase2_sens_1fa:.2%} ({sens_1fa_gain_phase2:+.2%})")
+
+    # Decision
     print("\n" + "=" * 80)
-    print("Recommendations")
+    print("📋 Go/No-Go Decision")
     print("=" * 80)
 
-    best_phase1 = max(phase1a_gain, phase1b_gain)
-    best_phase2 = max(phase2_sum_gain, phase2_concat_gain)
+    best_individual = max(sens_10fa_gain_phase1a, sens_10fa_gain_phase1b)
 
-    if best_phase2 >= 0.03 and best_phase2 >= best_phase1:
-        winner = "Sum" if phase2_sum_gain > phase2_concat_gain else "Concat"
-        print(f"✅ PROCEED with Phase 2 ({winner} fusion): {best_phase2:+.2%} gain")
-        print(f"   - Combined effect ({best_phase2:+.2%}) ≥ individual effects (max {best_phase1:+.2%})")
-        print(f"   - Meets +3% target for full migration")
-    elif best_phase1 > best_phase2:
-        winner = "Phase 1a (Edge)" if phase1a_gain > phase1b_gain else "Phase 1b (Node)"
-        print(f"⚠️  PARTIAL MIGRATION recommended: {winner} ({max(phase1a_gain, phase1b_gain):+.2%} gain)")
-        print(f"   - Individual phase outperforms combined (Phase 2: {best_phase2:+.2%})")
-        print(f"   - Possible interaction penalty detected")
+    if sens_10fa_gain_phase2 >= 0.03 and sens_10fa_gain_phase2 >= best_individual:
+        print(f"\n✅ GO → Proceed to Production with Phase 2 (Both Streams GDN)")
+        print(f"   Reason: Phase 2 shows {sens_10fa_gain_phase2:+.2%} improvement")
+        print(f"   Combined effect ({sens_10fa_gain_phase2:+.2%}) ≥ individual effects (max {best_individual:+.2%})")
+        print(f"   Meets +3% target for full validation")
+    elif best_individual > sens_10fa_gain_phase2:
+        winner = "Phase 1a (Edge)" if sens_10fa_gain_phase1a > sens_10fa_gain_phase1b else "Phase 1b (Node)"
+        print(f"\n⚠️ PARTIAL DEPLOYMENT → Deploy {winner} only")
+        print(f"   Reason: Individual phase ({max(sens_10fa_gain_phase1a, sens_10fa_gain_phase1b):+.2%}) outperforms combined ({sens_10fa_gain_phase2:+.2%})")
+        print(f"   Possible interaction penalty detected")
+        print(f"   Deploy only the successful stream")
     else:
-        print(f"❌ REVERT to baseline: No significant improvement")
-        print(f"   - Best gain: {max(best_phase1, best_phase2):+.2%} (below +3% target)")
+        print(f"\n❌ NO-GO → Revert to baseline (BiMamba2 both streams)")
+        print(f"   Reason: Phase 2 shows {sens_10fa_gain_phase2:+.2%} (below +3% target)")
+        print(f"   No clear improvement from GDN")
 
     print("=" * 80)
 
@@ -664,242 +716,210 @@ if __name__ == '__main__':
     main()
 ```
 
-**Setup analysis script**:
-
-```bash
-# Create scripts directory if it doesn't exist
-mkdir -p scripts
-
-# Create the analysis script
-cat > scripts/analyze_phase2_results.py << 'EOF'
-# (Copy the Python script from above)
-EOF
-
-chmod +x scripts/analyze_phase2_results.py
-```
-
 **Run analysis**:
 
 ```bash
-python scripts/analyze_phase2_results.py --project seizure-v3-full-gdn
-
-# Example output:
-# ================================================================================
-# Phase 2 A/B Testing Results
-# ================================================================================
-#
-# Baseline (BiMamba2 both streams):
-#   Sensitivity@10FA: 87.50%
-#
-# Phase 1a (Edge GDN only):
-#   Sensitivity@10FA: 88.75% (+1.43% vs baseline)
-#
-# Phase 1b (Node GDN only):
-#   Sensitivity@10FA: 89.20% (+1.94% vs baseline)
-#
-# Phase 2 Sum Fusion (Both GDN):
-#   Sensitivity@10FA: 91.10% (+4.11% vs baseline)
-#
-# Phase 2 Concat Fusion (Both GDN):
-#   Sensitivity@10FA: 90.80% (+3.77% vs baseline)
-#
-# ================================================================================
-# Recommendations
-# ================================================================================
-# ✅ PROCEED with Phase 2 (Sum fusion): +4.11% gain
-#    - Combined effect (+4.11%) ≥ individual effects (max +1.94%)
-#    - Meets +3% target for full migration
-# ================================================================================
+python scripts/analyze_phase2.py --project seizure-v3-fla-validation
 ```
 
 ---
 
-## 5. Validation & Benchmarking
+## 5. Rollback Procedure
 
-### 5.1. Smoke Test (3 files, 1 epoch)
+**If Phase 2 underperforms or causes issues**, rollback is INSTANT via config change (no git operations needed).
 
-```bash
-export BGB_SMOKE_TEST=1
-export BGB_NAN_DEBUG=1
-python -m src train configs/local/full_gdn_test.yaml
+### 5.1. Instant Rollback
 
-# Expected:
-# - Loads 3 files
-# - 1 epoch completes
-# - Both streams log "BiGatedDeltaNet"
-# - No crashes, no NaNs
+**Option 1: Revert to baseline (BiMamba2 both streams)**:
+
+```yaml
+# Edit configs/local/phase2_both_gdn.yaml:
+model:
+  mamba:
+    temporal_type: bimamba2  # CHANGE: revert to BiMamba2
+    # temporal_type: gated_deltanet  # Comment out or remove
 ```
 
-### 5.2. Integration Test (50 files, 10 epochs)
+**Option 2: Deploy best individual phase** (if one phase succeeded but Phase 2 failed):
+
+```yaml
+# If Phase 1a (edge) won:
+model:
+  mamba:
+    temporal_type: bimamba2              # Global default
+    temporal_type_node: bimamba2         # Node stays BiMamba2
+    temporal_type_edge: gated_deltanet   # Edge uses GDN
+
+# If Phase 1b (node) won:
+model:
+  mamba:
+    temporal_type: bimamba2              # Global default
+    temporal_type_node: gated_deltanet   # Node uses GDN
+    temporal_type_edge: bimamba2         # Edge stays BiMamba2
+```
+
+**Re-run training**:
 
 ```bash
+# Restart with revised config
 export BGB_LIMIT_FILES=50
-python -m src train configs/local/full_gdn_test.yaml
+python -m src train configs/local/phase2_both_gdn.yaml
 
-# Monitor:
-# - Loss curve (should decrease)
-# - Gradient norms (should be stable)
-# - Memory usage (~20GB RTX 4090)
-# - Throughput (5-10% slower than BiMamba2 baseline)
+# Instant rollback - no code changes needed!
 ```
 
-### 5.3. Full Training (100 epochs)
+### 5.2. Why This is Safe
 
-**Only proceed if 10-epoch test shows promise (>= +2% sensitivity)**
+- ✅ BiMamba2 code untouched (still works)
+- ✅ GDN is additive (not replacement)
+- ✅ Config flag controls behavior
+- ✅ No checkpoint migration needed (separate checkpoints per architecture)
+- ✅ Zero code changes required
+- ✅ Can deploy partial (one stream) if Phase 2 fails
+
+### 5.3. Git Rollback (Last Resort)
+
+**Only if config rollback fails**:
 
 ```bash
-# Local (RTX 4090)
-python -m src train configs/local/full_gdn_test.yaml
+# Revert to pre-Phase-2 state (NOT RECOMMENDED - use config rollback instead)
+git checkout v3.9.0-pre-phase2
 
-# Modal (A100-80GB) - adjust config path
-modal run --detach deploy/modal/app.py --action train --config configs/modal/full_gdn_train.yaml
+# Or revert specific commits
+git revert HEAD~1
+
+# Verify baseline restored
+python -m src train configs/local/train.yaml
 ```
+
+**Note**: Git rollback should NOT be needed - config rollback is instant and safer.
 
 ---
 
 ## 6. Success Criteria
 
-### 6.1. Technical Criteria
+### 6.1. Technical Criteria (Must Pass)
 
-✅ **Integration tests pass**: All tests in `test_full_gdn_migration.py` pass
-✅ **Smoke test completes**: 3 files, 1 epoch, no crashes
-✅ **No NaNs**: Forward/backward passes produce finite values
-✅ **Both streams GDN**: Logs show "Node stream: BiGatedDeltaNet" and "Edge stream: BiGatedDeltaNet"
-✅ **Parameter count**: ~291K total stream params (29% reduction from 408K)
+- [ ] ✅ Smoke test completes (3 files, 1 epoch, no crashes)
+- [ ] ✅ No NaNs in forward/backward passes
+- [ ] ✅ Shapes correct (input/output match BiMamba2)
+- [ ] ✅ Both streams verified (node=GDN, edge=GDN)
+- [ ] ✅ Parameter count ~291K total (29% reduction expected)
+- [ ] ✅ Convergence over 10 epochs (loss decreases)
 
-### 6.2. Performance Criteria
+### 6.2. Performance Criteria (Go/No-Go)
 
-✅ **Convergence**: Loss decreases over 10 epochs
-✅ **No regression**: val_loss ≤ baseline + 0.05
-✅ **Hypothesis validated**: sensitivity_at_10fa ≥ baseline + 0.03 (+3%)
-✅ **Combined effect**: Phase 2 gain ≥ max(Phase 1a, Phase 1b)
-✅ **Throughput acceptable**: ≤ 10% slower than baseline
-✅ **Memory usage**: ≤ baseline + 2GB
+**GO → Production** if:
+- [ ] ✅ sensitivity@10FA ≥ baseline + 3% **AND** ≥ max(Phase 1a, Phase 1b)
+- [ ] ✅ No major regressions (loss ≤ baseline + 5%)
+- [ ] ✅ Throughput ≤ 10% slower than baseline
+- [ ] ✅ Memory usage ≤ baseline + 2GB
+- [ ] ✅ Phase 1a AND Phase 1b both succeeded
 
-### 6.3. Go/No-Go Decision
+**PARTIAL DEPLOYMENT** if:
+- [ ] ⚠️ Phase 2 < max(Phase 1a, Phase 1b): Deploy best individual phase only
+- [ ] ⚠️ Interaction penalty detected: Mixed architecture (one stream GDN)
 
-**GO → Deploy Phase 2** if:
-- All technical criteria met
-- Performance improvement ≥ +3% sensitivity
-- No major regressions vs baseline
-- Combined effect justifies full migration
-
-**NO-GO → Deploy Best Individual Phase** if:
-- Phase 2 < max(Phase 1a, Phase 1b): Deploy whichever phase won
-- Phase 2 shows regressions: Revert to best single-stream config
-- Training unstable: Investigate fusion mode, learning rate, or fallback to BiMamba2
+**NO-GO → Revert** if:
+- [ ] ❌ sensitivity@10FA regression > 1% from best individual phase
+- [ ] ❌ Training unstable (NaNs, divergence)
+- [ ] ❌ Throughput regression > 20%
 
 ---
 
-## 7. Rollback Plan
+## 7. Next Steps
 
-If Phase 2 fails or underperforms:
+### If Phase 2 Succeeds (≥ +3% sensitivity AND ≥ individual phases):
 
-```bash
-# Option 1: Revert to baseline (BiMamba2 both streams)
-git checkout v3.8.3-pre-full-migration
+1. **Analyze combined potential** in `PHASE2_RESULTS.md`
+2. **Production deployment**: Update `configs/local/train.yaml` and `configs/modal/train.yaml`
+3. **Documentation**: Update README.md, ARCHITECTURE_EVOLUTION.md
+4. **Optional**: Proceed to Doc 4 (Hybrid SWA) if short-event recall needs improvement
 
-# Option 2: Deploy best individual phase
-# If Phase 1a (edge) won:
-cp configs/local/edge_gdn_test.yaml configs/local/production.yaml
+### If Phase 2 Fails (but Phase 1a OR Phase 1b Succeeded):
 
-# If Phase 1b (node) won:
-cp configs/local/node_gdn_test.yaml configs/local/production.yaml
+1. **Document partial deployment** in `PHASE2_POSTMORTEM.md`
+2. **Deploy best individual phase**: Keep one stream GDN, revert other to BiMamba2
+3. **Mixed architecture**: BiGatedDeltaNet for winner + BiMamba2 for loser
+4. **Root cause analysis**: Why did combined fail but individual succeeded?
 
-# Option 3: Mixed deployment (keep whichever phase succeeded)
-# Edit config to set only successful stream to GDN
-```
+### If All Phases Fail:
+
+1. **Revert to v3.9.0 baseline**: BiMamba2 for both streams
+2. **Alternative architectures**: Consider GLA, HGRN2, or hybrid approaches
+3. **Investigate**: Why didn't FLA benefit this specific architecture?
 
 ---
 
 ## 8. Timeline & Checklist
 
-### Day 1: Setup & Integration Test
-- [ ] Verify Phases 1a and 1b both succeeded
-- [ ] Review PHASE1A_RESULTS.md and PHASE1B_RESULTS.md
-- [ ] Create `full_gdn_test.yaml` config
-- [ ] Run integration tests
-- [ ] Smoke test (3 files, 1 epoch) - 10 min
-- [ ] Integration test (50 files, 10 epochs) - 6-8 hours
+### Day 1: Setup
+- [ ] Verify Phase 0 complete (Section 1.1)
+- [ ] Verify Phase 1a succeeded (Section 1.2)
+- [ ] Verify Phase 1b succeeded (Section 1.2)
+- [ ] Validation gate: Combined effect hypothesis (Section 1.3)
+- [ ] Create phase2 config (Section 2)
+- [ ] Smoke test (Section 3.1) - 10 min
 
-### Day 2: A/B Testing & Analysis
-- [ ] Run fusion mode experiments (sum vs concat)
-- [ ] Compare Phase 2 vs Phase 1a/1b
-- [ ] Analyze W&B metrics
-- [ ] Decision: sum vs concat for full run
+### Day 2: Validation
+- [ ] Full validation run (Section 3.2) - 6-8 hours
+- [ ] Monitor training (loss, gradients, memory)
+- [ ] Verify both streams (Section 3.3)
 
-### Day 3+: Full Training (if justified)
-- [ ] Full training (100 epochs)
-- [ ] Evaluate TAES metrics
-- [ ] Compare vs v3.8.3 baseline
-- [ ] Go/No-Go for production deployment
+### Day 3: Analysis & Decision
+- [ ] Run A/B analysis (Section 4.2)
+- [ ] Review metrics vs success criteria (Section 6)
+- [ ] Go/No-Go/Partial decision
+- [ ] Document results
+- [ ] If GO: Proceed to production
+- [ ] If PARTIAL: Deploy best individual phase
+- [ ] If NO-GO: Rollback (Section 5)
 
-**Total**: 2-3 days validation + 8-12 days full training (if approved)
+**Total Timeline**: 2-3 days (after Phase 0 + Phase 1a + Phase 1b complete)
 
 ---
 
-## 9. Risk Analysis
+## 9. References
 
-### 9.1. Risk Comparison Across Phases
+- **Doc 0 (SSOT)**: [FLASH_LINEAR_ATTENTION_RESEARCH.md](FLASH_LINEAR_ATTENTION_RESEARCH.md)
+  - Section 14: Phase 0 Infrastructure (wrapper, builders, schema, tests)
+  - Section 15: Coexistence Strategy
+- **Doc 1 (Edge Validation)**: [FLASH_LINEAR_ATTENTION_DOC1_EDGE_MIGRATION.md](FLASH_LINEAR_ATTENTION_DOC1_EDGE_MIGRATION.md)
+- **Doc 2 (Node Validation)**: [FLASH_LINEAR_ATTENTION_DOC2_NODE_MIGRATION.md](FLASH_LINEAR_ATTENTION_DOC2_NODE_MIGRATION.md)
+- **Doc 4 (Next)**: Hybrid SWA Expansion - optional if Phase 2 succeeds but short-event recall needs improvement
+- **FLA Library**: https://github.com/fla-org/flash-linear-attention
+- **Gated DeltaNet Paper**: https://arxiv.org/abs/2412.06464
+
+---
+
+## 10. Risk Analysis
+
+### 10.1. Risk Comparison Across Phases
 
 | Risk Factor | Phase 1a (Edge) | Phase 1b (Node) | Phase 2 (Both) |
 |-------------|-----------------|-----------------|----------------|
-| **Parameters affected** | 10K (1.8%) | 398K (70%) | **408K (100%)** |
+| **Parameters affected** | 10K (2.5%) | 398K (97.5%) | **408K (100%)** |
 | **Expected gain** | +1-2% | +1-2% | **+3-5%** |
 | **Risk level** | VERY LOW | MEDIUM | **HIGH** |
-| **Rollback complexity** | Easy | Easy | **Moderate** |
-| **Dependencies** | None | None | **Phases 1a+1b must succeed** |
+| **Rollback complexity** | Easy (config) | Easy (config) | **Moderate (config + partial option)** |
+| **Dependencies** | Phase 0 | Phase 0 + Phase 1a | **Phase 0 + Phase 1a + Phase 1b** |
 
-**Key Insight**: Phase 2 is **highest risk** (100% of stream params) but also **highest reward** (+3-5% combined).
+**Key Insight**: Phase 2 is **highest risk** (100% of stream params) but also **highest reward** (+3-5% combined gain). The validation gate ensures we only proceed if both individual phases succeeded.
 
-### 9.2. What Could Go Wrong
+### 10.2. Why Phase 2 After Phase 1a AND Phase 1b?
 
-1. **Combined effect < individual effects**: If Phase 2 < max(Phase 1a, Phase 1b), deploy best individual phase
-2. **Interaction penalties**: Node + edge changes may interfere (e.g., different optimal fusion modes)
-3. **Training instability**: More parameters = more hyperparameter sensitivity
-4. **Throughput regression**: 5-10% slower may compound with other changes
-
-**Mitigation**: 10-epoch validation gate before committing to 100-epoch full run
-
----
-
-## 10. Next Steps
-
-### If Phase 2 Succeeds (>= +3% sensitivity):
-
-1. **Production deployment**: Update `configs/local/train.yaml` and `configs/modal/train.yaml`
-2. **Documentation**: Update README.md, ARCHITECTURE_EVOLUTION.md
-3. **Benchmarking**: Run full TAES evaluation, publish results
-4. **Consider Doc 4**: If short-duration seizure recall needs improvement, evaluate Hybrid/SWA
-
-### If Phase 2 Fails or Underperforms:
-
-1. **Deploy best individual phase**:
-   - Phase 1a winner: Deploy edge GDN only
-   - Phase 1b winner: Deploy node GDN only
-   - Baseline: Revert to BiMamba2 if both regressed
-2. **Root cause analysis**: Why didn't combined work?
-   - Fusion mode mismatch?
-   - Learning rate too high/low?
-   - Gradient clipping too aggressive?
-3. **Alternative strategies**:
-   - Mixed deployment (one stream GDN, one BiMamba2)
-   - Try GLA or HGRN2 instead of GDN
-   - Explore Doc 4 (Hybrid/SWA) with BiMamba2 baseline
+**Strategic Reasoning**:
+1. **Phase 1a (edge) validates delta rule benefits** on small scale (10K params)
+2. **Phase 1b (node) validates standard SSM improvements** on larger scale (398K params)
+3. **Phase 2 (both) tests combined effect** and interaction (408K params)
+4. **Validation gate** ensures combined justification (expected ≥ +3%)
+5. **Partial deployment option** if Phase 2 underperforms individual phases
 
 ---
 
-## 11. References
-
-- **Doc 0 (SSOT)**: [FLASH_LINEAR_ATTENTION_RESEARCH.md](FLASH_LINEAR_ATTENTION_RESEARCH.md)
-- **Doc 1 (Edge Stream)**: [FLASH_LINEAR_ATTENTION_DOC1_EDGE_MIGRATION.md](FLASH_LINEAR_ATTENTION_DOC1_EDGE_MIGRATION.md)
-- **Doc 2 (Node Stream)**: [FLASH_LINEAR_ATTENTION_DOC2_NODE_MIGRATION.md](FLASH_LINEAR_ATTENTION_DOC2_NODE_MIGRATION.md)
-- **FLA Library**: https://github.com/fla-org/flash-linear-attention
-- **Gated DeltaNet Paper**: https://arxiv.org/abs/2412.06464
-- **Current v3.8.3 Baseline**: RELEASE_NOTES.md
-
----
-
-**Document Status**: ✅ Ready for Implementation (pending Phase 1a AND Phase 1b success)
-**Next Document**: Doc 4 (Optional Hybrid/SWA Expansion) - only if Phase 2 succeeds but short-event recall needs improvement
-**Prerequisites**: Phases 1a AND 1b must both succeed before proceeding
+**Document Status**: ✅ Ready for Implementation (AFTER Phase 0 + Phase 1a + Phase 1b complete)
+**Dependencies**:
+1. Doc 0 Section 14 (Phase 0 Infrastructure) must be complete
+2. Phase 1a (Edge Validation) must succeed with GO decision
+3. Phase 1b (Node Validation) must succeed with GO decision
+**Next Document**: Doc 4 (Optional Hybrid SWA) - only if Phase 2 succeeds but short-event recall needs improvement
