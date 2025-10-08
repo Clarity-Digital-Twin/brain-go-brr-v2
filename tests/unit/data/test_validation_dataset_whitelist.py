@@ -396,7 +396,7 @@ class TestValidationDatasetLogging:
 
         allowed_cache_files = {"patient_002_data.npy"}
 
-        with patch("src.brain_brr.data.datasets.logger") as mock_logger:
+        with patch("src.brain_brr.data.datasets.logger"):
             dataset = ValidationDataset(
                 cache_dir=str(temp_cache_dir),
                 allowed_cache_files=allowed_cache_files,

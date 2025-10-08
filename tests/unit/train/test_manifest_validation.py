@@ -45,7 +45,8 @@ class TestManifestNPZDetection:
         first_entry = manifest["partial_seizure"][0]
         cache_file_ref = first_entry.get("cache_file", "")
 
-        assert not ("_windows.npz" in cache_file_ref or ".npz" in cache_file_ref)
+        assert "_windows.npz" not in cache_file_ref
+        assert ".npz" not in cache_file_ref
 
 
 class TestManifestFileExistence:
