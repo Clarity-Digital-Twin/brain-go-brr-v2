@@ -21,8 +21,13 @@ except ImportError:
 class WandBLogger:
     """W&B logging wrapper with graceful fallback."""
 
-    def __init__(self, config: Any):
-        """Initialize W&B if enabled and available."""
+    def __init__(self, config: Any, resume: bool = False):
+        """Initialize W&B if enabled and available.
+
+        Args:
+            config: Training configuration
+            resume: Whether to resume existing W&B run (from config.training.resume)
+        """
         self.enabled = False
         self.run = None
 
@@ -47,7 +52,8 @@ class WandBLogger:
             run_id_path = out_dir / ".wandb_run_id"
             resume_existing = False
 
-            if run_id_path.exists():
+            # Only resume if explicitly requested AND run ID file exists
+            if resume and run_id_path.exists():
                 run_id = run_id_path.read_text().strip()
                 if run_id:
                     resume_existing = True
@@ -57,10 +63,21 @@ class WandBLogger:
                     logger.info(f"[W&B] Empty run ID file, creating new run: {run_id}")
             else:
                 run_id = uuid.uuid4().hex
-                logger.info(f"[W&B] Creating new run: {run_id}")
+                if resume and not run_id_path.exists():
+                    logger.info(
+                        f"[W&B] Resume requested but no run ID found, creating new run: {run_id}"
+                    )
+                elif not resume and run_id_path.exists():
+                    logger.info(
+                        f"[W&B] Fresh run requested, deleting old run ID and creating new: {run_id}"
+                    )
+                else:
+                    logger.info(f"[W&B] Creating new run: {run_id}")
 
-            # Always write run ID (handles empty file case)
-            run_id_path.write_text(run_id)
+            # Atomic write of run ID (temp file + rename to prevent torn writes)
+            tmp_path = run_id_path.with_suffix(".tmp")
+            tmp_path.write_text(run_id)
+            os.replace(str(tmp_path), str(run_id_path))
 
             # Guard optional graph config once to avoid repeated hasattr(None, ...)
             g = getattr(config.model, "graph", None)

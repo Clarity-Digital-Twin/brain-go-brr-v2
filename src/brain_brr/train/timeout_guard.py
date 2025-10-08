@@ -46,7 +46,7 @@ class TimeoutGuard:
         """
         self.limit = limit_seconds
         self.margin = safety_margin_seconds
-        self.start_time = time.time()
+        self.start_time = time.monotonic()  # Use monotonic clock (immune to system clock changes)
         self.callback = on_timeout
         self._triggered = False
 
@@ -59,7 +59,7 @@ class TimeoutGuard:
         if self.limit is None:
             return False
 
-        elapsed = time.time() - self.start_time
+        elapsed = time.monotonic() - self.start_time
         imminent = elapsed >= (self.limit - self.margin)
 
         if imminent and not self._triggered:
@@ -78,7 +78,7 @@ class TimeoutGuard:
         if self.limit is None:
             return None
 
-        elapsed = time.time() - self.start_time
+        elapsed = time.monotonic() - self.start_time
         return max(0.0, self.limit - elapsed)
 
     def elapsed_seconds(self) -> float:
@@ -87,12 +87,12 @@ class TimeoutGuard:
         Returns:
             Seconds elapsed
         """
-        return time.time() - self.start_time
+        return time.monotonic() - self.start_time
 
     def reset(self) -> None:
         """Reset the timeout guard to current time.
 
         Useful if you want to restart the timer after a checkpoint.
         """
-        self.start_time = time.time()
+        self.start_time = time.monotonic()
         self._triggered = False

@@ -134,7 +134,7 @@ def train(
         logger.info("TensorBoard not installed. Install with: pip install tensorboard")
 
     # Initialize W&B logging
-    wandb_logger = WandBLogger(config)
+    wandb_logger = WandBLogger(config, resume=config.training.resume)
 
     # Early stopping
     early_stopping = EarlyStopping(config.training.early_stopping)
@@ -190,7 +190,7 @@ def train(
         )
 
     # Mutable state for signal handler (updated during training loop)
-    signal_state = {"epoch": start_epoch, "best_metric": best_metric}
+    signal_state: dict[str, int | float] = {"epoch": start_epoch, "best_metric": best_metric}
 
     # Signal handlers for graceful shutdown (SIGTERM from Modal, SIGINT from user)
     def _signal_handler(signum: int, frame: Any) -> None:
@@ -199,11 +199,17 @@ def train(
         logger.warning(f"[SIGNAL] Received {sig_name}, saving checkpoint before exit...")
 
         try:
+            # Type narrowing: epoch is always int, best_metric is always float
+            epoch_val = signal_state["epoch"]
+            assert isinstance(epoch_val, int), "epoch should always be int"
+            best_val = signal_state["best_metric"]
+            assert isinstance(best_val, (int, float)), "best_metric should be numeric"
+
             save_checkpoint(
                 model,
                 optimizer,
-                signal_state["epoch"],
-                signal_state["best_metric"],
+                epoch_val,
+                float(best_val),
                 checkpoint_dir / f"signal_exit_{sig_name.lower()}.pt",
                 scheduler,
                 config,
