@@ -89,7 +89,7 @@ class TestBiGatedDeltaNetInstantiation:
 @pytest.mark.skipif(not FLA_AVAILABLE, reason="FLA library not installed")
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required for forward pass")
 class TestBiGatedDeltaNetForward:
-    """Test BiGatedDeltaNet forward pass (requires CUDA)."""
+    """Test BiGatedDeltaNet forward pass (requires CUDA + bfloat16)."""
 
     def test_node_stream_shape_preservation(self):
         """Test node stream preserves shape through forward pass."""
@@ -99,31 +99,33 @@ class TestBiGatedDeltaNetForward:
             num_layers=2,
             conv_size=4,
             fusion_mode="sum",
-        ).cuda()
+        ).cuda().to(torch.bfloat16)
 
         batch, nodes, channels, length = 2, 19, 64, 960
-        x = torch.randn(batch * nodes, channels, length, device="cuda")
+        x = torch.randn(batch * nodes, channels, length, device="cuda", dtype=torch.bfloat16)
 
         y = model(x)
         assert y.shape == (batch * nodes, channels, length)
         assert y.device.type == "cuda"
+        assert y.dtype == torch.bfloat16
 
     def test_edge_stream_shape_preservation(self):
         """Test edge stream preserves shape through forward pass."""
         model = BiGatedDeltaNet(
-            d_model=16,
-            headdim=4,
+            d_model=24,
+            headdim=6,
             num_layers=2,
             conv_size=4,
             fusion_mode="sum",
-        ).cuda()
+        ).cuda().to(torch.bfloat16)
 
-        batch, edges, channels, length = 2, 171, 16, 960
-        x = torch.randn(batch * edges, channels, length, device="cuda")
+        batch, edges, channels, length = 2, 171, 24, 960
+        x = torch.randn(batch * edges, channels, length, device="cuda", dtype=torch.bfloat16)
 
         y = model(x)
         assert y.shape == (batch * edges, channels, length)
         assert y.device.type == "cuda"
+        assert y.dtype == torch.bfloat16
 
     def test_concat_fusion_shape_preservation(self):
         """Test concat fusion preserves final shape."""
@@ -133,11 +135,12 @@ class TestBiGatedDeltaNetForward:
             num_layers=2,
             conv_size=4,
             fusion_mode="concat",
-        ).cuda()
+        ).cuda().to(torch.bfloat16)
 
-        x = torch.randn(2, 64, 960, device="cuda")
+        x = torch.randn(2, 64, 960, device="cuda", dtype=torch.bfloat16)
         y = model(x)
         assert y.shape == (2, 64, 960)
+        assert y.dtype == torch.bfloat16
 
     def test_gradient_flow(self):
         """Test gradients flow through bidirectional layers."""
@@ -146,9 +149,9 @@ class TestBiGatedDeltaNetForward:
             headdim=8,
             num_layers=2,
             conv_size=4,
-        ).cuda()
+        ).cuda().to(torch.bfloat16)
 
-        x = torch.randn(2, 64, 960, device="cuda", requires_grad=True)
+        x = torch.randn(2, 64, 960, device="cuda", dtype=torch.bfloat16, requires_grad=True)
         y = model(x)
         loss = y.sum()
         loss.backward()
