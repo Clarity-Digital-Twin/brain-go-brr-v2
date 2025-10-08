@@ -30,7 +30,7 @@ V3 implements a **dual-stream architecture** grounded in state-space models and 
 
 **Theoretical foundation**: [EvoBrain (NeurIPS 2025)](literature/markdown/EVOBRAIN.md) proves time-then-graph ordering achieves +23% AUROC over alternatives.
 
-**Status**: v3.9.0 – Production Training Baseline. Atomic checkpoints + deterministic resume, timeout guard exits before Modal’s 24 h limit, W&B run persistence, and zero technical debt. See [release notes](RELEASE_NOTES.md) for details.
+**Current**: v3.9.0 production system with atomic checkpointing, deterministic resume, and timeout-safe training. Full training in progress on Modal A100-80GB. See [STATUS.md](STATUS.md) for live updates.
 
 ## 🏗️ Architecture: Theory & Design
 
@@ -228,8 +228,8 @@ make setup-gpu  # Installs mamba-ssm==2.2.5, PyG
 # Place in: data_ext4/tusz/edf/
 
 # 4️⃣ Build preprocessing cache (one-time)
-python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz/train --split train
-python -m src build-cache --data-dir data_ext4/tusz/edf/dev --cache-dir cache/tusz/dev --split dev
+python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz_mmap/train --split train
+python -m src build-cache --data-dir data_ext4/tusz/edf/dev --cache-dir cache/tusz_mmap/dev --split dev
 
 # 5️⃣ Run smoke test (5 minutes)
 make s
@@ -313,23 +313,6 @@ We welcome contributions! See [development docs](docs/09-development/) for:
 
 Run `make q` before committing (lint + format + type check).
 
-## Training Status (v3.9.0)
-
-**v3.9.0 – Production Training Baseline (LIVE):**
-- ✅ **Full Modal A100 training launched** - 100 epochs running (app: ap-weaDyLGsgK5TEz8sLLOxO6)
-- ✅ **Bulletproof checkpoints** - Atomic saves every 30min, AMP scaler + RNG capture, verified integrity
-- ✅ **Timeout guard** - 23h wall-clock limit, 1h safety margin, graceful exit before Modal kill
-- ✅ **Comprehensive validation** - PRE_TRAINING_VALIDATION.md, metrics pipeline verified from first principles
-- ✅ **Test suite enhanced** - Manifest validation, checkpoint robustness, 75%+ coverage maintained
-- ✅ **Zero technical debt** - All P0/P1/P2/P3 issues resolved, production training LIVE
-
-**Previous Milestones:**
-- v3.8.3: Manifest naming cleanup complete, zero P0/P1/P2/P3 debt achieved
-- v3.8.2: Zero PyTorch warnings (NumPy copy-on-read, AMP scheduler guard)
-- v3.8.1: Complete tensor safety across all 3 dataset classes
-- v3.8.0: NPZ cache cleanup, type safety, code deduplication
-
-See [release notes](RELEASE_NOTES.md) for complete history.
 
 ## Citation
 

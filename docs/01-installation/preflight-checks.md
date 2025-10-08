@@ -14,7 +14,7 @@ WSL2
 
 Dataset cache
 
-- Ensure cache exists with expected counts: `python -m src scan-cache --cache-dir cache/tusz/train`
+- Ensure cache exists with expected counts: `python -m src scan-cache --cache-dir cache/tusz_mmap/train`
 - Expect `partial>0` or `full>0`; otherwise inspect CSV parsing and data paths.
 
 Smoke test

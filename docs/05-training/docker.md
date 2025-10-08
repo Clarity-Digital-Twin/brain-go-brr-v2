@@ -189,7 +189,7 @@ services:
 
 ### Cache Not Found
 
-**Error**: `Cache directory not found: cache/tusz/train`
+**Error**: `Cache directory not found: cache/tusz_mmap/train`
 
 **Cause**: Cache not built or mount path wrong
 
@@ -205,12 +205,12 @@ make setup
 make setup-gpu
 python -m src build-cache \
   --data-dir data_ext4/tusz/edf/train \
-  --cache-dir cache/tusz/train \
+  --cache-dir cache/tusz_mmap/train \
   --split train
 
 python -m src build-cache \
   --data-dir data_ext4/tusz/edf/dev \
-  --cache-dir cache/tusz/dev \
+  --cache-dir cache/tusz_mmap/dev \
   --split dev
 ```
 
