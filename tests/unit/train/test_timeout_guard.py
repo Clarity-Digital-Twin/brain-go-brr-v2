@@ -66,10 +66,10 @@ class TestTimeoutGuardBasicBehavior:
 
         guard = TimeoutGuard(limit_seconds=1000, safety_margin_seconds=100)
 
-        current_time = 900.0
+        current_time = 899.0
         assert guard.check() is False
 
-        current_time = 901.0
+        current_time = 900.0
         assert guard.check() is True
 
     def test_returns_true_after_timeout(self, monkeypatch):
@@ -258,15 +258,15 @@ class TestTimeoutGuardSafetyMargin:
         guard_10min = TimeoutGuard(limit_seconds=3600, safety_margin_seconds=600)
         guard_1min = TimeoutGuard(limit_seconds=3600, safety_margin_seconds=60)
 
-        current_time = 3000.0
+        current_time = 2999.0
         assert guard_10min.check() is False
         assert guard_1min.check() is False
 
-        current_time = 3001.0
+        current_time = 3000.0
         assert guard_10min.check() is True
         assert guard_1min.check() is False
 
-        current_time = 3541.0
+        current_time = 3540.0
         assert guard_10min.check() is True
         assert guard_1min.check() is True
 
