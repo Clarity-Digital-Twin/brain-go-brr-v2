@@ -8,7 +8,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
 [![v3.9.0](https://img.shields.io/badge/version-3.9.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.9.0-production-training-baseline)
 
-## Overview
+## 📋 Overview
 
 Epileptic seizures affect ~50 million people worldwide. Continuous clinical monitoring faces a critical bottleneck: **false alarm rates**. Target performance: <1 false alarm per 24 hours at >75% sensitivity.
 
@@ -116,7 +116,7 @@ EEG Input (B, 19 channels, 15360 samples @ 256Hz = 60s)
          (B, 15360) predictions
 ```
 
-## ⚙️ Component Justification
+## 💡 Component Justification
 
 ### 1. TCN Encoder: Why Not RNNs?
 
@@ -297,14 +297,14 @@ See [installation guide](docs/01-installation/) and [training docs](docs/05-trai
 **Architecture Deep Dives**:
 - [V3 Architecture Spec](docs/04-model/v3-architecture.md) - Full implementation details
 - [Laplacian PE](docs/04-model/laplacian-pe.md) - Dynamic graph theory
-- [Stability Evolution](docs/04-model/v3-stability-evolution.md) - Training fixes (v3.3.0 → v3.4.1)
+- [Stability Evolution](docs/04-model/v3-stability-evolution.md) - Gradient stability and training optimizations
 
 **Operations**:
 - [Training Guide](docs/05-training/) - Local & cloud setup
 - [Troubleshooting](docs/08-operations/troubleshooting.md) - Common issues
 - [NaN Prevention](docs/08-operations/nan-prevention-complete.md) - Gradient stability
 
-## Contributing
+## 🤝 Contributing
 
 We welcome contributions! See [development docs](docs/09-development/) for:
 - Coding standards
@@ -313,8 +313,7 @@ We welcome contributions! See [development docs](docs/09-development/) for:
 
 Run `make q` before committing (lint + format + type check).
 
-
-## Citation
+## 📖 Citation
 
 ```bibtex
 @software{brain-go-brr-v3,
@@ -325,11 +324,11 @@ Run `make q` before committing (lint + format + type check).
 }
 ```
 
-## License
+## ⚖️ License
 
 Apache 2.0 - See [LICENSE](LICENSE)
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
 **Datasets**: [TUH EEG Seizure Corpus](literature/markdown/TUSZ-DATA) (Temple), CHB-MIT (Boston Children's/MIT)
 
