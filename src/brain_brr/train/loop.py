@@ -46,6 +46,7 @@ from src.brain_brr.constants import (
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.checkpoint import load_checkpoint, save_checkpoint
 from src.brain_brr.train.early_stopping import EarlyStopping
+from src.brain_brr.train.metrics_utils import normalize_metrics_dict
 from src.brain_brr.train.optimizer_factory import create_optimizer, create_scheduler
 from src.brain_brr.train.sampling import create_balanced_sampler
 from src.brain_brr.train.train_step import train_epoch
@@ -136,6 +137,9 @@ def train(
     # Early stopping
     early_stopping = EarlyStopping(config.training.early_stopping)
 
+    # Create AMP scaler for FP16 training (needed for checkpoint save/load)
+    scaler = torch.amp.GradScaler(enabled=(config.training.mixed_precision and device == "cuda"))
+
     # Resume from checkpoint (prioritize mid-epoch > last > best)
     start_epoch = 0
     best_metric = 0.0
@@ -145,14 +149,10 @@ def train(
     if mid_epoch_checkpoints and config.training.resume:
         latest_mid = mid_epoch_checkpoints[-1]
         logger.info(f"[RESUME] Found mid-epoch checkpoint: {latest_mid.name}")
+        start_epoch, best_metric = load_checkpoint(
+            latest_mid, model, optimizer, scheduler, scaler=scaler, device=device
+        )
         ckpt = torch.load(latest_mid, map_location="cpu", weights_only=False)
-        model.load_state_dict(ckpt["model_state_dict"])
-        if optimizer and "optimizer_state_dict" in ckpt:
-            optimizer.load_state_dict(ckpt["optimizer_state_dict"])
-        if scheduler and "scheduler_state_dict" in ckpt:
-            scheduler.load_state_dict(ckpt["scheduler_state_dict"])
-        start_epoch = ckpt["epoch"]
-        best_metric = ckpt.get("best_metric", 0.0)
         if best_metric == 0.0 and (checkpoint_dir / CHECKPOINT_LAST).exists():
             try:
                 _last = torch.load(
@@ -166,7 +166,12 @@ def train(
         # Note: This resumes from start of epoch, not exact batch
     elif (checkpoint_dir / CHECKPOINT_LAST).exists() and config.training.resume:
         start_epoch, best_metric = load_checkpoint(
-            checkpoint_dir / CHECKPOINT_LAST, model, optimizer, scheduler
+            checkpoint_dir / CHECKPOINT_LAST,
+            model,
+            optimizer,
+            scheduler,
+            scaler=scaler,
+            device=device,
         )
         logger.info(f"Resumed from epoch {start_epoch + 1}")
 
@@ -187,6 +192,7 @@ def train(
             gradient_clip=config.training.gradient_clip,
             scheduler=scheduler,
             global_step=global_step,
+            scaler=scaler,  # Pass scaler for FP16 training
             loss_mode=getattr(config.training, "loss", "focal"),
             focal_alpha=getattr(config.training, "focal_alpha", FOCAL_ALPHA_DEFAULT),
             focal_gamma=getattr(config.training, "focal_gamma", FOCAL_GAMMA_DEFAULT),
@@ -214,7 +220,7 @@ def train(
 
         # Type narrowing for mypy
         assert isinstance(result, tuple), "return_step=True should return tuple"
-        train_loss, global_step = result
+        train_loss, global_step, scaler = result
 
         # Validate
         focal_alpha = config.training.focal_alpha if config.training.loss == "focal" else None
@@ -232,6 +238,10 @@ def train(
             output_dir=config.experiment.output_dir,
             epoch=epoch,
         )
+
+        # Normalize metric keys to fix "New best 0.0000" bug
+        # Config uses "sensitivity_at_10fa" but validation creates "sensitivity_at_10.0fa"
+        val_metrics = normalize_metrics_dict(val_metrics)
 
         # COLLAPSE DETECTION: Stop if model outputs all-negative
         if val_metrics["auroc"] < AUROC_FAILURE_THRESHOLD and epoch > AUROC_FAILURE_MIN_EPOCH:
@@ -329,6 +339,8 @@ def train(
                     checkpoint_dir / CHECKPOINT_BEST,
                     scheduler,
                     config,
+                    scaler=scaler,  # Save scaler for FP16 resume
+                    save_rng=True,  # Save RNG for deterministic resume
                 )
                 # Log best model to W&B
                 wandb_logger.log_model(checkpoint_dir / CHECKPOINT_BEST, name=f"best-{metric_name}")
@@ -353,6 +365,8 @@ def train(
                 checkpoint_path,
                 scheduler,
                 config,
+                scaler=scaler,  # Save scaler for FP16 resume
+                save_rng=True,  # Save RNG for deterministic resume
             )
             logger.info(f"  Saved periodic checkpoint: {checkpoint_path.name}")
 
@@ -366,6 +380,8 @@ def train(
                 checkpoint_dir / CHECKPOINT_LAST,
                 scheduler,
                 config,
+                scaler=scaler,  # Save scaler for FP16 resume
+                save_rng=True,  # Save RNG for deterministic resume
             )
 
     if writer is not None:

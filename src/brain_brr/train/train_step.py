@@ -169,6 +169,7 @@ def train_epoch(
     scheduler: LRScheduler | None = None,
     global_step: int = 0,
     *,
+    scaler: GradScaler | None = None,
     loss_mode: str = "focal",
     focal_alpha: float = FOCAL_ALPHA_DEFAULT,
     focal_gamma: float = FOCAL_GAMMA_DEFAULT,
@@ -183,7 +184,7 @@ def train_epoch(
     log_gradients: bool = False,
     log_weights: bool = False,
     wandb_logger: WandBRun | None = None,
-) -> float | tuple[float, int]:
+) -> float | tuple[float, int, GradScaler]:
     """Train for one epoch.
 
     Args:
@@ -195,15 +196,22 @@ def train_epoch(
         gradient_clip: Max gradient norm
         scheduler: Optional LR scheduler (per-iteration)
         global_step: Global step counter for scheduler
-        return_step: If True, return (loss, global_step). If False, return just loss.
+        scaler: Optional AMP grad scaler (if None, creates new one)
+        return_step: If True, return (loss, global_step, scaler). If False, return just loss.
         warmup_schedule: Optional warmup schedule configuration for gradient stabilization
 
     Returns:
-        Average training loss (default) or tuple of (loss, global_step) if return_step=True
+        Average training loss (default) or tuple of (loss, global_step, scaler) if return_step=True
     """
     model.train()
     device_obj = torch.device(device)
-    scaler = GradScaler(enabled=(use_amp and device == "cuda"))
+
+    # Use provided scaler or create new one (for backward compatibility)
+    if scaler is None:
+        scaler = GradScaler(enabled=(use_amp and device == "cuda"))
+
+    # After this point, scaler is guaranteed to be non-None
+    assert scaler is not None, "Scaler should be initialized"
 
     supports_training_state = hasattr(model, "set_training_state")
     if supports_training_state:
@@ -526,6 +534,8 @@ def train_epoch(
                         mid_path,
                         scheduler,
                         None,
+                        scaler=scaler,  # Save scaler for FP16 resume
+                        save_rng=True,  # Save RNG for deterministic resume
                         extra={"batch_idx": batch_idx, "kind": "mid_epoch"},
                     )
                     logger.info(f"[CHECKPOINT] Saved mid-epoch snapshot: {mid_path.name}")
@@ -593,4 +603,4 @@ def train_epoch(
                 progress_bar.close()
 
     avg_loss = total_loss / max(1, num_batches)
-    return (avg_loss, global_step) if return_step else avg_loss
+    return (avg_loss, global_step, scaler) if return_step else avg_loss
