@@ -189,6 +189,39 @@ def train(
             f"({wall_clock_limit_s / 3600:.1f}h), safety margin: 10 min"
         )
 
+    # Mutable state for signal handler (updated during training loop)
+    signal_state = {"epoch": start_epoch, "best_metric": 0.0}
+
+    # Signal handlers for graceful shutdown (SIGTERM from Modal, SIGINT from user)
+    def _signal_handler(signum: int, frame: Any) -> None:
+        """Save checkpoint and exit gracefully when receiving SIGTERM/SIGINT."""
+        sig_name = "SIGTERM" if signum == signal.SIGTERM else "SIGINT"
+        logger.warning(f"[SIGNAL] Received {sig_name}, saving checkpoint before exit...")
+
+        try:
+            save_checkpoint(
+                model,
+                optimizer,
+                signal_state["epoch"],
+                signal_state["best_metric"],
+                checkpoint_dir / f"signal_exit_{sig_name.lower()}.pt",
+                scheduler,
+                config,
+                scaler=scaler,
+                save_rng=True,
+            )
+            logger.info(f"[SIGNAL] Saved signal_exit_{sig_name.lower()}.pt")
+        except Exception as e:
+            logger.error(f"[SIGNAL] Failed to save checkpoint: {e}")
+
+        logger.warning(f"[SIGNAL] Exiting due to {sig_name}")
+        raise SystemExit(0)
+
+    # Register signal handlers
+    signal.signal(signal.SIGTERM, _signal_handler)
+    signal.signal(signal.SIGINT, _signal_handler)
+    logger.info("[SIGNAL] Registered SIGTERM and SIGINT handlers for graceful exit")
+
     # Training loop
     best_metrics: dict[str, Any] = {"best_epoch": 0}
     global_step = 0  # Track global step across epochs for scheduler
