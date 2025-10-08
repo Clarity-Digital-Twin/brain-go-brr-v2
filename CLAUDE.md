@@ -4,7 +4,7 @@ This file provides critical project context for Claude Code (claude.ai/code) whe
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.8.3 (Manifest Naming Cleanup Complete): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks.
+Brain-Go-Brr v3.9.0 (Production Training Baseline): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks. **Full Modal A100 training LIVE** with bulletproof checkpoints and timeout guards.
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
@@ -12,16 +12,17 @@ Brain-Go-Brr v3.8.3 (Manifest Naming Cleanup Complete): Clinical EEG seizure det
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-Current Architecture (v3.8.3 - October 7, 2025):
+Current Architecture (v3.9.0 - October 8, 2025):
 - **V3 dual-stream** → Node (19×) and Edge (171×) parallel processing
 - **Memory-mapped cache (NPY)** → <1 GB RAM vs 387 GB for NPZ, 99.6% faster startup
-- **Manifest naming cleanup** → Direct NPY naming, zero workaround hacks, clean maintainable code
+- **Bulletproof checkpoints** → Atomic saves (temp + fsync + rename), AMP scaler + RNG capture, every 30min
+- **Timeout guard** → 23h wall-clock limit with 1h safety margin, graceful exit before Modal kill
 - **Complete tensor safety** → All 3 datasets use copy-on-read tensors for read-only mmap safety (no PyTorch warnings)
 - **Edge similarity clamping** → Prevents ±1.0 boundary explosions (PR-5)
 - **Dynamic Laplacian PE** → Time-evolving graph structure, fully dynamic every timestep
 - **Detached eigenvectors** → Prevents gradient explosion through eigendecomposition (gnn_pyg.py:205)
 - **3-tier NaN protection** → Gradient sanitization + clamping + monitoring
-- **Zero technical debt** → All P0/P1/P2/P3 issues resolved, zero runtime warnings in training logs
+- **Zero technical debt** → All P0/P1/P2/P3 issues resolved, production training LIVE
 
 ## 🚀 Quick Commands
 
@@ -364,19 +365,18 @@ Due to hardware differences, integration tests have adjusted thresholds:
 
 **Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
 
-**Current Status (v3.8.3 - October 7, 2025)**:
+**Current Status (v3.9.0 - October 8, 2025 - PRODUCTION TRAINING LIVE)**:
 - ✅ **Zero technical debt** - All P0/P1/P2/P3 issues RESOLVED across all priority levels
+- ✅ **Bulletproof checkpoints** - Atomic saves every 30min, AMP scaler + RNG capture, verified integrity
+- ✅ **Timeout guard** - 23h wall-clock limit, 1h safety margin, graceful exit before Modal kill
+- ✅ **Comprehensive validation** - PRE_TRAINING_VALIDATION.md, metrics pipeline verified from first principles
+- ✅ **Test suite enhanced** - Manifest validation, checkpoint robustness, 75%+ coverage maintained
+- ✅ **Full training LIVE** - 100 epochs on A100-80GB (app: ap-weaDyLGsgK5TEz8sLLOxO6)
 - ✅ **Manifest naming cleanup** - Direct NPY naming, 11 workaround hacks eliminated
-- ✅ **Regenerated manifests** - Train (303,990 windows), Dev (148,224 windows), 100% NPY naming
-- ✅ **Code simplification** - Cleaner cache_utils.py and datasets.py for better maintainability
-- ✅ **Zero warnings** - NumPy copy-on-read tensors + AMP scheduler guard eliminate PyTorch warnings
+- ✅ **Memory-mapped NPY cache** - <1 GB RAM vs 387 GB NPZ, 99.6% faster startup, pristine (0 NPZ)
 - ✅ **Complete tensor safety** - Read-only mmap cache preserved with copy-on-read tensors
-- ✅ **NPZ cache contamination ELIMINATED** - 3 stray files cleaned, datasets.py bug fixed
-- ✅ **Memory-mapped NPY cache** - <1 GB RAM vs 387 GB NPZ, 99.6% faster startup
-- ✅ **Code quality refactoring** - 120 lines eliminated (extracted shared cache loader)
-- ✅ **Type safety enhanced** - All `Any` types replaced with proper types (WandBRun, Console)
-- ✅ **Modal training running** - 100 epochs, batch_size=48, A100-80GB (app: ap-uitgvl8kXZoKJ4fZoSehsI)
+- ✅ **Zero warnings** - NumPy copy-on-read tensors + AMP scheduler guard eliminate PyTorch warnings
 - ✅ PyTorch 2.5.0 + mamba-ssm 2.2.5 (A100 XID 31 crashes resolved)
 - ✅ V3 dual-stream with edge similarity clamping (PR-5)
-- 🟢 **0 active P0/P1/P2/P3** - Complete production baseline, clean codebase
-- **Modal training in progress** - v3.8.3 zero-debt baseline fully deployed
+- 🟢 **0 active P0/P1/P2/P3** - Complete production baseline, training running
+- **Modal full training deployed** - v3.9.0 production baseline, 4-5 resume cycles expected

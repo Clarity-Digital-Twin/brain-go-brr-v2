@@ -1,9 +1,9 @@
-# Brain-Go-Brr v3.8.3 – Current Status
+# Brain-Go-Brr v3.9.0 – Current Status
 
-**Last Updated:** 2025-10-07
+**Last Updated:** 2025-10-08
 **Branch:** `main`
-**Version:** v3.8.3 (Manifest Naming Cleanup Complete)
-**Deployment:** Modal full training running (100 epochs on A100-80GB, zero-debt baseline)
+**Version:** v3.9.0 (Production Training Baseline)
+**Deployment:** Modal full training LIVE (100 epochs on A100-80GB, app: ap-weaDyLGsgK5TEz8sLLOxO6)
 
 ---
 
@@ -26,15 +26,22 @@
 
 ---
 
-## Latest Improvements (v3.8.3 - October 7, 2025)
+## Latest Improvements (v3.9.0 - October 8, 2025)
 
-### Manifest Naming Cleanup Complete (P1/P3 → Closed)
+### Production Training Baseline (Full Modal Launch)
+- ✅ **Bulletproof Checkpoints**: Atomic saves (temp + fsync + rename), AMP scaler capture, RNG state persistence
+- ✅ **Timeout Guard**: 23h wall-clock limit with 1h safety margin, graceful exit before Modal kill
+- ✅ **Comprehensive Validation**: Pre-training validation report, metrics pipeline verified from first principles
+- ✅ **Test Suite Enhancement**: Manifest validation tests, checkpoint robustness tests, 75%+ coverage maintained
+- ✅ **Full Training Launched**: Modal A100-80GB (100 epochs, app: ap-weaDyLGsgK5TEz8sLLOxO6)
+- ✅ **Documentation**: MODAL_TRAINING_DIAGNOSTICS.md + PRE_TRAINING_VALIDATION.md added to root
+
+### v3.8.3 - Manifest Naming Cleanup (October 7, 2025)
 - ✅ Regenerated train manifest: 303,990 windows across 4438 NPY files
 - ✅ Regenerated dev manifest: 148,224 windows (7.7% natural seizure ratio)
 - ✅ Removed all 11 `.replace("_windows", "")` string manipulation workarounds
 - ✅ Simplified cache_utils.py and datasets.py for better maintainability
 - ✅ Verification: 100% NPY naming, 0 NPZ references
-- ✅ **ZERO P0/P1/P2/P3 TECHNICAL DEBT** - All priority levels cleared
 
 ### Previous Improvements
 
@@ -64,17 +71,20 @@
 
 ## Current Deployment
 
-**Modal Full Training (Running)**:
-- App ID: `ap-uitgvl8kXZoKJ4fZoSehsI` (launched Oct 6, 22:42 UTC)
-- Config: 100 epochs, batch_size=48, A100-80GB
-- Cache: 4667 train + 1832 dev NPY files (verified)
-- Status: ✅ Launch succeeded with v3.8.2 zero-warning fixes
-- W&B: https://wandb.ai/jj-vcmcswaggins-novamindnyc/seizure-detection-a100/runs/e3c9f710e17747359f19819e4e4ec4bd
+**Modal Full Training (LIVE - v3.9.0)**:
+- App ID: `ap-weaDyLGsgK5TEz8sLLOxO6` (launched Oct 8, 12:27 UTC)
+- Config: 100 epochs, batch_size=48, A100-80GB, mixed_precision=true
+- Cache: 4667 train + 1832 dev NPY files (verified pristine)
+- Status: ✅ **PRODUCTION TRAINING RUNNING**
+- Features: Atomic checkpoints every 30min, 23h timeout guard, bulletproof resume
+- W&B: https://wandb.ai/jj-vcmcswaggins-novamindnyc/seizure-detection-a100
+- Modal: https://modal.com/apps/clarity-digital-twin/main/ap-weaDyLGsgK5TEz8sLLOxO6
 
 **Next Steps**:
-1. Monitor training progress (~100 hours expected)
-2. Analyze results and validate TAES metrics
-3. Optional post-training optimizations (P4/P5)
+1. Monitor first 24h (expect ~2-3 epochs)
+2. Resume after timeout: `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml --resume true`
+3. Repeat resume ~4-5 times until epoch 100
+4. Analyze final metrics and tune post-processing if needed
 
 ---
 
