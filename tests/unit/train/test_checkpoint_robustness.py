@@ -209,7 +209,7 @@ class TestCheckpointRNGPersistence:
             assert "rng_state" not in ckpt
 
     def test_rng_states_restored_correctly(self):
-        """Restored RNG should produce same random sequence."""
+        """Restored RNG should produce same random sequence continuation."""
         with tempfile.TemporaryDirectory() as tmpdir:
             checkpoint_path = Path(tmpdir) / "checkpoint.pt"
 
@@ -217,9 +217,9 @@ class TestCheckpointRNGPersistence:
             np.random.seed(42)
             random.seed(42)
 
-            original_torch = torch.rand(5)
-            original_numpy = np.random.rand(5)
-            original_python = [random.random() for _ in range(5)]
+            _ = torch.rand(5)
+            _ = np.random.rand(5)
+            _ = [random.random() for _ in range(5)]
 
             model = DummyModel()
             optimizer = torch.optim.AdamW(model.parameters())
@@ -232,6 +232,10 @@ class TestCheckpointRNGPersistence:
                 checkpoint_path=checkpoint_path,
                 save_rng=True,
             )
+
+            expected_torch = torch.rand(5)
+            expected_numpy = np.random.rand(5)
+            expected_python = [random.random() for _ in range(5)]
 
             torch.manual_seed(999)
             np.random.seed(999)
@@ -252,9 +256,9 @@ class TestCheckpointRNGPersistence:
             restored_numpy = np.random.rand(5)
             restored_python = [random.random() for _ in range(5)]
 
-            assert torch.allclose(original_torch, restored_torch)
-            assert np.allclose(original_numpy, restored_numpy)
-            assert original_python == restored_python
+            assert torch.allclose(expected_torch, restored_torch)
+            assert np.allclose(expected_numpy, restored_numpy)
+            assert expected_python == restored_python
 
 
 class TestCheckpointBestMetricFallback:
