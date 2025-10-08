@@ -229,7 +229,11 @@ class TestValidationDatasetWhitelist:
 
             assert len(dataset) == 5
 
-            data, label = dataset[0]
+            result = dataset[0]
+
+            assert isinstance(result, tuple)
+            assert len(result) == 3
+            data, label, metadata = result
 
             assert isinstance(data, torch.Tensor)
             assert isinstance(label, torch.Tensor)
