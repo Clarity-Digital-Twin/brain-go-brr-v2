@@ -13,6 +13,7 @@ from src.brain_brr.constants import (
     EDGE_HEADDIM_BIMAMBA2,
     EDGE_NUM_LAYERS,
     GDN_EDGE_HEADDIM_DEFAULT,
+    GDN_EDGE_NUM_HEADS_DEFAULT,
     GDN_FUSION_MODE_DEFAULT,
     LAYERSCALE_ALPHA_FALLBACK,
 )
@@ -109,9 +110,24 @@ def build_edge_stream(cfg: ModelConfig) -> EdgeStreamComponents:
         fusion_mode = getattr(cfg.mamba, "gdn_fusion_mode", GDN_FUSION_MODE_DEFAULT)
         allow_neg_eigval = getattr(cfg.mamba, "gdn_allow_neg_eigval", False)
 
+        edge_num_heads = (
+            getattr(cfg.mamba, "gdn_edge_num_heads", None) or GDN_EDGE_NUM_HEADS_DEFAULT
+        )
+        edge_headdim = getattr(cfg.mamba, "gdn_edge_headdim", None) or GDN_EDGE_HEADDIM_DEFAULT
+
+        edge_constraint = edge_num_heads * edge_headdim
+        edge_required = int(edge_d_model * 0.75)
+        if edge_constraint != edge_required:
+            raise ValueError(
+                f"Edge stream GDN constraint violated: "
+                f"num_heads({edge_num_heads}) * headdim({edge_headdim}) = {edge_constraint} "
+                f"must equal {edge_required} (0.75 * edge_mamba_d_model={edge_d_model}). "
+                f"Set mamba.gdn_edge_num_heads and mamba.gdn_edge_headdim in config."
+            )
+
         edge_mamba = BiGatedDeltaNet(
             d_model=edge_d_model,
-            headdim=GDN_EDGE_HEADDIM_DEFAULT,
+            headdim=edge_headdim,
             num_layers=edge_layers,
             conv_size=cfg.mamba.conv_kernel,
             dropout=cfg.mamba.dropout,

@@ -10,7 +10,6 @@ from src.brain_brr.constants import (
     BANDPASS_LOW_HZ,
     DROPOUT_MAMBA,
     DROPOUT_TCN,
-    EDGE_D_MODEL,
     EPSILON_LAPLACIAN,
     EPSILON_NORM,
     EPSILON_NUMERICAL,
@@ -19,8 +18,6 @@ from src.brain_brr.constants import (
     FOCAL_GAMMA_DEFAULT,
     FOCAL_GAMMA_WARMUP_END,
     FOCAL_GAMMA_WARMUP_START,
-    GDN_EDGE_HEADDIM_DEFAULT,
-    GDN_EDGE_NUM_HEADS_DEFAULT,
     GDN_NODE_HEADDIM_DEFAULT,
     GDN_NODE_NUM_HEADS_DEFAULT,
     GDN_QK_PROJECTION_RATIO,
@@ -181,7 +178,7 @@ class MambaConfig(StrictModel):
 
     @model_validator(mode="after")
     def validate_gdn_constraints(self) -> "MambaConfig":
-        """Validate GDN-specific 0.75× constraint (with config overrides support).
+        """Validate GDN-specific 0.75x constraint (with config overrides support).
 
         NOTE: Edge stream validation skipped here because edge_mamba_d_model is in GraphConfig.
         Edge stream GDN constraint validated in builder (see edge_stream.py).
@@ -204,11 +201,12 @@ class MambaConfig(StrictModel):
                     f"(0.75 * {NODE_D_MODEL})"
                 )
 
-        if self.gdn_edge_num_heads is not None or self.gdn_edge_headdim is not None:
-            if self.gdn_edge_num_heads is None or self.gdn_edge_headdim is None:
-                raise ValueError(
-                    "gdn_edge_num_heads and gdn_edge_headdim must BOTH be set or BOTH be None"
-                )
+        if (self.gdn_edge_num_heads is not None or self.gdn_edge_headdim is not None) and (
+            self.gdn_edge_num_heads is None or self.gdn_edge_headdim is None
+        ):
+            raise ValueError(
+                "gdn_edge_num_heads and gdn_edge_headdim must BOTH be set or BOTH be None"
+            )
 
         return self
 
