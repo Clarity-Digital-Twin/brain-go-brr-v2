@@ -452,10 +452,13 @@ def check_cache():
                     win_idx = entry.get("window_idx", "?")
                     print(f"       {i}. {cache_file_ref} (window {win_idx})")
 
-                # Check if first entry exists
+                # Check naming and existence
                 if sample_entries:
                     first_entry = sample_entries[0]
                     cache_file_ref = first_entry.get("cache_file", "MISSING")
+
+                    print(f"\n     Manifest vs Disk check:")
+                    print(f"       Manifest references: {cache_file_ref}")
 
                     # Check if this file actually exists
                     ref_path = dev_dir / cache_file_ref
