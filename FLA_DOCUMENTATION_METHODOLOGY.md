@@ -1,7 +1,7 @@
 # FLA Documentation Methodology: Cross-Referenced Accuracy Validation
 
-**Date**: October 7, 2025
-**Status**: Active (Paused at Doc 2)
+**Date**: October 8, 2025
+**Status**: Active (Doc 3 v2.1 Complete - Future-State Clarity Fixed)
 **Purpose**: Document the rigorous methodology used for FLA (Flash Linear Attention) documentation revision to ensure 1000% accuracy, zero magic numbers, and seamless codebase integration.
 
 ---
@@ -111,7 +111,15 @@ A systematic approach to documentation revision that ensures every claim, code s
   - Fixed checkpoint loading (consistent with Doc 1)
   - Reduced from 913 lines → 827 lines
 
-- ✅ **Doc 3 (Full Validation) v2.0**: COMPLETE AND VERIFIED
+- ✅ **Doc 3 (Full Validation) v2.1**: COMPLETE AND VERIFIED
+  - **CRITICAL CLARITY FIX**: Added MASSIVE warning banner (🛑 STOP section) for future state
+  - **CRITICAL CLARITY FIX**: Changed status to "ROADMAP DOCUMENT" (was "Ready for Implementation")
+  - Listed current reality (❌ wrapper/schema/scripts don't exist YET)
+  - Added execution order diagram (Phase 0 → 1a → 1b → 2)
+  - Added warnings to verification commands (will fail until Phase 0 complete)
+  - Added warning to analysis script (needs to be created)
+  - Changed "What Should Already Exist" → "What MUST Exist Before Phase 2"
+  - Used 🔨 (to be built) and 🔬 (to be validated) emojis for clarity
   - Changed "migration" → "validation" throughout (18 instances)
   - Added Phase 0 + Phase 1a + Phase 1b prerequisite verification
   - Added coexistence strategy (BiMamba2 default, GDN experimental)
@@ -119,7 +127,7 @@ A systematic approach to documentation revision that ensures every claim, code s
   - Added validation gates (require both Phase 1a+1b success)
   - Added partial deployment option (if Phase 2 < individual phases)
   - Consistent attribute paths (model.edge_mamba, not model.edge_stream.edge_mamba)
-  - Reduced from 904 lines → 925 lines (added validation gate logic)
+  - Increased from 904 lines → 953 lines (added clarity warnings)
 
 ### Pending Documents
 
@@ -194,6 +202,7 @@ rg "Doc 0 Section" FLASH_LINEAR_ATTENTION_DOC*.md
 6. **Duplication**: Phase 0 infrastructure only in Doc 0, not in Doc 1-4
 7. **Config preservation**: Never use `null` for stream-specific overrides - use explicit values to preserve prior phase results
 8. **Attribute paths**: Verify against actual detector code (e.g., `model.edge_mamba` not `model.edge_stream.edge_mamba`)
+9. **Future vs Current Documentation**: MUST distinguish "roadmap" (what will exist after Phase 0) from "instructions" (what to do now). Add MASSIVE warnings if doc describes future state that doesn't exist yet. Use status badges like "🚧 ROADMAP DOCUMENT" and explicit "❌ Does NOT exist yet" lists.
 
 ---
 
@@ -203,7 +212,7 @@ rg "Doc 0 Section" FLASH_LINEAR_ATTENTION_DOC*.md
 - ✅ Doc 0 v4.1 (SSOT with Phase 0 infrastructure + coexistence strategy)
 - ✅ Doc 1 v2.0 (Edge validation with prerequisite checks + rollback)
 - ✅ Doc 2 v2.1 (Node validation with critical fixes for config preservation + attribute path)
-- ✅ Doc 3 v2.0 (Full validation with validation gates + partial deployment option)
+- ✅ Doc 3 v2.1 (Full validation with validation gates + MASSIVE future-state clarity warnings)
 
 **Next**:
 - ⏳ Doc 4 (Hybrid SWA) - PENDING (optional, only if Phase 2 succeeds but needs short-event improvement)

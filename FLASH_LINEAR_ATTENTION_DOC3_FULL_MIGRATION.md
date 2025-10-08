@@ -4,16 +4,74 @@
 **Phase**: 2 (Full Validation - after Phase 0 + Phase 1a + Phase 1b)
 **Target**: Validate BOTH Edge + Node Streams with BiGatedDeltaNet
 **Date**: October 8, 2025
-**Version**: 2.0 (Coexistence + Infrastructure + Validation Gates)
-**Status**: Ready for Implementation (AFTER Phase 0 + Phase 1a + Phase 1b complete)
+**Version**: 2.1 (FUTURE ROADMAP - Prerequisites Must Be Built First)
+**Status**: 🚧 **ROADMAP DOCUMENT** - NOT EXECUTABLE UNTIL PHASE 0 COMPLETE 🚧
 
-**⚠️ CRITICAL PREREQUISITES**:
-1. Complete **Doc 0 Section 14 (Phase 0 Infrastructure)** FIRST (4-6 days)
-2. Complete **Phase 1a (Edge Validation)** and confirm GO decision
-3. Complete **Phase 1b (Node Validation)** and confirm GO decision
-4. This doc assumes config schema, constants, dependencies, builders, and tests already exist
+---
+
+## 🛑 STOP - READ THIS FIRST 🛑
+
+**THIS DOCUMENT DESCRIBES A FUTURE STATE THAT DOES NOT EXIST YET.**
+
+**Current Reality (October 8, 2025)**:
+- ❌ BiGatedDeltaNet wrapper does NOT exist (`src/brain_brr/models/gated_deltanet.py` missing)
+- ❌ Config fields do NOT exist (`temporal_type`, `gdn_fusion_mode` not in schema)
+- ❌ FLA dependency NOT installed (`flash-linear-attention` not in `pyproject.toml`)
+- ❌ Builder factory pattern does NOT exist (returns BiMamba2 only)
+- ❌ Analysis scripts do NOT exist (`scripts/analyze_phase2.py` missing)
+
+**What This Means**:
+- 🚫 **DO NOT** attempt to follow these instructions today - they will fail
+- ✅ **DO** use this document for planning Phase 2 architecture
+- ✅ **DO** complete Phase 0 (Doc 0 Section 14) FIRST to build infrastructure
+- ✅ **DO** complete Phase 1a + Phase 1b validation before Phase 2
+
+**Execution Order**:
+```
+Phase 0 (4-6 days)     Phase 1a (2-3 days)    Phase 1b (2-3 days)    Phase 2 (2-3 days)
+    BUILD                   VALIDATE               VALIDATE               VALIDATE
+      ↓                       ↓                      ↓                      ↓
+   Doc 0 §14              Doc 1                   Doc 2              >>> Doc 3 (YOU ARE HERE)
+   ─────────              ──────                  ──────                  ───────
+   • Wrapper              • Edge                  • Node                  • Both
+   • Schema               • GDN only              • GDN only              • GDN both
+   • Builders             • Risk: LOW             • Risk: MED             • Risk: HIGH
+   • Tests                                                                • Need 1a+1b GO
+```
+
+---
+
+## ⚠️ BLOCKING PREREQUISITES
+
+**YOU MUST COMPLETE THESE BEFORE PROCEEDING**:
+
+1. ✅ **Phase 0 Infrastructure Complete** (Doc 0 Section 14 - 4-6 days):
+   - Config schema with `temporal_type`, `temporal_type_node`, `temporal_type_edge` fields
+   - Constants extracted to `constants.py` (`GDN_*` constants)
+   - `flash-linear-attention` dependency installed
+   - Builder factory pattern (returns BiMamba2 OR BiGatedDeltaNet based on config)
+   - BiGatedDeltaNet wrapper (`src/brain_brr/models/gated_deltanet.py`)
+   - Test infrastructure for both architectures
+
+2. ✅ **Phase 1a Complete** (Doc 1 - 2-3 days):
+   - Edge stream GDN validated
+   - GO decision confirmed (≥ +1% sensitivity OR no regression)
+   - Training stable, no NaNs
+
+3. ✅ **Phase 1b Complete** (Doc 2 - 2-3 days):
+   - Node stream GDN validated
+   - GO decision confirmed (≥ +1% sensitivity OR no regression)
+   - Training stable, no NaNs
+
+**If ANY prerequisite is missing, STOP and complete it first.**
+
+---
 
 **Changelog**:
+- v2.1 (Oct 8, 2025): Added MASSIVE warning banner (🛑 STOP section) for future state clarity
+- v2.1 (Oct 8, 2025): Added current reality vs future state comparison
+- v2.1 (Oct 8, 2025): Changed status to "ROADMAP DOCUMENT" (was "Ready for Implementation")
+- v2.1 (Oct 8, 2025): Added execution order diagram (Phase 0 → 1a → 1b → 2)
 - v2.0 (Oct 8, 2025): Changed "migration" → "validation" throughout (testing, not replacing)
 - v2.0 (Oct 8, 2025): Added Phase 0 + Phase 1a + Phase 1b prerequisite verification
 - v2.0 (Oct 8, 2025): Added coexistence strategy (BiMamba2 default, GDN experimental)
@@ -44,15 +102,15 @@ model:
 - ✅ Both streams: BiMamba2 → BiGatedDeltaNet (experimental validation)
 - ❌ **DO NOT TOUCH**: GNN, TCN, decoder (keep v3.9.0 baseline)
 
-**What Should Already Exist**:
-- ✅ Config schema with `temporal_type` field (Doc 0 Section 14.1)
-- ✅ Constants extracted to `constants.py` (Doc 0 Section 14.2)
-- ✅ `flash-linear-attention` in `pyproject.toml` (Doc 0 Section 14.3)
-- ✅ Builder factory pattern (Doc 0 Section 14.4)
-- ✅ BiGatedDeltaNet wrapper (Doc 0 Section 14.5)
-- ✅ Test infrastructure (Doc 0 Section 14.6)
-- ✅ **Phase 1a completed successfully** (edge stream validated)
-- ✅ **Phase 1b completed successfully** (node stream validated)
+**What MUST Exist Before Phase 2** (Build in Phase 0, verify in Phase 1a/1b):
+- 🔨 Config schema with `temporal_type` field (Doc 0 Section 14.1 - TO BE BUILT)
+- 🔨 Constants extracted to `constants.py` (Doc 0 Section 14.2 - TO BE BUILT)
+- 🔨 `flash-linear-attention` in `pyproject.toml` (Doc 0 Section 14.3 - TO BE INSTALLED)
+- 🔨 Builder factory pattern (Doc 0 Section 14.4 - TO BE BUILT)
+- 🔨 BiGatedDeltaNet wrapper (Doc 0 Section 14.5 - TO BE BUILT)
+- 🔨 Test infrastructure (Doc 0 Section 14.6 - TO BE BUILT)
+- 🔬 **Phase 1a completed successfully** (edge stream validated - TO BE DONE)
+- 🔬 **Phase 1b completed successfully** (node stream validated - TO BE DONE)
 
 **Expected Outcome**:
 - Edge stream: **10.3K → ~7.3K params** (29% reduction)
@@ -92,10 +150,13 @@ model:
 
 ### 1.1. Verify Phase 0 Complete
 
+**🚨 WARNING**: These verification commands will **FAIL** if Phase 0 infrastructure hasn't been built yet. That's EXPECTED - it means you need to go back to **Doc 0 Section 14** and build the infrastructure first.
+
 **Checklist** (from Doc 0 Section 14.8):
 
 ```bash
 # 1. Verify config schema has temporal_type fields
+# EXPECTED FAILURE (Oct 8, 2025): ModuleNotFoundError or AttributeError (Phase 0 not built yet)
 python -c "
 from src.brain_brr.config.schemas import MambaConfig
 cfg = MambaConfig()
@@ -564,7 +625,9 @@ print(f'Edge: {type(model.edge_mamba).__name__}')
 
 ### 4.2. Analysis Script
 
-**File**: `scripts/analyze_phase2.py` (robust W&B analysis)
+**🚨 DOES NOT EXIST YET**: This script needs to be created when you reach Phase 2. The code below is a reference implementation that you should create at `scripts/analyze_phase2.py`.
+
+**File**: `scripts/analyze_phase2.py` (TO BE CREATED - robust W&B analysis)
 
 ```python
 """Compare Phase 2 (both streams GDN) results against Phase 1a and Phase 1b.
