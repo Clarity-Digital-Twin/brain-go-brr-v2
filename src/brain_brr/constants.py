@@ -364,10 +364,10 @@ FLA_MAX_VERSION: str = "0.4.0"
 """Maximum FLA library version (API stability boundary)."""
 
 GDN_QK_PROJECTION_RATIO: float = 0.75
-"""GDN design: 0.75× q/k projection for parameter efficiency.
+"""GDN design: 0.75* q/k projection for parameter efficiency.
 
 Source: ICLR 2025 paper (arxiv.org/abs/2412.06464), Section 3.2
-Maintains ~6× hidden_size² parameter budget when use_gate=True.
+Maintains ~6* hidden_size² parameter budget when use_gate=True.
 """
 
 GDN_FUSION_MODE_DEFAULT: str = "sum"
@@ -398,10 +398,10 @@ NODE_HEADDIM_BIMAMBA2: int = 8
 """BiMamba2 node stream head dimension (no constraint)."""
 
 GDN_NODE_HEADDIM_DEFAULT: int = 8
-"""GDN node stream head dimension: 6 heads × 8 = 48 = 0.75 × 64."""
+"""GDN node stream head dimension: 6 heads * 8 = 48 = 0.75 * 64."""
 
 GDN_NODE_NUM_HEADS_DEFAULT: int = 6
-"""GDN node stream number of heads (computed from 0.75× constraint)."""
+"""GDN node stream number of heads (computed from 0.75* constraint)."""
 
 EDGE_D_MODEL: int = 16
 """Edge stream model dimension (inter-electrode connectivity)."""
@@ -419,10 +419,10 @@ EDGE_HEADDIM_BIMAMBA2: int = 4
 """BiMamba2 edge stream head dimension (no constraint)."""
 
 GDN_EDGE_HEADDIM_DEFAULT: int = 4
-"""GDN edge stream head dimension: 3 heads × 4 = 12 = 0.75 × 16."""
+"""GDN edge stream head dimension: 3 heads * 4 = 12 = 0.75 * 16."""
 
 GDN_EDGE_NUM_HEADS_DEFAULT: int = 3
-"""GDN edge stream number of heads (computed from 0.75× constraint)."""
+"""GDN edge stream number of heads (computed from 0.75* constraint)."""
 
 # ==============================================================================
 # Metric Key Formatting

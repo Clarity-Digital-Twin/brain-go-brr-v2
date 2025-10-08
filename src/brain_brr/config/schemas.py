@@ -21,7 +21,6 @@ from src.brain_brr.constants import (
     FOCAL_GAMMA_WARMUP_START,
     GDN_EDGE_HEADDIM_DEFAULT,
     GDN_EDGE_NUM_HEADS_DEFAULT,
-    GDN_FUSION_MODE_DEFAULT,
     GDN_NODE_HEADDIM_DEFAULT,
     GDN_NODE_NUM_HEADS_DEFAULT,
     GDN_QK_PROJECTION_RATIO,
@@ -146,7 +145,7 @@ class MambaConfig(StrictModel):
     )
 
     gdn_fusion_mode: Literal["sum", "concat"] = Field(
-        default=GDN_FUSION_MODE_DEFAULT,
+        default="sum",
         description="Bidirectional fusion: 'sum' (lower capacity) or 'concat' (higher capacity)",
     )
     gdn_allow_neg_eigval: bool = Field(

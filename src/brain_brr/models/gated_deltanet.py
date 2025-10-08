@@ -39,8 +39,7 @@ class BiGatedDeltaNet(nn.Module):
         dropout: float = 0.1,
         fusion_mode: str = "sum",
         allow_neg_eigval: bool = False,
-        **kwargs,
-    ):
+    ) -> None:
         super().__init__()
 
         if not FLA_AVAILABLE:
@@ -100,10 +99,10 @@ class BiGatedDeltaNet(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
         if fusion_mode == "concat":
-            self.fusion_proj = nn.Linear(d_model * 2, d_model, bias=False)
+            self.fusion_proj: nn.Linear | None = nn.Linear(d_model * 2, d_model, bias=False)
             nn.init.xavier_uniform_(self.fusion_proj.weight, gain=0.2)
         else:
-            self.fusion_proj = None
+            self.fusion_proj: nn.Linear | None = None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Bidirectional processing: forward + backward (flipped).
