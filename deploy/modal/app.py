@@ -439,11 +439,23 @@ def check_cache():
                     f"     Windows: {n_partial} partial + {n_full} full + {n_none} bg = {n_partial + n_full + n_none} total"
                 )
 
-                # Check first entry format (NPY vs NPZ naming)
-                if n_partial > 0:
-                    first_entry = manifest_data["partial_seizure"][0]
+                # Show first 5 manifest entries
+                print(f"\n     First 5 manifest entries:")
+                sample_entries = manifest_data.get("partial_seizure", [])[:5]
+                if not sample_entries:
+                    sample_entries = manifest_data.get("full_seizure", [])[:5]
+                if not sample_entries:
+                    sample_entries = manifest_data.get("no_seizure", [])[:5]
+
+                for i, entry in enumerate(sample_entries, 1):
+                    cache_file_ref = entry.get("cache_file", "MISSING")
+                    win_idx = entry.get("window_idx", "?")
+                    print(f"       {i}. {cache_file_ref} (window {win_idx})")
+
+                # Check if first entry exists
+                if sample_entries:
+                    first_entry = sample_entries[0]
                     cache_file_ref = first_entry.get("cache_file", "MISSING")
-                    print(f"     Sample ref: {cache_file_ref}")
 
                     # Check if this file actually exists
                     ref_path = dev_dir / cache_file_ref
