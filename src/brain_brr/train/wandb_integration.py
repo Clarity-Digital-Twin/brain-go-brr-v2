@@ -45,11 +45,22 @@ class WandBLogger:
             out_dir = Path(config.experiment.output_dir)
             out_dir.mkdir(parents=True, exist_ok=True)
             run_id_path = out_dir / ".wandb_run_id"
+            resume_existing = False
+
             if run_id_path.exists():
-                run_id = run_id_path.read_text().strip() or uuid.uuid4().hex
+                run_id = run_id_path.read_text().strip()
+                if run_id:
+                    resume_existing = True
+                    logger.info(f"[W&B] Resuming existing run: {run_id}")
+                else:
+                    run_id = uuid.uuid4().hex
+                    logger.info(f"[W&B] Empty run ID file, creating new run: {run_id}")
             else:
                 run_id = uuid.uuid4().hex
-                run_id_path.write_text(run_id)
+                logger.info(f"[W&B] Creating new run: {run_id}")
+
+            # Always write run ID (handles empty file case)
+            run_id_path.write_text(run_id)
 
             # Guard optional graph config once to avoid repeated hasattr(None, ...)
             g = getattr(config.model, "graph", None)
@@ -105,7 +116,8 @@ class WandBLogger:
                 resume="allow",
             )
             self.enabled = True
-            logger.info(f"W&B run initialized: {wandb.run.url}")
+            status = "resumed" if resume_existing else "created"
+            logger.info(f"[W&B] Run {status}: {wandb.run.url}")
         except Exception as e:
             logger.error(f"Failed to initialize W&B: {e}")
 
