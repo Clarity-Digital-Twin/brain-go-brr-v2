@@ -551,23 +551,43 @@ python -m src train configs/local/phase2_both_gdn.yaml
 # - Logs show "Edge stream: BiGatedDeltaNet"
 ```
 
-### 3.2. Full Validation (50 files, 10 epochs)
+### 3.2. Medium Validation Run (40-50 files, 5-6 epochs)
 
-**Purpose**: Validate Phase 2 hypothesis against Phase 1a and Phase 1b.
+**⚠️ NEW STRATEGY** (as of Oct 8, 2025):
+
+This is the **SINGLE** medium-scale validation for the complete FLA stack. Under the new strategy:
+- Phase 1a/1b/2: Smoke tests ONLY (3 files each)
+- **Phase 2 + Medium Validation**: This run validates scaling behavior before Modal
+- Then: Full Modal training for A/B comparison
+
+**Purpose**: Integration test to surface scaling bugs (SSM memory, optimizer drift, checkpoint size, etc.) NOT performance comparison (deferred to Modal).
 
 ```bash
-# Run Phase 2 validation
+# Run medium validation (40-50 files, 5-6 epochs)
 export BGB_LIMIT_FILES=50
 python -m src train configs/local/phase2_both_gdn.yaml
 
 # Monitor during training:
 # - Loss curve (should decrease)
-# - Gradient norms (should be stable)
-# - Memory usage (~20GB on RTX 4090, similar to baseline)
-# - Throughput (may be 5-10% slower than baseline)
+# - Gradient norms (should be stable, clipping < 80% after warmup)
+# - Memory usage (~20GB on RTX 4090, <22GB peak)
+# - GPU / RAM peaks (should stay within limits)
+# - Checkpoint saves (should complete successfully)
+# - W&B logging volume (should not overwhelm)
 
-# Training time: ~6-8 hours on RTX 4090
+# Training time: ~2-3 hours on RTX 4090 (5-6 epochs)
 ```
+
+**Success Criteria**:
+- ✅ No NaNs
+- ✅ Loss converges
+- ✅ Gradient clip % stable (<80% after warm up)
+- ✅ GPU/RAM within limits
+- ✅ Checkpoints save correctly
+
+**If this passes**: Proceed to full Modal training for A/B comparison
+
+**Rationale**: 50-file per-phase validation has high variance with 12:1 imbalance. Build complete stack with smoke tests, validate once at scale here, then Modal.
 
 ### 3.3. Verify Both Streams (Node GDN, Edge GDN)
 
