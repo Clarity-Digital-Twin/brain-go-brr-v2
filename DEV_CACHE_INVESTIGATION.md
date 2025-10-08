@@ -538,4 +538,64 @@ if ensure_manifest and not manifest_path.exists():
 
 ---
 
-**Status**: Investigation complete, awaiting command execution to verify hypothesis before implementing fix.
+## 🎬 Action Plan (CONSENSUS REQUIRED)
+
+### Phase 1: Diagnose (DO THIS FIRST)
+
+```bash
+# Run enhanced cache check on Modal
+modal run deploy/modal/app.py::check_cache
+```
+
+**Decision point**: Based on the output, confirm:
+1. Is dev manifest using old NPZ naming? (Expected: YES)
+2. Are dev NPY files present on disk? (Expected: YES, 1832 files)
+3. Does the diagnosis match our hypothesis? (Expected: YES)
+
+### Phase 2: Choose Fix Approach (GET CONSENSUS)
+
+**After Phase 1 confirms the diagnosis**, choose ONE approach:
+
+- **Option 1** (Quick): Add dev validation to loop.py (15 lines, mirrors train logic)
+- **Option 2** (Clean): Extract shared manifest validation function (new file, DRY)
+- **Option 3** (Defensive): Make ValidationDataset self-healing (hides the problem)
+
+**Recommended**: Start with **Option 1** (quick fix), refactor to **Option 2** later if we see more issues.
+
+### Phase 3: Implement & Test
+
+1. Code the chosen fix
+2. Test locally with deleted dev manifest
+3. Verify manifest rebuilds correctly
+4. Deploy to Modal with smoke test
+5. Verify training proceeds with dev dataset
+
+### Phase 4: Update Documentation
+
+1. Update `docs/02-data/cache-layout.md` with manifest validation notes
+2. Add troubleshooting section for stale manifests
+3. Update `DEV_CACHE_INVESTIGATION.md` with final results
+
+---
+
+## 📊 Success Criteria
+
+Training will succeed when we see:
+
+```
+[DEV SPLIT] Built manifest from 1832 NPY files
+[ValidationDataset] Created with 148,224 windows:
+  - 7944 partial seizure
+  - 3536 full seizure
+  - 136744 no-seizure
+  - Seizure ratio: 7.7% (natural distribution)  ← NOT 0.0%!
+```
+
+**NOT**:
+```
+[ValidationDataset] Created with 0 windows (filtered)  ← BUG!
+```
+
+---
+
+**Status**: Investigation document complete. Next step: Run `modal run deploy/modal/app.py::check_cache` to confirm diagnosis, then get consensus on fix approach before implementing.

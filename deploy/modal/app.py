@@ -4,7 +4,6 @@ import logging
 import os
 import subprocess
 from pathlib import Path
-from typing import Optional
 
 import modal
 
@@ -20,15 +19,17 @@ image = (
     # Install build tools required for compiling CUDA extensions
     .apt_install("build-essential", "ninja-build", "git")
     # Set CUDA environment variables BEFORE any pip installs
-    .env({
-        "CUDA_HOME": "/usr/local/cuda-12.4",
-        "PATH": "/usr/local/cuda-12.4/bin:$PATH",
-        "LD_LIBRARY_PATH": "/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH",
-        "TORCH_CUDA_ARCH_LIST": "8.0;8.6;8.9;9.0",  # A100 is 8.0
-        "FORCE_REBUILD": "2025-10-04-gradient-logging",  # Bump to defeat Modal layer cache
-        "TRITON_CACHE_DIR": "/tmp/triton_cache",
-        "TORCHINDUCTOR_CACHE_DIR": "/tmp/torchinductor_cache",
-    })
+    .env(
+        {
+            "CUDA_HOME": "/usr/local/cuda-12.4",
+            "PATH": "/usr/local/cuda-12.4/bin:$PATH",
+            "LD_LIBRARY_PATH": "/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH",
+            "TORCH_CUDA_ARCH_LIST": "8.0;8.6;8.9;9.0",  # A100 is 8.0
+            "FORCE_REBUILD": "2025-10-04-gradient-logging",  # Bump to defeat Modal layer cache
+            "TRITON_CACHE_DIR": "/tmp/triton_cache",
+            "TORCHINDUCTOR_CACHE_DIR": "/tmp/torchinductor_cache",
+        }
+    )
     # Upgrade pip to latest to stop annoying warnings
     .run_commands("pip install --upgrade pip")
     # CRITICAL: Install EXACT PyTorch version from specific index
@@ -38,21 +39,19 @@ image = (
     )
     # Verify PyTorch is correct version (CUDA check happens at runtime, not build time)
     .run_commands(
-        "python -c 'import torch; assert torch.__version__.startswith(\"2.5.0\"), f\"Wrong torch: {torch.__version__}\"'"
+        'python -c \'import torch; assert torch.__version__.startswith("2.5.0"), f"Wrong torch: {torch.__version__}"\''
     )
     # Install build dependencies
     .pip_install("packaging", "wheel", "setuptools")
     # CRITICAL: Install causal-conv1d first
-    .run_commands(
-        "pip install --no-build-isolation --no-cache-dir causal-conv1d==1.5.2"
-    )
+    .run_commands("pip install --no-build-isolation --no-cache-dir causal-conv1d==1.5.2")
     # 🔧 CRITICAL: Patch mamba-ssm SOURCE before building
     # This fixes XID 31 MMU Fault on A100 with large batches (batch=64, d_model=512)
     # PR #708: https://github.com/state-spaces/mamba/pull/708
     # Strategy: Download sdist → Patch source → Build from patched source
     # This ensures Triton kernels compile from patched code, not cached wheels
     .run_commands(
-        "python -c \""
+        'python -c "'
         "import urllib.request, tarfile; "
         "from pathlib import Path; "
         "url = 'https://files.pythonhosted.org/packages/ba/2d/fbd909f6e6d48c491a9ed7ae68e8a890d8409aba4a6356741e2a9c6adad5/mamba_ssm-2.2.5.tar.gz'; "
@@ -64,30 +63,23 @@ image = (
         "print(f'Extracting {tgz}...'); "
         "tarfile.open(tgz, 'r:gz').extractall(dest); "
         "print(f'✅ Extracted to {dest}/mamba_ssm-2.2.5')"
-        "\""
+        '"'
     )
     # Build and install from source (will patch AFTER install)
     # Already building from source since we point to extracted tarball
-    .run_commands(
-        "pip install --no-build-isolation --no-cache-dir "
-        "/tmp/mamba_src/mamba_ssm-2.2.5"
-    )
+    .run_commands("pip install --no-build-isolation --no-cache-dir /tmp/mamba_src/mamba_ssm-2.2.5")
     # Now patch the INSTALLED files (this is the only reliable way)
     .add_local_file(
-        str(Path(__file__).parent / "patch_mamba_pr708.py"),
-        "/tmp/patch_installed.py",
-        copy=True
+        str(Path(__file__).parent / "patch_mamba_pr708.py"), "/tmp/patch_installed.py", copy=True
     )
-    .run_commands(
-        "python /tmp/patch_installed.py"
-    )
+    .run_commands("python /tmp/patch_installed.py")
     # Verify patch landed in ALL installed Triton kernel files
     .run_commands(
         "python -c '"
         "from pathlib import Path; "
-        "tri_dir = Path(\"/usr/local/lib/python3.11/site-packages/mamba_ssm/ops/triton\"); "
-        "[print(f\"✅ {f}\") for f in [\"ssd_chunk_scan.py\", \"ssd_chunk_state.py\", \"ssd_state_passing.py\", \"ssd_combined.py\"] "
-        "if \".to(tl.int64)\" in (tri_dir / f).read_text() or exit(f\"❌ Missing int64 cast in {f}\")]'"
+        'tri_dir = Path("/usr/local/lib/python3.11/site-packages/mamba_ssm/ops/triton"); '
+        '[print(f"✅ {f}") for f in ["ssd_chunk_scan.py", "ssd_chunk_state.py", "ssd_state_passing.py", "ssd_combined.py"] '
+        'if ".to(tl.int64)" in (tri_dir / f).read_text() or exit(f"❌ Missing int64 cast in {f}")]\''
     )
     # Core dependencies
     .pip_install(
@@ -111,9 +103,7 @@ image = (
     .run_commands(
         "pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html"
     )
-    .run_commands(
-        "pip install torch-geometric==2.6.1"
-    )
+    .run_commands("pip install torch-geometric==2.6.1")
     # Verify PyG imports correctly
     .run_commands(
         "python -c 'import torch_geometric; print(f\"✅ PyG {torch_geometric.__version__} installed\")'"
@@ -203,12 +193,13 @@ def populate_cache():
     Run this ONCE when setting up, then reuse the cache forever.
     """
     from src.brain_brr.utils.logging_config import setup_logging
+
     # Use simple format for Modal (no Rich in container logs)
     setup_logging(format_style="simple", force=True)
 
     import shutil
-    from pathlib import Path
     import time
+    from pathlib import Path
 
     src = Path("/s3_cache")  # S3 mount (memory-mapped NPY format)
     dst = Path("/results/cache/tusz_mmap")  # SSD volume (memory-mapped cache)
@@ -234,8 +225,10 @@ def populate_cache():
             expected_data = len(list(train_src.glob("*_data.npy")))
 
             if existing_data == expected_data:
-                logger.info(f"[SKIP] Train split already complete: {existing_data}/{expected_data} files")
-                logger.info(f"[SKIP] Skipping train copy to preserve existing data")
+                logger.info(
+                    f"[SKIP] Train split already complete: {existing_data}/{expected_data} files"
+                )
+                logger.info("[SKIP] Skipping train copy to preserve existing data")
             else:
                 logger.info(f"[INCOMPLETE] Train split: {existing_data}/{expected_data} files")
                 logger.info(f"[COPY] Removing incomplete {train_dst}...")
@@ -244,10 +237,14 @@ def populate_cache():
                 shutil.copytree(train_src, train_dst)
                 copied_data = len(list(train_dst.glob("*_data.npy")))
                 copied_labels = len(list(train_dst.glob("*_labels.npy")))
-                logger.info(f"[COPY] ✅ Copied {copied_data} data files + {copied_labels} labels files")
+                logger.info(
+                    f"[COPY] ✅ Copied {copied_data} data files + {copied_labels} labels files"
+                )
         else:
             train_data_files = list(train_src.glob("*_data.npy"))
-            logger.info(f"[COPY] Found {len(train_data_files)} train data files to copy (+ {len(train_data_files)} labels files)...")
+            logger.info(
+                f"[COPY] Found {len(train_data_files)} train data files to copy (+ {len(train_data_files)} labels files)..."
+            )
             logger.info(f"[COPY] Copying {train_src} → {train_dst}...")
             shutil.copytree(train_src, train_dst)
             copied_data = len(list(train_dst.glob("*_data.npy")))
@@ -269,8 +266,10 @@ def populate_cache():
             expected_data = len(list(dev_src.glob("*_data.npy")))
 
             if existing_data == expected_data:
-                logger.info(f"[SKIP] Dev split already complete: {existing_data}/{expected_data} files")
-                logger.info(f"[SKIP] Skipping dev copy to preserve existing data")
+                logger.info(
+                    f"[SKIP] Dev split already complete: {existing_data}/{expected_data} files"
+                )
+                logger.info("[SKIP] Skipping dev copy to preserve existing data")
             else:
                 logger.info(f"[INCOMPLETE] Dev split: {existing_data}/{expected_data} files")
                 logger.info(f"[COPY] Removing incomplete {dev_dst}...")
@@ -279,10 +278,14 @@ def populate_cache():
                 shutil.copytree(dev_src, dev_dst)
                 copied_data = len(list(dev_dst.glob("*_data.npy")))
                 copied_labels = len(list(dev_dst.glob("*_labels.npy")))
-                logger.info(f"[COPY] ✅ Copied {copied_data} data files + {copied_labels} labels files")
+                logger.info(
+                    f"[COPY] ✅ Copied {copied_data} data files + {copied_labels} labels files"
+                )
         else:
             dev_data_files = list(dev_src.glob("*_data.npy"))
-            logger.info(f"[COPY] Found {len(dev_data_files)} dev data files to copy (+ {len(dev_data_files)} labels files)...")
+            logger.info(
+                f"[COPY] Found {len(dev_data_files)} dev data files to copy (+ {len(dev_data_files)} labels files)..."
+            )
             logger.info(f"[COPY] Copying {dev_src} → {dev_dst}...")
             shutil.copytree(dev_src, dev_dst)
             copied_data = len(list(dev_dst.glob("*_data.npy")))
@@ -295,14 +298,15 @@ def populate_cache():
     metadata_src = src / ".cache_metadata.json"
     metadata_dst = dst / ".cache_metadata.json"
     if metadata_src.exists():
-        logger.info(f"[COPY] Copying cache metadata file...")
+        logger.info("[COPY] Copying cache metadata file...")
         shutil.copy2(metadata_src, metadata_dst)
-        logger.info(f"[COPY] ✅ Copied metadata file")
+        logger.info("[COPY] ✅ Copied metadata file")
     else:
         logger.info(f"[WARNING] No metadata file found at {metadata_src}")
-        logger.info(f"[WARNING] Creating metadata file to prevent cache deletion...")
+        logger.info("[WARNING] Creating metadata file to prevent cache deletion...")
         # Create metadata file to prevent auto-deletion
         import json
+
         metadata = {
             "split_policy": "official_tusz",
             "created": "2025-10-05T15:00:00",
@@ -313,7 +317,7 @@ def populate_cache():
             "dev_patients": 53,
             "train_data_files": 4667,
             "dev_data_files": 1832,
-            "version": "v3.8.0"
+            "version": "v3.8.0",
         }
         with open(metadata_dst, "w") as f:
             json.dump(metadata, f, indent=2)
@@ -328,11 +332,13 @@ def populate_cache():
 
     logger.info("\n" + "=" * 60)
     logger.info("[CACHE POPULATION] ✅ COMPLETE!")
-    logger.info(f"Train: {train_count} data files + {train_labels} labels files (expected: 4667 each)")
+    logger.info(
+        f"Train: {train_count} data files + {train_labels} labels files (expected: 4667 each)"
+    )
     logger.info(f"Dev: {dev_count} data files + {dev_labels} labels files (expected: 1832 each)")
-    logger.info(f"Time taken: {elapsed/60:.1f} minutes")
+    logger.info(f"Time taken: {elapsed / 60:.1f} minutes")
     logger.info(f"Cache location: {dst}")
-    logger.info(f"Format: Memory-mapped NPY (2025 ML best practice)")
+    logger.info("Format: Memory-mapped NPY (2025 ML best practice)")
     logger.info("Cache is now on fast Modal SSD - ready for training!")
     logger.info("=" * 60 + "\n")
 
@@ -347,8 +353,8 @@ def populate_cache():
 )
 def check_cache():
     """Verify Modal SSD cache completeness."""
-    from pathlib import Path
     import json
+    from pathlib import Path
 
     cache = Path("/results/cache/tusz_mmap")  # Memory-mapped NPY cache
 
@@ -358,19 +364,21 @@ def check_cache():
 
     # Check root metadata
     metadata_file = cache / ".cache_metadata.json"
-    print(f"[ROOT] .cache_metadata.json: ", end="")
+    print("[ROOT] .cache_metadata.json: ", end="")
     if metadata_file.exists():
         print(f"✅ EXISTS ({metadata_file.stat().st_size} bytes)")
         with open(metadata_file) as f:
             meta = json.load(f)
         print(f"       Policy: {meta.get('split_policy')}")
         print(f"       Created: {meta.get('created')}")
-        print(f"       Expected: {meta.get('train_files')} train + {meta.get('dev_files')} dev files")
+        print(
+            f"       Expected: {meta.get('train_files')} train + {meta.get('dev_files')} dev files"
+        )
     else:
         print("❌ MISSING")
 
     # Check train split
-    print(f"\n[TRAIN SPLIT]")
+    print("\n[TRAIN SPLIT]")
     train_manifest = cache / "train" / "manifest.json"
     train_index = cache / "train" / "_dataset_index.json"
     train_dir = cache / "train"
@@ -378,17 +386,25 @@ def check_cache():
     if train_dir.exists():
         train_data_npy = list(train_dir.glob("*_data.npy"))
         train_labels_npy = list(train_dir.glob("*_labels.npy"))
-        print(f"  manifest.json:         {'✅' if train_manifest.exists() else '❌'} ({train_manifest.stat().st_size if train_manifest.exists() else 0:,} bytes)")
-        print(f"  _dataset_index.json:   {'✅' if train_index.exists() else '❌'} ({train_index.stat().st_size if train_index.exists() else 0:,} bytes)")
-        print(f"  *_data.npy files:      {'✅' if len(train_data_npy) == 4667 else '⚠️ '} {len(train_data_npy):,} (expected 4667)")
-        print(f"  *_labels.npy files:    {'✅' if len(train_labels_npy) == 4667 else '⚠️ '} {len(train_labels_npy):,} (expected 4667)")
+        print(
+            f"  manifest.json:         {'✅' if train_manifest.exists() else '❌'} ({train_manifest.stat().st_size if train_manifest.exists() else 0:,} bytes)"
+        )
+        print(
+            f"  _dataset_index.json:   {'✅' if train_index.exists() else '❌'} ({train_index.stat().st_size if train_index.exists() else 0:,} bytes)"
+        )
+        print(
+            f"  *_data.npy files:      {'✅' if len(train_data_npy) == 4667 else '⚠️ '} {len(train_data_npy):,} (expected 4667)"
+        )
+        print(
+            f"  *_labels.npy files:    {'✅' if len(train_labels_npy) == 4667 else '⚠️ '} {len(train_labels_npy):,} (expected 4667)"
+        )
     else:
-        print(f"  ❌ train/ directory missing!")
+        print("  ❌ train/ directory missing!")
         train_data_npy = []
         train_labels_npy = []
 
     # Check dev split
-    print(f"\n[DEV SPLIT]")
+    print("\n[DEV SPLIT]")
     dev_manifest = cache / "dev" / "manifest.json"
     dev_index = cache / "dev" / "_dataset_index.json"
     dev_dir = cache / "dev"
@@ -396,14 +412,22 @@ def check_cache():
     if dev_dir.exists():
         dev_data_npy = list(dev_dir.glob("*_data.npy"))
         dev_labels_npy = list(dev_dir.glob("*_labels.npy"))
-        print(f"  manifest.json:         {'✅' if dev_manifest.exists() else '❌'} ({dev_manifest.stat().st_size if dev_manifest.exists() else 0:,} bytes) [REQUIRED for ValidationDataset]")
-        print(f"  _dataset_index.json:   {'✅' if dev_index.exists() else '❌'} ({dev_index.stat().st_size if dev_index.exists() else 0:,} bytes)")
-        print(f"  *_data.npy files:      {'✅' if len(dev_data_npy) == 1832 else '⚠️ '} {len(dev_data_npy):,} (expected 1832)")
-        print(f"  *_labels.npy files:    {'✅' if len(dev_labels_npy) == 1832 else '⚠️ '} {len(dev_labels_npy):,} (expected 1832)")
+        print(
+            f"  manifest.json:         {'✅' if dev_manifest.exists() else '❌'} ({dev_manifest.stat().st_size if dev_manifest.exists() else 0:,} bytes) [REQUIRED for ValidationDataset]"
+        )
+        print(
+            f"  _dataset_index.json:   {'✅' if dev_index.exists() else '❌'} ({dev_index.stat().st_size if dev_index.exists() else 0:,} bytes)"
+        )
+        print(
+            f"  *_data.npy files:      {'✅' if len(dev_data_npy) == 1832 else '⚠️ '} {len(dev_data_npy):,} (expected 1832)"
+        )
+        print(
+            f"  *_labels.npy files:    {'✅' if len(dev_labels_npy) == 1832 else '⚠️ '} {len(dev_labels_npy):,} (expected 1832)"
+        )
 
         # 🔍 DEEP INSPECTION: Check dev manifest validity
         if dev_manifest.exists():
-            print(f"\n  🔍 DEV MANIFEST INSPECTION:")
+            print("\n  🔍 DEV MANIFEST INSPECTION:")
             try:
                 with open(dev_manifest) as f:
                     manifest_data = json.load(f)
@@ -411,7 +435,9 @@ def check_cache():
                 n_partial = len(manifest_data.get("partial_seizure", []))
                 n_full = len(manifest_data.get("full_seizure", []))
                 n_none = len(manifest_data.get("no_seizure", []))
-                print(f"     Windows: {n_partial} partial + {n_full} full + {n_none} bg = {n_partial + n_full + n_none} total")
+                print(
+                    f"     Windows: {n_partial} partial + {n_full} full + {n_none} bg = {n_partial + n_full + n_none} total"
+                )
 
                 # Check first entry format (NPY vs NPZ naming)
                 if n_partial > 0:
@@ -428,22 +454,22 @@ def check_cache():
 
                         # List first 5 actual files to compare naming
                         actual_files = sorted([p.name for p in dev_data_npy[:5]])
-                        print(f"     Actual files on disk (first 5):")
+                        print("     Actual files on disk (first 5):")
                         for af in actual_files:
                             print(f"       - {af}")
 
                         # Diagnose naming mismatch
                         if "_windows.npz" in cache_file_ref:
-                            print(f"     ⚠️  DIAGNOSIS: Manifest uses OLD NPZ naming!")
-                            print(f"     💡 FIX: Rebuild dev manifest with scan_existing_cache()")
+                            print("     ⚠️  DIAGNOSIS: Manifest uses OLD NPZ naming!")
+                            print("     💡 FIX: Rebuild dev manifest with scan_existing_cache()")
                         elif cache_file_ref not in [p.name for p in dev_data_npy]:
-                            print(f"     ⚠️  DIAGNOSIS: Manifest references non-existent files!")
-                            print(f"     💡 FIX: Delete stale manifest and rebuild")
+                            print("     ⚠️  DIAGNOSIS: Manifest references non-existent files!")
+                            print("     💡 FIX: Delete stale manifest and rebuild")
 
             except Exception as e:
                 print(f"     ❌ Failed to inspect manifest: {e}")
     else:
-        print(f"  ❌ dev/ directory missing!")
+        print("  ❌ dev/ directory missing!")
         dev_data_npy = []
         dev_labels_npy = []
 
@@ -453,14 +479,22 @@ def check_cache():
     print("=" * 70)
 
     missing = []
-    if not metadata_file.exists(): missing.append(".cache_metadata.json")
-    if not train_manifest.exists(): missing.append("train/manifest.json [CRITICAL]")
-    if not train_index.exists(): missing.append("train/_dataset_index.json [OPTIONAL]")
-    if not dev_index.exists(): missing.append("dev/_dataset_index.json [CRITICAL]")
-    if len(train_data_npy) != 4667: missing.append(f"train/*_data.npy ({len(train_data_npy)}/4667)")
-    if len(train_labels_npy) != 4667: missing.append(f"train/*_labels.npy ({len(train_labels_npy)}/4667)")
-    if len(dev_data_npy) != 1832: missing.append(f"dev/*_data.npy ({len(dev_data_npy)}/1832)")
-    if len(dev_labels_npy) != 1832: missing.append(f"dev/*_labels.npy ({len(dev_labels_npy)}/1832)")
+    if not metadata_file.exists():
+        missing.append(".cache_metadata.json")
+    if not train_manifest.exists():
+        missing.append("train/manifest.json [CRITICAL]")
+    if not train_index.exists():
+        missing.append("train/_dataset_index.json [OPTIONAL]")
+    if not dev_index.exists():
+        missing.append("dev/_dataset_index.json [CRITICAL]")
+    if len(train_data_npy) != 4667:
+        missing.append(f"train/*_data.npy ({len(train_data_npy)}/4667)")
+    if len(train_labels_npy) != 4667:
+        missing.append(f"train/*_labels.npy ({len(train_labels_npy)}/4667)")
+    if len(dev_data_npy) != 1832:
+        missing.append(f"dev/*_data.npy ({len(dev_data_npy)}/1832)")
+    if len(dev_labels_npy) != 1832:
+        missing.append(f"dev/*_labels.npy ({len(dev_labels_npy)}/1832)")
 
     if missing:
         print("\n❌ MISSING FILES:")
@@ -487,6 +521,7 @@ def check_cache():
 def clean_cache():
     """Clean contaminated cache from before patient-disjoint fix."""
     from src.brain_brr.utils.logging_config import setup_logging
+
     # Use simple format for Modal (no Rich in container logs)
     setup_logging(format_style="simple", force=True)
 
@@ -499,7 +534,7 @@ def clean_cache():
 
     cache_paths = [
         Path("/results/cache/tusz_mmap"),  # Current mmap cache
-        Path("/results/cache/tusz"),       # Legacy NPZ cache (if exists)
+        Path("/results/cache/tusz"),  # Legacy NPZ cache (if exists)
     ]
 
     for cache_path in cache_paths:
@@ -532,16 +567,19 @@ def clean_cache():
 def test_mamba_cuda():
     """Test that Mamba CUDA kernels work properly."""
     from src.brain_brr.utils.logging_config import setup_logging
+
     # Use simple format for Modal (no Rich in container logs)
     setup_logging(format_style="simple", force=True)
 
     import torch
+
     logger.info(f"CUDA available: {torch.cuda.is_available()}")
     logger.info(f"CUDA device: {torch.cuda.get_device_name()}")
 
     # Test mamba-ssm import
     try:
         import mamba_ssm
+
         logger.info(f"✓ mamba-ssm version: {mamba_ssm.__version__}")
     except ImportError as e:
         logger.info(f"✗ mamba-ssm import failed: {e}")
@@ -550,7 +588,8 @@ def test_mamba_cuda():
     # Test causal_conv1d import (the actual CUDA kernels)
     try:
         import causal_conv1d
-        logger.info(f"✓ causal-conv1d imported")
+
+        logger.info("✓ causal-conv1d imported")
     except ImportError as e:
         logger.info(f"✗ causal-conv1d import failed: {e}")
         return False
@@ -581,6 +620,7 @@ def test_mamba_cuda():
     except Exception as e:
         logger.info(f"✗ Mamba2 test failed: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -612,11 +652,9 @@ def train(
         Path to checkpoint file
     """
     from src.brain_brr.utils.logging_config import setup_logging
+
     # Use simple format for Modal (no Rich in container logs)
     setup_logging(format_style="simple", force=True)
-
-    import os
-    import subprocess
 
     # Set diagnostic environment variables if requested
     if cuda_launch_blocking:
@@ -629,7 +667,9 @@ def train(
 
     if force_fallback:
         os.environ["SEIZURE_MAMBA_FORCE_FALLBACK"] = "1"
-        logger.info("[DIAGNOSTIC] SEIZURE_MAMBA_FORCE_FALLBACK=1 (using Conv1d instead of Mamba CUDA)")
+        logger.info(
+            "[DIAGNOSTIC] SEIZURE_MAMBA_FORCE_FALLBACK=1 (using Conv1d instead of Mamba CUDA)"
+        )
 
     # CRITICAL: Wall-clock timeout for graceful exit before Modal hard kill
     # Modal has 24h hard limit (86400s). Exit at 23h (82800s) to save checkpoint cleanly.
@@ -645,6 +685,7 @@ def train(
     # Modal can reuse containers, so we MUST use random cache dirs to ensure
     # newly patched Triton kernels are compiled fresh (not using old int32 caches)
     import uuid
+
     run_id = str(uuid.uuid4())[:8]
     os.environ["TRITON_CACHE_DIR"] = f"/tmp/triton_cache_run_{run_id}"
     os.environ["TORCHINDUCTOR_CACHE_DIR"] = f"/tmp/tii_cache_run_{run_id}"
@@ -653,6 +694,7 @@ def train(
     # Test mamba-ssm import
     try:
         import mamba_ssm
+
         logger.info(f"✓ Mamba-SSM imported successfully: {mamba_ssm.__version__}")
     except ImportError as e:
         logger.info(f"⚠️ Mamba-SSM import failed: {e}")
@@ -663,6 +705,7 @@ def train(
     logger.info("=" * 60)
 
     from pathlib import Path
+
     train_dir = Path("/data/edf/train")
     dev_dir = Path("/data/edf/dev")
 
@@ -677,7 +720,9 @@ def train(
                 f"  {sorted(overlap)[:10]}"
             )
 
-        logger.info(f"[SPLITS] ✅ VERIFIED: {len(train_patients)} train, {len(dev_patients)} dev patients")
+        logger.info(
+            f"[SPLITS] ✅ VERIFIED: {len(train_patients)} train, {len(dev_patients)} dev patients"
+        )
         logger.info("[SPLITS] ✅ NO PATIENT OVERLAP - Data is clean!")
     else:
         logger.info("[SPLITS] WARNING: Could not verify splits (dirs not found)")
@@ -688,9 +733,9 @@ def train(
     logger.info("=" * 60)
 
     try:
-        from pathlib import Path
-        import shutil
         import json
+        import shutil
+        from pathlib import Path
 
         # Load config to get the actual cache path
         cfg_abs = config_path
@@ -698,7 +743,8 @@ def train(
             cfg_abs = str(Path("/app") / config_path)
 
         import yaml
-        with open(cfg_abs, "r") as f:
+
+        with open(cfg_abs) as f:
             config_data = yaml.safe_load(f)
 
         # Use cache_dir from config (supports both NPZ and NPY mmap formats)
@@ -737,11 +783,15 @@ def train(
 
                     # Check if built with official_tusz policy
                     if metadata.get("split_policy") == "official_tusz":
-                        logger.info(f"[CACHE] ✅ Cache built with official_tusz policy")
-                        logger.info(f"[CACHE] ✅ Using valid Modal SSD cache: {len(npy_data_files)} NPY data files")
+                        logger.info("[CACHE] ✅ Cache built with official_tusz policy")
+                        logger.info(
+                            f"[CACHE] ✅ Using valid Modal SSD cache: {len(npy_data_files)} NPY data files"
+                        )
                         cache_valid = True
                     else:
-                        logger.info(f"[CACHE] ⚠️ Cache built with old policy: {metadata.get('split_policy', 'unknown')}")
+                        logger.info(
+                            f"[CACHE] ⚠️ Cache built with old policy: {metadata.get('split_policy', 'unknown')}"
+                        )
                         cache_valid = False
                 except Exception as e:
                     logger.info(f"[CACHE] ⚠️ Could not read cache metadata: {e}")
@@ -749,7 +799,7 @@ def train(
             else:
                 # No metadata = old cache from before fix
                 if len(npy_data_files) > 0:
-                    logger.info(f"[CACHE] ⚠️ No metadata found - cache built before patient fix!")
+                    logger.info("[CACHE] ⚠️ No metadata found - cache built before patient fix!")
                     logger.info(f"[CACHE] ❌ MUST INVALIDATE {len(npy_data_files)} files")
                 else:
                     logger.info("[CACHE] No metadata found - cache is empty (will build fresh)")
@@ -768,8 +818,12 @@ def train(
                 # Write new metadata
                 metadata = {
                     "split_policy": "official_tusz",
-                    "created": str(Path("/app") / "configs" / "modal" / "smoke.yaml" if "smoke" in config_path else "train.yaml"),
-                    "timestamp": str(Path(__file__).stat().st_mtime)
+                    "created": str(
+                        Path("/app") / "configs" / "modal" / "smoke.yaml"
+                        if "smoke" in config_path
+                        else "train.yaml"
+                    ),
+                    "timestamp": str(Path(__file__).stat().st_mtime),
                 }
                 with open(cache_metadata_file, "w") as f:
                     json.dump(metadata, f, indent=2)
@@ -782,10 +836,10 @@ def train(
                 if manifest.exists():
                     logger.info(f"[CACHE] ✅ Manifest found at {manifest}")
                 logger.info(f"[CACHE] Cache location: {cache_path}")
-                logger.info(f"[CACHE] This is optimal - using fast local SSD storage")
+                logger.info("[CACHE] This is optimal - using fast local SSD storage")
         else:
             logger.info(f"[CACHE] Cache will be built at: {cache_path}")
-            logger.info(f"[CACHE] First epoch will be slower while building cache")
+            logger.info("[CACHE] First epoch will be slower while building cache")
 
             # Create metadata for new cache
             Path(cache_dir).mkdir(parents=True, exist_ok=True)
@@ -794,8 +848,12 @@ def train(
 
             metadata = {
                 "split_policy": "official_tusz",
-                "created": str(Path("/app") / "configs" / "modal" / "smoke.yaml" if "smoke" in config_path else "train.yaml"),
-                "timestamp": str(Path(__file__).stat().st_mtime)
+                "created": str(
+                    Path("/app") / "configs" / "modal" / "smoke.yaml"
+                    if "smoke" in config_path
+                    else "train.yaml"
+                ),
+                "timestamp": str(Path(__file__).stat().st_mtime),
             }
             with open(cache_metadata_file, "w") as f:
                 json.dump(metadata, f, indent=2)
@@ -824,7 +882,7 @@ def train(
 
     # Debugging flags (optional)
     # env["BGB_SANITIZE_GRADS"] = "1"  # Debug: log gradient NaNs (not required)
-    env["BGB_NAN_DEBUG"] = "1"          # Enable NaN warnings
+    env["BGB_NAN_DEBUG"] = "1"  # Enable NaN warnings
     logger.info("[ENV] BGB_NAN_DEBUG=1 (NaN debugging enabled)")
     logger.info("[PROTECTION] Gradient clipping (0.5) provides primary NaN protection")
 
@@ -834,19 +892,20 @@ def train(
 
     # CRITICAL: Log more frequently on Modal to detect hangs early
     env["BGB_LOG_EVERY_N_STEPS"] = "10"  # Log every 10 batches (vs default 50)
-    logger.info(f"[ENV] BGB_LOG_EVERY_N_STEPS=10 (faster Modal logging)")
+    logger.info("[ENV] BGB_LOG_EVERY_N_STEPS=10 (faster Modal logging)")
 
     # For production, use full dataset (no limit)
 
     # Prepare a temp config to ensure data/output point to persistent volumes
     import tempfile
+
     import yaml
 
     cfg_abs = config_path
     if not config_path.startswith("/"):
         cfg_abs = str(Path("/app") / config_path)
 
-    with open(cfg_abs, "r") as f:
+    with open(cfg_abs) as f:
         data = yaml.safe_load(f)
 
     # Auto-select dataset under /data if present
@@ -873,6 +932,7 @@ def train(
 
     # Ensure cache directories exist with correct structure
     from pathlib import Path
+
     Path(cache_dir).mkdir(parents=True, exist_ok=True)
     (Path(cache_dir) / "train").mkdir(exist_ok=True)
     (Path(cache_dir) / "dev").mkdir(exist_ok=True)
@@ -907,7 +967,7 @@ def train(
 
     # Run training with REAL-TIME output streaming
     logger.info("Starting training process with real-time logging...")
-    logger.info(f"Loading from Modal SSD cache - dataset indices building...")
+    logger.info("Loading from Modal SSD cache - dataset indices building...")
 
     # Use Popen for real-time output with proper buffering
     # bufsize=1 enables line buffering which is better for tqdm
@@ -925,6 +985,7 @@ def train(
         for line in process.stdout:
             # Stream output directly to stdout for real-time logging
             import sys
+
             sys.stdout.write(line)
             sys.stdout.flush()
     except Exception as e:
@@ -936,7 +997,7 @@ def train(
     if returncode != 0:
         raise RuntimeError(f"Training failed with exit code {returncode}")
 
-    logger.info(f"Training completed successfully!")
+    logger.info("Training completed successfully!")
     # Return best checkpoint path under /results
     checkpoint_dir = Path(data["experiment"]["output_dir"]) / "checkpoints"
     # Our training saves best.pt
@@ -947,7 +1008,7 @@ def train(
     gpu="A100-80GB",  # A100 for evaluation
     timeout=3600,  # 1 hour
     volumes={
-        "/data": data_mount,   # Use S3 mount for eval datasets
+        "/data": data_mount,  # Use S3 mount for eval datasets
         "/results": results_volume,
     },
     memory=65536,  # SAFE: 64GB RAM for evaluation
@@ -967,11 +1028,9 @@ def evaluate(
         Path to metrics JSON file
     """
     from src.brain_brr.utils.logging_config import setup_logging
+
     # Use simple format for Modal (no Rich in container logs)
     setup_logging(format_style="simple", force=True)
-
-    import os
-    import subprocess
 
     env = os.environ.copy()
     env["PYTHONPATH"] = "/app"
@@ -989,10 +1048,14 @@ def evaluate(
 
     # Build command
     cmd = [
-        "python", "-m", "src", "evaluate",
+        "python",
+        "-m",
+        "src",
+        "evaluate",
         checkpoint_path,
         data_path,
-        "--output-json", output_json,
+        "--output-json",
+        output_json,
     ]
 
     logger.info(f"Running: {' '.join(cmd)}")
@@ -1061,7 +1124,9 @@ def main(
         logger.info("🧹 Cleaning contaminated cache...")
         success = clean_cache.remote()
         if success:
-            logger.info("✅ Cache cleaned! Next training will rebuild with patient-disjoint splits.")
+            logger.info(
+                "✅ Cache cleaned! Next training will rebuild with patient-disjoint splits."
+            )
         else:
             logger.info("❌ Cache cleaning failed!")
             raise RuntimeError("Failed to clean cache")
