@@ -400,6 +400,48 @@ def check_cache():
         print(f"  _dataset_index.json:   {'✅' if dev_index.exists() else '❌'} ({dev_index.stat().st_size if dev_index.exists() else 0:,} bytes)")
         print(f"  *_data.npy files:      {'✅' if len(dev_data_npy) == 1832 else '⚠️ '} {len(dev_data_npy):,} (expected 1832)")
         print(f"  *_labels.npy files:    {'✅' if len(dev_labels_npy) == 1832 else '⚠️ '} {len(dev_labels_npy):,} (expected 1832)")
+
+        # 🔍 DEEP INSPECTION: Check dev manifest validity
+        if dev_manifest.exists():
+            print(f"\n  🔍 DEV MANIFEST INSPECTION:")
+            try:
+                with open(dev_manifest) as f:
+                    manifest_data = json.load(f)
+
+                n_partial = len(manifest_data.get("partial_seizure", []))
+                n_full = len(manifest_data.get("full_seizure", []))
+                n_none = len(manifest_data.get("no_seizure", []))
+                print(f"     Windows: {n_partial} partial + {n_full} full + {n_none} bg = {n_partial + n_full + n_none} total")
+
+                # Check first entry format (NPY vs NPZ naming)
+                if n_partial > 0:
+                    first_entry = manifest_data["partial_seizure"][0]
+                    cache_file_ref = first_entry.get("cache_file", "MISSING")
+                    print(f"     Sample ref: {cache_file_ref}")
+
+                    # Check if this file actually exists
+                    ref_path = dev_dir / cache_file_ref
+                    if ref_path.exists():
+                        print(f"     File check: ✅ {cache_file_ref} EXISTS")
+                    else:
+                        print(f"     File check: ❌ {cache_file_ref} MISSING!")
+
+                        # List first 5 actual files to compare naming
+                        actual_files = sorted([p.name for p in dev_data_npy[:5]])
+                        print(f"     Actual files on disk (first 5):")
+                        for af in actual_files:
+                            print(f"       - {af}")
+
+                        # Diagnose naming mismatch
+                        if "_windows.npz" in cache_file_ref:
+                            print(f"     ⚠️  DIAGNOSIS: Manifest uses OLD NPZ naming!")
+                            print(f"     💡 FIX: Rebuild dev manifest with scan_existing_cache()")
+                        elif cache_file_ref not in [p.name for p in dev_data_npy]:
+                            print(f"     ⚠️  DIAGNOSIS: Manifest references non-existent files!")
+                            print(f"     💡 FIX: Delete stale manifest and rebuild")
+
+            except Exception as e:
+                print(f"     ❌ Failed to inspect manifest: {e}")
     else:
         print(f"  ❌ dev/ directory missing!")
         dev_data_npy = []
