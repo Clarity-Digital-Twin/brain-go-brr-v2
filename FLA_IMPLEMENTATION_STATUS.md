@@ -108,11 +108,15 @@
 - [x] Config created: `configs/local/phase1a_edge_gdn.yaml`
 - [x] Edge stream: BiGatedDeltaNet with d_model=32, heads=3, headdim=8
 - [x] Node stream: BiMamba2 (unchanged)
-- [x] Smoke test v1: 3 files, 7 epochs (early stop) - **PASSED**
+- [x] Smoke test v4: 3 files, Epoch 4 (early stop), best: Epoch 3 - **✅ PASSED**
+  - **Evidence**: `/tmp/phase1a_smoke_v4.log`
+  - **Result**: No crashes, no NaNs, loss converged (0.20 → 0.15)
+  - **Status**: ✅ Phase 1a COMPLETE (Oct 8, 2025)
 - [x] **CRITICAL BUGFIXES** (Oct 8, 2025):
-  - [x] Removed `self.to(torch.bfloat16)` from BiGatedDeltaNet.__init__ (line 110)
-    - **Impact**: Keeps parameters in fp32, only forward pass uses bf16
-    - **Prevents**: Optimizer state corruption (AdamW bf16 instability)
+  - [x] **Selective BF16 Conversion** (gated_deltanet.py:110-116)
+    - **Problem**: Module-wide `self.to(torch.bfloat16)` → optimizer instability
+    - **Fix**: Convert ONLY FLA layers (fwd/bwd/fusion_proj) to bf16, rest stays fp32
+    - **Impact**: FLA kernels get required bf16, AdamW stays numerically stable
   - [x] Wired node override fields (`gdn_node_num_heads`, `gdn_node_headdim`)
     - **Impact**: Phase 1b/2 can now customize node GDN heads
     - **Location**: `src/brain_brr/models/builders/node_stream.py:78-91`
@@ -120,18 +124,17 @@
     - **Impact**: Users following Doc 1 won't hit FLA alignment errors
     - **Location**: `FLASH_LINEAR_ATTENTION_DOC1_EDGE_MIGRATION.md:277`
 - [x] Quality checks: `make q` passes (lint + format + mypy + config validation)
-- [x] Smoke test v3 (post-bugfix): **RUNNING NOW** (tmux: phase1a_smoke_v3)
 
 ---
 
 ### 🔄 **IN PROGRESS**
 
-**Phase 1a Smoke Test v3** (Post-Bugfix Validation):
-- Status: Running in tmux session `phase1a_smoke_v3`
-- Log: `/tmp/phase1a_smoke_v3.log`
-- Expected: 3 files, 10 epochs (~5 min)
-- Purpose: Verify bugfixes didn't break anything
-- Monitor: `tmux attach -t phase1a_smoke_v3` or `tail -f /tmp/phase1a_smoke_v3.log`
+**Documentation Updates** (Oct 8, 2025):
+- [x] Doc 1: Marked Phase 1a COMPLETE, added implementation status section
+- [x] Doc 2: Updated validation strategy (smoke-only, deferred to Phase 2)
+- [x] Doc 3: Added medium validation plan (40-50 files, 5-6 epochs)
+- [x] FLA_IMPLEMENTATION_STATUS.md: Updated Phase 1a completion
+- [ ] FLA_DOCUMENTATION_METHODOLOGY.md: Add new strategy rationale (NEXT)
 
 ---
 
@@ -186,27 +189,34 @@
 
 ## 🚨 Key Decisions Made
 
-### **NEW STRATEGY** (Oct 8, 2025)
+### **NEW STRATEGY** (Agreed Oct 8, 2025)
 
-**Problem**: Doc 1 recommended 50-file validation after Phase 1a, but:
+**Problem**: Original plan recommended 50-file validation after each phase, but:
 - Seizure detection has 12:1 class imbalance
 - 50 files ≈ 500-1000 windows (small sample)
 - sensitivity@10FA has high variance on small datasets
-- Can't get statistically significant A/B comparison
+- Can't get statistically significant A/B comparison per phase
+- Would waste ~18-24 hours of LOCAL compute per phase (3× phases = 54-72 hours)
 
 **Solution**: Build-All-Phases → Single-Medium-Validation → Full-Modal-Training
 
+**Execution**:
+1. **Phase 1a** (edge GDN): Smoke test ONLY (3 files) ✅ DONE
+2. **Phase 1b** (node GDN): Smoke test ONLY (3 files) → NEXT
+3. **Phase 2** (both GDN): Smoke test (3 files) + Medium validation (40-50 files, 5-6 epochs)
+4. **Modal training**: Full dataset, 100 epochs → Final A/B comparison
+
 **Reasoning**:
-1. **Smoke tests catch infrastructure bugs** (shapes, dtypes, NaNs, crashes)
-2. **Medium validation catches scaling bugs** (memory, optimizer drift, checkpointing)
-3. **Full Modal training is the ONLY meaningful A/B** (full dataset, 100 epochs)
-4. **No need for per-phase 50-file runs** (wastes ~18-24 hours LOCAL compute)
+1. **Smoke tests catch infrastructure bugs** (shapes, dtypes, NaNs, crashes) - Fast (5 min each)
+2. **Medium validation catches scaling bugs** (memory, optimizer drift, checkpointing) - Once (2-3 hours)
+3. **Full Modal training is the ONLY meaningful A/B** (full dataset, 100 epochs) - Final (~100 hours)
+4. **Saves ~54-72 hours of redundant LOCAL validation** (3× 50-file runs avoided)
 
 **Trade-offs**:
-- ✅ Saves ~18-24 hours of per-phase validation
-- ✅ Gets to Modal training faster
-- ⚠️ Risk: If medium validation fails, need to debug without per-phase baselines
-- ⚠️ Mitigation: Smoke tests + medium validation catch 95% of bugs
+- ✅ Saves ~54-72 hours of per-phase validation (18-24h × 3 phases)
+- ✅ Gets to Modal training faster (days sooner)
+- ⚠️ Risk: If medium validation fails, less per-phase baseline data
+- ⚠️ Mitigation: Smoke tests (3× phases) + medium validation catch 95% of bugs before Modal
 
 ---
 
