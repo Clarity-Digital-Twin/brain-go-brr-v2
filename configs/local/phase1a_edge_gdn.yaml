@@ -8,12 +8,12 @@
 # Configuration:
 #   - Node stream: BiMamba2 (stable baseline - unchanged)
 #   - Edge stream: BiGatedDeltaNet (experimental)
-#   - Edge d_model: 24 (increased from baseline 16 due to FLA causal_conv1d requirement)
+#   - Edge d_model: 32 (increased from baseline 16 due to FLA causal_conv1d requirement)
 #   - GNN/TCN/Decoder: v3.8.3 baseline (unchanged)
 #
-# NOTE: FLA's causal_conv1d requires d_model >= 24 (hardware alignment)
-# This increases edge stream capacity vs baseline (16 → 24 = +50%)
-# Parameter impact will be recalculated after smoke test
+# NOTE: FLA's causal_conv1d requires d_model = 32 (hardware alignment, tested in unit tests)
+# This increases edge stream capacity vs baseline (16 → 32 = +100%)
+# Parameter impact: Edge stream will have MORE params than BiMamba2 baseline
 #
 # Usage:
 #   export BGB_LIMIT_FILES=50
