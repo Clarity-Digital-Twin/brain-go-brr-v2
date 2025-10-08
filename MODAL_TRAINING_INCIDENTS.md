@@ -1,6 +1,6 @@
 # Modal Training Incidents & Recovery Procedures
 
-**Document Version**: 1.1 (CORRECTED)
+**Document Version**: 1.2 (CORRECTED + CODE FIX)
 **Date**: October 8, 2025
 **Status**: Active Training Run Analysis
 **Current Run**: `ap-weaDyLGsgK5TEz8sLLOxO6` (Container 2, resumed after early death)
@@ -15,11 +15,14 @@ Training on Modal experienced an early container death ("Worker disappeared") af
 - ✅ **Modal's retry mechanism worked perfectly** - training resumed in <10 seconds
 - ⚠️ **Early death is suspicious** - happened before first checkpoint could be saved
 - ✅ **Dev index auto-caching worked** - Container 2 saved `_dataset_index.json` for future reuse
-- ✅ **Future restarts will be fast** - no need to run `populate_cache --splits dev`
+- ✅ **Future restarts will be fast** - `_dataset_index.json` cached automatically
 - ✅ **Mid-epoch checkpoints are saving correctly** - loss tracking preserved
 - 🔍 **Root cause unknown** - no error messages before "Worker disappeared"
 
-**CORRECTION (v1.1)**: Original doc incorrectly stated that dev index rebuild would happen on every restart. The code has a **two-tier caching system** — Container 2 saved `_dataset_index.json` which future restarts will reuse. See "Dev Cache Architecture" section below.
+**CORRECTIONS (v1.1-v1.2)**:
+- v1.1: Fixed dev index rebuild analysis (two-tier caching system)
+- v1.2: Fixed command syntax, W&B resume behavior, volume names, memory thresholds + added psutil warning filter
+- See "Dev Cache Architecture" section and changelog below for details
 
 ---
 
@@ -32,12 +35,12 @@ Training on Modal experienced an early container death ("Worker disappeared") af
 Your codebase has **two separate** caching systems for validation data:
 
 #### Tier 1: `manifest.json` (Preferred, Manual)
-- **Created by**: `populate_cache` command or manual `build_manifest_from_cache()`
+- **Created by**: Local CLI `python -m src build-cache --split dev` or `build_manifest_from_cache()`
 - **Used by**: `ValidationDataset` class (fast path in `loop.py:764`)
 - **Location**: `/results/cache/tusz_mmap/dev/manifest.json`
 - **Contents**: Full window metadata (file paths, window indices, labels)
 - **Load time**: <1 second (instant)
-- **Status**: **Does NOT exist** (we never ran `populate_cache --splits dev`)
+- **Status**: **Does NOT exist** (optional optimization, not required)
 
 #### Tier 2: `_dataset_index.json` (Fallback, Automatic)
 - **Created by**: `EEGWindowDataset` class **automatically** after first build
@@ -178,10 +181,10 @@ Container 2 has now run for **5+ hours** (08:41:56 → 13:39:48+) without issues
 
 ### ⚠️ Issues & Inefficiencies
 
-1. **Dev index rebuild overhead** (IMPACT: 5-10 min per restart)
-   - **Problem**: No pre-cached dev manifest → rebuild from 1,832 EDF files
-   - **Cost**: 5-10 minutes of billable A100 time wasted per restart
-   - **Fix**: Pre-generate `dev/manifest.json` via `populate_cache --split dev`
+1. **Dev index rebuild overhead** (IMPACT: ONE-TIME 5-10 min, now resolved)
+   - **Problem**: Container 1 died before saving `_dataset_index.json`
+   - **Cost**: Container 2 paid 5-10 min to rebuild and save the index
+   - **Status**: ✅ RESOLVED - `_dataset_index.json` now cached, future restarts instant
 
 2. **Early death before first checkpoint** (IMPACT: 13 min of wasted compute)
    - **Problem**: Container 1 died at minute 13, first checkpoint at minute 30
@@ -220,7 +223,8 @@ Container 2 has now run for **5+ hours** (08:41:56 → 13:39:48+) without issues
 **Expected behavior after restart**:
 - Training resumes from **last checkpoint** (if exists)
 - If no checkpoint exists (like Container 1), restarts from epoch 1 batch 0
-- W&B run **continues** (same run ID, no gaps in metrics)
+- W&B run: **Creates NEW run ID** (auto-retries don't pass `--resume true`)
+  - To continue same W&B run, manually restart with `--resume true`
 
 ### Scenario 2: Modal 24-Hour Kill (Expected)
 
@@ -293,7 +297,7 @@ Container 2 has now run for **5+ hours** (08:41:56 → 13:39:48+) without issues
 
 **Action required**: ✅ **NONE** — the cache is already in place.
 
-**Optional**: Running `populate_cache --splits dev` would create `manifest.json` and switch from Tier 2 → Tier 1, but both load instantly so there's negligible benefit.
+**Optional**: Creating `manifest.json` manually (via local CLI) would switch from Tier 2 → Tier 1, but both load instantly so there's negligible benefit.
 
 #### 1. Silence psutil Swap Warning (Reduces log noise)
 
@@ -406,11 +410,11 @@ def train(...):
 After applying corrective actions, verify:
 
 - [x] **Dev cache exists**: ✅ `_dataset_index.json` saved at 09:37:16 (Container 2)
-  - Optional: Check with `modal volume ls results-vol | grep dev/_dataset_index.json`
+  - Optional: Check with `modal volume ls brain-go-brr-results | grep dev/_dataset_index.json`
   - Future restarts will load instantly (<1 sec)
 - [ ] **Checkpoint frequency**: Verify `mid_epoch_*.pt` files appear every ~20-30 min
 - [ ] **W&B continuity**: Loss curve smooth, no gaps or sudden jumps
-- [ ] **Memory stability**: GPU reserved memory stays <70GB consistently
+- [ ] **Memory stability**: GPU reserved memory stable at ~80GB (PyTorch caching allocator normal behavior)
 - [ ] **XID monitoring** (if applied): Check for `XID errors` in logs
 - [ ] **No repeated failures**: <3 "Worker disappeared" events per 24h
 
@@ -450,7 +454,7 @@ After applying corrective actions, verify:
 1. ~~**Pre-generate dev manifest**~~ ✅ **NOT NEEDED** (v1.1 correction)
    - The `_dataset_index.json` cache already exists and will be reused
    - Future restarts will load dev data in <1 second automatically
-   - Running `populate_cache --splits dev` is optional (negligible benefit)
+   - Creating `manifest.json` manually is optional (negligible benefit over auto-cached index)
 
 2. ✅ **Silence psutil warning** (cleaner logs)
    - Add warning filter to `train_step.py`
@@ -496,6 +500,34 @@ After applying corrective actions, verify:
 
 ## Document Changelog
 
+### v1.2 (October 8, 2025, 14:30 UTC) - COMPREHENSIVE DOC CORRECTIONS + CODE FIX
+
+**Major updates**: Fixed multiple documentation inaccuracies and added psutil warning filter.
+
+**Code changes**:
+1. ✅ Added `warnings.filterwarnings` for psutil swap memory warning in `train_step.py:20`
+   - Silences harmless RuntimeWarning from containers without `/proc/vmstat`
+   - Will take effect on next fresh training start (not current run)
+
+**Documentation corrections**:
+2. ✅ Fixed all `populate_cache --splits dev` references (incorrect command syntax)
+   - Corrected to local CLI syntax or marked as optional
+3. ✅ Corrected W&B resume behavior (line 223)
+   - Auto-retries create NEW W&B run ID (not same run)
+   - Only continues same run if manually restarted with `--resume true`
+4. ✅ Fixed Modal volume name (line 410)
+   - Changed `results-vol` → `brain-go-brr-results` (actual volume name)
+5. ✅ Updated memory threshold expectation (line 414)
+   - Changed "<70GB" → "~80GB stable" (matches actual observed behavior)
+
+**Root cause of errors**: Original analysis did not verify:
+- Actual Modal command signatures
+- W&B integration resume logic
+- Modal infrastructure naming
+- Typical PyTorch memory allocator behavior on A100
+
+**Action required**: ✅ **NONE** for current run — training is healthy and will restart smoothly.
+
 ### v1.1 (October 8, 2025, 14:00 UTC) - CORRECTED DEV CACHE ANALYSIS
 
 **Major correction**: Original doc incorrectly stated dev index would rebuild on every restart.
@@ -508,7 +540,7 @@ After applying corrective actions, verify:
 5. ✅ Updated "Future Run Improvements" to mark dev manifest pre-generation as optional
 
 **Root cause of original error**: Failed to distinguish between:
-- `manifest.json` (Tier 1, created by `populate_cache`)
+- `manifest.json` (Tier 1, created by local CLI)
 - `_dataset_index.json` (Tier 2, auto-created by `EEGWindowDataset`)
 
 Container 2 successfully saved `_dataset_index.json` at 09:37:16 UTC, which future restarts will reuse.
@@ -521,5 +553,5 @@ Initial incident analysis after Container 1 "Worker disappeared" event.
 
 ---
 
-**Last Updated**: October 8, 2025, 14:00 UTC (v1.1 - dev cache correction)
+**Last Updated**: October 8, 2025, 14:30 UTC (v1.2 - comprehensive corrections + psutil fix)
 **Next Review**: After epoch 5 completes (or if "Worker disappeared" recurs)
