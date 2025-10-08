@@ -32,6 +32,7 @@ export BGB_MID_EPOCH_KEEP=5      # Keep last 5 snapshots (rotating)
 2. **Best model**: `best.pt` (when validation improves)
 3. **Mid-epoch**: `mid_epoch_XXX_YYYYYY.pt` (every 30 min, keeps 5)
 4. **Periodic**: `checkpoint_epoch_XXX.pt` (every epoch now)
+5. **Timeout guard**: `timeout_exit.pt` (written when the Modal wall-clock guard triggers at ~23 h)
 
 ### Storage Requirements
 - **Per epoch**: ~400MB (last + best)
@@ -45,8 +46,9 @@ export BGB_MID_EPOCH_KEEP=5      # Keep last 5 snapshots (rotating)
 
 # Automatically picks up from:
 # 1. Latest mid-epoch checkpoint (if exists)
-# 2. last.pt (if no mid-epoch)
-# 3. Fresh start (if no checkpoints)
+# 2. timeout_exit.pt (if present from timeout guard)
+# 3. last.pt (if no mid-epoch/timeout snapshots)
+# 4. Fresh start (if no checkpoints)
 ```
 
 ## Modal Training (A100)
@@ -55,6 +57,7 @@ export BGB_MID_EPOCH_KEEP=5      # Keep last 5 snapshots (rotating)
 - Saves every epoch (`checkpoint_interval: 1`)
 - Persistence volume handles all checkpoints
 - Automatic resume with `--resume true`
+- Timeout guard writes `timeout_exit.pt` roughly one hour before Modal’s 24 h limit; relaunch with `--resume true` to continue.
 
 ### Modal Commands
 ```bash
@@ -76,7 +79,7 @@ modal run --detach deploy/modal/app.py \
 ✅ **Always set mid-epoch checkpointing** for local training
 ✅ **Keep 3-5 mid-epoch checkpoints** (rotating)
 ✅ **Save every epoch** (`checkpoint_interval: 1`)
-✅ **Use --resume flag** when restarting
+✅ **Use --resume flag** when restarting (after Modal timeout guard, this will load `timeout_exit.pt` automatically)
 
 ### DON'Ts
 ❌ Don't use `checkpoint_interval > 1` for long training
