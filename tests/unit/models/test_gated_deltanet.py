@@ -93,13 +93,17 @@ class TestBiGatedDeltaNetForward:
 
     def test_node_stream_shape_preservation(self):
         """Test node stream preserves shape through forward pass."""
-        model = BiGatedDeltaNet(
-            d_model=64,
-            headdim=8,
-            num_layers=2,
-            conv_size=4,
-            fusion_mode="sum",
-        ).cuda().to(torch.bfloat16)
+        model = (
+            BiGatedDeltaNet(
+                d_model=64,
+                headdim=8,
+                num_layers=2,
+                conv_size=4,
+                fusion_mode="sum",
+            )
+            .cuda()
+            .to(torch.bfloat16)
+        )
 
         batch, nodes, channels, length = 2, 19, 64, 960
         x = torch.randn(batch * nodes, channels, length, device="cuda", dtype=torch.bfloat16)
@@ -111,13 +115,17 @@ class TestBiGatedDeltaNetForward:
 
     def test_edge_stream_shape_preservation(self):
         """Test edge stream preserves shape through forward pass."""
-        model = BiGatedDeltaNet(
-            d_model=24,
-            headdim=6,
-            num_layers=2,
-            conv_size=4,
-            fusion_mode="sum",
-        ).cuda().to(torch.bfloat16)
+        model = (
+            BiGatedDeltaNet(
+                d_model=24,
+                headdim=6,
+                num_layers=2,
+                conv_size=4,
+                fusion_mode="sum",
+            )
+            .cuda()
+            .to(torch.bfloat16)
+        )
 
         batch, edges, channels, length = 2, 171, 24, 960
         x = torch.randn(batch * edges, channels, length, device="cuda", dtype=torch.bfloat16)
@@ -129,13 +137,17 @@ class TestBiGatedDeltaNetForward:
 
     def test_concat_fusion_shape_preservation(self):
         """Test concat fusion preserves final shape."""
-        model = BiGatedDeltaNet(
-            d_model=64,
-            headdim=8,
-            num_layers=2,
-            conv_size=4,
-            fusion_mode="concat",
-        ).cuda().to(torch.bfloat16)
+        model = (
+            BiGatedDeltaNet(
+                d_model=64,
+                headdim=8,
+                num_layers=2,
+                conv_size=4,
+                fusion_mode="concat",
+            )
+            .cuda()
+            .to(torch.bfloat16)
+        )
 
         x = torch.randn(2, 64, 960, device="cuda", dtype=torch.bfloat16)
         y = model(x)
@@ -144,12 +156,16 @@ class TestBiGatedDeltaNetForward:
 
     def test_gradient_flow(self):
         """Test gradients flow through bidirectional layers."""
-        model = BiGatedDeltaNet(
-            d_model=64,
-            headdim=8,
-            num_layers=2,
-            conv_size=4,
-        ).cuda().to(torch.bfloat16)
+        model = (
+            BiGatedDeltaNet(
+                d_model=64,
+                headdim=8,
+                num_layers=2,
+                conv_size=4,
+            )
+            .cuda()
+            .to(torch.bfloat16)
+        )
 
         x = torch.randn(2, 64, 960, device="cuda", dtype=torch.bfloat16, requires_grad=True)
         y = model(x)
