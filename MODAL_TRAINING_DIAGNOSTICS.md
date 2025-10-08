@@ -683,19 +683,6 @@ modal run --detach deploy/modal/app.py --action train \
 
 ---
 
-### ❌ Claimed: "Best sensitivity logging bug at line 309-317"
-
-**Reality**:
-- Code is CORRECT
-- Line 298-302: Calculate `is_new_best` BEFORE early_stopping
-- Line 304: Call `early_stopping(current_metric)` which updates `best_score = current_metric`
-- Line 309: Check `if current_metric == best_score` (they're equal when it's a new best!)
-- Line 317: Log `current_metric` (which IS the new best)
-
-**Evidence**: Logic is sound, no bug
-
----
-
 ### ❌ Claimed: "Need to increase edge_similarity_margin and add eigenvalue clamping"
 
 **Reality**:
@@ -722,11 +709,11 @@ modal run --detach deploy/modal/app.py --action train \
 
 | Issue | Real? | Severity | Fix |
 |-------|-------|----------|-----|
-| Modal 24h timeout | ✅ YES | 🔴 P0 | Use `--resume true` flag (ALREADY implemented) |
+| **"New best 0.0000" logging** | ✅ YES | 🔴 P0 | Normalize metric keys in loop.py (5 min) |
+| **Modal 24h timeout** | ✅ YES | 🔴 P0 | Atomic checkpoints + full state capture (1 hour) |
 | Mid-epoch checkpointing | ❌ Already exists | N/A | NONE - already working |
 | Inf gradient norms | ❌ Normal (<1% rate) | N/A | NONE - clipping handles it |
 | Low Sens@10FA at epoch 1 | ❌ Expected | N/A | Monitor through epoch 20 |
-| "Best sensitivity" logging | ❌ Not a bug | N/A | NONE - code is correct |
 | Edge margin / eigenvalue | ❌ No evidence | N/A | NONE - don't fix what isn't broken |
 | 3h validation time | ❌ Acceptable | N/A | Only optimize if epoch >8h |
 | Class imbalance | ❌ By design | N/A | NONE - standard ML practice |
@@ -734,12 +721,32 @@ modal run --detach deploy/modal/app.py --action train \
 
 ---
 
-## Single Source of Truth: The ONLY Action Items
+## Single Source of Truth: Action Items
 
-### Do This NOW (5 minutes)
+### 🔴 P0: Do This NOW (1 hour total)
 
+**1. Fix metric key mismatch** (5 min)
+```python
+# src/brain_brr/train/loop.py (around line 295)
+# Add BEFORE: current_metric = val_metrics.get(metric_name, 0.0)
+
+def _canon_metric_key(k: str) -> str:
+    return k.replace(".0fa", "fa")
+
+if isinstance(val_metrics, dict):
+    val_metrics = {_canon_metric_key(k): v for k, v in val_metrics.items()}
+
+current_metric = val_metrics.get(metric_name, 0.0)
+```
+
+**2. Implement atomic checkpoints + full state capture** (30 min)
+- Add `atomic_save()` function to `checkpoints.py` (see Fix 2 above)
+- Add scaler + RNG states to `save_checkpoint()` (see Fix 3 above)
+- Update `train_step.py` and `loop.py` to pass scaler
+
+**3. Manual resume when Modal times out** (5 min every 24h)
 ```bash
-# When your next Modal run times out at ~24h:
+# When Modal kills your run at ~24h:
 modal run --detach deploy/modal/app.py --action train \
   --config configs/modal/train.yaml --resume true
 ```
@@ -748,19 +755,22 @@ Repeat every 24h until epoch 100 (~50 restarts over ~50 days).
 
 ---
 
-### Do This LATER (Optional, 2 hours)
+### 🟢 P1: Do This LATER (Optional, 2.5 hours)
 
-Implement auto-orchestrator to eliminate manual restarts (see Option 2 above).
+**4. Graceful exit guard** (1 hour) - see Fix 4 above
+
+**5. W&B run persistence** (30 min) - see Fix 5 above
+
+**6. Auto-orchestrator** (1 hour) - see Option 2 in "Handle Modal Timeout"
 
 ---
 
 ### Do This NEVER
 
-- ❌ Don't add probability clamping to focal loss
-- ❌ Don't increase edge_similarity_margin
-- ❌ Don't add eigenvalue regularization
-- ❌ Don't "fix" the "best sensitivity logging bug" (it's not a bug)
-- ❌ Don't panic about low metrics at epoch 1-10 (they're normal)
+- ❌ Don't add probability clamping to focal loss (no evidence of log(0) issues)
+- ❌ Don't increase edge_similarity_margin (no evidence of saturation)
+- ❌ Don't add eigenvalue regularization (no evidence of explosions)
+- ❌ Don't panic about low metrics at epoch 1-10 (they're normal for early training)
 
 ---
 
@@ -780,10 +790,16 @@ Implement auto-orchestrator to eliminate manual restarts (see Option 2 above).
 
 ## Conclusion
 
-**The ONLY problem**: Modal timeout.
+**The TWO P0 problems**:
+1. **"New best 0.0000" logging bug** - Metric key mismatch (`sensitivity_at_10fa` vs `sensitivity_at_10.0fa`)
+2. **Modal 24h timeout** - Training can't complete 100 epochs in one run
 
-**The fix**: Use `--resume true` (ALREADY implemented, just need to USE it).
+**The fixes** (1 hour total):
+1. Normalize metric keys in `loop.py` (5 min)
+2. Atomic checkpoints + scaler/RNG capture (30 min)
+3. Graceful exit guard + W&B persistence (optional P1, 1.5 hours)
+4. Use `--resume true` to restart after Modal timeout (5 min every 24h)
 
-**Everything else**: Either already working correctly OR normal for early training.
+**Everything else**: Already working correctly OR normal for early training.
 
-**Don't overcomplicate this.** Your code is solid. Just resume training when Modal kills it.
+**Ship the P0 fixes first** (1 hour), then you have a bulletproof resume path for the 100-epoch run. 🚀
