@@ -153,6 +153,27 @@ class MambaConfig(StrictModel):
         description="Allow β_t ∈ (0,2) for better state tracking (research feature, start false)",
     )
 
+    gdn_edge_num_heads: int | None = Field(
+        default=None,
+        ge=1,
+        description="Override edge stream num_heads (None = use constants, required if edge_mamba_d_model changes)",
+    )
+    gdn_edge_headdim: int | None = Field(
+        default=None,
+        ge=1,
+        description="Override edge stream headdim (None = use constants, required if edge_mamba_d_model changes)",
+    )
+    gdn_node_num_heads: int | None = Field(
+        default=None,
+        ge=1,
+        description="Override node stream num_heads (None = use constants)",
+    )
+    gdn_node_headdim: int | None = Field(
+        default=None,
+        ge=1,
+        description="Override node stream headdim (None = use constants)",
+    )
+
     hybrid_attention: "HybridAttentionConfig | None" = Field(
         default=None,
         description="Hybrid GDN+SWA configuration (Phase 3 only, requires Phase 2 success)",
@@ -160,28 +181,33 @@ class MambaConfig(StrictModel):
 
     @model_validator(mode="after")
     def validate_gdn_constraints(self) -> "MambaConfig":
-        """Validate GDN-specific 0.75* constraint."""
+        """Validate GDN-specific 0.75× constraint (with config overrides support).
+
+        NOTE: Edge stream validation skipped here because edge_mamba_d_model is in GraphConfig.
+        Edge stream GDN constraint validated in builder (see edge_stream.py).
+        """
         if (
             self.temporal_type == "gated_deltanet"
             or self.temporal_type_node == "gated_deltanet"
             or self.temporal_type_edge == "gated_deltanet"
         ):
-            node_constraint = GDN_NODE_NUM_HEADS_DEFAULT * GDN_NODE_HEADDIM_DEFAULT
-            if node_constraint != int(NODE_D_MODEL * GDN_QK_PROJECTION_RATIO):
+            node_num_heads = self.gdn_node_num_heads or GDN_NODE_NUM_HEADS_DEFAULT
+            node_headdim = self.gdn_node_headdim or GDN_NODE_HEADDIM_DEFAULT
+            node_constraint = node_num_heads * node_headdim
+            node_required = int(NODE_D_MODEL * GDN_QK_PROJECTION_RATIO)
+
+            if node_constraint != node_required:
                 raise ValueError(
                     f"Node stream GDN constraint violated: "
-                    f"num_heads({GDN_NODE_NUM_HEADS_DEFAULT}) * headdim({GDN_NODE_HEADDIM_DEFAULT}) "
-                    f"= {node_constraint} must equal {int(NODE_D_MODEL * GDN_QK_PROJECTION_RATIO)} "
+                    f"num_heads({node_num_heads}) * headdim({node_headdim}) "
+                    f"= {node_constraint} must equal {node_required} "
                     f"(0.75 * {NODE_D_MODEL})"
                 )
 
-            edge_constraint = GDN_EDGE_NUM_HEADS_DEFAULT * GDN_EDGE_HEADDIM_DEFAULT
-            if edge_constraint != int(EDGE_D_MODEL * GDN_QK_PROJECTION_RATIO):
+        if self.gdn_edge_num_heads is not None or self.gdn_edge_headdim is not None:
+            if self.gdn_edge_num_heads is None or self.gdn_edge_headdim is None:
                 raise ValueError(
-                    f"Edge stream GDN constraint violated: "
-                    f"num_heads({GDN_EDGE_NUM_HEADS_DEFAULT}) * headdim({GDN_EDGE_HEADDIM_DEFAULT}) "
-                    f"= {edge_constraint} must equal {int(EDGE_D_MODEL * GDN_QK_PROJECTION_RATIO)} "
-                    f"(0.75 * {EDGE_D_MODEL})"
+                    "gdn_edge_num_heads and gdn_edge_headdim must BOTH be set or BOTH be None"
                 )
 
         return self
