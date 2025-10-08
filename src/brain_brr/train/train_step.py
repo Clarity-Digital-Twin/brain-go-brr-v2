@@ -17,8 +17,6 @@ from typing import TYPE_CHECKING, cast
 if TYPE_CHECKING:
     from wandb.sdk.wandb_run import Run as WandBRun  # type: ignore[import-not-found]
 
-warnings.filterwarnings("ignore", message=".*swap memory stats.*", category=RuntimeWarning)
-
 import torch
 import torch.nn as nn
 from torch.amp import GradScaler
@@ -45,6 +43,8 @@ from src.brain_brr.train.checkpoint import save_checkpoint
 from src.brain_brr.train.train_utils import get_memory_stats
 from src.brain_brr.train.warmup import get_focal_gamma
 from src.brain_brr.utils.env import env
+
+warnings.filterwarnings("ignore", message=".*swap memory stats.*", category=RuntimeWarning)
 
 logger = logging.getLogger(__name__)
 

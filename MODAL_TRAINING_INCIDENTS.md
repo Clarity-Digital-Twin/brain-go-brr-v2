@@ -505,7 +505,7 @@ After applying corrective actions, verify:
 **Major updates**: Fixed multiple documentation inaccuracies and added psutil warning filter.
 
 **Code changes**:
-1. ✅ Added `warnings.filterwarnings` for psutil swap memory warning in `train_step.py:20`
+1. ✅ Added `warnings.filterwarnings` for psutil swap memory warning in `train_step.py:47`
    - Silences harmless RuntimeWarning from containers without `/proc/vmstat`
    - Will take effect on next fresh training start (not current run)
 
