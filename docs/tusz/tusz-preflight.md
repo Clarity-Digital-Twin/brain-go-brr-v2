@@ -5,8 +5,8 @@ Preflight (must pass before any training)
 1) Verify CSV_BI parsing on a known seizure file
    - Expect correct duration, non-zero seizure events, reasonable mask ratio
 2) Build or verify cache
-   - `python -m src build-cache --data-dir <edf_root> --cache-dir <cache_dir>`
-   - Or reuse existing cache
+   - For legacy NPZ caches: `python -m src build-cache --data-dir <edf_root> --cache-dir <cache_dir>`
+   - For mmap pipeline (v3.8+): reuse existing `cache/tusz_mmap/{train,dev}` or convert via `scripts/convert_cache_to_mmap.py`
 3) Create/scan manifest
    - `python -m src scan-cache --cache-dir <cache_dir>`
    - Expect partial > 0 or full > 0; otherwise STOP
@@ -17,8 +17,9 @@ Preflight (must pass before any training)
 
 Training (smoke → full)
 
-- Smoke: `python -m src train configs/smoke_test.yaml`
-- Full: `python -m src train configs/tusz_train_wsl2.yaml`
+- Smoke: `make s` (or `python -m src train configs/local/smoke.yaml`)
+- Full: `make train-local` (or `python -m src train configs/local/train.yaml`)
+  - Modal smoke/full configs live under `configs/modal/`
 
 What went wrong (our real failures)
 
@@ -61,9 +62,10 @@ Cache hygiene and invalidation
 - Future: Consider adding version hash to cache filenames
 
 **Storage:**
-- Manifest uses relative filenames; keep it next to NPZs under the cache dir
-- Local: `cache/tusz/` (smoke tests use SAME cache with `BGB_LIMIT_FILES=3`)
-- Modal: `/results/cache/tusz/` (persistent SSD; smoke tests use SAME cache with `BGB_LIMIT_FILES=50`)
+- Manifest uses relative filenames; keep it next to the mmap cache directory
+- Local: `cache/tusz_mmap/` (smoke tests use SAME cache with `BGB_LIMIT_FILES=3`)
+- Modal: `/results/cache/tusz_mmap/` (persistent SSD; smoke tests use SAME cache with `BGB_LIMIT_FILES=50`)
+- Modal health check: `modal run deploy/modal/app.py --action check-cache` verifies train/dev counts, manifest freshness, and flags stray NPZ files before starting long runs.
 
 Code anchors
 

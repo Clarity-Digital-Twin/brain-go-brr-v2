@@ -1,6 +1,6 @@
 # Modal Volume Architecture (Mmap Edition)
 
-**Last Updated**: October 6, 2025
+**Last Updated**: October 8, 2025
 **Goal**: Keep the Modal A100 runtime fast and reliable now that the cache uses memory-mapped NPY files.
 
 ---
@@ -38,7 +38,8 @@ All configs (local + Modal) now point at the mmap cache paths. The original NPZ 
 ```
 
 Guidelines:
-- Keep **only** the mmap cache under `/results/cache/`; delete the legacy NPZ cache (`/results/cache/tusz/`) to free ~450 GB once you have migrated.
+- Keep **only** the mmap cache under `/results/cache/`; once migration is complete delete any legacy NPZ directories (`/results/cache/tusz/`) to reclaim ~450 GB.
+- After each populate run, execute `modal run deploy/modal/app.py --action check-cache` to verify train/dev counts, manifest freshness, and to catch stray NPZ files early.
 - Prune old training runs (checkpoints, TB logs, W&B artifacts) regularly so the 958 GiB quota is never exhausted before new populate jobs run.
 
 ---

@@ -51,6 +51,8 @@ docker compose up integration-test
 ```bash
 # Smoke test (50 files, ~10 min)
 modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+# Optional: validate cache first
+modal run deploy/modal/app.py --action check-cache
 ```
 
 Modal uses 50 files instead of 3 due to:
@@ -96,7 +98,7 @@ BGB_SMOKE_TEST=1    # Still enables smoke shortcuts
 ```bash
 # Training auto-falls back to EEGWindowDataset
 # Or manually rebuild:
-python -m src scan-cache --cache-dir cache/tusz/train
+python -m src scan-cache --cache-dir cache/tusz_mmap/train
 ```
 
 **WSL2 multiprocessing issues**:

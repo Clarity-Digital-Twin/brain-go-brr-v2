@@ -276,14 +276,14 @@ Before running Docker training:
 ls -lh data_ext4/tusz/edf/train/ | head -5
 # Should show: 4667 directories (patients)
 
-# 2. Verify cache exists with manifests
-ls -lh cache/tusz/train/manifest.json
-ls -lh cache/tusz/dev/manifest.json
-# Should show: 27MB and 13MB files
+# 2. Verify mmap cache exists with manifests
+ls -lh cache/tusz_mmap/train/manifest.json
+ls -lh cache/tusz_mmap/dev/manifest.json
+# Should show: ~27MB and ~13MB files
 
-# 3. Verify NPZ files
-ls -1 cache/tusz/train/*.npz | wc -l  # Should be 4667
-ls -1 cache/tusz/dev/*.npz | wc -l    # Should be 1832
+# 3. Spot-check _data.npy counts
+ls -1 cache/tusz_mmap/train/*_data.npy | wc -l  # Should be 4667
+ls -1 cache/tusz_mmap/dev/*_data.npy   | wc -l  # Should be 1832
 
 # 4. Check disk space for volume mounts
 df -h .
@@ -310,9 +310,9 @@ df -h .
 | Feature | Local | Docker | Modal |
 |---------|-------|--------|-------|
 | **GPU** | RTX 4090 | RTX 4090 | A100-80GB |
-| **Batch Size** | 12 | 12 | 32 |
+| **Batch Size** | 8 | 8 | 48 |
 | **Mixed Precision** | No (FP32) | No (FP32) | Yes (FP16) |
-| **Cache Location** | cache/tusz/ | cache/tusz/ | /results/cache/tusz/ |
+| **Cache Location** | cache/tusz_mmap/ | cache/tusz_mmap/ | /results/cache/tusz_mmap/ |
 | **Data Location** | data_ext4/ | data_ext4/ | /data/edf/ |
 | **Isolation** | None | Full | Full |
 | **Setup Time** | Minutes | Seconds | 10-15 min |

@@ -1,175 +1,115 @@
 # 5-Minute Quickstart
 
-**Last Updated**: October 1, 2025
-**Codebase Version**: v3.4.1
-**Time Required**: 5 minutes
+**Last Updated**: October 8, 2025  
+**Codebase Version**: v3.9.0 (Production Training Baseline)  
+**Time Required**: ~5 minutes
 
 ---
 
-## What You'll Do
+## Goal
 
-Run a **smoke test** to verify your installation and see the model training in action. This uses 3 files and runs for 1 epoch (~5 minutes).
+Run the **smoke test** to confirm your environment, cache, and model all wire together before launching longer jobs.
+
+---
 
 ## Prerequisites
 
-- ✅ RTX 4090 or A100 GPU
-- ✅ Installation complete (see `../01-installation/env-setup.md`)
-- ✅ Cache directory exists: `cache/tusz/train/` with NPZ files
+- ✅ GPU available (RTX 4090 for local or Modal A100 for cloud)
+- ✅ Environment set up (`make setup && make setup-gpu`)
+- ✅ Memory-mapped cache present:
+  - Local: `cache/tusz_mmap/{train,dev}` with `_data.npy` / `_labels.npy` pairs and `manifest.json`
+  - Modal: `/results/cache/tusz_mmap/{train,dev}` populated via `populate-cache`
+
+> **Need to convert an old NPZ cache?**  
+> ```bash
+> python scripts/convert_cache_to_mmap.py --source cache/tusz/train --dest cache/tusz_mmap/train
+> python scripts/convert_cache_to_mmap.py --source cache/tusz/dev   --dest cache/tusz_mmap/dev
+> python -m src scan-cache --cache-dir cache/tusz_mmap/train
+> python -m src scan-cache --cache-dir cache/tusz_mmap/dev
+> ```
 
 ---
 
-## Local Smoke Test (RTX 4090)
+## Local Smoke Test (RTX 4090)
 
-### Step 1: (Optional) Enable NaN Debugging
+1. **Optional debugging flags**
+   ```bash
+   export BGB_NAN_DEBUG=1          # Extra NaN logging
+   # export BGB_SANITIZE_GRADS=1   # Zero/log non-finite grads while debugging
+   ```
 
-```bash
-export BGB_NAN_DEBUG=1         # Show NaN warnings if they occur
-# export BGB_SANITIZE_GRADS=1  # Debug: zero-out non-finite gradients while investigating
-```
+2. **Run the smoke test**
+   ```bash
+   make s
+   ```
+   - Automatically sets `BGB_SMOKE_TEST=1` (3 files, 1 epoch)
+   - Uses `configs/local/smoke.yaml` (batch size 8, mixed precision disabled)
 
-> Gradient clipping (`training.gradient_clip: 0.5`) is always active and provides the primary NaN protection. Enable `BGB_SANITIZE_GRADS` only when you want extra debugging visibility.
-
-### Step 2: Run Smoke Test
-
-```bash
-make s
-```
-
-**What this does**:
-- Sets `BGB_SMOKE_TEST=1` (limits to 3 files)
-- Runs 1 epoch with batch_size=12
-- Uses config: `configs/local/smoke.yaml`
-
-### Step 3: Verify Output
-
-You should see:
-
-```
-[INFO] Using BalancedSeizureDataset (manifest found)
-[INFO] Training samples: 3 files
-[INFO] Batch 1/X: loss=0.693, lr=1.0e-04
-[INFO] Large grad norm: 5.72e+00 (clipped to 0.5)  ← NORMAL!
-[INFO] Epoch 1 complete - avg loss: 0.65
-```
-
-✅ **Success indicators**:
-- No `NaN loss detected` errors
-- `Large grad norm` messages are normal (gradient clipping working)
-- Loss decreasing slightly
-- Checkpoint saved (if enabled)
+3. **Confirm success**
+   - BalancedSeizureDataset loads (manifest found)  
+   - Logs show `Large grad norm … clipped to 0.5` (expected)  
+   - Loss decreases slightly; no NaN/Inf warnings
 
 ---
 
-## Modal Cloud Smoke Test (A100-80GB)
+## Modal Smoke Test (A100-80GB)
 
-### Step 1: Verify Modal Setup
+1. **Verify Modal auth and cache**
+   ```bash
+   modal token set --token-id ... --token-secret ...
+   modal run deploy/modal/app.py --action check-cache   # Confirms mmap cache + manifests
+   ```
 
-```bash
-modal token set --token-id YOUR_TOKEN_ID --token-secret YOUR_TOKEN_SECRET
-```
+2. **Run the smoke job (50 files)**
+   ```bash
+   modal run --detach deploy/modal/app.py \
+     --action train \
+     --config configs/modal/smoke.yaml
+   ```
+   - Automatically sets `BGB_LIMIT_FILES=50`, `BGB_NAN_DEBUG=1`, `mixed_precision=true`
+   - Startup (~5 min) + 1 epoch (<10 min total)
 
-### Step 2: Run Smoke Test
-
-```bash
-modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
-```
-
-**What this does**:
-- Spins up A100-80GB instance
-- Runs 1 epoch with 50 files
-- Enables `BGB_NAN_DEBUG=1` for extra logging
-
-### Step 3: Monitor
-
-```bash
-# In another terminal
-modal app logs <app-id>
-```
-
-Expected runtime: ~5-10 minutes
+3. **Monitor**
+   ```bash
+   modal app logs <app-id>
+   ```
 
 ---
 
 ## Common Issues
 
-### ❌ "Cache directory not found"
-
-**Solution**: Build cache first:
+### ❌ “Cache directory not found”
+Ensure the mmap cache exists:
 ```bash
-python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz/train
-python -m src scan-cache --cache-dir cache/tusz/train
+python -m src scan-cache --cache-dir cache/tusz_mmap/train
+python -m src scan-cache --cache-dir cache/tusz_mmap/dev
 ```
 
-### ❌ "NaN loss detected at batch X"
+### ❌ NaN or Inf detected
+- Keep `training.gradient_clip: 0.5`
+- Confirm cache built after September 2025 preprocessing fixes
+- Optional: `export BGB_SANITIZE_GRADS=1` to zero/log offending gradients
 
-**Solution**:
-1. Verify the cache was built **after** the September 26 preprocessing fix
-2. Confirm `training.gradient_clip` is still set to `0.5`
-3. Optional: enable `BGB_SANITIZE_GRADS=1` to log/zero the problematic gradients while you investigate
+### ❌ CUDA OOM
+Reduce `training.batch_size` in `configs/local/smoke.yaml` (e.g., 6) or disable additional debugging features.
 
-```bash
-rm -rf cache/tusz/train
-make setup-cache  # Rebuilds from scratch
-```
-
-### ❌ "GPU OOM (out of memory)"
-
-**Solution**: Reduce batch size in `configs/local/smoke.yaml`:
-```yaml
-training:
-  batch_size: 8  # Reduce from 12
-```
-
-### ❌ WSL2: Dataloader hangs
-
-**Solution**: Set workers to 0 in `configs/local/smoke.yaml`:
-```yaml
-data:
-  num_workers: 0
-```
+### ❌ WSL2 dataloader hangs
+Set `data.num_workers: 0` in the smoke config.
 
 ---
 
-## What's Next?
+## Next Steps
 
-### ✅ Smoke test passed → Ready for full training
+- ✅ Smoke test passes → move to [Your First Training Run](first-run.md) for full 100‑epoch guidance.
+- 🔄 Smoke test fails → check `docs/08-operations/troubleshooting.md` and rerun after fixing the issue.
 
-**Local (RTX 4090)**:
-```bash
-export BGB_NAN_DEBUG=1          # Optional: extra NaN logging
-# export BGB_SANITIZE_GRADS=1   # Optional: debugging helper
-make train-local                # 100 epochs, ~200-300 hours
-```
-
-**Modal (A100)**:
-```bash
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
-```
-
-### 📚 Learn More
-
-- **Full training walkthrough**: `first-run.md`
-- **Understanding logs**: `understanding-logs.md`
-- **Local training guide**: `../05-training/local.md`
-- **Modal training guide**: `../05-training/modal.md`
-- **Troubleshooting**: `../08-operations/troubleshooting.md`
-
----
-
-## Quick Reference
+### Quick Reference
 
 | Command | Purpose |
 |---------|---------|
-| `make s` | Local smoke test (3 files, 1 epoch) |
-| `make train-local` | Full local training (100 epochs) |
-| `modal run deploy/modal/app.py --action test-mamba` | Test Mamba CUDA |
-| `python -m src validate configs/local/smoke.yaml` | Validate config |
+| `make s` | Local smoke (3 files, 1 epoch) |
+| `modal run --detach … smoke.yaml` | Modal smoke (50 files, ~10 min) |
+| `modal run deploy/modal/app.py --action check-cache` | Validate Modal cache & manifests |
+| `python -m src validate configs/local/smoke.yaml` | Confirm config integrity |
 
-**Environment variables**:
-- `BGB_NAN_DEBUG=1` - Show NaN warnings (recommended)
-- `BGB_SANITIZE_GRADS=1` - Optional debugging helper (see gradient protection guide)
-- `BGB_SMOKE_TEST=1` - Limit to 3 files (auto-set by `make s`)
-
----
-
-**Status**: ✅ If smoke test completes without NaN errors, you're ready for production training!
+**Important**: The smoke test is a gate—only proceed to long training once it completes without NaNs or crashes.

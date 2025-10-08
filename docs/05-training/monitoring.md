@@ -13,8 +13,8 @@ Modal
 
 Storage
 
-- Modal cache at `/results/cache/tusz/` (persistent SSD volume; no S3 mount).
-- Checkpoints under `/results/<run>/checkpoints` (persistence volume for outputs only).
+- Modal cache at `/results/cache/tusz_mmap/` (persistent SSD volume; no S3 mount). Run `modal run deploy/modal/app.py --action check-cache` after populate-cache to validate counts and manifests.
+- Checkpoints under `/results/<run>/checkpoints` (persistent volume for outputs only). Look for `mid_epoch_*.pt`, `last.pt`, and `timeout_exit.pt` after the timeout guard triggers.
 
 W&B (optional)
 
