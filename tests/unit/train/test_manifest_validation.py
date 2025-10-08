@@ -52,9 +52,7 @@ class TestDevManifestValidation:
         labels_file.touch()
 
         manifest = {
-            "partial_seizure": [
-                {"cache_file": "test_001_data.npy", "window_idx": 0, "label": 1}
-            ],
+            "partial_seizure": [{"cache_file": "test_001_data.npy", "window_idx": 0, "label": 1}],
             "full_seizure": [],
             "no_seizure": [],
         }
@@ -62,19 +60,16 @@ class TestDevManifestValidation:
         manifest_path = temp_cache_dir / "manifest.json"
         manifest_path.write_text(json.dumps(manifest))
 
-        from src.brain_brr.train.loop import train
 
-        with patch("src.brain_brr.train.loop.get_data_loaders") as mock_loaders, patch(
-            "src.brain_brr.train.loop.build_model"
-        ) as mock_model, patch("src.brain_brr.train.loop.build_optimizer"), patch(
-            "src.brain_brr.train.loop.build_scheduler"
-        ), patch(
-            "src.brain_brr.train.loop.WandBLogger"
-        ), patch(
-            "src.brain_brr.train.loop.logger"
-        ) as mock_logger, patch(
-            "src.brain_brr.data.datasets.EEGWindowDataset"
-        ) as mock_dataset_cls:
+        with (
+            patch("src.brain_brr.train.loop.get_data_loaders") as mock_loaders,
+            patch("src.brain_brr.train.loop.build_model") as mock_model,
+            patch("src.brain_brr.train.loop.build_optimizer"),
+            patch("src.brain_brr.train.loop.build_scheduler"),
+            patch("src.brain_brr.train.loop.WandBLogger"),
+            patch("src.brain_brr.train.loop.logger") as mock_logger,
+            patch("src.brain_brr.data.datasets.EEGWindowDataset") as mock_dataset_cls,
+        ):
             mock_val_dataset = MagicMock()
             mock_val_dataset.__len__.return_value = 100
             mock_dataset_cls.return_value = mock_val_dataset
@@ -197,9 +192,7 @@ class TestDevManifestValidation:
             "partial_seizure": [
                 {"cache_file": "test_001_windows.npz", "window_idx": 0, "label": 1}
             ],
-            "full_seizure": [
-                {"cache_file": "test_001_data.npy", "window_idx": 1, "label": 2}
-            ],
+            "full_seizure": [{"cache_file": "test_001_data.npy", "window_idx": 1, "label": 2}],
             "no_seizure": [],
         }
 
@@ -239,9 +232,7 @@ class TestFailFastValidationDataset:
         labels_file.touch()
 
         manifest = {
-            "partial_seizure": [
-                {"cache_file": "test_001_data.npy", "window_idx": 0, "label": 1}
-            ],
+            "partial_seizure": [{"cache_file": "test_001_data.npy", "window_idx": 0, "label": 1}],
             "full_seizure": [],
             "no_seizure": [],
         }
@@ -271,9 +262,7 @@ class TestFailFastValidationDataset:
         labels_file.touch()
 
         manifest = {
-            "partial_seizure": [
-                {"cache_file": "test_001_data.npy", "window_idx": 0, "label": 1}
-            ],
+            "partial_seizure": [{"cache_file": "test_001_data.npy", "window_idx": 0, "label": 1}],
             "full_seizure": [],
             "no_seizure": [],
         }
@@ -291,9 +280,7 @@ class TestFailFastValidationDataset:
 
     def test_manifest_deleted_before_error(self, temp_cache_dir):
         manifest = {
-            "partial_seizure": [
-                {"cache_file": "test_001_data.npy", "window_idx": 0, "label": 1}
-            ],
+            "partial_seizure": [{"cache_file": "test_001_data.npy", "window_idx": 0, "label": 1}],
             "full_seizure": [],
             "no_seizure": [],
         }
