@@ -67,7 +67,7 @@ class BiGatedDeltaNet(nn.Module):
         for _i in range(num_layers):
             layer = nn.ModuleDict(
                 {
-                    "forward": FLAGatedDeltaNet(
+                    "fwd": FLAGatedDeltaNet(
                         hidden_size=d_model,
                         head_dim=headdim,
                         num_heads=num_heads,
@@ -80,7 +80,7 @@ class BiGatedDeltaNet(nn.Module):
                         conv_bias=False,
                         norm_eps=1e-5,
                     ),
-                    "backward": FLAGatedDeltaNet(
+                    "bwd": FLAGatedDeltaNet(
                         hidden_size=d_model,
                         head_dim=headdim,
                         num_heads=num_heads,
@@ -120,9 +120,9 @@ class BiGatedDeltaNet(nn.Module):
         for layer in self.layers:
             residual = x
 
-            x_fwd, _, _ = layer["forward"](x)
+            x_fwd, _, _ = layer["fwd"](x)
 
-            x_bwd, _, _ = layer["backward"](x.flip(dims=[1]).contiguous())
+            x_bwd, _, _ = layer["bwd"](x.flip(dims=[1]).contiguous())
             x_bwd = x_bwd.flip(dims=[1])
 
             if self.fusion_mode == "sum":
