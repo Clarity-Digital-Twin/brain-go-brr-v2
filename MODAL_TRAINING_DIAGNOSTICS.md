@@ -1,22 +1,28 @@
 # Modal Training Diagnostics & Fixes
 
-**Date**: October 7, 2025
+**Date**: October 7, 2025 (Updated with Root Cause Analysis)
 **Version**: v3.8.3
 **Context**: 24-hour Modal run terminated at epoch 2/100
-**Status**: Investigation complete - EVIDENCE-BASED analysis
+**Status**: Complete diagnosis - ALL issues identified with fixes
 
 ---
 
 ## Executive Summary
 
-Your training run hit **Modal's hard 24-hour timeout** and was killed at epoch 2. After auditing the actual logs and code:
+Your training run hit **Modal's hard 24-hour timeout** and was killed at epoch 2. After deep investigation of logs and code, we found:
 
-### 🔴 The ONLY Real Issue (P0)
+### 🔴 Real Issues (P0 - Blocking)
 
-**Modal 24h timeout**: Training cannot complete 100 epochs in one run (killed at epoch 2, batch 334/1284)
+**1. Modal 24h timeout**: Training cannot complete 100 epochs in one run (killed at epoch 2, batch 334/1284)
 - **Evidence**: Error log: `"Runner has been running for too long (max runtime: 86430 seconds)"`
 - **Impact**: Training will ALWAYS hit this wall at ~24h (~2-3 epochs)
-- **Fix**: Use existing `resume=True` flag + manually restart OR implement auto-orchestration
+- **Fix**: Harden resume logic + atomic checkpointing (see "Critical Fixes" section)
+
+**2. "New best ... 0.0000" logging bug**: Incorrect metric key lookup
+- **Evidence**: Your logs show `Sensitivity@10.0FA: 0.1643` but `New best sensitivity_at_10fa: 0.0000`
+- **Root cause**: Config uses `"sensitivity_at_10fa"` but validation creates `"sensitivity_at_10.0fa"` (with `.0`)
+- **Impact**: Misleading logs, wrong checkpoint saved as "best"
+- **Fix**: Use `format_sensitivity_key()` in configs OR strip decimal in loop.py (see "Critical Fixes" section)
 
 ### ✅ Things That Are ALREADY Working
 
@@ -33,10 +39,6 @@ Your training run hit **Modal's hard 24-hour timeout** and was killed at epoch 2
 
 4. **Hysteresis + post-processing**: ✅ ALREADY IMPLEMENTED
    - **Evidence**: `postprocess.py` - tau_on/tau_off, morphology, event merging
-
-5. **"Best sensitivity" logging**: ✅ NOT A BUG
-   - **Evidence**: `loop.py:298-317` correctly calculates `is_new_best` BEFORE early_stopping, then checks `current_metric == best_score` AFTER (when they're equal, it IS a new best)
-   - **Action**: NONE - code is correct
 
 ### 🟢 Things That Are NORMAL (Not Problems)
 
