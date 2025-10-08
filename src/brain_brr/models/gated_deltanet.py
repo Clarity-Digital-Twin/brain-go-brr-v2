@@ -98,11 +98,12 @@ class BiGatedDeltaNet(nn.Module):
 
         self.dropout = nn.Dropout(dropout)
 
+        self.fusion_proj: nn.Linear | None
         if fusion_mode == "concat":
-            self.fusion_proj: nn.Linear | None = nn.Linear(d_model * 2, d_model, bias=False)
+            self.fusion_proj = nn.Linear(d_model * 2, d_model, bias=False)
             nn.init.xavier_uniform_(self.fusion_proj.weight, gain=0.2)
         else:
-            self.fusion_proj: nn.Linear | None = None
+            self.fusion_proj = None
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Bidirectional processing: forward + backward (flipped).
@@ -128,7 +129,8 @@ class BiGatedDeltaNet(nn.Module):
                 x = x_fwd + x_bwd
             else:
                 x = torch.cat([x_fwd, x_bwd], dim=-1)
-                x = self.fusion_proj(x)
+                if self.fusion_proj is not None:
+                    x = self.fusion_proj(x)
 
             x = residual + self.dropout(x)
 
