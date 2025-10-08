@@ -192,19 +192,21 @@ class TestManifestValidation:
 
         assert not validate_manifest(temp_cache_dir, manifest)
 
-    def test_validate_manifest_partial_missing(self, temp_cache_dir):
-        data_file = temp_cache_dir / "test_data.npy"
-        labels_file = temp_cache_dir / "test_labels.npy"
-        data_file.touch()
-        labels_file.touch()
+    def test_validate_manifest_partial_missing_under_threshold(self, temp_cache_dir):
+        for i in range(20):
+            data_file = temp_cache_dir / f"test_{i:03d}_data.npy"
+            labels_file = temp_cache_dir / f"test_{i:03d}_labels.npy"
+            data_file.touch()
+            labels_file.touch()
 
         manifest = {
             "partial_seizure": [],
             "full_seizure": [],
             "no_seizure": [
-                {"cache_file": "test_data.npy", "window_idx": 0, "label": 0},
-                {"cache_file": "missing_data.npy", "window_idx": 0, "label": 0},
-            ],
+                {"cache_file": f"test_{i:03d}_data.npy", "window_idx": 0, "label": 0}
+                for i in range(20)
+            ]
+            + [{"cache_file": "missing_data.npy", "window_idx": 0, "label": 0}],
         }
 
         assert validate_manifest(temp_cache_dir, manifest)

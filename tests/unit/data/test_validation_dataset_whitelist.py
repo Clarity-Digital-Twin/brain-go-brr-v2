@@ -231,14 +231,16 @@ class TestValidationDatasetWhitelist:
 
             result = dataset[0]
 
-            assert isinstance(result, tuple)
-            assert len(result) == 3
-            data, label, metadata = result
+            assert isinstance(result, dict)
+            assert "window" in result
+            assert "label" in result
+            assert "file_id" in result
+            assert "window_start_s" in result
 
-            assert isinstance(data, torch.Tensor)
-            assert isinstance(label, torch.Tensor)
-            assert data.shape == (19, 15360)
-            assert label.shape == ()
+            assert isinstance(result["window"], torch.Tensor)
+            assert isinstance(result["label"], torch.Tensor)
+            assert result["window"].shape == (19, 15360)
+            assert result["label"].shape == (15360,)
 
     def test_whitelist_maintains_window_indices(
         self, temp_cache_dir, create_cache_files, create_manifest
