@@ -589,6 +589,11 @@ def train(
         os.environ["SEIZURE_MAMBA_FORCE_FALLBACK"] = "1"
         logger.info("[DIAGNOSTIC] SEIZURE_MAMBA_FORCE_FALLBACK=1 (using Conv1d instead of Mamba CUDA)")
 
+    # CRITICAL: Wall-clock timeout for graceful exit before Modal hard kill
+    # Modal has 24h hard limit (86400s). Exit at 23h (82800s) to save checkpoint cleanly.
+    os.environ["BGB_WALL_CLOCK_LIMIT_S"] = "82800"  # 23 hours
+    logger.info("[TIMEOUT] BGB_WALL_CLOCK_LIMIT_S=82800 (23h, exits 1h before Modal kill)")
+
     # CRITICAL: PyTorch memory allocator - prevent fragmentation on A100-80GB
     # Fixes "reserved but unallocated" OOM during first backward pass
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:512"

@@ -49,6 +49,7 @@ from src.brain_brr.train.early_stopping import EarlyStopping
 from src.brain_brr.train.metrics_utils import normalize_metrics_dict
 from src.brain_brr.train.optimizer_factory import create_optimizer, create_scheduler
 from src.brain_brr.train.sampling import create_balanced_sampler
+from src.brain_brr.train.timeout_guard import TimeoutGuard
 from src.brain_brr.train.train_step import train_epoch
 from src.brain_brr.train.train_utils import set_seed, worker_init_fn
 from src.brain_brr.train.val_step import validate_epoch
@@ -175,11 +176,50 @@ def train(
         )
         logger.info(f"Resumed from epoch {start_epoch + 1}")
 
+    # Wall-clock timeout guard (for Modal 24h limit)
+    wall_clock_limit_s = _safe_parse_int(os.getenv("BGB_WALL_CLOCK_LIMIT_S"), fallback=0)
+    timeout_guard = TimeoutGuard(
+        limit_seconds=wall_clock_limit_s if wall_clock_limit_s > 0 else None,
+        safety_margin_seconds=600,  # Exit 10 min before timeout
+    )
+    if wall_clock_limit_s > 0:
+        logger.info(
+            f"[TIMEOUT] Wall-clock limit: {wall_clock_limit_s}s "
+            f"({wall_clock_limit_s / 3600:.1f}h), safety margin: 10 min"
+        )
+
     # Training loop
     best_metrics: dict[str, Any] = {"best_epoch": 0}
     global_step = 0  # Track global step across epochs for scheduler
 
     for epoch in range(start_epoch, config.training.epochs):
+        # Check wall-clock timeout before starting epoch
+        if timeout_guard.check():
+            remaining = timeout_guard.remaining_seconds()
+            elapsed = timeout_guard.elapsed_seconds()
+            # Type narrowing: check() only returns True when limit is set, so remaining is not None
+            assert remaining is not None, (
+                "remaining_seconds should not be None when check() is True"
+            )
+            logger.warning(
+                f"[TIMEOUT] Wall-clock limit approaching "
+                f"(elapsed: {elapsed / 3600:.1f}h, remaining: {remaining / 60:.1f}min). "
+                f"Exiting gracefully before epoch {epoch + 1}."
+            )
+            # Save final checkpoint before exit
+            save_checkpoint(
+                model,
+                optimizer,
+                epoch,
+                best_metric if "best_metric" in locals() else 0.0,
+                checkpoint_dir / "timeout_exit.pt",
+                scheduler,
+                config,
+                scaler=scaler,
+                save_rng=True,
+            )
+            logger.info("[TIMEOUT] Saved timeout_exit.pt, resume with --resume flag")
+            break
         logger.info(f"\nEpoch {epoch + 1}/{config.training.epochs}")
 
         # Train
@@ -383,6 +423,22 @@ def train(
                 scaler=scaler,  # Save scaler for FP16 resume
                 save_rng=True,  # Save RNG for deterministic resume
             )
+
+        # Check timeout after epoch completion (validation can be slow)
+        if timeout_guard.check():
+            remaining = timeout_guard.remaining_seconds()
+            elapsed = timeout_guard.elapsed_seconds()
+            # Type narrowing: check() only returns True when limit is set, so remaining is not None
+            assert remaining is not None, (
+                "remaining_seconds should not be None when check() is True"
+            )
+            logger.warning(
+                f"[TIMEOUT] Wall-clock limit approaching after epoch {epoch + 1} "
+                f"(elapsed: {elapsed / 3600:.1f}h, remaining: {remaining / 60:.1f}min). "
+                f"Exiting gracefully."
+            )
+            logger.info("[TIMEOUT] Last checkpoint already saved, resume with --resume flag")
+            break
 
     if writer is not None:
         writer.close()
