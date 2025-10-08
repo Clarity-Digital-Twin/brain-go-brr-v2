@@ -53,10 +53,10 @@ class EdgeStreamComponents:
 
 
 def build_edge_stream(cfg: "ModelConfig") -> EdgeStreamComponents:
-    """Build edge stream: per-edge BiMamba with learned lift/project.
+    """Build edge stream: BiMamba2 (default) or BiGatedDeltaNet (experimental).
 
-    V3 Architecture: Processes edge similarities (171 pairs) with BiMamba.
-    Pipeline: 1D → lift(d_model) → BiMamba → project(1D) → Softplus
+    V3 Architecture: Processes edge similarities (171 pairs) with shared SSM.
+    Pipeline: 1D → lift(d_model) → SSM → project(1D) → Softplus
 
     Args:
         cfg: Model configuration containing graph and norms settings
@@ -64,18 +64,26 @@ def build_edge_stream(cfg: "ModelConfig") -> EdgeStreamComponents:
     Returns:
         EdgeStreamComponents with all edge processing modules
 
+    Raises:
+        ImportError: If GDN requested but FLA library not installed
+
     Notes:
         - edge_d_model must be multiple of 8 for CUDA alignment
-        - headdim=4 ensures (16 * 2) / 4 = 8 which is multiple of 8
+        - BiMamba2: headdim=4 ensures (16 * 2) / 4 = 8 (CUDA requirement)
+        - GDN: num_heads × headdim = 0.75 × 16 = 12 (3 × 4 = 12)
         - PR-2: Supports bounded edge stream (activation + norm on lift)
         - LayerScale enabled if boundary_norm != "none"
     """
+    temporal_type = getattr(cfg.mamba, "temporal_type_edge", None)
+    if temporal_type is None:
+        temporal_type = getattr(cfg.mamba, "temporal_type", "bimamba2")
+
     graph_cfg = cfg.graph
     norms_cfg = getattr(cfg, "norms", None)
 
-    edge_layers = graph_cfg.edge_mamba_layers if graph_cfg else 2
-    edge_d_state = graph_cfg.edge_mamba_d_state if graph_cfg else 8
-    edge_d_model = graph_cfg.edge_mamba_d_model if graph_cfg else 16
+    edge_layers = graph_cfg.edge_mamba_layers if graph_cfg else EDGE_NUM_LAYERS
+    edge_d_state = graph_cfg.edge_mamba_d_state if graph_cfg else EDGE_D_STATE
+    edge_d_model = graph_cfg.edge_mamba_d_model if graph_cfg else EDGE_D_MODEL
 
     assert edge_d_model % 8 == 0, (
         f"edge_mamba_d_model must be multiple of 8 for CUDA, got {edge_d_model}"
@@ -83,19 +91,43 @@ def build_edge_stream(cfg: "ModelConfig") -> EdgeStreamComponents:
     assert edge_d_model > 0, f"edge_mamba_d_model must be positive, got {edge_d_model}"
 
     use_layerscale = bool(norms_cfg and norms_cfg.boundary_norm != "none")
-    layerscale_init = float(norms_cfg.layerscale_alpha if norms_cfg else LAYERSCALE_ALPHA_FALLBACK)
-
-    edge_mamba = BiMamba2(
-        d_model=edge_d_model,
-        d_state=edge_d_state,
-        d_conv=4,
-        expand=2,
-        headdim=4,
-        num_layers=edge_layers,
-        dropout=cfg.mamba.dropout,
-        use_layerscale=use_layerscale,
-        layerscale_init=layerscale_init,
+    layerscale_init = float(
+        norms_cfg.layerscale_alpha if norms_cfg else LAYERSCALE_ALPHA_FALLBACK
     )
+
+    if temporal_type == "gated_deltanet":
+        if not FLA_AVAILABLE:
+            raise ImportError(
+                "Gated DeltaNet requires flash-linear-attention library.\n"
+                "Install: make setup-fla\n"
+                "Or set temporal_type='bimamba2' in config to use stable baseline."
+            )
+
+        from ..gated_deltanet import BiGatedDeltaNet
+
+        fusion_mode = getattr(cfg.mamba, "gdn_fusion_mode", GDN_FUSION_MODE_DEFAULT)
+        allow_neg_eigval = getattr(cfg.mamba, "gdn_allow_neg_eigval", False)
+
+        edge_mamba = BiGatedDeltaNet(
+            d_model=edge_d_model,
+            headdim=GDN_EDGE_HEADDIM_DEFAULT,
+            num_layers=edge_layers,
+            dropout=cfg.mamba.dropout,
+            fusion_mode=fusion_mode,
+            allow_neg_eigval=allow_neg_eigval,
+        )
+    else:
+        edge_mamba = BiMamba2(
+            d_model=edge_d_model,
+            d_state=edge_d_state,
+            d_conv=cfg.mamba.conv_kernel,
+            expand=EDGE_EXPAND,
+            headdim=EDGE_HEADDIM_BIMAMBA2,
+            num_layers=edge_layers,
+            dropout=cfg.mamba.dropout,
+            use_layerscale=use_layerscale,
+            layerscale_init=layerscale_init,
+        )
 
     edge_in_proj = nn.Conv1d(1, edge_d_model, kernel_size=1, bias=False)
     edge_out_proj = nn.Conv1d(edge_d_model, 1, kernel_size=1, bias=True)
