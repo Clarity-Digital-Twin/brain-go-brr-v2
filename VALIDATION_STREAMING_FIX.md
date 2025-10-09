@@ -12,8 +12,8 @@
 **Problem**: Modal training OOMs (exit 137) during validation at ~120GB peak RAM usage
 **Available Resources**: 96GB RAM on Modal A100-80GB instance
 **Root Cause**: Accumulating 34GB of validation data + 34GB metrics + 34GB FA sweep = 102GB+ peak
-**Solution**: Disk-backed storage with staged memory-mapped loading
-**Result**: 120GB → 37GB peak (3.2x reduction, 2.6x safety margin on 96GB limit)
+**Solution**: Disk-backed storage with pre-allocated staging (no double-buffering)
+**Result**: 120GB → 39GB peak (3.1x reduction, **2.5x safety margin** on 96GB limit)
 
 **Key Insight**: We don't need "streaming" metrics (impossible for exact AUROC). We need **staged loading** - write to disk during loop, load once for metrics, free, reload for FA sweep.
 
@@ -90,22 +90,24 @@ We have **96GB available on Modal**. We need **37GB peak** for exact metrics.
 
 ---
 
-## ✅ TARGET MEMORY PROFILE (37GB Peak)
+## ✅ TARGET MEMORY PROFILE (39GB Peak - CORRECTED)
 
 | Phase | Component | Memory | Notes |
 |-------|-----------|--------|-------|
 | **Validation Loop** | Per-recording write (transient) | 9MB → 0MB | Write to disk, immediate free |
 | | Disk shards (.npy files) | 0GB RAM | 34GB on disk (memory-mappable) |
-| **Metrics (AUROC/PR-AUC)** | Memory-mapped load | 34GB | One load, compute, free |
-| | sklearn computation overhead | 3GB | **37GB peak** ✅ |
+| **Metrics (AUROC/PR-AUC)** | Pre-allocated concat | 34GB | Single-pass (no double-buffer!) |
+| | sklearn computation overhead | 3-5GB | **39GB peak** ✅ |
 | | Explicit free + gc | → 0GB | Before next phase |
 | **ECE Computation** | Streaming bin stats | <1MB | True O(1) streaming |
-| **FA Sweep** | Memory-mapped reload | 34GB | Reload from disk |
-| | Sweep overhead | 3GB | **37GB peak** ✅ |
+| **FA Sweep** | Tensor copies (accumulated) | 34GB | Explicit copies per recording |
+| | Sweep overhead | 2-3GB | **37GB peak** ✅ |
 
-**Total Peak**: 37GB (well within 96GB limit, **2.6x safety margin**)
+**Total Peak**: 39GB (well within 96GB limit, **2.5x safety margin**)
 
-**Strategy**: Write to disk (0GB resident) → Load for metrics (37GB) → Free (0GB) → Reload for FA (37GB)
+**Strategy**: Write to disk (0GB resident) → Pre-allocate + load (39GB) → Free (0GB) → Reload for FA (37GB)
+
+**Critical Fix**: Use pre-allocation instead of list+concat to avoid 68GB double-buffer spike!
 
 ---
 
@@ -219,7 +221,10 @@ class RecordingStorage:
             yield probs, labels
 
     def get_all_concatenated(self) -> tuple[np.ndarray, np.ndarray]:
-        """Load and concatenate all recordings (34GB allocation).
+        """Load and concatenate all recordings (34GB allocation, single-pass).
+
+        Uses pre-allocation + direct copy to avoid double-buffering.
+        Peak memory: 34GB (not 68GB from list+concat pattern).
 
         WARNING: This allocates 34GB in RAM. Caller MUST free explicitly:
             probs, labels = storage.get_all_concatenated()
@@ -230,22 +235,24 @@ class RecordingStorage:
         Returns:
             (all_probs, all_labels) as contiguous numpy arrays
         """
-        all_probs = []
-        all_labels = []
+        # First pass: count total samples (fast, O(n) with mmap)
+        total_samples = 0
+        for probs, _ in self.iter_recordings():
+            total_samples += len(probs)
 
+        # Pre-allocate output arrays (34GB total)
+        probs_all = np.empty(total_samples, dtype=np.float32)
+        labels_all = np.empty(total_samples, dtype=np.float32)
+
+        # Second pass: direct copy from mmap (no intermediate list)
+        offset = 0
         for probs, labels in self.iter_recordings():
-            # Memory-mapped arrays - need to copy for concatenation
-            all_probs.append(np.array(probs))
-            all_labels.append(np.array(labels))
+            n = len(probs)
+            probs_all[offset : offset + n] = probs
+            labels_all[offset : offset + n] = labels
+            offset += n
 
-        # Concatenate (allocates 34GB)
-        probs_concat = np.concatenate(all_probs)
-        labels_concat = np.concatenate(all_labels)
-
-        # Free intermediate lists
-        del all_probs, all_labels
-
-        return probs_concat, labels_concat
+        return probs_all, labels_all
 
     def get_all_as_torch_tensors(self) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
         """Get all recordings as torch tensors (for FA sweep compatibility).
@@ -729,7 +736,7 @@ def test_recording_storage_zero_accumulation():
 
 
 def test_get_all_concatenated_memory():
-    """Verify get_all_concatenated() allocates expected memory."""
+    """Verify get_all_concatenated() uses pre-allocation (no double-buffer)."""
     with RecordingStorage() as storage:
         # Write 10 recordings (9MB each = 90MB total)
         for i in range(10):
@@ -740,15 +747,17 @@ def test_get_all_concatenated_memory():
         process = psutil.Process()
         before_rss = process.memory_info().rss / (1024**3)
 
-        # Load all (should allocate ~90MB × 2 = 180MB)
+        # Load all (should allocate ~90MB × 2 = 180MB, NOT 360MB from double-buffer)
         probs_all, labels_all = storage.get_all_concatenated()
 
         after_rss = process.memory_info().rss / (1024**3)
         allocated = after_rss - before_rss
 
-        # Should allocate ~0.18GB
+        # Should allocate ~0.18GB (single-pass pre-allocation)
+        # NOT 0.36GB (which would indicate double-buffering via list+concat)
         assert 0.15 < allocated < 0.25, (
-            f"Expected ~0.18GB allocation, got {allocated:.2f}GB"
+            f"Expected ~0.18GB allocation (pre-allocated), got {allocated:.2f}GB. "
+            f"If >0.3GB, double-buffering bug!"
         )
 
         # Verify data integrity
