@@ -665,7 +665,10 @@ def main() -> None:
         # CRITICAL: Only build manifest if cache already has files!
         # Bug fix: Don't build manifest from empty directory
         train_cache_dir.mkdir(parents=True, exist_ok=True)
-        existing_cache_files = list(train_cache_dir.glob("*.npz"))
+        # Check for NPY format (current) or NPZ format (legacy)
+        existing_cache_files = list(train_cache_dir.glob("*_data.npy"))
+        if not existing_cache_files:
+            existing_cache_files = list(train_cache_dir.glob("*.npz"))
         if existing_cache_files:
             try:
                 from src.brain_brr.data.cache_utils import scan_existing_cache
@@ -685,7 +688,9 @@ def main() -> None:
     train_dataset: BalancedSeizureDataset | EEGWindowDataset
     if use_balanced and manifest_path.exists():
         try:
-            train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=train_files)
+            # Convert EDF filenames to cache filenames for filtering
+            cache_file_list = [Path(f"{f.stem}_data.npy") for f in train_files]
+            train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=cache_file_list)
             logger.info(
                 f"[DATASET] BalancedSeizureDataset: {len(train_dataset)} windows from manifest"
             )
@@ -827,7 +832,9 @@ def main() -> None:
             _ = scan_existing_cache(train_cache_dir)
             if manifest_path.exists():
                 # Switch to BalancedSeizureDataset now that manifest exists
-                train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=train_files)
+                # Convert EDF filenames to cache filenames for filtering
+                cache_file_list = [Path(f"{f.stem}_data.npy") for f in train_files]
+                train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=cache_file_list)
                 logger.info(
                     f"[DATA] Switched to BalancedSeizureDataset: {len(train_dataset)} windows"
                 )
