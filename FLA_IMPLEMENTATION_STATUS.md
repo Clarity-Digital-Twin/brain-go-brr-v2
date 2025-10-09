@@ -125,6 +125,16 @@
     - **Location**: `FLASH_LINEAR_ATTENTION_DOC1_EDGE_MIGRATION.md:277`
 - [x] Quality checks: `make q` passes (lint + format + mypy + config validation)
 
+**Phase 1b (Node GDN)**:
+- [x] Config created: `configs/local/phase1b_node_gdn.yaml`
+- [x] Node stream: BiGatedDeltaNet with d_model=64 (inherits from mamba.d_model)
+- [x] Edge stream: BiGatedDeltaNet (PRESERVED from Phase 1a)
+- [x] Smoke test: 3 files, Epoch 7 (early stop), best: Epoch 6 - **✅ PASSED**
+  - **Evidence**: `/tmp/phase1b_smoke.log`
+  - **Result**: No crashes, no NaNs, loss converged
+  - **Status**: ✅ Phase 1b COMPLETE (Oct 8, 2025 20:17 EDT)
+- [x] Isolation verified: Both streams BiGatedDeltaNet
+
 ---
 
 ### 🔄 **IN PROGRESS**
@@ -132,28 +142,15 @@
 **Documentation Updates** (Oct 8, 2025):
 - [x] Doc 1: Marked Phase 1a COMPLETE, added implementation status section
 - [x] Doc 2: Updated validation strategy (smoke-only, deferred to Phase 2)
+- [x] Doc 2: Fixed parameter ratios (39× → ~13×, updated risk table)
+- [x] Doc 2: Fixed timeline inconsistencies (removed 6-8h references)
 - [x] Doc 3: Added medium validation plan (40-50 files, 5-6 epochs)
-- [x] FLA_IMPLEMENTATION_STATUS.md: Updated Phase 1a completion
+- [x] FLA_IMPLEMENTATION_STATUS.md: Updated Phase 1a+1b completion
 - [ ] FLA_DOCUMENTATION_METHODOLOGY.md: Add new strategy rationale (NEXT)
 
 ---
 
 ### ❌ **PENDING**
-
-**Phase 1b (Node GDN)**:
-- [x] ✅ **Config created**: `configs/local/phase1b_node_gdn.yaml` (Oct 8, 2025)
-  - Complete 190-line config
-  - `experiment.name: "phase1b_node_gdn"`
-  - `temporal_type_node: "gated_deltanet"` (NEW)
-  - `temporal_type_edge: "gated_deltanet"` (PRESERVED from Phase 1a)
-  - `gdn_edge_num_heads: 3`, `gdn_edge_headdim: 8`
-  - `edge_mamba_d_model: 32` (FLA requirement)
-- [x] ✅ **Smoke test PASSED** (Oct 8, 2025 20:17 EDT)
-  - Early stopped at epoch 7 (best: epoch 6)
-  - No crashes, no NaNs, loss converged
-  - sensitivity@10FA = 1.0 (perfect on 3 files)
-  - Log: `/tmp/phase1b_smoke.log`
-- [x] ✅ **Isolation verified**: Both streams BiGatedDeltaNet
 
 **Phase 2 (Both Streams GDN)**:
 - [x] ✅ **Config created**: `configs/local/phase2_both_gdn.yaml` (Oct 8, 2025)
