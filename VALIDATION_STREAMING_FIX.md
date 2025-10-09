@@ -263,15 +263,17 @@ class RecordingStorage:
     def get_all_as_torch_tensors(self) -> tuple[list[torch.Tensor], list[torch.Tensor]]:
         """Get all recordings as torch tensors (TRUE zero-copy from mmap).
 
-        Returns read-only tensors backed by memory-mapped files.
+        Uses copy-on-write memory mapping for safe zero-copy tensor creation.
         Peak memory: <10MB (just tensor objects, not data).
 
-        WARNING: Returned tensors are READ-ONLY (backed by mmap "r" mode).
-        DO NOT attempt to modify these tensors in-place.
-        Operations that create new tensors (e.g., probs >= threshold) work fine.
+        Memory-mapping mode "c" (copy-on-write):
+        - Array is memory-mapped and writeable (satisfies torch.from_numpy)
+        - Any modifications create a private copy (won't happen - FA sweep is read-only)
+        - Original file is never modified
+        - Zero-copy as long as no writes occur
 
         Returns:
-            (probs_list, labels_list) where each tensor shares memory with mmap
+            (probs_list, labels_list) where each tensor shares mmap memory
         """
         probs_list = []
         labels_list = []
@@ -279,15 +281,16 @@ class RecordingStorage:
         for file_id in self.recording_ids:
             probs_np = np.load(
                 self.cache_dir / f"{file_id}_probs.npy",
-                mmap_mode="r"  # Read-only memory-mapped
+                mmap_mode="c"  # Copy-on-write (safe + zero-copy + writeable)
             )
             labels_np = np.load(
                 self.cache_dir / f"{file_id}_labels.npy",
-                mmap_mode="r"
+                mmap_mode="c"
             )
 
-            # Direct wrap (TRUE zero-copy, no np.array() copy!)
-            # Read-only is fine - FA sweep only reads, doesn't modify
+            # Zero-copy wrap (mmap_mode="c" makes WRITEABLE=True for PyTorch)
+            # FA sweep operations (probs >= threshold) create NEW tensors
+            # Original mmap is never modified → no copy triggered
             probs_tensor = torch.from_numpy(probs_np)
             labels_tensor = torch.from_numpy(labels_np)
 
