@@ -156,8 +156,8 @@ def _compute_final_metrics(
     thresholds: dict[str, float] = {}
     sensitivity_results: dict[str, float] = {}
 
-    timelines_probs = [prob.cpu() for prob in all_probs_flat]
-    timelines_labels = [label.cpu() for label in all_labels_flat]
+    timelines_probs = all_probs_flat
+    timelines_labels = all_labels_flat
 
     for fa in fa_rates:
         result: FASweepResult = find_threshold_for_fa_target(
