@@ -49,11 +49,12 @@
 - ✅ **Full Training Resumed**: Modal A100-80GB (100 epochs, disk-backed validation fix verified Oct 9)
 - ✅ **Documentation**: PRE_TRAINING_VALIDATION.md (root) + updated `docs/05-training/modal.md`; full historical analysis archived at `docs/archive_v1/MODAL_TRAINING_DIAGNOSTICS.md`
 
-### FLA Stack Readiness (October 8-9, 2025)
+### FLA Research Comparison (October 8-9, 2025)
 - ✅ Phase 0–2 COMPLETE: Edge, node, and dual-stream GDN smoke tests passed (Phase 2 medium validation technical success)
 - ✅ Full-stack configs: `configs/local/phase2_both_gdn.yaml` + `configs/local/phase2_medium_gdn.yaml`
 - ✅ Roadmap documented: See `FLA_ROADMAP.md` / `FLA_QUICK_REFERENCE.md`
 - 🔄 Modal A/B Plan: BiMamba2 baseline training LIVE; FLA Modal config queued post-baseline
+- 📊 Research Goal: Empirical comparison of BiMamba2 vs Gated DeltaNet architectures; both results publishable regardless of outcome
 
 ### v3.8.3 - Manifest Naming Cleanup (October 7, 2025)
 - ✅ Regenerated train manifest: 303,990 windows across 4438 NPY files

@@ -263,14 +263,23 @@ print(f'✅ Phase 1b complete: sensitivity@10FA={sens_10fa:.2%}')
 # - No training instabilities (NaNs, divergence)
 # - Throughput acceptable (<= 10% slower)
 
-# If EITHER phase was NO-GO, STOP and document the findings.
+# If EITHER phase shows technical issues, STOP and diagnose.
 # Phase 2 runs only after both phases demonstrate stable behaviour.
 ```
 
-**If Either Phase 1a OR Phase 1b was NO-GO**: Pause the roadmap.
-- Document the issue in `PHASE1B_POSTMORTEM.md` (or Phase 1a equivalent).
-- Diagnose root cause, run additional isolation experiments if needed.
-- Resume Phase 2 ONLY after both phases achieve GO/stable results.
+**If Either Phase 1a OR Phase 1b Shows Technical Issues** (NaNs, crashes, non-convergence):
+
+1. **STOP immediately** - Do not proceed to Phase 2
+2. **Document findings** in `PHASE1X_POSTMORTEM.md` with:
+   - Exact failure mode (NaNs, OOM, divergence, etc.)
+   - Training curves and logs
+   - System state at failure
+3. **Diagnose root cause**:
+   - Architecture bug? (Check layer implementations)
+   - Config issue? (Learning rate, batch size, gradient clipping)
+   - Data problem? (Corrupted files, class imbalance)
+4. **Fix and retry**, OR proceed with alternative configuration (e.g., keep BiMamba2 for failed stream)
+5. **Resume Phase 2** ONLY after both phases achieve technical validity (no crashes, convergence, stable gradients)
 
 ### 1.3. Validation Gate: Combined Effect Hypothesis
 
@@ -779,16 +788,32 @@ def main():
 
     best_individual = max(sens_10fa_gain_phase1a, sens_10fa_gain_phase1b)
 
+    # Research insights (interpretation, not deployment decisions)
+    print("\n" + "=" * 80)
+    print("📊 Research Insights")
+    print("=" * 80)
+
     print(f"\nCombined gain (Phase 2 vs baseline): {sens_10fa_gain_phase2:+.2%}")
     print(f"Best isolated gain (Phase 1a/1b):     {best_individual:+.2%}")
-    print("Interpretation tips:")
-    print("  • If combined ≥ isolated: evidence that effects reinforce each other.")
-    print("  • If combined < isolated: investigate interaction penalties or training instabilities.")
-    print("  • Always document qualitative observations (loss curves, anomalies, throughput).")
-    print("\nNext actions:")
-    print("  1. Log results in PHASE2_RESULTS.md (metrics + narrative).")
-    print("  2. Update Doc 0 research summary with key findings.")
-    print("  3. Plan follow-up experiments (e.g., hybrid SWA, parameter sweeps) as needed.")
+
+    # Interpret results for scientific understanding
+    if sens_10fa_gain_phase2 >= best_individual:
+        print("\n✓ Combined gain ≥ isolated gain")
+        print("  → Interpretation: Effects appear to reinforce each other")
+        print("  → Research note: Positive interaction observed between streams")
+    elif sens_10fa_gain_phase2 < best_individual - 0.01:  # >1% penalty
+        print("\n⚠ Combined gain < isolated gain (>1% penalty)")
+        print("  → Interpretation: Possible interaction penalty detected")
+        print("  → Investigation needed: Check training dynamics, loss curves, gradient patterns")
+    else:
+        print("\n≈ Combined gain ≈ isolated gain")
+        print("  → Interpretation: Effects appear roughly additive")
+        print("  → Research note: No strong interaction (positive or negative) detected")
+
+    print("\n📋 Next Actions:")
+    print("  1. Document BOTH sets of results in PHASE2_RESULTS.md (metrics + narrative + insights)")
+    print("  2. Update Doc 0 research summary with key findings")
+    print("  3. Outline follow-up experiments based on results (e.g., hybrid SWA if promising, parameter sweeps if unstable)")
 
     print("=" * 80)
 
@@ -888,7 +913,17 @@ python -m src train configs/local/train.yaml
 - [x] Parameter counts recorded (node ≈284K, edge ≈30K, total ≈314K)
 - [x] Convergence observed (smoke: loss ↓ 0.30 → 0.04; medium: loss descent followed by collapse due to sparse positives – documented in Section 3.2)
 
-### 6.2. Performance Metrics to Record – ⏳ PENDING MODAL A/B
+### 6.2. Technical Health Checks & Performance Metrics – ⏳ PENDING MODAL A/B
+
+**Experiment Validity Checks** (must pass for results to be meaningful):
+- [ ] Training completes without crashes or OOM
+- [ ] No NaNs in forward/backward passes
+- [ ] Loss converges (not diverging or stuck)
+- [ ] Gradient norms stable after warmup (<5.0 typical, clipping engages gracefully)
+- [ ] Checkpoint saves succeed
+- [x] Phase 1a AND Phase 1b both succeeded (prerequisite met)
+
+**Performance Metrics to Record** (for research comparison):
 
 Collect these metrics once full-dataset Modal runs complete (BiMamba2 baseline in progress, FLA run queued next). The scientific value comes from documenting BOTH sets of results.
 
@@ -897,10 +932,9 @@ Collect these metrics once full-dataset Modal runs complete (BiMamba2 baseline i
 - [ ] Loss trajectories (verify stability, convergence patterns)
 - [ ] Throughput deltas (seconds/step, samples/sec)
 - [ ] Memory usage (peak GPU, host RAM)
-- [ ] Training anomalies (NaNs, divergence, gradient instabilities)
-- [x] Phase 1a AND Phase 1b both succeeded (prerequisite met)
+- [ ] Training anomalies or instabilities observed
 
-No deployment decision happens here—the goal is a complete empirical comparison.
+**Key Point**: Technical health checks ensure experiment validity. Performance metrics enable scientific comparison. No deployment decision happens here—both valid experiments get documented.
 
 ---
 

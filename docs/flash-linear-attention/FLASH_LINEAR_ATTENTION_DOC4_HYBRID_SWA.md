@@ -1435,9 +1435,9 @@ After collecting metrics:
 
 ---
 
-## 9. Optional Reversion Plan
+## 9. Recovery Procedures & Troubleshooting
 
-If you decide to pause or discard the hybrid experiment:
+If training fails or you need to recover from technical issues:
 
 ```bash
 # Revert to Phase 2 (Pure GDN)

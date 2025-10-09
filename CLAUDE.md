@@ -373,6 +373,7 @@ Due to hardware differences, integration tests have adjusted thresholds:
 - ✅ **Test suite enhanced** - Manifest validation, checkpoint robustness, 75%+ coverage maintained
 - ✅ **BiMamba2 baseline training LIVE** - Modal A100-80GB, 100 epochs, validation OOM fixed
 - ✅ **FLA research complete** - BiGatedDeltaNet implemented, all smoke tests passed
-- ✅ **Pragmatic roadmap** - Two-stack strategy (BiMamba2 vs FLA), no ablations due to budget
+- ✅ **Research comparison strategy** - Train both BiMamba2 and FLA stacks independently, document results for both
+- 📊 **Research goal** - Empirical comparison on full TUSZ dataset; both results publishable regardless of outcome
 - 📊 **Next**: Wait for BiMamba2 → Create Modal FLA config → A/B comparison
 - 📚 **See**: `FLA_ROADMAP.md` for complete strategy and timeline
