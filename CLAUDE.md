@@ -35,8 +35,10 @@ Current Architecture (v3.9.1 - October 9, 2025):
 | `make test` | Full test suite with coverage |
 | `make setup` | Initial setup with uv |
 | `make setup-gpu` | Install GPU stack (Mamba+PyG+TCN) — **REQUIRED for V3** |
-| `make s` | Smoke test (1 epoch, 3 files) |
-| `make train-local` | Full training (100 epochs, official train/dev splits) |
+| `make smoke-bimamba` | BiMamba2 smoke test (1 epoch, 3 files) |
+| `make smoke-fla` | FLA smoke test (1 epoch, 3 files) |
+| `make train-bimamba` | BiMamba2 full training (100 epochs) |
+| `make train-fla` | FLA full training (100 epochs) |
 
 ### Local Training (RTX 4090)
 ```bash
@@ -45,13 +47,21 @@ Current Architecture (v3.9.1 - October 9, 2025):
 # export BGB_SANITIZE_GRADS=1  # Debug: Log where NaNs occur
 export BGB_NAN_DEBUG=1         # Enable NaN warnings
 
-# Smoke test (3 files, ~5 min - fast pipeline validation)
-make s  # or: python -m src train configs/local/smoke.yaml
+# BiMamba2 smoke test (3 files, ~5 min - fast pipeline validation)
+make smoke-bimamba  # or: python -m src train configs/local/smoke_bimamba.yaml
 
-# Full training in tmux (recommended)
-tmux new -s train
+# FLA smoke test (3 files, ~5 min)
+make smoke-fla  # or: python -m src train configs/local/smoke_fla.yaml
+
+# BiMamba2 full training in tmux (recommended)
+tmux new -s train-bimamba
 export BGB_NAN_DEBUG=1
-make train-local  # or: .venv/bin/python -m src train configs/local/train.yaml
+make train-bimamba  # or: .venv/bin/python -m src train configs/local/train_bimamba.yaml
+
+# FLA full training in tmux
+tmux new -s train-fla
+export BGB_NAN_DEBUG=1
+make train-fla  # or: .venv/bin/python -m src train configs/local/train_fla.yaml
 # Detach: Ctrl+B then D
 # Reattach: tmux attach -t train
 # List sessions: tmux ls
@@ -88,20 +98,26 @@ docker compose run dev
 # Test Mamba CUDA before training
 modal run deploy/modal/app.py --action test-mamba
 
-# Smoke test (50 files, ~10 min - quick validation)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+# BiMamba2 smoke test (50 files, ~10 min - quick validation)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
 
-# Full training (ALWAYS use --detach for long runs)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+# FLA smoke test (50 files, ~10 min)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml
+
+# BiMamba2 full training (ALWAYS use --detach for long runs)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
+
+# FLA full training (ALWAYS use --detach for long runs)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_fla.yaml
 
 # Monitor training
 modal app list                    # List running apps
 modal app logs <app-id>           # Stream logs
 modal app stop <app-id>          # Stop training
 
-# Resume from checkpoint
+# Resume from checkpoint (BiMamba2 example)
 modal run --detach deploy/modal/app.py --action train \
-  --config configs/modal/train.yaml --resume true
+  --config configs/modal/train_bimamba.yaml --resume true
 ```
 
 **NOTE**: Modal automatically sets `BGB_NAN_DEBUG=1` via `deploy/modal/app.py`. Gradient clipping (0.5) provides primary NaN protection.
@@ -129,11 +145,15 @@ src/brain_brr/           # Core implementation
 
 configs/                 # Training configurations
 ├── local/              # RTX 4090 optimized
-│   ├── smoke.yaml      # 1 epoch, 3 files (BGB_SMOKE_TEST=1)
-│   └── train.yaml      # 100 epochs (official train/dev splits)
+│   ├── smoke_bimamba.yaml  # BiMamba2: 1 epoch, 3 files
+│   ├── train_bimamba.yaml  # BiMamba2: 100 epochs (official train/dev)
+│   ├── smoke_fla.yaml      # FLA: 1 epoch, 3 files
+│   └── train_fla.yaml      # FLA: 100 epochs (official train/dev)
 └── modal/              # A100-80GB optimized
-    ├── smoke.yaml      # 1 epoch, 50 files
-    └── train.yaml      # 100 epochs (official train/dev splits)
+    ├── smoke_bimamba.yaml  # BiMamba2: 1 epoch, 50 files
+    ├── train_bimamba.yaml  # BiMamba2: 100 epochs (official train/dev)
+    ├── smoke_fla.yaml      # FLA: 1 epoch, 50 files
+    └── train_fla.yaml      # FLA: 100 epochs (official train/dev)
 
 cache/tusz_mmap/        # Pre-processed data (local, memory-mapped NPY)
 ├── train/              # 4667 NPY files (data + labels) + manifest.json

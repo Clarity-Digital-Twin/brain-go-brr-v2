@@ -94,6 +94,8 @@ The job exports:
 | Re-populate from S3 | `modal run --detach deploy/modal/app.py --action populate-cache` | Clears `/results/cache/tusz_mmap/{train,dev}` then copies fresh mmap cache |
 | Clean cache completely | `modal run deploy/modal/app.py --action clean-cache` | Use prior to re-populating if you want a full refresh |
 
+**Dev index fallback**: If `manifest.json` is missing, `EEGWindowDataset` builds `/results/cache/tusz_mmap/dev/_dataset_index.json` automatically the first time it runs (may take 5–10 min). Future restarts reuse this file and skip the rebuild. Leave it on disk.
+
 Manifests live alongside the data (`/results/cache/tusz_mmap/{train,dev}/manifest.json`). If `check-cache` reports a stale dev manifest, delete it and re-run training; the loader rebuilds it from the mmap cache on startup.
 
 ---
@@ -114,6 +116,7 @@ Manifests live alongside the data (`/results/cache/tusz_mmap/{train,dev}/manifes
 - Initialization takes ~10–15 min (manifest load, worker spawn, preflight batch).
 - Heartbeat logging every ~10 batches; gradient norms printed when they spike (expected with FP16).
 - Timeout guard emits `[TIMEOUT] Wall-clock limit approaching …` followed by `[TIMEOUT] Saved timeout_exit.pt`.
+- Training start should log `[DATASET] BalancedSeizureDataset: …` (balanced sampler). If you ever see `[WARNING] BalancedSeizureDataset failed: … falling back to EEGWindowDataset`, stop the run—balanced sampling is disabled and the model will under-train.
 
 ### W&B
 - Metrics continue seamlessly thanks to `.wandb_run_id`.
@@ -125,12 +128,14 @@ Manifests live alongside the data (`/results/cache/tusz_mmap/{train,dev}/manifes
 
 | Symptom | Likely Cause | Fix |
 |---------|--------------|-----|
+| `[WARNING] BalancedSeizureDataset failed: … falling back to EEGWindowDataset` | Manifest missing or file-list mismatch (e.g., stale cache names after resume) | Abort the run. Verify `cache/tusz_mmap/train/manifest.json` on Modal (`check-cache`) and relaunch; ensure you’re on v3.9.1+ so EDF filenames are mapped to `_data.npy`. |
 | `ValidationDataset` loads 0 windows | Stale dev manifest | `check-cache` → delete manifest → relaunch (auto rebuild) |
 | Modal times out at 24 h and kills job | No timeout guard (old build) | Ensure you’re on v3.9.0+; guard saves `timeout_exit.pt` |
 | New W&B run after resume | `.wandb_run_id` missing | Check checkpoint directory permissions; file must be writable |
 | NPZ files reported | Old aborted run | `modal run deploy/modal/clean_stray_npz.py --confirm` |
 | Cache mismatch warnings | Wrong cache path in configs | Ensure `data.cache_dir: /results/cache/tusz_mmap` |
 | OOM | Batch size incorrectly changed | Keep `batch_size: 48`, `gradient_accumulation_steps: 1` |
+| `Runner failed with exception: Worker disappeared` during Triton compile | Transient GPU/spot preemption early in run | Modal respawns automatically; allow restart, then check for `_dataset_index.json` creation (~5–10 min) before resuming normal monitoring. Reduce first checkpoint interval if you want earlier snapshots. |
 
 ---
 
