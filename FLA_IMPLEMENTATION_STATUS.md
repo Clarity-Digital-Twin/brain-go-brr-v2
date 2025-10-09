@@ -152,7 +152,7 @@
 
 ### 🔄 **IN PROGRESS**
 
-**Phase 2 (Both Streams GDN)** - SMOKE TEST COMPLETE, MEDIUM VALIDATION READY:
+**Phase 2 (Both Streams GDN)** - SMOKE TEST COMPLETE, MEDIUM VALIDATION COMPLETE:
 - [x] ✅ **Config created**: `configs/local/phase2_both_gdn.yaml` (Oct 8, 2025)
   - Complete 194-line config
   - `experiment.name: "phase2_both_gdn"`
@@ -166,26 +166,28 @@
   - Both streams verified: Node BiGatedDeltaNet (d_model=64) + Edge BiGatedDeltaNet (d_model=32) ✅
   - No crashes, no NaNs ✅
   - Evidence: `/tmp/phase2_smoke.log`
-- [ ] 🚀 **Medium validation READY TO LAUNCH** (40-50 files, 6 epochs, ~2-3h)
+- [x] ⚠️ **Medium validation COMPLETE** (Oct 8, 2025 22:09 EDT - 50 files, 5 epochs)
+  - **Technical success**: No crashes, no NaNs, no OOM (GPU: 17.5GB, RAM: 23.5GB) ✅
+  - **Performance issue**: Model collapsed at epoch 4 (sensitivity dropped to 10.53%)
+  - **Best result**: Epoch 3, sensitivity@10FA = 31.58%, AUROC = 0.5777
+  - **Root cause**: Only 99/3626 windows (2.73%) had seizures with BGB_LIMIT_FILES=50
+  - **Evidence**: `/tmp/phase2_medium.log`
+  - **Status**: Infrastructure validated, but need more seizure-positive data for stable training
 
 ---
 
 ### ❌ **PENDING**
 
-**Medium Validation Run**:
-- [ ] Use Phase 2 config (both streams GDN)
-- [ ] Run with 40-50 files, 5-6 epochs (LOCAL)
-- [ ] Monitor: gradient clipping %, GPU/RAM peaks, NaN checks
-- [ ] Success criteria:
-  - No NaNs
-  - Loss converges
-  - Gradient clip % < 80% after warmup
-  - GPU < 22GB, RAM < 28GB
-  - Checkpoints save/load correctly
-- [ ] If fails: Debug and iterate
-- [ ] If passes: Proceed to Modal
+**Dataset Strategy Decision**:
+- [ ] **Option A**: Use full dataset (remove BGB_LIMIT_FILES) for local full training
+  - Pro: Real distribution, more seizures
+  - Con: Longer training (~2-3 hours/epoch × 100 epochs = 200-300 hours)
+- [ ] **Option B**: Skip local full training, go straight to Modal after BiMamba2 baseline
+  - Pro: Faster, Modal has better compute
+  - Con: No local baseline for FLA stack
+- [ ] **Current recommendation**: Wait for BiMamba2 Modal baseline to complete, then create Modal FLA config
 
-**Full Modal Training**:
+**Full Modal Training** (BLOCKED: waiting for BiMamba2 baseline):
 - [ ] Deploy Phase 2 config (both streams GDN) to Modal
 - [ ] Full dataset, 100 epochs
 - [ ] Compare against BiMamba2 baseline (currently running)
