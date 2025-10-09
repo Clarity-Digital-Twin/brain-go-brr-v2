@@ -2,7 +2,8 @@
 
 **Status**: 🔴 CRITICAL - Training using wrong dataset (imbalanced)
 **Impact**: Model will underperform due to insufficient seizure examples
-**Priority**: P0 - Stop training, fix, resume
+**Priority**: P0 - Stop training, fix immediately
+**Root Cause**: **TWO BUGS** working together to break balanced sampling
 
 ---
 
@@ -16,195 +17,145 @@ Modal training resumed at **Oct 09 07:33** and immediately fell back to imbalanc
 Full: 0, No-seizure: 0; falling back to EEGWindowDataset
 ```
 
-**What this means**:
-- ❌ Training is using **EEGWindowDataset** (imbalanced, ~8% seizures)
-- ✅ Should be using **BalancedSeizureDataset** (balanced, ~30% seizures)
-- ❌ Model will see far fewer seizure examples
-- ❌ Performance will degrade
+**Impact**:
+- ❌ Training uses **EEGWindowDataset** (imbalanced, ~8% seizures, ~3,000 seizure windows/epoch)
+- ✅ Should use **BalancedSeizureDataset** (balanced, ~30% seizures, ~10,000+ seizure windows/epoch)
+- ❌ Model sees **70% fewer seizure examples** → significantly degraded performance
+- 💰 Wasting **~$319** on training run that will produce bad model
 
 ---
 
-## 🔍 **Investigation: Why Did This Happen?**
+## 🔍 **Root Cause: TWO BUGS**
 
-### **Hypothesis 1: Modal manifest is empty**
+### **Bug #1: NPZ Glob in Manifest Rebuild Check** (`loop.py:668`)
 
-**Evidence from Modal logs**:
-```
-[CACHE] ✅ Manifest found at /results/cache/tusz_mmap/train/manifest.json
-```
+**Location**: `src/brain_brr/train/loop.py:668`
 
-But when `BalancedSeizureDataset` tries to load it:
+**The Bug**:
 ```python
-partial: list[dict] = list(manifest.get("partial_seizure", []))
-full: list[dict] = list(manifest.get("full_seizure", []))
-no_seizure: list[dict] = list(manifest.get("no_seizure", []))
+existing_cache_files = list(train_cache_dir.glob("*.npz"))  # ❌ WRONG FORMAT
 ```
 
-All three are **EMPTY** (length 0), so it raises `ValueError` and falls back.
+**Why It's Wrong**:
+- Modal cache uses **NPY format** (`*_data.npy`, `*_labels.npy`)
+- Code looks for **NPZ format** (`*.npz`)
+- Finds **NOTHING** → thinks cache is empty
+- Skips manifest rebuild even though cache has 4,667 NPY files
 
-### **Local vs Modal Manifest Comparison**
+**Correct Fix**:
+```python
+# Check for NPY format (current) or NPZ format (legacy)
+existing_cache_files = list(train_cache_dir.glob("*_data.npy"))
+if not existing_cache_files:
+    existing_cache_files = list(train_cache_dir.glob("*.npz"))
+```
 
-**Local manifest** (working):
+---
+
+### **Bug #2: EDF vs Cache Filename Mismatch** (`loop.py:688`, `datasets.py:371-377`)
+
+**CRITICAL**: This is the **REAL SHOWSTOPPER** - even with a healthy manifest!
+
+**Location**: `src/brain_brr/train/loop.py:688` + `src/brain_brr/data/datasets.py:371-377`
+
+**The Bug**:
+```python
+# loop.py:688 - Passes EDF file paths to BalancedSeizureDataset
+train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=train_files)
+```
+
+`train_files` contains **EDF filenames**:
+```python
+["aaaaaaac_s001_t000.edf", "aaaaaaad_s001_t000.edf", ...]
+```
+
+But manifest contains **cache filenames**:
+```python
+# Manifest entries:
+{"cache_file": "aaaaaaac_s001_t000_data.npy", "window_idx": 0}
+{"cache_file": "aaaaaaac_s001_t000_data.npy", "window_idx": 1}
+...
+```
+
+**BalancedSeizureDataset filters by filename** (`datasets.py:371-377`):
+```python
+if file_list is not None:
+    file_basenames = {f.name for f in file_list}  # {"aaaaaaac_s001_t000.edf", ...}
+    partial = [item for item in partial if Path(item["cache_file"]).name in file_basenames]
+    #                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    #                                      "aaaaaaac_s001_t000_data.npy" NOT IN {"*.edf"}
+    # Result: ALL ENTRIES FILTERED OUT!
+```
+
+**Result**:
+- **ALL** manifest entries filtered out (extension mismatch: `.edf` ≠ `_data.npy`)
+- `partial = []`, `full = []`, `no_seizure = []`
+- Raises `ValueError("No partial seizure windows found in manifest!")`
+- Falls back to `EEGWindowDataset`
+
+**Why This Wasn't Caught Before**:
+- This bug was introduced on **Oct 8, 2025** in commit `947149b`
+- Initial training (many days ago) didn't have `file_list` parameter
+- Modal resumed **AFTER** this commit → hit the bug immediately
+
+**Evidence from Git History**:
+```bash
+$ git show 947149b --stat
+commit 947149b (Oct 8, 16:43)
+feat: Enhance BalancedSeizureDataset to support optional file list filtering
+
+- Added `file_list` parameter for smoke tests
+- Training loop now passes `file_list=train_files`
+```
+
+---
+
+## 🔍 **Why Initial Training Worked But Resume Failed**
+
+### **Timeline**
+
+1. **Initial training start** (Sept/early Oct):
+   - Used old code WITHOUT `file_list` parameter
+   - Cache was NPZ format (legacy)
+   - Line 668: `glob("*.npz")` **FOUND FILES** → manifest built
+   - BalancedSeizureDataset created WITHOUT file_list → no filtering
+   - Training succeeded ✅
+
+2. **NPZ → NPY migration** (Oct 6-8):
+   - Cache converted to NPY format (`*_data.npy`)
+   - Commit `947149b` (Oct 8) added `file_list` filtering to BalancedSeizureDataset
+
+3. **Resume** (Oct 9 07:33):
+   - **Bug #1**: `glob("*.npz")` finds nothing → manifest not rebuilt
+   - **Bug #2**: `file_list=train_files` (EDF names) filters out ALL manifest entries (cache names)
+   - BalancedSeizureDataset fails → falls back to EEGWindowDataset ❌
+
+---
+
+## 🔍 **Evidence**
+
+### **Local Manifest is HEALTHY**
 ```bash
 $ python3 -c "import json; m = json.load(open('cache/tusz_mmap/train/manifest.json')); \
-  print('partial:', len(m.get('partial_seizure', [])))"
+  print('partial:', len(m['partial_seizure'])); \
+  print('Example:', m['partial_seizure'][0])"
 partial: 16215
 full: 8446
 no_seizure: 279329
+Example: {'cache_file': 'aaaaaaac_s001_t000_data.npy', 'window_idx': 0}
 ```
 
-**Modal manifest** (BROKEN - inferred from logs):
-```python
-# Modal manifest structure (inferred):
-{
-  "partial_seizure": [],  # EMPTY
-  "full_seizure": [],     # EMPTY
-  "no_seizure": []        # EMPTY
-}
-```
+### **Manifest Structure Uses Cache Filenames**
+- Manifest references: `aaaaaaac_s001_t000_data.npy`
+- `train_files` contains: `aaaaaaac_s001_t000.edf`
+- Filter: `"aaaaaaac_s001_t000_data.npy" in {"aaaaaaac_s001_t000.edf"}` → **FALSE**
+- All entries filtered out!
 
 ---
 
-## 🔍 **Root Cause Analysis**
+## 🔧 **THE COMPLETE FIX**
 
-### **When was Modal manifest created?**
-
-Looking at the logs, Modal training has been running for multiple days. The manifest was likely created:
-
-1. **During initial cache population** (many days ago)
-2. **Before recent validation refactor** (Oct 6-8, 2025)
-
-### **What changed in the refactor?**
-
-From git log:
-```
-b9b948a docs(technical-debt): Update active debt documentation
-7353684 fix: Correct variable name in EEGWindowDataset
-8ad130e refactor: Enhance type safety and clarity in dataset and logging modules
-ca31425 refactor: Centralize memory-mapped cache loading logic for datasets
-7b03882 refactor: Implement cache management improvements and clean stray NPZ files
-9d206a7 refactor: Implement cache management improvements to prevent NPZ contamination
-```
-
-**Key changes**:
-- NPZ → NPY migration (Oct 6-8)
-- Manifest generation logic in `scan_existing_cache()` updated
-- Cache file naming changed from `*_windows.npz` → `*_data.npy`
-
-### **Why is the Modal manifest empty?**
-
-**Theory 1: Old manifest format**
-- Modal manifest was created with OLD code (before Oct 6)
-- Old code may have used different keys or structure
-- New code expects `partial_seizure`, `full_seizure`, `no_seizure` lists
-
-**Theory 2: Manifest wasn't rebuilt after NPZ→NPY migration**
-- Modal cache was converted from NPZ to NPY
-- But manifest wasn't regenerated
-- Old manifest references NPZ files, new code expects NPY
-
-**Theory 3: Race condition during resume**
-- Resume loads checkpoint
-- Checkpoint path validation happens
-- But manifest isn't re-validated/regenerated
-
----
-
-## 🔍 **Critical Question: Why Did Initial Run Work?**
-
-### **Timeline Reconstruction**
-
-1. **Initial training start** (several days ago):
-   - Cache population ran: `modal run --action populate_cache`
-   - Manifest generated with seizure statistics
-   - Training started with `BalancedSeizureDataset`
-   - Training ran successfully for multiple epochs
-
-2. **OOM crash** (Oct 8-9):
-   - Validation hit 120GB RAM spike
-   - Modal killed training (exit 137)
-   - Checkpoint saved at end of last epoch
-
-3. **Resume** (Oct 9 07:33):
-   - Deployed with disk-backed validation fix
-   - Resume from `last.pt` checkpoint
-   - **NEW CODE** tries to load manifest
-   - Manifest empty → fallback to `EEGWindowDataset`
-
-### **Key Insight: Resume vs Fresh Start**
-
-**Theory**: Initial run used **DIFFERENT DATASET LOADING PATH**
-
-## 🔍 **CODE AUDIT: Dataset Loading Logic**
-
-### **Location**: `src/brain_brr/train/loop.py` lines 639-836
-
-### **The Bug** (lines 664-678):
-
-```python
-if use_balanced and not manifest_path.exists():
-    # CRITICAL: Only build manifest if cache already has files!
-    # Bug fix: Don't build manifest from empty directory
-    train_cache_dir.mkdir(parents=True, exist_ok=True)
-    existing_cache_files = list(train_cache_dir.glob("*.npz"))  # ← BUG HERE
-    if existing_cache_files:
-        try:
-            from src.brain_brr.data.cache_utils import scan_existing_cache
-
-            _ = scan_existing_cache(train_cache_dir)
-            logger.info(f"[DATA] Built manifest from {len(existing_cache_files)} cached files")
-        except Exception as e:
-            logger.info(f"[WARNING] Manifest build failed: {e}")
-    else:
-        logger.info("[DATA] Skipping manifest build - cache not yet populated")
-```
-
-**THE BUG**: Line 668 checks for `*.npz` files, but Modal cache is **NPY format**!
-
-### **Why Initial Run Worked**
-
-1. **Initial training start** (many days ago):
-   - Cache was probably NPZ format (legacy)
-   - Line 668: `existing_cache_files = list(train_cache_dir.glob("*.npz"))` **FOUND FILES**
-   - `scan_existing_cache()` ran
-   - Manifest created with seizure statistics
-   - Training used `BalancedSeizureDataset` ✅
-
-2. **Cache migration** (Oct 6-8):
-   - NPZ files converted to NPY format
-   - Manifest may have been regenerated
-
-3. **OOM crash** (Oct 8-9):
-   - Modal killed training
-
-4. **Resume with new code** (Oct 9 07:33):
-   - Line 668: `existing_cache_files = list(train_cache_dir.glob("*.npz"))` **FINDS NOTHING**
-   - Why? Cache is now NPY format (`*_data.npy`, `*_labels.npy`)
-   - Code skips manifest rebuild: `"[DATA] Skipping manifest build - cache not yet populated"`
-   - But manifest DOES exist (from before)!
-   - Manifest is EMPTY or OLD format
-   - BalancedSeizureDataset fails: "No partial seizure windows found"
-   - Falls back to `EEGWindowDataset` ❌
-
-### **Root Cause Summary**
-
-**Line 668 is WRONG**:
-```python
-existing_cache_files = list(train_cache_dir.glob("*.npz"))  # ❌ WRONG
-```
-
-**Should be**:
-```python
-existing_cache_files = list(train_cache_dir.glob("*_data.npy"))  # ✅ CORRECT
-```
-
-This causes the code to think the cache is empty (because it's looking for NPZ but cache is NPY), so it doesn't rebuild the stale manifest.
-
----
-
-## 🔧 **THE FIX**
-
-### **Fix #1: Update `loop.py` line 668** (CRITICAL)
+### **Fix #1: Update NPZ glob** (`loop.py:668`) - CRITICAL
 
 **File**: `src/brain_brr/train/loop.py:668`
 
@@ -221,167 +172,91 @@ if not existing_cache_files:
     existing_cache_files = list(train_cache_dir.glob("*.npz"))
 ```
 
-### **Fix #2: Force manifest rebuild on Modal** (IMMEDIATE)
+---
 
-**Option A: Delete stale manifest and rebuild**:
-```bash
-# Stop current training
-modal app stop ap-<current-app-id>
+### **Fix #2: Convert EDF filenames to cache filenames** (`loop.py:688`) - CRITICAL
 
-# Delete stale manifest (via Modal shell or rebuild script)
-modal run deploy/modal/app.py --action rebuild-manifest
+**File**: `src/brain_brr/train/loop.py:688`
 
-# Resume training (will build fresh manifest)
-modal run --detach deploy/modal/app.py --action train \
-  --config configs/modal/train.yaml --resume true
-```
-
-**Option B: Set env var to force rebuild**:
-```bash
-# Stop current training
-modal app stop ap-<current-app-id>
-
-# Add to deploy/modal/app.py before training:
-os.environ["BGB_FORCE_MANIFEST_REBUILD"] = "1"
-
-# Resume training
-modal run --detach deploy/modal/app.py --action train \
-  --config configs/modal/train.yaml --resume true
-```
-
-### **Fix #3: Add validation check** (DEFENSIVE)
-
-**File**: `src/brain_brr/train/loop.py:686-703`
-
-**Add before `try:` block**:
+**Before**:
 ```python
-if use_balanced and manifest_path.exists():
-    try:
-        train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=train_files)
+train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=train_files)
+```
 
-        # DEFENSIVE CHECK: If manifest exists but dataset is empty, force rebuild
-        if len(train_dataset) == 0:
-            logger.warning("[DATA] Manifest exists but produced 0 windows → forcing rebuild")
-            manifest_path.unlink()
-            from src.brain_brr.data.cache_utils import scan_existing_cache
-            _ = scan_existing_cache(train_cache_dir)
-            # Retry after rebuild
-            train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=train_files)
+**After**:
+```python
+# Convert EDF filenames to cache filenames for filtering
+cache_file_list = [Path(f"{f.stem}_data.npy") for f in train_files]
+train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=cache_file_list)
+```
+
+**Also update second occurrence** (`loop.py:830`):
+```python
+# Old:
+train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=train_files)
+
+# New:
+cache_file_list = [Path(f"{f.stem}_data.npy") for f in train_files]
+train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=cache_file_list)
+```
+
+---
+
+### **Fix #3: Update ValidationDataset call** (`loop.py:82-88`)
+
+**File**: `src/brain_brr/train/loop.py:82-88`
+
+**Status**: **ALREADY CORRECT** - no change needed
+
+ValidationDataset already does the conversion correctly:
+```python
+allowed_cache_files = (
+    {f"{val_file.stem}_data.npy" for val_file in val_files} if val_files else None
+)
+```
+
+---
+
+### **Fix #4: Delete stale Modal manifest** - IMMEDIATE
+
+**Option A: Via Modal shell**:
+```bash
+# Stop current training
+modal app list
+modal app stop ap-<current-app-id>
+
+# Delete stale manifest
+modal run deploy/modal/app.py --action shell
+# In shell: rm /results/cache/tusz_mmap/train/manifest.json
+exit
+```
+
+**Option B: Set env var to force rebuild** (add to `deploy/modal/app.py`):
+```python
+os.environ["BGB_FORCE_MANIFEST_REBUILD"] = "1"
 ```
 
 ---
 
 ## ✅ **VERIFICATION CHECKLIST**
 
-After applying fixes, verify:
-
-1. ✅ **Local test passes**:
-   ```bash
-   # Force NPY cache format
-   python -m src build-cache --data-dir data/tusz/train --cache-dir cache/test_npy
-
-   # Test manifest generation
-   python -c "
-   from src.brain_brr.data.cache_utils import scan_existing_cache
-   from pathlib import Path
-   m = scan_existing_cache(Path('cache/test_npy'))
-   print('partial:', len(m['partial_seizure']))
-   print('full:', len(m['full_seizure']))
-   print('no_seizure:', len(m['no_seizure']))
-   "
-   # Should print non-zero counts
-   ```
-
-2. ✅ **Modal training uses BalancedSeizureDataset**:
-   ```bash
-   modal app logs <app-id> | grep "BalancedSeizureDataset"
-   # Should see: "[DATASET] BalancedSeizureDataset: 304990 windows from manifest"
-   # Should NOT see: "[WARNING] BalancedSeizureDataset failed"
-   ```
-
-3. ✅ **Manifest has seizure statistics**:
-   ```bash
-   # On Modal (via shell or logs):
-   python3 -c "
-   import json
-   m = json.load(open('/results/cache/tusz_mmap/train/manifest.json'))
-   print('partial:', len(m.get('partial_seizure', [])))
-   print('full:', len(m.get('full_seizure', [])))
-   print('no_seizure:', len(m.get('no_seizure', [])))
-   "
-   # Should print:
-   # partial: 16215
-   # full: 8446
-   # no_seizure: 279329
-   ```
-
----
-
-## 📊 **IMPACT ANALYSIS**
-
-### **Current State** (BROKEN):
-- Training uses `EEGWindowDataset` (imbalanced)
-- ~8% seizures in batches (natural distribution)
-- Model sees ~3,000 seizure windows per epoch
-- Performance will be **significantly degraded**
-
-### **After Fix** (CORRECT):
-- Training uses `BalancedSeizureDataset` (balanced)
-- ~30% seizures in batches (oversampled)
-- Model sees ~10,000+ seizure windows per epoch
-- Performance should match previous runs
-
-### **Time Cost**:
-- Stop current training: **IMMEDIATE**
-- Rebuild manifest: **~5-10 minutes**
-- Resume training: **~5 minutes**
-- **Total downtime: ~15-20 minutes**
-
-### **Financial Cost**:
-- Current broken training: **Wasting $319** (will produce bad model)
-- Fix and resume: **Save $300+** (recover most of training progress)
-
----
-
-## 🎯 **RECOMMENDED ACTION PLAN**
-
-### **Step 1: STOP Current Training** (RIGHT NOW)
+### **1. Local smoke test**:
 ```bash
-modal app list
-modal app stop ap-<current-app-id>
-```
-
-### **Step 2: Apply Code Fix**
-```bash
-# Edit src/brain_brr/train/loop.py:668
-# Change: existing_cache_files = list(train_cache_dir.glob("*.npz"))
-# To:     existing_cache_files = list(train_cache_dir.glob("*_data.npy"))
-```
-
-### **Step 3: Rebuild Modal Manifest**
-```bash
-# Option A: Delete and let training rebuild
-modal run deploy/modal/app.py --action shell
-# In shell: rm /results/cache/tusz_mmap/train/manifest.json
-
-# Option B: Force rebuild via env var
-# Add to deploy/modal/app.py:
-# os.environ["BGB_FORCE_MANIFEST_REBUILD"] = "1"
-```
-
-### **Step 4: Resume Training**
-```bash
-modal run --detach deploy/modal/app.py --action train \
-  --config configs/modal/train.yaml --resume true
-```
-
-### **Step 5: Verify Fix**
-```bash
-# Watch logs for success indicators
-modal app logs <new-app-id> | grep -E "BalancedSeizureDataset|manifest"
+# Test with 3 files
+export BGB_SMOKE_TEST=1
+python -m src train configs/local/smoke.yaml
 
 # Should see:
-# [DATA] Built manifest from 4667 cached files
+# [DATASET] BalancedSeizureDataset: XXX windows from manifest
+# Should NOT see:
+# [WARNING] BalancedSeizureDataset failed
+```
+
+### **2. Modal training logs**:
+```bash
+modal app logs <app-id> | grep "BalancedSeizureDataset"
+
+# Should see:
 # [DATASET] BalancedSeizureDataset: 304990 windows from manifest
 
 # Should NOT see:
@@ -389,47 +264,189 @@ modal app logs <new-app-id> | grep -E "BalancedSeizureDataset|manifest"
 # falling back to EEGWindowDataset
 ```
 
+### **3. Verify manifest health**:
+```bash
+# On Modal (via shell):
+python3 -c "
+import json
+m = json.load(open('/results/cache/tusz_mmap/train/manifest.json'))
+print('partial:', len(m.get('partial_seizure', [])))
+print('full:', len(m.get('full_seizure', [])))
+print('no_seizure:', len(m.get('no_seizure', [])))
+"
+# Should print non-zero counts (partial: ~16K, full: ~8K, no_seizure: ~279K)
+```
+
+---
+
+## 📊 **IMPACT ANALYSIS**
+
+| Metric | Current (BROKEN) | After Fix (CORRECT) |
+|--------|------------------|---------------------|
+| **Dataset** | EEGWindowDataset (imbalanced) | BalancedSeizureDataset (balanced) |
+| **Seizure %** | ~8% (natural) | ~30% (oversampled) |
+| **Seizure windows/epoch** | ~3,000 | ~10,000+ |
+| **Performance** | **Significantly degraded** | Full potential |
+| **Cost** | **Wasting $319** | Recovers training |
+| **Fix time** | ~20 minutes | N/A |
+
+---
+
+## 🎯 **RECOMMENDED ACTION PLAN**
+
+### **Step 1: STOP Current Training** (IMMEDIATE)
+```bash
+modal app list
+modal app stop ap-<current-app-id>
+```
+
+### **Step 2: Apply Code Fixes** (5 minutes)
+
+**Edit `src/brain_brr/train/loop.py`**:
+
+1. **Line 668** - Fix NPZ glob:
+   ```python
+   # OLD:
+   existing_cache_files = list(train_cache_dir.glob("*.npz"))
+
+   # NEW:
+   existing_cache_files = list(train_cache_dir.glob("*_data.npy"))
+   if not existing_cache_files:
+       existing_cache_files = list(train_cache_dir.glob("*.npz"))
+   ```
+
+2. **Line 688** - Fix filename mismatch:
+   ```python
+   # OLD:
+   train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=train_files)
+
+   # NEW:
+   cache_file_list = [Path(f"{f.stem}_data.npy") for f in train_files]
+   train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=cache_file_list)
+   ```
+
+3. **Line 830** - Fix second occurrence:
+   ```python
+   # OLD:
+   train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=train_files)
+
+   # NEW:
+   cache_file_list = [Path(f"{f.stem}_data.npy") for f in train_files]
+   train_dataset = BalancedSeizureDataset(train_cache_dir, file_list=cache_file_list)
+   ```
+
+### **Step 3: Test Locally** (2 minutes)
+```bash
+export BGB_SMOKE_TEST=1
+python -m src train configs/local/smoke.yaml
+
+# Verify BalancedSeizureDataset is used (check logs)
+```
+
+### **Step 4: Delete Stale Modal Manifest** (1 minute)
+```bash
+# Option A: Via Modal shell
+modal run deploy/modal/app.py --action shell
+# In shell: rm /results/cache/tusz_mmap/train/manifest.json
+
+# Option B: Set env var in deploy/modal/app.py
+# os.environ["BGB_FORCE_MANIFEST_REBUILD"] = "1"
+```
+
+### **Step 5: Resume Training** (2 minutes)
+```bash
+modal run --detach deploy/modal/app.py --action train \
+  --config configs/modal/train.yaml --resume true
+```
+
+### **Step 6: Verify Fix** (2 minutes)
+```bash
+modal app logs <new-app-id> | grep -E "BalancedSeizureDataset|manifest"
+
+# SUCCESS indicators:
+# ✅ [DATA] Built manifest from 4667 cached files
+# ✅ [DATASET] BalancedSeizureDataset: 304990 windows from manifest
+
+# FAILURE indicators (should NOT see):
+# ❌ [WARNING] BalancedSeizureDataset failed
+# ❌ falling back to EEGWindowDataset
+```
+
 ---
 
 ## 📝 **LESSONS LEARNED**
 
-### **1. NPZ → NPY Migration Incomplete**
-- Code changed to support NPY format
-- But one glob pattern (`*.npz`) was missed in `loop.py:668`
-- **Fix**: Always search for both formats during migration
+### **1. NPZ → NPY Migration Was Incomplete**
+- ❌ Missed glob pattern in `loop.py:668`
+- ✅ **Fix**: Audit ALL file extension references during migrations
+- ✅ **Prevention**: Add integration test that verifies manifest rebuild with NPY cache
 
-### **2. Manifest Validation Missing**
-- Old manifests can become stale after cache format changes
-- No automatic detection/rebuild of stale manifests
-- **Fix**: Add `check_manifest_stale()` call before using BalancedSeizureDataset
+### **2. File List Filtering Introduced Extension Mismatch**
+- ❌ Commit `947149b` (Oct 8) passed EDF filenames to filter cache filenames
+- ❌ No test coverage for `file_list` parameter with real manifest
+- ✅ **Fix**: Convert EDF → cache filenames before passing to dataset
+- ✅ **Prevention**: Add smoke test that exercises `file_list` filtering
 
-### **3. Resume Logic Doesn't Validate Dataset**
-- Resume loads checkpoint but doesn't check dataset health
-- Training can continue with wrong dataset silently
-- **Fix**: Add defensive checks after dataset creation
+### **3. Resume Logic Doesn't Validate Dataset Health**
+- ❌ Resume loaded checkpoint but didn't detect wrong dataset
+- ❌ Training continued silently with degraded performance
+- ✅ **Fix**: Add explicit log showing dataset type at training start
+- ✅ **Prevention**: Add assertion `isinstance(train_dataset, BalancedSeizureDataset)` when `use_balanced=True`
 
-### **4. Logs Don't Show Dataset Type Clearly**
-- Hard to tell from logs whether BalancedSeizureDataset or EEGWindowDataset is used
-- **Fix**: Add explicit log line showing dataset type at training start
+### **4. Integration Tests Didn't Catch This**
+- ❌ No test for manifest + file_list filtering
+- ❌ No test for NPY cache + manifest rebuild logic
+- ✅ **Fix**: Add `test_balanced_dataset_with_file_list()` to test suite
+- ✅ **Fix**: Add `test_manifest_rebuild_npy_cache()` to test suite
+
+---
+
+## 🔍 **Technical Deep Dive: Why Both Bugs Were Needed**
+
+**Bug #1 alone** (NPZ glob) would be HARMLESS if manifest already exists:
+- Manifest exists → BalancedSeizureDataset tries to use it
+- Manifest is healthy → filtering works
+- Training succeeds ✅
+
+**Bug #2 alone** (filename mismatch) would be HARMLESS without `file_list`:
+- BalancedSeizureDataset called without `file_list`
+- No filtering applied
+- All manifest entries used
+- Training succeeds ✅
+
+**But TOGETHER they're FATAL**:
+1. Bug #1: Manifest not rebuilt (thinks cache empty)
+2. Old manifest may exist but is stale
+3. Bug #2: Even if manifest is healthy, ALL entries filtered out
+4. BalancedSeizureDataset fails
+5. Falls back to EEGWindowDataset ❌
+
+**This is a classic "perfect storm" bug** - two individually manageable issues combine into critical failure.
 
 ---
 
 ## 🚨 **CRITICAL TIMELINE**
 
-**DO THIS NOW**:
-1. Stop current Modal training (wasting money)
-2. Apply code fix (5 minutes)
-3. Delete stale manifest on Modal (1 minute)
-4. Resume training with fix (5 minutes)
-5. Verify BalancedSeizureDataset is used (2 minutes)
+**STOP TRAINING NOW** - Every hour wastes **~$3.19**
 
-**Total time**: ~15 minutes
-**Cost savings**: ~$250-300 (avoid training bad model)
+**Fix Timeline**:
+1. Stop training: **IMMEDIATE**
+2. Apply code fixes: **5 minutes**
+3. Test locally: **2 minutes**
+4. Delete stale manifest: **1 minute**
+5. Resume training: **2 minutes**
+6. Verify fix: **2 minutes**
+
+**Total downtime**: ~12 minutes
+**Cost savings**: **~$250-300** (avoid training bad model for 100 epochs)
 
 ---
 
 **Document Created**: October 9, 2025 09:15 UTC
+**Document Revised**: October 9, 2025 10:45 UTC (added Bug #2 - filename mismatch)
 **Priority**: P0 - CRITICAL
-**Status**: Investigation complete, fix identified
-**Next Action**: Stop training, apply fix, resume
+**Status**: Investigation complete, TWO BUGS identified, fixes ready
+**Next Action**: Apply fixes, test, resume training
+
+**Credits**: External agent feedback correctly identified filename mismatch bug (Bug #2)
 
