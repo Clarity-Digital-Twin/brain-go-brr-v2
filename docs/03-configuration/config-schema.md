@@ -88,11 +88,11 @@ Constraints and validations
 
 Examples
 
-- Local training: `configs/local/train.yaml`
-- Modal training: `configs/modal/train.yaml`
-- Smoke tests: `configs/local/smoke.yaml`, `configs/modal/smoke.yaml`
+- Local training: `configs/local/train_bimamba.yaml` (BiMamba2) / `configs/local/train_fla.yaml` (FLA)
+- Modal training: `configs/modal/train_bimamba.yaml` / `configs/modal/train_fla.yaml`
+- Smoke tests: `configs/local/smoke_bimamba.yaml`, `configs/local/smoke_fla.yaml`, `configs/modal/smoke_bimamba.yaml`, `configs/modal/smoke_fla.yaml`
 
 Validation
 
-- `python -m src validate configs/local/train.yaml`
+- `python -m src validate configs/local/train_bimamba.yaml`
 - Optional phase checks: `--phase data|model|training`

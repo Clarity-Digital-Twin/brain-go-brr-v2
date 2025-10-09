@@ -23,10 +23,10 @@ modal run deploy/modal/app.py --action check-cache
 modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
 
 # Full training (exits ~23 h with timeout_exit.pt)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
 
 # Resume after timeout/interruption
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml --resume true
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume true
 
 # Clean stray NPZ files if check-cache reports them
 modal run deploy/modal/clean_stray_npz.py --confirm
@@ -47,7 +47,8 @@ modal app stop <app-id>
 - **RAM**: 96 GB
 - **Volume**: `/results` persistent SSD (~500 GB)
 
-### Training Profile (configs/modal/train.yaml)
+### Training Profile (configs/modal/train_bimamba.yaml)
+(*FLA variant: `configs/modal/train_fla.yaml` with the temporal overrides discussed above*)
 ```yaml
 data:
   data_dir: /data/edf

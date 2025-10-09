@@ -17,8 +17,9 @@ Preflight (must pass before any training)
 
 Training (smoke → full)
 
-- Smoke: `make s` (or `python -m src train configs/local/smoke.yaml`)
-- Full: `make train-local` (or `python -m src train configs/local/train.yaml`)
+- Smoke (BiMamba2): `make smoke-bimamba` (or `python -m src train configs/local/smoke_bimamba.yaml`)
+- Full (BiMamba2): `make train-bimamba` (or `python -m src train configs/local/train_bimamba.yaml`)
+- FLA stack: `make smoke-fla` / `make train-fla`
   - Modal smoke/full configs live under `configs/modal/`
 
 What went wrong (our real failures)
