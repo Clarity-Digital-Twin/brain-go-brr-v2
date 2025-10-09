@@ -53,7 +53,7 @@
 
 ## 📊 **Current Status (October 9, 2025)**
 
-### **BiMamba2 Baseline (v3.9.0)** - TRAINING LIVE
+### **BiMamba2 Baseline (v3.9.1)** - TRAINING LIVE
 ```
 Architecture: TCN + BiMamba2 + GNN + Dynamic LPE
 Status: Modal A100-80GB, 100 epochs, ~4667 train files

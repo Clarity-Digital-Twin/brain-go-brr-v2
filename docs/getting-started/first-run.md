@@ -1,7 +1,7 @@
 # Your First Training Run
 
 **Last Updated**: October 8, 2025  
-**Codebase Version**: v3.9.0 (Production Training Baseline)  
+**Codebase Version**: v3.9.1 (Validation OOM Fix)  
 **Estimated Time**: 30 minutes to launch, ~200–300 h (RTX 4090) or ~100 h (Modal A100) to complete
 
 ---
@@ -169,4 +169,4 @@ More detail: see `docs/08-operations/troubleshooting.md` and `docs/08-operations
 - Run evaluation/TAES pipeline on dev and eval sets
 - Explore future work ideas in `docs/future-work/`
 
-With the v3.9.0 tooling (atomic checkpoints + timeout guard + W&B persistence), resuming long Modal runs is routine—expect to relaunch every ~23 h and lose at most 10–30 minutes of progress.
+With the v3.9.1 tooling (atomic checkpoints + timeout guard + disk-backed validation + W&B persistence), resuming long Modal runs is routine—expect to relaunch every ~23 h and lose at most 10–30 minutes of progress.

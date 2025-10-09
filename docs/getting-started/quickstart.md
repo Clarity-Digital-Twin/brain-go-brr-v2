@@ -1,7 +1,7 @@
 # 5-Minute Quickstart
 
 **Last Updated**: October 8, 2025  
-**Codebase Version**: v3.9.0 (Production Training Baseline)  
+**Codebase Version**: v3.9.1 (Validation OOM Fix)  
 **Time Required**: ~5 minutes
 
 ---

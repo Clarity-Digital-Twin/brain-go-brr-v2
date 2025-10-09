@@ -4,7 +4,7 @@ This file provides critical project context for Claude Code (claude.ai/code) whe
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.9.0 (Production Training Baseline): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks. **Full Modal A100 training LIVE** with bulletproof checkpoints and timeout guards.
+Brain-Go-Brr v3.9.1 (Validation OOM Fix): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks. **Full Modal A100 training LIVE** with disk-backed validation and bulletproof checkpoints.
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
@@ -12,7 +12,7 @@ Brain-Go-Brr v3.9.0 (Production Training Baseline): Clinical EEG seizure detecti
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-Current Architecture (v3.9.0 - October 8, 2025):
+Current Architecture (v3.9.1 - October 9, 2025):
 - **V3 dual-stream** → Node (19×) and Edge (171×) parallel processing
 - **Memory-mapped cache (NPY)** → <1 GB RAM vs 387 GB for NPZ, 99.6% faster startup
 - **Bulletproof checkpoints** → Atomic saves (temp + fsync + rename), AMP scaler + RNG capture, every 30min
@@ -365,7 +365,7 @@ Due to hardware differences, integration tests have adjusted thresholds:
 
 **Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
 
-**Current Status (v3.9.0 - October 9, 2025 - BiMamba2 BASELINE + FLA RESEARCH)**:
+**Current Status (v3.9.1 - October 9, 2025 - Validation OOM Fixed)**:
 - ✅ **Zero technical debt** - All P0/P1/P2/P3 issues RESOLVED across all priority levels
 - ✅ **Bulletproof checkpoints** - Atomic saves every 30min, AMP scaler + RNG capture, verified integrity
 - ✅ **Timeout guard** - 23h wall-clock limit, 1h safety margin, graceful exit before Modal kill

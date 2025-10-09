@@ -107,7 +107,7 @@ model:
 
 **Scope of Phase 2**:
 - ✅ Both streams: BiMamba2 → BiGatedDeltaNet (experimental validation)
-- ❌ **DO NOT TOUCH**: GNN, TCN, decoder (keep v3.9.0 baseline)
+- ❌ **DO NOT TOUCH**: GNN, TCN, decoder (keep v3.9.1 baseline)
 
 **What MUST Exist Before Phase 2** (Built/validated during Phases 0-1b):
 - [x] Config schema with `temporal_type` / stream overrides (Doc 0 §14.1)
@@ -874,8 +874,8 @@ python -m src train configs/local/phase2_both_gdn.yaml
 **Only if config rollback fails**:
 
 ```bash
-# Revert to pre-Phase-2 state (NOT RECOMMENDED - use config rollback instead)
-git checkout v3.9.0-pre-phase2
+# Revert to release baseline (NOT RECOMMENDED - use config rollback instead)
+git checkout v3.9.1-validation-oom-fix
 
 # Or revert specific commits
 git revert HEAD~1
@@ -931,7 +931,7 @@ These criteria will be evaluated once full-dataset Modal runs complete (BiMamba2
 
 ### If All Phases Fail:
 
-1. **Revert to v3.9.0 baseline**: BiMamba2 for both streams
+1. **Revert to v3.9.1 baseline**: BiMamba2 for both streams
 2. **Alternative architectures**: Consider GLA, HGRN2, or hybrid approaches
 3. **Investigate**: Why didn't FLA benefit this specific architecture?
 

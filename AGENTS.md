@@ -1,12 +1,12 @@
 # AGENTS.md
 
-This document is automatically consumed by AI coding agents. Start every task by skimming this sheet, then drill into the linked docs for specifics. It reflects the **current v3.9.0 baseline plus the in-flight Flash Linear Attention (FLA) upgrade** state.
+This document is automatically consumed by AI coding agents. Start every task by skimming this sheet, then drill into the linked docs for specifics. It reflects the **current v3.9.1 baseline (validation OOM fix) plus the in-flight Flash Linear Attention (FLA) upgrade** state.
 
 ---
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.9.0 – “Bulletproof Resume” – is a clinical EEG seizure detector built on the **V3 dual-stream architecture**:
+Brain-Go-Brr v3.9.1 – “Validation OOM Fix” – is a clinical EEG seizure detector built on the **V3 dual-stream architecture**:
 
 - **TCN** (8 layers, stride_down=16) for multi-scale temporal encoding.
 - **Node BiMamba-2** (6 layers, d_model=64) for O(N) global context per electrode. **Phase 1b** validated a drop-in BiGatedDeltaNet option (same d_model, headdim=8, 0.75× heads constraint).
@@ -22,15 +22,15 @@ Key properties:
 - NumPy copy-on-read tensors eliminate PyTorch read-only warnings.
 - Technical debt is zero: lint, format, mypy, config validation, and 104 tests (83.8 % cov) are green with **zero runtime warnings**.
 - Mixed-precision runs guard the LR scheduler so it only advances after a real optimizer step—no skipped-step warnings, accurate warmup/cosine decay.
-- Modal automation: `check-cache` validates cache health / manifests; `clean_stray_npz.py` removes accidental NPZ files; training sets `BGB_WALL_CLOCK_LIMIT_S=82800` for the timeout guard.
+- Modal automation: `check-cache` validates cache health / manifests; `clean_stray_npz.py` removes accidental NPZ files; training sets `BGB_WALL_CLOCK_LIMIT_S=82800` for the timeout guard; **disk-backed validation** prevents Modal OOMs (v3.9.1).
 
 See `docs/05-training/modal.md`, `docs/05-training/checkpoint-strategy.md`, and `docs/04-model/v3-architecture.md` for deep dives on architecture and safeguards. FLA-specific plans live in:
 - `FLASH_LINEAR_ATTENTION_RESEARCH.md` (SSOT)
 - `FLASH_LINEAR_ATTENTION_DOC1_EDGE_MIGRATION.md` (Phase 1a – complete)
-- `FLASH_LINEAR_ATTENTION_DOC2_NODE_MIGRATION.md` (Phase 1b – smoke complete, awaiting medium validation deferral)
-- `FLASH_LINEAR_ATTENTION_DOC3_FULL_MIGRATION.md` (Phase 2 roadmap)
-- `FLASH_LINEAR_ATTENTION_DOC4_HYBRID_SWA.md` (post-Phase 2 experiments)
-- `FLA_IMPLEMENTATION_STATUS.md` / `FLA_DOCUMENTATION_METHODOLOGY.md` (live status + audit trail)
+- `FLASH_LINEAR_ATTENTION_DOC2_NODE_MIGRATION.md` (Phase 1b – complete)
+- `FLASH_LINEAR_ATTENTION_DOC3_FULL_MIGRATION.md` (Phase 2 – complete; Modal A/B pending)
+- `FLASH_LINEAR_ATTENTION_DOC4_HYBRID_SWA.md` (optional post-Phase 2 experiments)
+- `FLA_ROADMAP.md` / `FLA_QUICK_REFERENCE.md` (current strategy + status)
 
 ---
 
@@ -95,7 +95,7 @@ Use `modal run deploy/modal/clean_stray_npz.py --confirm` if `check-cache` warns
 
 - **Always** run `git status` first; never revert unrelated changes.
 - Skim the relevant FLA doc before touching configs or docs; they are kept in lock-step with implementation and list the exact evidence required.
-- Default validation ladder (Oct 8 2025): smoke (3 files, ~5 min) → single medium run (40–50 files, 2–3 h) → Modal full train. Phases 1a/1b smoke runs are green; Phase 2 smoke is next.
+- Default validation ladder (Oct 9 2025): smoke (3 files, ~5 min) → single medium run (40–50 files, 2–3 h) → Modal full train. Phase 2 smoke + medium complete; Modal A/B (BiMamba2 baseline → FLA) is next.
 - Edge GDN configs must set `edge_mamba_d_model: 32` and satisfy the 0.75× head constraint; node GDN mirrors these rules with d_model=64.
 - Capture logs to `/tmp/phase*_*.log` and link them in status docs; they anchor the CRAV methodology.
 - Run `make q` before pushing; follow with `make t` (or targeted subsets) when touching core logic.
@@ -252,14 +252,14 @@ Resource usage:
 
 ---
 
-## 📌 Current Release – v3.9.0 Summary
+## 📌 Current Release – v3.9.1 Summary
+- ✅ **Validation OOM fix**: Disk-backed validation + manifest guard eliminate 120 GB spikes (Modal training stable).
 - ✅ **Bulletproof checkpoints**: Atomic saves (temp + fsync + rename), AMP scaler capture, RNG persistence.
 - ✅ **Timeout guard**: 23 h wall-clock limit with 10 min safety buffer; writes `timeout_exit.pt`.
 - ✅ **Metric key normalization**: `metrics_utils.normalize_metrics_dict` stops “New best 0.0000” logs.
 - ✅ **W&B persistence**: Run ID saved to `.wandb_run_id` for continuous dashboards across resumes.
-- ✅ **Modal automation**: `check-cache` and `clean_stray_npz.py` surfaced in standard workflow.
 - ✅ **Zero warnings / zero debt**: Lint, type, and tests (104) all green with 83.8 % coverage.
-- 🔄 **FLA upgrade track**: Phase 1a (edge GDN) + Phase 1b (node GDN) smoke tests passed; Phase 2 smoke + medium validation pending (see status doc).
+- 🔄 **FLA upgrade track**: Phase 0–2 complete (smoke + medium); Modal A/B (BiMamba2 baseline → FLA) queued after baseline run.
 - 🚧 Next ideas (post-training): optional gradient sanitisation filter, print→logging sweep.
 
 Mission remains unchanged: **<1 FA/24 h clinical-grade seizure detection** with a fully reproducible, debt-free codebase.

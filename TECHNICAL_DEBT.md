@@ -1,9 +1,9 @@
 # Technical Debt
 
-**Date**: October 8, 2025
+**Date**: October 9, 2025
 **Status**: 🟢 **ZERO TECHNICAL DEBT** - All P0/P1/P2/P3 issues resolved
-**Version**: v3.9.0 (Production Training Baseline)
-**Training Impact**: CLEAR - Production-ready, bulletproof resume, full training launched
+**Version**: v3.9.1 (Validation OOM Fix)
+**Training Impact**: CLEAR - Production-ready, bulletproof resume, validation OOM eliminated
 
 ---
 
@@ -16,7 +16,7 @@
 | **P2 MEDIUM** | 0 | None | ✅ **ALL RESOLVED** |
 | **P3 LOW** | 0 | None | ✅ **ALL RESOLVED** |
 
-**UPDATE (v3.9.0)**: **Production Training Baseline** - Bulletproof checkpoints, timeout guard, comprehensive validation, full Modal A100 training launched
+**UPDATE (v3.9.1)**: **Validation OOM Fix** - Disk-backed validation + manifest guard eliminate Modal OOM, full 100-epoch runs stable
 
 ---
 
@@ -243,7 +243,7 @@ This issue was promoted from P3 to P1 and resolved in v3.8.3 through:
 
 ---
 
-## 🎉 Zero Technical Debt Achieved & Enhanced (v3.9.0)
+## 🎉 Zero Technical Debt Achieved & Enhanced (v3.9.x)
 
 **Complete Resolution Timeline**:
 - **v3.8.0** (Oct 6): Resolved NPZ contamination (P0), code duplication (P2), type safety (P2)
@@ -251,6 +251,7 @@ This issue was promoted from P3 to P1 and resolved in v3.8.3 through:
 - **v3.8.2** (Oct 6): Eliminated all training warnings with professional PyTorch patterns
 - **v3.8.3** (Oct 7): Manifest naming cleanup complete (P1/P3) → **ZERO DEBT**
 - **v3.9.0** (Oct 8): Bulletproof checkpoints + timeout guard + comprehensive validation → **PRODUCTION BASELINE**
+- **v3.9.1** (Oct 9): Validation OOM fix (disk-backed validation + manifest guard) → **MODAL TRAINING STABLE**
 
 **Current Status**:
 - ✅ **P0 Blockers**: 0 issues

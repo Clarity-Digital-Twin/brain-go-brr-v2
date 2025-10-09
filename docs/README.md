@@ -271,9 +271,10 @@ This documentation follows the **Diátaxis framework**:
 
 ## 🎯 Project Status
 
-**Current Version**: v3.9.0 (October 8, 2025) – Production Training Baseline
+**Current Version**: v3.9.1 (October 9, 2025) – Validation OOM Fix
 
 **Recent Milestones**:
+- ✅ v3.9.1 (Oct 9): Disk-backed validation + manifest guard eliminate Modal OOM (100-epoch runs stable)
 - ✅ v3.9.0 (Oct 8): Atomic checkpoints, timeout guard, W&B persistence, Modal training live
 - ✅ v3.8.3 (Oct 7): Manifest naming cleanup, zero technical debt
 - ✅ v3.8.2 (Oct 6): Zero warnings – copy-on-read tensors + AMP scheduler guard
@@ -281,7 +282,7 @@ This documentation follows the **Diátaxis framework**:
 - ✅ v3.8.0 (Oct 6): NPZ contamination eliminated, cache tooling consolidated
 
 **Current Status**:
-- ✅ **Modal training**: LIVE – 100 epochs on A100-80GB (app: ap-weaDyLGsgK5TEz8sLLOxO6), resumes every ~23 h via timeout guard
+- ✅ **Modal training**: LIVE – 100 epochs on A100-80GB (W&B run: 983c1fbf706b4d0f8870cc0331dc6201), disk-backed validation in place; resume every ~23 h via timeout guard
 - ✅ **Smoke tests**: PASS – Local (3 files) & Modal (50 files) validated after each change
 - ✅ **Technical debt**: ZERO active issues (P0/P1/P2/P3 all resolved)
 

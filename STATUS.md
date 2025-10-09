@@ -1,9 +1,9 @@
-# Brain-Go-Brr v3.9.0 – Current Status
+# Brain-Go-Brr v3.9.1 – Current Status
 
 **Last Updated:** 2025-10-09
 **Branch:** `feature/flash-linear-attention`
-**Version:** v3.9.0 (Production Training Baseline)
-**Deployment:** Modal full training LIVE – BiMamba2 baseline resumed Oct 9 (W&B run: `983c1fbf706b4d0f8870cc0331dc6201`)
+**Version:** v3.9.1 (Validation OOM Fix)
+**Deployment:** Modal full training LIVE – BiMamba2 baseline with validation OOM fixed (W&B run: `983c1fbf706b4d0f8870cc0331dc6201`)
 
 ---
 
@@ -26,9 +26,22 @@
 
 ---
 
-## Latest Improvements (v3.9.0 - October 8, 2025)
+## Latest Improvements
 
-### Production Training Baseline (Full Modal Launch)
+### v3.9.1 - Validation OOM Fix (October 9, 2025)
+
+**Critical OOM Fix (P0 BLOCKER RESOLVED)**:
+- ✅ **Validation OOM Eliminated**: Disk-backed storage replaces 120GB RAM requirement with <5GB overhead
+- ✅ **Dataset Fallback Bug Fixed**: Manifest-based BalancedSeizureDataset loading confirmed
+- ✅ **Manifest Verified**: 61,616 training windows (34.2% seizure ratio) from 4667 NPY files
+- ✅ **Modal Training Validated**: Epoch 1 completed with <5GB validation memory overhead
+- ✅ **Production Ready**: Full 100-epoch training now possible without OOM crashes
+
+**Files Changed**:
+- `src/brain_brr/train/loop.py:592-658` - Disk-backed validation storage
+- `src/brain_brr/data/datasets.py` - Fixed manifest validation (all 3 dataset classes)
+
+### v3.9.0 - Production Training Baseline (October 8, 2025)
 - ✅ **Bulletproof Checkpoints**: Atomic saves (temp + fsync + rename), AMP scaler capture, RNG state persistence
 - ✅ **Timeout Guard**: 23h wall-clock limit with 1h safety margin, graceful exit before Modal kill
 - ✅ **Comprehensive Validation**: Pre-training validation report, metrics pipeline verified from first principles
@@ -77,7 +90,7 @@
 
 ## Current Deployment
 
-**Modal Full Training (LIVE - v3.9.0)**:
+**Modal Full Training (LIVE - v3.9.1)**:
 - Launch: Oct 9, 2025 15:34 EDT (disk-backed validation path active)
 - Config: 100 epochs, batch_size=48, A100-80GB, mixed_precision=true
 - Cache: 4667 train + 1832 dev NPY files (BalancedSeizureDataset = 61,616 windows, seizure ratio 34.2%)

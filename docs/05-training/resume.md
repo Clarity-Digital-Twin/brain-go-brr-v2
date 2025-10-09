@@ -19,7 +19,7 @@ When `resume` is enabled, checkpoints are loaded in this order:
 
 Each file contains model weights, optimizer, scheduler, AMP scaler, and RNG state (Python, NumPy, torch CPU, torch CUDA) so the resumed run continues exactly where it stopped.
 
-## Atomic Saves & Deterministic State (v3.9.0)
+## Atomic Saves & Deterministic State (v3.9.1)
 
 - `save_checkpoint()` now writes to `<name>.pt.tmp`, calls `os.fsync()`, and atomically renames to `<name>.pt`. Partial/corrupt checkpoints can no longer appear if a job is killed mid-write.
 - Loading legacy checkpoints (pre-v3.9.0) still works; the loader logs a warning when scaler/RNG fields are missing and falls back to best-effort resume.

@@ -1,7 +1,7 @@
 # Modal Training (A100-80GB)
 
 **Last Updated**: October 8, 2025  
-**Baseline**: v3.9.0 – Production Training (Bulletproof Resume)
+**Baseline**: v3.9.1 – Validation OOM Fix
 
 Modal is the production environment for the 100‑epoch A100 run. This guide covers the recommended workflow, timeout guard behaviour, cache hygiene, and observability.
 

@@ -1,6 +1,6 @@
 # TODO - Active Tasks
 
-**Last Updated:** 2025-10-07
+**Last Updated:** 2025-10-09
 **Status:** 🟢 **ZERO ACTIVE TASKS** - All known work completed
 
 ---
@@ -10,7 +10,7 @@
 **Active Work**: None - codebase is ready for production training
 
 **In Progress**:
-- Modal full training (100 epochs, v3.9.0 production baseline, app: ap-weaDyLGsgK5TEz8sLLOxO6)
+- Modal full training (100 epochs, v3.9.1 validation OOM fix baseline, W&B run: 983c1fbf706b4d0f8870cc0331dc6201)
 
 **Next Steps**:
 1. Monitor Modal training completion (~100 hours total)
