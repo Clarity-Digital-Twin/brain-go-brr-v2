@@ -890,23 +890,28 @@ edge_mamba = BiGatedDeltaNet(..., fusion_mode='concat')
 # - Throughput (tokens/sec)
 ```
 
-**Expected Timeline**:
-- **Development**: 2-3 days total
-  - BiGatedDeltaNet wrapper: 1 day
-  - Dual-stream builder updates: 1 day
-  - Config + tests: 0.5 day
-- **Smoke test** (3 files): ~10 min per config (verify shapes)
-- **Integration tests** (50 files, 10 epochs each):
-  - Phase 1a (edge): ~6-8 hours RTX 4090
-  - Phase 1b (node): ~6-8 hours RTX 4090
-  - Phase 2 (both): ~6-8 hours RTX 4090
-  - Total: ~2-3 days for all A/B tests
-- **Full training** (winner config, 100 epochs):
-  - RTX 4090: ~8-12 days
-  - Modal A100: ~4-5 days
-- **Evaluation**: 1 day (TAES, comparison with v3.8.3)
+**Actual Timeline** (Updated Oct 9, 2025 - TWO-STACK STRATEGY):
+- **Development**: ✅ COMPLETE (Oct 7-8, 2025)
+  - BiGatedDeltaNet wrapper: ✅ Complete
+  - Dual-stream builder updates: ✅ Complete
+  - Config + tests: ✅ Complete
+- **Smoke tests** (3 files each): ✅ COMPLETE
+  - Phase 1a (edge): ✅ Passed (early stop epoch 4)
+  - Phase 1b (node): ✅ Passed (early stop epoch 7)
+  - Phase 2 (both): ✅ Passed (early stop epoch 7)
+  - ~10-15 min each (fast validation)
+- **Medium validation** (50 files, 6 epochs): ✅ Technical success (Oct 8)
+  - Phase 2 medium run: ✅ No crashes, no OOM, no NaNs
+  - Performance: ⚠️ Unstable (model collapsed - only 2.73% seizures in limited dataset)
+- **Full training** (TWO-STACK A/B comparison):
+  - BiMamba2 baseline: 🔄 IN PROGRESS (Modal A100, 100 epochs, ~4-5 days)
+  - FLA stack: ⏳ PENDING (after BiMamba2 completes)
+  - Strategy: A/B comparison on FULL dataset (not incremental validation)
+  - Timeline: ~2-3 weeks total (BiMamba2 + FLA + comparison)
 
-**Total project time**: ~2-3 weeks (development + validation + full training)
+**Total project time**: ~2-3 weeks (BiMamba2 baseline → FLA full training → A/B decision)
+
+**Key Strategy Change**: No 50-file validation per phase (high variance with 12:1 imbalance). Build complete stack with smoke tests, validate once at full scale (4667 files) on Modal.
 
 ### Secondary Path: Hybrid GDN-H1 (If Needed)
 
