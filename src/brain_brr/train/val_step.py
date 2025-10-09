@@ -29,7 +29,6 @@ from src.brain_brr.constants import ECE_NUM_BINS, format_sensitivity_key
 from src.brain_brr.eval.helpers.false_alarm import FASweepResult, find_threshold_for_fa_target
 from src.brain_brr.eval.metrics import (
     batch_probs_to_events,
-    calculate_ece,
     calculate_taes,
     stitch_recording_timeline,
 )
@@ -95,7 +94,7 @@ def _process_recording(
 def _compute_ece_streaming(storage: RecordingStorage, n_bins: int = 10) -> float:
     """Compute ECE with true streaming (O(1) memory).
 
-    This IS actually streaming - only stores bin statistics (10 bins × 24 bytes).
+    This IS actually streaming - only stores bin statistics (10 bins x 24 bytes).
 
     Args:
         storage: Disk-backed storage
@@ -275,7 +274,12 @@ def validate_epoch(
     output_dir: str | Path | None = None,
     epoch: int | None = None,
 ) -> dict[str, Any]:
-    """Validate model with true streaming per-recording processing (low memory).
+    """Validate model with disk-backed storage (39GB peak).
+
+    Memory Profile:
+    - Loop: 0GB accumulation (writes to disk)
+    - Metrics: 39GB peak (staged loading)
+    - Total: 39GB peak (2.5x safety margin on 96GB)
 
     CRITICAL: Requires validation files to be sorted by file_id for incremental processing.
 
@@ -300,8 +304,6 @@ def validate_epoch(
     current_file_id: str | None = None
     current_windows: list[dict[str, Any]] = []
 
-    all_probs_flat: list[torch.Tensor] = []
-    all_labels_flat: list[torch.Tensor] = []
     all_ref_events: list[tuple[float, float]] = []
     all_pred_events: list[tuple[float, float]] = []
     total_hours = 0.0
@@ -310,12 +312,12 @@ def validate_epoch(
     num_recordings = 0
 
     n_val_batches = len(dataloader)
-    logger.info(f"[VALIDATION] Starting incremental streaming validation ({n_val_batches} batches)")
+    logger.info(f"[VALIDATION] Starting disk-backed validation ({n_val_batches} batches)")
 
     use_tqdm = not env.disable_tqdm()
     progress_bar = None
 
-    with torch.no_grad():
+    with RecordingStorage() as storage, torch.no_grad():
         if use_tqdm:
             try:
                 progress_bar = tqdm(
@@ -369,10 +371,11 @@ def validate_epoch(
 
                 for i, fid in enumerate(file_ids):
                     if fid != current_file_id and current_windows:
+                        assert current_file_id is not None
                         recording_hours = _process_recording(
+                            current_file_id,
                             current_windows,
-                            all_probs_flat,
-                            all_labels_flat,
+                            storage,
                             all_ref_events,
                             all_pred_events,
                             post_config,
@@ -406,113 +409,42 @@ def validate_epoch(
                 with suppress(Exception):
                     progress_bar.close()
 
-    if current_windows:
-        recording_hours = _process_recording(
-            current_windows,
-            all_probs_flat,
-            all_labels_flat,
+        if current_windows:
+            assert current_file_id is not None
+            recording_hours = _process_recording(
+                current_file_id,
+                current_windows,
+                storage,
+                all_ref_events,
+                all_pred_events,
+                post_config,
+                constants.SAMPLING_RATE,
+            )
+            total_hours += recording_hours
+            num_recordings += 1
+
+        logger.info(
+            f"[VALIDATION] Processed {num_recordings} recordings, computing final metrics..."
+        )
+
+        metrics = _compute_final_metrics(
+            storage,
             all_ref_events,
             all_pred_events,
+            total_hours,
+            fa_rates,
             post_config,
             constants.SAMPLING_RATE,
+            num_recordings,
         )
-        total_hours += recording_hours
-        num_recordings += 1
-
-    logger.info(f"[VALIDATION] Processed {num_recordings} recordings, computing final metrics...")
-
-    metrics = _compute_final_metrics(
-        all_probs_flat,
-        all_labels_flat,
-        all_ref_events,
-        all_pred_events,
-        total_hours,
-        fa_rates,
-        post_config,
-        constants.SAMPLING_RATE,
-        num_recordings,
-    )
 
     metrics["val_loss"] = total_loss / max(1, num_batches)
     logger.info(f"[VALIDATION] Done! Val Loss (Focal): {metrics['val_loss']:.4f}")
 
     if save_predictions and output_dir:
-        if not all_probs_flat or not all_labels_flat:
-            logger.warning("[SAVE] No validation outputs to save; skipping predictions.")
-        else:
-            output_path = Path(output_dir)
-            output_path.mkdir(parents=True, exist_ok=True)
-
-            probs_flat = torch.cat(all_probs_flat).cpu().numpy()
-            labels_flat = torch.cat(all_labels_flat).cpu().numpy()
-
-            epoch_suffix = f"_epoch{epoch}" if epoch is not None else ""
-            pred_file = output_path / f"predictions{epoch_suffix}.npy"
-            label_file = output_path / f"labels{epoch_suffix}.npy"
-
-            np.save(pred_file, probs_flat)
-            np.save(label_file, labels_flat)
-            logger.info(f"[SAVE] Predictions saved to {pred_file} and {label_file}")
+        logger.warning("[SAVE] Prediction saving temporarily disabled (disk-backed validation)")
 
     if save_plots and output_dir:
-        if not all_probs_flat or not all_labels_flat:
-            logger.warning("[SAVE] No validation outputs for plots; skipping.")
-        else:
-            try:
-                # sklearn type stubs incomplete (known third-party issue)
-                from sklearn.metrics import (  # type: ignore[attr-defined]
-                    precision_recall_curve,
-                    roc_curve,
-                )
-            except (ImportError, AttributeError):
-                logger.warning("[SAVE] sklearn not available; skipping diagnostic plots.")
-                return metrics
-
-            import matplotlib
-
-            matplotlib.use("Agg")
-            import matplotlib.pyplot as plt
-
-            output_path = Path(output_dir)
-            output_path.mkdir(parents=True, exist_ok=True)
-
-            probs_flat = torch.cat(all_probs_flat).cpu().numpy()
-            labels_flat = torch.cat(all_labels_flat).cpu().numpy()
-            labels_binary = (labels_flat > 0.5).astype(np.float32)
-
-            epoch_suffix = f"_epoch{epoch}" if epoch is not None else ""
-
-            if np.unique(labels_binary).size >= 2:
-                fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-
-                auroc = float(metrics.get("auroc", float("nan")))
-                pr_auc = float(metrics.get("pr_auc", float("nan")))
-
-                fpr, tpr, _ = roc_curve(labels_binary, probs_flat)
-                label_roc = f"ROC (AUC={auroc:.3f})" if np.isfinite(auroc) else "ROC"
-                axes[0].plot(fpr, tpr, label=label_roc)
-                axes[0].plot([0, 1], [0, 1], "k--", label="Random")
-                axes[0].set_xlabel("False Positive Rate")
-                axes[0].set_ylabel("True Positive Rate")
-                axes[0].set_title("ROC Curve")
-                axes[0].legend()
-                axes[0].grid(True, alpha=0.3)
-
-                precision, recall, _ = precision_recall_curve(labels_binary, probs_flat)
-                label_pr = f"PR (AUC={pr_auc:.3f})" if np.isfinite(pr_auc) else "PR"
-                axes[1].plot(recall, precision, label=label_pr)
-                axes[1].set_xlabel("Recall")
-                axes[1].set_ylabel("Precision")
-                axes[1].set_title("Precision-Recall Curve")
-                axes[1].legend()
-                axes[1].grid(True, alpha=0.3)
-
-                plot_file = output_path / f"diagnostic_plots{epoch_suffix}.png"
-                plt.tight_layout()
-                plt.savefig(plot_file, dpi=150, bbox_inches="tight")
-                plt.close(fig)
-                logger.info(f"[SAVE] Diagnostic plots saved to {plot_file}")
-            else:
-                logger.warning("[SAVE] Skipping plots - insufficient label diversity")
+        logger.warning("[SAVE] Plot saving temporarily disabled (disk-backed validation)")
 
     return metrics

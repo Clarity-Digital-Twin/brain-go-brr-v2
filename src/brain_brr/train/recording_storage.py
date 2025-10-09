@@ -1,8 +1,9 @@
 """Disk-backed storage for validation timelines with zero RAM accumulation."""
 
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
+from types import TracebackType
 
 import numpy as np
 import torch
@@ -28,6 +29,7 @@ class RecordingStorage:
         Args:
             cache_dir: Directory for .npy shards. If None, uses temp directory.
         """
+        self._temp_dir: tempfile.TemporaryDirectory[str] | None
         if cache_dir is None:
             self._temp_dir = tempfile.TemporaryDirectory(prefix="val_")
             self.cache_dir = Path(self._temp_dir.name)
@@ -167,8 +169,13 @@ class RecordingStorage:
 
             shutil.rmtree(self.cache_dir, ignore_errors=True)
 
-    def __enter__(self):
+    def __enter__(self) -> "RecordingStorage":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         self.cleanup()
