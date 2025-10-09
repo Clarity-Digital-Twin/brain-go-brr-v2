@@ -36,13 +36,13 @@
            ↓
 ┌─────────────────────────────────────────────────┐
 │ Phase 1b: Node GDN Validation (Doc 2)          │
-│ ✅ CONFIG CREATED (Oct 8, 2025)                 │
+│ ✅ COMPLETE (Oct 8, 2025 20:17 EDT)            │
 ├─────────────────────────────────────────────────┤
 │ - Config: configs/local/phase1b_node_gdn.yaml  │
-│ - Edge stream: PRESERVES Phase 1a (GDN)        │
-│ - Node stream: BiGatedDeltaNet (NEW)           │
-│ - Smoke test: NOT STARTED                      │
-│ - ETA: ~5 min smoke test                       │
+│ - Edge stream: BiGatedDeltaNet (PRESERVED)     │
+│ - Node stream: BiGatedDeltaNet (VALIDATED)     │
+│ - Smoke test: ✅ PASSED (early stop epoch 7)   │
+│ - Result: No crashes, no NaNs, converged       │
 └─────────────────────────────────────────────────┘
            ↓
 ┌─────────────────────────────────────────────────┐
@@ -142,18 +142,22 @@
 
 **Phase 1b (Node GDN)**:
 - [x] ✅ **Config created**: `configs/local/phase1b_node_gdn.yaml` (Oct 8, 2025)
-  - Complete 207-line config
+  - Complete 190-line config
   - `experiment.name: "phase1b_node_gdn"`
   - `temporal_type_node: "gated_deltanet"` (NEW)
   - `temporal_type_edge: "gated_deltanet"` (PRESERVED from Phase 1a)
   - `gdn_edge_num_heads: 3`, `gdn_edge_headdim: 8`
   - `edge_mamba_d_model: 32` (FLA requirement)
-- [ ] Smoke test (3 files, ~5 min) - NEXT
-- [ ] Verify isolation (node=GDN, edge=GDN from Phase 1a)
+- [x] ✅ **Smoke test PASSED** (Oct 8, 2025 20:17 EDT)
+  - Early stopped at epoch 7 (best: epoch 6)
+  - No crashes, no NaNs, loss converged
+  - sensitivity@10FA = 1.0 (perfect on 3 files)
+  - Log: `/tmp/phase1b_smoke.log`
+- [x] ✅ **Isolation verified**: Both streams BiGatedDeltaNet
 
 **Phase 2 (Both Streams GDN)**:
 - [x] ✅ **Config created**: `configs/local/phase2_both_gdn.yaml` (Oct 8, 2025)
-  - Complete 207-line config
+  - Complete 194-line config
   - `experiment.name: "phase2_both_gdn"`
   - `temporal_type: "gated_deltanet"` (global - both streams)
   - `gdn_edge_num_heads: 3`, `gdn_edge_headdim: 8`

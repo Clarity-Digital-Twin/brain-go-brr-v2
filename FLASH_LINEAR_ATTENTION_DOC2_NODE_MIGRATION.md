@@ -818,8 +818,8 @@ python -m src train configs/local/train.yaml
 
 | Risk Factor | Phase 1a (Edge) | Phase 1b (Node) | Assessment |
 |-------------|-----------------|-----------------|------------|
-| **Parameter count** | 10K → 7.3K | 398K → 284K | Node has **39× more params** |
-| **% of stream params** | 2.5% | 97.5% | Node is **39× more impactful** |
+| **Parameter count** | ~30K (d_model=32) | 398K → 284K | Node has **~13× more params** (284K vs 30K GDN) |
+| **% of stream params** | ~9.6% (30K/314K) | ~90.4% (284K/314K) | Node is **~9× more impactful** |
 | **Architectural complexity** | Simple (171 pairs) | Complex (19 electrodes) | Similar (both shared modules) |
 | **Expected gain** | +5-10% edge modeling | +5-10% node memory | Similar hypotheses |
 | **Rollback difficulty** | Easy (config) | Easy (config) | Same (instant config rollback) |
