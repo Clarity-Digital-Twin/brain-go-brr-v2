@@ -58,23 +58,24 @@
            ↓
 ┌─────────────────────────────────────────────────┐
 │ Medium Validation Run (Integration Test)       │
-│ ❌ NOT STARTED                                   │
+│ 🚀 READY TO LAUNCH (smoke passed)               │
 ├─────────────────────────────────────────────────┤
-│ - Config: phase2_full_gdn.yaml                  │
-│ - Scale: 40-50 files, 5-6 epochs               │
+│ - Config: phase2_medium_gdn.yaml                │
+│ - Scale: 40-50 files, 6 epochs                 │
 │ - Purpose: Surface scaling bugs                 │
 │   • SSM memory spikes                           │
 │   • Optimizer drift                             │
-│   • Checkpoint size                             │
-│   • W&B logging volume                          │
+│   • Checkpoint size/integrity                   │
+│   • GPU/RAM peaks                               │
 │   • Gradient clipping trends                    │
 │ - Success Criteria:                             │
 │   • No NaNs                                      │
 │   • Loss converges                              │
-│   • Gradient clip % stable                      │
-│   • GPU/RAM within limits                       │
-│   • Checkpoints save correctly                  │
-│ - ETA: 2-3 hours (LOCAL)                        │
+│   • Gradient clip % < 80% after warmup          │
+│   • GPU < 22GB, RAM < 28GB                      │
+│   • Checkpoints save/load correctly             │
+│ - Launch: ./scripts/launch_phase2_medium.sh    │
+│ - ETA: 2-3 hours (LOCAL RTX 4090)              │
 └─────────────────────────────────────────────────┘
            ↓
 ┌─────────────────────────────────────────────────┐
