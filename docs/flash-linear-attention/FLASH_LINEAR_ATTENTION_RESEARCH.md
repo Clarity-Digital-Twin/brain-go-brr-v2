@@ -1,12 +1,13 @@
 # Flash Linear Attention Research: BiMamba2 vs Gated DeltaNet for EEG Seizure Detection
 
-**Date**: October 7, 2025
+**Date**: October 9, 2025 (v4.2 update)
 **Branch**: `feature/flash-linear-attention`
 **Researcher**: Claude Code
-**Status**: Production-Ready Implementation Plan
-**Version**: 4.1 (Bug Fixes + Coexistence Strategy)
+**Status**: Research Comparison Study - BiMamba2 vs GatedDeltaNet
+**Version**: 4.2 (Research Philosophy Update)
 
 **Changelog**:
+- v4.2 (Oct 9, 2025): Updated to research-focused philosophy (not product optimization)
 - v4.1 (Oct 7, 2025): Fixed transformers version (4.53.0 not 4.45.0) per FLA requirements
 - v4.1 (Oct 7, 2025): Fixed mypy override instruction (append to existing, don't replace)
 - v4.1 (Oct 7, 2025): Added explicit import instruction for constants in schemas.py
@@ -18,9 +19,9 @@
 
 After comprehensive analysis of our current BiMamba2 implementation, the Gated DeltaNet paper (ICLR 2025), Flash Linear Attention (FLA) library source code, external expert review, and **detailed codebase verification**, I provide the following recommendation:
 
-**🎯 PRIMARY RECOMMENDATION: ADD GATED DELTANET AS OPTIONAL COMPONENT (COEXIST WITH BIMAMBA2)**
+**🎯 PRIMARY GOAL: EMPIRICALLY COMPARE BIMAMBA2 VS GATED DELTANET**
 
-**Key Philosophy**: BiMamba2 remains the **DEFAULT and STABLE** baseline. Gated DeltaNet (via FLA library) is added as an **EXPERIMENTAL OPTION** controlled by config flags. This is NOT a replacement - both architectures coexist.
+**Research Philosophy**: Train BOTH architectures independently on full TUSZ dataset. Document results for both. Compare performance. Both stacks are novel research contributions regardless of which performs better.
 
 **Phase 0 (REQUIRED FIRST)**: Infrastructure Setup (4-6 days) - schema, constants, deps, builders, tests
 **Phase 1a (HIGHEST PRIORITY)**: Validate **Edge Stream** with GDN (BiMamba2 node + GDN edge)
@@ -1671,21 +1672,19 @@ else:
 - **Revised expectations**: +5-10% per stream, +3-5% combined sensitivity @ 1 FA/24h
 - **Shared-weight architecture** = more conservative but still beneficial (proven in production)
 
-**Decision**: **PROCEED with coexistence strategy (add GDN as experimental option, BiMamba2 remains default)**
+**Research Strategy**: Build complete implementations of BOTH architectures. Train each on full TUSZ dataset. Document and compare results. Publish findings regardless of outcome - both are novel contributions to clinical EEG literature.
 
 ---
 
-**Next Steps**:
-1. ✅ Team review complete (v4.0 incorporates coexistence strategy + infrastructure plan)
-2. **Wait for v3.8.3 training to complete** (establish baseline metrics)
-3. **Complete Phase 0** (4-6 days): Infrastructure setup (schema, constants, deps, builders, tests)
-4. Validate infrastructure: Smoke test both BiMamba2 AND GDN architectures
-5. **Run Phase 1a** (edge validation, 10 epochs) → Compare edge GDN vs edge BiMamba2
-6. **Run Phase 1b** (node validation, 10 epochs) → Compare node GDN vs node BiMamba2
-7. **Run Phase 2** (full validation, 10 epochs) → Compare both GDN vs both BiMamba2 (only if 1a+1b succeed)
-8. **Decision point**: If GDN ≥ BiMamba2 (+3-5%), consider changing default in production configs
-9. **Full training** (100 epochs) with winning config
-10. **Deprecation timeline**: 6-12 months before removing losing architecture (if any)
+**Research Execution Plan**:
+1. ✅ Infrastructure complete (BiGatedDeltaNet wrapper, configs, tests)
+2. ✅ BiMamba2 baseline training IN PROGRESS (Modal A100, 100 epochs)
+3. ⏳ Wait for BiMamba2 completion → Document results (sensitivity@10FA, AUROC, etc.)
+4. 🚀 Launch FLA stack training (Modal A100, 100 epochs, same dataset/protocol)
+5. ⏳ Wait for FLA completion → Document results
+6. 📊 Compare both stacks (calculate delta, statistical significance)
+7. 📝 Publish findings: First comparison of these architectures on clinical EEG
+   - **All outcomes publishable**: FLA > BiMamba2, BiMamba2 > FLA, or FLA ≈ BiMamba2
 
 **Questions?** Open a discussion or refer to Section 12 (Q&A).
 
