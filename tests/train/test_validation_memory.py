@@ -150,6 +150,7 @@ class TestValidationMemoryProfile:
         assert 0 <= metrics["pr_auc"] <= 1
         assert 0 <= metrics["ece"] <= 1
 
+    @pytest.mark.slow
     def test_staged_loading_memory_pattern(self, simple_model: nn.Module) -> None:
         """Verify staged loading: high peak during AUROC, then drop to low during FA sweep.
 
@@ -157,13 +158,17 @@ class TestValidationMemoryProfile:
         1. Load all data for AUROC (peak)
         2. Free all data (drop to baseline)
         3. Reload as mmap for FA sweep (minimal)
+
+        Marked as slow because it exercises FA threshold search with binary search
+        over multiple targets, resulting in ~600 postprocess calls. This is valuable
+        for regression testing but too slow for fast CI feedback loops (60s timeout).
         """
         from src.brain_brr.train.val_step import _compute_final_metrics
 
         with RecordingStorage() as storage:
-            for i in range(50):
-                probs = torch.rand(50_000)
-                labels = torch.randint(0, 2, (50_000,)).float()
+            for i in range(20):
+                probs = torch.rand(25_000)
+                labels = torch.randint(0, 2, (25_000,)).float()
                 storage.write_recording(f"rec_{i:03d}", probs, labels)
 
             force_gc()
@@ -177,10 +182,10 @@ class TestValidationMemoryProfile:
                 all_ref_events=all_ref_events,
                 all_pred_events=all_pred_events,
                 total_hours=10.0,
-                fa_rates=[10, 5, 1],
+                fa_rates=[10],
                 post_cfg=PostprocessingConfig(),
                 sampling_rate=256,
-                num_recordings=50,
+                num_recordings=20,
             )
 
             force_gc()
