@@ -4,8 +4,9 @@ The training loop is designed to survive Modal’s 24 h timeout and to recover
 
 ## Quick Reference
 
-- **Local**: `python -m src train configs/local/train.yaml --resume`
-- **Modal**: `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml --resume true`
+- **Local (BiMamba2)**: `python -m src train configs/local/train_bimamba.yaml --resume`
+- **Modal (BiMamba2)**: `modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume true`
+- Swap to `*_train_fla.yaml` when resuming the FLA stack.
 - `training.resume: true` in a YAML config has the same effect as `--resume` on the CLI.
 
 ## Load Order (Highest Priority First)

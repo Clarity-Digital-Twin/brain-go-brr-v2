@@ -101,13 +101,13 @@ Docker uses the SAME dataset strategy as local/Modal:
 services:
   smoke-test:
     image: brain-go-brr:latest
-    command: train configs/local/smoke.yaml
+    command: train configs/local/smoke_bimamba.yaml
     environment:
       - BGB_SMOKE_TEST=1
       - BGB_NAN_DEBUG=1
     volumes:
       - ./data_ext4:/app/data_ext4:ro
-      - ./cache/tusz:/app/cache/tusz:ro
+      - ./cache/tusz_mmap:/app/cache/tusz_mmap:ro
       - ./results:/app/results:rw
       - ./configs:/app/configs:ro
 ```
@@ -118,13 +118,13 @@ services:
 services:
   integration-test:
     image: brain-go-brr:latest
-    command: train configs/local/smoke.yaml
+    command: train configs/local/smoke_bimamba.yaml
     environment:
       - BGB_LIMIT_FILES=50
       - BGB_NAN_DEBUG=1
     volumes:
       - ./data_ext4:/app/data_ext4:ro
-      - ./cache/tusz:/app/cache/tusz:ro
+      - ./cache/tusz_mmap:/app/cache/tusz_mmap:ro
       - ./results:/app/results:rw
       - ./configs:/app/configs:ro
 ```
@@ -135,12 +135,12 @@ services:
 services:
   train:
     image: brain-go-brr:latest
-    command: train configs/local/train.yaml
+    command: train configs/local/train_bimamba.yaml
     environment:
       - BGB_NAN_DEBUG=1
     volumes:
       - ./data_ext4:/app/data_ext4:ro
-      - ./cache/tusz:/app/cache/tusz:ro
+      - ./cache/tusz_mmap:/app/cache/tusz_mmap:ro
       - ./results:/app/results:rw
       - ./configs:/app/configs:ro
 ```

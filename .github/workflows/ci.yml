@@ -83,6 +83,41 @@ jobs:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
+  test-fla:
+    name: Test FLA/GatedDeltaNet (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Don't block main CI if FLA tests fail
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install base dependencies
+        run: uv sync --frozen
+
+      - name: Install FLA library
+        run: |
+          # Install FLA for Gated DeltaNet tests
+          uv pip install 'flash-linear-attention>=0.3.0,<0.4.0'
+          echo "Verifying FLA installation..."
+          uv run python -c "from fla.layers import GatedDeltaNet; print('✅ FLA ready')"
+
+      - name: Run FLA/GatedDeltaNet tests
+        run: |
+          # Run only GatedDeltaNet tests (CPU-only, no GPU required)
+          uv run pytest tests/unit/models/test_gated_deltanet.py -v -m "not gpu"
+
   build:
     name: Build Package
     runs-on: ubuntu-latest

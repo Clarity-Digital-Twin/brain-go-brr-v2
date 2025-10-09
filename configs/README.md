@@ -1,28 +1,38 @@
 # Brain-Go-Brr V3 Configuration Files
 
-## 🧠 Architecture: V3 Dual-Stream (TCN + BiMamba + GNN)
+## 🧠 Architectures: BiMamba2 & FLA Dual-Stream Stacks
 
-All configs use the V3 dual-stream architecture:
-- **TCN**: Multi-scale temporal feature extraction (8 layers, stride=16)
-- **Node Stream**: Per-electrode BiMamba (d_model=64, 6 layers, headdim=8)
-- **Edge Stream**: Per-edge BiMamba (d_model=16, 2 layers, headdim=4)
-- **GNN**: Vectorized SSGConv with **DYNAMIC** Laplacian PE (α=0.05, k=16)
-  - **Dynamic PE**: Recomputed per timestep from evolving adjacency (EvoBrain approach)
-  - **Vectorized**: All 960 timesteps computed in parallel (100-1000x faster than loops)
-  - **Numerical Stability**: FP32 eigendecomposition with sign consistency
-- **Total Parameters**: ~31.5M
+All configs implement the V3 dual-stream detector (TCN → temporal streams → GNN →
+fusion → decoder). Two temporal stacks are supported:
+
+- **BiMamba2** (production baseline)
+  - Node stream: BiMamba2 (6 layers, d_model=64)
+  - Edge stream: BiMamba2 (2 layers, d_model=16)
+- **FLA – Gated DeltaNet** (research candidate)
+  - Node/edge streams: Gated DeltaNet with delta-rule gating
+  - Edge stream uses `d_model=32` (FLA causal_conv1d requirement)
+
+Both share:
+- **TCN** front-end (8 layers, stride=16, dropout=0.15)
+- **GNN** back-end (SSGConv ×2, dynamic Laplacian PE with k=16)
+- **Dynamic PE** recomputed per timestep with sign consistency safeguards
+- **Focal loss** + hysteresis/morphology post-processing
 
 ## 📁 Directory Structure
 
 ```
 configs/
-├── local/                    # Local WSL2/Linux configs (RTX 4090 optimized)
-│   ├── smoke.yaml           # Quick test (1 epoch, 3 files via BGB_LIMIT_FILES=3)
-│   └── train.yaml           # Full training (100 epochs; train/dev official splits)
+├── local/                      # RTX 4090 optimized configs
+│   ├── smoke_bimamba.yaml      # BiMamba2 smoke (3 files, 1 epoch)
+│   ├── train_bimamba.yaml      # BiMamba2 full training (100 epochs)
+│   ├── smoke_fla.yaml          # FLA smoke
+│   └── train_fla.yaml          # FLA full training
 │
-└── modal/                    # Modal cloud GPU configs (A100-80GB optimized)
-    ├── smoke.yaml           # Quick cloud test (1 epoch, 50 files)
-    └── train.yaml           # Full cloud training (100 epochs; train/dev official splits)
+└── modal/                      # Modal A100-80GB configs
+    ├── smoke_bimamba.yaml      # BiMamba2 smoke (50 files, 1 epoch)
+    ├── train_bimamba.yaml      # BiMamba2 full training
+    ├── smoke_fla.yaml          # FLA smoke
+    └── train_fla.yaml          # FLA full training
 ```
 
 ## ⚡ Critical Cache Configuration

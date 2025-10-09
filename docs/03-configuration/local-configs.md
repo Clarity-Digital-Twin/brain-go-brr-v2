@@ -190,16 +190,17 @@ export BGB_SMOKE_TEST=1          # Limit to 3 files
 export BGB_NAN_DEBUG=1           # Loss monitoring (optional)
 # export BGB_SANITIZE_GRADS=1    # Optional debugging helper
 
-make s  # or: python -m src train configs/local/smoke.yaml
+make smoke-bimamba  # or: python -m src train configs/local/smoke_bimamba.yaml
+# FLA stack: make smoke-fla (uses configs/local/smoke_fla.yaml)
 ```
 
-Config adjustments for smoke test (`configs/local/smoke.yaml`):
+Config adjustments for smoke test (`configs/local/smoke_bimamba.yaml`; identical in `smoke_fla.yaml`):
 - `training.epochs: 1`
 - `data.use_balanced_sampling: false` (small dataset doesn't need oversampling)
 
 ## WSL2 Considerations
 
-**CRITICAL**: WSL2 has multiprocessing issues. The shipped `configs/local/train.yaml` uses WSL2-safe settings:
+**CRITICAL**: WSL2 has multiprocessing issues. The shipped `configs/local/train_bimamba.yaml` (and `train_fla.yaml`) use WSL2-safe settings:
 
 ```yaml
 data:
@@ -240,8 +241,9 @@ data:
 
 ## Reference Configs
 
-- **Smoke test**: `configs/local/smoke.yaml` (3 files, 1 epoch)
-- **Full training**: `configs/local/train.yaml` (4667 train + 1832 dev files, 100 epochs)
+- **Smoke test**: `configs/local/smoke_bimamba.yaml` (3 files, 1 epoch)  
+- **Full training**: `configs/local/train_bimamba.yaml` (4667 train + 1832 dev files, 100 epochs)  
+- **FLA variants**: `configs/local/smoke_fla.yaml`, `configs/local/train_fla.yaml`
 
 ## Common Issues
 

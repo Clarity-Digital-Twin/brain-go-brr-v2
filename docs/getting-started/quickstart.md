@@ -40,10 +40,11 @@ Run the **smoke test** to confirm your environment, cache, and model all wire to
 
 2. **Run the smoke test**
    ```bash
-   make s
+   make smoke-bimamba
    ```
    - Automatically sets `BGB_SMOKE_TEST=1` (3 files, 1 epoch)
-   - Uses `configs/local/smoke.yaml` (batch size 8, mixed precision disabled)
+   - Uses `configs/local/smoke_bimamba.yaml` (batch size 8, mixed precision disabled)
+   - FLA stack: `make smoke-fla` (mirrors BiMamba2 settings with Gated DeltaNet)
 
 3. **Confirm success**
    - BalancedSeizureDataset loads (manifest found)  
@@ -64,10 +65,11 @@ Run the **smoke test** to confirm your environment, cache, and model all wire to
    ```bash
    modal run --detach deploy/modal/app.py \
      --action train \
-     --config configs/modal/smoke.yaml
+     --config configs/modal/smoke_bimamba.yaml
    ```
    - Automatically sets `BGB_LIMIT_FILES=50`, `BGB_NAN_DEBUG=1`, `mixed_precision=true`
    - Startup (~5 min) + 1 epoch (<10 min total)
+   - FLA stack: use `configs/modal/smoke_fla.yaml`
 
 3. **Monitor**
    ```bash
@@ -91,7 +93,7 @@ python -m src scan-cache --cache-dir cache/tusz_mmap/dev
 - Optional: `export BGB_SANITIZE_GRADS=1` to zero/log offending gradients
 
 ### ❌ CUDA OOM
-Reduce `training.batch_size` in `configs/local/smoke.yaml` (e.g., 6) or disable additional debugging features.
+Reduce `training.batch_size` in `configs/local/smoke_bimamba.yaml` (e.g., 6) or disable additional debugging features.
 
 ### ❌ WSL2 dataloader hangs
 Set `data.num_workers: 0` in the smoke config.
@@ -107,9 +109,11 @@ Set `data.num_workers: 0` in the smoke config.
 
 | Command | Purpose |
 |---------|---------|
-| `make s` | Local smoke (3 files, 1 epoch) |
-| `modal run --detach … smoke.yaml` | Modal smoke (50 files, ~10 min) |
+| `make smoke-bimamba` | Local BiMamba2 smoke (3 files, 1 epoch) |
+| `make smoke-fla` | Local FLA smoke (3 files, 1 epoch) |
+| `modal run --detach … smoke_bimamba.yaml` | Modal BiMamba2 smoke (50 files, ~10 min) |
+| `modal run --detach … smoke_fla.yaml` | Modal FLA smoke (50 files, ~10 min) |
 | `modal run deploy/modal/app.py --action check-cache` | Validate Modal cache & manifests |
-| `python -m src validate configs/local/smoke.yaml` | Confirm config integrity |
+| `python -m src validate configs/local/smoke_bimamba.yaml` | Confirm config integrity |
 
 **Important**: The smoke test is a gate—only proceed to long training once it completes without NaNs or crashes.

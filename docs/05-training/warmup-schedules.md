@@ -10,7 +10,7 @@
 
 ### Enable Warmup Schedules
 
-**Edit your config** (`configs/local/train.yaml` or `configs/modal/train.yaml`):
+**Edit your config** (`configs/local/train_bimamba.yaml` / `configs/local/train_fla.yaml` or `configs/modal/train_bimamba.yaml` / `configs/modal/train_fla.yaml`):
 
 ```yaml
 training:

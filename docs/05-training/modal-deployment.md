@@ -47,7 +47,8 @@ modal secret create wandb WANDB_API_KEY=<your-key>
 
 5. **Launch Full Training**
    ```bash
-   modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+   modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
+   # FLA stack: use configs/modal/train_fla.yaml
    # Exits ~23 h with timeout_exit.pt (timeout guard); expect 4-5 resumes for 100 epochs
    ```
 
@@ -64,7 +65,7 @@ modal secret create wandb WANDB_API_KEY=<your-key>
 
    # Resume after timeout
    modal run --detach deploy/modal/app.py --action train \
-       --config configs/modal/train.yaml --resume true
+      --config configs/modal/train_bimamba.yaml --resume true
    ```
 
 ## Modal Architecture
@@ -98,7 +99,7 @@ modal secret create wandb WANDB_API_KEY=<your-key>
 ## Configuration (A100-optimized)
 
 ```yaml
-# configs/modal/train.yaml (actual configuration)
+# configs/modal/train_bimamba.yaml (actual configuration)
 data:
   dataset: tuh_eeg
   data_dir: /data/edf                      # TUSZ EDF mount (train/dev/eval)
@@ -214,7 +215,7 @@ export BGB_SMOKE_TEST=1          # Skip balanced sampling
 # Resume training from latest checkpoint
 modal run --detach deploy/modal/app.py \
   --action train \
-  --config configs/modal/train.yaml \
+  --config configs/modal/train_bimamba.yaml \
   --resume true
 ```
 
@@ -251,10 +252,10 @@ modal run deploy/modal/app.py --action test-mamba
 
 # Training
 modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
 
 # Resume
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml --resume true
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume true
 
 # Monitoring
 modal app list

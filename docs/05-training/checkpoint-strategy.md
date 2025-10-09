@@ -64,12 +64,12 @@ export BGB_MID_EPOCH_KEEP=5      # Keep last 5 snapshots (rotating)
 # Start training (with automatic checkpointing)
 modal run --detach deploy/modal/app.py \
     --action train \
-    --config configs/modal/train.yaml
+    --config configs/modal/train_bimamba.yaml
 
 # Resume from checkpoint
 modal run --detach deploy/modal/app.py \
     --action train \
-    --config configs/modal/train.yaml \
+    --config configs/modal/train_bimamba.yaml \
     --resume true
 ```
 
@@ -128,7 +128,7 @@ training:
   # BGB_MID_EPOCH_KEEP=5
 ```
 
-### Modal (configs/modal/train.yaml)
+### Modal (configs/modal/train_bimamba.yaml)
 ```yaml
 training:
   checkpoint_interval: 1  # Already set correctly

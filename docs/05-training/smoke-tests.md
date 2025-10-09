@@ -10,9 +10,11 @@ All platforms use **3 files** for consistent fast validation:
 
 | Platform | Command | Duration | Files |
 |----------|---------|----------|-------|
-| **Local** | `make s` | ~5 min | 3 files |
+| **Local (BiMamba2)** | `make smoke-bimamba` | ~5 min | 3 files |
+| **Local (FLA)** | `make smoke-fla` | ~5 min | 3 files |
 | **Docker** | `docker compose up smoke-test` | ~5 min | 3 files |
-| **Modal** | `modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml` | ~5 min | 50 files* |
+| **Modal (BiMamba2)** | `modal run deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml` | ~5 min | 50 files* |
+| **Modal (FLA)** | `modal run deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml` | ~5 min | 50 files* |
 
 *Modal smoke uses 50 files due to cloud startup overhead - still <10 min
 
@@ -20,17 +22,18 @@ All platforms use **3 files** for consistent fast validation:
 
 ```bash
 # Quick smoke (3 files, ~5 min)
-make s
+make smoke-bimamba
 
 # Or manually:
 export BGB_SMOKE_TEST=1 BGB_NAN_DEBUG=1
-python -m src train configs/local/smoke.yaml
+python -m src train configs/local/smoke_bimamba.yaml
 ```
 
 **How it works**:
 - `BGB_SMOKE_TEST=1` automatically limits to 3 files (hardcoded default)
 - No need to set `BGB_LIMIT_FILES` - it's implied
-- Uses `configs/local/smoke.yaml` (1 epoch, batch_size=8)
+- Uses `configs/local/smoke_bimamba.yaml` (1 epoch, batch_size=8)
+- FLA stack: swap to `configs/local/smoke_fla.yaml`
 
 ## Docker Smoke Test
 
@@ -49,8 +52,11 @@ docker compose up integration-test
 ## Modal Smoke Test
 
 ```bash
-# Smoke test (50 files, ~10 min)
-modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+# BiMamba2 smoke test (50 files, ~10 min)
+modal run deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
+
+# FLA smoke test
+modal run deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml
 # Optional: validate cache first
 modal run deploy/modal/app.py --action check-cache
 ```
@@ -103,14 +109,14 @@ python -m src scan-cache --cache-dir cache/tusz_mmap/train
 
 **WSL2 multiprocessing issues**:
 ```yaml
-# In configs/local/smoke.yaml
+# In configs/local/smoke_bimamba.yaml (and smoke_fla.yaml)
 data:
   num_workers: 0  # Use 0 for WSL2 stability
 ```
 
 **RTX 4090 stability**:
 ```yaml
-# In configs/local/smoke.yaml
+# In configs/local/smoke_bimamba.yaml (and smoke_fla.yaml)
 training:
   mixed_precision: false  # Disable for stability
 ```
