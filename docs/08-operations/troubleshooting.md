@@ -94,6 +94,38 @@ aws s3 ls s3://brain-go-brr-eeg-data-20250919/cache/tusz_mmap/train/manifest.jso
 modal run --detach deploy/modal/app.py --action populate-cache
 ```
 
+### Balanced Dataset Falls Back to `EEGWindowDataset`
+**Symptom**: Startup log shows `[WARNING] BalancedSeizureDataset failed: ... falling back to EEGWindowDataset`
+**Cause**: Train manifest missing/mismatched or a build older than v3.9.1 that passed EDF filenames into the balanced sampler
+```bash
+# 1. Stop the run immediately – training without the balanced sampler under-exposes seizures.
+
+# 2. Inspect cache health on Modal
+modal run deploy/modal/app.py --action check-cache
+
+# 3. If manifest is missing/corrupt, rebuild locally and re-upload
+python -m src scan-cache --cache-dir cache/tusz_mmap/train
+aws s3 sync cache/tusz_mmap/train/ s3://brain-go-brr-eeg-data-20250919/cache/tusz_mmap/train/ \
+  --exclude "*.log" --exclude "__pycache__/*"
+modal run --detach deploy/modal/app.py --action populate-cache
+
+# 4. Ensure you are running v3.9.1+ (loop.py now maps EDF → *_data.npy before filtering)
+
+# 5. Relaunch training and confirm the healthy log line:
+#    [DATASET] BalancedSeizureDataset: <N> windows from manifest
+```
+
+### `Runner failed with exception: Worker disappeared`
+**Symptom**: Modal restarts the container within seconds during the first 10–15 min of a run
+**Cause**: Transient GPU reset/spot preemption while Triton kernels compile (Modal automatically respawns)
+```bash
+# 1. Allow Modal to restart; the new container will re-enter the loop automatically.
+# 2. Expect the first healthy container to spend ~5–10 min building /results/cache/tusz_mmap/dev/_dataset_index.json
+#    (one-time cost; the file is reused for future restarts).
+# 3. Optionally lower the initial mid-epoch interval to 600 s so a checkpoint exists before the next restart.
+# 4. If the error repeats multiple times, collect container IDs and open a Modal support ticket.
+```
+
 ### Modal populate-cache Stops
 **Symptom**: Function exits after ~8 minutes
 **Cause**: Terminal disconnection without --detach
