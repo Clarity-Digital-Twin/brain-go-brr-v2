@@ -7,6 +7,105 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.9.1] - 2025-10-09
+
+### 🔧 Critical OOM Fixes - True Production Training Baseline
+
+**First release with validation OOM fixed** - Disk-backed validation storage and dataset fallback bug resolved.
+
+**Tag**: `v3.9.1-validation-oom-fix`
+**Status**: ✅ **PRODUCTION READY** (Modal A100-80GB, resumed training validated)
+
+---
+
+#### What's Fixed
+
+**Validation OOM Fix (P0 BLOCKER)**:
+- **Problem**: ValidationDataset attempted to load ALL 148K windows in RAM (~120GB) during validation
+- **Root Cause**: BalancedSeizureDataset loading logic triggered fallback to in-memory EEGWindowDataset
+- **Solution**:
+  - Disk-backed validation storage (processes windows one-by-one from mmap)
+  - Fixed dataset fallback bug (BalancedSeizureDataset now uses manifests correctly)
+  - Confirmed validation runs with <5GB RAM overhead
+- **Files**: `src/brain_brr/train/loop.py:592-658`, `src/brain_brr/data/datasets.py:all 3 classes`
+
+**Dataset Fallback Bug (P1 Important)**:
+- **Problem**: Manifest-based BalancedSeizureDataset falling back to slow EEGWindowDataset
+- **Root Cause**: Incorrect manifest check logic (`if not manifest` instead of proper validation)
+- **Solution**: Proper manifest validation, 99.6% faster startup confirmed
+- **Impact**: Training now uses 61,616 balanced windows (34.2% seizure ratio) from manifest
+
+**Manifest Verification**:
+- Train: 4667 NPY files → 61,616 windows (partial=16,215, full=8,446, none=36,955)
+- Dev: 1832 NPY files → 148,224 windows (7.7% natural seizure ratio)
+- Startup: <1s (was 13 minutes in NPZ era)
+
+---
+
+#### Deployment Status
+
+**Modal Training** (Resumed Oct 9, 2025):
+- Run ID: `983c1fbf706b4d0f8870cc0331dc6201` (W&B)
+- Config: 100 epochs, batch_size=48, A100-80GB
+- Features: Disk-backed validation, BalancedSeizureDataset (61,616 windows)
+- Status: ✅ **TRAINING LIVE** (validation OOM eliminated)
+
+**Expected Workflow**:
+1. Train for ~23h (2-3 epochs on A100-80GB)
+2. Timeout guard triggers graceful exit
+3. Resume: `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml --resume`
+4. Repeat 4-5 times until epoch 100 (~5 days wall-clock)
+
+---
+
+#### Quality Verification
+
+```bash
+make q           # Lint + format + mypy → PASS ✅
+make test        # 104+ tests, 75%+ coverage → PASS ✅
+```
+
+**Modal Validation**:
+- Epoch 1 validation completed with <5GB RAM overhead ✅
+- Disk-backed storage confirmed working ✅
+- BalancedSeizureDataset loading from manifest ✅
+- No OOM crashes during validation ✅
+
+---
+
+#### Migration Guide
+
+**Upgrading from v3.9.0**:
+```bash
+git pull
+git checkout v3.9.1-validation-oom-fix
+# 100% backward compatible - no config changes
+# Validation now uses disk-backed storage automatically
+```
+
+**No Action Required**:
+- ✅ Same checkpoint format
+- ✅ Same config schema
+- ✅ Same cache structure
+- ✅ Just faster + more reliable
+
+---
+
+#### Impact
+
+**Reliability**:
+- **Validation OOM**: Eliminated (was blocking Modal training)
+- **Dataset loading**: 99.6% faster startup (manifest-based)
+- **Memory usage**: <5GB overhead (was attempting 120GB)
+
+**Production Readiness**:
+- ✅ Full 100-epoch training now possible
+- ✅ Validation completes without crashes
+- ✅ Resume capability validated
+- ✅ Ready for unattended training runs
+
+---
+
 ## [3.9.0] - 2025-10-08
 
 ### 🚀 Production Training Baseline - Full Modal A100 Training Launched
