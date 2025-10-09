@@ -834,7 +834,7 @@ edge_mamba = BiGatedDeltaNet(d_model=16, headdim=4, num_heads=3, num_layers=2)  
 
 # Timeline:
 # - Development: 1-2 days (edge wrapper + builder update)
-# - Integration test (50 files, 10 epochs): ~6-8 hours RTX 4090
+# - Medium validation (Phase 2 only): 50 files, 6 epochs, ~2-3 h RTX 4090
 # - If successful: +1-2% sensitivity expected
 ```
 
@@ -851,8 +851,8 @@ edge_mamba = BiMamba2(d_model=16, headdim=4, num_layers=2)  # KEEP OLD (10K para
 
 # Timeline:
 # - Development: 1 day (node wrapper + builder update, reuse Phase 1a code)
-# - Integration test: ~6-8 hours RTX 4090
-# - If successful: +1-2% sensitivity expected
+# - Validation: Smoke test only (3 files, ~10 min) – medium-scale testing deferred to Phase 2
+# - If successful: +1-2% sensitivity expected (to be confirmed at Phase 2/Modal scale)
 ```
 
 #### **Phase 2: Both Streams** (Full Migration)
@@ -861,8 +861,8 @@ edge_mamba = BiMamba2(d_model=16, headdim=4, num_layers=2)  # KEEP OLD (10K para
 node_mamba = BiGatedDeltaNet(d_model=64, headdim=8, num_heads=6, num_layers=6)  # NEW
 edge_mamba = BiGatedDeltaNet(d_model=16, headdim=4, num_heads=3, num_layers=2)  # NEW
 
-# Expected combined gain: +3-5% sensitivity @ 1 FA/24h
-# Timeline: Full training (100 epochs)
+# Expected combined gain: +3-5% sensitivity @ 10 FA (to be validated via Modal A/B)
+# Timeline: Smoke test + single medium validation locally, then full Modal training (100 epochs)
 ```
 
 #### **Phase 2b: Fusion Mode A/B** (Optional Optimization)

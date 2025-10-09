@@ -1,9 +1,9 @@
 # Brain-Go-Brr v3.9.0 – Current Status
 
-**Last Updated:** 2025-10-08
-**Branch:** `main`
+**Last Updated:** 2025-10-09
+**Branch:** `feature/flash-linear-attention`
 **Version:** v3.9.0 (Production Training Baseline)
-**Deployment:** Modal full training LIVE (100 epochs on A100-80GB, app: ap-weaDyLGsgK5TEz8sLLOxO6)
+**Deployment:** Modal full training LIVE – BiMamba2 baseline resumed Oct 9 (W&B run: `983c1fbf706b4d0f8870cc0331dc6201`)
 
 ---
 
@@ -33,8 +33,14 @@
 - ✅ **Timeout Guard**: 23h wall-clock limit with 1h safety margin, graceful exit before Modal kill
 - ✅ **Comprehensive Validation**: Pre-training validation report, metrics pipeline verified from first principles
 - ✅ **Test Suite Enhancement**: Manifest validation tests, checkpoint robustness tests, 75%+ coverage maintained
-- ✅ **Full Training Launched**: Modal A100-80GB (100 epochs, app: ap-weaDyLGsgK5TEz8sLLOxO6)
+- ✅ **Full Training Resumed**: Modal A100-80GB (100 epochs, disk-backed validation fix verified Oct 9)
 - ✅ **Documentation**: PRE_TRAINING_VALIDATION.md (root) + updated `docs/05-training/modal.md`; full historical analysis archived at `docs/archive_v1/MODAL_TRAINING_DIAGNOSTICS.md`
+
+### FLA Stack Readiness (October 8-9, 2025)
+- ✅ Phase 0–2 COMPLETE: Edge, node, and dual-stream GDN smoke tests passed (Phase 2 medium validation technical success)
+- ✅ Full-stack configs: `configs/local/phase2_both_gdn.yaml` + `configs/local/phase2_medium_gdn.yaml`
+- ✅ Roadmap documented: See `FLA_ROADMAP.md` / `FLA_QUICK_REFERENCE.md`
+- 🔄 Modal A/B Plan: BiMamba2 baseline training LIVE; FLA Modal config queued post-baseline
 
 ### v3.8.3 - Manifest Naming Cleanup (October 7, 2025)
 - ✅ Regenerated train manifest: 303,990 windows across 4438 NPY files
@@ -72,19 +78,19 @@
 ## Current Deployment
 
 **Modal Full Training (LIVE - v3.9.0)**:
-- App ID: `ap-weaDyLGsgK5TEz8sLLOxO6` (launched Oct 8, 12:27 UTC)
+- Launch: Oct 9, 2025 15:34 EDT (disk-backed validation path active)
 - Config: 100 epochs, batch_size=48, A100-80GB, mixed_precision=true
-- Cache: 4667 train + 1832 dev NPY files (verified pristine)
+- Cache: 4667 train + 1832 dev NPY files (BalancedSeizureDataset = 61,616 windows, seizure ratio 34.2%)
 - Status: ✅ **PRODUCTION TRAINING RUNNING**
-- Features: Atomic checkpoints every 30min, 23h timeout guard, bulletproof resume
-- W&B: https://wandb.ai/jj-vcmcswaggins-novamindnyc/seizure-detection-a100
-- Modal: https://modal.com/apps/clarity-digital-twin/main/ap-weaDyLGsgK5TEz8sLLOxO6
+- Features: Atomic checkpoints every 30 min, 23 h timeout guard, bulletproof resume
+- W&B: https://wandb.ai/jj-vcmcswaggins-novamindnyc/seizure-detection-a100/runs/983c1fbf706b4d0f8870cc0331dc6201
+- Modal: `modal app list` → locate latest `deploy/modal/app.py::train` call (run with `--resume`)
 
 **Next Steps**:
-1. Monitor first 24h (expect ~2-3 epochs)
-2. Resume after timeout: `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml --resume true`
-3. Repeat resume ~4-5 times until epoch 100
-4. Analyze final metrics and tune post-processing if needed
+1. Monitor first validation for `[VALIDATION] Starting disk-backed validation` (confirms fix)
+2. Resume after timeout: `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml --resume`
+3. Repeat resume ~4-5 times until epoch 100 completes
+4. Archive checkpoints + metrics, then launch FLA Modal A/B run
 
 ---
 

@@ -776,26 +776,25 @@ python -m src train configs/local/train.yaml
 ## 8. Timeline & Checklist
 
 ### Day 1: Setup
-- [ ] Verify Phase 0 complete (Section 1.1)
-- [ ] Verify Phase 1a succeeded (Section 1.2)
-- [ ] Create phase1b config (Section 2)
-- [ ] Optional: Run baseline if needed (Section 1.3)
-- [ ] Smoke test (Section 3.1) - 10 min
+- [x] Verify Phase 0 complete (Section 1.1)
+- [x] Verify Phase 1a succeeded (Section 1.2)
+- [x] Create phase1b config (Section 2)
+- [x] Optional: Run baseline if needed (Section 1.3)
+- [x] Smoke test (Section 3.1) - 10 min
 
 ### Day 2: Analysis (DEPRECATED - Skip to Phase 2)
 - [ ] ~~Full validation run~~ (DEPRECATED - smoke-only strategy)
 - [ ] ~~Monitor training~~ (Deferred to Phase 2 medium validation)
-- [ ] Verify isolation (Section 3.3) - check smoke test logs
+- [x] Verify isolation (Section 3.3) - smoke test logs archived (`/tmp/phase1b_smoke.log`)
 
 ### Day 3: Analysis & Decision
-- [ ] Run A/B analysis (Section 4.2)
-- [ ] Review metrics vs success criteria (Section 6)
-- [ ] Go/No-Go decision
-- [ ] Document results
-- [ ] If GO: Proceed to Phase 2 (Doc 3)
-- [ ] If NO-GO: Rollback (Section 5)
+- [x] Review smoke metrics vs success criteria (Section 6)
+- [x] Go/No-Go decision → **GO**
+- [x] Document results (`/tmp/phase1b_smoke.log`, FLA_ROADMAP.md)
+- [x] Proceed to Phase 2 (Doc 3)
+- [ ] If NO-GO: Rollback (Section 5) – *not required*
 
-**Total Timeline**: 2-3 days (after Phase 0 AND Phase 1a complete)
+**Actual Timeline**: 1 day (Phase 0 + Phase 1a prerequisites already satisfied)
 
 ---
 
@@ -835,8 +834,8 @@ python -m src train configs/local/train.yaml
 
 ---
 
-**Document Status**: ✅ Ready for Implementation (AFTER Phase 0 complete AND Phase 1a succeeds)
+**Document Status**: ✅ COMPLETE (Smoke test passed Oct 8, 2025)
 **Dependencies**:
 1. Doc 0 Section 14 (Phase 0 Infrastructure) must be complete
 2. Phase 1a (Edge Validation) must succeed with GO decision
-**Next Document**: Doc 3 (Full Stream Validation) - pending Phase 1b success
+**Next Document**: Doc 3 (Full Stream Validation) – executed Oct 8 (see updated Doc 3)
