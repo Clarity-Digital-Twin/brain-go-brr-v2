@@ -6,6 +6,7 @@ Single Responsibility: Execute one validation epoch with proper metrics evaluati
 from __future__ import annotations
 
 import logging
+import shutil
 import sys
 import time
 from contextlib import suppress
@@ -261,6 +262,43 @@ def _compute_final_metrics(
     return results
 
 
+def _save_predictions_streaming(
+    storage: RecordingStorage,
+    output_dir: Path,
+    epoch: int | None = None,
+) -> None:
+    """Save validation predictions to disk using streaming (O(1) memory).
+
+    Copies prediction files from RecordingStorage to output directory.
+    Each recording is saved as separate .npy files (probs + labels).
+
+    Memory: O(1) - just file copies, no loading into RAM
+
+    Args:
+        storage: RecordingStorage with validation data
+        output_dir: Directory to save predictions
+        epoch: Optional epoch number for naming
+    """
+    pred_dir = Path(output_dir) / "predictions"
+    if epoch is not None:
+        pred_dir = pred_dir / f"epoch_{epoch:03d}"
+    pred_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.info(f"[SAVE] Saving predictions to {pred_dir}")
+
+    for file_id in storage.recording_ids:
+        probs_src = storage.cache_dir / f"{file_id}_probs.npy"
+        labels_src = storage.cache_dir / f"{file_id}_labels.npy"
+
+        probs_dst = pred_dir / f"{file_id}_probs.npy"
+        labels_dst = pred_dir / f"{file_id}_labels.npy"
+
+        shutil.copy2(probs_src, probs_dst)
+        shutil.copy2(labels_src, labels_dst)
+
+    logger.info(f"[SAVE] Saved {len(storage.recording_ids)} recording predictions")
+
+
 def validate_epoch(
     model: nn.Module,
     dataloader: DataLoader,
@@ -358,15 +396,16 @@ def validate_epoch(
                 logits = model(windows)
                 probs = torch.sigmoid(logits)
 
-                assert focal_alpha is not None
-                assert focal_gamma is not None
-                pt = labels * probs + (1 - labels) * (1 - probs)
-                at = labels * focal_alpha + (1 - labels) * (1 - focal_alpha)
-                focal_weight = at * ((1 - pt) ** focal_gamma)
-                bce = nn.functional.binary_cross_entropy_with_logits(
-                    logits, labels, reduction="none"
-                )
-                loss = (focal_weight * bce).mean()
+                if focal_alpha is not None and focal_gamma is not None:
+                    pt = labels * probs + (1 - labels) * (1 - probs)
+                    at = labels * focal_alpha + (1 - labels) * (1 - focal_alpha)
+                    focal_weight = at * ((1 - pt) ** focal_gamma)
+                    bce = nn.functional.binary_cross_entropy_with_logits(
+                        logits, labels, reduction="none"
+                    )
+                    loss = (focal_weight * bce).mean()
+                else:
+                    loss = nn.functional.binary_cross_entropy_with_logits(logits, labels)
                 total_loss += loss.item()
 
                 for i, fid in enumerate(file_ids):
@@ -438,13 +477,13 @@ def validate_epoch(
             num_recordings,
         )
 
+        if save_predictions and output_dir:
+            _save_predictions_streaming(storage, Path(output_dir), epoch)
+
     metrics["val_loss"] = total_loss / max(1, num_batches)
     logger.info(f"[VALIDATION] Done! Val Loss (Focal): {metrics['val_loss']:.4f}")
 
-    if save_predictions and output_dir:
-        logger.warning("[SAVE] Prediction saving temporarily disabled (disk-backed validation)")
-
     if save_plots and output_dir:
-        logger.warning("[SAVE] Plot saving temporarily disabled (disk-backed validation)")
+        logger.warning("[SAVE] Plot saving not yet implemented for disk-backed validation")
 
     return metrics
