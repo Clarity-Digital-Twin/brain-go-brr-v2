@@ -36,24 +36,24 @@
            ↓
 ┌─────────────────────────────────────────────────┐
 │ Phase 1b: Node GDN Validation (Doc 2)          │
-│ ❌ NOT IMPLEMENTED                               │
+│ ✅ CONFIG CREATED (Oct 8, 2025)                 │
 ├─────────────────────────────────────────────────┤
-│ - TODO: Create phase1b_node_gdn.yaml config    │
-│ - Edge stream: PRESERVE Phase 1a choice        │
-│ - Node stream: BiGatedDeltaNet (d_model=64)    │
-│ - Smoke test: 3 files, quick validation        │
-│ - ETA: ~30 min implementation + 5 min smoke     │
+│ - Config: configs/local/phase1b_node_gdn.yaml  │
+│ - Edge stream: PRESERVES Phase 1a (GDN)        │
+│ - Node stream: BiGatedDeltaNet (NEW)           │
+│ - Smoke test: NOT STARTED                      │
+│ - ETA: ~5 min smoke test                       │
 └─────────────────────────────────────────────────┘
            ↓
 ┌─────────────────────────────────────────────────┐
 │ Phase 2: Both Streams GDN (Doc 3)              │
-│ ❌ NOT IMPLEMENTED                               │
+│ ✅ CONFIG CREATED (Oct 8, 2025)                 │
 ├─────────────────────────────────────────────────┤
-│ - TODO: Create phase2_full_gdn.yaml config     │
+│ - Config: configs/local/phase2_both_gdn.yaml   │
 │ - Edge stream: BiGatedDeltaNet (d_model=32)    │
 │ - Node stream: BiGatedDeltaNet (d_model=64)    │
-│ - Smoke test: 3 files, quick validation        │
-│ - ETA: ~15 min implementation + 5 min smoke     │
+│ - Smoke test: NOT STARTED                      │
+│ - ETA: ~5 min smoke + 2-3h medium validation   │
 └─────────────────────────────────────────────────┘
            ↓
 ┌─────────────────────────────────────────────────┐
@@ -141,28 +141,25 @@
 ### ❌ **PENDING**
 
 **Phase 1b (Node GDN)**:
-- [ ] Create config: `configs/local/phase1b_node_gdn.yaml`
-  - Base: Copy from `train.yaml`
-  - Changes:
-    - `experiment.name: "phase1b_node_gdn"`
-    - `temporal_type_node: "gated_deltanet"`
-    - `temporal_type_edge: "bimamba2"` (explicit fallback) OR keep from 1a
-    - `gdn_node_num_heads: 6` (or custom)
-    - `gdn_node_headdim: 8` (or custom)
-    - `training.epochs: 10` (short smoke)
-- [ ] Smoke test (3 files)
-- [ ] Verify isolation (node=GDN, edge=BiMamba2 or GDN if from 1a)
+- [x] ✅ **Config created**: `configs/local/phase1b_node_gdn.yaml` (Oct 8, 2025)
+  - Complete 207-line config
+  - `experiment.name: "phase1b_node_gdn"`
+  - `temporal_type_node: "gated_deltanet"` (NEW)
+  - `temporal_type_edge: "gated_deltanet"` (PRESERVED from Phase 1a)
+  - `gdn_edge_num_heads: 3`, `gdn_edge_headdim: 8`
+  - `edge_mamba_d_model: 32` (FLA requirement)
+- [ ] Smoke test (3 files, ~5 min) - NEXT
+- [ ] Verify isolation (node=GDN, edge=GDN from Phase 1a)
 
 **Phase 2 (Both Streams GDN)**:
-- [ ] Create config: `configs/local/phase2_full_gdn.yaml`
-  - Base: Copy from `phase1a_edge_gdn.yaml`
-  - Changes:
-    - `experiment.name: "phase2_full_gdn"`
-    - `temporal_type: "gated_deltanet"` (global)
-    - `temporal_type_node: null` (inherit global)
-    - `temporal_type_edge: null` (inherit global)
-    - `training.epochs: 10` (short smoke)
-- [ ] Smoke test (3 files)
+- [x] ✅ **Config created**: `configs/local/phase2_both_gdn.yaml` (Oct 8, 2025)
+  - Complete 207-line config
+  - `experiment.name: "phase2_both_gdn"`
+  - `temporal_type: "gated_deltanet"` (global - both streams)
+  - `gdn_edge_num_heads: 3`, `gdn_edge_headdim: 8`
+  - `edge_mamba_d_model: 32` (FLA requirement)
+- [ ] Smoke test (3 files, ~5 min)
+- [ ] Medium validation (40-50 files, 5-6 epochs, ~2-3h)
 - [ ] Verify both streams use GDN
 
 **Medium Validation Run**:

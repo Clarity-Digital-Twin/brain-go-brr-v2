@@ -898,7 +898,7 @@ model:
     edge_threshold: 1.0e-4
     edge_mamba_layers: 2       # Edge GDN layers (pure, no SWA)
     edge_mamba_d_state: 8
-    edge_mamba_d_model: 16
+    edge_mamba_d_model: 32     # FLA hardware requirement (not 16!)
     edge_similarity_margin: 0.01
 
     # PR-3: Adjacency Conditioning (ENABLED)

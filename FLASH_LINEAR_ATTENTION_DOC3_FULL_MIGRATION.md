@@ -13,18 +13,20 @@
 
 **THIS DOCUMENT DESCRIBES A FUTURE STATE THAT DOES NOT EXIST YET.**
 
-**Current Reality (October 8, 2025)**:
-- ❌ BiGatedDeltaNet wrapper does NOT exist (`src/brain_brr/models/gated_deltanet.py` missing)
-- ❌ Config fields do NOT exist (`temporal_type`, `gdn_fusion_mode` not in schema)
-- ❌ FLA dependency NOT installed (`flash-linear-attention` not in `pyproject.toml`)
-- ❌ Builder factory pattern does NOT exist (returns BiMamba2 only)
-- ❌ Analysis scripts do NOT exist (`scripts/analyze_phase2.py` missing)
+**Current Reality (October 8, 2025 - UPDATED)**:
+- ✅ **BiGatedDeltaNet wrapper EXISTS** (`src/brain_brr/models/gated_deltanet.py` - Phase 1a complete)
+- ✅ **Config fields EXIST** (`temporal_type`, `gdn_fusion_mode` in schema - Phase 0 complete)
+- ✅ **FLA dependency INSTALLED** (`flash-linear-attention` in `pyproject.toml` - Phase 0 complete)
+- ✅ **Builder factory pattern EXISTS** (returns BiMamba2 OR BiGatedDeltaNet based on config - Phase 0 complete)
+- ✅ **Phase 1a COMPLETE** (edge stream GDN validated, smoke test v4 passed Oct 8, 2025)
+- ❌ **Phase 1b NOT STARTED** (node stream GDN config exists but not tested yet)
+- ❌ **Analysis scripts do NOT exist** (`scripts/analyze_phase2.py` - TO BE CREATED when needed)
 
-**What This Means**:
-- 🚫 **DO NOT** attempt to follow these instructions today - they will fail
-- ✅ **DO** use this document for planning Phase 2 architecture
-- ✅ **DO** complete Phase 0 (Doc 0 Section 14) FIRST to build infrastructure
-- ✅ **DO** complete Phase 1a + Phase 1b validation before Phase 2
+**What This Means** (Updated Oct 8, 2025):
+- ✅ **Phase 0 + Phase 1a COMPLETE** - Infrastructure exists, edge stream validated
+- ❌ **Phase 1b NOT TESTED YET** - Config exists (`configs/local/phase1b_node_gdn.yaml`) but smoke test not run
+- ⚠️ **Phase 2 PARTIALLY READY** - Config exists (`configs/local/phase2_both_gdn.yaml`) but depends on Phase 1b success
+- 🚫 **DO NOT skip to Phase 2** - Must complete Phase 1b smoke test first (validates node stream isolation)
 
 **Execution Order**:
 ```

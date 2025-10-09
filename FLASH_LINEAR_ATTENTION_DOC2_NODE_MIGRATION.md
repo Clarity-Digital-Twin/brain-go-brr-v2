@@ -63,19 +63,23 @@ model:
 - Hypothesis: +5-10% better per-electrode memory → +1-2% sensitivity @ 1 FA/24h
 - Risk: **MEDIUM** (larger parameter count than edge, 284K out of 398K total = 71% of stream parameters)
 
-**Timeline**: 1 day config + 6-8 hours validation + 1 day analysis (assumes Phase 0 complete AND Phase 1a success)
+**Timeline**: 1 day config + smoke test (~5 min) - NO medium validation (deferred to Phase 2)
 
 ---
 
 ## 📊 Parameter Count Analysis
 
-**IMPORTANT**: GDN's 0.75× q/k projection (vs Mamba2's 1.0×) reduces parameter count by ~29%. **This is EXPECTED and BENEFICIAL**:
+**⚠️ IMPORTANT - Parameter Analysis Needs Update**:
 
-| Component | BiMamba2 (Baseline) | BiGatedDeltaNet (Phase 1b) | Reduction |
-|-----------|---------------------|----------------------------|-----------|
-| **Node Stream** | 397,632 params | **~284,000 params** | **-29%** |
-| **Edge Stream** | 10,304 params (BiMamba2) or ~7,352 params (GDN) | (unchanged - from Phase 1a) | N/A |
-| **Total Streams** | 407,936 params | **~291,352 params (if edge=GDN)** or **~294,304 params (if edge=BiMamba2)** | **-28% to -29%** |
+GDN's 0.75× q/k projection reduces params **within a fixed d_model**, but Phase 1a forced `edge_mamba_d_model=32` (not 16) due to FLA hardware requirements. This means edge stream params **INCREASE** compared to BiMamba2 baseline at d_model=16.
+
+| Component | BiMamba2 (Baseline d_model) | BiGatedDeltaNet (Phase 1b) | Change |
+|-----------|------------------------------|----------------------------|--------|
+| **Node Stream** | 397,632 params (d_model=64) | **~284,000 params (d_model=64)** | **-29%** ✅ |
+| **Edge Stream** | 10,304 params (d_model=16) | **~30K params (d_model=32, from Phase 1a)** | **+~190%** ⚠️ |
+| **Total Streams** | 407,936 params | **~314K params (both GDN, edge d_model=32)** | **-23%** (mixed) |
+
+**Key Insight**: The parameter "reduction" is NOT comparing apples-to-apples. Phase 1a increased edge capacity (d_model 16→32) for FLA compatibility, so total stream params are higher than naive 29% reduction would suggest.
 
 **Why fewer parameters is GOOD**:
 - ✅ **More parameter-efficient**: Same representational capacity with fewer params
