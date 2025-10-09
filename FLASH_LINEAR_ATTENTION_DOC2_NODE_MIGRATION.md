@@ -87,7 +87,7 @@ GDN's 0.75× q/k projection reduces params **within a fixed d_model**, but Phase
 - ✅ **Better generalization**: Reduced parameter count can improve generalization
 - ✅ **By design**: GDN paper shows 0.75× allocation is intentional and performs well
 
-**Key Insight**: The node stream has **39× more parameters** than edge stream (398K vs 10K), making this a more significant test of GDN's benefits. The 29% reduction is expected and part of GDN's parameter efficiency design.
+**Key Insight**: The node stream has **~13× more parameters** than edge stream (398K vs ~30K after Phase 1a forced edge_d_model=32), making this a more significant test of GDN's benefits. The 29% node reduction is expected and part of GDN's parameter efficiency design.
 
 ---
 
