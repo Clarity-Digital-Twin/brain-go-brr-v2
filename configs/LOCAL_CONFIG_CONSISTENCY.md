@@ -1,93 +1,76 @@
-# Local Config Consistency (V3.6.1) ✅
+# Local Config Consistency (v3.10.0-pre) ✅
 
-Canonical stack: TCN + Dual-Stream BiMamba + Vectorized GNN (PyG SSGConv + Dynamic LPE)
+Two dedicated config pairs exist:
 
-Files
-- configs/local/smoke.yaml — 1 epoch, 3 files (via BGB_LIMIT_FILES=3), quick validation
-- configs/local/train.yaml — 100 epochs, official train/dev splits, balanced sampling
-
-Shared model
-```yaml
-model:
-  architecture: v3  # V3 dual-stream architecture
-
-  tcn:
-    num_layers: 8
-    kernel_size: 7
-    stride_down: 16
-    dropout: 0.15
-
-  mamba:  # Main temporal stream
-    n_layers: 6
-    d_model: 512
-    d_state: 16
-    conv_kernel: 4
-    dropout: 0.1
-
-  graph:
-    enabled: true
-    # PyG is required; no explicit toggle
-
-    # V3 edge stream config:
-    edge_features: cosine
-    edge_top_k: 3
-    edge_threshold: 1.0e-4
-    edge_mamba_layers: 2
-    edge_mamba_d_state: 8
-    edge_mamba_d_model: 16  # Must be multiple of 8
-    edge_similarity_margin: 0.01  # v3.2.0: Safety margin from ±1 boundaries
-
-    # GNN config:
-    n_layers: 2
-    dropout: 0.1
-    use_residual: true
-    alpha: 0.05
-    k_eigenvectors: 16
-    use_dynamic_pe: true  # Dynamic PE (recomputed per timestep)
-    semi_dynamic_interval: 5  # RTX 4090 optimized interval
+```
+configs/local/
+  smoke_bimamba.yaml   # BiMamba2: 3 files, 1 epoch (BGB_SMOKE_TEST)
+  train_bimamba.yaml   # BiMamba2: 100 epochs, official train/dev
+  smoke_fla.yaml       # FLA (Gated DeltaNet): smoke
+  train_fla.yaml       # FLA (Gated DeltaNet): full run
 ```
 
-Shared data
+Both stacks share the same TCN → GNN pipeline; only the temporal blocks differ.
+
+## Common Settings (All Local Configs)
+
 ```yaml
 data:
   dataset: tuh_eeg
-  cache_dir: cache/tusz  # Critical: use existing cache
+  cache_dir: cache/tusz_mmap
   sampling_rate: 256
   n_channels: 19
   window_size: 60
   stride: 10
+  num_workers: 0            # WSL2 stability
+  pin_memory: true
+  persistent_workers: false
+  prefetch_factor: 2
+
+training:
+  batch_size: 8
+  learning_rate: 1.0e-4
+  gradient_clip: 0.5
+  mixed_precision: false     # RTX 4090 FP16 can cause NaNs
+  scheduler:
+    type: cosine
+    warmup_ratio: 0.03
 ```
 
-Smoke (safe + fast)
+Checkpoints (train configs only):
 ```yaml
-epochs: 1
-batch_size: 8  # Same as train for consistency
-use_balanced_sampling: false  # MUST be false for BGB_LIMIT_FILES
-mixed_precision: false
-# Optional: export BGB_NAN_DEBUG=1 for debugging
-# Or use: make s (sets flags automatically)
+mid_checkpoint_interval_s: 1800
+mid_epoch_keep: 3
 ```
 
-Train (RTX 4090 optimized)
-```yaml
-epochs: 100
-batch_size: 8                  # OPTIMIZED: 2× faster than batch=4
-use_balanced_sampling: true    # Critical for severe imbalance
-mixed_precision: false         # RTX 4090 FP16 can cause NaNs
-learning_rate: 1.0e-4          # Conservative for stability
-gradient_clip: 0.5             # Increased from 0.1 (eigendecomp fix)
-mid_checkpoint_interval_s: 1800  # Save every 30 min
-mid_epoch_keep: 3              # Keep last 3 mid-epoch snapshots
-```
+## BiMamba2 Stack (`*_bimamba.yaml`)
 
-WSL2 notes
-- Use `num_workers: 0` (multiprocessing issues)
-- Keep `pin_memory: true`, `persistent_workers: false`
-- Mid-epoch checkpoints save every 30 min (critical for 3-hour epochs)
-- Full V3 training ~300 hours; prefer Modal for speed (~100 hours)
+- `model.mamba` has **no `temporal_type` overrides** (defaults to BiMamba2).
+- `graph.edge_mamba_d_model: 16`.
+- Balanced sampling enabled in `train_bimamba.yaml`, disabled in smoke.
+- Usage:
+  - `make smoke-bimamba` → 3 files, 1 epoch
+  - `make train-bimamba` → full 100 epochs (≈300h locally)
 
-Key V3 improvements
-- Node BiMamba: d_model=64, headdim=8 → (64*2)/8=16 ✓
-- Edge BiMamba: d_model=16, headdim=4 → (16*2)/4=8 ✓
-- No Conv1d fallbacks with proper headdim configuration
-- Vectorized GNN processes all 960 timesteps in one pass
+## FLA Stack (`*_fla.yaml`)
+
+- `model.mamba.temporal_type: gated_deltanet`
+- `temporal_type_node/edge: gated_deltanet`
+- `gdn_fusion_mode: sum`, `gdn_allow_neg_eigval: false`
+- `gdn_edge_num_heads: 3`, `gdn_edge_headdim: 8`
+- `graph.edge_mamba_d_model: 32` (FLA causal_conv1d requirement)
+- All other hyperparameters match the BiMamba2 configs.
+- Usage:
+  - `make smoke-fla`
+  - `make train-fla`
+
+## WSL2 / RTX 4090 Notes
+- Always run with `num_workers: 0`.
+- Use `BGB_NAN_DEBUG=1` (and optionally `BGB_SANITIZE_GRADS=1`) for debugging.
+- Mid-epoch checkpoints prevent >30 min progress loss on 3h epochs.
+- Full local runs remain slow (~12.5 days); prefer Modal for long training.
+
+## Architecture Sanity Checks
+- Node BiMamba vs GatedDeltaNet share the same `d_model=512`, `n_layers=6`.
+- Edge stream uses `d_model=16` (BiMamba2) or `d_model=32` (FLA) with matching head heuristics (`0.75×d_model`).
+- Dynamic Laplacian PE enabled (`use_dynamic_pe: true`, `semi_dynamic_interval: 5`).

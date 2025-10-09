@@ -1,8 +1,27 @@
-# Configuration Consistency Check (v3.8.2)
+# Configuration Consistency Check (v3.10.0-pre)
+
+The config namespace now has **dedicated files per architecture**:
+
+```
+configs/local/
+  smoke_bimamba.yaml   # BiMamba2 stack – smoke (3 files, 1 epoch)
+  train_bimamba.yaml   # BiMamba2 stack – full training (100 epochs)
+  smoke_fla.yaml       # FLA (Gated DeltaNet) stack – smoke
+  train_fla.yaml       # FLA (Gated DeltaNet) stack – full training
+
+configs/modal/
+  smoke_bimamba.yaml   # BiMamba2 stack – smoke (50 files, 1 epoch)
+  train_bimamba.yaml   # BiMamba2 stack – full training (100 epochs)
+  smoke_fla.yaml       # FLA stack – smoke
+  train_fla.yaml       # FLA stack – full training
+```
+
+Each pair (BiMamba2 vs FLA) is identical except for the **temporal blocks** and the
+associated safeguards (`temporal_type*`, `gdn_*`, `edge_mamba_d_model`).
 
 ## Local Configs (RTX 4090 - 24GB)
 
-### train.yaml (Full Training)
+### BiMamba2 – `train_bimamba.yaml`
 ```yaml
 batch_size: 8                  # OPTIMIZED: 2× faster than batch=4
 use_dynamic_pe: true          # ENABLED
@@ -14,9 +33,28 @@ gradient_clip: 0.5            # Increased from 0.1 (eigendecomp fix allows this)
 mid_checkpoint_interval_s: 1800  # Save every 30 min
 mid_epoch_keep: 3             # Keep last 3 mid-epoch snapshots
 ```
-**Status**: ✅ PRODUCTION STABLE (v3.8.2)
+**Status**: ✅ PRODUCTION STABLE
 
-### smoke.yaml (Quick Test)
+### FLA – `train_fla.yaml`
+```yaml
+batch_size: 8
+use_dynamic_pe: true
+semi_dynamic_interval: 5
+temporal_type: gated_deltanet          # Global fallback
+temporal_type_node: gated_deltanet
+temporal_type_edge: gated_deltanet
+gdn_edge_num_heads: 3                  # 3 × 8 = 24 = 0.75 × edge_d_model
+gdn_edge_headdim: 8
+edge_mamba_d_model: 32                 # FLA causal_conv1d requirement
+mixed_precision: false
+learning_rate: 1.0e-4
+gradient_clip: 0.5
+mid_checkpoint_interval_s: 1800
+mid_epoch_keep: 3
+```
+**Status**: ✅ READY FOR RESEARCH (mirrors BiMamba2 config except for temporal stack)
+
+### BiMamba2 – `smoke_bimamba.yaml`
 ```yaml
 batch_size: 8                  # Same as train for consistency
 use_dynamic_pe: true          # ENABLED
@@ -26,11 +64,15 @@ mixed_precision: false        # RTX 4090 stability
 epochs: 1                     # Quick validation
 # No mid-epoch checkpointing (1 epoch only)
 ```
-**Status**: ✅ CORRECT - smoke test completes before 30-min checkpoint
+**Status**: ✅ CORRECT
+
+### FLA – `smoke_fla.yaml`
+Same as BiMamba2 smoke config plus the FLA temporal overrides (`temporal_type*`,
+`gdn_*`, `edge_mamba_d_model: 32`). No mid-epoch checkpoints (1 epoch only).
 
 ## Modal Configs (A100 - 80GB)
 
-### modal/train.yaml
+### BiMamba2 – `train_bimamba.yaml`
 ```yaml
 batch_size: 48                 # PRODUCTION: ~58GB peak (verified stable)
 use_dynamic_pe: true          # ENABLED
@@ -42,9 +84,26 @@ gradient_clip: 0.5            # NaN protection
 mid_checkpoint_interval_s: 1800  # Save every 30 min (CRITICAL for 6-7h epochs)
 mid_epoch_keep: 3             # Keep last 3 mid-epoch snapshots
 ```
-**Status**: ✅ PRODUCTION READY (v3.8.2)
+**Status**: ✅ PRODUCTION READY
 
-### modal/smoke.yaml
+### FLA – `train_fla.yaml`
+```yaml
+batch_size: 48
+temporal_type: gated_deltanet
+temporal_type_node: gated_deltanet
+temporal_type_edge: gated_deltanet
+gdn_edge_num_heads: 3
+gdn_edge_headdim: 8
+edge_mamba_d_model: 32
+mixed_precision: true
+learning_rate: 8.0e-5
+gradient_clip: 0.5
+mid_checkpoint_interval_s: 1800
+mid_epoch_keep: 3
+```
+**Status**: ✅ READY FOR RESEARCH (mirrors BiMamba2 settings)
+
+### BiMamba2 – `smoke_bimamba.yaml`
 ```yaml
 batch_size: 48                # Same as train for consistency
 use_dynamic_pe: true          # ENABLED
@@ -54,7 +113,11 @@ mixed_precision: true         # A100 tensor cores
 epochs: 1                     # Quick validation
 # No mid-epoch checkpointing (1 epoch only)
 ```
-**Status**: ✅ VERIFIED - smoke test validates production config
+**Status**: ✅ VERIFIED
+
+### FLA – `smoke_fla.yaml`
+Identical to BiMamba2 smoke config with the temporal overrides (`temporal_type*`,
+`gdn_*`, `edge_mamba_d_model: 32`). One epoch, no mid-epoch checkpoints.
 
 ## Key Differences by Platform
 
@@ -67,11 +130,14 @@ epochs: 1                     # Quick validation
 | **Num Workers** | 0 | 4 | WSL2 vs cloud |
 | **Learning Rate** | 1.0e-4 | 8.0e-5 | Stability vs batch-size scaling |
 | **Mid-Epoch Checkpoints** | 1800s | 1800s | Crash recovery (both platforms) |
+| **Temporal Stack (BiMamba2)** | implicit BiMamba2 | implicit BiMamba2 | Defaults |
+| **Temporal Stack (FLA)** | `temporal_type* = gated_deltanet` | Same | Explicit overrides |
+| **Edge d_model (FLA)** | 32 | 32 | Required for FLA kernels |
 
 ## Critical Settings That MUST Match
 
 ### All Configs Must Have:
-- ✅ `architecture: v3`
+- ✅ V3 dual-stream layout (TCN → temporal streams → GNN → fusion → decoder)
 - ✅ `use_dynamic_pe: true` (interval=5 for both platforms)
 - ✅ `edge_top_k: 3` (validated by literature)
 - ✅ `edge_similarity_margin: 0.01` (v3.3.0 safety margin)
@@ -101,8 +167,8 @@ Memory (GB) ≈ batch_size × (3.5 + 0.94 × (960/semi_dynamic_interval))
 
 ## Recommendations
 
-1. **Local train.yaml**: ✅ PRODUCTION STABLE (batch=8, mid-epoch=1800s)
-2. **Local smoke.yaml**: ✅ CORRECT (1 epoch, no mid-epoch needed)
-3. **Modal train.yaml**: ✅ PRODUCTION READY (batch=48, mid-epoch=1800s)
-4. **Modal smoke.yaml**: ✅ VERIFIED (validates production config)
-5. **Documentation**: ✅ All docs updated to v3.8.2 zero-warnings baseline
+1. **BiMamba2 configs** (`*_bimamba.yaml`): Keep as production defaults (no temporal overrides).
+2. **FLA configs** (`*_fla.yaml`): Copy of BiMamba2 settings + explicit Gated DeltaNet parameters.
+3. **Smoke tests**: Run both stacks (`make smoke-bimamba`, `make smoke-fla`) before any long run.
+4. **Full runs**: Use matching Modal/local configs for apples-to-apples comparison.
+5. **Documentation**: All references should point to the new `*_bimamba.yaml` / `*_fla.yaml` filenames.
