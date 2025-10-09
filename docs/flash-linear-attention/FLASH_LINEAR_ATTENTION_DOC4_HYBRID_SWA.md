@@ -1412,38 +1412,32 @@ python scripts/analyze_phase3_results.py --project seizure-v3-hybrid-gdn
 ✅ **Hybrid architecture**: Logs show "HybridNodeStream(layers=[...])"
 ✅ **SWA layers functional**: Windowed attention computes correctly
 
-### 8.2. Performance Criteria
+### 8.2. Performance Metrics to Monitor
 
-✅ **Convergence**: Loss decreases over 10 epochs
-✅ **No regression**: val_loss ≤ Phase 2 + 0.05
-✅ **Overall improvement**: sensitivity_at_10fa >= Phase 2 + 0.01 (+1%)
-✅ **Consistent gains**: Improvement across multiple FA rates (10FA, 5FA, 1FA)
-✅ **Throughput acceptable**: ≤ Phase 2 + 10%
-✅ **Memory usage**: ≤ Phase 2 + 2GB
+Track these measurements relative to Phase 2. treat thresholds as hypotheses, not hard gates.
+
+✅ **Convergence**: Loss decreases over 10 epochs  
+✅ **Val loss delta**: val_loss ≤ Phase 2 + 0.05  
+✅ **Sensitivity delta**: sensitivity_at_10fa − Phase 2 (target ≥ +1%, but record actual)  
+✅ **Cross-FA behaviour**: Compare 10FA, 5FA, 1FA trajectories  
+✅ **Throughput**: ≤ Phase 2 + 10%  
+✅ **Memory usage**: ≤ Phase 2 + 2GB  
 
 **NOTE**: Short-duration seizure improvement must be assessed via **manual post-hoc analysis** by filtering predictions by event duration (<5s). The training pipeline does NOT log a separate `sensitivity_short_seizures` metric.
 
-### 8.3. Go/No-Go Decision
+### 8.3. Result Interpretation
 
-**GO → Deploy Phase 3** if:
-- All technical criteria met
-- Overall improvement >= +1% at 10 FA/24h
-- Consistent gains across multiple FA rates
-- Manual analysis confirms short-duration benefit (if applicable)
-- No major regressions vs Phase 2
-
-**NO-GO → Revert to Phase 2** if:
-- Overall sensitivity regression > 0.5%
-- Training unstable (NaNs, divergence)
-- Memory or throughput issues
-- Manual analysis shows NO short-duration benefit
-- Pure GDN (Phase 2) is sufficient
+After collecting metrics:
+- Summarize gains/regressions vs Phase 2 (overall + short-duration)
+- Document qualitative observations (training stability, anomalies)
+- Decide on next experiments (e.g., different SWA placements, revert to Phase 2 as documented baseline, or pause hybrid exploration)
+- Capture conclusions in `PHASE3_RESULTS.md` and update Doc 0 roadmap accordingly
 
 ---
 
-## 9. Rollback Plan
+## 9. Optional Reversion Plan
 
-If Phase 3 fails or shows no improvement:
+If you decide to pause or discard the hybrid experiment:
 
 ```bash
 # Revert to Phase 2 (Pure GDN)
@@ -1482,12 +1476,12 @@ make smoke-test
 - [ ] A/B comparison: Phase 2 vs Phase 3
 - [ ] Analyze results (overall + short-seizure metrics)
 
-### Day 3: Decision
+### Day 3: Synthesis
 - [ ] Review metrics (overall, short-seizure, throughput)
-- [ ] Go/No-Go decision
-- [ ] Document findings
-- [ ] If GO: Update production configs
-- [ ] If NO-GO: Execute rollback plan
+- [ ] Summarize comparison vs Phase 2
+- [ ] Document findings in results + postmortem templates
+- [ ] Outline recommended follow-up experiments (if any)
+- [ ] Confirm Phase 2 configuration remains available via config toggle
 
 **Total**: 2-3 days
 
@@ -1525,14 +1519,13 @@ make smoke-test
 
 ### If Phase 3 Succeeds:
 
-1. **Production deployment**: Update `configs/local/train.yaml` and `configs/modal/train.yaml`
-2. **Documentation**: Update README.md, ARCHITECTURE_EVOLUTION.md
-3. **Benchmarking**: Run full TAES evaluation, publish results
-4. **Paper**: Consider publishing hybrid architecture findings
+1. **Document results**: Capture metrics, training notes, and qualitative observations in `PHASE3_RESULTS.md`
+2. **Compare against Phase 2**: Quantify gains/losses relative to pure GDN stack
+3. **Decide follow-up research**: e.g., longer runs, alternative SWA placements, or preparing publication material
 
 ### If Phase 3 Fails:
 
-1. **Deploy Phase 2 (Pure GDN)**: Phase 2 is already validated and sufficient
+1. **Document findings**: Add details to `PHASE3_POSTMORTEM.md`
 2. **Root cause analysis**: Why didn't SWA help?
    - Insufficient window size (try 512 samples = 2 seconds)?
    - Wrong layer positions (try [1, 3, 5] instead of [2, 5])?
@@ -1541,7 +1534,7 @@ make smoke-test
    - Try different SWA positions
    - Try larger windows (512 samples)
    - Try more SWA layers (3 instead of 2)
-   - Accept Phase 2 as final architecture
+   - Accept Phase 2 as the documented result if no improvement surfaces
 
 ---
 

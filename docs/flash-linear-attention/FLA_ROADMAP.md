@@ -20,9 +20,9 @@
 **Our Approach** (pragmatic, resource-constrained):
 - ✅ Train **TWO** full stacks end-to-end: BiMamba2 baseline → FLA candidate
 - ✅ Compare final performance on full dataset (100 epochs, ~4667 train files)
-- ✅ Make deployment decision based on A/B comparison
+- ✅ Document results for BOTH stacks (A/B research study)
 - ✅ Cost: ~$650 in compute + 2-3 weeks
-- ✅ Accept: We won't know which component contributes what, but we'll know if FLA is better overall
+- ✅ Accept: We won't know which component contributes what, but we'll know how the full architectures behave
 
 ### **Why This Makes Sense**
 
@@ -108,7 +108,7 @@ Backend: Gated fusion + decoder (SAME as BiMamba2)
 - Config: `configs/modal/phase2_both_gdn.yaml` (TO BE CREATED)
 - Status: **BLOCKED** - waiting for BiMamba2 baseline
 - Cost: ~$319 (100 hours)
-- Expected: sensitivity@10FA = ? (hypothesis: ≥ BiMamba2 + 3%)
+- What we learn: Actual sensitivity@10FA / AUROC vs BiMamba2 (open research question)
 
 ---
 
@@ -329,7 +329,7 @@ Both architectures are research contributions, regardless of which performs bett
 
 4. ⏳ Wait for FLA completion (~4-5 days)
 
-5. 📊 A/B comparison & decision (deploy or rollback)
+5. 📊 Perform A/B comparison & document findings (no deployment decision yet)
 
 ### **OPTIONAL** (If time/budget allows)
 - 🧪 Local FLA experiment (full dataset, no `BGB_LIMIT_FILES`)
@@ -385,7 +385,7 @@ Oct 18:         Decision: Deploy FLA or keep BiMamba2
 Oct 19:         Merge to main, tag release, write postmortem
 ```
 
-**Total time**: ~2-3 weeks from start to deployment decision
+**Total time**: ~2-3 weeks from baseline start to fully documented comparison
 **Total cost**: ~$650 ($319 × 2 runs)
 
 ---

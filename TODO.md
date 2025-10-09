@@ -14,8 +14,10 @@
 
 **Next Steps**:
 1. Monitor Modal training completion (~100 hours total)
-2. Analyze results and validate TAES metrics
-3. Optional post-training optimizations (P4/P5)
+2. Analyze results, document findings, and validate TAES metrics
+3. Prepare Modal FLA config and launch full-stack GatedDeltaNet training after baseline completes
+4. Compare BiMamba2 vs FLA results (sensitivity@FA, AUROC, throughput) and capture the write-up in FLA docs
+5. Optional post-training optimizations (P4/P5)
 
 ---
 

@@ -261,7 +261,7 @@ See [installation guide](docs/01-installation/) and [training docs](docs/05-trai
 
 **Why for EEG?** Seizures have abrupt onsets (need memory clearing) and persistent patterns (need selective retention). Gated Delta handles both.
 
-**Implementation**: Available in [FLA (Flash Linear Attention)](https://github.com/fla-org/flash-linear-attention) library. Drop-in replacement for current Mamba layers.
+**Implementation status**: Available in [FLA (Flash Linear Attention)](https://github.com/fla-org/flash-linear-attention) library. Full-stack BiMamba2 vs Gated DeltaNet training is being benchmarked now (see `docs/flash-linear-attention/` roadmap) with results to be published regardless of outcome.
 
 ### 2. 🌊 Frequency-Aware Enhancement
 

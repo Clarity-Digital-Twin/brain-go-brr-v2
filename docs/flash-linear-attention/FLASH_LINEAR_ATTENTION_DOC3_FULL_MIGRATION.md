@@ -263,21 +263,21 @@ print(f'✅ Phase 1b complete: sensitivity@10FA={sens_10fa:.2%}')
 # - No training instabilities (NaNs, divergence)
 # - Throughput acceptable (<= 10% slower)
 
-# If EITHER phase was NO-GO, you should NOT proceed to Phase 2
-# Instead, deploy only the successful phase (partial deployment)
+# If EITHER phase was NO-GO, STOP and document the findings.
+# Phase 2 runs only after both phases demonstrate stable behaviour.
 ```
 
-**If Either Phase 1a OR Phase 1b was NO-GO**: Do NOT proceed with Phase 2. Instead:
-- **Phase 1a succeeded, Phase 1b failed**: Deploy edge stream only
-- **Phase 1b succeeded, Phase 1a failed**: Deploy node stream only
-- **Both failed**: Revert to BiMamba2 baseline
+**If Either Phase 1a OR Phase 1b was NO-GO**: Pause the roadmap.
+- Document the issue in `PHASE1B_POSTMORTEM.md` (or Phase 1a equivalent).
+- Diagnose root cause, run additional isolation experiments if needed.
+- Resume Phase 2 ONLY after both phases achieve GO/stable results.
 
 ### 1.3. Validation Gate: Combined Effect Hypothesis
 
 **Purpose**: Verify that combining both streams is justified.
 
 ```bash
-# Calculate expected combined effect
+# Calculate relative gains for context (not a deployment gate)
 python -c "
 import wandb
 api = wandb.Api()
@@ -309,13 +309,7 @@ print(f'Baseline: {baseline_sens:.2%}')
 print(f'Phase 1a gain: {phase1a_gain:+.2%}')
 print(f'Phase 1b gain: {phase1b_gain:+.2%}')
 print(f'Expected Phase 2 gain: {phase1a_gain + phase1b_gain:+.2%} (if additive)')
-print(f'Minimum target: +3% (may have interaction penalties)')
-
-if phase1a_gain + phase1b_gain < 0.03:
-    print('⚠️  WARNING: Combined expected gain < +3% target')
-    print('   Consider partial deployment instead of full Phase 2')
-else:
-    print('✅ Combined effect hypothesis justified')
+print('Note: These gains guide analysis only; proceed to Phase 2 once both phases are stable.')
 "
 ```
 
@@ -778,28 +772,23 @@ def main():
     print(f"  sensitivity@5FA:  {phase2_sens_5fa:.2%} ({sens_5fa_gain_phase2:+.2%})")
     print(f"  sensitivity@1FA:  {phase2_sens_1fa:.2%} ({sens_1fa_gain_phase2:+.2%})")
 
-    # Decision
+    # Summary
     print("\n" + "=" * 80)
-    print("📋 Go/No-Go Decision")
+    print("📋 Comparative Summary")
     print("=" * 80)
 
     best_individual = max(sens_10fa_gain_phase1a, sens_10fa_gain_phase1b)
 
-    if sens_10fa_gain_phase2 >= 0.03 and sens_10fa_gain_phase2 >= best_individual:
-        print(f"\n✅ GO → Proceed to Production with Phase 2 (Both Streams GDN)")
-        print(f"   Reason: Phase 2 shows {sens_10fa_gain_phase2:+.2%} improvement")
-        print(f"   Combined effect ({sens_10fa_gain_phase2:+.2%}) ≥ individual effects (max {best_individual:+.2%})")
-        print(f"   Meets +3% target for full validation")
-    elif best_individual > sens_10fa_gain_phase2:
-        winner = "Phase 1a (Edge)" if sens_10fa_gain_phase1a > sens_10fa_gain_phase1b else "Phase 1b (Node)"
-        print(f"\n⚠️ PARTIAL DEPLOYMENT → Deploy {winner} only")
-        print(f"   Reason: Individual phase ({max(sens_10fa_gain_phase1a, sens_10fa_gain_phase1b):+.2%}) outperforms combined ({sens_10fa_gain_phase2:+.2%})")
-        print(f"   Possible interaction penalty detected")
-        print(f"   Deploy only the successful stream")
-    else:
-        print(f"\n❌ NO-GO → Revert to baseline (BiMamba2 both streams)")
-        print(f"   Reason: Phase 2 shows {sens_10fa_gain_phase2:+.2%} (below +3% target)")
-        print(f"   No clear improvement from GDN")
+    print(f"\nCombined gain (Phase 2 vs baseline): {sens_10fa_gain_phase2:+.2%}")
+    print(f"Best isolated gain (Phase 1a/1b):     {best_individual:+.2%}")
+    print("Interpretation tips:")
+    print("  • If combined ≥ isolated: evidence that effects reinforce each other.")
+    print("  • If combined < isolated: investigate interaction penalties or training instabilities.")
+    print("  • Always document qualitative observations (loss curves, anomalies, throughput).")
+    print("\nNext actions:")
+    print("  1. Log results in PHASE2_RESULTS.md (metrics + narrative).")
+    print("  2. Update Doc 0 research summary with key findings.")
+    print("  3. Plan follow-up experiments (e.g., hybrid SWA, parameter sweeps) as needed.")
 
     print("=" * 80)
 
@@ -832,7 +821,7 @@ model:
     # temporal_type: gated_deltanet  # Comment out or remove
 ```
 
-**Option 2: Deploy best individual phase** (if one phase succeeded but Phase 2 failed):
+**Option 2: Explore best individual stream** (if one phase outperformed the combined stack):
 
 ```yaml
 # If Phase 1a (edge) won:
@@ -867,7 +856,7 @@ python -m src train configs/local/phase2_both_gdn.yaml
 - ✅ Config flag controls behavior
 - ✅ No checkpoint migration needed (separate checkpoints per architecture)
 - ✅ Zero code changes required
-- ✅ Can deploy partial (one stream) if Phase 2 fails
+- ✅ Config toggle keeps both architectures available for analysis
 
 ### 5.3. Git Rollback (Last Resort)
 
@@ -899,41 +888,32 @@ python -m src train configs/local/train.yaml
 - [x] Parameter counts recorded (node ≈284K, edge ≈30K, total ≈314K)
 - [x] Convergence observed (smoke: loss ↓ 0.30 → 0.04; medium: loss descent followed by collapse due to sparse positives – documented in Section 3.2)
 
-### 6.2. Performance Criteria (Go/No-Go) – ⏳ PENDING MODAL A/B
+### 6.2. Performance Metrics to Record – ⏳ PENDING MODAL A/B
 
-These criteria will be evaluated once full-dataset Modal runs complete (BiMamba2 baseline in progress, FLA run queued next).
+Collect these metrics once full-dataset Modal runs complete (BiMamba2 baseline in progress, FLA run queued next). The scientific value comes from documenting BOTH sets of results.
 
-- [ ] sensitivity@10FA ≥ baseline + 3% **AND** ≥ max(Phase 1a, Phase 1b)
-- [ ] No major regressions (loss ≤ baseline + 5%)
-- [ ] Throughput ≤ 10% slower than baseline
-- [ ] Memory usage ≤ baseline + 2GB
+- [ ] sensitivity@10FA (BiMamba2 vs FLA)
+- [ ] sensitivity@5FA / 1FA comparisons
+- [ ] Loss trajectories (verify stability, convergence patterns)
+- [ ] Throughput deltas (seconds/step, samples/sec)
+- [ ] Memory usage (peak GPU, host RAM)
+- [ ] Training anomalies (NaNs, divergence, gradient instabilities)
 - [x] Phase 1a AND Phase 1b both succeeded (prerequisite met)
 
-**Partial / No-Go paths** remain available (deploy best single-stream GDN or revert to BiMamba2) if Modal results fail the targets.
+No deployment decision happens here—the goal is a complete empirical comparison.
 
 ---
 
 ## 7. Next Steps
 
-### If Phase 2 Succeeds (≥ +3% sensitivity AND ≥ individual phases):
+### After Phase 2 Modal Run Completes
 
-1. **Analyze combined potential** in `PHASE2_RESULTS.md`
-2. **Production deployment**: Update `configs/local/train.yaml` and `configs/modal/train.yaml`
-3. **Documentation**: Update README.md, ARCHITECTURE_EVOLUTION.md
-4. **Optional**: Proceed to Doc 4 (Hybrid SWA) if short-event recall needs improvement
+1. **Document results** in `PHASE2_RESULTS.md` (metrics, training notes, anomalies)
+2. **Compare against BiMamba2 baseline** (sensitivity deltas, throughput, stability)
+3. **Synthesize findings** for Doc 0 (Research) and roadmap summaries
+4. **Decide follow-up experiments** (e.g., Doc 4 hybrid SWA) based on research questions raised by the results
 
-### If Phase 2 Fails (but Phase 1a OR Phase 1b Succeeded):
-
-1. **Document partial deployment** in `PHASE2_POSTMORTEM.md`
-2. **Deploy best individual phase**: Keep one stream GDN, revert other to BiMamba2
-3. **Mixed architecture**: BiGatedDeltaNet for winner + BiMamba2 for loser
-4. **Root cause analysis**: Why did combined fail but individual succeeded?
-
-### If All Phases Fail:
-
-1. **Revert to v3.9.1 baseline**: BiMamba2 for both streams
-2. **Alternative architectures**: Consider GLA, HGRN2, or hybrid approaches
-3. **Investigate**: Why didn't FLA benefit this specific architecture?
+Regardless of which architecture scores higher, the documentation step is REQUIRED—this is the core contribution of the project.
 
 ---
 
@@ -954,11 +934,10 @@ These criteria will be evaluated once full-dataset Modal runs complete (BiMamba2
 
 ### Day 3+ (Oct 9 onward): Modal & Analysis
 - [ ] Run full Modal training (BiMamba2 baseline running; FLA queued next)
-- [ ] Review Modal metrics vs success criteria (Section 6)
-- [ ] Go/No-Go/Partial decision after A/B comparison
-- [ ] Document results (`PHASE2_RESULTS.md`, `FLA_ROADMAP.md`)
-- [ ] If GO: Update configs + production docs
-- [ ] If PARTIAL/NO-GO: Follow rollback paths (Section 5)
+- [ ] Review Modal metrics collected in Section 6
+- [ ] Document comparative analysis (`PHASE2_RESULTS.md`, `FLA_ROADMAP.md`)
+- [ ] Summarize findings for Doc 0 (Research)
+- [ ] Outline follow-up experiments (if results suggest further exploration)
 
 **Actual Timeline**: 1 day local validation + ~2 weeks total including Modal A/B cycle
 
@@ -984,12 +963,12 @@ These criteria will be evaluated once full-dataset Modal runs complete (BiMamba2
 | Risk Factor | Phase 1a (Edge) | Phase 1b (Node) | Phase 2 (Both) |
 |-------------|-----------------|-----------------|----------------|
 | **Parameters affected** | 10K (2.5%) | 398K (97.5%) | **408K (100%)** |
-| **Expected gain** | +1-2% | +1-2% | **+3-5%** |
+| **Result type** | Algorithm isolation | Algorithm isolation | **Full-stack interaction** |
 | **Risk level** | VERY LOW | MEDIUM | **HIGH** |
-| **Rollback complexity** | Easy (config) | Easy (config) | **Moderate (config + partial option)** |
+| **Analysis effort** | Low (single stream) | Medium (dominant stream) | **High (cross-stream effects)** |
 | **Dependencies** | Phase 0 | Phase 0 + Phase 1a | **Phase 0 + Phase 1a + Phase 1b** |
 
-**Key Insight**: Phase 2 is **highest risk** (100% of stream params) but also **highest reward** (+3-5% combined gain). The validation gate ensures we only proceed if both individual phases succeeded.
+**Key Insight**: Phase 2 carries the most uncertainty because it evaluates interaction effects across both streams. Treat the run as an experiment whose outcome (positive, negative, or neutral) must be documented—not as a deployment gate.
 
 ### 10.2. Why Phase 2 After Phase 1a AND Phase 1b?
 
@@ -997,12 +976,12 @@ These criteria will be evaluated once full-dataset Modal runs complete (BiMamba2
 1. **Phase 1a (edge) validates delta rule benefits** on small scale (10K params)
 2. **Phase 1b (node) validates standard SSM improvements** on larger scale (398K params)
 3. **Phase 2 (both) tests combined effect** and interaction (408K params)
-4. **Validation gate** ensures combined justification (expected ≥ +3%)
-5. **Partial deployment option** if Phase 2 underperforms individual phases
+4. **Validation gate** ensures both streams are stable before exploring interactions
+5. **Result-driven follow-ups**: Document findings, then decide on further experiments (e.g., hybrid SWA) based on evidence
 
 ---
 
-**Document Status**: ✅ Ready for Implementation (AFTER Phase 0 + Phase 1a + Phase 1b complete)
+**Document Status**: ✅ Ready for Experimental Run (AFTER Phase 0 + Phase 1a + Phase 1b complete)
 **Dependencies**:
 1. Doc 0 Section 14 (Phase 0 Infrastructure) must be complete
 2. Phase 1a (Edge Validation) must succeed with GO decision
