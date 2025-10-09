@@ -42,8 +42,11 @@ See `docs/05-training/modal.md`, `docs/05-training/checkpoint-strategy.md`, and 
 | `make q` | Run lint (ruff), format check, mypy – **run after every change** |
 | `make t` | Fast unit + integration tests |
 | `make test` | Full test suite with coverage |
-| `make s` | Local smoke test (3 files, 1 epoch) |
-| `make train-local` | Full local training loop (RTX 4090) |
+| `make smoke-bimamba` | Local BiMamba2 smoke test (3 files, 1 epoch) |
+| `make smoke-fla` | Local FLA smoke test (3 files, 1 epoch) |
+| `make train-bimamba` | Local BiMamba2 full training (RTX 4090) |
+| `make train-fla` | Local FLA full training (RTX 4090) |
+| `make train-local` | Alias for `make train-bimamba` |
 | `make setup` | Base environment (uv) |
 | `make setup-gpu` | GPU extras (Mamba-SSM, PyG) – required for V3 |
 
@@ -52,12 +55,20 @@ See `docs/05-training/modal.md`, `docs/05-training/checkpoint-strategy.md`, and 
 # Optional debugging when chasing NaNs
 export BGB_NAN_DEBUG=1
 
-# Smoke test (3 files, 1 epoch)
-make s
+# BiMamba2 smoke test (3 files, 1 epoch)
+make smoke-bimamba
+
+# FLA smoke test (3 files, 1 epoch)
+make smoke-fla
 
 # Full training (recommended in tmux)
-tmux new -s train
-make train-local
+tmux new -s train-bimamba
+make train-bimamba
+# Detach: Ctrl+B, D   |   Reattach: tmux attach -t train-bimamba
+
+# FLA full training (optional)
+tmux new -s train-fla
+make train-fla
 # Detach: Ctrl+B, D   |   Reattach: tmux attach -t train
 ```
 
@@ -72,14 +83,25 @@ modal run deploy/modal/app.py --action test-mamba
 # Cache health / manifest sanity
 modal run deploy/modal/app.py --action check-cache
 
-# Smoke test (50 files, 1 epoch)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+# BiMamba2 smoke test (50 files, 1 epoch)
+modal run --detach deploy/modal/app.py --action train \
+  --config configs/modal/smoke_bimamba.yaml
 
-# Full training (exits ~23h with timeout_exit.pt, resume required)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+# FLA smoke test
+modal run --detach deploy/modal/app.py --action train \
+  --config configs/modal/smoke_fla.yaml
 
-# Resume after timeout / interrupts
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml --resume true
+# BiMamba2 full training (exits ~23h with timeout_exit.pt, resume required)
+modal run --detach deploy/modal/app.py --action train \
+  --config configs/modal/train_bimamba.yaml
+
+# FLA full training (launch after BiMamba2 baseline completes)
+modal run --detach deploy/modal/app.py --action train \
+  --config configs/modal/train_fla.yaml
+
+# Resume after timeout / interrupts (BiMamba2 example)
+modal run --detach deploy/modal/app.py --action train \
+  --config configs/modal/train_bimamba.yaml --resume true
 
 # Monitoring helpers
 modal app list

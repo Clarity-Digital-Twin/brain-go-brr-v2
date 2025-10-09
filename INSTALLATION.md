@@ -275,11 +275,11 @@ export UV_LINK_MODE=copy
 
 ### Quick Smoke Test
 ```bash
-# Local (1 epoch, 3 files)
-make smoke-local  # or: make s
+# Local BiMamba2 smoke (1 epoch, 3 files)
+make smoke-bimamba  # or: python -m src train configs/local/smoke_bimamba.yaml
 
-# Modal (1 epoch, 50 files)
-modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+# Modal BiMamba2 smoke (1 epoch, 50 files)
+modal run deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
 ```
 
 ### Verify Components
@@ -295,25 +295,25 @@ python -c "from src.brain_brr.models.detector import SeizureDetector; print('✅
 
 ### Local
 ```yaml
-# configs/local/train.yaml
+# configs/local/train_bimamba.yaml
 data:
-  cache_dir: cache/tusz  # Has train/dev NPZ caches (official splits)
+  cache_dir: cache/tusz_mmap  # mmap NPY cache (train/dev official splits)
 ```
 
 ### Modal
 ```yaml
-# configs/modal/train.yaml
+# configs/modal/train_bimamba.yaml
 data:
-  cache_dir: /results/cache/tusz  # Persistent SSD volume
+  cache_dir: /results/cache/tusz_mmap  # Persistent SSD volume (mmap NPY)
 ```
 
 ## Running Training
 
 ### Local (RTX 4090)
 ```bash
-# Full training in tmux
-tmux new -s train
-make train-local
+# BiMamba2 full training in tmux
+tmux new -s train-bimamba
+make train-bimamba
 
 # Watch progress
 tmux attach -t train
@@ -324,9 +324,9 @@ tmux attach -t train
 # Test Mamba CUDA first
 modal run deploy/modal/app.py --action test-mamba
 
-# Full training (detached)
+# BiMamba2 full training (detached)
 modal run --detach deploy/modal/app.py \
-  --action train --config configs/modal/train.yaml
+  --action train --config configs/modal/train_bimamba.yaml
 
 # Monitor
 modal app logs <app-id>

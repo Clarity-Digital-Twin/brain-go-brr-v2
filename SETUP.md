@@ -117,11 +117,11 @@ export BGB_NAN_DEBUG=1       # Shows NaN warnings
 make s
 
 # Full training in tmux (recommended)
-tmux new -s train
+tmux new -s train-bimamba
 export BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1
-make train-local  # or: .venv/bin/python -m src train configs/local/train.yaml
+make train-bimamba  # or: .venv/bin/python -m src train configs/local/train_bimamba.yaml
 # Detach: Ctrl+B then D
-# Reattach: tmux attach -t train
+# Reattach: tmux attach -t train-bimamba
 ```
 
 **Expected Performance:**
@@ -136,10 +136,10 @@ make train-local  # or: .venv/bin/python -m src train configs/local/train.yaml
 modal run deploy/modal/app.py --action test-mamba
 
 # Smoke test (50 files)
-modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+modal run deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
 
 # Full training (detached for long runs)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
 
 # Monitor training
 modal app list                    # List running apps

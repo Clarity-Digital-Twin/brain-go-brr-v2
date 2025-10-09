@@ -79,7 +79,7 @@ training:
 
 ## Model (unchanged V3 dual-stream)
 
-See `configs/modal/train.yaml` for the full block. Highlights:
+See `configs/modal/train_bimamba.yaml` for the full block (FLA variant lives in `train_fla.yaml`). Highlights:
 - Boundary LayerNorm + LayerScale across streams (PR‑1).
 - Edge stream bounded and conditioned (PR‑2/PR‑3/PR‑5).
 - Dynamic Laplacian PE with `semi_dynamic_interval: 5`.
@@ -106,11 +106,15 @@ heartbeat_interval = 120  # seconds
 # Populate mmap cache (one-time)
 modal run --detach deploy/modal/app.py --action populate-cache
 
-# Smoke test (50 files)
-modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+# BiMamba2 smoke test (50 files)
+modal run deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
 
-# Full training (detached)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+# BiMamba2 full training (detached)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
+
+# FLA runs
+modal run deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_fla.yaml
 ```
 
 Maintain the mmap cache on the Modal SSD and keep at least 600 GB free on the volume to avoid populate failures.
