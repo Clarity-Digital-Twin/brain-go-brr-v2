@@ -1090,6 +1090,12 @@ TOTAL PEAK         39GB ✅      2.5x safety margin
 ### Issue 8: "get_all_as_torch_tensors() copies mmap (34GB)"
 **Response**: ✅ **FIXED** - Direct `torch.from_numpy(mmap)` with no `np.array()` copy (<10MB)
 
+### Issue 9: "torch.from_numpy() rejects read-only mmap (WRITEABLE=False)"
+**Response**: ✅ **FIXED** - Use `mmap_mode="c"` (copy-on-write) instead of `"r"`
+- Satisfies PyTorch's WRITEABLE requirement
+- Zero-copy as long as no modifications (FA sweep is read-only)
+- Safe: any accidental write creates private copy, doesn't corrupt file
+
 ---
 
 ## ✅ VERIFICATION CHECKLIST
