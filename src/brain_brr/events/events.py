@@ -100,13 +100,27 @@ def mask_to_events(
 
     # Find connected components
     labeled, num_features = ndimage.label(mask_np)
-    events = []
+    events: list[SeizureEvent] = []
 
-    for i in range(1, num_features + 1):
-        indices = np.where(labeled == i)[0]
-        if len(indices) >= min_samples:
-            start_s = float(indices[0]) / sampling_rate
-            end_s = float(indices[-1] + 1) / sampling_rate
+    if num_features == 0:
+        return events
+
+    # ndimage.find_objects is O(n) and returns slice objects per component.
+    # Previous implementation used np.where inside the loop which devolved to
+    # O(n^2) on random masks (triggering CI timeouts). The slice gives direct
+    # start/stop indices.
+    slices = ndimage.find_objects(labeled)
+    for slc in slices:
+        if slc is None:
+            continue
+        segment = slc[0]  # 1D mask so single slice
+        start_idx = segment.start
+        end_idx = segment.stop  # exclusive
+        length = end_idx - start_idx
+
+        if length >= min_samples:
+            start_s = float(start_idx) / sampling_rate
+            end_s = float(end_idx) / sampling_rate
             events.append(SeizureEvent(start_s=start_s, end_s=end_s))
 
     return events

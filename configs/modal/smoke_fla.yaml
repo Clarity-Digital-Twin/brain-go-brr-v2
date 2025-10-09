@@ -1,0 +1,167 @@
+# Modal A100 Smoke Test: TCN + FLA (Gated DeltaNet) + GNN Stack (V3)
+# Quick validation (1 epoch) on Modal A100-80GB
+#
+# ========================================================================
+# 🚨 NaN Protection (Automatically Enabled on Modal)
+# ========================================================================
+# Modal automatically sets debugging via deploy/modal/app.py:
+#   BGB_NAN_DEBUG=1       # ✅ Shows NaN warnings
+#   BGB_LIMIT_FILES=50    # ✅ Limits to 50 files for smoke test
+#
+# Gradient clipping (0.5) is always applied from config (primary protection).
+# No manual environment setup needed for Modal!
+# See: docs/08-operations/gradient-protection-guide.md for details
+# ========================================================================
+#
+# Usage: modal run deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml
+data:
+  dataset: tuh_eeg
+  data_dir: /data/edf                   # Parent dir containing train/dev/eval
+  cache_dir: /results/cache/tusz_mmap  # Persistent SSD cache with `_data.npy`/`_labels.npy` stems (read-only)
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60
+  stride: 10
+  num_workers: 4                       # SAFE: Prevents spawn delays (8 caused overhead)
+  pin_memory: true                     # Fast GPU transfer
+  persistent_workers: true             # Keeps mmap pages warm so worker restarts are instant
+  prefetch_factor: 2                   # SAFE: Prevents memory pressure (4/8 caused OOM)
+  use_balanced_sampling: false         # Must be false for BGB_LIMIT_FILES to work
+
+preprocessing:
+  montage: "10-20"
+  bandpass: [0.5, 120]
+  notch_freq: 60
+  normalize: true
+
+model:
+  # Architecture: "v3" (dual-stream with edge Mamba)
+  architecture: v3  # V3 dual-stream with learned adjacency
+
+  # PR-1: Boundary Normalization (ENABLED - was missing in smoke tests!)
+  # Prevents unbounded information flows between components
+  norms:
+    boundary_norm: layernorm     # LayerNorm at component boundaries
+    boundary_eps: 1.0e-5          # Epsilon for numerical stability
+    layerscale_alpha: 0.1         # Initial LayerScale value
+    after_tcn_proj: true          # Normalize after TCN projection
+    after_node_mamba: true        # Normalize after node Mamba
+    after_edge_mamba: true        # Normalize after edge Mamba
+    after_gnn: true               # Normalize after GNN
+    before_decoder: true          # Normalize before decoder
+
+  tcn:
+    num_layers: 8
+    kernel_size: 7
+    dropout: 0.15
+    causal: false
+    stride_down: 16
+    use_cuda_optimizations: true
+
+  mamba:
+    n_layers: 6
+    d_model: 512
+    d_state: 16
+    conv_kernel: 4  # CUDA constraint: must be 2-4
+    dropout: 0.1
+
+    # FLA (Gated DeltaNet) architecture configuration
+    temporal_type: gated_deltanet   # Use GatedDeltaNet instead of BiMamba2
+    gdn_fusion_mode: sum            # Bidirectional fusion (simpler than concat)
+    gdn_allow_neg_eigval: false     # Conservative eigenvalue handling
+
+    # Edge GDN head config (required for edge_mamba_d_model=32)
+    # Constraint: num_heads × headdim = 0.75 × d_model
+    # 3 × 8 = 24 = 0.75 × 32 ✅
+    gdn_edge_num_heads: 3
+    gdn_edge_headdim: 8
+
+  # Graph configuration (V3)
+  graph:
+    enabled: true              # Required for V3
+
+    # PR-2: Bounded Edge Stream (ENABLED - was missing in smoke tests!)
+    edge_lift_activation: tanh       # Bound edge features to [-1, 1]
+    edge_lift_norm: layernorm        # Normalize after edge lift
+    edge_lift_init_gain: 0.1         # Conservative initialization
+
+    # V3: Edge stream config
+    edge_features: cosine      # Edge feature metric for v3
+    edge_top_k: 3              # Top-k edges per node for v3
+    edge_threshold: 1.0e-4     # Edge weight cutoff for v3
+    edge_mamba_layers: 2       # Edge Mamba layers for v3
+    edge_mamba_d_state: 8      # Edge Mamba state dim for v3
+    edge_mamba_d_model: 32     # FLA requirement: causal_conv1d needs d_model=32
+    edge_similarity_margin: 0.01  # PR-5: Safety margin from ±1 boundaries
+
+    # PR-3: Adjacency Conditioning (ENABLED - was missing in smoke tests!)
+    adj_row_softmax: true            # Row-wise softmax normalization
+    adj_softmax_tau: 1.0             # Temperature for softmax
+    adj_ema_beta: 0.95               # EMA smoothing for temporal stability
+    adj_force_symmetric: true        # Force symmetric Laplacian
+    laplacian_eps: 1.0e-3            # Regularization for stable eigendecomp
+    laplacian_normalize: true        # Use normalized Laplacian
+
+    # GNN architecture
+    n_layers: 2                # 2-layer GNN
+    dropout: 0.1
+    use_residual: true         # Skip connections
+    alpha: 0.05                # SSGConv mixing
+    k_eigenvectors: 16         # Laplacian PE dimension
+
+    # Dynamic PE config (v3) - ALWAYS ENABLED
+    use_dynamic_pe: true       # ALWAYS use dynamic PE (EvoBrain approach)
+    semi_dynamic_interval: 5   # FIXED: was 1, now 5 (optimal per CLAUDE.md:97)
+    pe_sign_consistency: true  # Fix eigenvector signs for stability
+
+postprocessing:
+  hysteresis:
+    tau_on: 0.86    # Matches constants.HYSTERESIS_TAU_ON
+    tau_off: 0.78   # Matches constants.HYSTERESIS_TAU_OFF
+  morphology:
+    opening_kernel: 11
+    closing_kernel: 31
+  duration:
+    min_duration_s: 3.0
+    max_duration_s: 600.0
+  events:
+    tau_merge: 2.0
+    confidence_method: mean
+
+training:
+  epochs: 1                            # Just 1 epoch for smoke test
+  batch_size: 48                       # EXPERIMENT: ~58GB peak (matches train.yaml)
+  gradient_accumulation_steps: 1       # EXPERIMENT: No accumulation with batch_size=48
+  loss: focal
+  focal_alpha: 0.5
+  focal_gamma: 2.0
+  learning_rate: 5e-5                  # Reduced from 3e-4 for NaN stability
+  weight_decay: 0.05
+  optimizer: adamw
+  scheduler:
+    type: cosine
+    warmup_ratio: 0.03
+  gradient_clip: 0.5                   # Stronger clipping for NaN protection
+  mixed_precision: true                # A100 is 3.8x faster at FP16!
+
+evaluation:
+  fa_rates: [10, 5, 2.5, 1]
+
+experiment:
+  name: smoke_test_fla
+  description: "Stack smoke test - FLA(GatedDeltaNet) on Modal A100"
+  seed: 42
+  device: cuda
+  output_dir: /results/smoke
+  cache_dir: /results/cache/tusz_mmap  # Memory-mapped uncompressed NPY cache (2025 ML best practice)
+  log_level: INFO
+  save_model: false
+  # BGB_LIMIT_FILES set automatically in app.py for smoke configs
+  wandb:
+    enabled: true
+    project: seizure-detection-smoke
+    entity: jj-vcmcswaggins-novamindnyc  # Your W&B TEAM (matches API key)
+    tags: ["smoke-test", "modal", "a100", "v3"]
+
+logging:
+  log_every_n_steps: 10

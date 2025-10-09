@@ -14,9 +14,11 @@
 ```yaml
 # ❌ BAD: Flag-based switching
 model:
-  use_fla: false  # or true
-  edge_arch: "bimamba"  # or "gated_deltanet"
-  node_arch: "bimamba"  # or "gated_deltanet"
+  mamba:
+    use_fla: false             # or true
+    temporal_type: bimamba2    # Needs extra branching in code
+    temporal_type_node: bimamba2
+    temporal_type_edge: bimamba2
 ```
 
 **Problems with flags**:
@@ -97,33 +99,22 @@ configs/modal/
 ```yaml
 # smoke_bimamba.yaml
 model:
-  edge_arch: "bimamba"
-  node_arch: "bimamba"
-  edge_model:
-    d_model: 64
-    n_layers: 6
-    # ... BiMamba-specific params
-  node_model:
-    d_model: 64
-    n_layers: 6
-    # ... BiMamba-specific params
+  temporal_type: bimamba2
+  temporal_type_node: null           # Falls back to global (BiMamba2)
+  temporal_type_edge: null           # Falls back to global (BiMamba2)
 
 # smoke_fla.yaml
 model:
-  edge_arch: "gated_deltanet"
-  node_arch: "gated_deltanet"
-  edge_model:
-    d_model: 64
-    n_layer: 6
-    expand_k: 1.0
-    expand_v: 2.0
-    # ... GatedDeltaNet-specific params
-  node_model:
-    d_model: 64
-    n_layer: 6
-    expand_k: 1.0
-    expand_v: 2.0
-    # ... GatedDeltaNet-specific params
+  temporal_type: gated_deltanet       # Global fallback
+  temporal_type_node: gated_deltanet  # Explicit override
+  temporal_type_edge: gated_deltanet  # Explicit override
+  gdn_fusion_mode: sum                # From Phase 2 configs
+  gdn_allow_neg_eigval: false
+  gdn_edge_num_heads: 3               # 3 × 8 = 24 = 0.75 × 32
+  gdn_edge_headdim: 8
+
+graph:
+  edge_mamba_d_model: 32              # Required by FLA causal_conv1d
 ```
 
 **All other settings IDENTICAL** (batch size, learning rate, loss, data paths, etc.).
@@ -159,11 +150,18 @@ cp configs/modal/train_bimamba.yaml configs/modal/train_fla.yaml
 ```
 
 Then edit each `*_fla.yaml` file:
-1. Change `edge_arch: "bimamba"` → `edge_arch: "gated_deltanet"`
-2. Change `node_arch: "bimamba"` → `node_arch: "gated_deltanet"`
-3. Update `edge_model` section to GatedDeltaNet params (d_model=64, n_layer=6, expand_k=1.0, expand_v=2.0, etc.)
-4. Update `node_model` section to GatedDeltaNet params (same as edge)
-5. Keep ALL other settings identical (batch_size, learning_rate, loss, data paths, etc.)
+1. Set `model.mamba.temporal_type: gated_deltanet`
+2. Set `model.mamba.temporal_type_node: gated_deltanet`
+3. Set `model.mamba.temporal_type_edge: gated_deltanet`
+4. Carry over GatedDeltaNet-specific parameters:
+   - `model.mamba.gdn_fusion_mode`
+   - `model.mamba.gdn_allow_neg_eigval`
+   - `model.mamba.gdn_edge_num_heads`
+   - `model.mamba.gdn_edge_headdim`
+5. Update graph safeguards required by FLA:
+   - `model.graph.edge_mamba_d_model: 32`
+   - Keep `gdn_edge_num_heads × gdn_edge_headdim = 0.75 × edge_mamba_d_model`
+6. Keep ALL other settings identical (batch_size, learning_rate, loss, data paths, etc.)
 
 **Reference for FLA params**: Use `configs/local/phase2_both_gdn.yaml` as template (it has correct GatedDeltaNet structure).
 
@@ -345,7 +343,7 @@ git reset --hard HEAD  # Revert all config changes
 git clean -fd configs/ # Remove untracked files
 ```
 
-**Why safe?** All changes are in `configs/` directory. No code logic changes required (detector.py already supports both architectures via `edge_arch`/`node_arch` params).
+**Why safe?** All changes are in `configs/` directory. No code logic changes required (detector.py already switches on `model.mamba.temporal_type` / `{temporal_type_node, temporal_type_edge}`).
 
 ---
 
@@ -374,7 +372,7 @@ cp configs/modal/train_bimamba.yaml configs/modal/train_rwkv7.yaml
 ```bash
 # Create hybrid config explicitly
 cp configs/local/train_fla.yaml configs/local/train_hybrid_fla_edge.yaml
-# Edit: edge_arch="gated_deltanet", node_arch="bimamba"
+# Edit: temporal_type_edge="gated_deltanet", temporal_type_node="bimamba"
 # Clear naming prevents confusion
 ```
 
