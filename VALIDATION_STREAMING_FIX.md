@@ -264,7 +264,7 @@ class RecordingStorage:
         """Get all recordings as torch tensors (TRUE zero-copy from mmap).
 
         Uses copy-on-write memory mapping for safe zero-copy tensor creation.
-        Peak memory: <10MB (just tensor objects, not data).
+        Tensor wrappers are small; the OS will fault pages in on demand during FA sweep.
 
         Memory-mapping mode "c" (copy-on-write):
         - Array is memory-mapped and writeable (satisfies torch.from_numpy)
