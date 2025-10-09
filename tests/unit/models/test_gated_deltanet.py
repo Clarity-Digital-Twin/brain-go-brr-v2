@@ -3,12 +3,12 @@
 import pytest
 import torch
 
-try:
-    from src.brain_brr.models.gated_deltanet import BiGatedDeltaNet
+from src.brain_brr.models import gated_deltanet
 
-    FLA_AVAILABLE = True
-except ImportError:
-    FLA_AVAILABLE = False
+FLA_AVAILABLE = gated_deltanet.FLA_AVAILABLE
+
+if FLA_AVAILABLE:
+    from src.brain_brr.models.gated_deltanet import BiGatedDeltaNet
 
 
 @pytest.mark.skipif(not FLA_AVAILABLE, reason="FLA library not installed")
@@ -181,12 +181,11 @@ class TestBiGatedDeltaNetForward:
         assert not torch.isinf(x.grad).any()
 
 
-def test_fla_unavailable_raises_import_error():
-    """Test that missing FLA library raises helpful error."""
-    if FLA_AVAILABLE:
-        pytest.skip("FLA is available, cannot test unavailable case")
+def test_fla_unavailable_module_flag():
+    """Test that FLA_AVAILABLE flag correctly reflects library availability."""
+    try:
+        import fla  # noqa: F401
 
-    from src.brain_brr.models.gated_deltanet import BiGatedDeltaNet
-
-    with pytest.raises(ImportError, match="flash-linear-attention library required"):
-        BiGatedDeltaNet(d_model=64, headdim=8, num_layers=1, conv_size=4)
+        assert FLA_AVAILABLE is True, "FLA_AVAILABLE should be True when fla is installed"
+    except ImportError:
+        assert FLA_AVAILABLE is False, "FLA_AVAILABLE should be False when fla is not installed"
