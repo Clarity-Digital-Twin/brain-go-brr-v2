@@ -47,13 +47,13 @@
            ↓
 ┌─────────────────────────────────────────────────┐
 │ Phase 2: Both Streams GDN (Doc 3)              │
-│ 🔄 SMOKE TEST RUNNING (Oct 8, 2025 20:26 EDT)  │
+│ ✅ SMOKE TEST PASSED (Oct 8, 2025 20:32 EDT)   │
 ├─────────────────────────────────────────────────┤
 │ - Config: configs/local/phase2_both_gdn.yaml   │
 │ - Edge stream: BiGatedDeltaNet (d_model=32)    │
 │ - Node stream: BiGatedDeltaNet (d_model=64)    │
-│ - Smoke test: IN PROGRESS (tmux: phase2_smoke) │
-│ - Log: /tmp/phase2_smoke.log                   │
+│ - Smoke test: ✅ PASSED (early stop epoch 7)   │
+│ - Best: Epoch 6, sensitivity@10FA = 1.0        │
 └─────────────────────────────────────────────────┘
            ↓
 ┌─────────────────────────────────────────────────┐
@@ -149,19 +149,21 @@
 
 ### 🔄 **IN PROGRESS**
 
-**Phase 2 (Both Streams GDN)** - SMOKE TEST RUNNING:
+**Phase 2 (Both Streams GDN)** - SMOKE TEST COMPLETE, MEDIUM VALIDATION READY:
 - [x] ✅ **Config created**: `configs/local/phase2_both_gdn.yaml` (Oct 8, 2025)
   - Complete 194-line config
   - `experiment.name: "phase2_both_gdn"`
   - `temporal_type: "gated_deltanet"` (global - both streams)
   - `gdn_edge_num_heads: 3`, `gdn_edge_headdim: 8`
   - `edge_mamba_d_model: 32` (FLA requirement)
-- [x] 🔄 **Smoke test RUNNING** (Oct 8, 2025 20:26 EDT)
-  - Session: `tmux attach -t phase2_smoke`
-  - Log: `/tmp/phase2_smoke.log`
+- [x] ✅ **Smoke test PASSED** (Oct 8, 2025 20:32 EDT)
+  - Early stopped at epoch 7, best epoch 6
+  - sensitivity@10FA = 1.0 (perfect on 3 files)
+  - AUROC = 0.6158, TAES = 0.9946
   - Both streams verified: Node BiGatedDeltaNet (d_model=64) + Edge BiGatedDeltaNet (d_model=32) ✅
-  - Status: Training started, epoch 1/10
-- [ ] Medium validation (40-50 files, 5-6 epochs, ~2-3h) - AFTER SMOKE PASSES
+  - No crashes, no NaNs ✅
+  - Evidence: `/tmp/phase2_smoke.log`
+- [ ] 🚀 **Medium validation READY TO LAUNCH** (40-50 files, 6 epochs, ~2-3h)
 
 ---
 
