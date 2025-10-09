@@ -58,10 +58,13 @@
            ↓
 ┌─────────────────────────────────────────────────┐
 │ Medium Validation Run (Integration Test)       │
-│ 🚀 READY TO LAUNCH (smoke passed)               │
+│ 🔄 RUNNING (Oct 8, 2025 20:37 EDT)              │
 ├─────────────────────────────────────────────────┤
 │ - Config: phase2_medium_gdn.yaml                │
-│ - Scale: 40-50 files, 6 epochs                 │
+│ - Scale: 50 files, 6 epochs, 3626 windows      │
+│ - Session: tmux attach -t phase2_medium        │
+│ - Log: /tmp/phase2_medium.log                  │
+│ - Status: Checking windows for seizures...     │
 │ - Purpose: Surface scaling bugs                 │
 │   • SSM memory spikes                           │
 │   • Optimizer drift                             │
@@ -74,7 +77,6 @@
 │   • Gradient clip % < 80% after warmup          │
 │   • GPU < 22GB, RAM < 28GB                      │
 │   • Checkpoints save/load correctly             │
-│ - Launch: ./scripts/launch_phase2_medium.sh    │
 │ - ETA: 2-3 hours (LOCAL RTX 4090)              │
 └─────────────────────────────────────────────────┘
            ↓
