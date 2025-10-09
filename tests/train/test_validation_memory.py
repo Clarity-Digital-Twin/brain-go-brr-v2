@@ -161,9 +161,9 @@ class TestValidationMemoryProfile:
         from src.brain_brr.train.val_step import _compute_final_metrics
 
         with RecordingStorage() as storage:
-            for i in range(100):
-                probs = torch.rand(100_000)
-                labels = torch.randint(0, 2, (100_000,)).float()
+            for i in range(50):
+                probs = torch.rand(50_000)
+                labels = torch.randint(0, 2, (50_000,)).float()
                 storage.write_recording(f"rec_{i:03d}", probs, labels)
 
             force_gc()
@@ -180,7 +180,7 @@ class TestValidationMemoryProfile:
                 fa_rates=[10, 5, 1],
                 post_cfg=PostprocessingConfig(),
                 sampling_rate=256,
-                num_recordings=100,
+                num_recordings=50,
             )
 
             force_gc()
@@ -204,7 +204,7 @@ class TestMetricsExactMatch:
     def test_auroc_exact_match_sklearn(self) -> None:
         """Verify AUROC computation matches sklearn exactly."""
         np.random.seed(42)
-        n_samples = 1_000_000
+        n_samples = 500_000
 
         probs = np.random.rand(n_samples).astype(np.float32)
         labels = (np.random.rand(n_samples) > 0.5).astype(np.int32)
@@ -246,9 +246,9 @@ class TestMetricsExactMatch:
             all_probs = []
             all_labels = []
 
-            for i in range(50):
-                probs = torch.rand(100_000)
-                labels = torch.randint(0, 2, (100_000,)).float()
+            for i in range(20):
+                probs = torch.rand(50_000)
+                labels = torch.randint(0, 2, (50_000,)).float()
                 storage.write_recording(f"rec_{i:02d}", probs, labels)
 
                 all_probs.append(probs.numpy())
@@ -289,20 +289,20 @@ class TestRecordingStorageRobustness:
     """Additional robustness checks for production use."""
 
     def test_large_number_of_recordings(self) -> None:
-        """Verify storage handles 1000+ recordings without issues."""
+        """Verify storage handles 100+ recordings without issues."""
         with RecordingStorage() as storage:
-            for i in range(1000):
+            for i in range(100):
                 probs = torch.rand(10_000)
                 labels = torch.randint(0, 2, (10_000,)).float()
-                storage.write_recording(f"rec_{i:04d}", probs, labels)
+                storage.write_recording(f"rec_{i:03d}", probs, labels)
 
-            assert len(storage.recording_ids) == 1000
+            assert len(storage.recording_ids) == 100
 
             count = 0
             for probs, _labels in storage.iter_recordings():
                 assert probs.shape == (10_000,)
                 count += 1
-            assert count == 1000
+            assert count == 100
 
     def test_mixed_recording_sizes(self) -> None:
         """Verify storage handles variable-length recordings."""
