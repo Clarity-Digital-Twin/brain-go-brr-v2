@@ -957,9 +957,9 @@ def test_metrics_exact_match_sklearn():
 - [ ] Add memory logging to track 0GB accumulation
 
 ### Phase 4: Prediction/Plot Saving (15 min)
-- [ ] Implement `_save_predictions_from_storage()` (streaming write)
-- [ ] Update `validate_epoch()` to use new save functions
-- [ ] Test save functions don't accumulate memory
+- [x] Implement `_save_predictions_from_storage()` (streaming copy, no accumulation)
+- [x] Update `validate_epoch()` to invoke prediction saves inside the storage context
+- [ ] (Deferred) Streaming plot generation — leave disabled or reimplement later
 
 ### Phase 5: Testing & Validation (30 min)
 - [ ] Run unit tests: `pytest tests/train/test_recording_storage.py -v`
@@ -1019,12 +1019,12 @@ def test_metrics_exact_match_sklearn():
 [METRICS] Freed AUROC/PR-AUC memory (39GB → 0GB)
 [METRICS] Computing ECE (streaming)...
 [METRICS] ECE: 0.0342 (<1MB peak)
-[METRICS] Starting FA sweep (zero-copy mmap)...
-[METRICS] Loaded 1832 tensors (read-only mmap, <10MB)
+[METRICS] Starting FA sweep (copy-on-write mmap)...
+[METRICS] Loaded 1832 tensors (OS caches ~25-30GB while thresholds iterate)
 [FA] 10 FA/24h → τ=0.863, sensitivity=0.847
 [FA] 5 FA/24h → τ=0.881, sensitivity=0.823
 [FA] 1 FA/24h → τ=0.924, sensitivity=0.761
-[METRICS] Freed FA sweep memory (<10MB → 0MB)
+[METRICS] Freed FA sweep memory (~30GB → 0GB after sweep completes)
 [VAL] Done! Val Loss: 0.1153, peak RAM: 39GB
 ✅ Validation complete in 52 minutes
 ```
@@ -1036,7 +1036,7 @@ Phase               Peak RAM    Notes
 Validation Loop     0GB         Disk writes only
 AUROC/PR-AUC       39GB         Pre-allocated (no double-buffer!)
 ECE                <1MB         True streaming
-FA Sweep           <10MB        Zero-copy mmap (no copies!)
+FA Sweep           25–30GB      Copy-on-write mmap (pages cached during search)
 ──────────────────────────────────────────────────
 TOTAL PEAK         39GB ✅      2.5x safety margin
 ```
