@@ -1,8 +1,8 @@
-# Brain-Go-Brr v3.9.1 – Current Status
+# Brain-Go-Brr v3.9.2 – Current Status
 
 **Last Updated:** 2025-10-09
 **Branch:** `feature/flash-linear-attention`
-**Version:** v3.9.1 (Validation OOM Fix)
+**Version:** v3.9.2 (CI/CD Stability)
 **Deployment:** Modal full training LIVE – BiMamba2 baseline with validation OOM fixed (W&B run: `983c1fbf706b4d0f8870cc0331dc6201`)
 
 ---
@@ -27,6 +27,17 @@
 ---
 
 ## Latest Improvements
+
+### v3.9.2 - CI/CD Stability (October 9, 2025)
+
+**Fixes**:
+- ✅ Confirmed O(n) event extraction fix mathematically correct (training weights unaffected)
+- ✅ Fixed FLA test skip logic (module-level flag check)
+- ✅ Fixed memory test flake (deterministic array properties)
+- ✅ Added dedicated FLA CI job for continuous validation
+- ✅ Documentation cleanup (moved config docs to archive)
+
+**Impact**: All CI passing reliably, FLA code path validated continuously.
 
 ### v3.9.1 - Validation OOM Fix (October 9, 2025)
 
@@ -91,7 +102,7 @@
 
 ## Current Deployment
 
-**Modal Full Training (LIVE - v3.9.1)**:
+**Modal Full Training (LIVE - v3.9.2)**:
 - Launch: Oct 9, 2025 15:34 EDT (disk-backed validation path active)
 - Config: 100 epochs, batch_size=48, A100-80GB, mixed_precision=true
 - Cache: 4667 train + 1832 dev NPY files (BalancedSeizureDataset = 61,616 windows, seizure ratio 34.2%)
