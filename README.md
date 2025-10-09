@@ -6,7 +6,7 @@
 [![PyTorch 2.5.0](https://img.shields.io/badge/pytorch-2.5.0-red.svg)](https://pytorch.org)
 [![CUDA 12.4](https://img.shields.io/badge/cuda-12.4-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
-[![v3.9.0](https://img.shields.io/badge/version-3.9.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.9.0-production-training-baseline)
+[![v3.9.1](https://img.shields.io/badge/version-3.9.1-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.9.1-validation-oom-fix)
 
 ## 📋 Overview
 
@@ -30,7 +30,7 @@ V3 implements a **dual-stream architecture** grounded in state-space models and 
 
 **Theoretical foundation**: [EvoBrain (NeurIPS 2025)](literature/markdown/EVOBRAIN.md) proves time-then-graph ordering achieves +23% AUROC over alternatives.
 
-**Current**: v3.9.0 production system with atomic checkpointing, deterministic resume, and timeout-safe training. Full training in progress on Modal A100-80GB. See [STATUS.md](STATUS.md) for live updates.
+**Current**: v3.9.1 production system with validation OOM fix (disk-backed validation), atomic checkpointing, and deterministic resume. Full training stable on Modal A100-80GB. See [STATUS.md](STATUS.md) for live updates.
 
 ## 🏗️ Architecture: Theory & Design
 
