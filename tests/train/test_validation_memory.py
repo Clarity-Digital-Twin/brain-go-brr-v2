@@ -26,17 +26,16 @@ from src.brain_brr.train.recording_storage import RecordingStorage
 
 @pytest.fixture
 def simple_model() -> nn.Module:
-    """Create a minimal model for testing (just returns random predictions)."""
+    """Create a minimal model for testing (outputs per-sample predictions)."""
 
     class SimpleDetector(nn.Module):
         def __init__(self) -> None:
             super().__init__()
-            self.linear = nn.Linear(19 * 15360, 1)
+            self.conv = nn.Conv1d(19, 1, kernel_size=1)
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
-            batch_size = x.shape[0]
-            x_flat = x.view(batch_size, -1)
-            return self.linear(x_flat)
+            out = self.conv(x)
+            return out.squeeze(1)
 
     return SimpleDetector()
 
