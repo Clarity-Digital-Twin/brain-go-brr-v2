@@ -365,18 +365,14 @@ Due to hardware differences, integration tests have adjusted thresholds:
 
 **Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
 
-**Current Status (v3.9.0 - October 8, 2025 - PRODUCTION TRAINING LIVE)**:
+**Current Status (v3.9.0 - October 9, 2025 - BiMamba2 BASELINE + FLA RESEARCH)**:
 - ✅ **Zero technical debt** - All P0/P1/P2/P3 issues RESOLVED across all priority levels
 - ✅ **Bulletproof checkpoints** - Atomic saves every 30min, AMP scaler + RNG capture, verified integrity
 - ✅ **Timeout guard** - 23h wall-clock limit, 1h safety margin, graceful exit before Modal kill
 - ✅ **Comprehensive validation** - PRE_TRAINING_VALIDATION.md, metrics pipeline verified from first principles
 - ✅ **Test suite enhanced** - Manifest validation, checkpoint robustness, 75%+ coverage maintained
-- ✅ **Full training LIVE** - 100 epochs on A100-80GB (app: ap-weaDyLGsgK5TEz8sLLOxO6)
-- ✅ **Manifest naming cleanup** - Direct NPY naming, 11 workaround hacks eliminated
-- ✅ **Memory-mapped NPY cache** - <1 GB RAM vs 387 GB NPZ, 99.6% faster startup, pristine (0 NPZ)
-- ✅ **Complete tensor safety** - Read-only mmap cache preserved with copy-on-read tensors
-- ✅ **Zero warnings** - NumPy copy-on-read tensors + AMP scheduler guard eliminate PyTorch warnings
-- ✅ PyTorch 2.5.0 + mamba-ssm 2.2.5 (A100 XID 31 crashes resolved)
-- ✅ V3 dual-stream with edge similarity clamping (PR-5)
-- 🟢 **0 active P0/P1/P2/P3** - Complete production baseline, training running
-- **Modal full training deployed** - v3.9.0 production baseline, 4-5 resume cycles expected
+- ✅ **BiMamba2 baseline training LIVE** - Modal A100-80GB, 100 epochs, validation OOM fixed
+- ✅ **FLA research complete** - BiGatedDeltaNet implemented, all smoke tests passed
+- ✅ **Pragmatic roadmap** - Two-stack strategy (BiMamba2 vs FLA), no ablations due to budget
+- 📊 **Next**: Wait for BiMamba2 → Create Modal FLA config → A/B comparison
+- 📚 **See**: `FLA_ROADMAP.md` for complete strategy and timeline
