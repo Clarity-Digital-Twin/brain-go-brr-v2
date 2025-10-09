@@ -47,13 +47,13 @@
            ↓
 ┌─────────────────────────────────────────────────┐
 │ Phase 2: Both Streams GDN (Doc 3)              │
-│ ✅ CONFIG CREATED (Oct 8, 2025)                 │
+│ 🔄 SMOKE TEST RUNNING (Oct 8, 2025 20:26 EDT)  │
 ├─────────────────────────────────────────────────┤
 │ - Config: configs/local/phase2_both_gdn.yaml   │
 │ - Edge stream: BiGatedDeltaNet (d_model=32)    │
 │ - Node stream: BiGatedDeltaNet (d_model=64)    │
-│ - Smoke test: NOT STARTED                      │
-│ - ETA: ~5 min smoke + 2-3h medium validation   │
+│ - Smoke test: IN PROGRESS (tmux: phase2_smoke) │
+│ - Log: /tmp/phase2_smoke.log                   │
 └─────────────────────────────────────────────────┘
            ↓
 ┌─────────────────────────────────────────────────┐
@@ -135,33 +135,37 @@
   - **Status**: ✅ Phase 1b COMPLETE (Oct 8, 2025 20:17 EDT)
 - [x] Isolation verified: Both streams BiGatedDeltaNet
 
----
-
-### 🔄 **IN PROGRESS**
-
 **Documentation Updates** (Oct 8, 2025):
 - [x] Doc 1: Marked Phase 1a COMPLETE, added implementation status section
 - [x] Doc 2: Updated validation strategy (smoke-only, deferred to Phase 2)
 - [x] Doc 2: Fixed parameter ratios (39× → ~13×, updated risk table)
 - [x] Doc 2: Fixed timeline inconsistencies (removed 6-8h references)
-- [x] Doc 3: Added medium validation plan (40-50 files, 5-6 epochs)
-- [x] FLA_IMPLEMENTATION_STATUS.md: Updated Phase 1a+1b completion
-- [ ] FLA_DOCUMENTATION_METHODOLOGY.md: Add new strategy rationale (NEXT)
+- [x] Doc 3: Infrastructure status updated (DOES exist → EXISTS - Phase 1a complete)
+- [x] Doc 4: Fixed edge_mamba_d_model (16 → 32)
+- [x] FLA_IMPLEMENTATION_STATUS.md: Updated Phase 1a+1b completion, fixed config line counts
+- [x] FLA_DOCUMENTATION_METHODOLOGY.md: Removed false "ironclad" claim, added issues list
 
 ---
 
-### ❌ **PENDING**
+### 🔄 **IN PROGRESS**
 
-**Phase 2 (Both Streams GDN)**:
+**Phase 2 (Both Streams GDN)** - SMOKE TEST RUNNING:
 - [x] ✅ **Config created**: `configs/local/phase2_both_gdn.yaml` (Oct 8, 2025)
   - Complete 194-line config
   - `experiment.name: "phase2_both_gdn"`
   - `temporal_type: "gated_deltanet"` (global - both streams)
   - `gdn_edge_num_heads: 3`, `gdn_edge_headdim: 8`
   - `edge_mamba_d_model: 32` (FLA requirement)
-- [ ] Smoke test (3 files, ~5 min)
-- [ ] Medium validation (40-50 files, 5-6 epochs, ~2-3h)
-- [ ] Verify both streams use GDN
+- [x] 🔄 **Smoke test RUNNING** (Oct 8, 2025 20:26 EDT)
+  - Session: `tmux attach -t phase2_smoke`
+  - Log: `/tmp/phase2_smoke.log`
+  - Both streams verified: Node BiGatedDeltaNet (d_model=64) + Edge BiGatedDeltaNet (d_model=32) ✅
+  - Status: Training started, epoch 1/10
+- [ ] Medium validation (40-50 files, 5-6 epochs, ~2-3h) - AFTER SMOKE PASSES
+
+---
+
+### ❌ **PENDING**
 
 **Medium Validation Run**:
 - [ ] Use Phase 2 config (both streams GDN)
