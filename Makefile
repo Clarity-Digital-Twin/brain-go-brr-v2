@@ -117,16 +117,31 @@ config-check: ## Validate YAML configs match constants.py
 quality: lint format type-check config-check ## Run all code quality checks
 	@echo "${GREEN}✓ All quality checks passed${NC}"
 
-train-local: ## Train model with V3 local config (100 epochs) with NaN protection
-	@echo "${CYAN}Training with V3 dual-stream architecture...${NC}"
+train-bimamba: ## Train BiMamba2 model locally (100 epochs) with NaN protection
+	@echo "${CYAN}Training with BiMamba2 dual-stream architecture...${NC}"
 	@echo "${YELLOW}Full training: 100 epochs using official TUSZ train/dev splits${NC}"
 	@echo "${YELLOW}🚨 NaN protection: BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1${NC}"
-	BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 .venv/bin/python -m src train configs/local/train.yaml
+	BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 .venv/bin/python -m src train configs/local/train_bimamba.yaml
 
-smoke-local: ## Run local smoke test (1 epoch, 3 files) with NaN protection
-	@echo "${CYAN}Running V3 smoke test (3 files only) with NaN protection...${NC}"
+train-fla: ## Train FLA (Gated DeltaNet) model locally (100 epochs) with NaN protection
+	@echo "${CYAN}Training with FLA (Gated DeltaNet) dual-stream architecture...${NC}"
+	@echo "${YELLOW}Full training: 100 epochs using official TUSZ train/dev splits${NC}"
+	@echo "${YELLOW}🚨 NaN protection: BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1${NC}"
+	BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 .venv/bin/python -m src train configs/local/train_fla.yaml
+
+train-local: train-bimamba ## Alias: Local training (defaults to BiMamba2)
+
+smoke-bimamba: ## Run BiMamba2 local smoke test (1 epoch, 3 files) with NaN protection
+	@echo "${CYAN}Running BiMamba2 smoke test (3 files only) with NaN protection...${NC}"
 	@echo "${YELLOW}NaN protection: BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1${NC}"
-	BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 BGB_SMOKE_TEST=1 .venv/bin/python -m src train configs/local/smoke.yaml
+	BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 BGB_SMOKE_TEST=1 .venv/bin/python -m src train configs/local/smoke_bimamba.yaml
+
+smoke-fla: ## Run FLA local smoke test (1 epoch, 3 files) with NaN protection
+	@echo "${CYAN}Running FLA (Gated DeltaNet) smoke test (3 files only) with NaN protection...${NC}"
+	@echo "${YELLOW}NaN protection: BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1${NC}"
+	BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 BGB_SMOKE_TEST=1 .venv/bin/python -m src train configs/local/smoke_fla.yaml
+
+smoke-local: smoke-bimamba ## Alias: Local smoke test (defaults to BiMamba2)
 
 train: train-prod ## Alias: full training with production config
 
@@ -221,7 +236,7 @@ tp: test-performance ## Shortcut for performance benchmarks
 f: format ## Shortcut for format
 l: lint ## Shortcut for lint
 q: quality ## Shortcut for quality checks
-s: smoke-local ## Shortcut for smoke test
+s: smoke-bimamba ## Shortcut for BiMamba2 smoke test
 g: setup-gpu ## Shortcut for GPU setup
 
 # Modal Pipeline Automation
@@ -241,15 +256,29 @@ populate-modal: ## Populate Modal cache from S3 (one-time, use --detach)
 	@modal run --detach deploy/modal/app.py --action populate-cache
 	@echo "${GREEN}✓ Started cache population - monitor with: modal app list${NC}"
 
-train-modal: ## Start Modal training (with --detach)
-	@echo "${CYAN}Starting Modal training...${NC}"
-	@modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+train-modal-bimamba: ## Start Modal BiMamba2 training (with --detach)
+	@echo "${CYAN}Starting Modal BiMamba2 training...${NC}"
+	@modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
 	@echo "${GREEN}✓ Training started - monitor with: modal app list${NC}"
 
-smoke-modal: ## Run Modal smoke test (with --detach)
-	@echo "${CYAN}Running Modal smoke test...${NC}"
-	@modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+train-modal-fla: ## Start Modal FLA training (with --detach)
+	@echo "${CYAN}Starting Modal FLA (Gated DeltaNet) training...${NC}"
+	@modal run --detach deploy/modal/app.py --action train --config configs/modal/train_fla.yaml
+	@echo "${GREEN}✓ Training started - monitor with: modal app list${NC}"
+
+train-modal: train-modal-bimamba ## Alias: Modal training (defaults to BiMamba2)
+
+smoke-modal-bimamba: ## Run Modal BiMamba2 smoke test (with --detach)
+	@echo "${CYAN}Running Modal BiMamba2 smoke test...${NC}"
+	@modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
 	@echo "${GREEN}✓ Smoke test started - monitor with: modal app list${NC}"
+
+smoke-modal-fla: ## Run Modal FLA smoke test (with --detach)
+	@echo "${CYAN}Running Modal FLA (Gated DeltaNet) smoke test...${NC}"
+	@modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml
+	@echo "${GREEN}✓ Smoke test started - monitor with: modal app list${NC}"
+
+smoke-modal: smoke-modal-bimamba ## Alias: Modal smoke test (defaults to BiMamba2)
 
 deploy-modal: upload-cache populate-modal train-modal ## Complete Modal deployment pipeline
 	@echo "${GREEN}✓ Full Modal deployment pipeline initiated${NC}"

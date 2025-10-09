@@ -1,0 +1,241 @@
+# Full Training: TCN + FLA (Gated DeltaNet) + GNN Stack (V3)
+# Optimized for RTX 4090 (24GB VRAM) with NaN protections
+# Based on EvoBrain proven parameters + RTX 4090 best practices
+#
+# IMPORTANT:
+# - GPU stack: run `make setup-gpu` (installs Mamba+PyG with prebuilt wheels)
+# - Ensure memory-mapped cache exists at cache/tusz_mmap/{train,dev} (4667 + 1832 NPY stems; see configs/README.md)
+# - Optional NaN debugging: export BGB_NAN_DEBUG=1 (enables extra logging)
+# - If local training stalls/hangs (esp. on WSL2): set data.num_workers: 0
+# - If NaNs persist on RTX 4090: set training.mixed_precision: false; reduce batch_size or learning_rate
+
+experiment:
+  name: full_training_fla
+  description: "Full training - TCN+FLA(GatedDeltaNet)+GNN on RTX 4090"
+  seed: 42
+  output_dir: results/local_training
+  cache_dir: cache/tusz_mmap  # Same as data.cache_dir for consistency (mmap NPY format)
+  device: cuda
+  log_level: INFO
+  save_model: true
+  save_best_only: true
+
+  # W&B configuration (optional)
+  wandb:
+    enabled: true
+    project: seizure-v3-rtx4090
+    entity: null
+
+model:
+  # Architecture: "v3" (dual-stream with edge Mamba)
+  architecture: v3  # V3 dual-stream with learned adjacency
+
+  # PR-1: Boundary Normalization (ENABLED)
+  # Prevents unbounded information flows between components
+  norms:
+    boundary_norm: layernorm     # LayerNorm at component boundaries
+    boundary_eps: 1.0e-5          # Epsilon for numerical stability
+    layerscale_alpha: 0.1         # Initial LayerScale value
+    after_tcn_proj: true          # Normalize after TCN projection
+    after_node_mamba: true        # Normalize after node Mamba
+    after_edge_mamba: true        # Normalize after edge Mamba
+    after_gnn: true               # Normalize after GNN
+    before_decoder: true          # Normalize before decoder
+
+  tcn:
+    num_layers: 8
+    kernel_size: 7
+    dropout: 0.15
+    causal: false
+    stride_down: 16
+    use_cuda_optimizations: true
+
+  mamba:
+    n_layers: 6
+    d_model: 512
+    d_state: 16
+    conv_kernel: 4  # CUDA constraint: must be 2-4
+    dropout: 0.1
+
+    # FLA (Gated DeltaNet) architecture configuration
+    temporal_type: gated_deltanet   # Use GatedDeltaNet instead of BiMamba2
+    gdn_fusion_mode: sum            # Bidirectional fusion (simpler than concat)
+    gdn_allow_neg_eigval: false     # Conservative eigenvalue handling
+
+    # Edge GDN head config (required for edge_mamba_d_model=32)
+    # Constraint: num_heads × headdim = 0.75 × d_model
+    # 3 × 8 = 24 = 0.75 × 32 ✅
+    gdn_edge_num_heads: 3
+    gdn_edge_headdim: 8
+
+  # Graph configuration (V3)
+  graph:
+    enabled: true              # Required for V3
+
+    # PR-2: Bounded Edge Stream (ENABLED)
+    edge_lift_activation: tanh       # Bound edge features to [-1, 1]
+    edge_lift_norm: layernorm        # Normalize after edge lift
+    edge_lift_init_gain: 0.1         # Conservative initialization
+
+    # V3: Edge stream config
+    edge_features: cosine      # Edge feature metric for v3
+    edge_top_k: 3              # Top-k edges per node for v3
+    edge_threshold: 1.0e-4     # Edge weight cutoff for v3
+    edge_mamba_layers: 2       # Edge Mamba layers for v3
+    edge_mamba_d_state: 8      # Edge Mamba state dim for v3
+    edge_mamba_d_model: 32     # FLA requirement: causal_conv1d needs d_model=32
+    edge_similarity_margin: 0.01  # PR-5: Safety margin from ±1 boundaries
+
+    # PR-3: Adjacency Conditioning (ENABLED)
+    adj_row_softmax: true            # Row-wise softmax normalization
+    adj_softmax_tau: 1.0             # Temperature for softmax
+    adj_ema_beta: 0.95               # EMA smoothing for temporal stability
+    adj_force_symmetric: true        # Force symmetric Laplacian
+    laplacian_eps: 1.0e-3            # Regularization for stable eigendecomp
+    laplacian_normalize: true        # Use normalized Laplacian
+
+    # V2 heuristic removed
+
+    # GNN architecture
+    n_layers: 2                # 2-layer GNN
+    dropout: 0.1
+    use_residual: true         # Skip connections
+    alpha: 0.05                # SSGConv mixing
+    k_eigenvectors: 16         # Laplacian PE dimension
+
+    # Dynamic PE config (v3) - OPTIMIZED FOR RTX 4090
+    use_dynamic_pe: true       # RE-ENABLED after fixing edge NaN issues
+    semi_dynamic_interval: 5   # OPTIMAL: PE every 19.5ms (192 eigendecomps)
+    pe_sign_consistency: true  # Fix eigenvector signs for stability
+
+
+  # Decoder removed in V3-only architecture
+
+data:
+  dataset: tuh_eeg
+  data_dir: data_ext4/tusz/edf        # Parent dir containing train/dev/eval
+  cache_dir: cache/tusz_mmap  # Memory-mapped `_data.npy`/`_labels.npy` pairs (read-only)
+  sampling_rate: 256
+  n_channels: 19
+  window_size: 60
+  stride: 10
+  use_balanced_sampling: true         # CRITICAL for imbalanced data
+  num_workers: 0                      # WSL2 fix: prevents multiprocessing hangs
+  pin_memory: true                    # Faster GPU transfer
+  persistent_workers: false           # Must be false when num_workers=0
+  prefetch_factor: 2                  # Pre-load batches
+
+preprocessing:
+  montage: "10-20"
+  bandpass: [0.5, 120.0]
+  notch_freq: 60
+  normalize: true
+
+training:
+  epochs: 100
+
+  # RTX 4090 OPTIMIZED: measured 10GB @ batch=4, safe to double
+  # 8 = 2x faster: ~20GB usage, 4GB buffer, cuts epoch time in half
+  batch_size: 8   # OPTIMIZED: 2x faster than batch=4 (measured 10GB → ~20GB)
+
+  # Conservative learning rate to prevent NaN
+  # RTX 4090: balanced between stability and learning
+  learning_rate: 1.0e-4  # Increased from 1e-5 which was too low during warmup
+  weight_decay: 0.01     # Reduced from 0.05 to prevent weight explosion
+  optimizer: adamw
+
+  # Post-v3.3.1: Relaxed after eigendecomposition fix
+  # 0.1 was too tight and blocking learning; 0.5 is standard for transformers
+  gradient_clip: 0.5      # Increased from 0.1 (eigendecomp fix allows this)
+
+  # Mixed precision OFF by default for RTX 4090 stability
+  # Only enable after confirming no NaNs with a smoke test
+  mixed_precision: false  # Set true only after stable training confirmed
+
+  # Alternative if FP16 causes issues (requires PyTorch 2.0+):
+  # mixed_precision_dtype: bfloat16  # More stable than fp16
+
+  # Focal loss for extreme class imbalance
+  loss: focal
+  focal_alpha: 0.5       # Neutral alpha (let pos_weight handle imbalance)
+  focal_gamma: 2.0       # Focus on hard examples
+
+  # Learning rate schedule with proper warmup
+  scheduler:
+    type: cosine
+    warmup_ratio: 0.03   # v3.4.0: Increased from 0.01 to match Modal (3% = 462 steps)
+
+  # 🔥 NEW (v3.4.1): Warmup Schedules for Gradient Stabilization
+  # Production-grade warmup used by OpenAI, Google, Meta for smoother training start
+  # Reduces gradient spikes by 20-30% in first 500 batches with focal loss
+  # ENABLED for gradient stabilization testing
+
+  warmup_schedule:
+    enabled: true
+    warmup_steps: 1000                # First 1000 batches (~20 min on RTX 4090)
+
+    # Adjacency Temperature: Smooth → Sharp softmax over warmup
+    adj_temperature_enabled: true
+    adj_temperature_start: 2.0         # Smoother softmax at start (reduces adjacency grad spikes)
+    adj_temperature_end: 1.0           # Match adj_softmax_tau (full sharpness after warmup)
+
+    # Focal Gamma: Less → More focusing over warmup
+    focal_gamma_enabled: true
+    focal_gamma_start: 1.0             # Standard BCE at start (less amplification)
+    focal_gamma_end: 2.0               # Match focal_gamma (full hard-example mining after warmup)
+
+  # Early stopping
+  early_stopping:
+    patience: 5
+    metric: sensitivity_at_10fa
+
+  # Checkpointing
+  checkpoint_interval: 1  # Save every epoch for safety
+  mid_checkpoint_interval_s: 1800  # Save every 30 minutes (safety for long epochs)
+  mid_epoch_keep: 3  # Keep last 3 mid-epoch checkpoints
+  gradient_accumulation_steps: 1  # Can increase if batch_size too small
+
+postprocessing:
+  hysteresis:
+    tau_on: 0.86    # Matches constants.HYSTERESIS_TAU_ON
+    tau_off: 0.78   # Matches constants.HYSTERESIS_TAU_OFF
+  morphology:
+    opening_kernel: 11
+    closing_kernel: 31
+  duration:
+    min_duration_s: 3.0
+    max_duration_s: 600.0
+  events:
+    tau_merge: 2.0
+    confidence_method: mean
+
+evaluation:
+  fa_rates: [10, 5, 2.5, 1]
+  save_predictions: false
+  save_plots: false
+
+logging:
+  log_every_n_steps: 50
+  log_gradients: false
+  log_weights: false
+
+# ========================================================================
+# NaN Protection (gradient clipping is always applied from config)
+# ========================================================================
+# Optional environment variables for debugging:
+#
+#   export BGB_NAN_DEBUG=1       # Enable NaN warnings
+#   # export BGB_SANITIZE_GRADS=1  # Debug: log gradient NaNs (not required)
+#
+# Example:
+#   tmux new -s train
+#   export BGB_NAN_DEBUG=1
+#   .venv/bin/python -m src train configs/local/train.yaml
+#
+# See: docs/08-operations/gradient-protection-guide.md for details
+# ========================================================================
+#
+# Additional debug variables (optional):
+# export BGB_DEBUG_FINITE=1       # Enable assert_finite() checks (slower)
+# export BGB_ANOMALY_DETECT=1     # PyTorch anomaly detection (very slow!)
+# export BGB_DISABLE_TQDM=0       # Keep progress bars locally
