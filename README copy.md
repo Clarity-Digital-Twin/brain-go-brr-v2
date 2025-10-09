@@ -12,7 +12,7 @@
 
 Epileptic seizures affect ~50 million people worldwide. Continuous clinical monitoring faces a critical bottleneck: **false alarm rates**. Target performance: <1 false alarm per 24 hours at >75% sensitivity.
 
-### 🎯 The Challenge
+### The Challenge
 
 EEG seizure detection demands modeling two intertwined phenomena:
 - **Temporal dynamics**: Multi-scale patterns from milliseconds (spike transients) to minutes (rhythmic evolution)
