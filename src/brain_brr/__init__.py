@@ -6,14 +6,14 @@ V3 dual-stream architecture combining:
 - GNN (Graph Neural Network) with dynamic Laplacian positional encoding
 - Multi-head gated fusion for node/edge stream combination
 
-v3.9.0: Production Training Baseline - Bulletproof Resume
-- Atomic checkpoint saves (temp + fsync + rename) with AMP scaler & RNG capture
-- Wall-clock timeout guard exits ~23 h with timeout_exit.pt (Modal-friendly resume)
-- Metric key normalization + W&B run persistence for seamless dashboards
-- Documentation refreshed for Modal operations / checkpoint strategy
+v3.9.2: CI/CD Stability & Documentation Cleanup
+- Fixed O(n) event extraction validation (CI timeout eliminated)
+- Professional FLA test skip logic (module-level flag check)
+- Deterministic memory testing (array property validation)
+- Dedicated FLA CI job for continuous code path validation
 """
 
-__version__ = "3.9.0"
+__version__ = "3.9.2"
 
 # NO HEAVY IMPORTS AT PACKAGE LEVEL
 # Models should be imported explicitly when needed:
