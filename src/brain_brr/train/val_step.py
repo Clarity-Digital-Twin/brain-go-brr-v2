@@ -175,6 +175,9 @@ def _compute_final_metrics(
         sensitivity_results[format_sensitivity_key(fa)] = result.sensitivity
         fa_curve.append((fa, result.sensitivity))
 
+    del timelines_probs, timelines_labels, all_probs_flat, all_labels_flat
+    del probs_flat, labels_flat
+
     results = {
         "taes": taes,
         "auroc": auroc,
