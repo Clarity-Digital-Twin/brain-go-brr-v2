@@ -48,14 +48,19 @@ data:
 
 ### Local Training (RTX 4090)
 ```bash
-# Smoke test (requires environment variables)
-BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 python -m src train configs/local/smoke.yaml
-# Or use the helper script:
-./run_smoke_test.sh
+# BiMamba2 smoke test (requires environment variables)
+BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 python -m src train configs/local/smoke_bimamba.yaml
 
-# Full training (watch in tmux recommended)
-tmux new -s train
-python -m src train configs/local/train.yaml
+# FLA smoke test
+BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 python -m src train configs/local/smoke_fla.yaml
+
+# BiMamba2 full training (watch in tmux recommended)
+tmux new -s train-bimamba
+python -m src train configs/local/train_bimamba.yaml
+
+# FLA full training
+tmux new -s train-fla
+python -m src train configs/local/train_fla.yaml
 ```
 
 ### Modal Cloud Training (A100)
@@ -63,11 +68,17 @@ python -m src train configs/local/train.yaml
 # Test Mamba CUDA first
 modal run deploy/modal/app.py --action test-mamba
 
-# Smoke test (app.py sets BGB_LIMIT_FILES=50 automatically)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+# BiMamba2 smoke test (app.py sets BGB_LIMIT_FILES=50 automatically)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
 
-# Full training (detached)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+# FLA smoke test
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml
+
+# BiMamba2 full training (detached)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
+
+# FLA full training (detached)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_fla.yaml
 
 # Monitor
 modal app list
