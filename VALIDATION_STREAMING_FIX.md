@@ -13,7 +13,7 @@
 **Available Resources**: 96GB RAM on Modal A100-80GB instance
 **Root Cause**: Accumulating 34GB of validation data + 34GB metrics + 34GB FA sweep = 102GB+ peak
 **Solution**: Disk-backed storage with pre-allocated staging (no double-buffering)
-**Result**: 120GB → 39GB peak (3.1x reduction, **2.5x safety margin** on 96GB limit)
+**Result**: 120GB → ~39GB peak in the AUROC phase (FA sweep hovers ~25–30GB after the free), **no overlap**, 2.5× margin on 96GB
 
 **Key Insight**: We don't need "streaming" metrics (impossible for exact AUROC). We need **staged loading** - write to disk during loop, load once for metrics, free, reload for FA sweep.
 
@@ -100,10 +100,10 @@ We have **96GB available on Modal**. We need **37GB peak** for exact metrics.
 | | sklearn computation overhead | 3-5GB | **39GB peak** ✅ |
 | | Explicit free + gc | → 0GB | Before next phase |
 | **ECE Computation** | Streaming bin stats | <1MB | True O(1) streaming |
-| **FA Sweep** | Zero-copy mmap tensors | **<10MB** | Read-only, no copies! ✅ |
+| **FA Sweep** | Copy-on-write mmap tensors | 25–30GB | OS caches pages across ~1.5k recordings |
 | | Sweep overhead (event lists) | ~50MB | Temporary allocations |
 
-**Total Peak**: 39GB (AUROC phase only - well within 96GB limit, **2.5x safety margin**)
+**Total Peak**: ~39GB (AUROC phase dominates; FA sweep occurs after memory is freed, so peaks do not stack). OS paging keeps the FA sweep resident set closer to 30GB, well within the 96GB allotment.
 
 **Strategy**:
 1. Write to disk (0GB resident)

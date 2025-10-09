@@ -299,6 +299,77 @@ def _save_predictions_streaming(
     logger.info(f"[SAVE] Saved {len(storage.recording_ids)} recording predictions")
 
 
+def _save_plots_streaming(
+    storage: RecordingStorage,
+    output_dir: Path,
+    epoch: int | None = None,
+) -> None:
+    """Generate validation plots from disk-backed storage (streaming).
+
+    Creates sample plots without loading all data into RAM at once.
+    Plots first 10 recordings as examples.
+
+    Args:
+        storage: RecordingStorage with validation data
+        output_dir: Directory to save plots
+        epoch: Optional epoch number for naming
+    """
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        logger.warning("[SAVE] matplotlib not available, skipping plots")
+        return
+
+    plot_dir = Path(output_dir) / "plots"
+    if epoch is not None:
+        plot_dir = plot_dir / f"epoch_{epoch:03d}"
+    plot_dir.mkdir(parents=True, exist_ok=True)
+
+    logger.info(f"[SAVE] Generating validation plots in {plot_dir}")
+
+    num_to_plot = min(10, len(storage.recording_ids))
+
+    for file_id in storage.recording_ids[:num_to_plot]:
+        probs_path = storage.cache_dir / f"{file_id}_probs.npy"
+        labels_path = storage.cache_dir / f"{file_id}_labels.npy"
+
+        probs = np.load(probs_path, mmap_mode="r")
+        labels = np.load(labels_path, mmap_mode="r")
+
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 8))
+
+        time_axis = np.arange(len(probs)) / constants.SAMPLING_RATE / 60
+
+        ax1.plot(time_axis, probs, "b-", linewidth=0.5, alpha=0.7, label="Predictions")
+        ax1.set_ylabel("Probability")
+        ax1.set_title(f"Validation: {file_id}")
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+        ax1.set_xlim(0, time_axis[-1])
+        ax1.set_ylim(-0.05, 1.05)
+
+        ax2.fill_between(time_axis, 0, labels, color="red", alpha=0.5, label="Ground Truth")
+        ax2.set_xlabel("Time (minutes)")
+        ax2.set_ylabel("Seizure")
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+        ax2.set_xlim(0, time_axis[-1])
+        ax2.set_ylim(-0.05, 1.05)
+
+        plt.tight_layout()
+
+        plot_path = plot_dir / f"{file_id}.png"
+        plt.savefig(plot_path, dpi=100, bbox_inches="tight")
+        plt.close(fig)
+
+        del probs, labels
+
+    logger.info(f"[SAVE] Generated {num_to_plot} validation plots")
+
+
 def validate_epoch(
     model: nn.Module,
     dataloader: DataLoader,
@@ -480,10 +551,10 @@ def validate_epoch(
         if save_predictions and output_dir:
             _save_predictions_streaming(storage, Path(output_dir), epoch)
 
+        if save_plots and output_dir:
+            _save_plots_streaming(storage, Path(output_dir), epoch)
+
     metrics["val_loss"] = total_loss / max(1, num_batches)
     logger.info(f"[VALIDATION] Done! Val Loss (Focal): {metrics['val_loss']:.4f}")
-
-    if save_plots and output_dir:
-        logger.warning("[SAVE] Plot saving not yet implemented for disk-backed validation")
 
     return metrics
