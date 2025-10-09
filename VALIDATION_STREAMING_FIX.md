@@ -1122,7 +1122,8 @@ TOTAL PEAK         39GB ✅      2.5x safety margin
 **Implementation:**
 - [x] Disk-backed storage with zero accumulation guarantee
 - [x] Pre-allocated concat (single-pass, no double-buffer)
-- [x] Zero-copy mmap tensors (direct torch.from_numpy, no np.array())
+- [x] Copy-on-write mmap tensors (mmap_mode="c" for PyTorch compatibility)
+- [x] Zero-copy guarantee (read operations don't trigger copy-on-write)
 - [x] Staged loading (load → compute → free → reload)
 - [x] Exact sklearn algorithms (no approximations)
 - [x] True streaming ECE (O(1) memory, vectorized)
