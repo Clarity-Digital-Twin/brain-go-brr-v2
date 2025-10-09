@@ -244,7 +244,7 @@ make train-local
 
 **Cloud training (Modal A100-80GB)**:
 ```bash
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
 ```
 
 See [installation guide](docs/01-installation/) and [training docs](docs/05-training/) for details.

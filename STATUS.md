@@ -102,7 +102,7 @@
 
 **Next Steps**:
 1. Monitor first validation for `[VALIDATION] Starting disk-backed validation` (confirms fix)
-2. Resume after timeout: `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml --resume`
+2. Resume after timeout: `modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume`
 3. Repeat resume ~4-5 times until epoch 100 completes
 4. Archive checkpoints + metrics, then launch FLA Modal A/B run
 
@@ -132,11 +132,17 @@ make test-performance  # GPU performance tests
 
 **Training Commands**:
 ```bash
-# Smoke test (50 files, ~10 min)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+# BiMamba2 smoke test (50 files, ~10 min)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
 
-# Full training (100 epochs, ~100 hours)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+# FLA smoke test (50 files, ~10 min)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml
+
+# BiMamba2 full training (100 epochs, ~100 hours)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
+
+# FLA full training (100 epochs, ~100 hours)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_fla.yaml
 ```
 
 **Architecture**:
