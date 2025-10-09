@@ -477,9 +477,9 @@ Under the new validation strategy, Phase 1b uses **smoke test ONLY** (3 files). 
 **OLD WORKFLOW** (for reference - DO NOT USE):
 ```bash
 # OLD: 50-file validation per phase (DEPRECATED)
+# This workflow is no longer used - smoke tests only per phase
 export BGB_LIMIT_FILES=50
 python -m src train configs/local/phase1b_node_gdn.yaml
-# Training time: ~6-8 hours on RTX 4090
 ```
 
 **See**: Doc 1 Implementation Status section for complete validation strategy
@@ -783,10 +783,10 @@ python -m src train configs/local/train.yaml
 - [ ] Optional: Run baseline if needed (Section 1.3)
 - [ ] Smoke test (Section 3.1) - 10 min
 
-### Day 2: Validation
-- [ ] Full validation run (Section 3.2) - 6-8 hours
-- [ ] Monitor training (loss, gradients, memory)
-- [ ] Verify isolation (Section 3.3)
+### Day 2: Analysis (DEPRECATED - Skip to Phase 2)
+- [ ] ~~Full validation run~~ (DEPRECATED - smoke-only strategy)
+- [ ] ~~Monitor training~~ (Deferred to Phase 2 medium validation)
+- [ ] Verify isolation (Section 3.3) - check smoke test logs
 
 ### Day 3: Analysis & Decision
 - [ ] Run A/B analysis (Section 4.2)
