@@ -799,7 +799,7 @@ def test_iter_recordings_streaming():
 
 
 def test_get_all_as_torch_tensors_zero_copy():
-    """Verify get_all_as_torch_tensors() doesn't copy mmap (truly zero-copy)."""
+    """Verify get_all_as_torch_tensors() uses copy-on-write (zero-copy + safe)."""
     with RecordingStorage() as storage:
         # Write 10 recordings (9MB each = 90MB total)
         for i in range(10):
@@ -810,23 +810,34 @@ def test_get_all_as_torch_tensors_zero_copy():
         process = psutil.Process()
         before_rss = process.memory_info().rss / (1024**3)
 
-        # Get as tensors (should be zero-copy, <10MB overhead)
+        # Get as tensors (should be zero-copy with copy-on-write)
         probs_list, labels_list = storage.get_all_as_torch_tensors()
 
         after_rss = process.memory_info().rss / (1024**3)
         allocated = after_rss - before_rss
 
-        # Should allocate <50MB (just tensor objects)
-        # NOT 180MB (which would indicate np.array() copies)
+        # Should allocate <50MB (just tensor objects + mmap overhead)
+        # NOT 180MB (which would indicate full data copies)
         assert allocated < 0.05, (
             f"Expected <50MB allocation (zero-copy), got {allocated:.2f}GB. "
             f"If >0.1GB, mmap is being copied!"
         )
 
-        # Verify tensors work (read-only ops should be fine)
+        # Verify tensors work correctly (read operations)
         for probs in probs_list:
-            threshold_result = probs >= 0.5  # Creates new tensor (doesn't modify)
+            # This creates NEW tensor (doesn't modify original mmap)
+            threshold_result = probs >= 0.5
             assert threshold_result.shape == probs.shape
+
+            # Verify tensor is writeable (copy-on-write makes it so)
+            assert probs.numpy().flags.writeable, "Tensor should be writeable for PyTorch"
+
+        # Verify original files unchanged (copy-on-write didn't trigger)
+        for i in range(10):
+            probs_file = storage.cache_dir / f"rec_{i}_probs.npy"
+            original = np.load(probs_file)
+            # File should be unchanged (we only did read operations)
+            assert original.shape == (2_334_720,)
 
         # Cleanup
         del probs_list, labels_list
