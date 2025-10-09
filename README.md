@@ -20,7 +20,7 @@ EEG seizure detection demands modeling two intertwined phenomena:
 
 Seizures are spatiotemporal network disorders requiring joint modeling of both dimensions.
 
-### Our Approach
+### ✨ Our Approach
 
 V3 implements a **dual-stream architecture** grounded in state-space models and dynamic graph theory:
 
@@ -34,7 +34,7 @@ V3 implements a **dual-stream architecture** grounded in state-space models and 
 
 ## 🏗️ Architecture: Theory & Design
 
-### Why Time-Then-Graph?
+### 🤔 Why Time-Then-Graph?
 
 [EvoBrain (NeurIPS 2025)](literature/markdown/EVOBRAIN.md) establishes two critical theorems:
 
