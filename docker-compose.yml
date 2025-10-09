@@ -27,7 +27,7 @@ services:
 
       # Preprocessed cache (read-only) - 449GB
       # Required for: ALL training (BalancedSeizureDataset + ValidationDataset)
-      - ./cache/tusz:/app/cache/tusz:ro
+      - ./cache/tusz_mmap:/app/cache/tusz_mmap:ro
 
       # Results (read-write)
       # Required for: checkpoints, logs, outputs
@@ -46,7 +46,7 @@ services:
       - BGB_SMOKE_TEST=1
       # No BGB_LIMIT_FILES - defaults to 3 files for fast validation (~5 min)
 
-    command: python3.11 -m src train /app/configs/local/smoke.yaml
+    command: python3.11 -m src train /app/configs/local/smoke_bimamba.yaml
 
   integration-test:
     extends: train-base
@@ -57,13 +57,13 @@ services:
       - BGB_LIMIT_FILES=50
       # Deeper validation with 50 files (~60 min)
 
-    command: python3.11 -m src train /app/configs/local/smoke.yaml
+    command: python3.11 -m src train /app/configs/local/smoke_bimamba.yaml
 
   train:
     extends: train-base
     container_name: bgb-train
 
-    command: python3.11 -m src train /app/configs/local/train.yaml
+    command: python3.11 -m src train /app/configs/local/train_bimamba.yaml
 
     restart: unless-stopped
 
