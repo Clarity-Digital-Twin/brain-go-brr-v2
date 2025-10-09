@@ -50,9 +50,11 @@ modal run --detach deploy/modal/app.py \
 
 # 3. Wait ~4-5 days
 
-# 4. A/B comparison
-# - If FLA ≥ BiMamba2 + 3%: Deploy FLA
-# - If FLA < BiMamba2: Keep BiMamba2
+# 4. A/B comparison & documentation
+# - Document BiMamba2 results (sensitivity, AUROC, etc.)
+# - Document FLA results (sensitivity, AUROC, etc.)
+# - Calculate delta and statistical significance
+# - Both results are publishable (novel architectures)
 ```
 
 ---
@@ -84,7 +86,7 @@ TUSZ benchmark (see `literature/markdown/EEG-BIMAMBA`):
 - 12:1 class imbalance (seizures are rare)
 - Seizure detection is HARD
 
-**Our goal**: Know if FLA beats BiMamba2, not claim SOTA
+**Our goal**: Empirically compare BiMamba2 vs FLA on TUSZ. Both stacks are novel - no prior work exists with these architectures. Results are publishable regardless of which performs better.
 
 ---
 
@@ -100,17 +102,19 @@ TUSZ benchmark (see `literature/markdown/EEG-BIMAMBA`):
 
 ---
 
-## 🎉 **Bottom Line**
+## 🎯 **Bottom Line: Research Exploration**
 
 **Is FLA ready for local training?** YES (technically), but NOT RECOMMENDED (use Modal instead)
 
 **Do we need Modal configs now?** NO - create after BiMamba2 baseline completes
 
-**What's the strategy?** Two-stack A/B comparison (pragmatic, valid, achievable)
+**What's the strategy?** Two-stack research comparison - train both, document both, compare results
 
 **When will we know?** ~2-3 weeks from now (BiMamba2 done + FLA done + comparison)
 
 **Cost?** ~$650 total ($319 × 2 runs)
+
+**Key insight**: Both stacks are novel. Both results are publishable regardless of outcome.
 
 ---
 

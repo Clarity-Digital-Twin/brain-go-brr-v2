@@ -210,11 +210,11 @@ modal app logs <app-id>
 
 ---
 
-### 📊 **Phase 5: A/B Comparison & Decision** (FINAL)
+### 📊 **Phase 5: A/B Comparison & Documentation** (FINAL)
 
 **Compare Metrics**:
 ```
-                        BiMamba2 Baseline    FLA Candidate    Delta
+                        BiMamba2 Stack       FLA Stack         Delta
 sensitivity@10FA        [TBD from Modal]     [TBD from Modal]  [?]
 sensitivity@5FA         [TBD]                [TBD]             [?]
 sensitivity@1FA         [TBD]                [TBD]             [?]
@@ -223,15 +223,16 @@ TAES                    [TBD]                [TBD]             [?]
 Training time/epoch     ~1 hour              ~1 hour           [?]
 ```
 
-**Decision Criteria**:
-1. 🎯 **DEPLOY FLA**: sensitivity@10FA ≥ BiMamba2 + 3% (meaningful improvement)
-2. ⚠️ **CONSIDER FLA**: sensitivity@10FA ≥ BiMamba2 + 1% (marginal improvement)
-3. ✅ **KEEP BiMamba2**: sensitivity@10FA < BiMamba2 (FLA underperforms)
+**Research Outcomes** (ALL scientifically valuable):
+1. 📊 **FLA > BiMamba2**: "Linear attention mechanisms show X% improvement on TUSZ clinical seizure detection"
+2. 📊 **BiMamba2 > FLA**: "State-space models outperform linear attention by X% on clinical EEG tasks"
+3. 📊 **FLA ≈ BiMamba2**: "Architecture equivalence observed - both approaches viable for seizure detection"
 
-**Publication Strategy**:
-- **If FLA wins**: "Gated DeltaNet improves EEG seizure detection by X% over BiMamba2 on TUSZ"
-- **If BiMamba2 wins**: "BiMamba2 remains competitive with Gated DeltaNet for EEG tasks"
-- **Either way**: We have a full-stack comparison on a real clinical benchmark
+**Key Insight**: ALL three outcomes are **NOVEL and PUBLISHABLE**. No prior work compares:
+- BiMamba2 + TCN + GCN + Dynamic LPE (our Stack 1)
+- GatedDeltaNet + TCN + GCN + Dynamic LPE (our Stack 2)
+
+Both architectures are research contributions, regardless of which performs better.
 
 ---
 
@@ -345,28 +346,30 @@ Training time/epoch     ~1 hour              ~1 hour           [?]
 1. **Pragmatic over perfect**: We're resource-constrained, not Google DeepMind
 2. **Full-stack comparison**: Valid scientific approach, publishable results
 3. **Historical success**: V3 evolved this way (incremental full-stack training)
-4. **Clear decision criteria**: ≥3% improvement → deploy, <0% → rollback
+4. **Research contribution**: First comparison of these architectures on clinical EEG
 5. **Acknowledged limitations**: No ablations, single run, limited validation
+6. **All outcomes valuable**: Positive, negative, or null results all contribute to field
 
-### **What Success Looks Like**
+### **What Research Success Looks Like**
 
-**Best case**: FLA beats BiMamba2 by ≥3% sensitivity@10FA
-- Deploy FLA to production
-- Publish: "Gated DeltaNet improves TUSZ seizure detection by X%"
-- Tag: `v4.0.0-fla-production`
+**ALL outcomes are successful research**:
 
-**Good case**: FLA beats BiMamba2 by 1-3%
-- Consider deployment (marginal improvement)
-- Document findings, iterate on hybrid architectures
+**Outcome A**: FLA > BiMamba2 (any magnitude)
+- Document: "Linear attention (GatedDeltaNet) outperforms state-space models (BiMamba2) by X% on TUSZ clinical seizure detection"
+- Contribution: First empirical evidence for FLA on clinical EEG
+- Publishable: Novel architecture + positive result
 
-**Acceptable case**: FLA performs similar to BiMamba2 (±1%)
-- Keep BiMamba2 baseline (simpler, proven)
-- Document: "Gated DeltaNet is competitive but not superior"
+**Outcome B**: BiMamba2 > FLA (any magnitude)
+- Document: "State-space models (BiMamba2) outperform linear attention (GatedDeltaNet) by X% on TUSZ clinical seizure detection"
+- Contribution: First evidence that SSMs > FLA for EEG (negative results are publishable!)
+- Insight: Helps field understand architectural trade-offs
 
-**Worst case**: FLA underperforms BiMamba2 by >1%
-- Rollback to BiMamba2
-- Document learnings, investigate why
-- Possible next steps: GLA, HGRN2, or hybrid architectures
+**Outcome C**: FLA ≈ BiMamba2 (within ±1%)
+- Document: "Linear attention and state-space models achieve equivalent performance on clinical EEG seizure detection"
+- Contribution: Demonstrates architectural flexibility
+- Insight: Multiple paths to solve seizure detection
+
+**Key Point**: We're the FIRST to build and compare these stacks. The comparison itself is the contribution, not the "winner".
 
 ---
 
@@ -387,19 +390,20 @@ Oct 19:         Merge to main, tag release, write postmortem
 
 ---
 
-## 🎉 **Bottom Line**
+## 🎯 **Bottom Line: Research-Driven Exploration**
 
 **This roadmap is realistic, achievable, and scientifically valid.**
 
 We're not doing ablations because we can't afford them. We're training two full stacks and comparing results. This is how many published papers work, and it's how we've successfully evolved V3 so far.
 
-**The goal**: Know whether Gated DeltaNet is better than BiMamba2 for TUSZ seizure detection.
-**The method**: A/B comparison on full dataset (4667 train files, 100 epochs).
-**The decision**: Deploy if ≥3% improvement, rollback otherwise.
+**The goal**: Empirically compare BiMamba2 vs GatedDeltaNet on TUSZ clinical seizure detection.
+**The method**: Full-dataset training (4667 train files, 100 epochs per stack).
+**The outcome**: Document results for BOTH stacks, regardless of which performs better.
+**The contribution**: First implementation + benchmarking of these novel architectures on clinical EEG.
 **The timeline**: 2-3 weeks.
 **The cost**: ~$650.
 
-**Let's ship it.** 🚀
+**Both results are publishable. Let's build it.** 🚀
 
 ---
 
