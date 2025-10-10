@@ -29,7 +29,13 @@ modal run --detach deploy/modal/app.py --action train --config configs/modal/smo
 modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
 
 # Resume after timeout/interruption
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume true
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume
+
+# Deploy the latest Modal functions (Modal 1.0 CLI)
+modal deploy deploy/modal/app.py
+
+# Enable the 23 h auto-restart scheduler (after a manual run finishes)
+modal run --detach deploy/modal/app.py --action schedule-training --config configs/modal/train_bimamba.yaml
 
 # Clean stray NPZ files if check-cache reports them
 modal run deploy/modal/clean_stray_npz.py --confirm
@@ -82,10 +88,24 @@ The job exports:
 ## 3. Timeout Guard & Resume Workflow
 
 - The timeout guard monitors wall-clock time and, after ~23 h, saves `timeout_exit.pt`, logs a warning, and exits cleanly. Modal never hard-kills mid-checkpoint.
-- Relaunch training with `--resume true`. The loader prefers, in order: newest `mid_epoch_*.pt`, `timeout_exit.pt`, then `last.pt`.
+- Relaunch training with `--resume`. The loader prefers, in order: newest `mid_epoch_*.pt`, `timeout_exit.pt`, then `last.pt`.
 - Expect 4–5 resume cycles for a 100‑epoch run (~5 days wall-clock, ~$350).
 - Each checkpoint contains model, optimizer, scheduler, AMP scaler, and RNG state (Python/NumPy/torch CPU/torch CUDA). Resumes are deterministic—no repeated batches.
 - `.wandb_run_id` is stored in the checkpoint directory; resumed runs continue the same W&B dashboard (`[W&B] Run resumed: …` in logs).
+
+### Auto-Restart Scheduler (Modal Period, Oct 10 2025+)
+
+- `deploy/modal/app.py::train_auto_restart` is bound to `modal.Period(hours=23)` and `max_containers=1` (Modal 1.0 rename of `concurrency_limit`). The period is measured from **start time**, so expect ~10 minutes of idle between cycles because the timeout guard exits 600 s before the next trigger.
+- First run must still be launched manually with `--resume` so legacy checkpoints (saved before Oct 10) can finish the current epoch and rewrite `last.pt` with the corrected `epoch+1` metadata. This costs one extra Epoch 2 pass (~14 h, $56) once, then future resumes are perfect.
+- Once the manual run exits (timeout or completion), run:
+  ```bash
+  modal deploy deploy/modal/app.py
+  modal run --detach deploy/modal/app.py --action schedule-training \
+    --config configs/modal/train_bimamba.yaml
+  ```
+  The scheduled function calls `train.remote(..., resume=True)` and waits for completion, so no overlap can occur while `max_containers=1` is in effect.
+- Redeploying the app resets the scheduler clock. If you push code or update configs, redeploy immediately after the current cycle finishes so the next period starts with the new image.
+- Monitoring: `modal app logs brain-go-brr-v2 --follow` streams the scheduler logs; the underlying training app ID will be linked whenever a new cycle launches.
 
 ---
 

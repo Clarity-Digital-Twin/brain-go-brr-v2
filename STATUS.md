@@ -1,9 +1,9 @@
-# Brain-Go-Brr v3.9.2 – Current Status
+# Brain-Go-Brr v3.10.0 – Current Status
 
-**Last Updated:** 2025-10-09
+**Last Updated:** 2025-10-10
 **Branch:** `feature/flash-linear-attention`
-**Version:** v3.9.2 (CI/CD Stability)
-**Deployment:** Modal full training LIVE – BiMamba2 baseline with validation OOM fixed (W&B run: `983c1fbf706b4d0f8870cc0331dc6201`)
+**Version:** v3.10.0 (Auto-Restart & Checkpoint Fix)
+**Deployment:** Modal full training LIVE – BiMamba2 baseline with auto-restart capability (App ID: `ap-ik2xwlXmuQMvPyhSfrZJfi`)
 
 ---
 
