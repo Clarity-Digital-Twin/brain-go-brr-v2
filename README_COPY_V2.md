@@ -22,9 +22,9 @@ That's what we're building.
 
 Seizures aren't just temporal patterns or spatial patterns—they're **both simultaneously**:
 
-**Temporal dynamics**: Multi-scale patterns from milliseconds (spike transients) → seconds (rhythmic activity) → minutes (ictal evolution)
+- **Temporal dynamics**: Multi-scale patterns from milliseconds (spike transients) → seconds (rhythmic activity) → minutes (ictal evolution)
 
-**Spatial propagation**: Time-varying electrode connectivity as seizures propagate through neural networks (e.g., C3 → C4 → P3)
+- **Spatial propagation**: Time-varying electrode connectivity as seizures propagate through neural networks (e.g., C3 → C4 → P3)
 
 Traditional approaches fail because they treat these as separate problems. We model them jointly via **time-then-graph ordering**.
 
