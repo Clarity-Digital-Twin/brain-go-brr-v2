@@ -12,13 +12,14 @@ Brain-Go-Brr v3.11.0 (StatefulDataLoader & Mid-Epoch Resume): Clinical EEG seizu
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-Current Architecture (v3.10.0 - October 10, 2025):
+Current Architecture (v3.11.0 - October 10, 2025):
 - **V3 dual-stream** → Node (19×) and Edge (171×) parallel processing
 - **Memory-mapped cache (NPY)** → <1 GB RAM vs 387 GB for NPZ, 99.6% faster startup
 - **Auto-restart training** → Hands-free 100-epoch training via modal.Period(hours=23) with overlap protection
+- **StatefulDataLoader** → Exact mid-epoch resume with PyTorch official dataloader state management ($150+ savings)
 - **Three checkpoint fixes** → All resume bugs eliminated:
-  1. Resume fix: Saves epoch+1 (next) not epoch (completed), prevents 14h waste ($616 saved)
-  2. Buffer fix: Handle `register_buffer(None)` timing bug, enables mid-epoch resume
+  1. Resume fix: Saves epoch+1 (next) not epoch (completed), prevents 14h waste per restart
+  2. Buffer fix: Handle `register_buffer(None)` timing bug, enables mid-epoch checkpoints
   3. RNG fix: Force RNG states to CPU before restoration, enables GPU resume
 - **Bulletproof checkpoints** → Atomic saves (temp + fsync + rename), AMP scaler + RNG capture, every 30min
 - **Timeout guard** → 23h wall-clock limit with 1h safety margin, graceful exit before Modal kill
