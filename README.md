@@ -469,6 +469,6 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 **Updates?** [Watch the repo](https://github.com/clarity-digital-twin/brain-go-brr-v2) •
 **Discussion?** [Start a discussion](https://github.com/clarity-digital-twin/brain-go-brr-v2/discussions)
 
-**Current status**: v3.9.2 • BiMamba2 baseline training • Zero technical debt
+**Current status**: v3.10.0 • Auto-restart training • BiMamba2 baseline LIVE • Zero technical debt
 
 </div>
