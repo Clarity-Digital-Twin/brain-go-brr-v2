@@ -47,7 +47,7 @@ export BGB_NAN_DEBUG=1         # Additional NaN logging
 
 ```yaml
 # Local RTX 4090: TCN + Bi-Mamba + GNN Stack (V3)
-# From: configs/local/train.yaml
+# From: configs/local/train_bimamba.yaml
 
 data:
   dataset: tuh_eeg

@@ -461,7 +461,7 @@ If you need different durations, file a feature request.
 ### Example 1: Standard Local Training
 
 ```yaml
-# configs/local/train.yaml
+# configs/local/train_bimamba.yaml
 training:
   epochs: 100
   batch_size: 4
@@ -489,7 +489,7 @@ model:
 ### Example 2: Modal A100 Training
 
 ```yaml
-# configs/modal/train.yaml
+# configs/modal/train_bimamba.yaml
 training:
   epochs: 100
   batch_size: 64

@@ -54,7 +54,7 @@ Detach with `Ctrl+B, D` and reattach via `tmux attach -t train`.
 
 ## Part 2 – Launch Training
 
-### Local (RTX 4090, `configs/local/train.yaml`)
+### Local (RTX 4090, `configs/local/train_bimamba.yaml`)
 
 ```bash
 # Optional diagnostics
