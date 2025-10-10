@@ -152,20 +152,28 @@ rng = checkpoint["rng_state"]
 torch.set_rng_state(rng["torch"])  # Works!
 ```
 
-**Option 2: Explicit CPU Move** (SIMPLE)
+**Option 2: Explicit CPU Move** (SIMPLE - IMPLEMENTED)
 ```python
 # Load to target device as before
 checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
 
-# Move RNG state back to CPU before restoration
+# Move RNG states back to CPU before restoration
+# CRITICAL: Both torch.set_rng_state() AND torch.cuda.set_rng_state_all() require CPU tensors!
 if restore_rng and "rng_state" in checkpoint:
     rng = checkpoint["rng_state"]
-    torch.set_rng_state(rng["torch"].cpu())  # Explicit .cpu() call
+
+    # CPU RNG: force to CPU if moved by map_location
+    torch.set_rng_state(rng["torch"].cpu())
+
+    # CUDA RNG: ALSO force to CPU (PyTorch handles GPU transfer internally)
     if torch.cuda.is_available() and rng["torch_cuda"] is not None:
-        torch.cuda.set_rng_state_all(rng["torch_cuda"])  # CUDA RNG stays on CUDA
+        cuda_rng = rng["torch_cuda"]
+        if isinstance(cuda_rng, list) and len(cuda_rng) > 0 and cuda_rng[0].is_cuda:
+            cuda_rng = [state.cpu() for state in cuda_rng]
+        torch.cuda.set_rng_state_all(cuda_rng)
 ```
 
-**Recommendation**: Option 2 is simpler and less risky (minimal code change).
+**Key Insight**: PyTorch's `torch.cuda.set_rng_state_all()` expects CPU tensors, not GPU tensors! PyTorch internally handles moving them to the correct GPU. This is counter-intuitive but verified by testing.
 
 ---
 
@@ -280,7 +288,10 @@ Starting epoch 2/100...
 | 2025-10-10 15:52 | Training crashed with RNG error | 🔴 FAILED |
 | 2025-10-10 16:00 | Root cause identified (device mismatch) | ✅ DIAGNOSED |
 | 2025-10-10 16:10 | Document written | ✅ COMPLETE |
-| 2025-10-10 16:15 | Fix implementation | ⏳ IN PROGRESS |
+| 2025-10-10 16:45 | Fix implemented with `.cpu()` for both RNG types | ✅ COMPLETE |
+| 2025-10-10 16:50 | 4/4 regression tests passing | ✅ COMPLETE |
+| 2025-10-10 16:55 | Quality checks passed (lint+format+mypy) | ✅ COMPLETE |
+| 2025-10-10 17:00 | Ready for Modal deployment | 🟡 READY |
 
 ---
 
