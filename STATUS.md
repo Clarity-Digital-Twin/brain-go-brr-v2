@@ -163,7 +163,7 @@
 ## Current Deployment
 
 **Modal Full Training (LIVE - v3.11.0 StatefulDataLoader)**:
-- Launch: Oct 10, 2025 16:54 EDT (after buffer + RNG device bug fixes)
+- Launch: Oct 10, 2025 (v3.11.0 deployed with StatefulDataLoader + Pydantic fix)
 - App ID: `ap-EfCpvvcKntajgxwkcEaIj8`
 - Config: 100 epochs, batch_size=48, A100-80GB, mixed_precision=true
 - Cache: 4667 train + 1832 dev NPY files (BalancedSeizureDataset = 61,616 windows, seizure ratio 34.2%)
