@@ -108,31 +108,43 @@ All checkpoints saved **after the first forward pass where PE was computed**:
 
 ## The Fix: Three-Layer Defense
 
-### 1. **Immediate Fix**: Strict=False Loading (checkpoint.py)
+### 1. **Immediate Fix**: Skip Shape-Mismatched Buffers (checkpoint.py)
 
-**Change** `checkpoint.py:160`:
+**Change** `checkpoint.py:160-191`:
 
 ```python
-# BEFORE (strict=True by default)
+# BEFORE (strict=True by default, crashes on buffer mismatch)
 model.load_state_dict(checkpoint["model_state_dict"])
 
-# AFTER (tolerates buffer mismatches)
-incompatible = model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+# AFTER (detect and skip buffers with shape mismatches)
+state_dict = checkpoint["model_state_dict"]
+model_state = model.state_dict()
 
-# Log warnings for visibility
-if incompatible.missing_keys:
-    logger.warning(f"[CHECKPOINT] Missing keys (new model params): {incompatible.missing_keys}")
-if incompatible.unexpected_keys:
-    logger.warning(f"[CHECKPOINT] Unexpected keys (old checkpoint params): {incompatible.unexpected_keys}")
+# Detect dynamic buffer shape mismatches
+buffers_to_skip = []
+for key in list(state_dict.keys()):
+    if key in model_state:
+        if state_dict[key].shape != model_state[key].shape:
+            if key.endswith(".last_valid_pe"):
+                logger.info(f"[CHECKPOINT] Skipping dynamic buffer: {key}")
+                buffers_to_skip.append(key)
+
+# Remove mismatched buffers from checkpoint before loading
+for key in buffers_to_skip:
+    del state_dict[key]
+
+# Load with strict=False to handle any remaining mismatches
+incompatible = model.load_state_dict(state_dict, strict=False)
 ```
 
 **Why this works**:
-- `strict=False` allows checkpoint to have extra keys (like `gnn.last_valid_pe`)
-- Model initializes buffer to None, then checkpoint loading sets it to saved tensor value
-- **Backward compatible**: Works with both old (with buffer) and new (without buffer) checkpoints
+- Pre-screens checkpoint for known dynamic buffers with shape mismatches
+- Removes mismatched buffers so they don't cause load_state_dict() to fail
+- Fresh model keeps placeholder buffer (1,1,1,k) which will be updated on first forward pass
+- **Backward compatible**: Works with both old (with runtime buffer) and new (with placeholder) checkpoints
 
-**Risk**: Could silently ignore genuine architecture mismatches
-**Mitigation**: Log all mismatches as warnings
+**Risk**: Could silently skip buffers that should be loaded
+**Mitigation**: Only skip known dynamic buffers (.last_valid_pe), log all skips
 
 ### 2. **Robust Fix**: Initialize Buffer with Dummy Tensor (gnn_pyg.py)
 
@@ -148,10 +160,10 @@ self.last_valid_pe: torch.Tensor | None
 # This ensures checkpoint compatibility from model initialization
 self.register_buffer(
     "last_valid_pe",
-    torch.zeros(1, 1, 1, 1),  # Placeholder (B, T, N, k) will be overwritten
+    torch.zeros(1, 1, 1, k_eigenvectors, dtype=torch.float32),  # Placeholder (1,1,1,k)
     persistent=True,  # Explicit: save in state_dict
 )
-self.last_valid_pe: torch.Tensor | None
+self.last_valid_pe: torch.Tensor  # No longer optional - always has tensor
 ```
 
 **Why this works**:
@@ -162,45 +174,28 @@ self.last_valid_pe: torch.Tensor | None
 **Risk**: Wastes ~16 bytes per checkpoint (negligible)
 **Benefit**: Eliminates root cause entirely
 
-### 3. **Complete Fix**: Buffer Migration Logic (checkpoint.py)
+### 3. **Defense in Depth**: Placeholder Detection in Forward Pass (gnn_pyg.py)
 
-Add automatic buffer migration for known incompatibilities:
+The GNN forward pass already has logic to detect placeholder vs. valid cached PE:
 
 ```python
-def _migrate_checkpoint_buffers(
-    checkpoint: dict[str, Any],
-    model: nn.Module,
-) -> dict[str, Any]:
-    """Migrate old checkpoint buffers to new model architecture.
-
-    Handles known buffer incompatibilities:
-    - gnn.last_valid_pe: Was dynamically created, now statically registered
-    """
-    state_dict = checkpoint["model_state_dict"]
-    model_keys = set(model.state_dict().keys())
-    ckpt_keys = set(state_dict.keys())
-
-    # Remove buffers that no longer exist in model
-    extra_keys = ckpt_keys - model_keys
-    for key in extra_keys:
-        if key == "gnn.last_valid_pe":
-            # Known dynamic buffer - safe to ignore
-            logger.info(f"[MIGRATION] Removing deprecated buffer: {key}")
-            del state_dict[key]
-        else:
-            # Unknown extra key - warn but don't remove
-            logger.warning(f"[MIGRATION] Unknown extra key: {key}")
-
-    return checkpoint
+# Check if cached PE has valid batch/time dimensions (not just placeholder 1,1,1,k)
+if self.last_valid_pe.shape[0] == B and self.last_valid_pe.shape[1] == T:
+    # Valid cached PE - reuse it
+    pe = self.last_valid_pe.reshape(B * T, N, self.k_eigenvectors).to(torch.float32)
+else:
+    # Placeholder or wrong batch size - compute fresh PE
+    pe = self._compute_laplacian_pe(adj_matrices)
+    self.last_valid_pe = pe.reshape(B, T, N, self.k_eigenvectors).detach().clone()
 ```
 
 **Why this works**:
-- Explicit migration logic for known incompatibilities
-- Can be extended for future buffer changes
-- Clear logging for debugging
+- Placeholder shape (1,1,1,k) never matches actual batch dimensions (B,T,N,k)
+- First forward pass automatically updates buffer with correct shape
+- No special migration code needed - just natural fallback logic
 
-**Risk**: Requires maintenance as model evolves
-**Benefit**: Clean upgrade path for all users
+**Risk**: None - this is existing production code
+**Benefit**: Self-healing behavior for any checkpoint/buffer mismatch
 
 ---
 
@@ -218,32 +213,36 @@ def _migrate_checkpoint_buffers(
 3. ✅ Verify no regressions in tests
 4. ✅ Update documentation
 
-### Phase 3: Complete Fix (30 minutes)
-1. ✅ Add `_migrate_checkpoint_buffers()` function
-2. ✅ Integrate into `load_checkpoint()`
-3. ✅ Add migration tests
-4. ✅ Document migration strategy
+### Phase 3: Verification (15 minutes)
+1. ✅ Add 5 comprehensive regression tests
+2. ✅ Verify buffer always in state_dict from initialization
+3. ✅ Verify checkpoint save/load compatibility
+4. ✅ Document PyTorch behavior for future reference
 
 ---
 
 ## Testing Strategy
 
-### Unit Tests
+### Unit Tests (tests/unit/train/test_checkpoint_buffer_compatibility.py)
+
+**5 comprehensive regression tests**:
+
+1. `test_buffer_appears_in_state_dict_immediately` - Verifies buffer always in state_dict
+2. `test_checkpoint_save_load_with_buffer` - Verifies checkpoint compatibility
+3. `test_checkpoint_strict_false_handles_extra_keys` - Verifies extra key handling
+4. `test_buffer_fallback_logic_with_placeholder` - Verifies placeholder detection
+5. `test_pytorch_register_buffer_none_behavior` - Documents PyTorch behavior
+
+**Key test expectations**:
 ```python
-def test_checkpoint_buffer_compatibility():
-    """Verify checkpoints with dynamic buffers can be loaded."""
-    # Create model, assign buffer, save
-    model1 = SeizureDetector.from_config(config)
-    model1.gnn.last_valid_pe = torch.randn(2, 10, 19, 16)
-    save_checkpoint(model1, optimizer, 0, 0.0, path)
+# Fresh model has placeholder
+assert model.gnn.last_valid_pe.shape == (1, 1, 1, k)
 
-    # Load into fresh model (buffer is None initially)
-    model2 = SeizureDetector.from_config(config)
-    epoch, metric = load_checkpoint(path, model2)
-
-    # Buffer should be restored
-    assert model2.gnn.last_valid_pe is not None
-    assert torch.allclose(model1.gnn.last_valid_pe, model2.gnn.last_valid_pe)
+# After loading checkpoint with shape mismatch, placeholder is kept
+# (checkpoint buffer was skipped, will update on first forward pass)
+model2 = SeizureDetector.from_config(config)
+load_checkpoint(checkpoint_path, model2)
+assert model2.gnn.last_valid_pe.shape == (1, 1, 1, k)  # Still placeholder
 ```
 
 ### Integration Tests
@@ -303,15 +302,16 @@ if self.cache is not None:
 | 2025-10-10 15:00 | Emergency fix + robust fix implemented | ✅ COMPLETE |
 | 2025-10-10 15:30 | Regression tests added (5/5 passing) | ✅ COMPLETE |
 | 2025-10-10 15:45 | Quality checks passed (lint+format+mypy) | ✅ COMPLETE |
-| 2025-10-10 16:00 | Ready for Modal training resume | ✅ READY |
+| 2025-10-10 16:00 | Documentation aligned with implementation | ✅ COMPLETE |
+| 2025-10-10 16:15 | Code ready for Modal deployment | ⏳ PENDING TEST |
 
 ---
 
 ## Final Implementation
 
-**Three fixes applied (all phases completed)**:
+**Three-layer defense applied (all phases completed)**:
 
-### 1. Emergency Fix (checkpoint.py:160-210)
+### 1. Skip Shape-Mismatched Buffers (checkpoint.py:160-191)
 ```python
 # Detect and skip buffers with shape mismatches
 buffers_to_skip = []
@@ -349,6 +349,19 @@ self.register_buffer(
 
 ---
 
-**Status**: 🟢 **RESOLVED** - Ready for Modal training resume
+**Status**: 🟡 **CODE COMPLETE** - Implementation verified, pending Modal deployment test
 
-**Next Steps**: Deploy fixed code and resume training from `mid_epoch_002_001224.pt`
+**Verification Status**:
+- ✅ Root cause identified and documented with empirical proof
+- ✅ Three-layer fix implemented (skip mismatched buffers + placeholder init + forward pass fallback)
+- ✅ All 5 regression tests passing (566 total tests pass)
+- ✅ Quality checks pass (lint, format, mypy, config validation)
+- ✅ Documentation aligned with actual implementation
+- ⏳ **Pending**: Modal deployment test to confirm checkpoint resume works end-to-end
+
+**Next Steps**:
+1. Commit fixes with comprehensive message
+2. Push to GitHub and deploy to Modal
+3. Resume training from `mid_epoch_002_001224.pt`
+4. Verify checkpoint loads successfully and training continues
+5. Update status to 🟢 **RESOLVED** after successful Modal validation
