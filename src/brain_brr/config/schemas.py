@@ -171,10 +171,8 @@ class MambaConfig(StrictModel):
         description="Override node stream headdim (None = use constants)",
     )
 
-    hybrid_attention: Annotated[
-        "HybridAttentionConfig | None",
-        Field(description="Hybrid GDN+SWA configuration (Phase 3 only, requires Phase 2 success)"),
-    ] = None
+    # Hybrid GDN+SWA configuration (Phase 3 only, requires Phase 2 success)
+    hybrid_attention: "HybridAttentionConfig | None" = None
 
     @model_validator(mode="after")
     def validate_gdn_constraints(self) -> "MambaConfig":
