@@ -58,9 +58,8 @@ Traditional approaches fail because they treat these as separate problems. We mo
 
 [EvoBrain (NeurIPS 2025)](literature/markdown/EVOBRAIN.md) establishes two critical theorems:
 
-**Theorem 1 (Dynamic Graphs)**: *Explicit dynamic modeling (time-varying adjacency) is strictly more expressive than implicit (static graphs).*
-
-**Theorem 2 (Temporal Ordering)**: *time-then-graph > time-and-graph > graph-then-time*
+- **Theorem 1 (Dynamic Graphs)**: Explicit dynamic modeling (time-varying adjacency) is strictly more expressive than implicit (static graphs)
+- **Theorem 2 (Temporal Ordering)**: time-then-graph > time-and-graph > graph-then-time
 
 **Intuition**: Temporal features must stabilize before graph operations. Processing graph structure first forces simultaneous learning of both patterns—a harder optimization landscape.
 
