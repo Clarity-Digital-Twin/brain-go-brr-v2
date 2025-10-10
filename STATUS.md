@@ -28,6 +28,19 @@
 
 ## Latest Improvements
 
+### v3.10.0 - Auto-Restart & Checkpoint Fix (October 10, 2025)
+
+**New Features**:
+- ✅ **Auto-Restart Training**: `train_auto_restart()` function with `modal.Period(hours=23)` for hands-free 100-epoch training
+- ✅ **Checkpoint Resume Fix**: Changed `save_checkpoint(..., epoch + 1, ...)` to prevent re-training completed epochs (saves $672 over 12 restarts)
+- ✅ **Modal 1.0 Migration**: Updated `concurrency_limit` → `max_containers` for future compatibility
+- ✅ **Modal CLI Reference**: New `MODAL_CLI_REFERENCE.md` with all updated commands and migration notes
+
+**Impact**:
+- **Operational**: Zero manual interventions after initial setup (vs. 12× manual resume for 100 epochs)
+- **Cost**: $616 net savings ($672 saved - $56 one-time waste)
+- **Human Time**: 10 min total vs. 60 min manual resume interventions
+
 ### v3.9.2 - CI/CD Stability (October 9, 2025)
 
 **Fixes**:

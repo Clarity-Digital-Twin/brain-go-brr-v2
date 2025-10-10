@@ -130,7 +130,7 @@ Manifests live alongside the data (`/results/cache/tusz_mmap/{train,dev}/manifes
 2. **Secrets**: `wandb` secret configured if you need logging (`modal secret create wandb …`).
 3. **Smoke test**: Run the smoke config once after any significant change.
 4. **Monitoring**: `modal app logs <app-id>` in one terminal, W&B dashboard in another.
-5. **Resume plan**: Add a reminder to relaunch every ~23 h with `--resume true`.
+5. **Resume plan**: Add a reminder to relaunch every ~23 h with `--resume`.
 
 ---
 
@@ -166,7 +166,7 @@ Manifests live alongside the data (`/results/cache/tusz_mmap/{train,dev}/manifes
 ## 8. FAQ
 
 **How often should I resume?**  
-Modal exits ~23 h after launch; relaunch with `--resume true` as soon as you see the timeout log (max progress loss <30 min).
+Modal exits ~23 h after launch; relaunch with `--resume` as soon as you see the timeout log (max progress loss <30 min).
 
 **Can I delete `timeout_exit.pt`?**  
 Yes—it’s treated like a mid-epoch checkpoint. Once you resume successfully you may delete older snapshots to save space.
