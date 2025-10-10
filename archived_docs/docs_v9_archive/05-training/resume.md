@@ -5,7 +5,7 @@ The training loop is designed to survive Modal’s 24 h timeout and to recover
 ## Quick Reference
 
 - **Local (BiMamba2)**: `python -m src train configs/local/train_bimamba.yaml --resume`
-- **Modal (BiMamba2)**: `modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume true`
+- **Modal (BiMamba2)**: `modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume`
 - Swap to `*_train_fla.yaml` when resuming the FLA stack.
 - `training.resume: true` in a YAML config has the same effect as `--resume` on the CLI.
 
@@ -29,8 +29,14 @@ Each file contains model weights, optimizer, scheduler, AMP scaler, and RNG stat
 ## Modal Timeout Behaviour
 
 - `deploy/modal/app.py` sets `BGB_WALL_CLOCK_LIMIT_S=82800` (23 h). The guard writes `timeout_exit.pt`, logs a warning, and exits cleanly about an hour before Modal’s enforced 24 h limit.
-- Relaunch training with `--resume true`; the loader prefers `timeout_exit.pt` and training continues with no repeated batches.
+- Relaunch training with `--resume`; the loader prefers `timeout_exit.pt` and training continues with no repeated batches.
 - After a resume the guard resets automatically—expect to relaunch ~4–5 times over a 100-epoch run.
+
+## Legacy Checkpoints (pre-Oct 10 2025)
+
+- Checkpoints saved before Oct 10 recorded the **current** epoch index. When you resume from those files, the training loop restarts the just-completed epoch (e.g., Epoch 2) and rewrites `last.pt` with the corrected `epoch+1` metadata. Budget ~14 h (~$56) for this one-time replay.
+- Allow that resume to finish; once the new checkpoint lands, future restarts jump straight to the next epoch. Deleting the old checkpoints avoids the replay but discards all progress since the last completed epoch.
+- Mid-epoch checkpoints always restart from the beginning of the saved epoch by design. Expect a brief replay of the final batches when recovering from an in-flight save.
 
 ## W&B Run Persistence
 

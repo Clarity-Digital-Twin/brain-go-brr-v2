@@ -1,8 +1,9 @@
 # Checkpoint Resume Bug: Epoch Re-Training Issue
 
-**Status:** CRITICAL BUG - Blocks efficient auto-restart implementation
+**Status:** ✅ FIXED - Implemented in src/brain_brr/train/loop.py (October 10, 2025)
 **Created:** October 10, 2025
-**Impact:** Wastes 14 GPU hours per auto-restart (~$56 per restart on A100)
+**Impact (Before Fix):** Wastes 14 GPU hours per auto-restart (~$56 per restart on A100)
+**Impact (After Fix):** One-time 14h waste on first resume, then $0 waste on all future restarts
 
 ---
 
@@ -21,16 +22,16 @@
 
 ## Executive Summary
 
-**Problem:** When training is resumed from a checkpoint, it re-trains the epoch that was just completed, wasting GPU time on every restart.
+**Problem (RESOLVED):** When training was resumed from a checkpoint, it re-trained the epoch that was just completed, wasting GPU time on every restart.
 
-**Root Cause:** The checkpoint saves the **current epoch index** (the epoch that just finished), but the training loop interprets this as the **next epoch to train**.
+**Root Cause:** The checkpoint saved the **current epoch index** (the epoch that just finished), but the training loop interpreted this as the **next epoch to train**.
 
-**Fix:** Change `epoch` to `epoch + 1` in the `last.pt` checkpoint save after validation completes (loop.py:462).
+**Fix (IMPLEMENTED):** Changed `epoch` to `epoch + 1` in the `last.pt` checkpoint save after validation completes (loop.py:464-465).
 
-**Impact:**
-- **Auto-restart (timeout-driven):** 14h wasted per restart (timeout always fires at epoch boundaries)
-- **Manual mid-epoch kills:** 0-14h wasted depending on kill timing
-- **With 12 auto-restarts planned:** 168h (7 days) and $672 wasted without fix
+**Current Reality:**
+- **Old checkpoints (before fix):** Will re-train Epoch 2 ONCE on first resume (~14h waste, $56)
+- **New checkpoints (after fix):** Resume correctly from next epoch ($0 waste)
+- **Net savings:** $672 over 12 auto-restarts (vs. $728 total cost if bug never fixed)
 
 ---
 
@@ -551,22 +552,35 @@ The auto-restart strategy will restart training every 23 hours via `modal.Period
 - [x] Bug identified (October 10, 2025)
 - [x] Root cause analysis complete
 - [x] Fix proposed and documented
-- [ ] Fix implemented
-- [ ] Smoke test passed
-- [ ] Full training validation
-- [ ] Auto-restart implementation can proceed
+- [x] **Fix implemented** (src/brain_brr/train/loop.py:464-465, 449)
+- [x] **Smoke test passed** (configs/modal/smoke_bimamba.yaml - October 10, 2025)
+- [ ] Full training validation (in progress - will accept one-time 14h waste)
+- [x] **Auto-restart implementation complete** (deploy/modal/app.py:1137-1245)
+
+---
+
+**IMPLEMENTATION DETAILS:**
+
+**Files Changed:**
+1. `src/brain_brr/train/loop.py:464-465` (CRITICAL): Changed `epoch` → `epoch + 1` in last.pt save
+2. `src/brain_brr/train/loop.py:449` (OPTIONAL): Changed `epoch` → `epoch + 1` in periodic checkpoint save
+3. `src/brain_brr/train/loop.py:253-254` (CLARIFYING): Added comment explaining timeout_exit.pt is correct
+
+**Smoke Test Results:**
+- Modal run: ap-c8pqL1a2TfE24wBqvAWmb0
+- Status: ✅ Completed successfully (October 10, 2025)
+- Checkpoint: `/results/smoke/checkpoints/last.pt` contains `epoch=1` (correct - next epoch to train)
+
+**Current Reality:**
+- Old checkpoints from paused run (ap-vSWIaqOTB65Nu3zmI92NpB) have buggy `epoch=1` values
+- First resume WILL waste 14h re-training Epoch 2 (unavoidable)
+- After first resume completes, all future checkpoints are correct
+- Net savings: $672 over remaining 11 auto-restarts
 
 ---
 
 **NEXT STEPS:**
-1. Kill current training (user action)
-2. Implement fix (1-line change)
-3. Run smoke test with resume (15 min)
-4. Resume full training (14h to validate)
-5. Proceed with auto-restart implementation
-
-**Questions for review:**
-1. Is the fix correct? (Change `epoch` → `epoch + 1` in line 462)
-2. Are there other places where this pattern appears?
-3. Should we fix mid-epoch checkpoint behavior too? (More complex, defer?)
-4. Should we add a test to prevent regression?
+1. ✅ Smoke test completed
+2. ⏳ Resume full training (accept 14h one-time waste, then correct forever)
+3. ⏳ Enable auto-restart after first resume completes (~23h)
+4. Monitor training to completion (hands-free)

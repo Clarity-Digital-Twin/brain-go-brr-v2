@@ -113,10 +113,43 @@
 
 ---
 
+## 🚨 IMPORTANT - Auto-Restart Instructions
+
+**After current manual resume completes Epoch 2 (~23h from 16:54 EDT Oct 10)**:
+
+1. **Verify Epoch 2 completed successfully** (check Modal logs + W&B)
+
+2. **Deploy auto-restart function** (one-time setup):
+   ```bash
+   modal deploy deploy/modal/app.py
+   ```
+
+3. **Start hands-free auto-restart** (Epochs 3-100, zero manual intervention):
+   ```bash
+   modal run --detach deploy/modal/app.py \
+     --action schedule-training \
+     --config configs/modal/train_bimamba.yaml
+   ```
+
+4. **Monitor** (optional):
+   ```bash
+   modal app list                    # See active scheduled job
+   modal app logs brain-go-brr-v2    # Stream logs
+   modal app stop brain-go-brr-v2    # Stop if needed
+   ```
+
+**Current vs. Auto-Restart**:
+- ✅ **Current (manual)**: Tests checkpoint fixes, runs once, stops after Epoch 2
+- 🔄 **Auto-restart**: Restarts every 23h via `modal.Period(hours=23)`, runs to epoch 100
+- 🎉 **Result**: Zero manual resume from Epoch 3 → 100!
+
+---
+
 ## Current Deployment
 
-**Modal Full Training (LIVE - v3.9.2)**:
-- Launch: Oct 9, 2025 15:34 EDT (disk-backed validation path active)
+**Modal Full Training (LIVE - v3.10.0 Checkpoint Fixes)**:
+- Launch: Oct 10, 2025 16:54 EDT (after buffer + RNG device bug fixes)
+- App ID: `ap-EfCpvvcKntajgxwkcEaIj8`
 - Config: 100 epochs, batch_size=48, A100-80GB, mixed_precision=true
 - Cache: 4667 train + 1832 dev NPY files (BalancedSeizureDataset = 61,616 windows, seizure ratio 34.2%)
 - Status: ✅ **PRODUCTION TRAINING RUNNING**

@@ -290,7 +290,7 @@ This documentation follows the **Diátaxis framework**:
 - ✅ **Technical debt**: ZERO active issues (P0/P1/P2/P3 all resolved)
 
 **Next Steps**:
-- [ ] Monitor/relauch Modal run after each timeout guard exit (`--resume true`)
+- [ ] Monitor/relauch Modal run after each timeout guard exit (`--resume`)
 - [ ] Full TAES evaluation on dev set once training completes
 - [ ] Tune post-processing for <1 FA/24 h @ >75 % sensitivity
 
