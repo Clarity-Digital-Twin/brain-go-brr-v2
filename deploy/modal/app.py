@@ -92,6 +92,7 @@ image = (
         "pyyaml>=6.0.0",
         "click>=8.1.7",
         "rich>=13.0.0",
+        "torchdata>=0.8.0",  # StatefulDataLoader for mid-epoch resume
         "tqdm>=4.64.0",
         "pandas>=2.0.0",  # For eval extras
         "tensorboard>=2.10.0",  # For training metrics
