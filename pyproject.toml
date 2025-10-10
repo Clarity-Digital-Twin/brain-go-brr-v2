@@ -36,6 +36,7 @@ dependencies = [
 
     # Deep Learning Components
     "einops>=0.7.0",
+    "torchdata>=0.8.0",  # StatefulDataLoader for mid-epoch checkpoint resume
     # Mamba SSM moved to optional GPU extra for CI stability
 
     # Configuration & Validation
