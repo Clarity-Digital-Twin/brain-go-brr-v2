@@ -222,7 +222,7 @@ training:
 ## Training Validation (Oct 1, 2025)
 
 **Platform**: RTX 4090, batch 723+
-**Config**: `configs/local/train.yaml`
+**Config**: `configs/local/train_bimamba.yaml`
 
 | Metric | Initial | Batch 723 | Change |
 |--------|---------|-----------|--------|

@@ -205,11 +205,14 @@ make s
 export BGB_NAN_DEBUG=1
 make train-local
 
-# Full training (Modal)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+# Full training (Modal) - BiMamba2 baseline
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
+
+# Or FLA research variant
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_fla.yaml
 
 # Validate config
-python -m src validate configs/local/train.yaml
+python -m src validate configs/local/train_bimamba.yaml
 
 # Build cache (NPY mmap format)
 python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz_mmap/train

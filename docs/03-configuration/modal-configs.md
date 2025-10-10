@@ -32,7 +32,9 @@ The production configuration uses the V3 dual-stream pipeline with the mmap cach
 )
 ```
 
-## Data configuration (excerpt from `configs/modal/train.yaml`)
+## Data configuration (excerpt from `configs/modal/train_bimamba.yaml`)
+
+BiMamba2 and FLA configs share identical data configuration:
 
 ```yaml
 data:

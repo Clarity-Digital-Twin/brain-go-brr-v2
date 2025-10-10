@@ -39,7 +39,7 @@ You should see partial > 0 or full > 0. If either report is 0, rebuild or invest
 ### 2. Validate Configuration
 
 ```bash
-python -m src validate configs/local/train.yaml   # or configs/modal/train.yaml
+python -m src validate configs/local/train_bimamba.yaml   # or configs/modal/train_bimamba.yaml
 ```
 Look for the four ✅ lines indicating paths, model, training, and evaluation settings are valid.
 
@@ -54,7 +54,7 @@ Detach with `Ctrl+B, D` and reattach via `tmux attach -t train`.
 
 ## Part 2 – Launch Training
 
-### Local (RTX 4090, `configs/local/train.yaml`)
+### Local (RTX 4090, `configs/local/train_bimamba.yaml`)
 
 ```bash
 # Optional diagnostics
@@ -76,13 +76,13 @@ training:
   resume: true                  # Allows --resume flag or config toggle
 ```
 
-### Modal (A100-80GB, `configs/modal/train.yaml`)
+### Modal (A100-80GB, `configs/modal/train_bimamba.yaml`)
 
 ```bash
 # Always detach for long runs
 modal run --detach deploy/modal/app.py \
   --action train \
-  --config configs/modal/train.yaml
+  --config configs/modal/train_bimamba.yaml
 ```
 
 Modal-specific behaviour:
@@ -94,7 +94,7 @@ When the guard triggers, relaunch with:
 ```bash
 modal run --detach deploy/modal/app.py \
   --action train \
-  --config configs/modal/train.yaml \
+  --config configs/modal/train_bimamba.yaml \
   --resume true
 ```
 The loader will pick the newest `mid_epoch_*.pt`, then `timeout_exit.pt`, then `last.pt`.
@@ -136,7 +136,7 @@ Checkpoint priority when `training.resume` or `--resume` is enabled:
 
 `save_checkpoint()` now writes via temp file + fsync + atomic rename, so corrupted checkpoints are no longer possible. The state dict includes model, optimizer, scheduler, AMP scaler, and RNG (Python/NumPy/torch CPU/torch CUDA) for deterministic resume.
 
-- Local resume: `python -m src train configs/local/train.yaml --resume`
+- Local resume: `python -m src train configs/local/train_bimamba.yaml --resume`
 - Modal resume after timeout: use the `--resume true` flag shown above.
 
 ---

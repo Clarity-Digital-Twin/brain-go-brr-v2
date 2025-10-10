@@ -709,7 +709,7 @@ def test_mamba_cuda():
     cpu=24,  # SAFE: 24 CPU cores (3 cores per 8 DataLoader workers)
 )
 def train(
-    config_path: str = "configs/modal/smoke.yaml",  # Default to smoke test for safety
+    config_path: str = "configs/modal/smoke_bimamba.yaml",  # Default to BiMamba2 smoke test for safety
     resume: bool = False,  # Resume training from last.pt in output_dir
     cuda_launch_blocking: bool = False,  # Enable CUDA_LAUNCH_BLOCKING for diagnostics
     cuda_dsa: bool = False,  # Enable TORCH_USE_CUDA_DSA for diagnostics
@@ -890,11 +890,7 @@ def train(
                 # Write new metadata
                 metadata = {
                     "split_policy": "official_tusz",
-                    "created": str(
-                        Path("/app") / "configs" / "modal" / "smoke.yaml"
-                        if "smoke" in config_path
-                        else "train.yaml"
-                    ),
+                    "created": str(Path("/app") / config_path),
                     "timestamp": str(Path(__file__).stat().st_mtime),
                 }
                 with open(cache_metadata_file, "w") as f:
@@ -920,11 +916,7 @@ def train(
 
             metadata = {
                 "split_policy": "official_tusz",
-                "created": str(
-                    Path("/app") / "configs" / "modal" / "smoke.yaml"
-                    if "smoke" in config_path
-                    else "train.yaml"
-                ),
+                "created": str(Path("/app") / config_path),
                 "timestamp": str(Path(__file__).stat().st_mtime),
             }
             with open(cache_metadata_file, "w") as f:
@@ -1145,7 +1137,7 @@ def evaluate(
 @app.local_entrypoint()
 def main(
     action: str = "train",
-    config: str = "configs/modal/smoke.yaml",  # Default to smoke test for safety
+    config: str = "configs/modal/smoke_bimamba.yaml",  # Default to BiMamba2 smoke test for safety
     resume: bool = False,  # Resume training from last.pt
     cuda_launch_blocking: bool = False,  # Enable CUDA_LAUNCH_BLOCKING for diagnostics
     cuda_dsa: bool = False,  # Enable TORCH_USE_CUDA_DSA for diagnostics
@@ -1163,14 +1155,20 @@ def main(
         # Test Mamba CUDA kernels
         modal run deploy/modal/app.py --action test-mamba
 
-        # Quick smoke test (Modal's --detach prevents disconnection)
-        modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+        # BiMamba2 smoke test (50 files, ~10 min - baseline)
+        modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
 
-        # Full A100 training (Modal's --detach prevents disconnection)
-        modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+        # BiMamba2 full training (4667 files, ~100 hours - baseline)
+        modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
 
-        # Resume training from last.pt in output_dir
-        modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml --resume true
+        # FLA research smoke test (alternative architecture)
+        modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml
+
+        # FLA full training (research comparison)
+        modal run --detach deploy/modal/app.py --action train --config configs/modal/train_fla.yaml
+
+        # Resume training from last.pt in output_dir (works with any config)
+        modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume true
 
         # Evaluate checkpoint
         modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.pt

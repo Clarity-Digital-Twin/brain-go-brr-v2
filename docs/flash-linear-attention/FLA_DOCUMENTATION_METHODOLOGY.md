@@ -1,14 +1,34 @@
 # FLA Documentation Methodology: Cross-Referenced Accuracy Validation
 
 **Date**: October 9, 2025
-**Status**: ✅ COMPLETE - All FLA documentation updated and consistent
+**Status**: ⚠️ **DOCUMENTATION DRIFT DETECTED** - See corrections below
 **Purpose**: Document the rigorous methodology used for FLA (Flash Linear Attention) documentation revision to ensure 1000% accuracy, zero magic numbers, and seamless codebase integration.
 
-**Update** (Oct 9, 2025): All documentation now reflects current implementation status:
-- ✅ All phase documentation updated (Phases 0, 1a, 1b, 2 all marked COMPLETE)
-- ✅ Two-stack strategy documented (BiMamba2 vs FLA A/B comparison)
-- ✅ Success criteria checklists updated (checked boxes for completed phases)
-- ✅ Parameter tables corrected (edge_d_model=32, actual param counts filled in)
+**🚨 CRITICAL UPDATE** (Oct 9, 2025 - Bug Hunt):
+The documentation claimed "all phases COMPLETE" but this was **incorrect**. After config architecture separation (commit a08d5a36), the phase-specific configs (phase1a, phase1b, phase2) were deleted and replaced with a two-stack approach:
+
+**ACTUAL CURRENT STATE**:
+- ✅ **Phase 1a (BiMamba2 Baseline)**: Implemented and tested (configs: `{smoke,train}_bimamba.yaml`)
+- 🟡 **Phase 1b (FLA Integration)**: Code implemented, configs created (`{smoke,train}_fla.yaml`), **validation pending**
+- ⬜ **Phase 2**: Not started - requires Phase 1b validation first
+- ⬜ **Phase 3**: Not started - conditional on Phase 2 results
+
+**WHAT EXISTS NOW** (Oct 9, 2025):
+- `configs/local/smoke_bimamba.yaml` - BiMamba2 smoke test (3 files)
+- `configs/local/train_bimamba.yaml` - BiMamba2 full training (4667 files)
+- `configs/local/smoke_fla.yaml` - FLA smoke test (3 files)
+- `configs/local/train_fla.yaml` - FLA full training (4667 files)
+- Same 4 configs in `configs/modal/` for A100 training
+
+**WHAT DOESN'T EXIST** (Deleted):
+- ❌ `configs/local/phase1a_edge_gdn.yaml` - Replaced by dual-stack approach
+- ❌ `configs/local/phase1b_node_gdn.yaml` - Replaced by dual-stack approach
+- ❌ `configs/local/phase2_both_gdn.yaml` - Not yet validated
+
+**CORRECT RESEARCH STRATEGY** (see FLA_ROADMAP.md):
+1. Train BiMamba2 baseline to completion (100 epochs) → Get metrics
+2. Train FLA variant to completion (100 epochs) → Get metrics
+3. Compare results: Both are publishable regardless of outcome (A/B comparison)
 
 ---
 

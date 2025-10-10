@@ -41,7 +41,7 @@ modal secret create wandb WANDB_API_KEY=<your-key>
 
 4. **Run Smoke Test**
    ```bash
-   modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+   modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
    # Time: ~5 minutes, AUROC: ~0.6-0.7
    ```
 
@@ -251,7 +251,7 @@ modal run deploy/modal/clean_stray_npz.py --confirm
 modal run deploy/modal/app.py --action test-mamba
 
 # Training
-modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
 modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
 
 # Resume

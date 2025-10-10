@@ -57,4 +57,4 @@ Common pitfalls
 Quick smoke check
 
 - Local: `make s` (1 epoch, 3 files)
-- Modal: `modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml`
+- Modal: `modal run deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml`

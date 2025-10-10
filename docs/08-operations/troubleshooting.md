@@ -147,7 +147,7 @@ tmux attach -t populate  # To reattach
 # Relaunch training with resume flag (loads timeout_exit.pt or latest mid_epoch_*.pt)
 modal run --detach deploy/modal/app.py \
   --action train \
-  --config configs/modal/train.yaml \
+  --config configs/modal/train_bimamba.yaml \
   --resume true
 ```
 

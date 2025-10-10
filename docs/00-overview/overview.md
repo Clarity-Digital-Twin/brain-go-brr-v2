@@ -37,8 +37,8 @@ Training quick start
 
 - Local smoke: `make s`
 - Full local: `make train-local`
-- Modal smoke: `modal run deploy/modal/app.py --action train --config configs/modal/smoke.yaml`
-- Modal full (detached): `modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml`
+- Modal smoke: `modal run deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml`
+- Modal full (detached): `modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml`
 
 Environment and versions (exact)
 

@@ -19,8 +19,11 @@ modal run deploy/modal/app.py --action test-mamba
 # Cache health / manifest validation (train + dev)
 modal run deploy/modal/app.py --action check-cache
 
-# Smoke test (50 files, 1 epoch, ~5 min)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+# Smoke test (50 files, 1 epoch, ~5 min) - BiMamba2 baseline
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
+
+# FLA research variant
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml
 
 # Full training (exits ~23 h with timeout_exit.pt)
 modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
