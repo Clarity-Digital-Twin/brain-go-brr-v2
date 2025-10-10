@@ -903,7 +903,7 @@ def main() -> None:
     if config.data.num_workers > 0:
         val_loader_kwargs["persistent_workers"] = bool(config.data.persistent_workers)
         val_loader_kwargs["prefetch_factor"] = int(config.data.prefetch_factor)
-    val_loader = DataLoader(val_dataset, **val_loader_kwargs)
+    val_loader = StatefulDataLoader(val_dataset, **val_loader_kwargs)
 
     # Create model (v3.4.1: pass warmup_schedule for gradient stabilization)
     model = SeizureDetector.from_config(
