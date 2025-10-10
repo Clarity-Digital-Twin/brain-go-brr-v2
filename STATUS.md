@@ -162,8 +162,12 @@ modal run --detach deploy/modal/app.py --action train --config configs/modal/smo
 # FLA smoke test (50 files, ~10 min)
 modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml
 
-# BiMamba2 full training (100 epochs, ~100 hours)
+# BiMamba2 full training - Manual (100 epochs, ~100 hours)
 modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
+
+# BiMamba2 full training - Auto-Restart (hands-free, recommended)
+modal deploy deploy/modal/app.py
+modal run --detach deploy/modal/app.py --action schedule-training --config configs/modal/train_bimamba.yaml
 
 # FLA full training (100 epochs, ~100 hours)
 modal run --detach deploy/modal/app.py --action train --config configs/modal/train_fla.yaml

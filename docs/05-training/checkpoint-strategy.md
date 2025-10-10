@@ -28,7 +28,7 @@ export BGB_MID_EPOCH_KEEP=5      # Keep last 5 snapshots (rotating)
 **Note:** Config fields take precedence over env vars.
 
 ### What Gets Saved
-1. **Every epoch**: `last.pt` (for resume)
+1. **Every epoch**: `last.pt` (for resume; since Oct 10 2025 the metadata stores `epoch+1`, so resumes jump to the next epoch instead of replaying the previous one)
 2. **Best model**: `best.pt` (when validation improves)
 3. **Mid-epoch**: `mid_epoch_XXX_YYYYYY.pt` (every 30 min, keeps 5)
 4. **Periodic**: `checkpoint_epoch_XXX.pt` (every epoch now)
@@ -59,8 +59,8 @@ export BGB_MID_EPOCH_KEEP=5      # Keep last 5 snapshots (rotating)
 ### Configuration (Already Optimal)
 - Saves every epoch (`checkpoint_interval: 1`)
 - Persistence volume handles all checkpoints
-- Automatic resume with `--resume true`
-- Timeout guard writes `timeout_exit.pt` roughly one hour before Modal’s 24 h limit; relaunch with `--resume true` to continue.
+- Automatic resume with `--resume`
+- Timeout guard writes `timeout_exit.pt` roughly one hour before Modal’s 24 h limit; relaunch with `--resume` to continue.
 
 ### Modal Commands
 ```bash
@@ -73,7 +73,7 @@ modal run --detach deploy/modal/app.py \
 modal run --detach deploy/modal/app.py \
     --action train \
     --config configs/modal/train_bimamba.yaml \
-    --resume true
+    --resume
 ```
 
 ### Atomic Save Mechanics (v3.9.1)
@@ -81,6 +81,12 @@ modal run --detach deploy/modal/app.py \
 - `save_checkpoint()` writes to `<name>.pt.tmp`, calls `os.fsync()`, then atomically renames to `<name>.pt`. Partial or corrupted files cannot appear even if Modal terminates mid-save.
 - Checkpoints include AMP scaler state and RNG seeds for Python, NumPy, torch CPU, and torch CUDA so resumes reproduce the exact batch order after timeouts.
 - `load_checkpoint()` handles legacy checkpoints gracefully—missing scaler/RNG fields trigger a warning but training continues.
+
+### Legacy checkpoints (pre-Oct 10 2025)
+
+- Checkpoints written before Oct 10 saved the **current** epoch number. When loaded, the training loop restarted the same epoch, so the first resume after the fix will replay Epoch 2 (~14 h, ~$56) before writing a corrected `last.pt`.
+- Let that resume complete—once the new checkpoint lands, subsequent restarts use the updated `epoch+1` metadata and continue without replay.
+- If you must avoid the replay, delete the old `mid_epoch_*.pt` and `last.pt` files and relaunch without `--resume`, but you will lose all progress since the start of the last completed epoch.
 
 ## Best Practices
 
@@ -106,17 +112,18 @@ rm -rf results/smoke*
 rm -rf results/v2.6_*
 
 # Keep only active training
-# - results/full_training/ (current)
+# - results/v3_full_training/ (current)
 # - results/{experiment_name}/ (new runs)
 ```
 
 ### Checkpoint Files
 ```
-results/full_training/checkpoints/
+results/v3_full_training/checkpoints/
 ├── best.pt                        # Best validation score
-├── last.pt                        # Latest epoch (resume point)
+├── last.pt                        # Latest epoch (resume point, stores epoch+1)
 ├── mid_epoch_001_001234.pt        # Mid-epoch snapshots
 ├── mid_epoch_001_001567.pt        # (rotating, keeps 5)
+├── timeout_exit.pt                # Saved by timeout guard ~10 min before Modal hard limit
 └── checkpoint_epoch_005.pt        # Periodic saves
 ```
 

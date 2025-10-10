@@ -30,17 +30,23 @@ All configs (local + Modal) now point at the mmap cache paths. The original NPZ 
 ```
 /results/
 ├── cache/
-│   └── tusz_mmap/        # Memory-mapped cache (train/dev)
-├── checkpoints/          # Optional global checkpoint stash
-├── smoke/                # Smoke job outputs (small)
-├── train/                # Full training outputs (checkpoints, TB, W&B)
-└── tensorboard/, wandb/  # Created on demand
+│   └── tusz_mmap/                # Memory-mapped cache (train/dev pairs + manifests)
+├── smoke/                        # Smoke job outputs (isolated from production run)
+│   ├── checkpoints/              # last.pt, best.pt, timeout_exit.pt, mid_epoch_*.pt
+│   ├── tensorboard/
+│   └── wandb/
+└── v3_full_training/             # Full production training artefacts
+    ├── checkpoints/              # Same structure; expect timeout_exit.pt after each cycle
+    ├── tensorboard/
+    └── wandb/
 ```
 
 Guidelines:
 - Keep **only** the mmap cache under `/results/cache/`; once migration is complete delete any legacy NPZ directories (`/results/cache/tusz/`) to reclaim ~450 GB.
 - After each populate run, execute `modal run deploy/modal/app.py --action check-cache` to verify train/dev counts, manifest freshness, and to catch stray NPZ files early.
 - Prune old training runs (checkpoints, TB logs, W&B artifacts) regularly so the 958 GiB quota is never exhausted before new populate jobs run.
+- Leave the smoke outputs in `/results/smoke/` and production checkpoints in `/results/v3_full_training/`; this separation prevents experiments from polluting the long run and simplifies cleanup.
+- Expect `timeout_exit.pt` to appear under each run’s `checkpoints/` directory after the 23 h guard triggers. Do not delete it until a resume finishes successfully.
 
 ---
 

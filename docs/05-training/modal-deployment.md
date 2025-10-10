@@ -174,7 +174,7 @@ experiment:
 - Sensitivity@10FA: >90%
 - Memory: 40-60GB
 - Cost: ~$319
-- Expect the timeout guard to exit every ~23 h; relaunch with `--resume true` to continue.
+- Expect the timeout guard to exit every ~23 h; relaunch with `--resume` to continue.
 
 ## Monitoring & Debugging
 
@@ -236,7 +236,7 @@ export BGB_SMOKE_TEST=1          # Skip balanced sampling
 modal run --detach deploy/modal/app.py \
   --action train \
   --config configs/modal/train_bimamba.yaml \
-  --resume true
+  --resume
 ```
 
 ## Troubleshooting Checklist

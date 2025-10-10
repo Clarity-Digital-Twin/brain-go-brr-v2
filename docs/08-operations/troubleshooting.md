@@ -7,6 +7,7 @@ Common issues
 - No seizures in batches: enable `use_balanced_sampling`
 - NaN losses on 4090: set `mixed_precision: false`
 - Modal stuck: increase CPU (24) and RAM (96GB)
+- Resume reruns the previous epoch: first resume after Oct 10 checkpoint fix will replay the last completed epoch (old checkpoints stored the current epoch index). Let it finish; new checkpoints contain `epoch+1` so future resumes jump ahead.
 - PyG install fails: use prebuilt wheels
 - CI/CD: If PyG isn’t installed in the workflow, tests that require it are skipped by markers; install cu121 wheels to exercise GNN tests.
 - Evaluate CLI exits early:
@@ -148,7 +149,7 @@ tmux attach -t populate  # To reattach
 modal run --detach deploy/modal/app.py \
   --action train \
   --config configs/modal/train_bimamba.yaml \
-  --resume true
+  --resume
 ```
 
 This is expected; no progress is lost beyond the last 10–30 minutes.

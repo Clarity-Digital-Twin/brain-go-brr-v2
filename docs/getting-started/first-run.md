@@ -95,7 +95,7 @@ When the guard triggers, relaunch with:
 modal run --detach deploy/modal/app.py \
   --action train \
   --config configs/modal/train_bimamba.yaml \
-  --resume true
+  --resume
 ```
 The loader will pick the newest `mid_epoch_*.pt`, then `timeout_exit.pt`, then `last.pt`.
 
@@ -137,7 +137,7 @@ Checkpoint priority when `training.resume` or `--resume` is enabled:
 `save_checkpoint()` now writes via temp file + fsync + atomic rename, so corrupted checkpoints are no longer possible. The state dict includes model, optimizer, scheduler, AMP scaler, and RNG (Python/NumPy/torch CPU/torch CUDA) for deterministic resume.
 
 - Local resume: `python -m src train configs/local/train_bimamba.yaml --resume`
-- Modal resume after timeout: use the `--resume true` flag shown above.
+- Modal resume after timeout: use the `--resume` flag shown above.
 
 ---
 
@@ -147,7 +147,7 @@ Checkpoint priority when `training.resume` or `--resume` is enabled:
 |---------|------------------|
 | Validation loads 0 windows | `modal run deploy/modal/app.py --action check-cache`; rebuild dev manifest if prompted |
 | NaN/Inf losses | Ensure cache built with latest preprocessing, keep gradient clip 0.5, optionally enable `BGB_SANITIZE_GRADS=1` |
-| Modal job killed at 24 h | Expected. Timeout guard wrote `timeout_exit.pt`; relaunch with `--resume true` |
+| Modal job killed at 24 h | Expected. Timeout guard wrote `timeout_exit.pt`; relaunch with `--resume` |
 | Cache mismatch warnings | Confirm `cache_dir` points to `.../tusz_mmap`, rerun `scan-cache`, or repopulate/convert |
 
 More detail: see `docs/08-operations/troubleshooting.md` and `docs/08-operations/nan-prevention-complete.md`.
