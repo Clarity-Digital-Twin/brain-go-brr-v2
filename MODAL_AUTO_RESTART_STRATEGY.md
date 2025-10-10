@@ -424,18 +424,23 @@ def train_auto_restart(config_path: str = "configs/modal/train_bimamba.yaml"):
 ```
 
 **How it works:**
-1. Modal Period triggers every 23 hours (true interval, not calendar-based)
-2. `concurrency_limit=1` ensures only ONE instance runs at a time
-3. If previous run still active when Period triggers → **Modal queues/skips the trigger**
-4. When training finishes → Modal waits 23h → starts next run
+1. Modal Period triggers every 23 hours from START (T=0h, 23h, 46h, 69h...)
+2. Each run lasts exactly 23h due to timeout guard
+3. Run completes at T=23h → Period triggers at T=23h → immediate restart
+4. `concurrency_limit=1` ensures only ONE instance runs at a time (prevents overlap)
 5. Seamless resume via `--resume` flag loading `last.pt` checkpoint
 
+**⚠️ KEY INSIGHT:**
+When `timeout_guard = period_interval` (both 23h), the runs align perfectly:
+- Run ends at T=23h (timeout) → Period triggers at T=23h (from start)
+- Result: Near-zero idle time (~1-2 min for container startup only)
+
 **Why this is best:**
-- ✅ **TRUE 23-hour intervals** (not cron's calendar-based quirks)
+- ✅ **TRUE 23-hour intervals from start** (not cron's calendar-based quirks)
 - ✅ **Built-in overlap protection** (`concurrency_limit=1` enforced by Modal)
 - ✅ **No file locks needed** (Modal volumes don't support fcntl/flock!)
 - ✅ Automatic restarts (Modal Period handles it)
-- ✅ Minimal wasted time (Period waits 23h after completion, not fixed wall-clock)
+- ✅ **Near-zero idle time** (timeout = period alignment → ~1-2 min startup only)
 - ✅ All within Modal (no external services)
 - ✅ **Simple implementation** (no lock file management or race conditions!)
 
@@ -697,21 +702,26 @@ Wasted on manual work: $0 (GPU not running during restart)
 
 ```
 Cost per hour: ~$4/hour (A100-80GB)
-Hours per epoch: 14 hours
-Epochs needed: 20
+Training time: 20 epochs × 14h = 280 hours
+Restarts needed: ~12 (every 23h)
 
 Auto-restart overhead:
-  - Modal Period waits 23h AFTER each run completes (true interval)
-  - Minimal idle time between runs (~5 min for checkpoint save + restart)
-  - Each restart: 5 min × $4/h ÷ 60 = $0.33
+  - Modal Period triggers every 23h FROM START (not from completion)
+  - Our timeout guard = 23h → runs last exactly 23h
+  - Period trigger aligns with timeout → minimal idle time
+  - Idle time per restart: ~1-2 min (container startup only)
+  - Total idle: 12 restarts × 2 min = 24 minutes = 0.4 hours
 
-Best case cost: $1,120 (same as manual, but ZERO human time!)
-Worst case cost: $1,120 + (12 restarts × $0.33) = $1,124
+Training cost: 280h × $4/h = $1,120
+Idle cost: 0.4h × $4/h = $1.60
+Total cost: $1,121.60 ≈ $1,122
 
 Realistic case: $1,122 (basically same as manual!)
 ```
 
 **Verdict:** Auto-restart costs **~$2 more** (negligible!), but saves **12× manual interventions**! 🎉
+
+**⚠️ KEY:** This assumes timeout_guard = period_interval (both 23h) for perfect alignment. If they differ, idle time increases.
 
 ---
 
@@ -791,6 +801,78 @@ Realistic case: $1,122 (basically same as manual!)
 
 ---
 
+## FAQ: Understanding modal.Period Timing Behavior
+
+### Q: Does modal.Period wait N hours AFTER completion or FROM start?
+
+**A: FROM START** (fixed-rate scheduling, not fixed-delay)
+
+**Evidence from Modal Docs:**
+> "Note that days=1 will trigger the function the same time every day."
+
+If Period waited "after completion", the trigger time would drift based on execution duration. The fact that `Period(days=1)` triggers at the **same time** every day confirms it measures from **start time**.
+
+### Q: Won't this create idle time if runtime < period?
+
+**A: Not in our case!** We have a **23h timeout guard** that ensures runs last exactly 23h.
+
+**Timeline with Period(hours=23):**
+```
+T=0h:  Run 1 starts
+T=23h: Timeout guard triggers → checkpoint saved → run exits
+T=23h: Period triggers (23h from start) → Run 2 starts immediately
+T=46h: Timeout guard triggers → Run 2 exits
+T=46h: Period triggers → Run 3 starts immediately
+```
+
+**Result:** Near-zero idle time (~1-2 min for container startup only)
+
+### Q: What if epoch finishes before timeout (e.g., at 14h)?
+
+**A:** Our code has a **wall-clock timeout guard at 23h** - training doesn't exit early!
+
+From `deploy/modal/app.py:110`:
+```python
+os.environ["BGB_WALL_CLOCK_LIMIT_S"] = "82800"  # 23 hours
+```
+
+Training runs for the FULL 23 hours (or until 100 epochs complete, whichever comes first). It doesn't exit after each epoch.
+
+### Q: What if I change the timeout guard to something != Period?
+
+**A:** Idle time increases proportionally!
+
+**Example:** Period(hours=23) but timeout guard at 14h:
+```
+T=0h:  Run 1 starts
+T=14h: Timeout guard triggers → run exits (9h early)
+T=23h: Period triggers → Run 2 starts (9h idle time! ❌)
+```
+
+**Solution:** Keep `timeout_guard = period_interval` for optimal alignment.
+
+### Q: What's the maximum idle time between restarts?
+
+**A:** Depends on alignment:
+- **Perfect alignment** (timeout = period): ~1-2 min (container startup)
+- **Misalignment** (timeout < period): `period - timeout` hours
+- **Example:** Period(23h) + timeout(14h) → 9h idle per restart
+
+**Our configuration:** Both 23h → ~1-2 min idle (optimal)
+
+### Q: Can I use Period(hours=1) to minimize idle time?
+
+**A:** Yes, but wasteful!
+
+With Period(hours=1) and timeout(23h):
+- Period triggers every hour
+- `concurrency_limit=1` skips triggers while training runs
+- 23 wasted triggers per run!
+
+**Better:** Match period to timeout (both 23h) → only 1 trigger per run.
+
+---
+
 ## Key Corrections Applied (Validated from Modal Docs - Oct 2025)
 
 This document was reviewed and validated against Modal's official documentation (October 2025):
@@ -821,6 +903,20 @@ This document was reviewed and validated against Modal's official documentation 
    - ❌ Modal Cron is calendar-based (can't do "every 23h")
    - ✅ Modal Period is interval-based (TRUE "every 23h" behavior)
    - ✅ **Modal Period + `concurrency_limit=1`** = BEST approach (validated Oct 2025!)
+
+### 6. **Period timing behavior clarified (Oct 10, 2025):**
+   - ⚠️ **MISCONCEPTION**: Document initially claimed "Period waits N hours AFTER completion"
+   - ✅ **REALITY**: Period measures intervals FROM START time (fixed-rate, not fixed-delay)
+   - ✅ **EVIDENCE**: `Period(days=1)` triggers "same time every day" (would drift if from completion)
+   - ✅ **WHY IT STILL WORKS**: Our 23h timeout guard = 23h period → perfect alignment
+   - ✅ **RESULT**: Near-zero idle time (~1-2 min container startup only)
+   - 📚 **Source**: Modal Docs reference - "days=1 will trigger the function the same time every day"
+
+### 7. **Document review findings (Oct 10, 2025):**
+   - ❌ **Bug #1**: Section title "Option 1: Modal Retries (BEST FOR OUR USE CASE)" contradicted verdict
+   - ❌ **Bug #2**: GitHub Actions setup claimed "23 hours" but cron was `0 0,12 * * *` (12h intervals)
+   - ❌ **Bug #3**: Multiple claims that "Period waits after completion" (incorrect)
+   - ✅ **ALL FIXED**: Removed misleading title, corrected GitHub Actions claim, clarified Period timing throughout
 
 ---
 
