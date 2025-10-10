@@ -112,8 +112,8 @@ modal run deploy/modal/app.py --action cleanup-old-runs --days 14  # custom util
 
 ## 7. Smoke vs full training
 
-- **Smoke jobs** (`configs/modal/smoke.yaml`) use the same cache but limit file consumption with `BGB_LIMIT_FILES=50`.
-- **Full training** (`configs/modal/train.yaml`) accesses every file and relies on the mmap cache for performance.
+- **Smoke jobs** (`configs/modal/smoke_bimamba.yaml`) use the same cache but limit file consumption with `BGB_LIMIT_FILES=50`.
+- **Full training** (`configs/modal/train_bimamba.yaml`) accesses every file and relies on the mmap cache for performance.
 - No separate “smoke cache” is required; keeping a single mmap cache avoids duplication.
 
 ---

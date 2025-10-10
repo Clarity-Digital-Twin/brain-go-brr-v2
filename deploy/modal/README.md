@@ -48,14 +48,20 @@ s3://brain-go-brr-eeg-data-20250919/
 ## 🚀 Quick Commands
 
 ```bash
-# Smoke test (50 files via BGB_LIMIT_FILES)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke.yaml
+# BiMamba2 smoke test (50 files, ~10 min - baseline)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
 
-# Full A100 training (all 4,667 train files)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
+# BiMamba2 full training (4667 files, ~100 hours - baseline)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
 
-# Resume from checkpoint
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml --resume true
+# FLA research smoke test (alternative architecture)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml
+
+# FLA full training (research comparison)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_fla.yaml
+
+# Resume from checkpoint (works with any config)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume true
 
 # Inspect persistence volume
 modal run deploy/modal/inspect_volume.py

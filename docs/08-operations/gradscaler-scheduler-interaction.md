@@ -129,7 +129,7 @@ This guard exists in both the main microbatch loop and the gradient-accumulation
 
 - `make q` (ruff + mypy) – pass  
 - `make test` (full clinical suite) – pass, 83.8 % coverage  
-- Modal training run (config `configs/modal/train.yaml`) – no scheduler warning emitted; LR trace matches cosine schedule
+- Modal training run (config `configs/modal/train_bimamba.yaml`) – no scheduler warning emitted; LR trace matches cosine schedule
 
 ---
 

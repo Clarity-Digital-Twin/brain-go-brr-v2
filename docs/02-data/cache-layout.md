@@ -85,8 +85,8 @@ Training logs should include:
 2. Sync to S3: `aws s3 sync cache/tusz_mmap/...` (train and dev directories).
 3. Run `modal run --detach deploy/modal/app.py --action populate-cache` to copy into `/results/cache/tusz_mmap/`.
 4. Validate the volume: `modal run deploy/modal/app.py --action check-cache` (verifies train/dev counts, manifest freshness, and detecs stray NPZ files).
-5. Smoke test (`configs/modal/smoke.yaml`) to verify memory usage and throughput.
-6. Launch full training (`configs/modal/train.yaml`).
+5. Smoke test BiMamba2 (`configs/modal/smoke_bimamba.yaml`) or FLA (`configs/modal/smoke_fla.yaml`) to verify memory usage and throughput.
+6. Launch full training: BiMamba2 baseline (`configs/modal/train_bimamba.yaml`) or FLA research (`configs/modal/train_fla.yaml`).
 
 ## Recovery Tips
 

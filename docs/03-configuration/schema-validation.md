@@ -178,7 +178,7 @@ model:
 
 Test your configuration:
 ```bash
-python -c "from src.brain_brr.config.schemas import Config; Config.from_yaml('configs/local/train.yaml')"
+python -c "from src.brain_brr.config.schemas import Config; Config.from_yaml('configs/local/train_bimamba.yaml')"
 ```
 
 If this passes without errors, your config is valid!

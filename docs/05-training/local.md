@@ -7,7 +7,8 @@ Quick commands
 
 Validate config before running
 
-- `python -m src validate configs/local/train.yaml`
+- BiMamba2 (baseline): `python -m src validate configs/local/train_bimamba.yaml`
+- FLA (research): `python -m src validate configs/local/train_fla.yaml`
 - Optional: `--phase data|model|training`
 
 Recommendations
@@ -65,7 +66,7 @@ After crash or restart
 
 Pre‑flight checklist (recommended before long runs)
 
-- Run quality and config validation: `make q` and `python -m src validate configs/local/train.yaml`.
+- Run quality and config validation: `make q` and `python -m src validate configs/local/train_bimamba.yaml`.
 - Verify cache and manifest: `python -m src scan-cache --cache-dir cache/tusz_mmap/train` → ensure partial>0 or full>0.
 - Confirm BalancedSeizureDataset logs appear at startup (see Data docs for expected lines).
 - WSL2: set `data.num_workers: 0` if you see dataloader hangs.

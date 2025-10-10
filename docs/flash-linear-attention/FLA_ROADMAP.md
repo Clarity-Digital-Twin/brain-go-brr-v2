@@ -4,6 +4,13 @@
 **Branch**: `feature/flash-linear-attention`
 **Status**: 🎯 BiMamba2 baseline training LIVE, FLA infrastructure complete
 
+**⚠️ CONFIG NOTE** (October 9, 2025):
+After config architecture separation (commit a08d5a36), the phase-specific configs mentioned in this document (`phase1a_edge_gdn.yaml`, `phase1b_node_gdn.yaml`, `phase2_both_gdn.yaml`) were **REPLACED** with a two-stack approach:
+- **BiMamba2 baseline**: `configs/{local,modal}/train_bimamba.yaml`
+- **FLA research**: `configs/{local,modal}/train_fla.yaml`
+
+This roadmap remains accurate as **historical documentation** of the validation workflow performed. For current training, use the `train_bimamba.yaml` (baseline) or `train_fla.yaml` (research) configs.
+
 ---
 
 ## 🎯 **The Big Picture: Research Constraints & Strategy**
