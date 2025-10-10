@@ -1138,7 +1138,7 @@ def evaluate(
     gpu="A100-80GB",
     timeout=86400,  # 24h timeout (same as train())
     schedule=modal.Period(hours=23),  # TRUE 23-hour intervals (not calendar-based cron!)
-    concurrency_limit=1,  # ✅ Modal enforces single instance (prevents overlap!)
+    max_containers=1,  # ✅ Modal enforces single instance (prevents overlap!)
     volumes={
         "/data": data_mount,
         "/results": results_volume,
