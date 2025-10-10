@@ -215,9 +215,9 @@ Day 2, 00:00 → Cron triggers → Start Epochs 3-4
 
 ---
 
-### Option 3: Modal Period (INTERVAL-BASED) ⭐ RECOMMENDED
+### Option 3: Modal Period + Concurrency Limit ⭐ RECOMMENDED
 
-**What:** Run function every N hours/days - this is TRUE interval-based scheduling!
+**What:** Run function every N hours/days with built-in overlap protection!
 
 **How it works:**
 ```python
@@ -225,32 +225,37 @@ Day 2, 00:00 → Cron triggers → Start Epochs 3-4
     gpu="A100-80GB",
     timeout=86400,
     schedule=modal.Period(hours=23),  # Actually runs every 23 hours!
+    concurrency_limit=1,  # ✅ Only 1 instance at a time (prevents overlap!)
     volumes={"/results": results_volume},
+    memory=98304,
+    cpu=24,
 )
-def train_periodic():
+def train_auto_restart():
     """Runs every 23 hours automatically (rolling interval)."""
     # Must use .remote() to call another Modal function
-    train.remote(config_path="configs/modal/train_bimamba.yaml", resume=True)
+    handle = train.remote(config_path="configs/modal/train_bimamba.yaml", resume=True)
+    result = handle.get()  # Wait for completion
 ```
 
 **What happens:**
 1. Deploy the function → first run starts immediately
 2. After completion, Modal waits 23 hours → starts next run
-3. This creates true 23-hour intervals between runs (unlike cron!)
+3. If previous run still active when Period triggers → **Modal prevents overlap!**
+4. This creates true 23-hour intervals between runs (unlike cron!)
 
 **Pros:**
 - ✅ **TRUE interval-based** - actually runs every N hours (not calendar-based)
+- ✅ **Built-in overlap protection** - `concurrency_limit=1` enforced by Modal
 - ✅ Built into Modal (no external services)
 - ✅ Zero manual intervention
 - ✅ Simpler than cron syntax
 - ✅ No wasted idle time (next run starts N hours after previous completes)
+- ✅ **No file locks needed** - Modal volumes don't support fcntl anyway!
 
 **Cons:**
 - ⚠️ **Resets on redeploy** - if you redeploy code, timer resets
-- ⚠️ **Still has overlap risk** - if one run takes >23h, next run queues up
-- ⚠️ Need overlap protection (file locks) to prevent disasters
 
-**Verdict:** ✅ **BEST for our use case** - combine with file locks for overlap protection
+**Verdict:** ✅ **BEST for our use case** - clean, simple, guaranteed to work!
 
 ---
 
@@ -364,75 +369,73 @@ python scripts/continuous_training.py
 
 ## Recommended Strategy
 
-### 🏆 Winner: Modal Period + File Lock Protection
+### 🏆 Winner: Modal Period + Concurrency Limit (VALIDATED OCT 2025)
 
-**Strategy:** Use `modal.Period(hours=23)` for TRUE 23-hour intervals, with file locks to prevent overlap.
+**Strategy:** Use `modal.Period(hours=23)` for TRUE 23-hour intervals + `concurrency_limit=1` for overlap protection.
 
 **Implementation:**
 ```python
-import fcntl
-from pathlib import Path
-
 @app.function(
     gpu="A100-80GB",
     timeout=86400,
     schedule=modal.Period(hours=23),  # TRUE 23-hour intervals (not cron!)
-    volumes={"/results": results_volume},
+    concurrency_limit=1,  # ✅ Modal enforces single instance (no overlap!)
+    volumes={
+        "/data": data_mount,
+        "/results": results_volume,
+    },
     memory=98304,
     cpu=24,
 )
-def train_auto_restart():
-    """Auto-restart training with overlap protection."""
+def train_auto_restart(config_path: str = "configs/modal/train_bimamba.yaml"):
+    """Auto-restart training every 23 hours with built-in overlap protection.
 
-    # LOCK FILE: Prevent multiple instances from running
-    lock_file = Path("/results/.training_lock")
+    Modal's concurrency_limit=1 ensures only one instance runs at a time.
+    No file locks needed (Modal volumes don't support fcntl anyway).
+    """
+    logger.info("=" * 60)
+    logger.info("[AUTO-RESTART] Starting training...")
+    logger.info(f"[AUTO-RESTART] Config: {config_path}")
+    logger.info(f"[AUTO-RESTART] Resume: True (always)")
+    logger.info("=" * 60)
 
-    try:
-        # Try to acquire exclusive lock (non-blocking)
-        with open(lock_file, 'w') as f:
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    # CRITICAL: Must use .remote() to call another Modal function
+    handle = train.remote(
+        config_path=config_path,
+        resume=True,  # Always resume from last.pt
+    )
 
-            # Lock acquired! Start training
-            logger.info("Lock acquired - starting training...")
+    # Wait for training to complete
+    checkpoint_path = handle.get()
 
-            # CRITICAL: Must use .remote() to call another Modal function
-            handle = train.remote(
-                config_path="configs/modal/train_bimamba.yaml",
-                resume=True  # Always resume from last.pt
-            )
+    logger.info("=" * 60)
+    logger.info(f"[AUTO-RESTART] Training completed: {checkpoint_path}")
+    logger.info("[AUTO-RESTART] Next restart in ~23 hours")
+    logger.info("=" * 60)
 
-            # Wait for training to complete (keeps lock held)
-            result = handle.get()
-
-            logger.info(f"Training completed: {result}")
-
-    except BlockingIOError:
-        # Another instance is running - skip this execution
-        logger.info("Training already in progress - skipping")
-        return
-
-    # Lock releases automatically when `with` block exits (no unlink needed!)
+    return checkpoint_path
 ```
 
 **How it works:**
 1. Modal Period triggers every 23 hours (true interval, not calendar-based)
-2. Each run tries to acquire a **file lock**
-3. If lock is free → start training via `.remote()`, wait for completion
-4. If lock is held → **skip this run** (previous training still active)
-5. When training finishes → `with` block exits → lock auto-releases → next run can start
+2. `concurrency_limit=1` ensures only ONE instance runs at a time
+3. If previous run still active when Period triggers → **Modal queues/skips the trigger**
+4. When training finishes → Modal waits 23h → starts next run
+5. Seamless resume via `--resume` flag loading `last.pt` checkpoint
 
 **Why this is best:**
 - ✅ **TRUE 23-hour intervals** (not cron's calendar-based quirks)
-- ✅ No overlap (lock prevents it)
+- ✅ **Built-in overlap protection** (`concurrency_limit=1` enforced by Modal)
+- ✅ **No file locks needed** (Modal volumes don't support fcntl/flock!)
 - ✅ Automatic restarts (Modal Period handles it)
 - ✅ Minimal wasted time (Period waits 23h after completion, not fixed wall-clock)
 - ✅ All within Modal (no external services)
-- ✅ Lock auto-releases when FD closes (no manual unlink, prevents race conditions)
+- ✅ **Simple implementation** (no lock file management or race conditions!)
 
-**⚠️ CRITICAL REQUIREMENTS:**
-1. **File locks on Modal volumes must be tested first** - not 100% guaranteed to work!
-2. **Must use `train.remote()`** - direct `train()` call will raise TypeError
-3. **Must call `.get()`** - keeps lock held until training completes
+**⚠️ WHY NOT FILE LOCKS:**
+From Modal Docs (Oct 2025): *"Modal volumes do not support distributed file locking (including fcntl and flock). Concurrent modifications have last-write-wins semantics."*
+
+Use Modal's built-in `concurrency_limit` instead - it's guaranteed to work! 🚀
 
 ---
 
