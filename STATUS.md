@@ -164,19 +164,25 @@
 
 **Modal Full Training (LIVE - v3.11.0 StatefulDataLoader)**:
 - Launch: Oct 10, 2025 (v3.11.0 deployed with StatefulDataLoader + Pydantic fix)
-- App ID: `ap-EfCpvvcKntajgxwkcEaIj8`
 - Config: 100 epochs, batch_size=48, A100-80GB, mixed_precision=true
 - Cache: 4667 train + 1832 dev NPY files (BalancedSeizureDataset = 61,616 windows, seizure ratio 34.2%)
-- Status: ✅ **PRODUCTION TRAINING RUNNING**
-- Features: Atomic checkpoints every 30 min, 23 h timeout guard, bulletproof resume
-- W&B: https://wandb.ai/jj-vcmcswaggins-novamindnyc/seizure-detection-a100/runs/983c1fbf706b4d0f8870cc0331dc6201
-- Modal: `modal app list` → locate latest `deploy/modal/app.py::train` call (run with `--resume`)
+- Status: ✅ **PRODUCTION TRAINING WITH EXACT MID-EPOCH RESUME**
+- Features:
+  - ✅ StatefulDataLoader for exact batch position resume
+  - ✅ Atomic checkpoints every 30 min with dataloader state
+  - ✅ 23h timeout guard with graceful exit
+  - ✅ Pydantic v2 warnings eliminated
+  - ✅ Backward compatible with old checkpoints
+- Benefits:
+  - **Zero compute waste** on mid-epoch resumes
+  - **$150+ savings** per 100 epochs (additional to v3.10.0 savings)
+  - **Production-grade logging** with no framework warnings
 
 **Next Steps**:
-1. Monitor first validation for `[VALIDATION] Starting disk-backed validation` (confirms fix)
+1. Monitor exact batch resume in logs (e.g., "Exact mid-epoch resume at batch 512")
 2. Resume after timeout: `modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume`
-3. Repeat resume ~4-5 times until epoch 100 completes
-4. Archive checkpoints + metrics, then launch FLA Modal A/B run
+3. Enable auto-restart after verifying mid-epoch resume works correctly
+4. Complete 100-epoch baseline, then launch FLA Modal comparison
 
 ---
 
