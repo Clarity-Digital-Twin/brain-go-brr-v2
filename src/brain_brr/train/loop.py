@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
-from torchdata.stateful_dataloader import StatefulDataLoader
+from torchdata.stateful_dataloader import StatefulDataLoader  # type: ignore[import-untyped]
 
 # Make TensorBoard optional
 if TYPE_CHECKING:
@@ -165,8 +165,16 @@ def train(
             except Exception:
                 # Corrupt checkpoint file, proceed with best_metric=0.0
                 pass
-        logger.info(f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}")
-        # Note: This resumes from start of epoch, not exact batch
+        # Restore DataLoader state for exact batch resume
+        if "dataloader_state_dict" in ckpt:
+            train_loader.load_state_dict(ckpt["dataloader_state_dict"])  # type: ignore[attr-defined]
+            logger.info(f"[RESUME] ✅ Exact mid-epoch resume at batch {ckpt.get('batch_idx', '?')}")
+        else:
+            logger.warning(
+                "[RESUME] Old checkpoint without DataLoader state - "
+                "restarting epoch from batch 0 (expected before v3.11.0)"
+            )
+            logger.info(f"Resumed from epoch {start_epoch + 1}, batch 0")
     elif (checkpoint_dir / CHECKPOINT_LAST).exists() and config.training.resume:
         start_epoch, best_metric = load_checkpoint(
             checkpoint_dir / CHECKPOINT_LAST,
