@@ -240,15 +240,16 @@ def train_auto_restart():
 **What happens:**
 1. Deploy the function → first run starts immediately (T=0h)
 2. Modal schedules next trigger at T=23h (23 hours from START, not completion)
-3. Our timeout guard stops training at T=23h → checkpoint saved
-4. Period triggers at T=23h → new run starts immediately (minimal idle time)
+3. Our timeout guard stops training at T=22h 50min (23h - 10min safety margin) → checkpoint saved
+4. Period triggers at T=23h → new run starts 10 minutes after previous ended
 5. If previous run still active → `concurrency_limit=1` prevents overlap
 
 **⚠️ CRITICAL TIMING DETAIL:**
 - modal.Period measures intervals from **START** time, NOT completion time
-- Our runs last exactly 23h (due to timeout guard)
-- Period triggers every 23h from start → timing aligns perfectly
-- Result: Near-zero idle time (only container startup ~1-2 min)
+- Our runs last **22h 50min** (23h config - 10min safety margin in TimeoutGuard)
+- Period triggers every 23h from start → **10 min idle time per restart**
+- Early stopping can end runs even earlier → more idle time
+- Result: ~10 min idle per restart (not "near-zero" - safety margin is necessary!)
 
 **Pros:**
 - ✅ **TRUE interval-based** - triggers every N hours from start (not calendar-based)
@@ -425,15 +426,18 @@ def train_auto_restart(config_path: str = "configs/modal/train_bimamba.yaml"):
 
 **How it works:**
 1. Modal Period triggers every 23 hours from START (T=0h, 23h, 46h, 69h...)
-2. Each run lasts exactly 23h due to timeout guard
-3. Run completes at T=23h → Period triggers at T=23h → immediate restart
+2. Each run lasts **22h 50min** (23h config - 10min safety margin in TimeoutGuard)
+3. Run completes at T=22h 50min → Period triggers at T=23h → **10 min idle**
 4. `concurrency_limit=1` ensures only ONE instance runs at a time (prevents overlap)
 5. Seamless resume via `--resume` flag loading `last.pt` checkpoint
 
 **⚠️ KEY INSIGHT:**
-When `timeout_guard = period_interval` (both 23h), the runs align perfectly:
-- Run ends at T=23h (timeout) → Period triggers at T=23h (from start)
-- Result: Near-zero idle time (~1-2 min for container startup only)
+The 10-minute safety margin is **NECESSARY** to ensure clean checkpoint saves:
+- TimeoutGuard (src/brain_brr/train/timeout_guard.py:63) subtracts 600s safety margin
+- This prevents race conditions between checkpoint save and Modal's hard kill
+- Run ends at T=22h 50min → Period triggers at T=23h → 10 min idle per restart
+- Early stopping can end runs even earlier → more idle time
+- Total idle: 12 restarts × 10 min = **2 hours** ($8 cost)
 
 **Why this is best:**
 - ✅ **TRUE 23-hour intervals from start** (not cron's calendar-based quirks)
@@ -707,21 +711,24 @@ Restarts needed: ~12 (every 23h)
 
 Auto-restart overhead:
   - Modal Period triggers every 23h FROM START (not from completion)
-  - Our timeout guard = 23h → runs last exactly 23h
-  - Period trigger aligns with timeout → minimal idle time
-  - Idle time per restart: ~1-2 min (container startup only)
-  - Total idle: 12 restarts × 2 min = 24 minutes = 0.4 hours
+  - Our timeout guard = 23h config - 10min safety margin = 22h 50min actual runtime
+  - Period trigger (23h) vs actual runtime (22h 50min) = 10 min idle per restart
+  - Early stopping can end runs even earlier → potentially more idle time
+  - Total idle (timeout only): 12 restarts × 10 min = 120 minutes = 2 hours
+  - Total idle (worst case w/ early stopping): up to 3-4 hours
 
 Training cost: 280h × $4/h = $1,120
-Idle cost: 0.4h × $4/h = $1.60
-Total cost: $1,121.60 ≈ $1,122
+Idle cost (timeout only): 2h × $4/h = $8
+Idle cost (early stopping worst case): 3-4h × $4/h = $12-16
+Total cost (typical): $1,120 + $8 = $1,128
 
-Realistic case: $1,122 (basically same as manual!)
+Realistic case: $1,128 (with timeout guard safety margin)
+Worst case: $1,136 (if early stopping triggers frequently)
 ```
 
-**Verdict:** Auto-restart costs **~$2 more** (negligible!), but saves **12× manual interventions**! 🎉
+**Verdict:** Auto-restart costs **$8-16 more** (still negligible!), but saves **12× manual interventions**! 🎉
 
-**⚠️ KEY:** This assumes timeout_guard = period_interval (both 23h) for perfect alignment. If they differ, idle time increases.
+**⚠️ KEY:** The 10-minute safety margin is NECESSARY for reliable checkpointing. Trying to eliminate it risks data loss!
 
 ---
 
@@ -733,7 +740,7 @@ Realistic case: $1,122 (basically same as manual!)
 | **Modal Retries** | 10 min | N/A | N/A | ✅ Zero | ❌ **Doesn't work** (retries don't trigger on clean exit) |
 | **Modal Cron** | 1 hour | ⭐⭐ | N/A | ✅ Zero | ❌ **Calendar-based** (can't do "every 23h") |
 | **Modal Period** | 1 hour | ⭐⭐⭐ | $1,122 | ✅ Zero | ⚠️ **Needs overlap protection** |
-| **Modal Period + concurrency_limit** | 45 min | ⭐⭐⭐⭐⭐ | $1,122 | ✅ Zero | ✅ **BEST** (validated Oct 2025!) |
+| **Modal Period + concurrency_limit** | 45 min | ⭐⭐⭐⭐⭐ | $1,128 | ✅ Zero | ✅ **BEST** (validated Oct 2025!) |
 | **GitHub Actions** | 3 hours | ⭐⭐⭐ | $1,200+ | ✅ Zero | ⚠️ Fallback (calendar-based like cron) |
 | **Local script** | 15 min | ⭐⭐ | $1,120 | 🟡 Medium (laptop on 12 days) | ❌ Too fragile |
 
@@ -748,9 +755,10 @@ Realistic case: $1,122 (basically same as manual!)
 - ✅ **Built-in overlap protection** (`concurrency_limit=1` enforced by Modal)
 - ✅ **No file locks needed** (Modal volumes don't support fcntl anyway!)
 - ✅ Native to Modal (no external services)
-- ✅ Minimal overhead (~$2 total vs manual)
+- ✅ Minimal overhead (~$8 total vs manual - 10min safety margin per restart)
 - ✅ Simple implementation (one parameter!)
 - ✅ Guaranteed to work (Modal's built-in feature)
+- ✅ Safety margin is NECESSARY for reliable checkpointing (prevents data loss!)
 
 **Timeline:**
 - Validation: 15 min (test manual `--resume` workflow)
@@ -814,29 +822,49 @@ If Period waited "after completion", the trigger time would drift based on execu
 
 ### Q: Won't this create idle time if runtime < period?
 
-**A: Not in our case!** We have a **23h timeout guard** that ensures runs last exactly 23h.
+**A: Yes - and this is intentional!** We have a **10-minute safety margin** for reliable checkpointing.
 
 **Timeline with Period(hours=23):**
 ```
-T=0h:  Run 1 starts
-T=23h: Timeout guard triggers → checkpoint saved → run exits
-T=23h: Period triggers (23h from start) → Run 2 starts immediately
-T=46h: Timeout guard triggers → Run 2 exits
-T=46h: Period triggers → Run 3 starts immediately
+T=0h:       Run 1 starts
+T=22h 50m:  Timeout guard triggers (23h - 10min safety) → checkpoint saved → run exits
+T=23h:      Period triggers (23h from start) → Run 2 starts (10 min idle)
+T=45h 50m:  Timeout guard triggers → Run 2 exits
+T=46h:      Period triggers → Run 3 starts (10 min idle)
 ```
 
-**Result:** Near-zero idle time (~1-2 min for container startup only)
+**Reality:**
+- Timeout guard (src/brain_brr/train/timeout_guard.py:184) uses 600s (10 min) safety margin
+- This prevents race conditions between checkpoint save and Modal's hard kill
+- Idle time: 10 min per restart × 12 restarts = **2 hours total** ($8 cost)
+- Early stopping can increase idle time further
 
 ### Q: What if epoch finishes before timeout (e.g., at 14h)?
 
-**A:** Our code has a **wall-clock timeout guard at 23h** - training doesn't exit early!
+**A:** Training continues until **one of three conditions**:
 
-From `deploy/modal/app.py:110`:
+1. **Timeout guard triggers** at 22h 50min (23h - 10min safety margin)
+2. **Early stopping** triggers (e.g., no improvement for N epochs) - see src/brain_brr/train/loop.py:397-399
+3. **100 epochs complete** (training finishes naturally)
+
+**Reality:**
 ```python
-os.environ["BGB_WALL_CLOCK_LIMIT_S"] = "82800"  # 23 hours
+# From deploy/modal/app.py:748
+os.environ["BGB_WALL_CLOCK_LIMIT_S"] = "82800"  # 23 hours CONFIG
+
+# From src/brain_brr/train/loop.py:184
+safety_margin_seconds=600  # 10 min safety margin
+
+# From src/brain_brr/train/timeout_guard.py:63
+imminent = elapsed >= (self.limit - self.margin)  # Triggers at 22h 50min
 ```
 
-Training runs for the FULL 23 hours (or until 100 epochs complete, whichever comes first). It doesn't exit after each epoch.
+Training does NOT run for the full 23 hours - it stops at **22h 50min** (or earlier if early stopping triggers).
+
+**Idle time implications:**
+- Normal case: 10 min idle per restart (safety margin)
+- Early stopping case: could be hours of idle time per restart
+- This is why auto-restart costs $8-16 more than manual
 
 ### Q: What if I change the timeout guard to something != Period?
 
@@ -853,12 +881,20 @@ T=23h: Period triggers → Run 2 starts (9h idle time! ❌)
 
 ### Q: What's the maximum idle time between restarts?
 
-**A:** Depends on alignment:
-- **Perfect alignment** (timeout = period): ~1-2 min (container startup)
-- **Misalignment** (timeout < period): `period - timeout` hours
-- **Example:** Period(23h) + timeout(14h) → 9h idle per restart
+**A:** Depends on actual runtime vs period:
+- **With timeout guard only**: 10 min idle per restart (23h period - 22h 50min runtime)
+- **With early stopping**: Could be hours! (e.g., if training finishes epoch 20 in 10 hours, idle = 13h)
+- **Example:** Period(23h) + actual_runtime(10h due to early stopping) → 13h idle
 
-**Our configuration:** Both 23h → ~1-2 min idle (optimal)
+**Our configuration (typical case):**
+- Period: 23h
+- Runtime: 22h 50min (23h config - 10min safety margin)
+- Idle per restart: 10 min
+- Total idle: 12 restarts × 10 min = 2 hours ($8)
+
+**Code references:**
+- Safety margin: src/brain_brr/train/loop.py:184 (`safety_margin_seconds=600`)
+- Early stopping: src/brain_brr/train/loop.py:397-399 (breaks training loop)
 
 ### Q: Can I use Period(hours=1) to minimize idle time?
 
@@ -869,7 +905,12 @@ With Period(hours=1) and timeout(23h):
 - `concurrency_limit=1` skips triggers while training runs
 - 23 wasted triggers per run!
 
-**Better:** Match period to timeout (both 23h) → only 1 trigger per run.
+**Better:** Match period to actual runtime (22h 50min) → only 1 trigger per run.
+
+**However:** Period doesn't support subsecond precision, so we use Period(hours=23):
+- Period: 23h
+- Actual runtime: 22h 50min (due to safety margin)
+- Idle: 10 min per restart (acceptable overhead for reliability)
 
 ---
 
@@ -908,8 +949,8 @@ This document was reviewed and validated against Modal's official documentation 
    - ⚠️ **MISCONCEPTION**: Document initially claimed "Period waits N hours AFTER completion"
    - ✅ **REALITY**: Period measures intervals FROM START time (fixed-rate, not fixed-delay)
    - ✅ **EVIDENCE**: `Period(days=1)` triggers "same time every day" (would drift if from completion)
-   - ✅ **WHY IT STILL WORKS**: Our 23h timeout guard = 23h period → perfect alignment
-   - ✅ **RESULT**: Near-zero idle time (~1-2 min container startup only)
+   - ⚠️ **INITIAL CLAIM**: "23h timeout guard = 23h period → perfect alignment"
+   - ✅ **ACTUAL REALITY**: 22h 50min runtime (23h - 10min safety) + 23h period = 10 min idle
    - 📚 **Source**: Modal Docs reference - "days=1 will trigger the function the same time every day"
 
 ### 7. **Document review findings (Oct 10, 2025):**
@@ -917,6 +958,18 @@ This document was reviewed and validated against Modal's official documentation 
    - ❌ **Bug #2**: GitHub Actions setup claimed "23 hours" but cron was `0 0,12 * * *` (12h intervals)
    - ❌ **Bug #3**: Multiple claims that "Period waits after completion" (incorrect)
    - ✅ **ALL FIXED**: Removed misleading title, corrected GitHub Actions claim, clarified Period timing throughout
+
+### 8. **Timeout guard safety margin corrected (Oct 10, 2025):**
+   - ❌ **CRITICAL BUG**: Document claimed runs last "exactly 23h" and "near-zero idle time"
+   - ✅ **REALITY**: TimeoutGuard (src/brain_brr/train/timeout_guard.py:184) has 600s (10 min) safety margin
+   - ✅ **ACTUAL RUNTIME**: 23h config - 10min safety = **22h 50min** per run
+   - ✅ **ACTUAL IDLE**: Period(23h) - runtime(22h 50min) = **10 min per restart**
+   - ✅ **COST IMPACT**: 12 restarts × 10 min = 2 hours = **$8 additional cost** (not $2)
+   - ✅ **EARLY STOPPING**: Can end runs even earlier (src/brain_brr/train/loop.py:397-399) → more idle time
+   - 📚 **Code references**:
+     - timeout_guard.py:63 (`elapsed >= (self.limit - self.margin)`)
+     - loop.py:184 (`safety_margin_seconds=600`)
+     - loop.py:397-399 (early stopping break)
 
 ---
 
