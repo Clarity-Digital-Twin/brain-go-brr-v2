@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
+from torchdata.stateful_dataloader import StatefulDataLoader
 
 # Make TensorBoard optional
 if TYPE_CHECKING:
