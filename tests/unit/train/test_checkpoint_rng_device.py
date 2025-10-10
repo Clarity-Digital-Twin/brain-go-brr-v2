@@ -2,7 +2,7 @@
 
 REGRESSION TESTS for RNG_STATE_DEVICE_BUG.md:
 - torch.set_rng_state() requires CPU ByteTensor
-- torch.cuda.set_rng_state_all() requires GPU tensors
+- torch.cuda.set_rng_state_all() requires CPU tensors (PyTorch handles GPU transfer)
 - Checkpoints loaded with map_location move ALL tensors (including RNG states)
 """
 

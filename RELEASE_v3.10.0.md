@@ -53,6 +53,60 @@ modal app stop brain-go-brr-v2
 - **Savings**: $672 over 12 auto-restarts (11 restarts × $56)
 - **Net benefit**: **$616 saved** over 100-epoch training
 
+**Documentation**: `docs/archive_v2/CHECKPOINT_RESUME_BUG.md`
+
+---
+
+### Checkpoint Buffer Compatibility Fix (Critical)
+
+**Problem**: PyTorch's `register_buffer(name, None)` doesn't add buffer to `state_dict()` until a tensor is assigned. This created a timing bug where checkpoints saved mid-training contained `gnn.last_valid_pe` buffer, but freshly initialized models didn't, causing resume to fail with "Unexpected key(s) in state_dict".
+
+**Root Cause**: Dynamic buffer registration - buffer appears in state_dict only after first forward pass assigns a tensor value.
+
+**Fix** (three-layer defense):
+1. **Checkpoint loading** (`checkpoint.py:160-191`): Detect and skip buffers with shape mismatches before `load_state_dict()`
+2. **Model initialization** (`gnn_pyg.py:137-142`): Initialize buffer with placeholder tensor `torch.zeros(1,1,1,k)` instead of `None`, ensuring it's always in state_dict
+3. **Forward pass** (existing): Automatic fallback logic recomputes PE when placeholder dimensions don't match batch
+
+**Impact**:
+- Enables resume from any mid-epoch checkpoint (previously blocked)
+- Backward compatible with old checkpoints (skip mechanism handles mismatches)
+- Self-healing: placeholder automatically updated on first forward pass
+
+**Documentation**: `docs/archive_v2/CHECKPOINT_BUFFER_BUG.md`
+
+**Tests**: 5 regression tests in `tests/unit/train/test_checkpoint_buffer_compatibility.py`
+
+---
+
+### RNG State Device Mismatch Fix (Critical)
+
+**Problem**: When loading checkpoints with `map_location="cuda"`, PyTorch moves ALL tensors (including RNG states) to GPU. However, both `torch.set_rng_state()` and `torch.cuda.set_rng_state_all()` require CPU ByteTensors, causing "RNG state must be a torch.ByteTensor" errors on resume.
+
+**Root Cause**: PyTorch's `torch.load(map_location=device)` moves all tensors to specified device, but RNG state restoration APIs expect CPU tensors (PyTorch handles GPU transfer internally).
+
+**Fix** (`checkpoint.py:225-247`): Force both CPU and CUDA RNG states back to CPU before restoration:
+```python
+# CPU RNG: torch.set_rng_state() requires CPU ByteTensor
+torch.set_rng_state(rng["torch"].cpu())
+
+# CUDA RNG: ALSO requires CPU tensors (counter-intuitive but correct!)
+if torch.cuda.is_available() and rng["torch_cuda"] is not None:
+    cuda_rng = rng["torch_cuda"]
+    if isinstance(cuda_rng, list) and len(cuda_rng) > 0 and cuda_rng[0].is_cuda:
+        cuda_rng = [state.cpu() for state in cuda_rng]
+    torch.cuda.set_rng_state_all(cuda_rng)
+```
+
+**Impact**:
+- Enables deterministic resume on GPU (Modal A100)
+- Supports all device combinations (CPU→CPU, CPU→CUDA, CUDA→CUDA, CUDA→CPU)
+- Preserves exact training reproducibility
+
+**Documentation**: `docs/archive_v2/RNG_STATE_DEVICE_BUG.md`
+
+**Tests**: 4 regression tests in `tests/unit/train/test_checkpoint_rng_device.py`
+
 ---
 
 ### Modal 1.0 Migration
