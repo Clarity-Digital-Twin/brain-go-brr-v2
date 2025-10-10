@@ -32,15 +32,15 @@ Traditional approaches fail because they treat these as separate problems. We mo
 
 ## 🔬 Our Approach: Dual-Stack Research Experiment
 
-We're not just building a model—we're conducting a **scientific A/B comparison** of two state-space architectures:
+**Controlled A/B comparison** of two state-space architectures:
 
-### Stack 1: BiMamba2 (baseline)
+### 🔷 Stack 1: BiMamba2 (baseline)
 - **What**: Mamba2 with bidirectional processing
 - **Status**: Modal A100 training in progress, 100 epochs planned
 - **Foundation**: Fast CUDA kernels, selective state propagation ([Gu & Dao 2023](https://arxiv.org/abs/2312.00752))
 - **Motivation**: Proven SSM architecture with O(N) efficiency
 
-### Stack 2: Gated DeltaNet (research variant)
+### 🔶 Stack 2: Gated DeltaNet (research variant)
 - **What**: FLA (Flash Linear Attention) with gating + delta rule
 - **Status**: Implementation complete, awaiting baseline results
 - **Foundation**: Beats Mamba2 on language modeling ([ICLR 2025](literature/markdown/GATED-DETLA))
@@ -137,7 +137,7 @@ EEG Input (B, 19 channels, 15360 samples @ 256Hz = 60s)
                         (B, 15360) logits
 ```
 
-**🔑 Key**: SSM boxes = **BiMamba2** (Stack 1) or **Gated DeltaNet** (Stack 2)
+**🔑 Key**: SSM boxes = **🔷 BiMamba2** (Stack 1) or **🔶 Gated DeltaNet** (Stack 2)
 
 Everything else is identical—TCN frontend, GNN backend, fusion layer. Only the temporal core changes.
 
@@ -165,7 +165,7 @@ o_t = S_t q_t                          # Retrieve
 
 Where α_t ∈ (0,1) controls **per-timestep memory decay** (not global like RNNs).
 
-#### BiMamba2 Architecture (Stack 1)
+#### 🔷 BiMamba2 Architecture (Stack 1)
 
 **Node Stream** (19 parallel SSMs):
 - **Purpose**: Model per-electrode temporal dynamics independently
@@ -181,7 +181,7 @@ Where α_t ∈ (0,1) controls **per-timestep memory decay** (not global like RNN
 
 **Total SSM**: 8.4M parameters, O(N) complexity
 
-#### Gated DeltaNet Architecture (Stack 2)
+#### 🔶 Gated DeltaNet Architecture (Stack 2)
 
 **Key difference**: Adds **delta rule** on top of gating
 
@@ -233,7 +233,7 @@ This allows the model to emphasize:
 
 ## 📊 Model Statistics: Side-by-Side Comparison
 
-### Stack 1: BiMamba2
+### 🔷 Stack 1: BiMamba2
 
 | Component | Parameters | Complexity | Details |
 |-----------|-----------|------------|---------|
@@ -245,7 +245,7 @@ This allows the model to emphasize:
 | **Decoder** | 1.0M | O(N) | 16× upsampling, detection head |
 | **Total** | **30.5M** | **O(N)** | SSM bottleneck dominates |
 
-### Stack 2: Gated DeltaNet
+### 🔶 Stack 2: Gated DeltaNet
 
 | Component | Parameters | Complexity | Details |
 |-----------|-----------|------------|---------|
@@ -375,9 +375,9 @@ See [installation guide](docs/01-installation/) and [training docs](docs/05-trai
 
 ### Current Phase: A/B Comparison (October 2025)
 
-**Stack 1 (BiMamba2)**: Baseline training underway on Modal A100, 100 epochs planned. Expected completion mid-October.
+**🔷 Stack 1 (BiMamba2)**: Baseline training underway on Modal A100, 100 epochs planned. Expected completion mid-October.
 
-**Stack 2 (Gated DeltaNet)**: Implementation validated via smoke tests. Training queued pending baseline results.
+**🔶 Stack 2 (Gated DeltaNet)**: Implementation validated via smoke tests. Training queued pending baseline results.
 
 **Research question**: Does the delta rule improve over pure gating for clinical EEG seizure detection?
 
