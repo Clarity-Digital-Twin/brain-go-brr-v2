@@ -223,11 +223,24 @@ def load_checkpoint(
         logger.warning("[CHECKPOINT] No scaler state in checkpoint (old checkpoint?)")
 
     # Restore RNG states for deterministic resume
+    # CRITICAL: RNG states must be on correct devices (see RNG_STATE_DEVICE_BUG.md)
     if restore_rng and "rng_state" in checkpoint:
         rng = checkpoint["rng_state"]
-        torch.set_rng_state(rng["torch"])
+
+        # CPU RNG: torch.set_rng_state() REQUIRES CPU ByteTensor
+        # If checkpoint was loaded with map_location="cuda", force back to CPU
+        torch.set_rng_state(rng["torch"].cpu())
+
+        # CUDA RNG: torch.cuda.set_rng_state_all() REQUIRES CPU tensors
+        # PyTorch internally saves/restores CUDA RNG on CPU, then moves to GPU
+        # If checkpoint was loaded with map_location="cuda", move back to CPU
         if torch.cuda.is_available() and rng["torch_cuda"] is not None:
-            torch.cuda.set_rng_state_all(rng["torch_cuda"])
+            cuda_rng = rng["torch_cuda"]
+            # Ensure CUDA RNG states are on CPU (PyTorch requirement)
+            if isinstance(cuda_rng, list) and len(cuda_rng) > 0 and cuda_rng[0].is_cuda:
+                cuda_rng = [state.cpu() for state in cuda_rng]
+            torch.cuda.set_rng_state_all(cuda_rng)
+
         np.random.set_state(rng["numpy"])
         random.setstate(rng["python"])
         logger.debug("[CHECKPOINT] Restored RNG states for deterministic resume")
