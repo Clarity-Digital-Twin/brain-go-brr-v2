@@ -1,7 +1,7 @@
 """Pydantic schemas for config validation - single source of truth for all configs."""
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -171,10 +171,10 @@ class MambaConfig(StrictModel):
         description="Override node stream headdim (None = use constants)",
     )
 
-    hybrid_attention: "HybridAttentionConfig | None" = Field(
-        default=None,
-        description="Hybrid GDN+SWA configuration (Phase 3 only, requires Phase 2 success)",
-    )
+    hybrid_attention: Annotated[
+        "HybridAttentionConfig | None",
+        Field(description="Hybrid GDN+SWA configuration (Phase 3 only, requires Phase 2 success)"),
+    ] = None
 
     @model_validator(mode="after")
     def validate_gdn_constraints(self) -> "MambaConfig":
