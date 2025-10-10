@@ -158,33 +158,56 @@ Everything else is identical—TCN frontend, GNN backend, fusion layer. Only the
 
 **Tradeoff**: O(N log N) complexity due to dilation, but negligible for N=15K.
 
-### 2. State-Space Models: Why Not Transformers?
+### 2. State-Space Models: The Heart of the System
 
-**Core innovation**: Selective state propagation with data-dependent gates:
-```
-S_t = α_t ⊙ S_{t-1} + v_t ⊗ k_t^T    # Forget + update
+**Core innovation**: Selective state propagation with data-dependent gates
+```python
+S_t = α_t ⊙ S_{t-1} + v_t ⊗ k_t^T    # Forget (α) + update (v⊗k)
 o_t = S_t q_t                          # Retrieve
 ```
 
-Where α_t ∈ (0,1) controls memory decay **per timestep** (not global like RNNs).
+Where α_t ∈ (0,1) controls **per-timestep memory decay** (not global like RNNs).
 
-**BiMamba2 (Stack 1)**:
-- Proven architecture ([Gu & Dao 2023](https://arxiv.org/abs/2312.00752))
-- Fast CUDA kernels (mamba-ssm 2.2.5)
-- Bidirectional processing for offline analysis
+#### BiMamba2 Architecture (Stack 1) - TRAINING NOW
 
-**Gated DeltaNet (Stack 2)**:
-- Adds delta rule: selective key-value updates without forgetting
-- Beats Mamba2 on language modeling ([ICLR 2025](literature/markdown/GATED-DETLA))
-- Hypothesis: Better for EEG with abrupt context switches
+**Node Stream** (19 parallel SSMs):
+- **Purpose**: Model per-electrode temporal dynamics independently
+- **Config**: 6 layers, d_model=64, d_state=16, bidirectional
+- **Example**: Rhythmic spiking in C3 electrode evolves independently
+- **Parameters**: 7.2M
 
-**Dual-stream design** (both stacks):
-- **Node stream (19 parallel SSMs)**: Independent electrode evolution
-  - Captures per-channel patterns (e.g., rhythmic spiking in C3)
-  - d_model=64, 6 layers bidirectional
-- **Edge stream (171 pairwise SSMs)**: Inter-electrode relationships
-  - Models connectivity strength evolution over time
-  - d_model=16, 2 layers (lighter, more pairs)
+**Edge Stream** (171 pairwise SSMs):
+- **Purpose**: Model inter-electrode connectivity strength over time
+- **Config**: 2 layers, d_model=16, d_state=8, bidirectional
+- **Example**: C3-C4 coherence increases during seizure propagation
+- **Parameters**: 1.2M
+
+**Total SSM**: 8.4M parameters, O(N) complexity
+
+#### Gated DeltaNet Architecture (Stack 2) - READY TO TRAIN
+
+**Key difference**: Adds **delta rule** on top of gating
+
+**Delta rule**: Selective key-value updates without forgetting others
+```python
+# Mamba2: Global gate (erases everything)
+S_t = α_t ⊙ S_{t-1} + update
+
+# Gated DeltaNet: Targeted update (selective retention)
+S_t = α_t ⊙ S_{t-1} + β_t ⊙ (k_t ⊗ v_t - old_memory)
+```
+
+**Node Stream**: 6 layers, d_model=512, num_heads=6, headdim=8
+**Edge Stream**: 2 layers, d_model=32, num_heads=3, headdim=8
+
+**Total SSM**: ~8.4M parameters (matched to BiMamba2), O(N) complexity
+
+**Hypothesis**: Delta rule handles EEG better because:
+1. **Gating** clears memory during seizure onset (abrupt context switch)
+2. **Delta rule** preserves persistent patterns (rhythmic activity continues)
+3. BiMamba2 has only gating → may "forget" ongoing rhythms during onset
+
+**Reality check**: This is a hypothesis. Full TUSZ training will tell us if it's true.
 
 ### 3. Dynamic Laplacian PE: Why Not Static Graphs?
 
@@ -241,27 +264,48 @@ This allows the model to emphasize:
 
 **Note**: GNN is O(N·k²) but k=19 (fixed electrode count) makes it effectively O(N) in sequence length.
 
-## 🏥 Dataset & Clinical Targets
+## 🏥 Dataset: TUSZ Clinical Reality
 
 ### TUH EEG Seizure Corpus
 
-**World's largest open-source seizure dataset** ([Picone et al. 2021](literature/markdown/TUSZ-DATA)):
-- **504 hours** from 592 patients
-- **36 hours** of seizures (~7% prevalence)
-- **19-channel** 10-20 montage @ 256Hz
-- **Realistic splits**: By patient (prevents data leakage)
+**World's largest open-source seizure dataset** ([Temple University](literature/markdown/TUSZ-DATA)):
+- **504 hours** of continuous EEG from 592 patients
+- **36 hours** of seizures (~7% prevalence) → 12:1 class imbalance
+- **19-channel** 10-20 montage @ 256Hz (clinical standard)
+- **Patient-based splits** (train/dev/test) → no data leakage
 
-### Performance Goals
+**Preprocessing pipeline**:
+1. Bandpass filter: 0.5-120Hz
+2. Notch filter: 60Hz (removes powerline noise)
+3. Resample: 256Hz (standardize across recordings)
+4. Windowing: 60s windows, 10s stride (83% overlap)
+5. Normalization: Per-channel z-score + clip to ±10σ (removes outliers)
+
+**Our cache system** (memory-mapped NPY format):
+- **Train**: 4667 files → 61,616 balanced windows (34.2% seizure ratio via oversampling)
+- **Dev**: 1832 files → 148,224 natural windows (7.7% seizure ratio, real distribution)
+- **Speed**: 99.6% faster startup than NPZ (manifest-based loading)
+- **Memory**: <1 GB RAM vs 387 GB for NPZ
+
+**Why oversample training?** Standard ML practice: Train on balanced data (model learns seizure patterns), validate on natural distribution (measures real-world performance).
+
+---
+
+## 🎯 Performance Targets: The Clinical Bar
 
 Based on [Temple Any-Event Scoring (TAES)](literature/markdown/picone-2021-NEDC-SCORING):
 
-| False Alarm Rate | Sensitivity | Clinical Viability |
-|------------------|-------------|-------------------|
-| 10 FA/24h | >95% | Initial deployment |
-| 5 FA/24h | >90% | Standard care |
-| **1 FA/24h** | **>75%** | **Gold standard** 🎯 |
+| False Alarm Rate | Sensitivity Target | Clinical Reality |
+|------------------|-------------------|-----------------|
+| **10 FA/24h** | >95% | Initial deployment - high alarm fatigue |
+| **5 FA/24h** | >90% | Standard care - manageable workload |
+| **1 FA/24h** | **>75%** | **Gold standard - sustained clinical use** 🎯 |
 
-**Note**: At 10 FA/24h, alarm fatigue leads to system abandonment. <1 FA/24h enables sustained clinical use.
+**Alarm fatigue**: At 10 FA/24h, clinical staff stop responding to alerts. System becomes useless.
+
+**Our goal**: <1 FA/24h while maintaining >75% sensitivity. This enables actual clinical deployment.
+
+**Literature baseline**: Most published models achieve 40-60% sensitivity@10FA ([EEG-Mamba](literature/markdown/EEG-BIMAMBA), EvoBrain). We're aiming higher.
 
 ## 🚀 Quick Start
 
@@ -269,109 +313,143 @@ Based on [Temple Any-Event Scoring (TAES)](literature/markdown/picone-2021-NEDC-
 # 1️⃣ Install UV package manager
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 2️⃣ Clone and setup
+# 2️⃣ Clone repo
 git clone https://github.com/clarity-digital-twin/brain-go-brr-v2.git
 cd brain-go-brr-v2
-make setup
-make setup-gpu  # Installs mamba-ssm==2.2.5, PyG, FLA
 
-# 3️⃣ Download TUH corpus (requires agreement)
+# 3️⃣ Setup environment (installs mamba-ssm, PyG, FLA)
+make setup
+make setup-gpu
+
+# 4️⃣ Download TUSZ corpus
+# Visit: https://isip.piconepress.com/projects/tuh_eeg/html/request_access.php
 # Place in: data_ext4/tusz/edf/
 
-# 4️⃣ Build preprocessing cache (one-time)
-python -m src build-cache --data-dir data_ext4/tusz/edf/train --cache-dir cache/tusz_mmap/train --split train
-python -m src build-cache --data-dir data_ext4/tusz/edf/dev --cache-dir cache/tusz_mmap/dev --split dev
+# 5️⃣ Build preprocessing cache (one-time, ~2 hours)
+python -m src build-cache \
+  --data-dir data_ext4/tusz/edf/train \
+  --cache-dir cache/tusz_mmap/train \
+  --split train
 
-# 5️⃣ Run smoke test (5 minutes, BiMamba2 stack)
-make smoke-bimamba
+python -m src build-cache \
+  --data-dir data_ext4/tusz/edf/dev \
+  --cache-dir cache/tusz_mmap/dev \
+  --split dev
 
-# 6️⃣ Full training (RTX 4090)
+# 6️⃣ Smoke test (3 files, 5 minutes)
+make smoke-bimamba    # Test BiMamba2 stack
+make smoke-fla        # Test Gated DeltaNet stack
+
+# 7️⃣ Full local training (RTX 4090, 200-300 hours)
 export BGB_NAN_DEBUG=1
 tmux new -s train
-
-# BiMamba2 stack (baseline)
-make train-bimamba
-
-# OR: Gated DeltaNet stack (research)
-make train-fla
-
-# Detach: Ctrl+B then D | Reattach: tmux attach -t train
+make train-bimamba    # or: make train-fla
+# Ctrl+B then D to detach | tmux attach -t train to reattach
 ```
 
-**Cloud training (Modal A100-80GB)**:
+**Cloud training (Modal A100-80GB, ~100 hours, ~$319)**:
 ```bash
-# BiMamba2 baseline (CURRENT)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
+# BiMamba2 baseline (TRAINING NOW)
+modal run --detach deploy/modal/app.py \
+  --action train \
+  --config configs/modal/train_bimamba.yaml
 
-# Gated DeltaNet research (NEXT)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train_fla.yaml
+# Gated DeltaNet research (QUEUED - after BiMamba2)
+modal run --detach deploy/modal/app.py \
+  --action train \
+  --config configs/modal/train_fla.yaml
+
+# Monitor progress
+modal app list
+modal app logs <app-id>
+
+# Resume after timeout (automatic 23h safety margin)
+modal run --detach deploy/modal/app.py \
+  --action train \
+  --config configs/modal/train_bimamba.yaml \
+  --resume true
 ```
 
 See [installation guide](docs/01-installation/) and [training docs](docs/05-training/) for details.
 
-## 🔮 Research Roadmap
+---
 
-### 🎯 Active Experiments
+## 🔬 Research Status & Timeline
 
-**Phase 1: A/B Architecture Comparison** (IN PROGRESS)
-- ✅ BiMamba2 training LIVE (Modal A100, ~4-5 days remaining)
-- ⏳ Gated DeltaNet training QUEUED (after BiMamba2 baseline completes)
-- 📊 Deliverable: Direct performance comparison on full TUSZ dataset
+### Current Progress (October 10, 2025)
 
-**Research question**: Does delta rule (targeted updates) improve over pure gating (memory erasure) for clinical EEG?
+**Stack 1: BiMamba2**
+- ✅ Architecture complete, all tests passing
+- ✅ Modal A100 training LIVE (100 epochs, ~4-5 days remaining)
+- ✅ Bulletproof checkpoints (atomic saves, AMP scaler, RNG state)
+- ✅ Disk-backed validation (eliminates OOM crashes)
+- ✅ Timeout guard (23h wall-clock limit, graceful exit)
+- 📊 **ETA**: Results by ~October 13-14, 2025
 
-**Expected outcomes** (all scientifically valuable):
-1. Gated Delta > BiMamba2 → "Linear attention mechanisms show X% improvement"
-2. BiMamba2 > Gated Delta → "State-space models outperform by X%"
-3. Gated Delta ≈ BiMamba2 → "Architecture equivalence observed"
+**Stack 2: Gated DeltaNet**
+- ✅ Architecture complete (BiGatedDeltaNet wrapper)
+- ✅ All smoke tests passed (3-file, 50-file validation)
+- ✅ Local configs ready (train_fla.yaml)
+- ⏳ Modal config pending (after BiMamba2 baseline completes)
+- 📊 **ETA**: Training starts October 14, results by October 18
 
-All three outcomes are novel—no prior work compares these stacks on clinical seizure detection.
+**Research Question**: Does delta rule (targeted updates) improve over pure gating (memory erasure) for clinical EEG seizure detection?
 
-### 🧪 Future Enhancements
+**Expected Outcomes** (all scientifically valuable):
+1. 📈 **Gated Delta wins**: "Linear attention mechanisms improve X% over state-space models"
+2. 📉 **BiMamba2 wins**: "State-space models outperform linear attention by X%"
+3. 📊 **Tie (within ±1%)**: "Architecture equivalence observed - multiple viable paths"
 
-**Frequency-Aware Processing** ([Future Work Doc](docs/future-work/FUTURE_WORK_STFT_ENHANCEMENT.md)):
-- Lightweight 3-band STFT side-branch (theta/alpha, beta/gamma, HFO)
-- Expected: +2-3% AUROC, <10% compute overhead
-- Rationale: Explicit frequency decomposition vs implicit TCN learning
+**Key insight**: No prior work compares these architectures on clinical seizure detection. The comparison itself is the contribution, not the "winner".
 
-**Multi-Resolution Temporal Modeling**:
-- Multi-scale processing at [960, 480, 240] timesteps with late fusion
-- Expected: Better short-duration seizure detection
-- Rationale: Captures patterns at different temporal granularities
+### What's Next After A/B Comparison?
 
-**Hybrid Architectures**:
-- Replace some SSM layers with sliding window attention (window=256)
-- Expected: Improved positional biases + long-range modeling
-- Rationale: Combines local attention strengths with O(N) global context
+**Post-training analysis** (~2-3 days):
+- Compare sensitivity@1FA, @5FA, @10FA between stacks
+- Analyze AUROC, TAES score, training stability
+- Document results regardless of outcome
+- Merge winner (or both) to main
+
+**Future enhancements** (see [future work docs](docs/future-work/)):
+- Frequency-aware STFT side-branch (+2-3% AUROC expected)
+- Multi-resolution temporal modeling (better short-duration seizures)
+- Hybrid SSM+attention architectures (local+global context)
+
+---
 
 ## 📚 Documentation
 
-**Getting Started**:
-- [Quickstart](docs/getting-started/quickstart.md) - 5-minute smoke test
-- [Your First Training Run](docs/getting-started/first-run.md) - Complete walkthrough
+### Getting Started
+- [Quickstart](docs/getting-started/quickstart.md) - 5-minute validation
+- [First Training Run](docs/getting-started/first-run.md) - Complete walkthrough
 
-**Architecture Deep Dives**:
-- [V3 Architecture Spec](docs/04-model/v3-architecture.md) - Full implementation details
+### Architecture
+- [V3 Spec](docs/04-model/v3-architecture.md) - Full implementation details
 - [Laplacian PE](docs/04-model/laplacian-pe.md) - Dynamic graph theory
-- [Stability Evolution](docs/04-model/v3-stability-evolution.md) - Gradient stability
+- [Stability Evolution](docs/04-model/v3-stability-evolution.md) - NaN prevention history
 
-**Research Documentation**:
-- [FLA Roadmap](docs/flash-linear-attention/FLA_ROADMAP.md) - A/B comparison strategy
-- [FLA Quick Reference](docs/flash-linear-attention/FLA_QUICK_REFERENCE.md) - Implementation guide
+### Research
+- [FLA Roadmap](docs/flash-linear-attention/FLA_ROADMAP.md) - Complete A/B strategy
+- [FLA Quick Reference](docs/flash-linear-attention/FLA_QUICK_REFERENCE.md) - Config guide
+- [Future Work](docs/future-work/) - Post-training enhancements
 
-**Operations**:
-- [Training Guide](docs/05-training/) - Local & cloud setup
+### Operations
+- [Training Guide](docs/05-training/) - Local + Modal setup
 - [Troubleshooting](docs/08-operations/troubleshooting.md) - Common issues
 - [NaN Prevention](docs/08-operations/nan-prevention-complete.md) - Gradient stability
+
+---
 
 ## 🤝 Contributing
 
 We welcome contributions! See [development docs](docs/09-development/) for:
-- Coding standards
-- Testing strategy
-- Architecture decisions
+- Coding standards (Ruff, mypy, no comments unless requested)
+- Testing strategy (`make q` before committing)
+- Architecture decision records
 
-Run `make q` before committing (lint + format + type check).
+**Zero technical debt policy**: All P0/P1/P2 issues resolved before major releases.
+
+---
 
 ## 📖 Citation
 
@@ -381,30 +459,46 @@ Run `make q` before committing (lint + format + type check).
   author = {Clarity Digital Twin},
   year = {2025},
   url = {https://github.com/clarity-digital-twin/brain-go-brr-v2},
-  note = {A/B comparison of BiMamba2 and Gated DeltaNet architectures}
+  note = {A/B empirical comparison of BiMamba2 and Gated DeltaNet architectures on TUSZ clinical dataset}
 }
 ```
 
+---
+
 ## ⚖️ License
 
-Apache 2.0 - See [LICENSE](LICENSE)
+Apache 2.0 - See [LICENSE](LICENSE) for full text.
+
+---
 
 ## 🙏 Acknowledgments
 
-**Datasets**: [TUH EEG Seizure Corpus](literature/markdown/TUSZ-DATA) (Temple), CHB-MIT (Boston Children's/MIT)
+**Datasets**:
+- [TUH EEG Seizure Corpus](literature/markdown/TUSZ-DATA) (Temple University)
+- CHB-MIT Scalp EEG Database (Boston Children's Hospital / MIT)
 
-**Key Papers**:
-- **EvoBrain** ([NeurIPS 2025](literature/markdown/EVOBRAIN.md)) - Dynamic graph theory + time-then-graph paradigm
+**Foundational Papers**:
+- **EvoBrain** ([NeurIPS 2025](literature/markdown/EVOBRAIN.md)) - Time-then-graph paradigm, dynamic graphs
 - **Mamba** ([Gu & Dao 2023](https://arxiv.org/abs/2312.00752)) - Selective state-space models
-- **Gated DeltaNet** ([ICLR 2025](literature/markdown/GATED-DETLA)) - Memory erasure + delta rule
+- **Gated DeltaNet** ([Yang et al., ICLR 2025](literature/markdown/GATED-DETLA)) - Memory erasure + delta rule
 - **EEG-Mamba** ([2024](literature/markdown/EEG-BIMAMBA)) - BiMamba for EEG classification
-- **TCN** ([Bai et al. 2018](literature/markdown/TCN)) - Temporal convolutions
+- **TCN** ([Bai et al. 2018](literature/markdown/TCN)) - Temporal convolutional networks
 - **Focal Loss** ([Lin et al. 2017](literature/markdown/FOCAL_LOSS)) - Class imbalance handling
 
-**Infrastructure**: [Modal.com](https://modal.com) (A100-80GB), [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/), [mamba-ssm](https://github.com/state-spaces/mamba) (Tri Dao), [FLA](https://github.com/fla-org/flash-linear-attention) (Songlin Yang)
+**Infrastructure & Libraries**:
+- [Modal.com](https://modal.com) - A100-80GB GPU infrastructure
+- [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/) - Graph neural networks
+- [mamba-ssm](https://github.com/state-spaces/mamba) (Tri Dao) - Mamba2 implementation
+- [FLA](https://github.com/fla-org/flash-linear-attention) (Songlin Yang) - Gated DeltaNet implementation
 
 ---
 
 <div align="center">
-<b>Questions?</b> Open an issue | <b>Updates:</b> Watch the repo | <b>Discussion:</b> Start a discussion
+
+**Questions?** [Open an issue](https://github.com/clarity-digital-twin/brain-go-brr-v2/issues) •
+**Updates?** [Watch the repo](https://github.com/clarity-digital-twin/brain-go-brr-v2) •
+**Discussion?** [Start a discussion](https://github.com/clarity-digital-twin/brain-go-brr-v2/discussions)
+
+**Current status**: v3.9.2 (CI/CD Stability) • BiMamba2 training LIVE • Zero technical debt
+
 </div>
