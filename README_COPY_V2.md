@@ -193,8 +193,9 @@ S_t = α_t ⊙ S_{t-1} + update
 S_t = α_t ⊙ S_{t-1} + β_t ⊙ (k_t ⊗ v_t - old_memory)
 ```
 
-**Node Stream**: 6 layers, d_model=512, num_heads=6, headdim=8
-**Edge Stream**: 2 layers, d_model=32, num_heads=3, headdim=8
+**Configuration**:
+- **Node Stream**: 6 layers, d_model=512, num_heads=6, headdim=8
+- **Edge Stream**: 2 layers, d_model=32, num_heads=3, headdim=8
 
 **Total SSM**: ~8.4M parameters (matched to BiMamba2), O(N) complexity
 
