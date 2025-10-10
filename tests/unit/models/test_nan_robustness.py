@@ -311,32 +311,43 @@ class TestNaNRobustness:
                 assert torch.isfinite(output).all(), f"Model became unstable at iteration {i + 1}"
 
     def test_config_consistency_local_vs_modal(self):
-        """Verify local and modal configs maintain identical NaN safeguards."""
+        """Verify local and modal configs maintain identical NaN safeguards.
+
+        After config architecture separation, we check both BiMamba2 and FLA configs
+        to ensure NaN protection is consistent across all variants.
+        """
 
         import yaml
 
-        # Load configs
-        with open("configs/local/train.yaml") as f:
-            local_config = yaml.safe_load(f)
-        with open("configs/modal/train.yaml") as f:
-            modal_config = yaml.safe_load(f)
+        # Check both BiMamba2 and FLA configs
+        configs_to_check = [
+            ("configs/local/train_bimamba.yaml", "configs/modal/train_bimamba.yaml", "BiMamba2"),
+            ("configs/local/train_fla.yaml", "configs/modal/train_fla.yaml", "FLA"),
+        ]
 
-        # Check critical NaN-related settings
-        # Both should have focal loss for imbalanced data
-        assert local_config["training"]["loss"] == "focal"
-        assert modal_config["training"]["loss"] == "focal"
+        for local_path, modal_path, variant_name in configs_to_check:
+            # Load configs
+            with open(local_path) as f:
+                local_config = yaml.safe_load(f)
+            with open(modal_path) as f:
+                modal_config = yaml.safe_load(f)
 
-        # Gradient clipping should be present
-        assert "gradient_clip" in local_config["training"]
-        assert "gradient_clip" in modal_config["training"]
+            # Check critical NaN-related settings
+            # Both should have focal loss for imbalanced data
+            assert local_config["training"]["loss"] == "focal", f"{variant_name} local: expected focal loss"
+            assert modal_config["training"]["loss"] == "focal", f"{variant_name} modal: expected focal loss"
 
-        # Mixed precision differs but is intentional (RTX 4090 vs A100)
-        assert not local_config["training"]["mixed_precision"]  # RTX 4090 needs this
-        assert modal_config["training"]["mixed_precision"]  # A100 can handle this
+            # Gradient clipping should be present
+            assert "gradient_clip" in local_config["training"], f"{variant_name} local: missing gradient_clip"
+            assert "gradient_clip" in modal_config["training"], f"{variant_name} modal: missing gradient_clip"
 
-        # Both should use balanced sampling for seizure detection (in data section, not training)
-        assert local_config["data"].get("use_balanced_sampling", False)
-        assert modal_config["data"].get("use_balanced_sampling", False)
+            # Mixed precision differs but is intentional (RTX 4090 vs A100)
+            assert not local_config["training"]["mixed_precision"], f"{variant_name} local: should disable mixed_precision (RTX 4090)"
+            assert modal_config["training"]["mixed_precision"], f"{variant_name} modal: should enable mixed_precision (A100)"
+
+            # Both should use balanced sampling for seizure detection (in data section, not training)
+            assert local_config["data"].get("use_balanced_sampling", False), f"{variant_name} local: missing balanced sampling"
+            assert modal_config["data"].get("use_balanced_sampling", False), f"{variant_name} modal: missing balanced sampling"
 
 
 if __name__ == "__main__":

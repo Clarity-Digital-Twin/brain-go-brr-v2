@@ -140,4 +140,4 @@ COPY README.md /app/
 # Install editable
 RUN pip install -e .
 
-CMD ["python3.11", "-m", "src", "train", "/app/configs/local/train.yaml"]
+CMD ["python3.11", "-m", "src", "train", "/app/configs/local/train_bimamba.yaml"]
