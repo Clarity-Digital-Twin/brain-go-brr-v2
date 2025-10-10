@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "seizure-detection-mamba"
-version = "3.10.0"
-description = "Clinical EEG seizure detection using V3 dual-stream architecture with PyTorch 2.5 + mamba-ssm 2.2.5 + zero warnings (TCN + BiMamba + GNN + Dynamic LPE)"
+version = "3.11.0"
+description = "Clinical EEG seizure detection using V3 dual-stream architecture with PyTorch 2.5 + mamba-ssm 2.2.5 + StatefulDataLoader for exact mid-epoch resume (TCN + BiMamba + GNN + Dynamic LPE)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}

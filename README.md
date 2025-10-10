@@ -6,7 +6,7 @@
 [![PyTorch 2.5.0](https://img.shields.io/badge/pytorch-2.5.0-red.svg)](https://pytorch.org)
 [![CUDA 12.4](https://img.shields.io/badge/cuda-12.4-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
-[![v3.10.0](https://img.shields.io/badge/version-3.10.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.10.0-auto-restart)
+[![v3.11.0](https://img.shields.io/badge/version-3.11.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.11.0-stateful-dataloader)
 
 ## 📋 The Clinical Problem
 
@@ -50,7 +50,7 @@ Traditional approaches fail because they treat these as separate problems. We mo
 
 **Research transparency**: All three outcomes (Gated Delta wins, BiMamba2 wins, or tie) are scientifically valuable. No prior work compares these architectures on clinical EEG. See [FLA_ROADMAP.md](docs/flash-linear-attention/FLA_ROADMAP.md) for full strategy.
 
-**Current status (v3.9.2)**: Production system with atomic checkpointing, disk-backed validation, and zero technical debt. BiMamba2 baseline training on Modal A100. See [STATUS.md](STATUS.md) for details.
+**Current status (v3.11.0)**: Production system with exact mid-epoch resume via StatefulDataLoader. BiMamba2 baseline training on Modal A100 with zero wasted compute. See [STATUS.md](STATUS.md) for details.
 
 ## 🏗️ Architecture: Theory & Design
 
@@ -469,6 +469,6 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 **Updates?** [Watch the repo](https://github.com/clarity-digital-twin/brain-go-brr-v2) •
 **Discussion?** [Start a discussion](https://github.com/clarity-digital-twin/brain-go-brr-v2/discussions)
 
-**Current status**: v3.10.0 • Auto-restart training • BiMamba2 baseline LIVE • Zero technical debt
+**Current status**: v3.11.0 • Exact mid-epoch resume • StatefulDataLoader integrated • BiMamba2 baseline LIVE • Zero compute waste
 
 </div>

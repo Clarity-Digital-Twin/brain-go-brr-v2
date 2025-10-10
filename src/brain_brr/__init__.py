@@ -6,14 +6,14 @@ V3 dual-stream architecture combining:
 - GNN (Graph Neural Network) with dynamic Laplacian positional encoding
 - Multi-head gated fusion for node/edge stream combination
 
-v3.9.2: CI/CD Stability & Documentation Cleanup
-- Fixed O(n) event extraction validation (CI timeout eliminated)
-- Professional FLA test skip logic (module-level flag check)
-- Deterministic memory testing (array property validation)
-- Dedicated FLA CI job for continuous code path validation
+v3.11.0: StatefulDataLoader & Mid-Epoch Resume Fix
+- Exact mid-epoch checkpoint resume with PyTorch StatefulDataLoader
+- Eliminates 1-2 hours wasted compute per Modal restart ($150+ savings)
+- Pydantic v2 warning fix using Annotated pattern
+- Complete backward compatibility with old checkpoints
 """
 
-__version__ = "3.9.2"
+__version__ = "3.11.0"
 
 # NO HEAVY IMPORTS AT PACKAGE LEVEL
 # Models should be imported explicitly when needed:
