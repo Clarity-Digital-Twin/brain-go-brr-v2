@@ -33,6 +33,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fix**: Changed `save_checkpoint(..., epoch + 1, ...)` in `last.pt` and periodic saves
 - **Savings**: $672 over 12 auto-restarts (11 restarts × $56 = $616 saved after one-time $56 waste)
 - **Files**: `src/brain_brr/train/loop.py:464-465`, `src/brain_brr/train/loop.py:449`
+- **Docs**: `docs/archive_v2/CHECKPOINT_RESUME_BUG.md`
+
+**Checkpoint Buffer Compatibility Fix (Critical)**:
+- **Problem**: `register_buffer(name, None)` doesn't add buffer to state_dict until tensor assigned
+- **Impact**: Resume failed with "Unexpected key(s): gnn.last_valid_pe" (checkpoint had buffer, fresh model didn't)
+- **Fix**: Three-layer defense:
+  1. Skip shape-mismatched buffers during checkpoint load (`checkpoint.py:160-191`)
+  2. Initialize buffer with placeholder `torch.zeros(1,1,1,k)` instead of None (`gnn_pyg.py:137-142`)
+  3. Forward pass automatically recomputes PE when placeholder doesn't match batch (existing)
+- **Tests**: 5 regression tests in `tests/unit/train/test_checkpoint_buffer_compatibility.py`
+- **Docs**: `docs/archive_v2/CHECKPOINT_BUFFER_BUG.md`
+
+**RNG State Device Mismatch Fix (Critical)**:
+- **Problem**: `torch.load(map_location="cuda")` moves RNG states to GPU, but restoration APIs require CPU tensors
+- **Impact**: Resume crashed with "RNG state must be a torch.ByteTensor" on GPU (Modal A100)
+- **Fix**: Force both CPU and CUDA RNG states back to CPU before restoration (`checkpoint.py:225-247`)
+- **Key insight**: Both `torch.set_rng_state()` and `torch.cuda.set_rng_state_all()` expect CPU tensors (PyTorch handles GPU transfer)
+- **Tests**: 4 regression tests in `tests/unit/train/test_checkpoint_rng_device.py` (all device combinations)
+- **Docs**: `docs/archive_v2/RNG_STATE_DEVICE_BUG.md`
 
 **Modal 1.0 Migration**:
 - **Deprecated Parameter**: `concurrency_limit` → `max_containers` (Feb 2025 breaking change)
@@ -41,6 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Documentation**:
 - **New**: `MODAL_CLI_REFERENCE.md` - Complete Modal command reference with migration notes
+- **New**: `docs/archive_v2/CHECKPOINT_BUFFER_BUG.md` - Buffer compatibility bug analysis
+- **New**: `docs/archive_v2/RNG_STATE_DEVICE_BUG.md` - RNG device mismatch bug analysis
 - **Updated**: `docs/archive_v2/CHECKPOINT_RESUME_BUG.md` - Marked as FIXED with implementation details
 
 ---

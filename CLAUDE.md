@@ -16,7 +16,10 @@ Current Architecture (v3.10.0 - October 10, 2025):
 - **V3 dual-stream** → Node (19×) and Edge (171×) parallel processing
 - **Memory-mapped cache (NPY)** → <1 GB RAM vs 387 GB for NPZ, 99.6% faster startup
 - **Auto-restart training** → Hands-free 100-epoch training via modal.Period(hours=23) with overlap protection
-- **Checkpoint resume fix** → Saves epoch+1 (next to train) instead of epoch (completed), prevents 14h waste per restart
+- **Three checkpoint fixes** → All resume bugs eliminated:
+  1. Resume fix: Saves epoch+1 (next) not epoch (completed), prevents 14h waste ($616 saved)
+  2. Buffer fix: Handle `register_buffer(None)` timing bug, enables mid-epoch resume
+  3. RNG fix: Force RNG states to CPU before restoration, enables GPU resume
 - **Bulletproof checkpoints** → Atomic saves (temp + fsync + rename), AMP scaler + RNG capture, every 30min
 - **Timeout guard** → 23h wall-clock limit with 1h safety margin, graceful exit before Modal kill
 - **Complete tensor safety** → All 3 datasets use copy-on-read tensors for read-only mmap safety (no PyTorch warnings)
