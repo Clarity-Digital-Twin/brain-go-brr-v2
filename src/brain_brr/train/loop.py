@@ -892,7 +892,7 @@ def main() -> None:
     if config.data.num_workers > 0:
         train_loader_kwargs["persistent_workers"] = bool(config.data.persistent_workers)
         train_loader_kwargs["prefetch_factor"] = int(config.data.prefetch_factor)
-    train_loader = DataLoader(train_dataset, **train_loader_kwargs)
+    train_loader = StatefulDataLoader(train_dataset, **train_loader_kwargs)
 
     val_loader_kwargs: dict[str, Any] = {
         "batch_size": config.training.batch_size,
