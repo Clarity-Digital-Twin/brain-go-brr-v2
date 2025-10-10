@@ -1134,6 +1134,74 @@ def evaluate(
     return output_json
 
 
+@app.function(
+    gpu="A100-80GB",
+    timeout=86400,  # 24h timeout (same as train())
+    schedule=modal.Period(hours=23),  # TRUE 23-hour intervals (not calendar-based cron!)
+    concurrency_limit=1,  # ✅ Modal enforces single instance (prevents overlap!)
+    volumes={
+        "/data": data_mount,
+        "/results": results_volume,
+    },
+    memory=98304,  # Match train() settings
+    cpu=24,
+)
+def train_auto_restart(config_path: str = "configs/modal/train_bimamba.yaml"):
+    """Auto-restart training every 23 hours with built-in overlap protection.
+
+    This function is scheduled to run every 23 hours via Modal Period.
+    Modal's concurrency_limit=1 ensures only one instance runs at a time,
+    preventing overlap without needing file locks (which Modal volumes don't support).
+
+    Timeline:
+    - T=0h:       Run 1 starts
+    - T=22h 50m:  Timeout guard triggers (23h - 10min safety) → checkpoint saved → run exits
+    - T=23h:      Period triggers (23h from start) → Run 2 starts (10 min idle)
+    - T=45h 50m:  Timeout guard triggers → Run 2 exits
+    - T=46h:      Period triggers → Run 3 starts (10 min idle)
+
+    The 10-minute safety margin (TimeoutGuard at src/brain_brr/train/timeout_guard.py:184)
+    is NECESSARY for reliable checkpointing. Trying to eliminate it risks data loss!
+
+    Args:
+        config_path: Path to training config (default: BiMamba2 full training)
+
+    Returns:
+        Path to checkpoint file
+    """
+    from src.brain_brr.utils.logging_config import setup_logging
+
+    # Use simple format for Modal (no Rich in container logs)
+    setup_logging(format_style="simple", force=True)
+
+    logger.info("=" * 60)
+    logger.info("[AUTO-RESTART] Starting training...")
+    logger.info(f"[AUTO-RESTART] Config: {config_path}")
+    logger.info(f"[AUTO-RESTART] Resume: True (always)")
+    logger.info(f"[AUTO-RESTART] Concurrency limit: 1 (no overlap possible)")
+    logger.info(f"[AUTO-RESTART] Period: 23h (from start, not completion)")
+    logger.info(f"[AUTO-RESTART] Expected idle: ~10 min per restart (safety margin)")
+    logger.info("=" * 60)
+
+    # CRITICAL: Must use .remote() to call another Modal function
+    # Direct call raises TypeError in Modal's execution model
+    handle = train.remote(
+        config_path=config_path,
+        resume=True,  # Always resume from last.pt
+    )
+
+    # Wait for training to complete
+    checkpoint_path = handle.get()
+
+    logger.info("=" * 60)
+    logger.info(f"[AUTO-RESTART] Training completed: {checkpoint_path}")
+    logger.info("[AUTO-RESTART] Next restart in ~23 hours (from start of this run)")
+    logger.info("[AUTO-RESTART] Checkpoint saved - safe to exit")
+    logger.info("=" * 60)
+
+    return checkpoint_path
+
+
 @app.local_entrypoint()
 def main(
     action: str = "train",
@@ -1169,6 +1237,18 @@ def main(
 
         # Resume training from last.pt in output_dir (works with any config)
         modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume true
+
+        # 🆕 SCHEDULE AUTO-RESTART TRAINING (runs every 23h automatically!)
+        # Deploy once, runs forever until stopped
+        modal deploy deploy/modal/app.py
+        # Then trigger scheduled function (will auto-restart every 23h)
+        modal run deploy/modal/app.py --action schedule-training --config configs/modal/train_bimamba.yaml
+
+        # Stop scheduled training
+        modal app stop brain-go-brr-v2
+
+        # Monitor scheduled training logs
+        modal app logs brain-go-brr-v2 --follow
 
         # Evaluate checkpoint
         modal run deploy/modal/app.py --action evaluate --config /results/checkpoints/best.pt
@@ -1222,6 +1302,36 @@ def main(
         )
         logger.info(f"✓ Training complete. Checkpoint: {result}")
 
+    elif action == "schedule-training":
+        # Deploy scheduled auto-restart training
+        logger.info("🕐 Deploying scheduled auto-restart training...")
+        logger.info("=" * 50)
+        logger.info("This will run training every 23 hours automatically.")
+        logger.info("Training will resume from checkpoints seamlessly.")
+        logger.info("")
+        logger.info("Timeline per restart:")
+        logger.info("  - T=0h:       Training starts")
+        logger.info("  - T=22h 50m:  Timeout guard triggers → checkpoint saved")
+        logger.info("  - T=23h:      Period triggers → next run starts (10 min idle)")
+        logger.info("")
+        logger.info(f"Config: {config}")
+        logger.info("")
+        logger.info("To monitor: modal app logs brain-go-brr-v2 --follow")
+        logger.info("To stop:    modal app stop brain-go-brr-v2")
+        logger.info("=" * 50)
+
+        # Trigger the scheduled function (first run starts immediately)
+        handle = train_auto_restart.remote(config_path=config)
+        checkpoint_path = handle.get()
+
+        logger.info("")
+        logger.info("✅ First training run completed!")
+        logger.info(f"Checkpoint: {checkpoint_path}")
+        logger.info("Next run will start in ~23 hours (automatic)")
+        logger.info("")
+        logger.info("Training will continue automatically until you stop it.")
+        logger.info("Run 'modal app stop brain-go-brr-v2' to stop scheduled training.")
+
     elif action == "evaluate":
         # For evaluate, config arg is actually checkpoint path
         result = evaluate.remote(checkpoint_path=config)
@@ -1229,8 +1339,9 @@ def main(
 
     else:
         logger.info(f"Unknown action: {action}")
-        logger.info("Available actions: populate-cache, clean-cache, test-mamba, train, evaluate")
+        logger.info("Available actions: populate-cache, clean-cache, test-mamba, train, schedule-training, evaluate")
         logger.info("\n📌 IMPORTANT: Run 'populate-cache' ONCE before first training!")
+        logger.info("📌 NEW: Use 'schedule-training' for automatic 23-hour restarts!")
 
 
 if __name__ == "__main__":
