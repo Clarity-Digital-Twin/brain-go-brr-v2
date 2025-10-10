@@ -890,11 +890,7 @@ def train(
                 # Write new metadata
                 metadata = {
                     "split_policy": "official_tusz",
-                    "created": str(
-                        Path("/app") / "configs" / "modal" / "smoke_bimamba.yaml"
-                        if "smoke" in config_path
-                        else "train_bimamba.yaml"
-                    ),
+                    "created": str(Path("/app") / config_path),
                     "timestamp": str(Path(__file__).stat().st_mtime),
                 }
                 with open(cache_metadata_file, "w") as f:
@@ -920,11 +916,7 @@ def train(
 
             metadata = {
                 "split_policy": "official_tusz",
-                "created": str(
-                    Path("/app") / "configs" / "modal" / "smoke_bimamba.yaml"
-                    if "smoke" in config_path
-                    else "train_bimamba.yaml"
-                ),
+                "created": str(Path("/app") / config_path),
                 "timestamp": str(Path(__file__).stat().st_mtime),
             }
             with open(cache_metadata_file, "w") as f:
