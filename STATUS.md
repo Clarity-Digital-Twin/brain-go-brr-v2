@@ -162,7 +162,7 @@
 
 ## Current Deployment
 
-**Modal Full Training (LIVE - v3.10.0 Checkpoint Fixes)**:
+**Modal Full Training (LIVE - v3.11.0 StatefulDataLoader)**:
 - Launch: Oct 10, 2025 16:54 EDT (after buffer + RNG device bug fixes)
 - App ID: `ap-EfCpvvcKntajgxwkcEaIj8`
 - Config: 100 epochs, batch_size=48, A100-80GB, mixed_precision=true
