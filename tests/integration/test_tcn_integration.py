@@ -220,21 +220,32 @@ class TestTCNPerformance:
 class TestCodeCleanliness:
     """Verify no U-Net/ResNet imports remain after migration."""
 
-    @pytest.mark.skip(reason="Run after full migration")
     def test_no_unet_imports_remain(self):
-        """After migration, no U-Net/ResNet imports should remain."""
+        """After migration, no U-Net/ResNet imports should remain.
+
+        NOTE: We allow documentation strings mentioning old architecture for
+        historical context (e.g., "Replaces U-Net with TCN"). This test only
+        checks for actual Python import statements.
+        """
         import subprocess
 
-        # Search for U-Net/ResNet imports in src/
+        # Search for actual Python imports (from/import statements) in src/
         result = subprocess.run(
-            ["grep", "-r", "UNetEncoder\\|UNetDecoder\\|ResCNN", "src/"],
+            [
+                "grep",
+                "-r",
+                "-E",
+                "^\\s*(from|import).*\\b(UNetEncoder|UNetDecoder|ResCNN)\\b",
+                "src/",
+                "--include=*.py",
+            ],
             capture_output=True,
             text=True,
         )
 
-        assert result.returncode == 1, f"Found U-Net/ResNet references:\n{result.stdout}"
+        # returncode 1 means no matches (good), 0 means matches found (bad)
+        assert result.returncode == 1, f"Found U-Net/ResNet imports:\n{result.stdout}"
 
-    @pytest.mark.skip(reason="Run after full migration")
     def test_files_deleted(self):
         """Old U-Net/ResNet files should be deleted."""
         from pathlib import Path
