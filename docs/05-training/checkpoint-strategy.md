@@ -41,8 +41,11 @@ export BGB_MID_EPOCH_KEEP=5      # Keep last 5 snapshots (rotating)
 
 ### Resume Command
 ```bash
-# Resume from latest checkpoint
-.venv/bin/python -m src train configs/local/train.yaml --resume
+# Resume from latest checkpoint (BiMamba2 baseline)
+.venv/bin/python -m src train configs/local/train_bimamba.yaml --resume
+
+# Or FLA research variant
+.venv/bin/python -m src train configs/local/train_fla.yaml --resume
 
 # Automatically picks up from:
 # 1. Latest mid-epoch checkpoint (if exists)
@@ -119,13 +122,12 @@ results/full_training/checkpoints/
 
 ## Critical Settings Summary
 
-### Local (configs/local/train.yaml)
+### Local (configs/local/train_bimamba.yaml or train_fla.yaml)
 ```yaml
 training:
   checkpoint_interval: 1  # Save every epoch
-  # Set via environment:
-  # BGB_MID_EPOCH_MINUTES=30
-  # BGB_MID_EPOCH_KEEP=5
+  mid_checkpoint_interval_s: 1800  # Save every 30 minutes
+  mid_epoch_keep: 3  # Keep last 3 snapshots
 ```
 
 ### Modal (configs/modal/train_bimamba.yaml)
