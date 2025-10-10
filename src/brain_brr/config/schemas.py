@@ -1,7 +1,7 @@
 """Pydantic schemas for config validation - single source of truth for all configs."""
 
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
