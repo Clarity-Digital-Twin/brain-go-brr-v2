@@ -34,23 +34,23 @@ Traditional approaches fail because they treat these as separate problems. We mo
 
 We're not just building a model—we're conducting a **scientific A/B comparison** of two state-space architectures:
 
-### **Stack 1: BiMamba2** (Training NOW on Modal A100)
+### Stack 1: BiMamba2 (baseline)
 - **What**: Mamba2 with bidirectional processing
-- **Status**: 100 epochs, ~4667 train files, bulletproof checkpointing
-- **Proven**: Fast CUDA kernels, selective state propagation ([Gu & Dao 2023](https://arxiv.org/abs/2312.00752))
-- **Motivation**: Industry-tested SSM with O(N) efficiency
+- **Status**: Modal A100 training in progress, 100 epochs planned
+- **Foundation**: Fast CUDA kernels, selective state propagation ([Gu & Dao 2023](https://arxiv.org/abs/2312.00752))
+- **Motivation**: Proven SSM architecture with O(N) efficiency
 
-### **Stack 2: Gated DeltaNet** (Infrastructure COMPLETE, training NEXT)
+### Stack 2: Gated DeltaNet (research variant)
 - **What**: FLA (Flash Linear Attention) with gating + delta rule
-- **Status**: All smoke tests passed, ready for full training after Stack 1
-- **Novel**: Beats Mamba2 on language modeling ([ICLR 2025](literature/markdown/GATED-DETLA))
+- **Status**: Implementation complete, awaiting baseline results
+- **Foundation**: Beats Mamba2 on language modeling ([ICLR 2025](literature/markdown/GATED-DETLA))
 - **Hypothesis**: Better for EEG's abrupt context switches (seizure onsets)
 
 **Why both?** Seizures have **abrupt onsets** (need memory clearing via gating) *and* **persistent patterns** (need selective retention via delta rule). Gated Delta theoretically handles both. But does theory match clinical reality? That's what we're testing.
 
 **Research transparency**: All three outcomes (Gated Delta wins, BiMamba2 wins, or tie) are scientifically valuable. No prior work compares these architectures on clinical EEG. See [FLA_ROADMAP.md](docs/flash-linear-attention/FLA_ROADMAP.md) for full strategy.
 
-**Current status (v3.9.2)**: Production-ready system with bulletproof checkpointing, disk-backed validation, and zero technical debt. Full Modal A100 training live. See [STATUS.md](STATUS.md) for real-time updates.
+**Current status (v3.9.2)**: Production system with atomic checkpointing, disk-backed validation, and zero technical debt. BiMamba2 baseline training on Modal A100. See [STATUS.md](STATUS.md) for details.
 
 ## 🏗️ Architecture: Theory & Design
 
@@ -374,46 +374,19 @@ See [installation guide](docs/01-installation/) and [training docs](docs/05-trai
 
 ---
 
-## 🔬 Research Status & Timeline
+## 🔬 Research Timeline
 
-### Current Progress (October 10, 2025)
+### Current Phase: A/B Comparison (October 2025)
 
-**Stack 1: BiMamba2**
-- ✅ Architecture complete, all tests passing
-- ✅ Modal A100 training LIVE (100 epochs, ~4-5 days remaining)
-- ✅ Bulletproof checkpoints (atomic saves, AMP scaler, RNG state)
-- ✅ Disk-backed validation (eliminates OOM crashes)
-- ✅ Timeout guard (23h wall-clock limit, graceful exit)
-- 📊 **ETA**: Results by ~October 13-14, 2025
+**Stack 1 (BiMamba2)**: Baseline training underway on Modal A100, 100 epochs planned. Expected completion mid-October.
 
-**Stack 2: Gated DeltaNet**
-- ✅ Architecture complete (BiGatedDeltaNet wrapper)
-- ✅ All smoke tests passed (3-file, 50-file validation)
-- ✅ Local configs ready (train_fla.yaml)
-- ⏳ Modal config pending (after BiMamba2 baseline completes)
-- 📊 **ETA**: Training starts October 14, results by October 18
+**Stack 2 (Gated DeltaNet)**: Implementation validated via smoke tests. Training queued pending baseline results.
 
-**Research Question**: Does delta rule (targeted updates) improve over pure gating (memory erasure) for clinical EEG seizure detection?
+**Research question**: Does the delta rule improve over pure gating for clinical EEG seizure detection?
 
-**Expected Outcomes** (all scientifically valuable):
-1. 📈 **Gated Delta wins**: "Linear attention mechanisms improve X% over state-space models"
-2. 📉 **BiMamba2 wins**: "State-space models outperform linear attention by X%"
-3. 📊 **Tie (within ±1%)**: "Architecture equivalence observed - multiple viable paths"
+**Analysis plan**: Compare sensitivity@1FA/@5FA/@10FA, AUROC, and TAES scores. All three outcomes (Gated Delta wins, BiMamba2 wins, or equivalence) contribute novel empirical evidence—no prior work compares these architectures on TUSZ.
 
-**Key insight**: No prior work compares these architectures on clinical seizure detection. The comparison itself is the contribution, not the "winner".
-
-### What's Next After A/B Comparison?
-
-**Post-training analysis** (~2-3 days):
-- Compare sensitivity@1FA, @5FA, @10FA between stacks
-- Analyze AUROC, TAES score, training stability
-- Document results regardless of outcome
-- Merge winner (or both) to main
-
-**Future enhancements** (see [future work docs](docs/future-work/)):
-- Frequency-aware STFT side-branch (+2-3% AUROC expected)
-- Multi-resolution temporal modeling (better short-duration seizures)
-- Hybrid SSM+attention architectures (local+global context)
+**Next steps**: Document results, analyze training dynamics, assess deployment viability for both stacks.
 
 ---
 
@@ -499,6 +472,6 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 **Updates?** [Watch the repo](https://github.com/clarity-digital-twin/brain-go-brr-v2) •
 **Discussion?** [Start a discussion](https://github.com/clarity-digital-twin/brain-go-brr-v2/discussions)
 
-**Current status**: v3.9.2 (CI/CD Stability) • BiMamba2 training LIVE • Zero technical debt
+**Current status**: v3.9.2 • BiMamba2 baseline training • Zero technical debt
 
 </div>
