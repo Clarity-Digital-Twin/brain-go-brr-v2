@@ -98,46 +98,43 @@ EEG Input (B, 19 channels, 15360 samples @ 256Hz = 60s)
   │ → Output: (B, 19, 960, 64)                  │
   └─────────────────────────────────────────────┘
         │
-        ├─────────────┬─────────────┐
-        ▼             ▼             ▼
-   ┌─────────┐  ┌─────────┐  ┌───────────┐
-   │  NODE   │  │  EDGE   │  │ ADJACENCY │
-   │   SSM   │  │   SSM   │  │ ASSEMBLY  │
-   │  (19×)  │  │ (171×)  │  │ (learned) │
-   └────┬────┘  └────┬────┘  └─────┬─────┘
-        │            │             │
-        │ ┌──────────┴─────────────┘
-        │ │
-        │ ▼
-        │ ┌────────────────────────────────┐
-        │ │ DYNAMIC LAPLACIAN PE           │
-        │ │ → Compute k=16 eigenvectors    │
-        │ │ → Every 5 timesteps (adaptive) │
-        │ │ → Time-varying graph structure │
-        │ └───────────┬────────────────────┘
-        │             ▼
-        │ ┌────────────────────────────────┐
-        │ │ GNN (2× SSGConv layers)        │
-        │ │ → Spatial message passing      │
-        │ │ → Alpha=0.05 (skip connection) │
-        │ └───────────┬────────────────────┘
-        │             │
-        └─────────────┴──► (B, 19, 960, 128)
-                      ▼
-              ┌──────────────────────┐
-              │ GATED FUSION         │
-              │ → 4-head attention   │
-              │ → Learn node vs GNN  │
-              │   importance         │
-              └──────────┬───────────┘
-                         ▼
-              ┌──────────────────────┐
-              │ DECODER              │
-              │ → Upsample 16×       │
-              │ → Per-sample logits  │
-              └──────────────────────┘
-                         ▼
-                (B, 15360) predictions
+        ├──────────────┬──────────────┐
+        ▼              ▼              ▼
+   ┌─────────┐   ┌─────────┐   ┌───────────┐
+   │  NODE   │   │  EDGE   │   │ ADJACENCY │
+   │   SSM   │   │   SSM   │   │ ASSEMBLY  │
+   │  (19×)  │   │ (171×)  │   │ (learned) │
+   └────┬────┘   └────┬────┘   └─────┬─────┘
+        │             │              │
+        │             └──────┬───────┘
+        │                    ▼
+        │          ┌────────────────────────┐
+        │          │ DYNAMIC LAPLACIAN PE   │
+        │          │ → k=16 eigenvectors    │
+        │          │ → Every 5 timesteps    │
+        │          └──────────┬─────────────┘
+        │                     ▼
+        │          ┌────────────────────────┐
+        │          │ GNN (2× SSGConv)       │
+        │          │ → Spatial aggregation  │
+        │          │ → Alpha=0.05           │
+        │          └──────────┬─────────────┘
+        │                     │
+        └─────────────────────┴─► (B, 19, 960, 128)
+                                  ▼
+                        ┌──────────────────┐
+                        │ GATED FUSION     │
+                        │ → 4-head combine │
+                        │ → Node + spatial │
+                        └────────┬─────────┘
+                                 ▼
+                        ┌──────────────────┐
+                        │ DECODER          │
+                        │ → Upsample 16×   │
+                        │ → Per-sample     │
+                        └────────┬─────────┘
+                                 ▼
+                        (B, 15360) logits
 ```
 
 **🔑 Key**: SSM boxes = **BiMamba2** (Stack 1) or **Gated DeltaNet** (Stack 2)
@@ -168,7 +165,7 @@ o_t = S_t q_t                          # Retrieve
 
 Where α_t ∈ (0,1) controls **per-timestep memory decay** (not global like RNNs).
 
-#### BiMamba2 Architecture (Stack 1) - TRAINING NOW
+#### BiMamba2 Architecture (Stack 1)
 
 **Node Stream** (19 parallel SSMs):
 - **Purpose**: Model per-electrode temporal dynamics independently
@@ -184,7 +181,7 @@ Where α_t ∈ (0,1) controls **per-timestep memory decay** (not global like RNN
 
 **Total SSM**: 8.4M parameters, O(N) complexity
 
-#### Gated DeltaNet Architecture (Stack 2) - READY TO TRAIN
+#### Gated DeltaNet Architecture (Stack 2)
 
 **Key difference**: Adds **delta rule** on top of gating
 
@@ -236,7 +233,7 @@ This allows the model to emphasize:
 
 ## 📊 Model Statistics: Side-by-Side Comparison
 
-### Stack 1: BiMamba2 (TRAINING NOW)
+### Stack 1: BiMamba2
 
 | Component | Parameters | Complexity | Details |
 |-----------|-----------|------------|---------|
@@ -248,7 +245,7 @@ This allows the model to emphasize:
 | **Decoder** | 1.0M | O(N) | 16× upsampling, detection head |
 | **Total** | **30.5M** | **O(N)** | SSM bottleneck dominates |
 
-### Stack 2: Gated DeltaNet (INFRASTRUCTURE COMPLETE)
+### Stack 2: Gated DeltaNet
 
 | Component | Parameters | Complexity | Details |
 |-----------|-----------|------------|---------|
@@ -349,12 +346,12 @@ make train-bimamba    # or: make train-fla
 
 **Cloud training (Modal A100-80GB, ~100 hours, ~$319)**:
 ```bash
-# BiMamba2 baseline (TRAINING NOW)
+# BiMamba2 baseline
 modal run --detach deploy/modal/app.py \
   --action train \
   --config configs/modal/train_bimamba.yaml
 
-# Gated DeltaNet research (QUEUED - after BiMamba2)
+# Gated DeltaNet research
 modal run --detach deploy/modal/app.py \
   --action train \
   --config configs/modal/train_fla.yaml
@@ -363,7 +360,7 @@ modal run --detach deploy/modal/app.py \
 modal app list
 modal app logs <app-id>
 
-# Resume after timeout (automatic 23h safety margin)
+# Resume after timeout
 modal run --detach deploy/modal/app.py \
   --action train \
   --config configs/modal/train_bimamba.yaml \
