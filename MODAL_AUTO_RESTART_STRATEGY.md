@@ -474,6 +474,7 @@ modal run --detach deploy/modal/app.py --action train \
     gpu="A100-80GB",
     timeout=86400,  # 24h timeout
     schedule=modal.Period(hours=23),  # TRUE 23-hour intervals (not cron!)
+    concurrency_limit=1,  # ✅ Modal enforces single instance (no overlap!)
     volumes={
         "/data": data_mount,
         "/results": results_volume,
@@ -482,61 +483,37 @@ modal run --detach deploy/modal/app.py --action train \
     cpu=24,
 )
 def train_auto_restart(config_path: str = "configs/modal/train_bimamba.yaml"):
-    """Auto-restart training every 23 hours with overlap protection.
+    """Auto-restart training every 23 hours with built-in overlap protection.
 
     This function is scheduled to run every 23 hours via Modal Period.
-    It automatically resumes from the last checkpoint, enabling multi-day
-    training runs that exceed Modal's 24-hour function timeout limit.
-
-    Overlap Protection:
-        Uses a file lock to prevent multiple instances from running
-        simultaneously. If a previous training run is still in progress,
-        this execution will skip gracefully.
+    Modal's concurrency_limit=1 ensures only one instance runs at a time,
+    preventing overlap without needing file locks (which Modal volumes don't support).
 
     Args:
         config_path: Path to training config (default: BiMamba2 full training)
     """
-    import fcntl
-    from pathlib import Path
+    logger.info("=" * 60)
+    logger.info("[AUTO-RESTART] Starting training...")
+    logger.info(f"[AUTO-RESTART] Config: {config_path}")
+    logger.info(f"[AUTO-RESTART] Resume: True (always)")
+    logger.info(f"[AUTO-RESTART] Concurrency limit: 1 (no overlap possible)")
+    logger.info("=" * 60)
 
-    lock_file = Path("/results/.training_lock")
+    # CRITICAL: Must use .remote() to call another Modal function
+    handle = train.remote(
+        config_path=config_path,
+        resume=True,  # Always resume from last.pt
+    )
 
-    try:
-        # Try to acquire exclusive lock (non-blocking)
-        with open(lock_file, 'w') as f:
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    # Wait for training to complete
+    checkpoint_path = handle.get()
 
-            logger.info("=" * 60)
-            logger.info("[AUTO-RESTART] Lock acquired - starting training...")
-            logger.info(f"[AUTO-RESTART] Config: {config_path}")
-            logger.info(f"[AUTO-RESTART] Resume: True (always)")
-            logger.info("=" * 60)
+    logger.info("=" * 60)
+    logger.info(f"[AUTO-RESTART] Training completed: {checkpoint_path}")
+    logger.info("[AUTO-RESTART] Next restart in ~23 hours")
+    logger.info("=" * 60)
 
-            # CRITICAL: Must use .remote() to call another Modal function
-            handle = train.remote(
-                config_path=config_path,
-                resume=True,  # Always resume from last.pt
-            )
-
-            # Wait for training to complete (keeps lock held)
-            checkpoint_path = handle.get()
-
-            logger.info("=" * 60)
-            logger.info(f"[AUTO-RESTART] Training completed: {checkpoint_path}")
-            logger.info("[AUTO-RESTART] Next restart in ~23 hours")
-            logger.info("=" * 60)
-
-    except BlockingIOError:
-        # Another instance is running - skip this execution
-        logger.info("=" * 60)
-        logger.info("[AUTO-RESTART] Training already in progress")
-        logger.info("[AUTO-RESTART] Skipping this run to prevent overlap")
-        logger.info("[AUTO-RESTART] Next attempt in 23 hours")
-        logger.info("=" * 60)
-        return None
-
-    # Lock releases automatically when `with` block exits (no manual unlink needed!)
-    # This prevents race conditions where we might unlink a lock held by another process
+    return checkpoint_path
 ```
 
 **Update `main()` entrypoint:**
@@ -563,35 +540,9 @@ def main(action: str = "train", ...):
 
 ---
 
-### Phase 3: Testing (2 hours)
+### Phase 3: Testing (1 hour)
 
-**Test 1: Lock mechanism works**
-```bash
-# Terminal 1
-modal run deploy/modal/app.py::test_file_lock
-
-# Terminal 2 (while Terminal 1 is sleeping)
-modal run deploy/modal/app.py::test_file_lock
-# Should print "Training already in progress"
-```
-
-**Test 2: Manual restart workflow**
-```bash
-# Start training normally
-modal run --detach deploy/modal/app.py --action train \
-  --config configs/modal/smoke_bimamba.yaml
-
-# Wait for it to finish (or timeout)
-modal app logs brain-go-brr-v2
-
-# Manually restart with --resume
-modal run --detach deploy/modal/app.py --action train \
-  --config configs/modal/smoke_bimamba.yaml --resume true
-
-# Verify it loaded last.pt and continued from last epoch/batch
-```
-
-**Test 3: Cron deployment** (if lock test passes)
+**Test 1: Scheduled deployment**
 ```bash
 # Deploy scheduled training
 modal deploy deploy/modal/app.py
@@ -603,8 +554,25 @@ modal app list
 # View logs
 modal app logs brain-go-brr-v2 --follow
 
-# Stop it
+# Verify it auto-restarts after completion
+```
+
+**Test 2: Verify concurrency limit**
+```bash
+# While scheduled function is running, try to call it manually
+# (Should be blocked by concurrency_limit=1)
+modal run deploy/modal/app.py::train_auto_restart
+
+# Check logs - should see Modal queuing/rejecting the second instance
+```
+
+**Test 3: Stop training**
+```bash
+# Stop scheduled training
 modal app stop brain-go-brr-v2
+
+# Verify it stopped
+modal app list | grep brain-go-brr-v2
 ```
 
 ---
