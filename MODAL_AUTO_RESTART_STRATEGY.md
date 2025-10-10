@@ -441,32 +441,30 @@ Use Modal's built-in `concurrency_limit` instead - it's guaranteed to work! 🚀
 
 ## Implementation Plan
 
-### Phase 1: Research & Validation (30 minutes)
+### Phase 1: Validation (15 minutes)
 
 **Tasks:**
-1. Test if Modal Volumes support file locking (fcntl)
-2. Verify cron syntax works with Modal
-3. Test manual `--resume` workflow end-to-end
+1. Test manual `--resume` workflow end-to-end
+2. Verify checkpoint resume works correctly
 
-**Validation Script:**
-```python
-# Test file locking on Modal volume
-@app.function(volumes={"/results": results_volume})
-def test_file_lock():
-    import fcntl
-    from pathlib import Path
+**Test:**
+```bash
+# Start training normally
+modal run --detach deploy/modal/app.py --action train \
+  --config configs/modal/smoke_bimamba.yaml
 
-    lock = Path("/results/test.lock")
-    with open(lock, 'w') as f:
-        fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        print("✅ Lock acquired!")
-        time.sleep(5)
-    print("✅ Lock released!")
+# Stop it mid-run (Ctrl+C or modal app stop)
+
+# Restart with --resume
+modal run --detach deploy/modal/app.py --action train \
+  --config configs/modal/smoke_bimamba.yaml --resume true
+
+# Verify it loaded last.pt and continued from last epoch/batch
 ```
 
 ---
 
-### Phase 2: Implement Auto-Restart Function (1 hour)
+### Phase 2: Implement Auto-Restart Function (30 minutes)
 
 **File:** `deploy/modal/app.py`
 
