@@ -334,20 +334,36 @@ class TestNaNRobustness:
 
             # Check critical NaN-related settings
             # Both should have focal loss for imbalanced data
-            assert local_config["training"]["loss"] == "focal", f"{variant_name} local: expected focal loss"
-            assert modal_config["training"]["loss"] == "focal", f"{variant_name} modal: expected focal loss"
+            assert local_config["training"]["loss"] == "focal", (
+                f"{variant_name} local: expected focal loss"
+            )
+            assert modal_config["training"]["loss"] == "focal", (
+                f"{variant_name} modal: expected focal loss"
+            )
 
             # Gradient clipping should be present
-            assert "gradient_clip" in local_config["training"], f"{variant_name} local: missing gradient_clip"
-            assert "gradient_clip" in modal_config["training"], f"{variant_name} modal: missing gradient_clip"
+            assert "gradient_clip" in local_config["training"], (
+                f"{variant_name} local: missing gradient_clip"
+            )
+            assert "gradient_clip" in modal_config["training"], (
+                f"{variant_name} modal: missing gradient_clip"
+            )
 
             # Mixed precision differs but is intentional (RTX 4090 vs A100)
-            assert not local_config["training"]["mixed_precision"], f"{variant_name} local: should disable mixed_precision (RTX 4090)"
-            assert modal_config["training"]["mixed_precision"], f"{variant_name} modal: should enable mixed_precision (A100)"
+            assert not local_config["training"]["mixed_precision"], (
+                f"{variant_name} local: should disable mixed_precision (RTX 4090)"
+            )
+            assert modal_config["training"]["mixed_precision"], (
+                f"{variant_name} modal: should enable mixed_precision (A100)"
+            )
 
             # Both should use balanced sampling for seizure detection (in data section, not training)
-            assert local_config["data"].get("use_balanced_sampling", False), f"{variant_name} local: missing balanced sampling"
-            assert modal_config["data"].get("use_balanced_sampling", False), f"{variant_name} modal: missing balanced sampling"
+            assert local_config["data"].get("use_balanced_sampling", False), (
+                f"{variant_name} local: missing balanced sampling"
+            )
+            assert modal_config["data"].get("use_balanced_sampling", False), (
+                f"{variant_name} modal: missing balanced sampling"
+            )
 
 
 if __name__ == "__main__":
