@@ -157,7 +157,57 @@ def load_checkpoint(
             f"current version is {CHECKPOINT_VERSION}"
         )
 
-    model.load_state_dict(checkpoint["model_state_dict"])
+    # Handle buffer shape mismatches before loading
+    # (e.g., gnn.last_valid_pe can have different shapes between checkpoint and fresh model)
+    # See: CHECKPOINT_BUFFER_BUG.md for full analysis
+    state_dict = checkpoint["model_state_dict"]
+    model_state = model.state_dict()
+
+    # Detect and handle dynamic buffer shape mismatches
+    buffers_to_skip = []
+    for key in list(state_dict.keys()):
+        if key in model_state:
+            ckpt_shape = state_dict[key].shape
+            model_shape = model_state[key].shape
+            if ckpt_shape != model_shape:
+                # Known dynamic buffers that can change shape
+                if key.endswith(".last_valid_pe"):
+                    logger.info(
+                        f"[CHECKPOINT] Skipping dynamic buffer with shape mismatch: {key} "
+                        f"(checkpoint: {ckpt_shape}, model: {model_shape})"
+                    )
+                    buffers_to_skip.append(key)
+                else:
+                    logger.warning(
+                        f"[CHECKPOINT] Shape mismatch for {key}: "
+                        f"checkpoint {ckpt_shape}, model {model_shape}"
+                    )
+
+    # Remove buffers with shape mismatches from state_dict
+    for key in buffers_to_skip:
+        del state_dict[key]
+
+    # Load with strict=False to handle missing/extra keys
+    incompatible = model.load_state_dict(state_dict, strict=False)
+
+    # Log any mismatches for visibility (helps catch genuine architecture changes)
+    if incompatible.missing_keys:
+        logger.warning(
+            f"[CHECKPOINT] Missing keys in checkpoint (new model params): {incompatible.missing_keys}"
+        )
+    if incompatible.unexpected_keys:
+        # Filter known dynamic buffers
+        unexpected_filtered = [
+            k
+            for k in incompatible.unexpected_keys
+            if not k.endswith(
+                ".last_valid_pe"
+            )  # Known dynamic buffer (see CHECKPOINT_BUFFER_BUG.md)
+        ]
+        if unexpected_filtered:
+            logger.warning(
+                f"[CHECKPOINT] Unexpected keys in checkpoint (old/removed params): {unexpected_filtered}"
+            )
 
     if optimizer is not None and "optimizer_state_dict" in checkpoint:
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
