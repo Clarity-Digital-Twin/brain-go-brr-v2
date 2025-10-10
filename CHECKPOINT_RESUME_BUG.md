@@ -2,7 +2,7 @@
 
 **Status:** CRITICAL BUG - Blocks efficient auto-restart implementation
 **Created:** October 10, 2025
-**Impact:** Wastes 6-14 GPU hours per restart (~$24-56 per restart on A100)
+**Impact:** Wastes 14 GPU hours per auto-restart (~$56 per restart on A100)
 
 ---
 
@@ -21,21 +21,24 @@
 
 ## Executive Summary
 
-**Problem:** When training is resumed from a checkpoint, it re-trains the epoch that was just completed, wasting 6-14 hours of GPU time per restart.
+**Problem:** When training is resumed from a checkpoint, it re-trains the epoch that was just completed, wasting GPU time on every restart.
 
 **Root Cause:** The checkpoint saves the **current epoch index** (the epoch that just finished), but the training loop interprets this as the **next epoch to train**.
 
-**Fix:** Change `epoch` to `epoch + 1` in the `last.pt` checkpoint save after validation completes.
+**Fix:** Change `epoch` to `epoch + 1` in the `last.pt` checkpoint save after validation completes (loop.py:462).
 
-**Why Critical:** With 12 auto-restarts planned over 12 days, this bug could waste 72-168 hours of A100 time ($288-672).
+**Impact:**
+- **Auto-restart (timeout-driven):** 14h wasted per restart (timeout always fires at epoch boundaries)
+- **Manual mid-epoch kills:** 0-14h wasted depending on kill timing
+- **With 12 auto-restarts planned:** 168h (7 days) and $672 wasted without fix
 
 ---
 
 ## Current Checkpoint System
 
-### Three Types of Checkpoints
+### Four Types of Checkpoints
 
-**1. Mid-Epoch Checkpoints (train_step.py:524-554)**
+**1. Mid-Epoch Checkpoints (train_step.py:530-552)**
 ```python
 # Saved every 30 minutes during training
 mid_path = checkpoint_dir / f"mid_epoch_{epoch_index + 1:03d}_{batch_idx:06d}.pt"
@@ -61,7 +64,7 @@ save_checkpoint(
 - **Frequency:** Only when metric improves
 - **Contains:** Best model state
 
-**3. Last Checkpoint (loop.py:457-469) ← BUG IS HERE**
+**3. Last Checkpoint (loop.py:457-469) ← PRIMARY BUG IS HERE**
 ```python
 # Saved after every epoch completes (training + validation)
 if config.training.resume or config.experiment.save_model:
@@ -73,6 +76,23 @@ if config.training.resume or config.experiment.save_model:
 - **Purpose:** Resume training from last completed epoch
 - **Frequency:** After every epoch
 - **Contains:** Model state after validation completes
+- **Bug:** Saves `epoch` instead of `epoch + 1`, causing re-training
+
+**4. Periodic Checkpoints (loop.py:432-454) ← ALSO HAS BUG**
+```python
+# Saved at regular intervals (e.g., every N epochs)
+if checkpoint_interval > 0 and (epoch + 1) % checkpoint_interval == 0:
+    checkpoint_path = checkpoint_dir / f"epoch_{epoch + 1:03d}.pt"
+    save_checkpoint(
+        model, optimizer, epoch, best_metric,  # ← Same bug!
+        checkpoint_path, ...
+    )
+```
+- **Purpose:** Historical snapshots for manual inspection
+- **Frequency:** Configurable (e.g., every 1 epoch via `checkpoint_interval`)
+- **Contains:** Model state after specific epochs
+- **Bug:** Saves `epoch` instead of `epoch + 1`
+- **NOTE:** NOT used by resume logic (only mid_epoch_*.pt and last.pt are loaded)
 
 ### Resume Priority (loop.py:145-178)
 
@@ -159,21 +179,33 @@ T=14.2h:   Modal kills training (23h timeout)
 
 ### Single Restart Impact
 
-**Scenario:** Training runs for 23 hours, completes Epoch 2, killed during validation.
+**Scenario:** Auto-restart (timeout-driven) runs for 23 hours, completes Epoch 2, exits gracefully.
+
+**Why ALWAYS 14h for auto-restart:**
+- Timeout guard checks BEFORE epoch start (loop.py:239-265)
+- Timeout guard checks AFTER epoch completion (loop.py:442-456)
+- Both checks fire at epoch boundaries only
+- Never exits mid-epoch → always wastes full epoch (~14h)
 
 **Current (buggy):**
-- Resume loads Epoch 2 model state
+- Resume loads Epoch 2 model state (with `epoch=1` saved)
 - Re-trains Epoch 2 from scratch: **14 hours wasted**
 - Cost: 14h × $4/h = **$56 wasted per restart**
 
 **With fix:**
-- Resume starts at Epoch 3
+- Resume starts at Epoch 3 (with `epoch=2` saved)
 - No wasted time: **$0 wasted**
+
+**Manual mid-epoch kills (less common):**
+- Wasted time: 0-14h depending on when killed
+- Mid-epoch checkpoints provide some protection (resume from start of epoch)
 
 ### Auto-Restart Impact (12 restarts over 12 days)
 
+**Guaranteed wasted time per restart:** 14h (timeout always fires at epoch boundaries)
+
 **Current (buggy):**
-- 12 restarts × 14h wasted = **168 hours wasted**
+- 12 restarts × 14h wasted = **168 hours wasted** (7 full days!)
 - Cost: 168h × $4/h = **$672 wasted**
 - Total training time: 280h (actual) + 168h (wasted) = 448h
 - Total cost: $1,792 (vs. $1,120 without bug)
@@ -235,7 +267,7 @@ Mid-epoch checkpoints save `epoch_index` (not `epoch_index + 1`), so they also r
 
 ## Proposed Fix
 
-### Change 1: Fix `last.pt` Save After Validation (loop.py:457-469)
+### Change 1: Fix `last.pt` Save After Validation (loop.py:457-469) ← CRITICAL
 
 **BEFORE (buggy):**
 ```python
@@ -333,6 +365,33 @@ save_checkpoint(
 ```
 
 **Decision:** Leave signal handler as-is for now. Signals are rare (manual kills), and user can always use `last.pt` instead.
+
+### Change 4: Fix Periodic Checkpoint Save (loop.py:432-454) ← OPTIONAL
+
+**BEFORE (buggy):**
+```python
+if checkpoint_interval > 0 and (epoch + 1) % checkpoint_interval == 0:
+    checkpoint_path = checkpoint_dir / f"epoch_{epoch + 1:03d}.pt"
+    save_checkpoint(
+        model, optimizer, epoch, best_metric,  # ← BUG: Saves completed epoch
+        checkpoint_path, ...
+    )
+```
+
+**AFTER (fixed):**
+```python
+if checkpoint_interval > 0 and (epoch + 1) % checkpoint_interval == 0:
+    checkpoint_path = checkpoint_dir / f"epoch_{epoch + 1:03d}.pt"
+    save_checkpoint(
+        model, optimizer, epoch + 1, best_metric,  # ✅ FIX: Save next epoch
+        checkpoint_path, ...
+    )
+```
+
+**Why optional:**
+- Periodic checkpoints are NOT used by resume logic (only mid_epoch_*.pt and last.pt)
+- Fixing ensures consistency if we ever add periodic checkpoint resume
+- Low risk, same one-line change pattern
 
 ---
 
@@ -443,10 +502,11 @@ The auto-restart strategy will restart training every 23 hours via `modal.Period
 
 ### Files Affected
 
-| File | Line | Change | Reason |
-|------|------|--------|--------|
-| `src/brain_brr/train/loop.py` | 462 | `epoch` → `epoch + 1` | Fix last.pt to save next epoch |
-| `src/brain_brr/train/loop.py` | 256 | Add comment | Clarify timeout_exit.pt is correct |
+| File | Line | Change | Priority | Reason |
+|------|------|--------|----------|--------|
+| `src/brain_brr/train/loop.py` | 462 | `epoch` → `epoch + 1` | **CRITICAL** | Fix last.pt to save next epoch (used every restart) |
+| `src/brain_brr/train/loop.py` | 447 | `epoch` → `epoch + 1` | **OPTIONAL** | Fix periodic checkpoints (not used by resume logic) |
+| `src/brain_brr/train/loop.py` | 256 | Add comment | Nice-to-have | Clarify timeout_exit.pt is correct as-is |
 
 ### Related Code (No Changes Needed)
 

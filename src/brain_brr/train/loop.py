@@ -250,6 +250,8 @@ def train(
                 f"Exiting gracefully before epoch {epoch + 1}."
             )
             # Save final checkpoint before exit
+            # NOTE: epoch is correct here - timeout fires BEFORE epoch starts,
+            # so epoch is already the next epoch to train
             save_checkpoint(
                 model,
                 optimizer,
@@ -444,7 +446,7 @@ def train(
             save_checkpoint(
                 model,
                 optimizer,
-                epoch,
+                epoch + 1,  # Save next epoch to train (for consistency)
                 best_metric,
                 checkpoint_path,
                 scheduler,
@@ -459,7 +461,8 @@ def train(
             save_checkpoint(
                 model,
                 optimizer,
-                epoch,
+                epoch
+                + 1,  # CRITICAL: Save next epoch to train (prevents re-training completed epoch)
                 best_metric,
                 checkpoint_dir / CHECKPOINT_LAST,
                 scheduler,
