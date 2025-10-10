@@ -87,7 +87,7 @@ EEG Input (B, 19 channels, 15360 samples @ 256Hz = 60s)
   ┌─────────────────────────────────────────────┐
   │ TCN ENCODER (8 layers, 16× downsampling)    │
   │ → Multi-scale temporal decomposition        │
-  │ → Dilations: 1→2→4→8→16→32→64→128          │
+  │ → Dilations: 1→2→4→8→16→32→64→128           │
   │ → Output: (B, 512, 960) compressed features │
   └─────────────────────────────────────────────┘
         │
@@ -105,8 +105,8 @@ EEG Input (B, 19 channels, 15360 samples @ 256Hz = 60s)
    │   SSM   │  │   SSM   │  │ ASSEMBLY  │
    │  (19×)  │  │ (171×)  │  │ (learned) │
    └────┬────┘  └────┬────┘  └─────┬─────┘
-        │            │              │
-        │ ┌──────────┴──────────────┘
+        │            │             │
+        │ ┌──────────┴─────────────┘
         │ │
         │ ▼
         │ ┌────────────────────────────────┐
