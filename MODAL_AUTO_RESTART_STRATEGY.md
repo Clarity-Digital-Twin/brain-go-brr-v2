@@ -117,7 +117,7 @@ def train(...):
 
 ## Solution Options (Research Findings)
 
-### Option 1: Modal Retries (BEST FOR OUR USE CASE)
+### Option 1: Modal Retries
 
 **What:** Modal's built-in retry mechanism automatically restarts functions on timeout/failure.
 
@@ -238,18 +238,25 @@ def train_auto_restart():
 ```
 
 **What happens:**
-1. Deploy the function → first run starts immediately
-2. After completion, Modal waits 23 hours → starts next run
-3. If previous run still active when Period triggers → **Modal prevents overlap!**
-4. This creates true 23-hour intervals between runs (unlike cron!)
+1. Deploy the function → first run starts immediately (T=0h)
+2. Modal schedules next trigger at T=23h (23 hours from START, not completion)
+3. Our timeout guard stops training at T=23h → checkpoint saved
+4. Period triggers at T=23h → new run starts immediately (minimal idle time)
+5. If previous run still active → `concurrency_limit=1` prevents overlap
+
+**⚠️ CRITICAL TIMING DETAIL:**
+- modal.Period measures intervals from **START** time, NOT completion time
+- Our runs last exactly 23h (due to timeout guard)
+- Period triggers every 23h from start → timing aligns perfectly
+- Result: Near-zero idle time (only container startup ~1-2 min)
 
 **Pros:**
-- ✅ **TRUE interval-based** - actually runs every N hours (not calendar-based)
+- ✅ **TRUE interval-based** - triggers every N hours from start (not calendar-based)
 - ✅ **Built-in overlap protection** - `concurrency_limit=1` enforced by Modal
 - ✅ Built into Modal (no external services)
 - ✅ Zero manual intervention
 - ✅ Simpler than cron syntax
-- ✅ No wasted idle time (next run starts N hours after previous completes)
+- ✅ **Minimal idle time** - when timeout = period (23h), runs align perfectly
 - ✅ **No file locks needed** - Modal volumes don't support fcntl anyway!
 
 **Cons:**
@@ -658,7 +665,7 @@ jobs:
 1. Go to GitHub repo → Settings → Secrets
 2. Add `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` (from `modal token new`)
 3. Push workflow file to `.github/workflows/`
-4. GitHub will run it every 23 hours automatically
+4. GitHub will run it twice daily (12h intervals) automatically
 
 **Pros:**
 - ✅ Works even if Modal cron/locks don't work
