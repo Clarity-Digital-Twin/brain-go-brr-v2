@@ -4,7 +4,7 @@ This file provides critical project context for Claude Code (claude.ai/code) whe
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.10.0 (Auto-Restart & Checkpoint Fix): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks. **Hands-free Modal A100 training** with auto-restart, bulletproof checkpoints, and checkpoint resume fix saving $616 over 100 epochs.
+Brain-Go-Brr v3.11.0 (StatefulDataLoader & Mid-Epoch Resume): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks. **Hands-free Modal A100 training** with auto-restart, exact mid-epoch resume via StatefulDataLoader, and checkpoint fixes eliminating wasted compute.
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
