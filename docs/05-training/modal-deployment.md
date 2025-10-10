@@ -48,8 +48,8 @@ modal secret create wandb WANDB_API_KEY=<your-key>
 5. **Launch Full Training**
    ```bash
    modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
-   # FLA stack: use configs/modal/train_fla.yaml
-   # Exits ~23 h with timeout_exit.pt (timeout guard); expect 4-5 resumes for 100 epochs
+# FLA stack: use configs/modal/train_fla.yaml
+# Exits ~23 h with timeout_exit.pt (timeout guard); expect 4-5 resumes for 100 epochs
    ```
 
 6. **Monitor & Resume**
@@ -65,8 +65,23 @@ modal secret create wandb WANDB_API_KEY=<your-key>
 
    # Resume after timeout
    modal run --detach deploy/modal/app.py --action train \
-      --config configs/modal/train_bimamba.yaml --resume true
+      --config configs/modal/train_bimamba.yaml --resume
    ```
+   - First resume after the Oct 10 checkpoint fix will load the old `mid_epoch_002_*.pt` snapshot and re-run Epoch 2 (~14 h, $56). Let it finish—`last.pt` is rewritten with `epoch+1` so future resumes start at the correct epoch.
+   - Watch for timeout guard logs (`[TIMEOUT] Wall-clock limit approaching...`) to confirm a clean exit.
+
+7. **Enable Auto-Restart (Modal Period Scheduler)**
+   ```bash
+   # Deploy the latest image (Modal 1.0 CLI)
+   modal deploy deploy/modal/app.py
+
+    # Start the scheduled function (runs every 23 h, resume=True)
+   modal run --detach deploy/modal/app.py --action schedule-training \
+      --config configs/modal/train_bimamba.yaml
+   ```
+   - Run this **after** the manually launched job exits so there is one owner of the GPU. `train_auto_restart` calls `train.remote(..., resume=True)` and is scheduled with `modal.Period(hours=23)` plus `max_containers=1`, so Modal enforces single-instance execution.
+   - The period timer is anchored to the start time. Because the timeout guard exits 600 s early, expect ~10 minutes of idle time between cycles.
+   - Redeploy whenever code or configs change; the next scheduled launch picks up the updated image.
 
 ## Modal Architecture
 
@@ -83,9 +98,14 @@ modal secret create wandb WANDB_API_KEY=<your-key>
 │   └── tusz_mmap/              # Memory-mapped NPY cache (train/dev pairs)
 │       ├── train/              # 4,667 *_data.npy + *_labels.npy files + manifest.json
 │       └── dev/                # 1,832 *_data.npy + *_labels.npy files + manifest.json
-├── checkpoints/                # Training checkpoints
-├── tensorboard/                # TensorBoard logs
-└── wandb/                      # Weights & Biases artifacts
+├── smoke/                      # Smoke test outputs (isolation keeps experiments clean)
+│   ├── checkpoints/            # Includes timeout_exit.pt, last.pt, mid_epoch_*.pt
+│   ├── tensorboard/
+│   └── wandb/
+└── v3_full_training/           # Full production run outputs
+    ├── checkpoints/            # last.pt, best.pt, mid_epoch_*.pt, timeout_exit.pt
+    ├── tensorboard/
+    └── wandb/
 ```
 
 ### Cache Strategy
@@ -175,7 +195,7 @@ experiment:
 | Cache not found | Run `populate-cache`, then `check-cache` to verify counts |
 | Dev manifest warnings / 0 validation windows | Delete dev `manifest.json` and relaunch; loader rebuilds automatically |
 | NaN losses | Confirm gradient clipping (0.5); optionally enable `BGB_SANITIZE_GRADS=1` while debugging |
-| Modal job killed at 24 h | Use v3.9.0+ (timeout guard writes `timeout_exit.pt`); resume with `--resume true` |
+| Modal job killed at 24 h | Use v3.9.0+ (timeout guard writes `timeout_exit.pt`); resume with `--resume` |
 | W&B shows new run after resume | Ensure checkpoint directory is writable so `.wandb_run_id` can be updated |
 | OOM errors | Keep `batch_size: 48`, `gradient_accumulation_steps: 1`; reverting to 32/2 is the fallback |
 | Slow training | Confirm using SSD cache (`/results/cache/tusz_mmap`) instead of S3 |
@@ -255,7 +275,7 @@ modal run --detach deploy/modal/app.py --action train --config configs/modal/smo
 modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
 
 # Resume
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume true
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume
 
 # Monitoring
 modal app list
