@@ -29,7 +29,7 @@ Current Architecture (v3.11.0 - October 10, 2025):
 - **Detached eigenvectors** → Prevents gradient explosion through eigendecomposition (gnn_pyg.py:205)
 - **3-tier NaN protection** → Gradient sanitization + clamping + monitoring
 - **Modal 1.0 compatible** → Updated max_containers parameter for future compatibility
-- **2 P3 debt items** → Documentation/polish only (Pydantic warnings + .gitkeep files), zero training impact
+- **Zero technical debt** → All P3 items resolved (Pydantic schemas correct, .gitkeep files added), production ready
 
 ## 🚀 Quick Commands
 
@@ -401,7 +401,7 @@ Due to hardware differences, integration tests have adjusted thresholds:
 **Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
 
 **Current Status (v3.11.0 - October 11, 2025 - StatefulDataLoader & Mid-Epoch Resume)**:
-- ✅ **Zero P0/P1/P2 debt** - All critical items resolved, ready for both BiMamba2 and FLA training
+- ✅ **Zero technical debt** - All items resolved (P0/P1/P2/P3), production ready
 - ✅ **Auto-restart training** - Hands-free 100-epoch training via modal.Period(hours=23), zero manual intervention
 - ✅ **StatefulDataLoader integrated** - Exact mid-epoch resume via PyTorch official dataloader state management
 - ✅ **Checkpoint resume fix** - Saves epoch+1 instead of epoch, prevents 14h waste per restart

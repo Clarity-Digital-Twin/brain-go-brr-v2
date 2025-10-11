@@ -1,6 +1,6 @@
 # TODO - Active Tasks
 
-**Last Updated:** 2025-10-09
+**Last Updated:** 2025-10-11
 **Status:** 🟢 **ZERO ACTIVE TASKS** - All known work completed
 
 ---
@@ -10,13 +10,13 @@
 **Active Work**: None - codebase is ready for production training
 
 **In Progress**:
-- Modal full training (100 epochs, v3.9.1 validation OOM fix baseline, W&B run: 983c1fbf706b4d0f8870cc0331dc6201)
+- BiMamba2 baseline training LIVE on Modal A100 (Epoch 3, v3.11.0 with StatefulDataLoader)
 
 **Next Steps**:
-1. Monitor Modal training completion (~100 hours total)
+1. Monitor BiMamba2 training completion (~100 hours total)
 2. Analyze results, document findings, and validate TAES metrics
-3. Prepare Modal FLA config and launch full-stack GatedDeltaNet training after baseline completes
-4. Compare BiMamba2 vs FLA results (sensitivity@FA, AUROC, throughput) and capture the write-up in FLA docs
+3. Launch FLA training using separate output directories (v3.11.0 config separation complete)
+4. Compare BiMamba2 vs FLA results (sensitivity@FA, AUROC, throughput) and document findings
 5. Optional post-training optimizations (P4/P5)
 
 ---

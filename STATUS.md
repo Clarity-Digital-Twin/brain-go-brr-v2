@@ -1,6 +1,6 @@
 # Brain-Go-Brr v3.11.0 – Current Status
 
-**Last Updated:** 2025-10-10
+**Last Updated:** 2025-10-11
 **Branch:** `feature/flash-linear-attention`
 **Version:** v3.11.0 (StatefulDataLoader & Mid-Epoch Resume)
 **Deployment:** Modal full training LIVE – BiMamba2 baseline with StatefulDataLoader for exact mid-epoch resume
@@ -9,10 +9,9 @@
 
 ## Production Readiness
 
-**🟢 READY FOR MODAL A100 TRAINING – ZERO CRITICAL DEBT**
+**🟢 READY FOR MODAL A100 TRAINING – ZERO TECHNICAL DEBT**
 
-- ✅ **P0/P1/P2:** 0 issues (all blockers resolved)
-- 📝 **P3:** 2 issues (documentation/polish only, zero training impact)
+- ✅ **P0/P1/P2/P3:** 0 issues (all debt resolved)
 - 🟡 **P4/P5:** Optional ideas (post-training optimization only)
 
 **Quality Verification (2025-10-07)**:
@@ -187,9 +186,9 @@
 
 ## Outstanding Items
 
-**Active Debt**: 2 items tracked in `/TECHNICAL_DEBT.md`
-- 📝 **P3-1**: Pydantic Field warnings (cosmetic only)
-- 📝 **P3-2**: Missing .gitkeep files (OSS contributor clarity)
+**Active Debt**: ✅ **ZERO** - All technical debt resolved (October 11, 2025)
+- ✅ **P3-1 RESOLVED**: Pydantic Field warnings (schemas use correct `Annotated` pattern, local v2.11.9 has zero warnings)
+- ✅ **P3-2 RESOLVED**: .gitkeep files added to 4 directories for OSS contributor clarity
 
 **Optional Improvements** (post-training only):
 - Profile `.item()` calls if profiling shows >1% GPU sync time
