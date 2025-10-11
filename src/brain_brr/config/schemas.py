@@ -161,21 +161,18 @@ class MambaConfig(StrictModel):
             description="Override edge stream num_heads (None = use constants, required if edge_mamba_d_model changes)",
         ),
     ] = None
-    gdn_edge_headdim: int | None = Field(
-        default=None,
-        ge=1,
-        description="Override edge stream headdim (None = use constants, required if edge_mamba_d_model changes)",
-    )
-    gdn_node_num_heads: int | None = Field(
-        default=None,
-        ge=1,
-        description="Override node stream num_heads (None = use constants)",
-    )
-    gdn_node_headdim: int | None = Field(
-        default=None,
-        ge=1,
-        description="Override node stream headdim (None = use constants)",
-    )
+    gdn_edge_headdim: Annotated[
+        int | None,
+        Field(ge=1, description="Override edge stream headdim (None = use constants, required if edge_mamba_d_model changes)")
+    ] = None
+    gdn_node_num_heads: Annotated[
+        int | None,
+        Field(ge=1, description="Override node stream num_heads (None = use constants)")
+    ] = None
+    gdn_node_headdim: Annotated[
+        int | None,
+        Field(ge=1, description="Override node stream headdim (None = use constants)")
+    ] = None
 
     # Hybrid GDN+SWA configuration (Phase 3 only, requires Phase 2 success)
     hybrid_attention: "HybridAttentionConfig | None" = None
@@ -313,12 +310,10 @@ class GraphConfig(StrictModel):
     adj_softmax_tau: float = Field(
         default=1.0, gt=0.0, le=10.0, description="Temperature for adjacency softmax"
     )
-    adj_ema_beta: float | None = Field(
-        default=None,
-        ge=0.0,
-        lt=1.0,
-        description="EMA coefficient for temporal smoothing (None=disabled)",
-    )
+    adj_ema_beta: Annotated[
+        float | None,
+        Field(ge=0.0, lt=1.0, description="EMA coefficient for temporal smoothing (None=disabled)")
+    ] = None
     adj_force_symmetric: bool = Field(
         default=False, description="Force adjacency matrix to be symmetric"
     )
