@@ -539,7 +539,11 @@ def train_epoch(
                         None,
                         scaler=scaler,  # Save scaler for FP16 resume
                         save_rng=True,  # Save RNG for deterministic resume
-                        extra={"batch_idx": batch_idx, "kind": "mid_epoch"},
+                        extra={
+                            "batch_idx": batch_idx,
+                            "kind": "mid_epoch",
+                            "dataloader_state_dict": dataloader.state_dict(),  # type: ignore[attr-defined]
+                        },
                     )
                     logger.info(f"[CHECKPOINT] Saved mid-epoch snapshot: {mid_path.name}")
                     last_mid_save = time.time()

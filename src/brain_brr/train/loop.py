@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader
+from torchdata.stateful_dataloader import StatefulDataLoader  # type: ignore[import-untyped]
 
 # Make TensorBoard optional
 if TYPE_CHECKING:
@@ -164,8 +165,16 @@ def train(
             except Exception:
                 # Corrupt checkpoint file, proceed with best_metric=0.0
                 pass
-        logger.info(f"Resumed from epoch {start_epoch + 1}, batch {ckpt.get('batch_idx', '?')}")
-        # Note: This resumes from start of epoch, not exact batch
+        # Restore DataLoader state for exact batch resume
+        if "dataloader_state_dict" in ckpt:
+            train_loader.load_state_dict(ckpt["dataloader_state_dict"])  # type: ignore[attr-defined]
+            logger.info(f"[RESUME] ✅ Exact mid-epoch resume at batch {ckpt.get('batch_idx', '?')}")
+        else:
+            logger.warning(
+                "[RESUME] Old checkpoint without DataLoader state - "
+                "restarting epoch from batch 0 (expected before v3.11.0)"
+            )
+            logger.info(f"Resumed from epoch {start_epoch + 1}, batch 0")
     elif (checkpoint_dir / CHECKPOINT_LAST).exists() and config.training.resume:
         start_epoch, best_metric = load_checkpoint(
             checkpoint_dir / CHECKPOINT_LAST,
@@ -250,6 +259,8 @@ def train(
                 f"Exiting gracefully before epoch {epoch + 1}."
             )
             # Save final checkpoint before exit
+            # NOTE: epoch is correct here - timeout fires BEFORE epoch starts,
+            # so epoch is already the next epoch to train
             save_checkpoint(
                 model,
                 optimizer,
@@ -444,7 +455,7 @@ def train(
             save_checkpoint(
                 model,
                 optimizer,
-                epoch,
+                epoch + 1,  # Save next epoch to train (for consistency)
                 best_metric,
                 checkpoint_path,
                 scheduler,
@@ -459,7 +470,8 @@ def train(
             save_checkpoint(
                 model,
                 optimizer,
-                epoch,
+                epoch
+                + 1,  # CRITICAL: Save next epoch to train (prevents re-training completed epoch)
                 best_metric,
                 checkpoint_dir / CHECKPOINT_LAST,
                 scheduler,
@@ -888,7 +900,7 @@ def main() -> None:
     if config.data.num_workers > 0:
         train_loader_kwargs["persistent_workers"] = bool(config.data.persistent_workers)
         train_loader_kwargs["prefetch_factor"] = int(config.data.prefetch_factor)
-    train_loader = DataLoader(train_dataset, **train_loader_kwargs)
+    train_loader = StatefulDataLoader(train_dataset, **train_loader_kwargs)
 
     val_loader_kwargs: dict[str, Any] = {
         "batch_size": config.training.batch_size,
@@ -899,7 +911,7 @@ def main() -> None:
     if config.data.num_workers > 0:
         val_loader_kwargs["persistent_workers"] = bool(config.data.persistent_workers)
         val_loader_kwargs["prefetch_factor"] = int(config.data.prefetch_factor)
-    val_loader = DataLoader(val_dataset, **val_loader_kwargs)
+    val_loader = StatefulDataLoader(val_dataset, **val_loader_kwargs)
 
     # Create model (v3.4.1: pass warmup_schedule for gradient stabilization)
     model = SeizureDetector.from_config(

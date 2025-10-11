@@ -131,8 +131,15 @@ class GraphChannelMixerPyG(nn.Module):
         self.global_step = 0  # Updated from training loop
 
         # ROBUST: Cache last valid PE for fallback
-        self.register_buffer("last_valid_pe", None)
-        self.last_valid_pe: torch.Tensor | None
+        # CRITICAL: Initialize with dummy tensor (not None) to ensure buffer appears in state_dict
+        # from initialization, preventing checkpoint incompatibility (see CHECKPOINT_BUFFER_BUG.md)
+        # Placeholder shape (1,1,1,k) will be overwritten with actual PE (B,T,N,k) during forward
+        self.register_buffer(
+            "last_valid_pe",
+            torch.zeros(1, 1, 1, k_eigenvectors, dtype=torch.float32),
+            persistent=True,  # Explicit: save in checkpoints
+        )
+        self.last_valid_pe: torch.Tensor
 
         # Laplacian PE (EvoBrain line 858)
         self.laplacian_pe = AddLaplacianEigenvectorPE(k=k_eigenvectors)
@@ -274,7 +281,8 @@ class GraphChannelMixerPyG(nn.Module):
                         or torch.isinf(eigenvectors).any()
                     ):
                         logger.warning("NaN/Inf detected in eigendecomposition, using fallback PE")
-                        if self.last_valid_pe is not None and self.last_valid_pe.shape[0] == B:
+                        # Check if buffer has valid shape (not just placeholder 1,1,1,k)
+                        if self.last_valid_pe.shape[0] == B and self.last_valid_pe.shape[1] == T:
                             pe = self.last_valid_pe.reshape(B * T, N, self.k_eigenvectors).to(
                                 torch.float32
                             )
@@ -320,7 +328,8 @@ class GraphChannelMixerPyG(nn.Module):
                     or torch.isinf(eigenvectors).any()
                 ):
                     logger.warning("NaN/Inf detected in eigendecomposition, using fallback PE")
-                    if self.last_valid_pe is not None and self.last_valid_pe.shape[0] == B:
+                    # Check if buffer has valid shape (not just placeholder 1,1,1,k)
+                    if self.last_valid_pe.shape[0] == B and self.last_valid_pe.shape[1] == T:
                         pe = self.last_valid_pe.reshape(B * T, N, self.k_eigenvectors).to(
                             torch.float32
                         )
@@ -360,8 +369,9 @@ class GraphChannelMixerPyG(nn.Module):
         # Reshape back and cast to original dtype
         pe = pe.reshape(B, T, N, self.k_eigenvectors).to(dtype)
 
-        # Cache this valid PE for future fallback
+        # Cache this valid PE for future fallback (updates buffer in-place)
         if not torch.isnan(pe).any() and not torch.isinf(pe).any():
+            # In-place update to maintain buffer status
             self.last_valid_pe = pe.detach().clone()
 
         # Return PE with gradients enabled for adjacency learning
