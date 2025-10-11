@@ -1,3 +1,0 @@
-# Legacy cache directory for old NPZ format
-# Now superseded by cache/tusz_mmap/ (memory-mapped NPY)
-# Kept for backward compatibility
