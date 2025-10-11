@@ -15,6 +15,13 @@ from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.checkpoint import load_checkpoint, save_checkpoint
 from src.brain_brr.train.optimizer_factory import create_optimizer
 
+try:
+    import torch_geometric  # noqa: F401
+
+    HAS_PYG = True
+except ImportError:
+    HAS_PYG = False
+
 
 @pytest.fixture
 def model_config() -> ModelConfig:
@@ -66,6 +73,7 @@ def full_config(model_config: ModelConfig) -> Config:
     )
 
 
+@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
 def test_buffer_appears_in_state_dict_immediately(model_config: ModelConfig) -> None:
     """Test that last_valid_pe buffer is in state_dict from initialization.
 
@@ -90,6 +98,7 @@ def test_buffer_appears_in_state_dict_immediately(model_config: ModelConfig) -> 
     assert buffer_shape == (1, 1, 1, 4), f"Expected (1,1,1,4) placeholder, got {buffer_shape}"
 
 
+@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
 def test_checkpoint_save_load_with_buffer(model_config: ModelConfig, full_config: Config) -> None:
     """Test checkpoint save/load after buffer has been updated during training.
 
@@ -142,6 +151,7 @@ def test_checkpoint_save_load_with_buffer(model_config: ModelConfig, full_config
         checkpoint_path.unlink(missing_ok=True)
 
 
+@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
 def test_checkpoint_strict_false_handles_extra_keys(
     model_config: ModelConfig, full_config: Config
 ) -> None:
@@ -181,6 +191,7 @@ def test_checkpoint_strict_false_handles_extra_keys(
         checkpoint_path.unlink(missing_ok=True)
 
 
+@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
 def test_buffer_fallback_logic_with_placeholder(model_config: ModelConfig) -> None:
     """Test that fallback logic correctly detects placeholder vs. valid buffer.
 

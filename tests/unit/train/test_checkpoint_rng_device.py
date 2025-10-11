@@ -18,6 +18,13 @@ from src.brain_brr.models.detector import SeizureDetector
 from src.brain_brr.train.checkpoint import load_checkpoint, save_checkpoint
 from src.brain_brr.train.optimizer_factory import create_optimizer
 
+try:
+    import torch_geometric  # noqa: F401
+
+    HAS_PYG = True
+except ImportError:
+    HAS_PYG = False
+
 
 @pytest.fixture
 def model_config() -> ModelConfig:
@@ -69,6 +76,7 @@ def full_config(model_config: ModelConfig) -> Config:
     )
 
 
+@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
 def test_rng_cpu_save_cpu_load(
     tmp_path: Path, model_config: ModelConfig, full_config: Config
 ) -> None:
@@ -107,6 +115,7 @@ def test_rng_cpu_save_cpu_load(
     assert torch.equal(torch.get_rng_state(), initial_rng)
 
 
+@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
 @pytest.mark.gpu
 def test_rng_cpu_save_cuda_load(
     tmp_path: Path, model_config: ModelConfig, full_config: Config
@@ -154,6 +163,7 @@ def test_rng_cpu_save_cuda_load(
     assert torch.equal(restored_rng, initial_cpu_rng)
 
 
+@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
 @pytest.mark.gpu
 def test_rng_cuda_save_cuda_load(
     tmp_path: Path, model_config: ModelConfig, full_config: Config
@@ -202,6 +212,7 @@ def test_rng_cuda_save_cuda_load(
         assert torch.equal(initial, restored)
 
 
+@pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
 @pytest.mark.gpu
 def test_rng_cuda_save_cpu_load(
     tmp_path: Path, model_config: ModelConfig, full_config: Config
