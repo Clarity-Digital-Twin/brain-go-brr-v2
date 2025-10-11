@@ -1,7 +1,7 @@
 """Pydantic schemas for config validation - single source of truth for all configs."""
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -73,12 +73,8 @@ class DataConfig(StrictModel):
     prefetch_factor: int = Field(
         default=2, ge=2, description="Batches to prefetch per worker (requires num_workers>0)"
     )
-    max_samples: int | None = Field(
-        default=None, ge=1, description="Limit samples for debugging (None = use all)"
-    )
-    max_hours: float | None = Field(
-        default=None, gt=0, description="Limit total hours of data (None = use all)"
-    )
+    max_samples: Annotated[int | None, Field(ge=1, description="Limit samples for debugging (None = use all)")] = None
+    max_hours: Annotated[float | None, Field(gt=0, description="Limit total hours of data (None = use all)")] = None
 
     @field_validator("data_dir")
     @classmethod
@@ -132,10 +128,10 @@ class MambaConfig(StrictModel):
         description="SSM type: bimamba2 (stable default) or gated_deltanet (experimental via FLA)",
     )
 
-    temporal_type_node: Literal["bimamba2", "gated_deltanet"] | None = Field(
-        default=None,
-        description="Override temporal_type for node stream (None = use global temporal_type)",
-    )
+    temporal_type_node: Annotated[
+        Literal["bimamba2", "gated_deltanet"] | None,
+        Field(description="Override temporal_type for node stream (None = use global temporal_type)")
+    ] = None
     temporal_type_edge: Literal["bimamba2", "gated_deltanet"] | None = Field(
         default=None,
         description="Override temporal_type for edge stream (None = use global temporal_type)",
