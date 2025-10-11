@@ -132,10 +132,10 @@ class MambaConfig(StrictModel):
         Literal["bimamba2", "gated_deltanet"] | None,
         Field(description="Override temporal_type for node stream (None = use global temporal_type)")
     ] = None
-    temporal_type_edge: Literal["bimamba2", "gated_deltanet"] | None = Field(
-        default=None,
-        description="Override temporal_type for edge stream (None = use global temporal_type)",
-    )
+    temporal_type_edge: Annotated[
+        Literal["bimamba2", "gated_deltanet"] | None,
+        Field(description="Override temporal_type for edge stream (None = use global temporal_type)")
+    ] = None
 
     gdn_fusion_mode: Literal["sum", "concat"] = Field(
         default="sum",
