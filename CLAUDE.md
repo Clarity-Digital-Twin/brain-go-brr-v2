@@ -29,7 +29,7 @@ Current Architecture (v3.11.0 - October 10, 2025):
 - **Detached eigenvectors** → Prevents gradient explosion through eigendecomposition (gnn_pyg.py:205)
 - **3-tier NaN protection** → Gradient sanitization + clamping + monitoring
 - **Modal 1.0 compatible** → Updated max_containers parameter for future compatibility
-- **Zero technical debt** → All P0/P1/P2/P3 issues resolved, production training LIVE
+- **1 P2 + 2 P3 debt items** → P2 (YAML config separation) must be fixed before FLA training, P3 items are polish only
 
 ## 🚀 Quick Commands
 
@@ -401,7 +401,7 @@ Due to hardware differences, integration tests have adjusted thresholds:
 **Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
 
 **Current Status (v3.11.0 - October 10, 2025 - StatefulDataLoader & Mid-Epoch Resume)**:
-- ✅ **Zero technical debt** - All P0/P1/P2/P3 issues RESOLVED across all priority levels
+- ⚠️ **1 P2 + 2 P3 debt items** - P2: YAML config separation (before FLA), P3: Pydantic warnings + .gitkeep files (polish only)
 - ✅ **Auto-restart training** - Hands-free 100-epoch training via modal.Period(hours=23), zero manual intervention
 - ✅ **StatefulDataLoader integrated** - Exact mid-epoch resume via PyTorch official dataloader state management
 - ✅ **Checkpoint resume fix** - Saves epoch+1 instead of epoch, prevents 14h waste per restart
