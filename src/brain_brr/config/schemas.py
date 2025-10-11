@@ -146,11 +146,10 @@ class MambaConfig(StrictModel):
         description="Allow β_t ∈ (0,2) for better state tracking (research feature, start false)",
     )
 
-    gdn_edge_num_heads: int | None = Field(
-        default=None,
-        ge=1,
-        description="Override edge stream num_heads (None = use constants, required if edge_mamba_d_model changes)",
-    )
+    gdn_edge_num_heads: Annotated[
+        int | None,
+        Field(ge=1, description="Override edge stream num_heads (None = use constants, required if edge_mamba_d_model changes)")
+    ] = None
     gdn_edge_headdim: int | None = Field(
         default=None,
         ge=1,
