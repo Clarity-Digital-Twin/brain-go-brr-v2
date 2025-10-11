@@ -60,61 +60,83 @@ for batch_idx, batch in enumerate(progress):
 
 ## Impact Assessment
 
-### What's BROKEN:
-1. **Progress tracking**: Shows `0/7702` instead of `2527/7702` (confusing for monitoring)
-2. **Log messages**: All batch numbers are wrong by 2527 offset
-3. **Checkpoint filenames**: `mid_epoch_001_000030.pt` instead of `mid_epoch_001_002557.pt`
-4. **Warmup schedules**: Might reset if checking `batch_idx` instead of `global_step`
-5. **Heartbeat logs**: Report wrong batch positions
-6. **W&B/TensorBoard**: Batch-indexed metrics have wrong x-axis
+### What's BROKEN (CRITICAL):
+1. ❌ **`global_step` NOT SAVED**: Resets to 0 on resume, breaking warmup schedules
+2. ❌ **Warmup schedule**: Restarts from beginning (focal_gamma=1.0 instead of 2.0)
+3. ❌ **Progress tracking**: Shows `0/7702` instead of `2527/7702` (confusing for monitoring)
+4. ❌ **Log messages**: All batch numbers are wrong by 2527 offset
+5. ❌ **Checkpoint filenames**: `mid_epoch_001_000030.pt` instead of `mid_epoch_001_002557.pt`
+6. ❌ **Heartbeat logs**: Report wrong batch positions
+7. ❌ **W&B/TensorBoard**: Batch-indexed metrics have wrong x-axis
 
 ### What's CORRECT:
 1. ✅ **Training data**: DataLoader skips correctly, no duplicate processing
 2. ✅ **Model weights**: Restored correctly from checkpoint
 3. ✅ **Optimizer state**: Restored correctly
 4. ✅ **RNG state**: Restored for determinism
-5. ✅ **Scheduler state**: `global_step` is correct (independent of batch_idx)
-6. ✅ **Learning rate**: Correct (scheduler uses global_step, not batch_idx)
+5. ✅ **Scheduler state**: Scheduler has its own step counter (learning rate is correct)
+6. ✅ **Learning rate**: Correct (scheduler.state_dict() saves last_epoch)
 
-**Severity**: **P2** - Training is functionally correct but tracking/logging is misleading
+**Severity**: **P1** - Warmup schedule is broken on resume (resets to focal_gamma=1.0)
 
 ---
 
 ## Fix Strategy
 
-### Option 1: Offset enumerate() (RECOMMENDED)
-**Pros**: Simple, surgical fix
-**Cons**: Need to pass batch offset through function signature
+### REQUIRED FIX: Save and restore `global_step` AND `batch_idx`
 
 ```python
-# In loop.py, after loading checkpoint
+# In train_step.py - Save global_step in mid-epoch checkpoints
+save_checkpoint(
+    model,
+    optimizer,
+    epoch_index,
+    0.0,
+    mid_path,
+    scheduler,
+    None,
+    scaler=scaler,
+    save_rng=True,
+    extra={
+        "batch_idx": batch_idx,
+        "global_step": global_step,  # ← ADD THIS
+        "kind": "mid_epoch",
+        "dataloader_state_dict": dataloader.state_dict(),
+    },
+)
+
+# In loop.py - Restore both batch_idx and global_step
 if "dataloader_state_dict" in ckpt:
     train_loader.load_state_dict(ckpt["dataloader_state_dict"])
-    resume_batch_idx = ckpt.get('batch_idx', 0)  # ← Extract saved batch position
-    logger.info(f"[RESUME] ✅ Exact mid-epoch resume at batch {resume_batch_idx}")
+    resume_batch_idx = ckpt.get('batch_idx', 0)
+    resume_global_step = ckpt.get('global_step', 0)  # ← ADD THIS
+    logger.info(f"[RESUME] ✅ Exact mid-epoch resume at batch {resume_batch_idx}, global_step {resume_global_step}")
 else:
     resume_batch_idx = 0
+    resume_global_step = 0
 
-# Pass to train_epoch()
+# Pass both to train_epoch()
 result = train_epoch(
     model,
     train_loader,
     optimizer,
     ...
+    global_step=resume_global_step,  # ← UPDATE: Pass restored value
     resume_batch_idx=resume_batch_idx,  # ← NEW parameter
 )
 
-# In train_step.py
+# In train_step.py - Update signature and loop
 def train_epoch(
     model,
     dataloader,
     optimizer,
     ...
+    global_step: int = 0,  # ← Already exists, just needs restoration
     resume_batch_idx: int = 0,  # ← NEW parameter
 ):
     ...
     for relative_idx, batch in enumerate(progress):
-        batch_idx = relative_idx + resume_batch_idx  # ← Correct offset
+        batch_idx = relative_idx + resume_batch_idx  # ← Fix counter
         ...
 ```
 
@@ -174,20 +196,28 @@ Current training should show:
 
 ---
 
-## Open Questions
+## Confirmed Issues
 
-1. Does warmup schedule check `batch_idx` or `global_step`?
-   - If `batch_idx`: Warmup will restart (bad!)
-   - If `global_step`: Warmup continues correctly (good!)
-   - **Answer needed**: Check warmup.py implementation
+1. **Warmup uses `global_step`** ✅ (checked warmup.py:12)
+   - Uses `global_step`, not `batch_idx`
+   - **BUT** `global_step` is NOT saved in checkpoints ❌
+   - Result: Warmup restarts from focal_gamma=1.0 on resume
 
-2. Do we log batch-indexed metrics to W&B?
-   - If yes: x-axis will be wrong after resume
-   - If no: No impact
+2. **`global_step` is NOT in checkpoint** ❌ (verified mid_epoch_001_002527.pt)
+   - Checkpoint keys: ['version', 'epoch', 'model_state_dict', 'optimizer_state_dict', 'best_metric', 'timestamp', 'scheduler_state_dict', 'scaler_state_dict', 'rng_state', 'batch_idx', 'kind', 'dataloader_state_dict']
+   - Missing: 'global_step'
 
-3. Is `global_step` correctly preserved across resume?
-   - If yes: Scheduler and warmup work correctly
-   - If no: Bigger problem than batch_idx
+3. **Scheduler is OK** ✅ (has own step counter)
+   - Scheduler saves `last_epoch` in state_dict
+   - Learning rate is correct even though global_step resets
+
+4. **Evidence from current training**:
+   ```
+   [RESUME] ✅ Exact mid-epoch resume at batch 2527
+   [WARMUP] Batch 0 focal_gamma=1.000  ← Should be 2.0 (past warmup)!
+   ```
+   - Confirms global_step reset to 0
+   - Warmup restarted (focal_gamma=1.0 instead of 2.0)
 
 ---
 
