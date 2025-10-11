@@ -163,15 +163,16 @@ class MambaConfig(StrictModel):
     ] = None
     gdn_edge_headdim: Annotated[
         int | None,
-        Field(ge=1, description="Override edge stream headdim (None = use constants, required if edge_mamba_d_model changes)")
+        Field(
+            ge=1,
+            description="Override edge stream headdim (None = use constants, required if edge_mamba_d_model changes)",
+        ),
     ] = None
     gdn_node_num_heads: Annotated[
-        int | None,
-        Field(ge=1, description="Override node stream num_heads (None = use constants)")
+        int | None, Field(ge=1, description="Override node stream num_heads (None = use constants)")
     ] = None
     gdn_node_headdim: Annotated[
-        int | None,
-        Field(ge=1, description="Override node stream headdim (None = use constants)")
+        int | None, Field(ge=1, description="Override node stream headdim (None = use constants)")
     ] = None
 
     # Hybrid GDN+SWA configuration (Phase 3 only, requires Phase 2 success)
@@ -312,7 +313,7 @@ class GraphConfig(StrictModel):
     )
     adj_ema_beta: Annotated[
         float | None,
-        Field(ge=0.0, lt=1.0, description="EMA coefficient for temporal smoothing (None=disabled)")
+        Field(ge=0.0, lt=1.0, description="EMA coefficient for temporal smoothing (None=disabled)"),
     ] = None
     adj_force_symmetric: bool = Field(
         default=False, description="Force adjacency matrix to be symmetric"
@@ -625,11 +626,11 @@ class TrainingConfig(StrictModel):
     )
     mid_checkpoint_interval_s: Annotated[
         int | None,
-        Field(ge=60, description="Save mid-epoch checkpoint every N seconds (None = disabled)")
+        Field(ge=60, description="Save mid-epoch checkpoint every N seconds (None = disabled)"),
     ] = None
     mid_epoch_keep: Annotated[
         int | None,
-        Field(ge=1, le=10, description="Keep last N mid-epoch checkpoints (None = keep all)")
+        Field(ge=1, le=10, description="Keep last N mid-epoch checkpoints (None = keep all)"),
     ] = None
     gradient_accumulation_steps: int = Field(
         default=1, ge=1, le=100, description="Number of gradient accumulation steps"
@@ -638,7 +639,7 @@ class TrainingConfig(StrictModel):
     # NEW: Warmup schedules for gradient stabilization (OPTIONAL)
     warmup_schedule: Annotated[
         WarmupScheduleConfig | None,
-        Field(description="Optional warmup schedules (disable with null for backward compat)")
+        Field(description="Optional warmup schedules (disable with null for backward compat)"),
     ] = None
 
 
@@ -657,7 +658,7 @@ class WandbConfig(StrictModel):
 
     enabled: bool = Field(default=False, description="Enable W&B logging")
     project: str = Field(default="seizure-detection", description="W&B project name")
-    entity: str | None = Field(default=None, description="W&B entity/team name")
+    entity: Annotated[str | None, Field(description="W&B entity/team name")] = None
     tags: list[str] = Field(default_factory=list, description="Run tags")
 
 

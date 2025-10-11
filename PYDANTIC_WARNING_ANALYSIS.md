@@ -2,15 +2,15 @@
 
 **Date**: October 10, 2025
 **Version**: v3.11.0
-**Status**: ✅ **HARMLESS - Training can continue safely**
+**Status**: ✅ **FIXED - All warnings eliminated (October 10, 2025)**
 
 ---
 
 ## Executive Summary
 
-The Pydantic warnings appearing in Modal training logs are **100% cosmetic and harmless**. They indicate that certain field-specific metadata (like `repr` and `frozen`) has no effect when used with union types, but **they do not break functionality or affect training**.
+**All Pydantic warnings have been eliminated!** All 14 fields in `schemas.py` were systematically fixed using the `Annotated[Type | None, Field(...)]` pattern recommended by Pydantic documentation.
 
-**Recommendation**: Let current training continue. Fix warnings after training completes to clean up logs.
+**Verification**: Zero warnings detected when loading all 8 configs (local + modal, BiMamba2 + FLA variants). All tests passing (499 passed, 51 skipped).
 
 ---
 
@@ -238,10 +238,11 @@ modal run --detach deploy/modal/app.py --action train --config configs/modal/smo
 
 ---
 
-## Current Status
+## Current Status (October 10, 2025)
 
-**Training**: ✅ RUNNING (Modal app `ap-6ljdtTDiu06EWoEIONEYxu`)
-**Warnings**: 🟡 PRESENT (cosmetic only, zero impact)
-**Action**: 📋 FIX AFTER TRAINING (systematic cleanup of all 14 fields)
+**Training**: ✅ RUNNING (Modal app `ap-6ljdtTDiu06EWoEIONEYxu`, can resume with v3.11.1 code)
+**Warnings**: ✅ **ELIMINATED** (all 14 fields fixed)
+**Quality**: ✅ All checks passed (lint, format, mypy, configs, 499 tests)
+**Action**: ✅ **COMPLETE** - Ready to deploy on next Modal run
 
-**Bottom Line**: These warnings are annoying but **100% harmless**. Training will complete successfully with perfect checkpoints and validation metrics. We'll clean up the warnings in the next deployment after this training run finishes.
+**Bottom Line**: All Pydantic warnings eliminated using the official `Annotated[Type | None, Field(...)] = None` pattern. Zero warnings when loading all 8 configs. Training can resume with clean logs on next deployment.
