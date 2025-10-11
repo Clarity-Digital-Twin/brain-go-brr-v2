@@ -56,7 +56,29 @@ This document archives previously tracked technical debt that has been completel
 
 ---
 
-## ✅ P2: RESOLVED (October 6-8, 2025)
+## ✅ P2: RESOLVED (October 6-11, 2025)
+
+### P2-1: YAML Config Output Directory Conflict ✅ **FIXED**
+
+**Root Cause**: Both BiMamba2 and FLA configs used same output directory, risking checkpoint contamination
+
+**Resolution** (v3.11.0 - October 11, 2025):
+- Changed FLA configs ONLY (BiMamba2 configs unchanged, already training)
+- Modal FLA: `/results/v3_full_training` → `/results/v3_fla_training`
+- Local FLA: `results/local_training` → `results/local_fla_training`
+- BiMamba2 configs unchanged (already in use with checkpoints)
+- Modal persistent volume auto-creates new directories at runtime
+- Verified separation with grep verification command
+
+**Why Critical**:
+- Different model architectures (BiMamba2 vs GatedDeltaNet) have incompatible checkpoints
+- Wrong config resume → checkpoint contamination → silent failures
+- Happened once (Oct 11), killed immediately, no damage
+- Now impossible to accidentally mix checkpoints
+
+---
+
+## ✅ P2 (HISTORICAL): RESOLVED (October 6-8, 2025)
 
 ### P2-1: psutil Swap Memory Warning ✅ **SUPPRESSED**
 
@@ -101,7 +123,7 @@ This document archives previously tracked technical debt that has been completel
 - **v3.9.0** (Oct 8): Bulletproof checkpoints + timeout guard → **PRODUCTION BASELINE**
 - **v3.9.1** (Oct 9): Validation OOM fix → **MODAL TRAINING STABLE**
 - **v3.10.0** (Oct 10): Auto-restart + three checkpoint fixes → **PRODUCTION READY**
-- **v3.11.0** (Oct 11): StatefulDataLoader integration → **HANDS-FREE TRAINING**
+- **v3.11.0** (Oct 11): StatefulDataLoader integration + YAML config separation (P2-1) → **HANDS-FREE TRAINING**
 
 ---
 

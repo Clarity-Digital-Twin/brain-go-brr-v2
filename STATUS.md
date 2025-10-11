@@ -9,10 +9,9 @@
 
 ## Production Readiness
 
-**🟢 READY FOR MODAL A100 TRAINING – 1 P2 ITEM BEFORE FLA**
+**🟢 READY FOR MODAL A100 TRAINING – ZERO CRITICAL DEBT**
 
-- ✅ **P0/P1:** 0 issues (all blockers resolved)
-- ⚠️ **P2:** 1 issue (YAML config separation needed before FLA training)
+- ✅ **P0/P1/P2:** 0 issues (all blockers resolved)
 - 📝 **P3:** 2 issues (documentation/polish only, zero training impact)
 - 🟡 **P4/P5:** Optional ideas (post-training optimization only)
 
@@ -188,8 +187,7 @@
 
 ## Outstanding Items
 
-**Active Debt**: 3 items tracked in `/TECHNICAL_DEBT.md`
-- ⚠️ **P2-1**: YAML config output_dir separation (must fix before FLA training)
+**Active Debt**: 2 items tracked in `/TECHNICAL_DEBT.md`
 - 📝 **P3-1**: Pydantic Field warnings (cosmetic only)
 - 📝 **P3-2**: Missing .gitkeep files (OSS contributor clarity)
 
