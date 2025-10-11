@@ -627,9 +627,10 @@ class TrainingConfig(StrictModel):
         int | None,
         Field(ge=60, description="Save mid-epoch checkpoint every N seconds (None = disabled)")
     ] = None
-    mid_epoch_keep: int | None = Field(
-        default=None, ge=1, le=10, description="Keep last N mid-epoch checkpoints (None = keep all)"
-    )
+    mid_epoch_keep: Annotated[
+        int | None,
+        Field(ge=1, le=10, description="Keep last N mid-epoch checkpoints (None = keep all)")
+    ] = None
     gradient_accumulation_steps: int = Field(
         default=1, ge=1, le=100, description="Number of gradient accumulation steps"
     )
