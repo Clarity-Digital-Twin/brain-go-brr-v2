@@ -410,7 +410,7 @@ class ModelConfig(StrictModel):
     mamba: MambaConfig = Field(default_factory=MambaConfig)
 
     # Optional GNN config (V3 learned adjacency)
-    graph: GraphConfig | None = Field(default=None, description="GNN configuration (V3)")
+    graph: Annotated[GraphConfig | None, Field(description="GNN configuration (V3)")] = None
 
     # Normalization configuration (PR-1: Boundary Normalization)
     norms: NormConfig = Field(
@@ -623,11 +623,10 @@ class TrainingConfig(StrictModel):
     checkpoint_interval: int = Field(
         default=1, ge=0, le=100, description="Save checkpoint every N epochs (0 = disabled)"
     )
-    mid_checkpoint_interval_s: int | None = Field(
-        default=None,
-        ge=60,
-        description="Save mid-epoch checkpoint every N seconds (None = disabled)",
-    )
+    mid_checkpoint_interval_s: Annotated[
+        int | None,
+        Field(ge=60, description="Save mid-epoch checkpoint every N seconds (None = disabled)")
+    ] = None
     mid_epoch_keep: int | None = Field(
         default=None, ge=1, le=10, description="Keep last N mid-epoch checkpoints (None = keep all)"
     )
