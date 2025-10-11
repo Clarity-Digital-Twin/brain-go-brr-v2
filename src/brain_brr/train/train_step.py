@@ -282,7 +282,13 @@ def train_epoch(
         if use_tqdm:
             try:
                 progress_bar = tqdm(
-                    dataloader, desc="Training", leave=False, file=sys.stderr, ascii=True, ncols=80
+                    dataloader,
+                    desc="Training",
+                    leave=False,
+                    file=sys.stderr,
+                    ascii=True,
+                    ncols=80,
+                    initial=resume_batch_idx,
                 )
                 if progress_bar is None or not hasattr(progress_bar, "__iter__"):
                     logger.warning("tqdm initialization failed, using plain iteration")
