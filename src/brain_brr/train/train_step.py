@@ -187,6 +187,7 @@ def train_epoch(
     log_gradients: bool = False,
     log_weights: bool = False,
     wandb_logger: WandBRun | None = None,
+    resume_batch_idx: int = 0,
 ) -> float | tuple[float, int, GradScaler]:
     """Train for one epoch.
 
