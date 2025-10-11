@@ -243,9 +243,12 @@ sudo apt-get install -y cuda-toolkit-12-4
 1. Install CUDA 12.4 toolkit (see above)
 2. Base environment: `make setup`
 3. GPU components: `make setup-gpu` (clears caches, builds from source)
-4. Verify: `.venv/bin/python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; print('✅')"`
+4. FLA library (OPTIONAL): `make setup-fla` (for Gated DeltaNet research stack)
+5. Verify: `.venv/bin/python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; print('✅')"`
 
 **Note**: PyG requires pre-built wheels from https://data.pyg.org/whl/torch-2.5.0+cu124.html
+
+**Triton Warning**: FLA installation may show "Triton 3.1.0 below recommended 3.2.0" - this is expected and harmless. Triton 3.2.0 requires PyTorch 2.6+, which breaks mamba-ssm compatibility. FLA requirement (Triton >=3.0) is satisfied.
 
 ## 🏥 Clinical Specifications
 
@@ -351,6 +354,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 | PyG installation fails | Use pre-built wheels, not `uv sync -E graph` |
 | Mamba CUDA errors | Ensure CUDA 12.4 toolkit installed, rebuild from source |
 | CI/CD test failures | Tests properly skip when PyG not installed (v3.3.0+) |
+| FLA Triton warning (3.1.0 vs 3.2.0) | **EXPECTED**: FLA requires Triton >=3.0 (satisfied). 3.2.0 needs PyTorch 2.6+ which breaks mamba-ssm |
 
 ### Modal-Specific Settings
 - **Resources**: 24 CPU cores + 96GB RAM (defaults are too low!)

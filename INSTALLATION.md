@@ -59,6 +59,9 @@ make setup
 # GPU components (CRITICAL ORDER)
 make setup-gpu  # or make g
 
+# FLA library (OPTIONAL - for Gated DeltaNet research)
+make setup-fla
+
 # Verify installation
 .venv/bin/python -c "
 import torch, torch_geometric, mamba_ssm, pytorch_tcn
@@ -183,11 +186,13 @@ image = (
 | Python | 3.11+ | Required for modern type hints |
 | PyTorch | 2.5.0 | Latest stable with CUDA 12.4 support |
 | CUDA | 12.4 | PyTorch 2.5.0 build target |
+| Triton | 3.1.0 | Bundled with PyTorch 2.5.0 (3.2.0 requires PyTorch 2.6+) |
 | numpy | 1.26.4 | numpy 2.x breaks mamba-ssm |
 | mamba-ssm | 2.2.5 | Latest, includes A100 int64 indexing fix |
 | causal-conv1d | 1.5.2 | Latest stable for PyTorch 2.5+ |
 | torch-geometric | 2.6.1 | Latest (Sep 2024) stable for torch 2.5.0 |
 | pytorch-tcn | 1.2.3 | Pure PyTorch, any version works |
+| flash-linear-attention | 0.3.2 | Optional, for Gated DeltaNet research (requires Triton >= 3.0) |
 
 ## Common Issues
 
@@ -270,6 +275,15 @@ export UV_LINK_MODE=copy
     cpu=24,         # 24 cores (default: 0.125!)
 )
 ```
+
+### 7. FLA Triton Version Warning
+**Warning**: "Current Triton version 3.1.0 is below the recommended 3.2.0 version"
+
+**Explanation**: This is expected and harmless. FLA recommends Triton 3.2.0, but it REQUIRES PyTorch 2.6+. Our stack uses PyTorch 2.5.0 (for mamba-ssm compatibility) which bundles Triton 3.1.0.
+
+**FLA requirement**: Triton >= 3.0 ✅ (satisfied by 3.1.0)
+
+**Action**: No action needed. Warning is cosmetic. Upgrading to Triton 3.2.0 would break the entire stack (incompatible with PyTorch 2.5.0).
 
 ## Testing Installation
 
