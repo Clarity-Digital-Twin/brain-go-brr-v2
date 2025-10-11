@@ -10,6 +10,16 @@ P0 — Fixed
 - Patient leakage via file‑level split
   - Fix: Loader enforces official train/dev splits on read; legacy `split_policy` / `validation_split` config fields were removed in V4.
   - Docs: `docs/tusz/tusz-splits.md`, `docs/05-training/modal.md`.
+- GNN positional encoding buffer incompatibility
+  - Fix: `gnn.last_valid_pe` now registers with a placeholder tensor so checkpoints always contain the buffer; loader skips legacy mismatches before calling `load_state_dict`.
+  - Impact: Mid-epoch resumes no longer crash with “Unexpected key gnn.last_valid_pe” when a fresh model is initialized.
+- Config rename fallout after BiMamba2/FLA split
+  - Fix: Tests now reference `train_bimamba.yaml` / `train_fla.yaml` pairs instead of deleted monolithic configs (`tests/unit/models/test_nan_robustness.py`).
+  - Modal CLI defaults and README examples updated to `smoke_bimamba.yaml` / `train_bimamba.yaml`; Docker `CMD` was aligned to the same baseline (`deploy/modal/app.py`, `deploy/modal/README.md`, `Dockerfile`).
+  - Status: Commands tutorial, tooling defaults, and CI runs no longer raise `FileNotFoundError` when configs are omitted.
+- RNG state device mismatch
+  - Fix: Checkpoint loads leave RNG tensors on CPU before restoring; added regression coverage in `tests/unit/train/test_checkpoint_rng_device.py`.
+  - Impact: CUDA resumes no longer raise “RNG state must be a torch.ByteTensor”; deterministic restart is preserved.
 - FA‑curve threshold path inconsistent
   - Fix: set `tau_on/off` on cloned post config before eventization.
   - Docs: `docs/06-evaluation/metrics-and-taes.md#notes-and-caveats`.
@@ -29,6 +39,14 @@ P1 — Fixed / Hardened
 - Constants centralization (v3.5.0)
   - Fix: All clinical constants (event durations, morphology kernels, threshold search bounds, merge gaps) moved to `src/brain_brr/constants.py`; schema defaults import and use these constants.
   - Affected: `schemas.py` (DurationConfig, EventsConfig, MorphologyConfig), `eval/helpers/false_alarm.py` (threshold search bounds)
+- Mid-epoch resume continuity
+  - Fix: `StatefulDataLoader` state and `global_step`/`batch_idx` offsets are stored in checkpoints (`src/brain_brr/train/loop.py`, `train_step.py`, `checkpoint.py`) so resumes pick up the exact batch with correct warmup and W&B step counters.
+  - Impact: No more 1–2 h of replay on Modal timeout; warmup schedules stay on track after resumes.
+
+P2 — Fixed / Cleanup
+- Pydantic warning sweep
+  - Fix: All optional config fields now use `Annotated[..., Field(...)]` so Pydantic v2.12 no longer emits `UnsupportedFieldAttributeWarning` (`src/brain_brr/config/schemas.py`).
+  - Impact: `make q` runs warning-free; config validation stays strict with zero cosmetic noise.
 
 P1 — Open
 - **Validation loss weighting under imbalance** (ACTIVE)

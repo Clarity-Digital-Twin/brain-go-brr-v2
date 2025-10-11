@@ -20,6 +20,12 @@ When `resume` is enabled, checkpoints are loaded in this order:
 
 Each file contains model weights, optimizer, scheduler, AMP scaler, and RNG state (Python, NumPy, torch CPU, torch CUDA) so the resumed run continues exactly where it stopped.
 
+## StatefulDataLoader & Warmup Continuity (v3.11.0)
+
+- Training now uses `torchdata.stateful_dataloader.StatefulDataLoader` for both train and validation loops. Mid-epoch checkpoints save `dataloader_state_dict` and the loader resumes from the exact batch position instead of replaying 1–2 hours of work.
+- `global_step` is stored in every checkpoint, and mid-epoch/timeout snapshots also capture the saved `batch_idx`. When training resumes you’ll see `[WARMUP] Batch 2527 focal_gamma=2.000` and the progress bar report `2527/7702`, confirming both warmup schedules and logging pick up where they left off.
+- W&B step counters, gradient clipping logs, and warmup-dependent modules read the restored `global_step`, keeping scheduler/metric timelines monotonic across restarts.
+
 ## Atomic Saves & Deterministic State (v3.9.1)
 
 - `save_checkpoint()` now writes to `<name>.pt.tmp`, calls `os.fsync()`, and atomically renames to `<name>.pt`. Partial/corrupt checkpoints can no longer appear if a job is killed mid-write.

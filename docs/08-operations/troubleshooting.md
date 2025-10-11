@@ -54,6 +54,13 @@ WSL2 OOM/driver artifact note
 - If you see impossible memory in logs like `17179869184.00 GiB`, that is a reporting artifact after a hard OOM or driver fault.
 - Fix: `wsl --shutdown` to reset the VM/GPU state, then relaunch. Also export `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:256` during smokes.
 
+RTX 4090 SIGBUS / driver crash near batch ~3000
+
+- Symptom: Training dies abruptly with `Signal 7 (SIGBUS)` or hard driver reset around batch 2900–3100 despite healthy metrics beforehand.
+- Root cause: NVIDIA driver 572.xx (January 2025) has confirmed stability bugs on Ada GPUs; RTX 4090 requires the October 2025 branch.
+- Fix: Upgrade Windows host driver to **581.42** (Game Ready) and perform a clean install. After reboot, `nvidia-smi` inside WSL2 should show `Driver Version: 581.42`.
+- Verification: Re-run the affected workload; the crash disappears and long epochs complete normally.
+
 CI note (PyG optional in unit tests)
 
 - The test suite skips GNN‑dependent tests when `torch_geometric` is absent. To validate GNN paths in CI, install PyG using prebuilt wheels for torch 2.5.0+cu124.

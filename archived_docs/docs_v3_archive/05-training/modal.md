@@ -92,6 +92,7 @@ The job exports:
 - Expect 4–5 resume cycles for a 100‑epoch run (~5 days wall-clock, ~$350).
 - Each checkpoint contains model, optimizer, scheduler, AMP scaler, and RNG state (Python/NumPy/torch CPU/torch CUDA). Resumes are deterministic—no repeated batches.
 - `.wandb_run_id` is stored in the checkpoint directory; resumed runs continue the same W&B dashboard (`[W&B] Run resumed: …` in logs).
+- Logs will show the restored batch/step (`[RESUME] ✅ … batch 2527, global_step 2527`) thanks to `StatefulDataLoader` state capture; warmup schedules and progress bars continue from the saved position.
 
 ### Auto-Restart Scheduler (Modal Period, Oct 10 2025+)
 

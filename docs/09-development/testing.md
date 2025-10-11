@@ -22,6 +22,24 @@ Test stability and performance tips
   - WSL2: `UV_LINK_MODE=copy` for install, `data.num_workers: 0` in configs
 - Debugging NaNs: set `BGB_NAN_DEBUG=1` to enable extra checks; `SEIZURE_MAMBA_FORCE_FALLBACK=1` to fallback Mamba to Conv1d
 
+Optional dependencies (PyG)
+
+- Many checkpoint and detector tests depend on PyTorch Geometric. Follow the existing pattern when writing new tests:
+
+  ```python
+  try:
+      import torch_geometric  # noqa: F401
+      HAS_PYG = True
+  except ImportError:
+      HAS_PYG = False
+
+  @pytest.mark.skipif(not HAS_PYG, reason="PyTorch Geometric not installed")
+  def test_requires_pyg(...):
+      ...
+  ```
+
+- This keeps CI green when PyG wheels are intentionally omitted. Installing the cu124 wheels re-enables the tests automatically.
+
 ## GPU-Specific Test Adjustments
 
 Due to hardware differences, integration tests have adjusted thresholds:
@@ -94,6 +112,7 @@ The test suite validates all architectural improvements:
 
 Summary of recent fixes
 
+- Checkpoint regression suite now covers dynamic buffers and RNG device handling. Tests skip gracefully when PyG is unavailable (`tests/unit/train/test_checkpoint_buffer_compatibility.py`, `tests/unit/train/test_checkpoint_rng_device.py`).
 - Dynamic PE buffers are consistently registered (no attribute collisions) and numerically guarded; vectorized path has sign consistency and fallback to last valid PE.
 - Lint and type checks enforced via `make q` (ruff + mypy).
 - All GPU test failures fixed with environment-aware thresholds and reduced batch sizes.

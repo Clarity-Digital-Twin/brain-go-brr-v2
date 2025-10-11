@@ -32,6 +32,8 @@ training:
 
 **That's it!** Training will automatically use scheduled values for first 1000 steps.
 
+> **v3.11.0 resumes:** `global_step` is saved in checkpoints, so warmup schedules resume exactly where they left off after a Modal timeout or local interruption.
+
 ---
 
 ## Table of Contents

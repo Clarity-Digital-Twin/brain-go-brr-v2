@@ -4,10 +4,12 @@ Exact versions (locked)
 
 - PyTorch: 2.5.0+cu124 (includes CUDA 12.4 **runtime**)
 - **CUDA Toolkit: 12.4** (REQUIRED for building mamba-ssm)
+- Triton: 3.1.0 (pairs with PyTorch 2.5.0; FLA will warn that 3.2.0 is “recommended”—this is cosmetic and expected, do **not** upgrade while we rely on mamba-ssm 2.2.5 and PyG 2.6.1)
 - mamba‑ssm: 2.2.5 (includes A100 int64 indexing fix)
 - causal‑conv1d: 1.5.2 (latest stable for PyTorch 2.5+)
 - torch‑geometric: 2.6.1
 - numpy: 1.26.4
+- NVIDIA driver: **581.42** (Oct 2025) on RTX 4090; older 572.xx builds crash with SIGBUS around batch ~3000. Verify with `nvidia-smi` after install.
 
 ## CRITICAL: CUDA Toolkit Installation
 
@@ -52,6 +54,17 @@ Manual verification
 - `.venv/bin/python -c "import torch; print(torch.version.cuda)"` → 12.4
 - `.venv/bin/python -c "from mamba_ssm import Mamba2; print('OK')"`
 - `.venv/bin/python -c "import torch_geometric as tg; print(tg.__version__)"` → 2.6.1
+- `nvidia-smi | head -n 3` → driver version should read `581.42`
+
+### Triton version warning (expected)
+
+Flash Linear Attention emits a warning when Triton <3.2.0 is detected:
+
+```
+WARNING fla.utils: Current Triton version 3.1.0 is below the recommended 3.2.0 … please consider upgrading.
+```
+
+Stay on **Triton 3.1.0** while the stack is locked to PyTorch 2.5.0—upgrading Triton forces a PyTorch 2.6+ jump, which breaks the validated mamba-ssm build and PyG wheels. The warning is informational only; kernels operate at full speed on 3.1.0.
 
 Troubleshooting
 

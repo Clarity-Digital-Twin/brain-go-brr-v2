@@ -33,6 +33,7 @@ export BGB_MID_EPOCH_KEEP=5      # Keep last 5 snapshots (rotating)
 3. **Mid-epoch**: `mid_epoch_XXX_YYYYYY.pt` (every 30 min, keeps 5)
 4. **Periodic**: `checkpoint_epoch_XXX.pt` (every epoch now)
 5. **Timeout guard**: `timeout_exit.pt` (written when the Modal wall-clock guard triggers at ~23 h)
+- **v3.11.0 metadata**: All checkpoint types persist `global_step`. Mid-epoch and timeout snapshots also carry `batch_idx` and `StatefulDataLoader.state_dict()` so resumes continue at the exact batch with the correct warmup state and W&B step counters.
 
 ### Storage Requirements
 - **Per epoch**: ~400MB (last + best)
@@ -52,6 +53,10 @@ export BGB_MID_EPOCH_KEEP=5      # Keep last 5 snapshots (rotating)
 # 2. timeout_exit.pt (if present from timeout guard)
 # 3. last.pt (if no mid-epoch/timeout snapshots)
 # 4. Fresh start (if no checkpoints)
+
+# On resume you should see logs such as:
+# [RESUME] ✅ Exact mid-epoch resume: epoch 3, batch 2527, global_step 2527
+# [WARMUP] Batch 2527 focal_gamma=2.000  (no schedule reset)
 ```
 
 ## Modal Training (A100)

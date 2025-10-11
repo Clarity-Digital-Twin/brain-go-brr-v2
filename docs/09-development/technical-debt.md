@@ -1,7 +1,7 @@
 # Technical Debt & Cleanup Status
 
-**Last Updated**: October 8, 2025 (v3.9.0)
-**Status**: 🟢 **ZERO ACTIVE DEBT** - Atomic checkpoints, timeout guard, and Modal production run live
+**Last Updated**: October 11, 2025 (v3.11.0)
+**Status**: 🟢 **ZERO ACTIVE DEBT** - StatefulDataLoader resumes, atomic checkpoints, timeout guard, and Modal production run live
 
 ## Executive Summary
 
@@ -16,6 +16,21 @@
 **Current Status**: All known technical debt has been eliminated. Codebase is clean and Modal A100 training is running.
 
 ---
+
+## Recently Resolved (October 10–11, 2025 — v3.11.0)
+
+- **Exact mid-epoch resume** (StatefulDataLoader + checkpoint metadata)
+  - Added `torchdata.stateful_dataloader.StatefulDataLoader` for train/val loops, persisted loader state in checkpoints, and restored `resume_batch_idx` so Modal restarts skip straight to the saved batch.
+  - `global_step` is now saved/restored alongside optimizer/scheduler state; warmup schedules, gradient logging, and W&B metrics continue without restarting from zero.
+- **RNG device safety**
+  - Checkpoint loads keep RNG tensors on CPU before calling `torch.set_rng_state`, preventing `RNG state must be a torch.ByteTensor` when resuming on CUDA.
+  - Regression coverage lives in `tests/unit/train/test_checkpoint_rng_device.py`.
+- **Pydantic warning sweep**
+  - Optional config fields now use `Annotated[..., Field(...)]`, eliminating `UnsupportedFieldAttributeWarning` noise introduced in Pydantic 2.12.
+  - `make q` runs warning-free while keeping schema validation strict.
+- **Config/documentation realignment**
+  - All tooling defaults, Docker `CMD`, docs, and tests reference `{smoke,train}_{bimamba,fla}.yaml` after the architecture split.
+  - Modal quick commands and README examples now match the live file layout.
 
 ## Recently Resolved (October 8, 2025 - v3.9.0)
 
