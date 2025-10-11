@@ -1,0 +1,8 @@
+# This directory stores pre-processed EEG data caches
+#
+# Local setup: cache/tusz_mmap/ → Memory-mapped NPY files
+# - train/: 4667 NPY files (data + labels) + manifest.json
+# - dev/: 1832 NPY files (data + labels) + manifest.json
+#
+# The actual data files are excluded by .gitignore
+# This .gitkeep ensures the directory structure is documented in git
