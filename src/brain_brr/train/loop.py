@@ -168,12 +168,19 @@ def train(
         # Restore DataLoader state for exact batch resume
         if "dataloader_state_dict" in ckpt:
             train_loader.load_state_dict(ckpt["dataloader_state_dict"])  # type: ignore[attr-defined]
-            logger.info(f"[RESUME] ✅ Exact mid-epoch resume at batch {ckpt.get('batch_idx', '?')}")
+            resume_batch_idx = ckpt.get("batch_idx", 0)
+            resume_global_step = ckpt.get("global_step", 0)
+            logger.info(
+                f"[RESUME] ✅ Exact mid-epoch resume: "
+                f"epoch {start_epoch + 1}, batch {resume_batch_idx}, global_step {resume_global_step}"
+            )
         else:
             logger.warning(
                 "[RESUME] Old checkpoint without DataLoader state - "
                 "restarting epoch from batch 0 (expected before v3.11.0)"
             )
+            resume_batch_idx = 0
+            resume_global_step = 0
             logger.info(f"Resumed from epoch {start_epoch + 1}, batch 0")
     elif (checkpoint_dir / CHECKPOINT_LAST).exists() and config.training.resume:
         start_epoch, best_metric = load_checkpoint(
@@ -184,7 +191,10 @@ def train(
             scaler=scaler,
             device=device,
         )
-        logger.info(f"Resumed from epoch {start_epoch + 1}")
+        ckpt = torch.load(checkpoint_dir / CHECKPOINT_LAST, map_location="cpu", weights_only=False)
+        resume_batch_idx = 0
+        resume_global_step = ckpt.get("global_step", 0)
+        logger.info(f"Resumed from epoch {start_epoch + 1}, global_step {resume_global_step}")
 
     # Wall-clock timeout guard (for Modal 24h limit)
     wall_clock_limit_s = _safe_parse_int(os.getenv("BGB_WALL_CLOCK_LIMIT_S"), fallback=0)

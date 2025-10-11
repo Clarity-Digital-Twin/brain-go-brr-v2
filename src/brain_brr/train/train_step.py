@@ -301,7 +301,8 @@ def train_epoch(
         else:
             progress = dataloader
 
-        for batch_idx, batch in enumerate(progress):
+        for relative_idx, batch in enumerate(progress):
+            batch_idx = relative_idx + resume_batch_idx
             windows = batch["window"].to(device_obj)
             labels = batch["label"].to(device_obj)
 
@@ -546,6 +547,7 @@ def train_epoch(
                         None,
                         scaler=scaler,  # Save scaler for FP16 resume
                         save_rng=True,  # Save RNG for deterministic resume
+                        global_step=global_step,
                         extra={
                             "batch_idx": batch_idx,
                             "kind": "mid_epoch",
