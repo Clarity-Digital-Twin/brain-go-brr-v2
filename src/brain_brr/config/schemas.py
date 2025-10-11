@@ -636,10 +636,10 @@ class TrainingConfig(StrictModel):
     )
 
     # NEW: Warmup schedules for gradient stabilization (OPTIONAL)
-    warmup_schedule: WarmupScheduleConfig | None = Field(
-        default=None,
-        description="Optional warmup schedules (disable with null for backward compat)",
-    )
+    warmup_schedule: Annotated[
+        WarmupScheduleConfig | None,
+        Field(description="Optional warmup schedules (disable with null for backward compat)")
+    ] = None
 
 
 class EvaluationConfig(StrictModel):
