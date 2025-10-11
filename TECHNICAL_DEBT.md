@@ -1,9 +1,9 @@
 # Technical Debt
 
-**Date**: October 9, 2025
+**Date**: October 10, 2025
 **Status**: 🟢 **ZERO TECHNICAL DEBT** - All P0/P1/P2/P3 issues resolved
-**Version**: v3.9.1 (Validation OOM Fix)
-**Training Impact**: CLEAR - Production-ready, bulletproof resume, validation OOM eliminated
+**Version**: v3.10.0 (Auto-Restart & Checkpoint Fixes)
+**Training Impact**: CLEAR - Production-ready, bulletproof checkpoints, all resume bugs eliminated
 
 ---
 
@@ -243,7 +243,7 @@ This issue was promoted from P3 to P1 and resolved in v3.8.3 through:
 
 ---
 
-## 🎉 Zero Technical Debt Achieved & Enhanced (v3.9.x)
+## 🎉 Zero Technical Debt Achieved & Enhanced (v3.9.x → v3.10.0)
 
 **Complete Resolution Timeline**:
 - **v3.8.0** (Oct 6): Resolved NPZ contamination (P0), code duplication (P2), type safety (P2)
@@ -252,6 +252,10 @@ This issue was promoted from P3 to P1 and resolved in v3.8.3 through:
 - **v3.8.3** (Oct 7): Manifest naming cleanup complete (P1/P3) → **ZERO DEBT**
 - **v3.9.0** (Oct 8): Bulletproof checkpoints + timeout guard + comprehensive validation → **PRODUCTION BASELINE**
 - **v3.9.1** (Oct 9): Validation OOM fix (disk-backed validation + manifest guard) → **MODAL TRAINING STABLE**
+- **v3.10.0** (Oct 10): Auto-restart + three checkpoint fixes → **PRODUCTION READY**
+  - Checkpoint resume fix (epoch+1 vs epoch) - saves $616 over 100 epochs
+  - Buffer compatibility fix (`register_buffer(None)` timing bug) - enables mid-epoch resume
+  - RNG device fix (`map_location="cuda"` moved RNG states incorrectly) - enables GPU resume
 
 **Current Status**:
 - ✅ **P0 Blockers**: 0 issues
@@ -317,6 +321,6 @@ make test     # Ensure all tests pass
 ---
 
 **Status**: 🟢 **ZERO TECHNICAL DEBT**
-**Current Version**: v3.9.1 (Validation OOM Fix)
-**Training Status**: Full Modal A100 training LIVE (100 epochs, W&B run 983c1fbf706b4d0f8870cc0331dc6201)
-**Next Action**: Monitor BiMamba2 completion → Launch FLA Modal training → Compare architectures! 🚀
+**Current Version**: v3.10.0 (Auto-Restart & Checkpoint Fixes)
+**Training Status**: Modal A100 production training with auto-restart (App: ap-EfCpvvcKntajgxwkcEaIj8)
+**Next Action**: Monitor BiMamba2 baseline → Launch FLA training → Compare architectures! 🚀

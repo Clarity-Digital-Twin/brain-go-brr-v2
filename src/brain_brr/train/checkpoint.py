@@ -157,7 +157,57 @@ def load_checkpoint(
             f"current version is {CHECKPOINT_VERSION}"
         )
 
-    model.load_state_dict(checkpoint["model_state_dict"])
+    # Handle buffer shape mismatches before loading
+    # (e.g., gnn.last_valid_pe can have different shapes between checkpoint and fresh model)
+    # See: CHECKPOINT_BUFFER_BUG.md for full analysis
+    state_dict = checkpoint["model_state_dict"]
+    model_state = model.state_dict()
+
+    # Detect and handle dynamic buffer shape mismatches
+    buffers_to_skip = []
+    for key in list(state_dict.keys()):
+        if key in model_state:
+            ckpt_shape = state_dict[key].shape
+            model_shape = model_state[key].shape
+            if ckpt_shape != model_shape:
+                # Known dynamic buffers that can change shape
+                if key.endswith(".last_valid_pe"):
+                    logger.info(
+                        f"[CHECKPOINT] Skipping dynamic buffer with shape mismatch: {key} "
+                        f"(checkpoint: {ckpt_shape}, model: {model_shape})"
+                    )
+                    buffers_to_skip.append(key)
+                else:
+                    logger.warning(
+                        f"[CHECKPOINT] Shape mismatch for {key}: "
+                        f"checkpoint {ckpt_shape}, model {model_shape}"
+                    )
+
+    # Remove buffers with shape mismatches from state_dict
+    for key in buffers_to_skip:
+        del state_dict[key]
+
+    # Load with strict=False to handle missing/extra keys
+    incompatible = model.load_state_dict(state_dict, strict=False)
+
+    # Log any mismatches for visibility (helps catch genuine architecture changes)
+    if incompatible.missing_keys:
+        logger.warning(
+            f"[CHECKPOINT] Missing keys in checkpoint (new model params): {incompatible.missing_keys}"
+        )
+    if incompatible.unexpected_keys:
+        # Filter known dynamic buffers
+        unexpected_filtered = [
+            k
+            for k in incompatible.unexpected_keys
+            if not k.endswith(
+                ".last_valid_pe"
+            )  # Known dynamic buffer (see CHECKPOINT_BUFFER_BUG.md)
+        ]
+        if unexpected_filtered:
+            logger.warning(
+                f"[CHECKPOINT] Unexpected keys in checkpoint (old/removed params): {unexpected_filtered}"
+            )
 
     if optimizer is not None and "optimizer_state_dict" in checkpoint:
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
@@ -173,11 +223,24 @@ def load_checkpoint(
         logger.warning("[CHECKPOINT] No scaler state in checkpoint (old checkpoint?)")
 
     # Restore RNG states for deterministic resume
+    # CRITICAL: RNG states must be on correct devices (see RNG_STATE_DEVICE_BUG.md)
     if restore_rng and "rng_state" in checkpoint:
         rng = checkpoint["rng_state"]
-        torch.set_rng_state(rng["torch"])
+
+        # CPU RNG: torch.set_rng_state() REQUIRES CPU ByteTensor
+        # If checkpoint was loaded with map_location="cuda", force back to CPU
+        torch.set_rng_state(rng["torch"].cpu())
+
+        # CUDA RNG: torch.cuda.set_rng_state_all() REQUIRES CPU tensors
+        # PyTorch internally saves/restores CUDA RNG on CPU, then moves to GPU
+        # If checkpoint was loaded with map_location="cuda", move back to CPU
         if torch.cuda.is_available() and rng["torch_cuda"] is not None:
-            torch.cuda.set_rng_state_all(rng["torch_cuda"])
+            cuda_rng = rng["torch_cuda"]
+            # Ensure CUDA RNG states are on CPU (PyTorch requirement)
+            if isinstance(cuda_rng, list) and len(cuda_rng) > 0 and cuda_rng[0].is_cuda:
+                cuda_rng = [state.cpu() for state in cuda_rng]
+            torch.cuda.set_rng_state_all(cuda_rng)
+
         np.random.set_state(rng["numpy"])
         random.setstate(rng["python"])
         logger.debug("[CHECKPOINT] Restored RNG states for deterministic resume")

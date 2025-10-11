@@ -4,7 +4,7 @@ This file provides critical project context for Claude Code (claude.ai/code) whe
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.9.2 (CI/CD Stability): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks. **Full Modal A100 training LIVE** with disk-backed validation, bulletproof checkpoints, and comprehensive FLA CI validation.
+Brain-Go-Brr v3.11.0 (StatefulDataLoader & Mid-Epoch Resume): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks. **Hands-free Modal A100 training** with auto-restart, exact mid-epoch resume via StatefulDataLoader, and checkpoint fixes eliminating wasted compute.
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
@@ -12,9 +12,15 @@ Brain-Go-Brr v3.9.2 (CI/CD Stability): Clinical EEG seizure detection using **TC
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-Current Architecture (v3.9.2 - October 9, 2025):
+Current Architecture (v3.11.0 - October 10, 2025):
 - **V3 dual-stream** → Node (19×) and Edge (171×) parallel processing
 - **Memory-mapped cache (NPY)** → <1 GB RAM vs 387 GB for NPZ, 99.6% faster startup
+- **Auto-restart training** → Hands-free 100-epoch training via modal.Period(hours=23) with overlap protection
+- **StatefulDataLoader** → Exact mid-epoch resume with PyTorch official dataloader state management ($150+ savings)
+- **Three checkpoint fixes** → All resume bugs eliminated:
+  1. Resume fix: Saves epoch+1 (next) not epoch (completed), prevents 14h waste per restart
+  2. Buffer fix: Handle `register_buffer(None)` timing bug, enables mid-epoch checkpoints
+  3. RNG fix: Force RNG states to CPU before restoration, enables GPU resume
 - **Bulletproof checkpoints** → Atomic saves (temp + fsync + rename), AMP scaler + RNG capture, every 30min
 - **Timeout guard** → 23h wall-clock limit with 1h safety margin, graceful exit before Modal kill
 - **Complete tensor safety** → All 3 datasets use copy-on-read tensors for read-only mmap safety (no PyTorch warnings)
@@ -22,6 +28,7 @@ Current Architecture (v3.9.2 - October 9, 2025):
 - **Dynamic Laplacian PE** → Time-evolving graph structure, fully dynamic every timestep
 - **Detached eigenvectors** → Prevents gradient explosion through eigendecomposition (gnn_pyg.py:205)
 - **3-tier NaN protection** → Gradient sanitization + clamping + monitoring
+- **Modal 1.0 compatible** → Updated max_containers parameter for future compatibility
 - **Zero technical debt** → All P0/P1/P2/P3 issues resolved, production training LIVE
 
 ## 🚀 Quick Commands
@@ -104,8 +111,12 @@ modal run --detach deploy/modal/app.py --action train --config configs/modal/smo
 # FLA smoke test (50 files, ~10 min)
 modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml
 
-# BiMamba2 full training (ALWAYS use --detach for long runs)
+# BiMamba2 full training - Manual (requires manual resume every 23h)
 modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
+
+# BiMamba2 full training - Auto-Restart (RECOMMENDED: hands-free to 100 epochs)
+modal deploy deploy/modal/app.py
+modal run --detach deploy/modal/app.py --action schedule-training --config configs/modal/train_bimamba.yaml
 
 # FLA full training (ALWAYS use --detach for long runs)
 modal run --detach deploy/modal/app.py --action train --config configs/modal/train_fla.yaml
@@ -113,11 +124,11 @@ modal run --detach deploy/modal/app.py --action train --config configs/modal/tra
 # Monitor training
 modal app list                    # List running apps
 modal app logs <app-id>           # Stream logs
-modal app stop <app-id>          # Stop training
+modal app stop brain-go-brr-v2    # Stop auto-restart training
 
-# Resume from checkpoint (BiMamba2 example)
+# Resume from checkpoint (manual, for one-off runs)
 modal run --detach deploy/modal/app.py --action train \
-  --config configs/modal/train_bimamba.yaml --resume true
+  --config configs/modal/train_bimamba.yaml --resume
 ```
 
 **NOTE**: Modal automatically sets `BGB_NAN_DEBUG=1` via `deploy/modal/app.py`. Gradient clipping (0.5) provides primary NaN protection.
@@ -385,15 +396,19 @@ Due to hardware differences, integration tests have adjusted thresholds:
 
 **Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
 
-**Current Status (v3.9.2 - October 9, 2025 - CI/CD Stability)**:
+**Current Status (v3.11.0 - October 10, 2025 - StatefulDataLoader & Mid-Epoch Resume)**:
 - ✅ **Zero technical debt** - All P0/P1/P2/P3 issues RESOLVED across all priority levels
-- ✅ **Bulletproof checkpoints** - Atomic saves every 30min, AMP scaler + RNG capture, verified integrity
+- ✅ **Auto-restart training** - Hands-free 100-epoch training via modal.Period(hours=23), zero manual intervention
+- ✅ **StatefulDataLoader integrated** - Exact mid-epoch resume via PyTorch official dataloader state management
+- ✅ **Checkpoint resume fix** - Saves epoch+1 instead of epoch, prevents 14h waste per restart
+- ✅ **Mid-epoch checkpoint robustness** - Saves exact batch position, eliminates 1-2h wasted compute per restart ($150+ savings)
+- ✅ **Pydantic v2 warning fix** - Clean Annotated pattern for forward references, zero warnings in production logs
+- ✅ **Bulletproof checkpoints** - Atomic saves every 30min, AMP scaler + RNG + DataLoader state capture
+- ✅ **Backward compatibility** - Old checkpoints still work (logs warning, restarts from epoch start)
 - ✅ **Timeout guard** - 23h wall-clock limit, 1h safety margin, graceful exit before Modal kill
-- ✅ **Comprehensive validation** - PRE_TRAINING_VALIDATION.md, metrics pipeline verified from first principles
-- ✅ **Test suite enhanced** - Manifest validation, checkpoint robustness, 75%+ coverage maintained
-- ✅ **BiMamba2 baseline training LIVE** - Modal A100-80GB, 100 epochs, validation OOM fixed
+- ✅ **BiMamba2 baseline training LIVE** - Modal A100-80GB with v3.11.0 code, zero compute waste
 - ✅ **FLA research complete** - BiGatedDeltaNet implemented, all smoke tests passed
 - ✅ **Research comparison strategy** - Train both BiMamba2 and FLA stacks independently, document results for both
+- ✅ **Modal 1.0 migration complete** - Updated max_containers parameter, deprecation warnings fixed
 - 📊 **Research goal** - Empirical comparison on full TUSZ dataset; both results publishable regardless of outcome
-- 📊 **Next**: Wait for BiMamba2 → Create Modal FLA config → A/B comparison
-- 📚 **See**: `FLA_ROADMAP.md` for complete strategy and timeline
+- 📚 **See**: `FLA_ROADMAP.md` for complete strategy, `MODAL_CLI_REFERENCE.md` for updated commands

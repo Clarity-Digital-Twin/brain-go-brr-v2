@@ -1,7 +1,7 @@
 """Pydantic schemas for config validation - single source of truth for all configs."""
 
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -73,12 +73,12 @@ class DataConfig(StrictModel):
     prefetch_factor: int = Field(
         default=2, ge=2, description="Batches to prefetch per worker (requires num_workers>0)"
     )
-    max_samples: int | None = Field(
-        default=None, ge=1, description="Limit samples for debugging (None = use all)"
-    )
-    max_hours: float | None = Field(
-        default=None, gt=0, description="Limit total hours of data (None = use all)"
-    )
+    max_samples: Annotated[
+        int | None, Field(ge=1, description="Limit samples for debugging (None = use all)")
+    ] = None
+    max_hours: Annotated[
+        float | None, Field(gt=0, description="Limit total hours of data (None = use all)")
+    ] = None
 
     @field_validator("data_dir")
     @classmethod
@@ -132,14 +132,18 @@ class MambaConfig(StrictModel):
         description="SSM type: bimamba2 (stable default) or gated_deltanet (experimental via FLA)",
     )
 
-    temporal_type_node: Literal["bimamba2", "gated_deltanet"] | None = Field(
-        default=None,
-        description="Override temporal_type for node stream (None = use global temporal_type)",
-    )
-    temporal_type_edge: Literal["bimamba2", "gated_deltanet"] | None = Field(
-        default=None,
-        description="Override temporal_type for edge stream (None = use global temporal_type)",
-    )
+    temporal_type_node: Annotated[
+        Literal["bimamba2", "gated_deltanet"] | None,
+        Field(
+            description="Override temporal_type for node stream (None = use global temporal_type)"
+        ),
+    ] = None
+    temporal_type_edge: Annotated[
+        Literal["bimamba2", "gated_deltanet"] | None,
+        Field(
+            description="Override temporal_type for edge stream (None = use global temporal_type)"
+        ),
+    ] = None
 
     gdn_fusion_mode: Literal["sum", "concat"] = Field(
         default="sum",
@@ -150,31 +154,29 @@ class MambaConfig(StrictModel):
         description="Allow β_t ∈ (0,2) for better state tracking (research feature, start false)",
     )
 
-    gdn_edge_num_heads: int | None = Field(
-        default=None,
-        ge=1,
-        description="Override edge stream num_heads (None = use constants, required if edge_mamba_d_model changes)",
-    )
-    gdn_edge_headdim: int | None = Field(
-        default=None,
-        ge=1,
-        description="Override edge stream headdim (None = use constants, required if edge_mamba_d_model changes)",
-    )
-    gdn_node_num_heads: int | None = Field(
-        default=None,
-        ge=1,
-        description="Override node stream num_heads (None = use constants)",
-    )
-    gdn_node_headdim: int | None = Field(
-        default=None,
-        ge=1,
-        description="Override node stream headdim (None = use constants)",
-    )
+    gdn_edge_num_heads: Annotated[
+        int | None,
+        Field(
+            ge=1,
+            description="Override edge stream num_heads (None = use constants, required if edge_mamba_d_model changes)",
+        ),
+    ] = None
+    gdn_edge_headdim: Annotated[
+        int | None,
+        Field(
+            ge=1,
+            description="Override edge stream headdim (None = use constants, required if edge_mamba_d_model changes)",
+        ),
+    ] = None
+    gdn_node_num_heads: Annotated[
+        int | None, Field(ge=1, description="Override node stream num_heads (None = use constants)")
+    ] = None
+    gdn_node_headdim: Annotated[
+        int | None, Field(ge=1, description="Override node stream headdim (None = use constants)")
+    ] = None
 
-    hybrid_attention: "HybridAttentionConfig | None" = Field(
-        default=None,
-        description="Hybrid GDN+SWA configuration (Phase 3 only, requires Phase 2 success)",
-    )
+    # Hybrid GDN+SWA configuration (Phase 3 only, requires Phase 2 success)
+    hybrid_attention: "HybridAttentionConfig | None" = None
 
     @model_validator(mode="after")
     def validate_gdn_constraints(self) -> "MambaConfig":
@@ -309,12 +311,10 @@ class GraphConfig(StrictModel):
     adj_softmax_tau: float = Field(
         default=1.0, gt=0.0, le=10.0, description="Temperature for adjacency softmax"
     )
-    adj_ema_beta: float | None = Field(
-        default=None,
-        ge=0.0,
-        lt=1.0,
-        description="EMA coefficient for temporal smoothing (None=disabled)",
-    )
+    adj_ema_beta: Annotated[
+        float | None,
+        Field(ge=0.0, lt=1.0, description="EMA coefficient for temporal smoothing (None=disabled)"),
+    ] = None
     adj_force_symmetric: bool = Field(
         default=False, description="Force adjacency matrix to be symmetric"
     )
@@ -411,7 +411,7 @@ class ModelConfig(StrictModel):
     mamba: MambaConfig = Field(default_factory=MambaConfig)
 
     # Optional GNN config (V3 learned adjacency)
-    graph: GraphConfig | None = Field(default=None, description="GNN configuration (V3)")
+    graph: Annotated[GraphConfig | None, Field(description="GNN configuration (V3)")] = None
 
     # Normalization configuration (PR-1: Boundary Normalization)
     norms: NormConfig = Field(
@@ -624,23 +624,23 @@ class TrainingConfig(StrictModel):
     checkpoint_interval: int = Field(
         default=1, ge=0, le=100, description="Save checkpoint every N epochs (0 = disabled)"
     )
-    mid_checkpoint_interval_s: int | None = Field(
-        default=None,
-        ge=60,
-        description="Save mid-epoch checkpoint every N seconds (None = disabled)",
-    )
-    mid_epoch_keep: int | None = Field(
-        default=None, ge=1, le=10, description="Keep last N mid-epoch checkpoints (None = keep all)"
-    )
+    mid_checkpoint_interval_s: Annotated[
+        int | None,
+        Field(ge=60, description="Save mid-epoch checkpoint every N seconds (None = disabled)"),
+    ] = None
+    mid_epoch_keep: Annotated[
+        int | None,
+        Field(ge=1, le=10, description="Keep last N mid-epoch checkpoints (None = keep all)"),
+    ] = None
     gradient_accumulation_steps: int = Field(
         default=1, ge=1, le=100, description="Number of gradient accumulation steps"
     )
 
     # NEW: Warmup schedules for gradient stabilization (OPTIONAL)
-    warmup_schedule: WarmupScheduleConfig | None = Field(
-        default=None,
-        description="Optional warmup schedules (disable with null for backward compat)",
-    )
+    warmup_schedule: Annotated[
+        WarmupScheduleConfig | None,
+        Field(description="Optional warmup schedules (disable with null for backward compat)"),
+    ] = None
 
 
 class EvaluationConfig(StrictModel):
@@ -658,7 +658,7 @@ class WandbConfig(StrictModel):
 
     enabled: bool = Field(default=False, description="Enable W&B logging")
     project: str = Field(default="seizure-detection", description="W&B project name")
-    entity: str | None = Field(default=None, description="W&B entity/team name")
+    entity: Annotated[str | None, Field(description="W&B entity/team name")] = None
     tags: list[str] = Field(default_factory=list, description="Run tags")
 
 
