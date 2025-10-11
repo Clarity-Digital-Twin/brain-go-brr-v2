@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    from wandb.sdk.wandb_run import Run as WandBRun  # type: ignore[import-not-found]
+    from src.brain_brr.train.wandb_integration import WandBLogger
 
 import torch
 import torch.nn as nn
@@ -186,7 +186,7 @@ def train_epoch(
     log_every_n_steps: int = LOG_EVERY_N_STEPS,
     log_gradients: bool = False,
     log_weights: bool = False,
-    wandb_logger: WandBRun | None = None,
+    wandb_logger: WandBLogger | None = None,
     resume_batch_idx: int = 0,
 ) -> float | tuple[float, int, GradScaler]:
     """Train for one epoch.

@@ -208,6 +208,13 @@ def train(
             f"({wall_clock_limit_s / 3600:.1f}h), safety margin: 10 min"
         )
 
+    # Ensure resume state defaults even when not resuming
+    if "resume_global_step" not in locals():
+        resume_global_step = 0
+        resume_batch_idx = 0
+
+    global_step = resume_global_step  # Track global step across epochs for scheduler
+
     # Mutable state for signal handler (updated during training loop)
     signal_state: dict[str, int | float] = {"epoch": start_epoch, "best_metric": best_metric}
 
@@ -247,15 +254,8 @@ def train(
     signal.signal(signal.SIGTERM, _signal_handler)
     signal.signal(signal.SIGINT, _signal_handler)
     logger.info("[SIGNAL] Registered SIGTERM and SIGINT handlers for graceful exit")
-
-    # Initialize resume state if not set (when not resuming)
-    if "resume_global_step" not in locals():
-        resume_global_step = 0
-        resume_batch_idx = 0
-
     # Training loop
     best_metrics: dict[str, Any] = {"best_epoch": 0}
-    global_step = resume_global_step  # Track global step across epochs for scheduler
 
     for epoch in range(start_epoch, config.training.epochs):
         # Update signal handler state for current epoch

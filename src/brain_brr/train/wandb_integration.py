@@ -134,7 +134,8 @@ class WandBLogger:
             )
             self.enabled = True
             status = "resumed" if resume_existing else "created"
-            logger.info(f"[W&B] Run {status}: {wandb.run.url}")
+            if self.run:
+                logger.info(f"[W&B] Run {status}: {self.run.url}")
         except Exception as e:
             logger.error(f"Failed to initialize W&B: {e}")
 
