@@ -69,6 +69,9 @@ def save_checkpoint(
         "timestamp": time.time(),
     }
 
+    if global_step is not None:
+        checkpoint["global_step"] = global_step
+
     if scheduler is not None:
         checkpoint["scheduler_state_dict"] = scheduler.state_dict()
 
