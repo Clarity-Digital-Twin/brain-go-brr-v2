@@ -234,6 +234,7 @@ def train(
                 config,
                 scaler=scaler,
                 save_rng=True,
+                global_step=global_step,
             )
             logger.info(f"[SIGNAL] Saved signal_exit_{sig_name.lower()}.pt")
         except Exception as e:
@@ -247,9 +248,14 @@ def train(
     signal.signal(signal.SIGINT, _signal_handler)
     logger.info("[SIGNAL] Registered SIGTERM and SIGINT handlers for graceful exit")
 
+    # Initialize resume state if not set (when not resuming)
+    if "resume_global_step" not in locals():
+        resume_global_step = 0
+        resume_batch_idx = 0
+
     # Training loop
     best_metrics: dict[str, Any] = {"best_epoch": 0}
-    global_step = 0  # Track global step across epochs for scheduler
+    global_step = resume_global_step  # Track global step across epochs for scheduler
 
     for epoch in range(start_epoch, config.training.epochs):
         # Update signal handler state for current epoch
@@ -281,6 +287,7 @@ def train(
                 config,
                 scaler=scaler,
                 save_rng=True,
+                global_step=global_step,
             )
             logger.info("[TIMEOUT] Saved timeout_exit.pt, resume with --resume flag")
             break
@@ -320,6 +327,7 @@ def train(
             log_gradients=config.logging.log_gradients,
             log_weights=config.logging.log_weights,
             wandb_logger=wandb_logger,
+            resume_batch_idx=resume_batch_idx if epoch == start_epoch else 0,
         )
 
         # Type narrowing for mypy
@@ -446,6 +454,7 @@ def train(
                     config,
                     scaler=scaler,  # Save scaler for FP16 resume
                     save_rng=True,  # Save RNG for deterministic resume
+                    global_step=global_step,
                 )
                 # Log best model to W&B
                 wandb_logger.log_model(checkpoint_dir / CHECKPOINT_BEST, name=f"best-{metric_name}")
@@ -472,6 +481,7 @@ def train(
                 config,
                 scaler=scaler,  # Save scaler for FP16 resume
                 save_rng=True,  # Save RNG for deterministic resume
+                global_step=global_step,
             )
             logger.info(f"  Saved periodic checkpoint: {checkpoint_path.name}")
 
@@ -488,6 +498,7 @@ def train(
                 config,
                 scaler=scaler,  # Save scaler for FP16 resume
                 save_rng=True,  # Save RNG for deterministic resume
+                global_step=global_step,
             )
 
         # Check timeout after epoch completion (validation can be slow)
