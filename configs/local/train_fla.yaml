@@ -13,8 +13,8 @@ experiment:
   name: full_training_fla
   description: "Full training - TCN+FLA(GatedDeltaNet)+GNN on RTX 4090"
   seed: 42
-  output_dir: results/local_training
-  cache_dir: cache/tusz_mmap  # Same as data.cache_dir for consistency (mmap NPY format)
+  output_dir: results/local_fla_training    # Separate from BiMamba2 (results/local_training)
+  cache_dir: cache/tusz_mmap                # Same as data.cache_dir for consistency (mmap NPY format)
   device: cuda
   log_level: INFO
   save_model: true
