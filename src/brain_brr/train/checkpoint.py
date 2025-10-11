@@ -37,6 +37,7 @@ def save_checkpoint(
     scaler: GradScaler | None = None,
     save_rng: bool = True,
     extra: dict[str, Any] | None = None,
+    global_step: int | None = None,
 ) -> None:
     """Save training checkpoint with atomic writes and full state capture.
 
