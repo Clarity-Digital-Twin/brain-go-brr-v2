@@ -86,7 +86,90 @@ Optional: capture logs to `/tmp/phase2_sigbus_fix.log` and link in status docs.
 
 ---
 
-## 4. Frequently Asked Questions
+## 4. Investigation Evidence (Forensics)
+
+This section preserves the complete investigation trail for future reference.
+
+### Dual Root Causes (October 11, 2025)
+
+**Discovery**: Two independent bugs both caused SIGBUS around batch 2900:
+
+1. **Driver Bug** (Fixed Oct 11 morning):
+   - NVIDIA driver 572.16 (January 2025) had widespread RTX 4090 stability issues
+   - Upgraded to 581.42 (October 2025) → First crash pattern eliminated
+   - Community reports confirmed 572.xx series problems; driver 576.02 (April 2025) resolved 40+ crash issues
+
+2. **Filesystem Bug** (Fixed Oct 11 afternoon):
+   - Memory-mapped cache lived on `/mnt/d/` (Windows partition via WSL2 9P filesystem)
+   - Under memory pressure (~2 hours training), 9P client evicted mmap pages
+   - AVX2 copy instructions in FLA hit invalid pages → SIGBUS
+   - **Why missed initially**: Driver bug was happening first every time, masking filesystem bug
+
+### Kernel Evidence (dmesg)
+
+```
+[62361.200410] potentially unexpected fatal signal 7.
+[62361.200642] Code: c5 fe 6f 06 ...  (AVX2 vmovdqu instruction)
+[62361.200661] RDX: 000000000011d000  (copying ~1.1MB)
+```
+
+- Signal 7 = SIGBUS (bus error)
+- AVX2 `vmovdqu` = vectorized memory copy (likely NumPy loading from mmap)
+- Non-faulting AVX2 instruction cannot trigger page fault handler → immediate SIGBUS when page invalid
+
+### Cache Filesystem Verification
+
+```bash
+# Before fix
+$ ls -la cache/tusz_mmap
+lrwxrwxrwx  1 jj jj  35 Oct  5 17:09 cache/tusz_mmap -> /mnt/d/brain-go-brr/cache/tusz_mmap
+
+$ df -h cache/tusz_mmap/
+D:\    932G  660G  273G  71% /mnt/d    # ← 9P filesystem (problem!)
+
+# After fix (cache migrated to ext4)
+$ df -h cache/tusz_mmap/
+/dev/sdc  1007G  823G  134G  87% /     # ← ext4 (solution)
+```
+
+### Space Discovery
+
+**Critical Finding**: Old NPZ cache (449GB) unused since v3.8.0 migration allowed migration without disk expansion:
+
+```bash
+$ du -sh cache/tusz         # Old NPZ format
+449G
+
+$ du -sh /mnt/d/.../tusz_mmap  # New NPY format
+518G
+
+# Space calculation:
+#   Current WSL2 free: 134GB
+#   + Delete old cache: 449GB
+#   = Available: 583GB
+#   - New cache needs: 518GB
+#   = Final free: 65GB ✅
+```
+
+**Verification**: No runtime code creates or requires NPZ files (legacy read-only compatibility only):
+```bash
+$ grep -rn "\.save.*npz\|savez\|np\.savez" src/
+# (empty) ✅
+```
+
+### Crash Timeline
+
+| Time | Batch | Driver | Root Cause | Action |
+|------|-------|--------|------------|--------|
+| Oct 11, 01:23 | 2996 | 572.16 | Driver bug | Upgraded to 581.42 |
+| Oct 11, 15:54 | 2890 | 581.42 | Filesystem bug | Migrated cache to ext4 |
+| Post-migration | 5401+ | 581.42 | None | Training stable ✅ |
+
+**Verification**: After both fixes, FLA training progressed past batch 5,400 (previous failure point: 2,890) with zero SIGBUS events.
+
+---
+
+## 5. Frequently Asked Questions
 
 **Q: Can the raw EDF dataset stay on `/mnt/d/`?**  
 Yes. Sequential EDF reads tolerate 9P; only the mmap cache requires ext4.
@@ -105,7 +188,7 @@ No. `rsync` preserves the mmap files. Rebuild only if `validate-cache` reports c
 
 ---
 
-## 5. Related Documentation
+## 6. Related Documentation
 
 - `INSTALLATION.md` — GPU stack requirements and driver checklist.
 - `docs/01-installation/gpu-stack.md` — version matrix and WSL2 precautions.
