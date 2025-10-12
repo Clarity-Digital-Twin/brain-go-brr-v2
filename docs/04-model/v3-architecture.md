@@ -1,8 +1,8 @@
 # V3 Architecture (Single Source of Truth)
 
-**Last Updated**: October 8, 2025
-**Current Version**: v3.9.1 (architecture unchanged since v3.4.1; validation OOM fix in training loop)
-**Status**: VALIDATED - Production training on Modal A100
+**Last Updated**: October 12, 2025
+**Current Version**: v4.0.0 (dual-stream architecture with BiMamba2 baseline + Flash Linear Attention variant)
+**Status**: VALIDATED - Production training on Modal A100 (BiMamba2) and RTX 4090 (FLA on ext4 cache)
 
 ## Version History
 
@@ -30,8 +30,8 @@
 ## Data Flow
 
 - Input `(B,19,15360)` → TCN `(B,512,960)` → Electrode features `(B,19,960,64)`
-- **Node stream**: BiMamba2 over `(B*19,64,960)` → `(B,19,960,64)`
-- **Edge stream**: Cosine similarity with margin `(B,171,960,1)` → Edge Mamba (1→16→1 + Softplus) → weights `(B,171,960)`
+- **Node stream**: BiMamba2 over `(B*19,64,960)` → `(B,19,960,64)` (or BiGatedDeltaNet when `temporal_type: gated_deltanet`)
+- **Edge stream**: Cosine similarity with margin `(B,171,960,1)` → Edge SSM (BiMamba2 1→16→1 + Softplus, or BiGatedDeltaNet with `edge_mamba_d_model: 32`) → weights `(B,171,960)`
 - **Adjacency assembly**: `(B,960,19,19)` with top‑k=3, threshold, symmetry, identity fallback
 - **GNN processing**: Vectorized SSGConv×2 + Laplacian PE over all timesteps → `(B,19,960,64)`
 - **Fusion**: Multi-head gated fusion (node + GNN) → `(B,19,960,64)`
@@ -174,6 +174,7 @@ training:
 - **CUDA alignment**: `(d_model*expand)/headdim` must be integer and multiple of 8
   - Node: (64*2)/8 = 16 ✅
   - Edge: (16*2)/4 = 8 ✅
+- **FLA edge alignment**: When `temporal_type: gated_deltanet`, set `edge_mamba_d_model: 32`, `edge_mamba_heads: 8` so `(32*2)/8 = 8` stays aligned with Triton kernels.
 - **Vectorized GNN**: Processes all timesteps simultaneously for efficiency
 - **Dynamic PE**: ALWAYS enabled (v3.3.1+ with detached eigenvectors)
 - **Edge transform bypass**: `bypass_edge_transform=True` (edge weights already Softplus'ed upstream)
@@ -188,9 +189,18 @@ training:
 | **Adjacency assembly** | `src/brain_brr/models/adjacency.py` | Top-k, symmetry, conditioning |
 | **GNN + Laplacian PE** | `src/brain_brr/models/gnn_pyg.py` | Line 205: eigenvector detach |
 | **BiMamba2** | `src/brain_brr/models/mamba.py` | Pre-norm pattern |
+| **BiGatedDeltaNet (FLA)** | `src/brain_brr/models/gated_deltanet.py` | Flash Linear Attention wrapper |
 | **TCN encoder** | `src/brain_brr/models/tcn.py` | Downsampling + features |
 | **Gated fusion** | `src/brain_brr/models/fusion.py` | Multi-head gating |
 | **Norms** | `src/brain_brr/models/norms.py` | LayerNorm + LayerScale |
+
+## Dual SSM Streams (v4.0.0)
+
+- **Baseline**: `bimamba2` for both streams (production on Modal A100).
+- **Variant**: `gated_deltanet` (Flash Linear Attention) for node and/or edge streams. Toggle per stream in `ModelConfig.mamba.temporal_type` and the edge builder config.
+- Both options share the same TCN, GNN, fusion, and decoder components—only the temporal SSM modules swap.
+- Parameter counts: Node stream drops ~29% with BiGatedDeltaNet (398k → 284k), edge stream rises ~190% (10k → 30k) to satisfy FLA alignment; total stream parameters decrease ~23%.
+- Validation ladder: Phase 0 infrastructure → Phase 1a edge-only → Phase 1b node-only → Phase 2 full stack. All phases complete; local FLA training confirmed stable when cache resides on ext4 (`docs/08-operations/wsl2-sigbus-fix.md`).
 
 ## Validated Design Decisions
 

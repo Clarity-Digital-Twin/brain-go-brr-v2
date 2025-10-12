@@ -102,7 +102,7 @@ $ find /mnt/d/brain-go-brr/cache/tusz_mmap -name "*.npz" | wc -l
 }
 ```
 
-### **Current NPY Cache** (`/mnt/d/brain-go-brr/cache/tusz_mmap/`)
+### **Current NPY Cache** (`cache/tusz_mmap/`)
 ```json
 {
   "original_build": "2025-09-26T17:55:00 (v3.2.0, from EDFs)",
@@ -110,14 +110,26 @@ $ find /mnt/d/brain-go-brr/cache/tusz_mmap -name "*.npz" | wc -l
   "conversion_tool": "scripts/convert_cache_to_mmap.py",
   "manifest_update": "2025-10-06T21:45:00 (v3.8.3, NPY naming)",
   "cleanup_date": "2025-10-07T11:30:00 (NPZ files removed)",
+  "migration_date": "2025-10-11T20:00:00 (Moved to native ext4 for mmap safety)",
   "mysz_fix_included": true,
   "verification": "Lossless conversion verified Oct 7, 2025",
   "train_files": 4667,
   "dev_files": 1832,
   "total_size": "518GB (uncompressed NPY for mmap)",
-  "location": "/mnt/d/brain-go-brr/cache/tusz_mmap/",
-  "symlink": "cache/tusz_mmap -> /mnt/d/brain-go-brr/cache/tusz_mmap"
+  "location": "cache/tusz_mmap/ (native Linux ext4 filesystem)",
+  "wsl2_warning": "MUST be on native filesystem - Windows drives cause SIGBUS"
 }
+```
+
+**⚠️ WSL2 CRITICAL NOTE (Oct 11, 2025):**
+```
+WRONG ❌: cache/tusz_mmap/ → /mnt/d/ (Windows drive via 9P)
+         → mmap page evictions → SIGBUS crashes during FLA training
+
+RIGHT ✅: cache/tusz_mmap/ (native ext4 on WSL2 VM disk)
+         → Full mmap support → No crashes
+
+See: SIGBUS_CRASH_ANALYSIS.md, CRASH_TIMELINE_ANALYSIS.md, CACHE_MIGRATION_PLAN.md
 ```
 
 ---

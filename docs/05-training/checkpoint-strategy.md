@@ -33,6 +33,7 @@ export BGB_MID_EPOCH_KEEP=5      # Keep last 5 snapshots (rotating)
 3. **Mid-epoch**: `mid_epoch_XXX_YYYYYY.pt` (every 30 min, keeps 5)
 4. **Periodic**: `checkpoint_epoch_XXX.pt` (every epoch now)
 5. **Timeout guard**: `timeout_exit.pt` (written when the Modal wall-clock guard triggers at ~23 h)
+- **v3.11.0 metadata**: All checkpoint types persist `global_step`. Mid-epoch and timeout snapshots also carry `batch_idx` and `StatefulDataLoader.state_dict()` so resumes continue at the exact batch with the correct warmup state and W&B step counters.
 
 ### Storage Requirements
 - **Per epoch**: ~400MB (last + best)
@@ -52,6 +53,10 @@ export BGB_MID_EPOCH_KEEP=5      # Keep last 5 snapshots (rotating)
 # 2. timeout_exit.pt (if present from timeout guard)
 # 3. last.pt (if no mid-epoch/timeout snapshots)
 # 4. Fresh start (if no checkpoints)
+
+# On resume you should see logs such as:
+# [RESUME] ✅ Exact mid-epoch resume: epoch 3, batch 2527, global_step 2527
+# [WARMUP] Batch 2527 focal_gamma=2.000  (no schedule reset)
 ```
 
 ## Modal Training (A100)
@@ -81,6 +86,13 @@ modal run --detach deploy/modal/app.py \
 - `save_checkpoint()` writes to `<name>.pt.tmp`, calls `os.fsync()`, then atomically renames to `<name>.pt`. Partial or corrupted files cannot appear even if Modal terminates mid-save.
 - Checkpoints include AMP scaler state and RNG seeds for Python, NumPy, torch CPU, and torch CUDA so resumes reproduce the exact batch order after timeouts.
 - `load_checkpoint()` handles legacy checkpoints gracefully—missing scaler/RNG fields trigger a warning but training continues.
+
+### 2025 Incident Fixes (Now Baked In)
+
+- **Dynamic buffer mismatch** (`gnn.last_valid_pe`): Graph positional encoding now registers a placeholder tensor so every checkpoint contains the buffer. Loader skips legacy keys safely before `load_state_dict()`, preventing the “Unexpected key gnn.last_valid_pe” crash described in the 2025-10 checkpoint audit.
+- **RNG device mismatch**: Checkpoint restores leave RNG tensors on CPU before `torch.set_rng_state`, fixing the `torch.ByteTensor` device error when resuming on CUDA. See `tests/unit/train/test_checkpoint_rng_device.py` for regression coverage.
+- **StatefulDataLoader parity**: Mid-epoch and timeout snapshots persist the loader state (`dataloader_state_dict`) plus `global_step`/`batch_idx` so resumes continue at the exact batch with correct warmup scheduling—no more 1–2 hour replays after Modal timeouts.
+- **Resume priority order**: Loader always prefers newest `mid_epoch_*.pt`, then `timeout_exit.pt`, then `last.pt`, mirroring the “Clear Path Forward” mitigation plan. This guarantees deterministic recovery after interruptions.
 
 ### Legacy checkpoints (pre-Oct 10 2025)
 

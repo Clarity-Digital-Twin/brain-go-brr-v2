@@ -177,8 +177,8 @@ experiment:
   description: "V3 dual-stream full training - FLA(GatedDeltaNet) on Modal A100"
   seed: 42
   device: cuda                         # Explicit GPU for consistency
-  output_dir: /results/v3_full_training   # Modal volume mount
-  cache_dir: /results/cache/tusz_mmap  # Must match data.cache_dir (mmap NPY format)
+  output_dir: /results/v3_fla_training        # Modal volume mount (separate from BiMamba2)
+  cache_dir: /results/cache/tusz_mmap     # Must match data.cache_dir (mmap NPY format)
   log_level: INFO
   save_model: true
   save_best_only: true

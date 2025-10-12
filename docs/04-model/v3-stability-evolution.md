@@ -1,7 +1,7 @@
 # V3 Architecture Stability: Evolution & Validation
 
 > **HISTORICAL DOCUMENT**: This document covers the evolution from v3.3.0 → v3.4.1 (Sept 27 - Oct 1, 2025).
-> **Current version**: v3.9.0 (Production Training Baseline with bulletproof checkpoints and timeout guard).
+> **Current version**: v4.0.0 (BiMamba2 baseline + Flash Linear Attention variant with deterministic resume).
 > **For current status**: See [STATUS.md](../../STATUS.md) and [checkpoint-strategy.md](../05-training/checkpoint-strategy.md).
 
 **Last Updated**: October 1, 2025

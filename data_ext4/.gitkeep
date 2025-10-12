@@ -1,0 +1,19 @@
+# External data directory for large EEG datasets
+#
+# Expected structure:
+# data_ext4/tusz/ → TUH EEG Seizure Corpus v2.0.3
+#   - train/ → Training split EDF files
+#   - dev/ → Development/validation split EDF files
+#   - _DOCS/ → Official documentation
+#
+# Other datasets:
+# data_ext4/chb-mit/ → CHB-MIT Scalp EEG Database
+# data_ext4/siena-scalp-eeg-database-1.0.0/ → Siena dataset
+#
+# ⚠️ WSL2 NOTE:
+# This directory can safely be on Windows drives (/mnt/c/, /mnt/d/).
+# Raw EDF files are read sequentially (no mmap), so no SIGBUS issues.
+# Only memory-mapped cache (cache/tusz_mmap/) needs native ext4 filesystem!
+#
+# The actual data files are excluded by .gitignore
+# This .gitkeep ensures the directory structure is documented in git

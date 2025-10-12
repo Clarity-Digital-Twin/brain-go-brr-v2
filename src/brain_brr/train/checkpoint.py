@@ -37,6 +37,7 @@ def save_checkpoint(
     scaler: GradScaler | None = None,
     save_rng: bool = True,
     extra: dict[str, Any] | None = None,
+    global_step: int | None = None,
 ) -> None:
     """Save training checkpoint with atomic writes and full state capture.
 
@@ -67,6 +68,9 @@ def save_checkpoint(
         "best_metric": best_metric,
         "timestamp": time.time(),
     }
+
+    if global_step is not None:
+        checkpoint["global_step"] = global_step
 
     if scheduler is not None:
         checkpoint["scheduler_state_dict"] = scheduler.state_dict()

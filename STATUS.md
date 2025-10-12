@@ -1,19 +1,17 @@
-# Brain-Go-Brr v3.11.0 – Current Status
+# Brain-Go-Brr v4.0.0 – Current Status
 
-**Last Updated:** 2025-10-10
+**Last Updated:** 2025-10-12
 **Branch:** `feature/flash-linear-attention`
-**Version:** v3.11.0 (StatefulDataLoader & Mid-Epoch Resume)
-**Deployment:** Modal full training LIVE – BiMamba2 baseline with StatefulDataLoader for exact mid-epoch resume
+**Version:** v4.0.0 (FLA Production + WSL2 Fix)
+**Deployment:** DUAL PRODUCTION STACKS – BiMamba2 (Modal A100, Epoch 3) + FLA (Local RTX 4090, Epoch 2)
 
 ---
 
 ## Production Readiness
 
-**🟢 READY FOR MODAL A100 TRAINING – ZERO TECHNICAL DEBT ACHIEVED**
+**🟢 READY FOR MODAL A100 TRAINING – ZERO TECHNICAL DEBT**
 
-- ✅ **P0/P1:** 0 issues (all blockers resolved)
-- ✅ **P2:** 0 issues (all code quality debt paid)
-- ✅ **P3:** 0 issues (manifest naming cleanup complete)
+- ✅ **P0/P1/P2/P3:** 0 issues (all debt resolved)
 - 🟡 **P4/P5:** Optional ideas (post-training optimization only)
 
 **Quality Verification (2025-10-07)**:
@@ -27,6 +25,27 @@
 ---
 
 ## Latest Improvements
+
+### v4.0.0 - FLA Production + WSL2 Fix (October 12, 2025)
+
+**MAJOR RELEASE**: Dual production stacks + critical WSL2 fix
+
+**New Capabilities**:
+- ✅ **MAJOR: FLA stack production-ready**: BiGatedDeltaNet fully validated, training successfully on local RTX 4090
+- ✅ **MAJOR: WSL2 SIGBUS fix**: Local FLA training now works after cache migration to native ext4 filesystem
+- ✅ **MAJOR: Dual training stacks**: BiMamba2 (Modal, Epoch 3) + FLA (Local, Epoch 2) running simultaneously
+- ✅ **Critical WSL2 discovery**: Memory-mapped cache MUST be on native ext4, not Windows drives (/mnt/d/)
+- ✅ **Crash verification**: FLA training validated past previous crash point (batch 5401 vs crash at 2890)
+
+**Documentation**:
+- ✅ Comprehensive WSL2 fix guide: `docs/08-operations/wsl2-sigbus-fix.md` (NEW)
+- ✅ Incident analysis: `docs/archive_v4/` (SIGBUS, timeline, migration, audit)
+- ✅ Quick ref updates: INSTALLATION.md, CLAUDE.md, CACHE.md, .gitkeep files
+
+**Impact**:
+- **Research Milestone**: Both SSM architectures (BiMamba2 + FLA) now training in production
+- **Local Training Enabled**: WSL2 users can now train FLA locally (previously impossible)
+- **A/B Comparison**: Empirical comparison of BiMamba2 vs GatedDeltaNet on full TUSZ dataset
 
 ### v3.11.0 - StatefulDataLoader & Mid-Epoch Resume (October 10, 2025)
 
@@ -162,33 +181,35 @@
 
 ## Current Deployment
 
-**Modal Full Training (LIVE - v3.11.0 StatefulDataLoader)**:
-- Launch: Oct 10, 2025 (v3.11.0 deployed with StatefulDataLoader + Pydantic fix)
+### DUAL PRODUCTION STACKS (v4.0.0)
+
+**BiMamba2 - Modal Full Training (LIVE)**:
+- Launch: Oct 10, 2025
 - Config: 100 epochs, batch_size=48, A100-80GB, mixed_precision=true
-- Cache: 4667 train + 1832 dev NPY files (BalancedSeizureDataset = 61,616 windows, seizure ratio 34.2%)
-- Status: ✅ **PRODUCTION TRAINING WITH EXACT MID-EPOCH RESUME**
-- Features:
-  - ✅ StatefulDataLoader for exact batch position resume
-  - ✅ Atomic checkpoints every 30 min with dataloader state
-  - ✅ 23h timeout guard with graceful exit
-  - ✅ Pydantic v2 warnings eliminated
-  - ✅ Backward compatible with old checkpoints
-- Benefits:
-  - **Zero compute waste** on mid-epoch resumes
-  - **$150+ savings** per 100 epochs (additional to v3.10.0 savings)
-  - **Production-grade logging** with no framework warnings
+- Cache: 4667 train + 1832 dev NPY files on Modal SSD volume
+- Status: ✅ **EPOCH 3** - Progressing normally with StatefulDataLoader
+- Stack: TCN + BiMamba2 + GNN + Dynamic LPE
+
+**FLA - Local Full Training (LIVE)**:
+- Launch: Oct 11, 2025 (after SIGBUS fix)
+- Config: 100 epochs, batch_size=8, RTX 4090 (24GB VRAM), mixed_precision=false
+- Cache: 4667 train + 1832 dev NPY files on native ext4 filesystem (WSL2)
+- Status: ✅ **EPOCH 2** - Stable past previous crash point (batch 5401 vs crash at 2890)
+- Stack: TCN + BiGatedDeltaNet (FLA) + GNN + Dynamic LPE
 
 **Next Steps**:
-1. Monitor exact batch resume in logs (e.g., "Exact mid-epoch resume at batch 512")
-2. Resume after timeout: `modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume`
-3. Enable auto-restart after verifying mid-epoch resume works correctly
-4. Complete 100-epoch baseline, then launch FLA Modal comparison
+1. Continue monitoring both training runs
+2. Enable auto-restart for BiMamba2 if manual resume needed
+3. Let FLA complete locally to gather empirical results
+4. Compare final metrics: BiMamba2 vs FLA performance on full TUSZ dataset
 
 ---
 
 ## Outstanding Items
 
-**Active Debt**: None - codebase is clean
+**Active Debt**: ✅ **ZERO** - All technical debt resolved (October 11, 2025)
+- ✅ **P3-1 RESOLVED**: Pydantic Field warnings (schemas use correct `Annotated` pattern, local v2.11.9 has zero warnings)
+- ✅ **P3-2 RESOLVED**: .gitkeep files added to 4 directories for OSS contributor clarity
 
 **Optional Improvements** (post-training only):
 - Profile `.item()` calls if profiling shows >1% GPU sync time

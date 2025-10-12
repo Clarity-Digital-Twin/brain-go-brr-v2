@@ -1,0 +1,14 @@
+# TUH EEG Seizure Corpus v2.0.3 (TUSZ)
+#
+# Download: https://isip.piconepress.com/projects/tuh_eeg/html/downloads.shtml
+#
+# Expected structure:
+# tusz/edf/train/ → Training split (4438 sessions)
+# tusz/edf/dev/ → Development split (1013 sessions)
+# tusz/_DOCS/ → Official documentation
+#
+# Each session contains:
+# - *.edf files (10-20 montage, 19 channels, variable sampling rates)
+# - *.csv_bi files (event annotations)
+#
+# Pipeline: EDF → preprocess → cache/tusz_mmap/{train,dev}/*.npy

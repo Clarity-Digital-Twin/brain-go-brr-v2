@@ -1,12 +1,12 @@
-# 🧠 Brain-Go-Brr V3: Clinical EEG Seizure Detection
+# 🧠 Brain-Go-Brr V4: Clinical EEG Seizure Detection
 
-**O(N) complexity seizure detection via dual-stream temporal-spatial architecture**
+**O(N) complexity seizure detection via dual-stack state-space architecture**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
 [![PyTorch 2.5.0](https://img.shields.io/badge/pytorch-2.5.0-red.svg)](https://pytorch.org)
 [![CUDA 12.4](https://img.shields.io/badge/cuda-12.4-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
-[![v3.11.0](https://img.shields.io/badge/version-3.11.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.11.0-stateful-dataloader)
+[![v4.0.0](https://img.shields.io/badge/version-4.0.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v4.0.0-fla-production-wsl2-fix)
 
 ## 📋 The Clinical Problem
 
@@ -50,7 +50,7 @@ Traditional approaches fail because they treat these as separate problems. We mo
 
 **Research transparency**: All three outcomes (Gated Delta wins, BiMamba2 wins, or tie) are scientifically valuable. No prior work compares these architectures on clinical EEG. See [FLA_ROADMAP.md](docs/flash-linear-attention/FLA_ROADMAP.md) for full strategy.
 
-**Current status (v3.11.0)**: Production system with exact mid-epoch resume via StatefulDataLoader. BiMamba2 baseline training on Modal A100 with zero wasted compute. See [STATUS.md](STATUS.md) for details.
+**Current status (v4.0.0)**: **DUAL PRODUCTION STACKS** - BiMamba2 (Modal A100, Epoch 3) + FLA (Local RTX 4090, Epoch 2) both training simultaneously! WSL2 SIGBUS fix enables local FLA training. See [STATUS.md](STATUS.md) for details.
 
 ## 🏗️ Architecture: Theory & Design
 
@@ -375,9 +375,9 @@ See [installation guide](docs/01-installation/) and [training docs](docs/05-trai
 
 ### Current Phase: A/B Comparison (October 2025)
 
-**🔷 Stack 1 (BiMamba2)**: Baseline training underway on Modal A100, 100 epochs planned. Expected completion mid-October.
+**🔷 Stack 1 (BiMamba2)**: Modal A100 training LIVE (Epoch 3), auto-restart enabled via modal.Period(hours=23).
 
-**🔶 Stack 2 (Gated DeltaNet)**: Implementation validated via smoke tests. Training queued pending baseline results.
+**🔶 Stack 2 (Gated DeltaNet)**: Local RTX 4090 training LIVE (Epoch 2), stable after WSL2 SIGBUS fix (cache migrated to ext4).
 
 **Research question**: Does the delta rule improve over pure gating for clinical EEG seizure detection?
 
@@ -424,12 +424,13 @@ We welcome contributions! See [development docs](docs/09-development/) for:
 ## 📖 Citation
 
 ```bibtex
-@software{brain-go-brr-v3,
-  title = {Brain-Go-Brr V3: Clinical EEG Seizure Detection via Dual-Stream State-Space Models},
+@software{brain-go-brr-v4,
+  title = {Brain-Go-Brr V4: Clinical EEG Seizure Detection via Dual-Stack State-Space Models},
   author = {Clarity Digital Twin},
   year = {2025},
+  version = {4.0.0},
   url = {https://github.com/clarity-digital-twin/brain-go-brr-v2},
-  note = {A/B empirical comparison of BiMamba2 and Gated DeltaNet architectures on TUSZ clinical dataset}
+  note = {Empirical A/B comparison of BiMamba2 and Flash Linear Attention (BiGatedDeltaNet) architectures on TUSZ}
 }
 ```
 
@@ -469,6 +470,6 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 **Updates?** [Watch the repo](https://github.com/clarity-digital-twin/brain-go-brr-v2) •
 **Discussion?** [Start a discussion](https://github.com/clarity-digital-twin/brain-go-brr-v2/discussions)
 
-**Current status**: v3.11.0 • Exact mid-epoch resume • StatefulDataLoader integrated • BiMamba2 baseline LIVE • Zero compute waste
+**Current status (v4.0.0)**: Dual production stacks training simultaneously → BiMamba2 (Modal A100, Epoch 3, auto-restart) + FLA (Local RTX 4090, Epoch 2, WSL2 SIGBUS fixed) • Target: 100 epochs each for empirical A/B comparison
 
 </div>
