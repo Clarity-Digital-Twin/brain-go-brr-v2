@@ -1,5 +1,7 @@
 # Flash Linear Attention Research: BiMamba2 vs Gated DeltaNet for EEG Seizure Detection
 
+> **Note (Oct 12, 2025)**: High-level architecture details now live in `docs/04-model/mamba.md`. This research memo retains the deeper analysis, hypotheses, and experiment logs.
+
 **Date**: October 9, 2025 (v4.2 update)
 **Branch**: `feature/flash-linear-attention`
 **Researcher**: Claude Code

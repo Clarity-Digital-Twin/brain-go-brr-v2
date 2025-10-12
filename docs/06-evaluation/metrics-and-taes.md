@@ -49,9 +49,40 @@ Outputs
 - Metrics: AUROC, sensitivity/specificity, TAES, sensitivity_at_{10|5|2.5|1}fa, and thresholds for each FA target.
 - Events (CSV_BI export): Uses the best threshold (10 FA/24h by default). Current implementation emits a single CSV for the evaluation run with stride-aware timing (60s windows with 10s stride). It does not yet group outputs per recording file.
 
+Mathematical definitions
+
+```text
+TAES = base_score - penalty
+
+base_score = (1/|R|) * Σᵣ min(1, overlap_duration(r, P) / duration(r))
+penalty    = α * (fp_duration / total_pred_duration)
+```
+
+- `R` = reference events, `P` = predicted events, `α = 0.15`.
+- Range: `[0, 1]`; rewards good overlap while penalising false-alarm duration.
+
+False alarms per 24 hours:
+
+```text
+FA/24h = (FA_count / total_hours) * 24
+
+FA_count = |{p ∈ P : overlap(p, r) = 0 for all r ∈ R}|
+```
+
+Expected calibration error (ECE):
+
+```text
+ECE = Σᵢ | accuracy(Bᵢ) - confidence(Bᵢ) | * P(Bᵢ)
+```
+
+- Bins `Bᵢ` partition probability space (default `n = 15`).
+- `accuracy(Bᵢ)` = mean label for samples in `Bᵢ`.
+- `confidence(Bᵢ)` = mean probability for samples in `Bᵢ`.
+- `P(Bᵢ)` = fraction of samples in that bin.
+
 Notes and caveats
 
 - Hysteresis thresholds: `tau_off` is derived as `max(0, tau_on - 0.08)` during threshold search.
 - When no negatives, specificity is defined as 1.0; when no predicted positives, precision is 0.0 (stability in tests).
 - TAES includes a false-alarm duration penalty (alpha=0.15) in addition to overlap reward.
- - Threshold path correctness: FA‑curve search sets `tau_on/off` on a cloned post config before eventization, avoiding deprecated threshold arguments.
+- Threshold path correctness: FA‑curve search sets `tau_on/off` on a cloned post config before eventization, avoiding deprecated threshold arguments.

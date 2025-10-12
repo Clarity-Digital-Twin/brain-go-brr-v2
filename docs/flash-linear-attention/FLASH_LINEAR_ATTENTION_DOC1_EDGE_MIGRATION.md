@@ -1,5 +1,7 @@
 # Doc 1: Edge Stream Validation - Implementation Plan
 
+> **Note (Oct 12, 2025)**: Core BiMamba2/FLA architecture docs now live in `docs/04-model/mamba.md`. This file remains as the detailed validation log for historical reference.
+
 **Parent Document**: [FLASH_LINEAR_ATTENTION_RESEARCH.md](FLASH_LINEAR_ATTENTION_RESEARCH.md) (Doc 0 - SSOT)
 **Phase**: 1a (Validation - after Phase 0 infrastructure)
 **Target**: Validate Edge Stream with BiGatedDeltaNet (node stays BiMamba2)

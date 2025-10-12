@@ -1,5 +1,7 @@
 # Doc 2: Node Stream Validation - Implementation Plan
 
+> **Note (Oct 12, 2025)**: Live architecture overview moved to `docs/04-model/mamba.md`. This document preserves the node-stream validation evidence.
+
 **Parent Document**: [FLASH_LINEAR_ATTENTION_RESEARCH.md](FLASH_LINEAR_ATTENTION_RESEARCH.md) (Doc 0 - SSOT)
 **Phase**: 1b (Validation - after Phase 0 infrastructure AND Phase 1a success)
 **Target**: Validate Node Stream with BiGatedDeltaNet (edge stream determined by Phase 1a results)

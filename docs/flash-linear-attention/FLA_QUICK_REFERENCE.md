@@ -1,6 +1,6 @@
 # FLA Quick Reference - October 9, 2025
 
-**TL;DR**: BiMamba2 baseline training LIVE on Modal. FLA infrastructure complete. Wait for baseline → Create Modal config → Train FLA → A/B comparison.
+**TL;DR**: BiMamba2 baseline training LIVE on Modal. FLA infrastructure complete. Wait for baseline → Create Modal config → Train FLA → A/B comparison. Architecture details now live in `docs/04-model/mamba.md`; this file tracks operational status.
 
 ---
 

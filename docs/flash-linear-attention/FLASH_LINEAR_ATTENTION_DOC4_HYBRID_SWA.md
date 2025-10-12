@@ -1,5 +1,7 @@
 # Doc 4: Hybrid GDN-H1 with Sliding Window Attention - Implementation Plan
 
+> **Note (Oct 12, 2025)**: The canonical dual-stack description is in `docs/04-model/mamba.md`. This doc tracks the optional Hybrid SWA experiment backlog.
+
 **Parent Document**: [FLASH_LINEAR_ATTENTION_RESEARCH.md](FLASH_LINEAR_ATTENTION_RESEARCH.md) (Doc 0 - SSOT)
 **Phase**: 3 (OPTIONAL Hybrid Enhancement - ONLY if Phase 2 has short-event deficiency)
 **Target**: Add Sliding Window Attention to BiGatedDeltaNet for short-seizure improvement

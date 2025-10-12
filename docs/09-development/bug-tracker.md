@@ -17,6 +17,10 @@ P0 — Fixed
   - Fix: Tests now reference `train_bimamba.yaml` / `train_fla.yaml` pairs instead of deleted monolithic configs (`tests/unit/models/test_nan_robustness.py`).
   - Modal CLI defaults and README examples updated to `smoke_bimamba.yaml` / `train_bimamba.yaml`; Docker `CMD` was aligned to the same baseline (`deploy/modal/app.py`, `deploy/modal/README.md`, `Dockerfile`).
   - Status: Commands tutorial, tooling defaults, and CI runs no longer raise `FileNotFoundError` when configs are omitted.
+- WSL2 SIGBUS crash (FLA stack, batch ~2900)
+  - Root causes: (1) Windows host driver 572.xx (Ada instability) and (2) mmap cache on `/mnt/d` via 9P invalidating pages under AVX2 copy.
+  - Fix: Upgrade to NVIDIA driver 581.42 **and** migrate `cache/tusz_mmap` to a native ext4 volume. Guide: `docs/08-operations/wsl2-sigbus-fix.md`.
+  - Impact: Local FLA training now progresses past batch 5,400 with zero SIGBUS events; dual-stack production (Modal BiMamba2 + local FLA) confirmed.
 - RNG state device mismatch
   - Fix: Checkpoint loads leave RNG tensors on CPU before restoring; added regression coverage in `tests/unit/train/test_checkpoint_rng_device.py`.
   - Impact: CUDA resumes no longer raise “RNG state must be a torch.ByteTensor”; deterministic restart is preserved.
@@ -66,6 +70,9 @@ P2 — Open/Polish
 Notes
 - Local smoke: keep `batch_size ≥ 4` to avoid tiny‑batch NaNs on RTX 4090.
 - Modal: run `clean-cache` once to purge pre‑fix caches; app verifies patient disjointness.
+- Documented non-issues (tracked for completeness):
+  - pytorch-tcn CPU hang scares (P2.2) — production uses the internal MinimalTCN backend; external pytorch-tcn stays optional (`docs/archive/REMAINING_ISSUES_INVESTIGATION.md`).
+  - Migration regression tests (P2.3) — coverage gap only; enable when bandwidth allows.
 
 Audit trail
 - Historical analyses and fixes were moved from `docs/archive/` into canonical 0X docs for long‑term maintenance.

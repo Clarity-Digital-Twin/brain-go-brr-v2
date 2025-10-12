@@ -9,7 +9,7 @@ After config architecture separation (commit a08d5a36), the phase-specific confi
 - **BiMamba2 baseline**: `configs/{local,modal}/train_bimamba.yaml`
 - **FLA research**: `configs/{local,modal}/train_fla.yaml`
 
-This roadmap remains accurate as **historical documentation** of the validation workflow performed. For current training, use the `train_bimamba.yaml` (baseline) or `train_fla.yaml` (research) configs.
+This roadmap remains accurate as **historical documentation** of the validation workflow performed. For current training, use the `train_bimamba.yaml` (baseline) or `train_fla.yaml` (research) configs, and refer to `docs/04-model/mamba.md` for the live BiMamba2/FLA architecture summary.
 
 ---
 

@@ -1,7 +1,7 @@
 # Technical Debt & Cleanup Status
 
-**Last Updated**: October 11, 2025 (v3.11.0)
-**Status**: 🟢 **ZERO ACTIVE DEBT** - StatefulDataLoader resumes, atomic checkpoints, timeout guard, and Modal production run live
+**Last Updated**: October 12, 2025 (v4.0.0)
+**Status**: 🟢 **ZERO ACTIVE DEBT** - Dual stacks (BiMamba2 + FLA) live with deterministic resume, ext4 cache migration, and WSL2 SIGBUS fix integrated
 
 ## Executive Summary
 
@@ -15,9 +15,16 @@
 
 **Current Status**: All known technical debt has been eliminated. Codebase is clean and Modal A100 training is running.
 
+Priority definitions (for quick reference):
+- **P0** — Blocks training/inference or corrupts results.
+- **P1** — High risk of silent degradation; not a hard block.
+- **P2** — Medium risk/confusion; suboptimal defaults.
+- **P3** — Low-risk polish and maintenance.
+- **P4/P5** — Optional enhancements or research experiments.
+
 ---
 
-## Recently Resolved (October 10–11, 2025 — v3.11.0)
+## Recently Resolved (October 10–12, 2025 — v3.11.0 → v4.0.0)
 
 - **Exact mid-epoch resume** (StatefulDataLoader + checkpoint metadata)
   - Added `torchdata.stateful_dataloader.StatefulDataLoader` for train/val loops, persisted loader state in checkpoints, and restored `resume_batch_idx` so Modal restarts skip straight to the saved batch.
@@ -31,6 +38,12 @@
 - **Config/documentation realignment**
   - All tooling defaults, Docker `CMD`, docs, and tests reference `{smoke,train}_{bimamba,fla}.yaml` after the architecture split.
   - Modal quick commands and README examples now match the live file layout.
+- **WSL2 SIGBUS mitigation**
+  - Root cause traced to mmap cache living on `/mnt/d` (9P filesystem). Cache migrated to native ext4 volume; new guide lives in `docs/08-operations/wsl2-sigbus-fix.md`.
+  - Driver baseline updated to 581.42; troubleshooting doc now captures both driver and filesystem fixes.
+- **Oct 9 “Bug Hunt” audit**
+  - Full repo sweep validated config paths, test coverage, and documentation parity (see `docs/09-development/bug-tracker.md`).
+  - Outcome: zero lingering P0/P1 items; archives retained for historical evidence only.
 
 ## Recently Resolved (October 8, 2025 - v3.9.0)
 

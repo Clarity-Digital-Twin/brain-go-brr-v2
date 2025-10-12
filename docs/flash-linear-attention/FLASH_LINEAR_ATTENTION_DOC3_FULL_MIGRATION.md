@@ -1,5 +1,7 @@
 # Doc 3: Full Stream Validation - Implementation Plan
 
+> **Note (Oct 12, 2025)**: Production documentation for the BiMamba2/FLA dual stack now lives in `docs/04-model/mamba.md`. Keep this file for the full-stack validation audit trail.
+
 **Parent Document**: [FLASH_LINEAR_ATTENTION_RESEARCH.md](FLASH_LINEAR_ATTENTION_RESEARCH.md) (Doc 0 - SSOT)
 **Phase**: 2 (Full Validation - after Phase 0 + Phase 1a + Phase 1b)
 **Target**: Validate BOTH Edge + Node Streams with BiGatedDeltaNet

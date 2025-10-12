@@ -54,12 +54,14 @@ WSL2 OOM/driver artifact note
 - If you see impossible memory in logs like `17179869184.00 GiB`, that is a reporting artifact after a hard OOM or driver fault.
 - Fix: `wsl --shutdown` to reset the VM/GPU state, then relaunch. Also export `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:256` during smokes.
 
-RTX 4090 SIGBUS / driver crash near batch ~3000
+RTX 4090 SIGBUS around batch ~3000 (two root causes)
 
-- Symptom: Training dies abruptly with `Signal 7 (SIGBUS)` or hard driver reset around batch 2900–3100 despite healthy metrics beforehand.
-- Root cause: NVIDIA driver 572.xx (January 2025) has confirmed stability bugs on Ada GPUs; RTX 4090 requires the October 2025 branch.
-- Fix: Upgrade Windows host driver to **581.42** (Game Ready) and perform a clean install. After reboot, `nvidia-smi` inside WSL2 should show `Driver Version: 581.42`.
-- Verification: Re-run the affected workload; the crash disappears and long epochs complete normally.
+- Symptom: Training dies abruptly with `Signal 7 (SIGBUS)` or the Python process exits near batch 2900–3100 despite healthy metrics beforehand.
+- Root cause #1 (driver): NVIDIA driver 572.xx (January 2025) has confirmed stability bugs on Ada GPUs.
+  - Fix: Upgrade the Windows host driver to **581.42** (Game Ready) and perform a clean install. After reboot, `nvidia-smi` inside WSL2 should show `Driver Version: 581.42`.
+- Root cause #2 (filesystem): WSL2 accessing the mmap cache via `/mnt/c|d` (9P filesystem) invalidates pages under memory pressure; AVX2 copies inside FLA trigger SIGBUS.
+  - Fix: Migrate the cache to a native ext4 volume inside WSL2. Follow `docs/08-operations/wsl2-sigbus-fix.md` for the one-time migration plan.
+- Verification: After both fixes, rerun training; FLA now progresses well past batch 5,400 without crashes.
 
 CI note (PyG optional in unit tests)
 

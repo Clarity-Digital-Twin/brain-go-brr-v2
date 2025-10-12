@@ -1,5 +1,7 @@
 # FLA Documentation Methodology: Cross-Referenced Accuracy Validation
 
+> **Note (Oct 12, 2025)**: Runtime docs reference `docs/04-model/mamba.md` for live architecture details. Keep this methodology memo as evidence for the documentation cross-check process.
+
 **Date**: October 9, 2025
 **Status**: ⚠️ **DOCUMENTATION DRIFT DETECTED** - See corrections below
 **Purpose**: Document the rigorous methodology used for FLA (Flash Linear Attention) documentation revision to ensure 1000% accuracy, zero magic numbers, and seamless codebase integration.

@@ -1,9 +1,9 @@
-# Brain-Go-Brr Documentation (v3.9.0)
+# Brain-Go-Brr Documentation (v4.0.0)
 
-**Last Updated**: October 8, 2025
-**Codebase Version**: v3.9.0 (Production Training Baseline)
-**Architecture**: V3 Dual-Stream (TCN + BiMamba + GNN + Dynamic LPE)
-**Status**: 🟢 Zero active debt with bulletproof checkpoints, timeout guard, and live Modal training
+**Last Updated**: October 12, 2025
+**Codebase Version**: v4.0.0 (Dual Stack: BiMamba2 baseline + Flash Linear Attention variant)
+**Architecture**: V3 Dual-Stream (TCN + SSM + GNN + Dynamic LPE) with interchangeable BiMamba2 / BiGatedDeltaNet streams
+**Status**: 🟢 Zero active debt; Modal A100 + local RTX 4090 training live with deterministic resume and ext4-backed cache
 
 ---
 
@@ -43,7 +43,7 @@ Learn by doing:
 - [NaN Prevention & Handling](08-operations/nan-prevention-complete.md) - **Canonical guide** ⭐
 - [Gradient Monitoring](08-operations/gradient-monitoring.md) - Understanding "Large grad norm"
 - [General Troubleshooting](08-operations/troubleshooting.md) - Common issues
-- [WSL2 Specific](08-operations/wsl2-notes.md) - Windows users
+- [WSL2 Specific](08-operations/wsl2-notes.md) - Windows users (see also [WSL2 SIGBUS Fix](08-operations/wsl2-sigbus-fix.md))
 
 **Optimization**:
 - [Performance Optimization](08-operations/performance-optimization.md) - Speed & memory
@@ -53,9 +53,9 @@ Learn by doing:
 
 **Architecture**:
 - [V3 Architecture](04-model/v3-architecture.md) - **Complete specification** ⭐
-- [V3 Stability Evolution](04-model/v3-stability-evolution.md) - v3.3.0 → v3.4.1 journey
+- [V3 Stability Evolution](04-model/v3-stability-evolution.md) - v3.3.0 → v4.0.0 journey
 - [TCN](04-model/tcn.md) - Temporal convolutional network
-- [Mamba](04-model/mamba.md) - Bidirectional SSM
+- [State-Space Streams](04-model/mamba.md) - BiMamba2 + Flash Linear Attention
 - [GNN](04-model/gnn.md) - Graph neural network with PyG
 - [Laplacian PE](04-model/laplacian-pe.md) - Dynamic positional encoding
 - [Edge Features](04-model/edge-features-and-adjacency.md) - Learned adjacency
