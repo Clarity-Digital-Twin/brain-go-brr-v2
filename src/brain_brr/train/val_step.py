@@ -34,6 +34,7 @@ from src.brain_brr.eval.metrics import (
     stitch_recording_timeline,
 )
 from src.brain_brr.events import batch_mask_to_events
+from src.brain_brr.train.cancellation_flag import CancellationFlag
 from src.brain_brr.train.recording_storage import RecordingStorage
 from src.brain_brr.train.timeout_guard import TimeoutGuard
 from src.brain_brr.utils.env import env
@@ -384,6 +385,7 @@ def validate_epoch(
     output_dir: str | Path | None = None,
     epoch: int | None = None,
     timeout_guard: TimeoutGuard | None = None,
+    cancellation_flag: CancellationFlag | None = None,
 ) -> dict[str, Any]:
     """Validate model with disk-backed storage (39GB peak).
 
@@ -526,6 +528,15 @@ def validate_epoch(
                         logger.warning(
                             "[TIMEOUT] Wall-clock limit approaching, exiting validation early"
                         )
+                        break
+
+                    if cancellation_flag and cancellation_flag.is_set():
+                        pct_complete = (batch_idx / len(dataloader)) * 100
+                        logger.warning(
+                            f"[SIGNAL] Validation interrupted at batch {batch_idx}/{len(dataloader)} "
+                            f"({pct_complete:.1f}% complete)"
+                        )
+                        logger.warning("[SIGNAL] Cancellation requested, exiting validation early")
                         break
         finally:
             if progress_bar is not None and hasattr(progress_bar, "close"):
