@@ -9,7 +9,7 @@ Exact versions (locked)
 - causal‑conv1d: 1.5.2 (latest stable for PyTorch 2.5+)
 - torch‑geometric: 2.6.1
 - numpy: 1.26.4
-- NVIDIA driver: **581.42** (Oct 2025) on RTX 4090; older 572.xx builds crash with SIGBUS around batch ~3000. Verify with `nvidia-smi` after install.
+- NVIDIA driver: **581.42** (Oct 2025) on RTX 4090; older 572.xx builds crash with SIGBUS around batch ~3000. Verify with `nvidia-smi` after install. If you run under WSL2, **move the mmap cache to native ext4** to avoid SIGBUS from the 9P filesystem (`docs/08-operations/wsl2-sigbus-fix.md`).
 
 ## CRITICAL: CUDA Toolkit Installation
 
@@ -93,4 +93,4 @@ python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn;
 ### Other Issues
 - **PyG install error**: ensure correct wheel index URL for torch 2.5.0+cu124; install scatter/sparse/cluster/spline, then `torch-geometric==2.6.1`.
 - **`RuntimeError: no kernel image`**: confirm CUDA 12.4 toolkit installed, rebuild with `--no-build-isolation` and `--no-binary`.
-- **WSL2**: set `UV_LINK_MODE=copy`; keep project on ext4 (avoid `/mnt/c`).
+- **WSL2**: set `UV_LINK_MODE=copy`; keep the project and cache on ext4 (avoid `/mnt/c`). Follow `docs/08-operations/wsl2-sigbus-fix.md` for the required cache migration.
