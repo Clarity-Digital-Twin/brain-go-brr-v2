@@ -53,6 +53,7 @@ dependencies = [
     
     # Utilities
     "tqdm>=4.64.0",
+    "python-dotenv>=1.0.0",  # Load environment variables from .env files
 ]
 
 [project.optional-dependencies]
@@ -256,5 +257,6 @@ module = [
     "torch_sparse.*",
     "torch_cluster.*",
     "fla.*",
+    "dotenv",  # python-dotenv has no type stubs
 ]
 ignore_missing_imports = true
