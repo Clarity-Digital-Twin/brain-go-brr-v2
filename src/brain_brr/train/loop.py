@@ -46,6 +46,7 @@ from src.brain_brr.constants import (
     format_sensitivity_key,
 )
 from src.brain_brr.models import SeizureDetector
+from src.brain_brr.train.cancellation_flag import CancellationFlag
 from src.brain_brr.train.checkpoint import load_checkpoint, save_checkpoint
 from src.brain_brr.train.early_stopping import EarlyStopping
 from src.brain_brr.train.metrics_utils import normalize_metrics_dict
@@ -215,40 +216,15 @@ def train(
 
     global_step = resume_global_step  # Track global step across epochs for scheduler
 
-    # Mutable state for signal handler (updated during training loop)
-    signal_state: dict[str, int | float] = {"epoch": start_epoch, "best_metric": best_metric}
+    # Cancellation flag for graceful shutdown (allows validation to exit cleanly)
+    cancellation_flag = CancellationFlag()
 
     # Signal handlers for graceful shutdown (SIGTERM from Modal, SIGINT from user)
     def _signal_handler(signum: int, frame: Any) -> None:
-        """Save checkpoint and exit gracefully when receiving SIGTERM/SIGINT."""
+        """Request graceful cancellation when receiving SIGTERM/SIGINT."""
         sig_name = "SIGTERM" if signum == signal.SIGTERM else "SIGINT"
-        logger.warning(f"[SIGNAL] Received {sig_name}, saving checkpoint before exit...")
-
-        try:
-            # Type narrowing: epoch is always int, best_metric is always float
-            epoch_val = signal_state["epoch"]
-            assert isinstance(epoch_val, int), "epoch should always be int"
-            best_val = signal_state["best_metric"]
-            assert isinstance(best_val, (int, float)), "best_metric should be numeric"
-
-            save_checkpoint(
-                model,
-                optimizer,
-                epoch_val,
-                float(best_val),
-                checkpoint_dir / f"signal_exit_{sig_name.lower()}.pt",
-                scheduler,
-                config,
-                scaler=scaler,
-                save_rng=True,
-                global_step=global_step,
-            )
-            logger.info(f"[SIGNAL] Saved signal_exit_{sig_name.lower()}.pt")
-        except Exception as e:
-            logger.error(f"[SIGNAL] Failed to save checkpoint: {e}")
-
-        logger.warning(f"[SIGNAL] Exiting due to {sig_name}")
-        raise SystemExit(0)
+        logger.warning(f"[SIGNAL] Received {sig_name}, requesting graceful cancellation...")
+        cancellation_flag.set()
 
     # Register signal handlers
     signal.signal(signal.SIGTERM, _signal_handler)
@@ -258,9 +234,6 @@ def train(
     best_metrics: dict[str, Any] = {"best_epoch": 0}
 
     for epoch in range(start_epoch, config.training.epochs):
-        # Update signal handler state for current epoch
-        signal_state["epoch"] = epoch
-
         # Check wall-clock timeout before starting epoch
         if timeout_guard.check():
             remaining = timeout_guard.remaining_seconds()
@@ -334,6 +307,26 @@ def train(
         assert isinstance(result, tuple), "return_step=True should return tuple"
         train_loss, global_step, scaler = result
 
+        # Check if cancellation was requested during training (before starting validation)
+        if cancellation_flag.is_set():
+            logger.warning(
+                "[SIGNAL] Cancellation requested during training, skipping validation and saving checkpoint..."
+            )
+            save_checkpoint(
+                model,
+                optimizer,
+                epoch + 1,
+                best_metric,
+                checkpoint_dir / "signal_exit.pt",
+                scheduler,
+                config,
+                scaler=scaler,
+                save_rng=True,
+                global_step=global_step,
+            )
+            logger.info("[SIGNAL] Saved signal_exit.pt, exiting gracefully")
+            break
+
         # Validate
         focal_alpha = config.training.focal_alpha if config.training.loss == "focal" else None
         focal_gamma = config.training.focal_gamma if config.training.loss == "focal" else None
@@ -349,7 +342,29 @@ def train(
             save_plots=config.evaluation.save_plots,
             output_dir=config.experiment.output_dir,
             epoch=epoch,
+            timeout_guard=timeout_guard,
+            cancellation_flag=cancellation_flag,
         )
+
+        # Check if cancellation was requested during validation
+        if cancellation_flag.is_set():
+            logger.warning(
+                "[SIGNAL] Cancellation requested during validation, saving checkpoint..."
+            )
+            save_checkpoint(
+                model,
+                optimizer,
+                epoch + 1,
+                best_metric,
+                checkpoint_dir / "signal_exit.pt",
+                scheduler,
+                config,
+                scaler=scaler,
+                save_rng=True,
+                global_step=global_step,
+            )
+            logger.info("[SIGNAL] Saved signal_exit.pt, exiting gracefully")
+            break
 
         # Normalize metric keys to fix "New best 0.0000" bug
         # Config uses "sensitivity_at_10fa" but validation creates "sensitivity_at_10.0fa"
@@ -430,7 +445,6 @@ def train(
         # Track best metrics (always, regardless of save_model)
         if current_metric == early_stopping.best_score:
             best_metric = current_metric
-            signal_state["best_metric"] = best_metric  # Update for signal handler
             best_metrics = {
                 "best_epoch": epoch + 1,
                 "best_taes": val_metrics["taes"],
