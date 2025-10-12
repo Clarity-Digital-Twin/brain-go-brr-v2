@@ -6,7 +6,7 @@
 
 ## Contents
 
-This archive contains smaller fixes and investigations from the v3.11.0 release cycle:
+This archive contains smaller fixes and investigations from the v3.11.0 release cycle. Live guidance now resides in `docs/01-installation/gpu-stack.md`, `docs/09-development/testing.md`, and `docs/09-development/technical-debt.md`; keep this folder as supporting evidence.
 
 ### Files
 
