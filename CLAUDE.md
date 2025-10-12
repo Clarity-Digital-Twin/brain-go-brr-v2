@@ -343,6 +343,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 |-------|----------|
 | **Symbol mismatch: `_ZN3c104cuda9SetDeviceEab`** | **Rebuild mamba-ssm from source with `--no-binary` flag (see INSTALLATION.md#1)** |
 | **CUDA 12.4 toolkit not found** | **Install: `sudo apt-get install -y cuda-toolkit-12-4`** |
+| **WSL2 SIGBUS crash (FLA training)** | **Cache on Windows drives causes mmap page evictions. Move cache to native ext4 filesystem (see INSTALLATION.md#6, SIGBUS_CRASH_ANALYSIS.md)** |
 | Cache directory wrong | Local: `cache/tusz_mmap/`, Modal: `/results/cache/tusz_mmap/` |
 | Zero seizures in batches | Enable `use_balanced_sampling: true` |
 | NaN losses on RTX 4090 | Set `mixed_precision: false` |
