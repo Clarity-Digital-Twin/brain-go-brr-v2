@@ -6,7 +6,7 @@
 
 ## Contents
 
-This archive documents the **critical WSL2 SIGBUS bug** discovered during local FLA training:
+This archive documents the **critical WSL2 SIGBUS bug** discovered during local FLA training. The production guide now lives in `docs/08-operations/wsl2-sigbus-fix.md`; keep this folder for the raw investigation notes and evidence trail.
 
 ### Investigation Documents
 

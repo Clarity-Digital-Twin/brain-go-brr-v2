@@ -6,7 +6,7 @@
 
 ## Contents
 
-This archive contains incident reports and bug investigations from the v3.9.x release series. All issues documented here have been **resolved** and fixes are integrated into the codebase.
+This archive contains incident reports and bug investigations from the v3.9.x release series. All issues documented here have been **resolved** and fixes are integrated into the codebase (see `docs/09-development/bug-tracker.md` and `docs/09-development/technical-debt.md` for the live status).
 
 ### Files
 

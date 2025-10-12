@@ -6,7 +6,7 @@
 
 ## Contents
 
-This archive documents the **three critical checkpoint bugs** discovered and fixed during Modal A100 training:
+This archive documents the **three critical checkpoint bugs** discovered and fixed during Modal A100 training. Current best practices are summarized in `docs/05-training/checkpoint-strategy.md` and `docs/05-training/resume.md`; keep this folder for the detailed incident history.
 
 ### Major Fixes
 
