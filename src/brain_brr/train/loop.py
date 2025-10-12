@@ -313,6 +313,26 @@ def train(
         assert isinstance(result, tuple), "return_step=True should return tuple"
         train_loss, global_step, scaler = result
 
+        # Check if cancellation was requested during training (before starting validation)
+        if cancellation_flag.is_set():
+            logger.warning(
+                "[SIGNAL] Cancellation requested during training, skipping validation and saving checkpoint..."
+            )
+            save_checkpoint(
+                model,
+                optimizer,
+                epoch + 1,
+                best_metric,
+                checkpoint_dir / "signal_exit.pt",
+                scheduler,
+                config,
+                scaler=scaler,
+                save_rng=True,
+                global_step=global_step,
+            )
+            logger.info("[SIGNAL] Saved signal_exit.pt, exiting gracefully")
+            break
+
         # Validate
         focal_alpha = config.training.focal_alpha if config.training.loss == "focal" else None
         focal_gamma = config.training.focal_gamma if config.training.loss == "focal" else None
