@@ -4,6 +4,7 @@
 **Codebase Version**: v4.0.0 (Dual Stack: BiMamba2 baseline + Flash Linear Attention variant)
 **Architecture**: V3 Dual-Stream (TCN + SSM + GNN + Dynamic LPE) with interchangeable BiMamba2 / BiGatedDeltaNet streams
 **Status**: 🟢 Zero active debt; Modal A100 + local RTX 4090 training live with deterministic resume and ext4-backed cache
+**Historical Archive**: Legacy incident reports and PR plans live under `archived_docs/docs_v4_archive/reference/`
 
 ---
 
@@ -269,8 +270,8 @@ This documentation follows the **Diátaxis framework**:
 
 ### Additional Resources
 - **Bug reports**: See [Bug Tracker](09-development/bug-tracker.md)
-- **Historical incidents**: See `reference/incidents-historical/`
-- **Development plans**: See `reference/development/`
+- **Historical incidents**: See `archived_docs/docs_v4_archive/reference/incidents-historical/`
+- **Development plans**: See `archived_docs/docs_v4_archive/reference/development/`
 
 ---
 
