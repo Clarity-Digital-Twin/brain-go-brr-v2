@@ -1799,8 +1799,8 @@ This release delivers comprehensive architectural stability through multiple cri
   - **Use Case**: Extra gradient stabilization for future experiments
 
 - **Comprehensive Incident Documentation**
-  - `docs/reference/incidents/modal-xid31-recurrence.md` - Complete XID 31 root cause analysis
-  - `docs/reference/incidents/pytorch-2.5-upgrade-incident.md` - Gradient explosion investigation
+  - `archived_docs/docs_v4_archive/reference/incidents/modal-xid31-recurrence.md` - Complete XID 31 root cause analysis
+  - `archived_docs/docs_v4_archive/reference/incidents/pytorch-2.5-upgrade-incident.md` - Gradient explosion investigation
   - `docs/04-model/v3-stability-evolution.md` - Full stability timeline and validation
 
 - **Environment Variable Guards**
@@ -1845,8 +1845,8 @@ Unlike transformers, BiMamba+GNN architectures have different gradient character
 - **Quality**: ✅ Ruff, mypy, pytest all green
 
 ### References
-- Root cause analysis: `docs/reference/incidents/modal-xid31-recurrence.md`
-- PyTorch upgrade: `docs/reference/incidents/pytorch-2.5-upgrade-incident.md`
+- Root cause analysis: `archived_docs/docs_v4_archive/reference/incidents/modal-xid31-recurrence.md`
+- PyTorch upgrade: `archived_docs/docs_v4_archive/reference/incidents/pytorch-2.5-upgrade-incident.md`
 - Stability timeline: `docs/04-model/v3-stability-evolution.md`
 - Gradient behavior: `docs/08-operations/gradient-monitoring.md`
 - Laplacian PE: `docs/04-model/gnn.md`

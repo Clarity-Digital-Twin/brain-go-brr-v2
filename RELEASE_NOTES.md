@@ -1349,8 +1349,8 @@ This release represents the **most stable, clean, and production-ready** codebas
 - `docs/09-development/technical-debt.md` - Documentation restructure noted
 
 **Archive Status**:
-- ✅ All reference docs preserved in `docs/reference/`
-- ✅ All incident docs preserved in `docs/reference/incidents/`
+- ✅ All reference docs preserved in `archived_docs/docs_v4_archive/reference/`
+- ✅ All incident docs preserved in `archived_docs/docs_v4_archive/reference/incidents/`
 - ✅ Historical investigation docs in `archived_docs/docs_v3_archive/archive/`
 - ✅ No important content lost during cleanup
 
@@ -1555,8 +1555,8 @@ git checkout v3.6.0-modal-training-baseline
 - `docs/09-development/bug-tracker.md` - Known issues tracker
 
 **Reference Docs** (Preserved):
-- `docs/reference/incidents/modal-xid31-recurrence.md` - XID 31 fix
-- `docs/reference/incidents/pytorch-2.5-upgrade-incident.md` - PyTorch upgrade
+- `archived_docs/docs_v4_archive/reference/incidents/modal-xid31-recurrence.md` - XID 31 fix
+- `archived_docs/docs_v4_archive/reference/incidents/pytorch-2.5-upgrade-incident.md` - PyTorch upgrade
 - `docs/04-model/v3-stability-evolution.md` - Stability timeline
 
 ---
@@ -1918,8 +1918,8 @@ eigenvectors = eigenvectors.detach()
 
 ### Comprehensive Documentation
 New incident reports and architectural guides:
-- `docs/reference/incidents/modal-xid31-recurrence.md` - Complete XID 31 investigation
-- `docs/reference/incidents/pytorch-2.5-upgrade-incident.md` - Gradient explosion analysis
+- `archived_docs/docs_v4_archive/reference/incidents/modal-xid31-recurrence.md` - Complete XID 31 investigation
+- `archived_docs/docs_v4_archive/reference/incidents/pytorch-2.5-upgrade-incident.md` - Gradient explosion analysis
 - `docs/04-model/v3-stability-evolution.md` - Full stability timeline and validation
 
 ### Environment Variables
@@ -2019,8 +2019,8 @@ numpy==1.26.4             # 2.x breaks mamba-ssm
 ## 📚 References
 
 - **Changelog**: `CHANGELOG.md` (complete version history)
-- **XID 31 Analysis**: `docs/reference/incidents/modal-xid31-recurrence.md`
-- **PyTorch Upgrade**: `docs/reference/incidents/pytorch-2.5-upgrade-incident.md`
+- **XID 31 Analysis**: `archived_docs/docs_v4_archive/reference/incidents/modal-xid31-recurrence.md`
+- **PyTorch Upgrade**: `archived_docs/docs_v4_archive/reference/incidents/pytorch-2.5-upgrade-incident.md`
 - **Stability Timeline**: `docs/04-model/v3-stability-evolution.md`
 - **Gradient Monitoring**: `docs/08-operations/gradient-monitoring.md`
 - **Architecture**: `docs/04-model/v3-architecture.md`

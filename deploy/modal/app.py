@@ -1152,8 +1152,10 @@ def train_auto_restart(config_path: str = "configs/modal/train_bimamba.yaml"):
     """Auto-restart training every 23 hours with built-in overlap protection.
 
     This function is scheduled to run every 23 hours via Modal Period.
-    Modal's concurrency_limit=1 ensures only one instance runs at a time,
-    preventing overlap without needing file locks (which Modal volumes don't support).
+    Multiple layers of overlap protection:
+    1. Modal's max_containers=1 prevents concurrent instances
+    2. File-based mutex (defense-in-depth) detects and prevents overlap
+    3. Timeout guard exits before 24h hard limit
 
     Timeline:
     - T=0h:       Run 1 starts
@@ -1171,6 +1173,9 @@ def train_auto_restart(config_path: str = "configs/modal/train_bimamba.yaml"):
     Returns:
         Path to checkpoint file
     """
+    import fcntl
+    from pathlib import Path
+
     from src.brain_brr.utils.logging_config import setup_logging
 
     # Use simple format for Modal (no Rich in container logs)
@@ -1185,23 +1190,54 @@ def train_auto_restart(config_path: str = "configs/modal/train_bimamba.yaml"):
     logger.info(f"[AUTO-RESTART] Expected idle: ~10 min per restart (safety margin)")
     logger.info("=" * 60)
 
-    # CRITICAL: Must use .remote() to call another Modal function
-    # Direct call raises TypeError in Modal's execution model
-    handle = train.remote(
-        config_path=config_path,
-        resume=True,  # Always resume from last.pt
-    )
+    # Defense-in-depth: File-based mutex to prevent concurrent runs
+    lock_path = Path("/results/.training.lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Wait for training to complete
-    checkpoint_path = handle.get()
+    lock_fd = None
+    try:
+        lock_fd = open(lock_path, "w")
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        logger.info("[LOCK] ✅ Acquired exclusive training lock")
+    except IOError:
+        logger.warning("[OVERLAP] Another training instance is running, exiting gracefully")
+        if lock_fd:
+            lock_fd.close()
+        return None
+    except Exception as e:
+        logger.error(f"[LOCK] Failed to acquire lock: {e}")
+        if lock_fd:
+            lock_fd.close()
+        return None
 
-    logger.info("=" * 60)
-    logger.info(f"[AUTO-RESTART] Training completed: {checkpoint_path}")
-    logger.info("[AUTO-RESTART] Next restart in ~23 hours (from start of this run)")
-    logger.info("[AUTO-RESTART] Checkpoint saved - safe to exit")
-    logger.info("=" * 60)
+    try:
+        # CRITICAL: Must use .remote() to call another Modal function
+        # Direct call raises TypeError in Modal's execution model
+        handle = train.remote(
+            config_path=config_path,
+            resume=True,  # Always resume from last.pt
+        )
 
-    return checkpoint_path
+        # Wait for training to complete
+        checkpoint_path = handle.get()
+
+        logger.info("=" * 60)
+        logger.info(f"[AUTO-RESTART] Training completed: {checkpoint_path}")
+        logger.info("[AUTO-RESTART] Next restart in ~23 hours (from start of this run)")
+        logger.info("[AUTO-RESTART] Checkpoint saved - safe to exit")
+        logger.info("=" * 60)
+
+        return checkpoint_path
+
+    finally:
+        # Always release lock
+        if lock_fd:
+            try:
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+                lock_fd.close()
+                logger.info("[LOCK] Released training lock")
+            except Exception as e:
+                logger.error(f"[LOCK] Failed to release lock: {e}")
 
 
 @app.local_entrypoint()
