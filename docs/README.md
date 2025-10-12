@@ -56,6 +56,7 @@ Learn by doing:
 - [V3 Stability Evolution](04-model/v3-stability-evolution.md) - v3.3.0 → v4.0.0 journey
 - [TCN](04-model/tcn.md) - Temporal convolutional network
 - [State-Space Streams](04-model/mamba.md) - BiMamba2 + Flash Linear Attention
+- [FLA Research Documentation](04-model/flash-linear-attention/) - Detailed validation logs and methodology
 - [GNN](04-model/gnn.md) - Graph neural network with PyG
 - [Laplacian PE](04-model/laplacian-pe.md) - Dynamic positional encoding
 - [Edge Features](04-model/edge-features-and-adjacency.md) - Learned adjacency
@@ -136,15 +137,16 @@ Learn by doing:
 
 ## ⚙️ Key Technical Details
 
-### Architecture (v3.9.0)
+### Architecture (v4.0.0)
 - **TCN**: 8 layers, channels [64,128,256,512], stride=16
-- **Node Mamba**: 6 layers, d_model=64, bidirectional SSM
-- **Edge Mamba**: 2 layers, d_model=16, learned adjacency
+- **Node SSM**: BiMamba2 (6 layers, d_model=64) OR BiGatedDeltaNet (FLA variant)
+- **Edge SSM**: BiMamba2 (2 layers, d_model=16) OR BiGatedDeltaNet with d_model=32
 - **GNN**: 2× SSGConv, α=0.05, Laplacian PE (k=16)
-- **Parameters**: ~31M total
+- **Parameters**: ~31M total (BiMamba2) or ~29M (FLA variant)
 - **Dynamic PE**: Always enabled with safeguards (v3.3.1+)
+- **Dual Stacks**: BiMamba2 (Modal A100) + FLA (Local RTX 4090) both training
 
-### Training Stability (v3.9.0)
+### Training Stability (v4.0.0)
 - ✅ **Atomic checkpoints**: Temp-file + fsync + rename with AMP scaler & RNG capture (deterministic resume)
 - ✅ **Timeout guard**: Wall-clock monitor exits ~23 h with `timeout_exit.pt` before Modal’s 24 h limit
 - ✅ **Metric normalization**: `metrics_utils.normalize_metrics_dict` eliminates “New best 0.0000” logs
@@ -189,7 +191,7 @@ export BGB_NAN_DEBUG=1         # Enable NaN warnings
 | 5 FA/24h | >90% ⭐ |
 | 1 FA/24h | >75% |
 
-**Current status (v3.9.0)**: Production training live with bulletproof resume safeguards.
+**Current status (v4.0.0)**: Dual production stacks training simultaneously with auto-restart on Modal.
 
 ---
 
