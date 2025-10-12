@@ -6,7 +6,7 @@
 [![PyTorch 2.5.0](https://img.shields.io/badge/pytorch-2.5.0-red.svg)](https://pytorch.org)
 [![CUDA 12.4](https://img.shields.io/badge/cuda-12.4-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
-[![v3.11.0](https://img.shields.io/badge/version-3.11.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v3.11.0-stateful-dataloader)
+[![v4.0.0](https://img.shields.io/badge/version-4.0.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v4.0.0-fla-production-wsl2-fix)
 
 ## 📋 The Clinical Problem
 
@@ -50,7 +50,7 @@ Traditional approaches fail because they treat these as separate problems. We mo
 
 **Research transparency**: All three outcomes (Gated Delta wins, BiMamba2 wins, or tie) are scientifically valuable. No prior work compares these architectures on clinical EEG. See [FLA_ROADMAP.md](docs/flash-linear-attention/FLA_ROADMAP.md) for full strategy.
 
-**Current status (v3.11.0)**: Production system with exact mid-epoch resume via StatefulDataLoader. BiMamba2 baseline training on Modal A100 with zero wasted compute. See [STATUS.md](STATUS.md) for details.
+**Current status (v4.0.0)**: **DUAL PRODUCTION STACKS** - BiMamba2 (Modal A100, Epoch 3) + FLA (Local RTX 4090, Epoch 2) both training simultaneously! WSL2 SIGBUS fix enables local FLA training. See [STATUS.md](STATUS.md) for details.
 
 ## 🏗️ Architecture: Theory & Design
 
@@ -469,6 +469,6 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 **Updates?** [Watch the repo](https://github.com/clarity-digital-twin/brain-go-brr-v2) •
 **Discussion?** [Start a discussion](https://github.com/clarity-digital-twin/brain-go-brr-v2/discussions)
 
-**Current status**: v3.11.0 • Exact mid-epoch resume • StatefulDataLoader integrated • BiMamba2 baseline LIVE • Zero compute waste
+**Current status**: v4.0.0 • FLA Production Ready • WSL2 SIGBUS Fixed • Dual Stacks Training • BiMamba2 (Modal) + FLA (Local) LIVE
 
 </div>

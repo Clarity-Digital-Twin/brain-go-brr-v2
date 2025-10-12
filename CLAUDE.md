@@ -4,7 +4,7 @@ This file provides critical project context for Claude Code (claude.ai/code) whe
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.11.0 (StatefulDataLoader & Mid-Epoch Resume): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks. **Hands-free Modal A100 training** with auto-restart, exact mid-epoch resume via StatefulDataLoader, and checkpoint fixes eliminating wasted compute.
+Brain-Go-Brr v4.0.0 (FLA Production + WSL2 Fix): Clinical EEG seizure detection with **dual production stacks** — BiMamba2 (baseline) and FLA (BiGatedDeltaNet research). Both use **TCN + SSM + GNN + Dynamic LPE** achieving O(N) complexity. **Hands-free Modal A100 training** with auto-restart, exact mid-epoch resume via StatefulDataLoader, and **local FLA training now works** (WSL2 SIGBUS fix).
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
@@ -12,7 +12,7 @@ Brain-Go-Brr v3.11.0 (StatefulDataLoader & Mid-Epoch Resume): Clinical EEG seizu
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-Current Architecture (v3.11.0 - October 10, 2025):
+Current Architecture (v4.0.0 - October 12, 2025):
 - **V3 dual-stream** → Node (19×) and Edge (171×) parallel processing
 - **Memory-mapped cache (NPY)** → <1 GB RAM vs 387 GB for NPZ, 99.6% faster startup
 - **Auto-restart training** → Hands-free 100-epoch training via modal.Period(hours=23) with overlap protection
@@ -30,6 +30,8 @@ Current Architecture (v3.11.0 - October 10, 2025):
 - **3-tier NaN protection** → Gradient sanitization + clamping + monitoring
 - **Modal 1.0 compatible** → Updated max_containers parameter for future compatibility
 - **Zero technical debt** → All P3 items resolved (Pydantic schemas correct, .gitkeep files added), production ready
+- **WSL2 SIGBUS fix** → Local FLA training now works (cache must be on native ext4 filesystem, not Windows drives)
+- **Dual production stacks** → BiMamba2 (Modal A100) + FLA (local RTX 4090) both training simultaneously
 
 ## 🚀 Quick Commands
 
@@ -401,7 +403,10 @@ Due to hardware differences, integration tests have adjusted thresholds:
 
 **Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
 
-**Current Status (v3.11.0 - October 11, 2025 - StatefulDataLoader & Mid-Epoch Resume)**:
+**Current Status (v4.0.0 - October 12, 2025 - FLA Production + WSL2 Fix)**:
+- ✅ **MAJOR: Dual production stacks** - BiMamba2 (Modal A100) + FLA (local RTX 4090) both training simultaneously
+- ✅ **MAJOR: WSL2 SIGBUS fix** - Local FLA training now works after cache migration to native ext4 filesystem
+- ✅ **MAJOR: FLA stack validated** - Training verified past previous crash point (batch 5401 vs crash at 2890)
 - ✅ **Zero technical debt** - All items resolved (P0/P1/P2/P3), production ready
 - ✅ **Auto-restart training** - Hands-free 100-epoch training via modal.Period(hours=23), zero manual intervention
 - ✅ **StatefulDataLoader integrated** - Exact mid-epoch resume via PyTorch official dataloader state management
@@ -411,9 +416,6 @@ Due to hardware differences, integration tests have adjusted thresholds:
 - ✅ **Bulletproof checkpoints** - Atomic saves every 30min, AMP scaler + RNG + DataLoader state capture
 - ✅ **Backward compatibility** - Old checkpoints still work (logs warning, restarts from epoch start)
 - ✅ **Timeout guard** - 23h wall-clock limit, 1h safety margin, graceful exit before Modal kill
-- ✅ **BiMamba2 baseline training LIVE** - Modal A100-80GB with v3.11.0 code, zero compute waste
-- ✅ **FLA research complete** - BiGatedDeltaNet implemented, all smoke tests passed
-- ✅ **Research comparison strategy** - Train both BiMamba2 and FLA stacks independently, document results for both
 - ✅ **Modal 1.0 migration complete** - Updated max_containers parameter, deprecation warnings fixed
-- 📊 **Research goal** - Empirical comparison on full TUSZ dataset; both results publishable regardless of outcome
-- 📚 **See**: `FLA_ROADMAP.md` for complete strategy, `MODAL_CLI_REFERENCE.md` for updated commands
+- 📊 **Current training**: BiMamba2 (Modal, Epoch 3) + FLA (Local, Epoch 2) - both progressing normally
+- 📚 **See**: `docs/08-operations/wsl2-sigbus-fix.md` for WSL2 details, `docs/archive_v4/` for incident analysis
