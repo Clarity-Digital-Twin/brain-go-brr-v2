@@ -6,7 +6,15 @@
 
 ## Contents
 
-This archive documents the **critical WSL2 SIGBUS bug** discovered during local FLA training. The production guide now lives in `docs/08-operations/wsl2-sigbus-fix.md`; keep this folder for the raw investigation notes and evidence trail.
+This archive documents the **critical WSL2 SIGBUS bug** discovered during local FLA training.
+
+**Status**: ✅ **FULLY INTEGRATED** into `docs/08-operations/wsl2-sigbus-fix.md`
+- Root cause analysis → Section 1 (Summary)
+- Step-by-step fix → Section 2 (Action Plan)
+- Forensic evidence → Section 4 (Investigation Evidence)
+- Timeline + kernel logs + space calculations all preserved
+
+**This folder can be safely deleted after v4.0.0 release.** All critical information has been extracted into production documentation.
 
 ### Investigation Documents
 
