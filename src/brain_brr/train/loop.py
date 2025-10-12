@@ -216,9 +216,6 @@ def train(
 
     global_step = resume_global_step  # Track global step across epochs for scheduler
 
-    # Mutable state for signal handler (updated during training loop)
-    signal_state: dict[str, int | float] = {"epoch": start_epoch, "best_metric": best_metric}
-
     # Cancellation flag for graceful shutdown (allows validation to exit cleanly)
     cancellation_flag = CancellationFlag()
 
@@ -237,9 +234,6 @@ def train(
     best_metrics: dict[str, Any] = {"best_epoch": 0}
 
     for epoch in range(start_epoch, config.training.epochs):
-        # Update signal handler state for current epoch
-        signal_state["epoch"] = epoch
-
         # Check wall-clock timeout before starting epoch
         if timeout_guard.check():
             remaining = timeout_guard.remaining_seconds()
@@ -451,7 +445,6 @@ def train(
         # Track best metrics (always, regardless of save_model)
         if current_metric == early_stopping.best_score:
             best_metric = current_metric
-            signal_state["best_metric"] = best_metric  # Update for signal handler
             best_metrics = {
                 "best_epoch": epoch + 1,
                 "best_taes": val_metrics["taes"],
