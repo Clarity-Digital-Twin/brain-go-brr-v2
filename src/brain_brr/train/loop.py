@@ -349,6 +349,7 @@ def train(
             save_plots=config.evaluation.save_plots,
             output_dir=config.experiment.output_dir,
             epoch=epoch,
+            timeout_guard=timeout_guard,
         )
 
         # Normalize metric keys to fix "New best 0.0000" bug

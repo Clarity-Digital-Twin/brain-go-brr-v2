@@ -35,6 +35,7 @@ from src.brain_brr.eval.metrics import (
 )
 from src.brain_brr.events import batch_mask_to_events
 from src.brain_brr.train.recording_storage import RecordingStorage
+from src.brain_brr.train.timeout_guard import TimeoutGuard
 from src.brain_brr.utils.env import env
 
 logger = logging.getLogger(__name__)
@@ -382,6 +383,7 @@ def validate_epoch(
     save_plots: bool = False,
     output_dir: str | Path | None = None,
     epoch: int | None = None,
+    timeout_guard: TimeoutGuard | None = None,
 ) -> dict[str, Any]:
     """Validate model with disk-backed storage (39GB peak).
 
@@ -514,6 +516,17 @@ def validate_epoch(
                         f"Avg Loss: {avg_loss:.4f} | Recordings processed: {num_recordings}"
                     )
                     last_heartbeat = current_time
+
+                    if timeout_guard and timeout_guard.check():
+                        pct_complete = (batch_idx / len(dataloader)) * 100
+                        logger.warning(
+                            f"[TIMEOUT] Validation interrupted at batch {batch_idx}/{len(dataloader)} "
+                            f"({pct_complete:.1f}% complete)"
+                        )
+                        logger.warning(
+                            "[TIMEOUT] Wall-clock limit approaching, exiting validation early"
+                        )
+                        break
         finally:
             if progress_bar is not None and hasattr(progress_bar, "close"):
                 with suppress(Exception):
