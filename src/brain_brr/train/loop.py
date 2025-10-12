@@ -168,12 +168,19 @@ def train(
         # Restore DataLoader state for exact batch resume
         if "dataloader_state_dict" in ckpt:
             train_loader.load_state_dict(ckpt["dataloader_state_dict"])  # type: ignore[attr-defined]
-            logger.info(f"[RESUME] ✅ Exact mid-epoch resume at batch {ckpt.get('batch_idx', '?')}")
+            resume_batch_idx = ckpt.get("batch_idx", 0)
+            resume_global_step = ckpt.get("global_step", 0)
+            logger.info(
+                f"[RESUME] ✅ Exact mid-epoch resume: "
+                f"epoch {start_epoch + 1}, batch {resume_batch_idx}, global_step {resume_global_step}"
+            )
         else:
             logger.warning(
                 "[RESUME] Old checkpoint without DataLoader state - "
                 "restarting epoch from batch 0 (expected before v3.11.0)"
             )
+            resume_batch_idx = 0
+            resume_global_step = 0
             logger.info(f"Resumed from epoch {start_epoch + 1}, batch 0")
     elif (checkpoint_dir / CHECKPOINT_LAST).exists() and config.training.resume:
         start_epoch, best_metric = load_checkpoint(
@@ -184,7 +191,10 @@ def train(
             scaler=scaler,
             device=device,
         )
-        logger.info(f"Resumed from epoch {start_epoch + 1}")
+        ckpt = torch.load(checkpoint_dir / CHECKPOINT_LAST, map_location="cpu", weights_only=False)
+        resume_batch_idx = 0
+        resume_global_step = ckpt.get("global_step", 0)
+        logger.info(f"Resumed from epoch {start_epoch + 1}, global_step {resume_global_step}")
 
     # Wall-clock timeout guard (for Modal 24h limit)
     wall_clock_limit_s = _safe_parse_int(os.getenv("BGB_WALL_CLOCK_LIMIT_S"), fallback=0)
@@ -197,6 +207,13 @@ def train(
             f"[TIMEOUT] Wall-clock limit: {wall_clock_limit_s}s "
             f"({wall_clock_limit_s / 3600:.1f}h), safety margin: 10 min"
         )
+
+    # Ensure resume state defaults even when not resuming
+    if "resume_global_step" not in locals():
+        resume_global_step = 0
+        resume_batch_idx = 0
+
+    global_step = resume_global_step  # Track global step across epochs for scheduler
 
     # Mutable state for signal handler (updated during training loop)
     signal_state: dict[str, int | float] = {"epoch": start_epoch, "best_metric": best_metric}
@@ -224,6 +241,7 @@ def train(
                 config,
                 scaler=scaler,
                 save_rng=True,
+                global_step=global_step,
             )
             logger.info(f"[SIGNAL] Saved signal_exit_{sig_name.lower()}.pt")
         except Exception as e:
@@ -236,10 +254,8 @@ def train(
     signal.signal(signal.SIGTERM, _signal_handler)
     signal.signal(signal.SIGINT, _signal_handler)
     logger.info("[SIGNAL] Registered SIGTERM and SIGINT handlers for graceful exit")
-
     # Training loop
     best_metrics: dict[str, Any] = {"best_epoch": 0}
-    global_step = 0  # Track global step across epochs for scheduler
 
     for epoch in range(start_epoch, config.training.epochs):
         # Update signal handler state for current epoch
@@ -271,6 +287,7 @@ def train(
                 config,
                 scaler=scaler,
                 save_rng=True,
+                global_step=global_step,
             )
             logger.info("[TIMEOUT] Saved timeout_exit.pt, resume with --resume flag")
             break
@@ -310,6 +327,7 @@ def train(
             log_gradients=config.logging.log_gradients,
             log_weights=config.logging.log_weights,
             wandb_logger=wandb_logger,
+            resume_batch_idx=resume_batch_idx if epoch == start_epoch else 0,
         )
 
         # Type narrowing for mypy
@@ -436,6 +454,7 @@ def train(
                     config,
                     scaler=scaler,  # Save scaler for FP16 resume
                     save_rng=True,  # Save RNG for deterministic resume
+                    global_step=global_step,
                 )
                 # Log best model to W&B
                 wandb_logger.log_model(checkpoint_dir / CHECKPOINT_BEST, name=f"best-{metric_name}")
@@ -462,6 +481,7 @@ def train(
                 config,
                 scaler=scaler,  # Save scaler for FP16 resume
                 save_rng=True,  # Save RNG for deterministic resume
+                global_step=global_step,
             )
             logger.info(f"  Saved periodic checkpoint: {checkpoint_path.name}")
 
@@ -478,6 +498,7 @@ def train(
                 config,
                 scaler=scaler,  # Save scaler for FP16 resume
                 save_rng=True,  # Save RNG for deterministic resume
+                global_step=global_step,
             )
 
         # Check timeout after epoch completion (validation can be slow)

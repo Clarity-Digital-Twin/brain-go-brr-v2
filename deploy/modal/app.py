@@ -98,6 +98,7 @@ image = (
         "tensorboard>=2.10.0",  # For training metrics
         "wandb",  # Weights & Biases for cloud tracking
         "pytorch-tcn",  # TCN implementation for optimal performance
+        "python-dotenv>=1.0.0",  # Load environment variables from .env
     )
     # CRITICAL: Install PyTorch Geometric with exact versions for PyTorch 2.5.0 + CUDA 12.4
     # These MUST match our local setup exactly!

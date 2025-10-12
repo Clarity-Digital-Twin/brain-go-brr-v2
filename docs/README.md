@@ -1,9 +1,9 @@
-# Brain-Go-Brr Documentation (v3.9.0)
+# Brain-Go-Brr Documentation (v4.0.0)
 
-**Last Updated**: October 8, 2025
-**Codebase Version**: v3.9.0 (Production Training Baseline)
-**Architecture**: V3 Dual-Stream (TCN + BiMamba + GNN + Dynamic LPE)
-**Status**: 🟢 Zero active debt with bulletproof checkpoints, timeout guard, and live Modal training
+**Last Updated**: October 12, 2025
+**Codebase Version**: v4.0.0 (Dual Stack: BiMamba2 baseline + Flash Linear Attention variant)
+**Architecture**: V3 Dual-Stream (TCN + SSM + GNN + Dynamic LPE) with interchangeable BiMamba2 / BiGatedDeltaNet streams
+**Status**: 🟢 Zero active debt; Modal A100 + local RTX 4090 training live with deterministic resume and ext4-backed cache
 
 ---
 
@@ -43,7 +43,7 @@ Learn by doing:
 - [NaN Prevention & Handling](08-operations/nan-prevention-complete.md) - **Canonical guide** ⭐
 - [Gradient Monitoring](08-operations/gradient-monitoring.md) - Understanding "Large grad norm"
 - [General Troubleshooting](08-operations/troubleshooting.md) - Common issues
-- [WSL2 Specific](08-operations/wsl2-notes.md) - Windows users
+- [WSL2 Specific](08-operations/wsl2-notes.md) - Windows users (see also [WSL2 SIGBUS Fix](08-operations/wsl2-sigbus-fix.md))
 
 **Optimization**:
 - [Performance Optimization](08-operations/performance-optimization.md) - Speed & memory
@@ -53,9 +53,10 @@ Learn by doing:
 
 **Architecture**:
 - [V3 Architecture](04-model/v3-architecture.md) - **Complete specification** ⭐
-- [V3 Stability Evolution](04-model/v3-stability-evolution.md) - v3.3.0 → v3.4.1 journey
+- [V3 Stability Evolution](04-model/v3-stability-evolution.md) - v3.3.0 → v4.0.0 journey
 - [TCN](04-model/tcn.md) - Temporal convolutional network
-- [Mamba](04-model/mamba.md) - Bidirectional SSM
+- [State-Space Streams](04-model/mamba.md) - BiMamba2 + Flash Linear Attention
+- [FLA Research Documentation](04-model/flash-linear-attention/) - Detailed validation logs and methodology
 - [GNN](04-model/gnn.md) - Graph neural network with PyG
 - [Laplacian PE](04-model/laplacian-pe.md) - Dynamic positional encoding
 - [Edge Features](04-model/edge-features-and-adjacency.md) - Learned adjacency
@@ -136,15 +137,16 @@ Learn by doing:
 
 ## ⚙️ Key Technical Details
 
-### Architecture (v3.9.0)
+### Architecture (v4.0.0)
 - **TCN**: 8 layers, channels [64,128,256,512], stride=16
-- **Node Mamba**: 6 layers, d_model=64, bidirectional SSM
-- **Edge Mamba**: 2 layers, d_model=16, learned adjacency
+- **Node SSM**: BiMamba2 (6 layers, d_model=64) OR BiGatedDeltaNet (FLA variant)
+- **Edge SSM**: BiMamba2 (2 layers, d_model=16) OR BiGatedDeltaNet with d_model=32
 - **GNN**: 2× SSGConv, α=0.05, Laplacian PE (k=16)
-- **Parameters**: ~31M total
+- **Parameters**: ~31M total (BiMamba2) or ~29M (FLA variant)
 - **Dynamic PE**: Always enabled with safeguards (v3.3.1+)
+- **Dual Stacks**: BiMamba2 (Modal A100) + FLA (Local RTX 4090) both training
 
-### Training Stability (v3.9.0)
+### Training Stability (v4.0.0)
 - ✅ **Atomic checkpoints**: Temp-file + fsync + rename with AMP scaler & RNG capture (deterministic resume)
 - ✅ **Timeout guard**: Wall-clock monitor exits ~23 h with `timeout_exit.pt` before Modal’s 24 h limit
 - ✅ **Metric normalization**: `metrics_utils.normalize_metrics_dict` eliminates “New best 0.0000” logs
@@ -189,7 +191,7 @@ export BGB_NAN_DEBUG=1         # Enable NaN warnings
 | 5 FA/24h | >90% ⭐ |
 | 1 FA/24h | >75% |
 
-**Current status (v3.9.0)**: Production training live with bulletproof resume safeguards.
+**Current status (v4.0.0)**: Dual production stacks training simultaneously with auto-restart on Modal.
 
 ---
 

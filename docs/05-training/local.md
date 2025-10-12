@@ -15,7 +15,7 @@ Recommendations
 
 - `mixed_precision: false`
 - `use_balanced_sampling: true`
-- WSL2: `num_workers: 0`
+- WSL2: `num_workers: 0`, keep the mmap cache on ext4 (see `docs/08-operations/wsl2-sigbus-fix.md`)
 - V3.2.0: set `model.graph.edge_similarity_margin: 0.01`
 
 Recommended V3 profile (RTX 4090, 24GB)
@@ -47,7 +47,7 @@ Monitoring
 
 Quick fixes (if local training gets stuck or unstable)
 
-- Dataloader hangs (WSL2): set `data.num_workers: 0` in your config.
+- Dataloader hangs (WSL2): set `data.num_workers: 0` in your config and confirm `cache/tusz_mmap` lives on ext4 (not `/mnt/c|d/`).
 - NaN losses (RTX 4090): set `training.mixed_precision: false`, reduce `batch_size`, consider lowering `learning_rate`. Ensure `training.gradient_clip: 0.5` remains enabled. Optional debugging: `export BGB_NAN_DEBUG=1` (logging) and `export BGB_SANITIZE_GRADS=1` (zero-out/log non-finite gradients).
 - GPU OOM: reduce `batch_size` or enable gradient accumulation.
 

@@ -190,7 +190,7 @@ See `docs/05-training/modal.md` for full memory profiling.
 ## ⚠️ Common Pitfalls
 
 1. **Wrong Cache Directory**:
-   - ❌ Local: `cache/v2.6_full/` (empty) or `cache/tusz/` (old NPZ format)
+   - ❌ Local: `cache/v2.6_full/` (empty) or `cache/tusz/` (old NPZ format, historical reference only - not used by runtime configs)
    - ✅ Local: `cache/tusz_mmap/{train,dev}/` (4667 + 1832 NPY files) - Using TUSZ's 'dev' naming!
 
 2. **Modal Cache Misconception**:

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    from wandb.sdk.wandb_run import Run as WandBRun  # type: ignore[import-not-found]
+    from src.brain_brr.train.wandb_integration import WandBLogger
 
 import torch
 import torch.nn as nn
@@ -186,7 +186,8 @@ def train_epoch(
     log_every_n_steps: int = LOG_EVERY_N_STEPS,
     log_gradients: bool = False,
     log_weights: bool = False,
-    wandb_logger: WandBRun | None = None,
+    wandb_logger: WandBLogger | None = None,
+    resume_batch_idx: int = 0,
 ) -> float | tuple[float, int, GradScaler]:
     """Train for one epoch.
 
@@ -281,7 +282,13 @@ def train_epoch(
         if use_tqdm:
             try:
                 progress_bar = tqdm(
-                    dataloader, desc="Training", leave=False, file=sys.stderr, ascii=True, ncols=80
+                    dataloader,
+                    desc="Training",
+                    leave=False,
+                    file=sys.stderr,
+                    ascii=True,
+                    ncols=80,
+                    initial=resume_batch_idx,
                 )
                 if progress_bar is None or not hasattr(progress_bar, "__iter__"):
                     logger.warning("tqdm initialization failed, using plain iteration")
@@ -294,7 +301,8 @@ def train_epoch(
         else:
             progress = dataloader
 
-        for batch_idx, batch in enumerate(progress):
+        for relative_idx, batch in enumerate(progress):
+            batch_idx = relative_idx + resume_batch_idx
             windows = batch["window"].to(device_obj)
             labels = batch["label"].to(device_obj)
 
@@ -539,6 +547,7 @@ def train_epoch(
                         None,
                         scaler=scaler,  # Save scaler for FP16 resume
                         save_rng=True,  # Save RNG for deterministic resume
+                        global_step=global_step,
                         extra={
                             "batch_idx": batch_idx,
                             "kind": "mid_epoch",

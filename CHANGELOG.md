@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2025-10-12
+
+### 🚀 FLA Production + WSL2 Fix (MAJOR RELEASE)
+
+**Tag**: `v4.0.0-fla-production-wsl2-fix`
+**Status**: ✅ **PRODUCTION READY** (Dual Stacks: Modal A100 + Local RTX 4090)
+
+---
+
+#### What's New
+
+**FLA Production Stack (Major Feature)**:
+- **NEW CAPABILITY**: Flash Linear Attention (BiGatedDeltaNet) now production-ready
+- **Stack**: TCN + BiGatedDeltaNet + GNN + Dynamic LPE (31M parameters)
+- **Training**: Local RTX 4090, Epoch 2, batch_size=8, mixed_precision=false
+- **Verification**: Stable past previous crash point (batch 5401 vs crash at 2890)
+- **Research Impact**: A/B comparison of BiMamba2 vs GatedDeltaNet on full TUSZ dataset
+- **Configs**: Added `configs/local/train_fla.yaml` and `configs/modal/train_fla.yaml`
+
+**WSL2 SIGBUS Fix (Critical)**:
+- **Problem**: Memory-mapped NPY cache on Windows drives (`/mnt/d/`) via WSL2 9P filesystem caused SIGBUS crashes after ~2h
+- **Root Cause**: 9P has poor mmap support; page evictions + AVX2 instructions → signal 7
+- **Fix**: Migrate cache to native ext4 filesystem inside WSL2 VM (518GB rsync)
+- **Verification**: FLA training now stable, validated 2511 batches past crash point
+- **Documentation**:
+  - **NEW**: `docs/08-operations/wsl2-sigbus-fix.md`
+  - **NEW**: `docs/archive_v4/` (SIGBUS analysis, timeline, migration, audit)
+  - **Updated**: INSTALLATION.md#6, CLAUDE.md, CACHE.md, .gitkeep files
+
+**Dual Production Stacks**:
+- **BiMamba2**: Modal A100, Epoch 3, auto-restart enabled
+- **FLA**: Local RTX 4090, Epoch 2, stable training
+- **Both** training simultaneously for empirical comparison
+
+**Archive Documentation**:
+- Added `README.md` to `docs/archive/`, `docs/archive_v2/`, `docs/archive_v3/`, `docs/archive_v4/`
+- Marked all archived docs as historical with resolution status
+- Clear migration path for future archive cleanup
+
+#### Why v4.0.0?
+
+This is a **major version bump** because:
+1. **New capability**: FLA stack operational (previously research-only)
+2. **Critical fix**: WSL2 mmap limitation discovered and resolved
+3. **Production milestone**: Dual stacks training simultaneously (first time!)
+
+#### Breaking Changes
+
+**None** - 100% backward compatible
+
+**Migration Note**: WSL2 users with cache on Windows drives MUST migrate to native ext4 for FLA training stability. See `INSTALLATION.md#6`.
+
+---
+
 ## [3.11.0] - 2025-10-10
 
 ### 🔄 StatefulDataLoader Integration & Mid-Epoch Resume

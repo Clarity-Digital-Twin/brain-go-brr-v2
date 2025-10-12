@@ -59,6 +59,9 @@ make setup
 # GPU components (CRITICAL ORDER)
 make setup-gpu  # or make g
 
+# FLA library (OPTIONAL - for Gated DeltaNet research)
+make setup-fla
+
 # Verify installation
 .venv/bin/python -c "
 import torch, torch_geometric, mamba_ssm, pytorch_tcn
@@ -183,11 +186,13 @@ image = (
 | Python | 3.11+ | Required for modern type hints |
 | PyTorch | 2.5.0 | Latest stable with CUDA 12.4 support |
 | CUDA | 12.4 | PyTorch 2.5.0 build target |
+| Triton | 3.1.0 | Bundled with PyTorch 2.5.0 (3.2.0 requires PyTorch 2.6+) |
 | numpy | 1.26.4 | numpy 2.x breaks mamba-ssm |
 | mamba-ssm | 2.2.5 | Latest, includes A100 int64 indexing fix |
 | causal-conv1d | 1.5.2 | Latest stable for PyTorch 2.5+ |
 | torch-geometric | 2.6.1 | Latest (Sep 2024) stable for torch 2.5.0 |
 | pytorch-tcn | 1.2.3 | Pure PyTorch, any version works |
+| flash-linear-attention | 0.3.2 | Optional, for Gated DeltaNet research (requires Triton >= 3.0) |
 
 ## Common Issues
 
@@ -259,7 +264,38 @@ export PATH=$CUDA_HOME/bin:$PATH
 export UV_LINK_MODE=copy
 ```
 
-### 6. Modal CPU Bottlenecks
+### 6. WSL2 Cache Location SIGBUS Crashes (CRITICAL)
+**Symptom**: Training crashes with SIGBUS (signal 7) after ~2 hours, especially during FLA training
+
+**Root Cause**: Memory-mapped NPY cache on Windows drives (`/mnt/c/`, `/mnt/d/`) accessed via WSL2's 9P network filesystem. Page evictions during training cause AVX2 instructions to hit invalid memory pages.
+
+**Solution**: Move cache to native Linux filesystem (ext4/btrfs) inside WSL2 VM:
+```bash
+# Check current cache location
+ls -ld cache/tusz_mmap/
+# If it's a symlink to /mnt/d/ or /mnt/c/, you need to migrate!
+
+# Migration steps (see CACHE_MIGRATION_PLAN.md for full details):
+# 1. Verify you have enough space on native filesystem
+df -h /
+# Need: 518GB for cache/tusz_mmap/
+
+# 2. Copy cache from Windows drive to native filesystem
+rsync -avh --progress /mnt/d/brain-go-brr/cache/tusz_mmap/ cache/tusz_mmap/
+
+# 3. Verify integrity
+find cache/tusz_mmap/train/ -name "*.npy" | wc -l  # Should be 9334
+find cache/tusz_mmap/dev/ -name "*.npy" | wc -l    # Should be 3664
+```
+
+**Why This Matters**:
+- BiMamba2 training may work (different CUDA kernels)
+- FLA training WILL crash (AVX2 memory operations more sensitive)
+- Modal/Cloud training unaffected (native Linux volumes only)
+
+**See**: `SIGBUS_CRASH_ANALYSIS.md`, `CRASH_TIMELINE_ANALYSIS.md`, `CACHE_MIGRATION_PLAN.md`
+
+### 7. Modal CPU Bottlenecks
 **Symptom**: Training stuck at epoch boundaries
 
 **Solution**: Increase CPU/RAM allocation in `deploy/modal/app.py`:
@@ -270,6 +306,15 @@ export UV_LINK_MODE=copy
     cpu=24,         # 24 cores (default: 0.125!)
 )
 ```
+
+### 8. FLA Triton Version Warning
+**Warning**: "Current Triton version 3.1.0 is below the recommended 3.2.0 version"
+
+**Explanation**: This is expected and harmless. FLA recommends Triton 3.2.0, but it REQUIRES PyTorch 2.6+. Our stack uses PyTorch 2.5.0 (for mamba-ssm compatibility) which bundles Triton 3.1.0.
+
+**FLA requirement**: Triton >= 3.0 ✅ (satisfied by 3.1.0)
+
+**Action**: No action needed. Warning is cosmetic. Upgrading to Triton 3.2.0 would break the entire stack (incompatible with PyTorch 2.5.0).
 
 ## Testing Installation
 

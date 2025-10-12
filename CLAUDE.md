@@ -4,7 +4,7 @@ This file provides critical project context for Claude Code (claude.ai/code) whe
 
 ## 🧠 Project Overview
 
-Brain-Go-Brr v3.11.0 (StatefulDataLoader & Mid-Epoch Resume): Clinical EEG seizure detection using **TCN + BiMamba + GNN + Dynamic LPE** with stable eigendecomposition — achieving O(N) complexity with state-space models and graph neural networks. **Hands-free Modal A100 training** with auto-restart, exact mid-epoch resume via StatefulDataLoader, and checkpoint fixes eliminating wasted compute.
+Brain-Go-Brr v4.0.0 (FLA Production + WSL2 Fix): Clinical EEG seizure detection with **dual production stacks** — BiMamba2 (baseline) and FLA (BiGatedDeltaNet research). Both use **TCN + SSM + GNN + Dynamic LPE** achieving O(N) complexity. **Hands-free Modal A100 training** with auto-restart, exact mid-epoch resume via StatefulDataLoader, and **local FLA training now works** (WSL2 SIGBUS fix).
 
 **Architecture Stack (31M parameters)**:
 - **TCN**: Multi-scale temporal features (8 layers, channels [64,128,256,512])
@@ -12,7 +12,7 @@ Brain-Go-Brr v3.11.0 (StatefulDataLoader & Mid-Epoch Resume): Clinical EEG seizu
 - **GNN**: Spatial electrode relationships via SSGConv (α=0.05, 2 layers)
 - **LPE**: Laplacian positional encoding (k=16 eigenvectors)
 
-Current Architecture (v3.11.0 - October 10, 2025):
+Current Architecture (v4.0.0 - October 12, 2025):
 - **V3 dual-stream** → Node (19×) and Edge (171×) parallel processing
 - **Memory-mapped cache (NPY)** → <1 GB RAM vs 387 GB for NPZ, 99.6% faster startup
 - **Auto-restart training** → Hands-free 100-epoch training via modal.Period(hours=23) with overlap protection
@@ -29,7 +29,9 @@ Current Architecture (v3.11.0 - October 10, 2025):
 - **Detached eigenvectors** → Prevents gradient explosion through eigendecomposition (gnn_pyg.py:205)
 - **3-tier NaN protection** → Gradient sanitization + clamping + monitoring
 - **Modal 1.0 compatible** → Updated max_containers parameter for future compatibility
-- **Zero technical debt** → All P0/P1/P2/P3 issues resolved, production training LIVE
+- **Zero technical debt** → All P3 items resolved (Pydantic schemas correct, .gitkeep files added), production ready
+- **WSL2 SIGBUS fix** → Local FLA training now works (cache must be on native ext4 filesystem, not Windows drives)
+- **Dual production stacks** → BiMamba2 (Modal A100) + FLA (local RTX 4090) both training simultaneously
 
 ## 🚀 Quick Commands
 
@@ -243,9 +245,12 @@ sudo apt-get install -y cuda-toolkit-12-4
 1. Install CUDA 12.4 toolkit (see above)
 2. Base environment: `make setup`
 3. GPU components: `make setup-gpu` (clears caches, builds from source)
-4. Verify: `.venv/bin/python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; print('✅')"`
+4. FLA library (OPTIONAL): `make setup-fla` (for Gated DeltaNet research stack)
+5. Verify: `.venv/bin/python -c "from mamba_ssm.ops.selective_scan_interface import selective_scan_fn; print('✅')"`
 
 **Note**: PyG requires pre-built wheels from https://data.pyg.org/whl/torch-2.5.0+cu124.html
+
+**Triton Warning**: FLA installation may show "Triton 3.1.0 below recommended 3.2.0" - this is expected and harmless. Triton 3.2.0 requires PyTorch 2.6+, which breaks mamba-ssm compatibility. FLA requirement (Triton >=3.0) is satisfied.
 
 ## 🏥 Clinical Specifications
 
@@ -340,6 +345,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 |-------|----------|
 | **Symbol mismatch: `_ZN3c104cuda9SetDeviceEab`** | **Rebuild mamba-ssm from source with `--no-binary` flag (see INSTALLATION.md#1)** |
 | **CUDA 12.4 toolkit not found** | **Install: `sudo apt-get install -y cuda-toolkit-12-4`** |
+| **WSL2 SIGBUS crash (FLA training)** | **Cache on Windows drives causes mmap page evictions. Move cache to native ext4 filesystem (see INSTALLATION.md#6, SIGBUS_CRASH_ANALYSIS.md)** |
 | Cache directory wrong | Local: `cache/tusz_mmap/`, Modal: `/results/cache/tusz_mmap/` |
 | Zero seizures in batches | Enable `use_balanced_sampling: true` |
 | NaN losses on RTX 4090 | Set `mixed_precision: false` |
@@ -351,6 +357,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 | PyG installation fails | Use pre-built wheels, not `uv sync -E graph` |
 | Mamba CUDA errors | Ensure CUDA 12.4 toolkit installed, rebuild from source |
 | CI/CD test failures | Tests properly skip when PyG not installed (v3.3.0+) |
+| FLA Triton warning (3.1.0 vs 3.2.0) | **EXPECTED**: FLA requires Triton >=3.0 (satisfied). 3.2.0 needs PyTorch 2.6+ which breaks mamba-ssm |
 
 ### Modal-Specific Settings
 - **Resources**: 24 CPU cores + 96GB RAM (defaults are too low!)
@@ -396,8 +403,11 @@ Due to hardware differences, integration tests have adjusted thresholds:
 
 **Mission**: Deploy V3 dual-stream architecture with Dynamic LPE for <1 FA/24h clinical seizure detection 🚀
 
-**Current Status (v3.11.0 - October 10, 2025 - StatefulDataLoader & Mid-Epoch Resume)**:
-- ✅ **Zero technical debt** - All P0/P1/P2/P3 issues RESOLVED across all priority levels
+**Current Status (v4.0.0 - October 12, 2025 - FLA Production + WSL2 Fix)**:
+- ✅ **MAJOR: Dual production stacks** - BiMamba2 (Modal A100) + FLA (local RTX 4090) both training simultaneously
+- ✅ **MAJOR: WSL2 SIGBUS fix** - Local FLA training now works after cache migration to native ext4 filesystem
+- ✅ **MAJOR: FLA stack validated** - Training verified past previous crash point (batch 5401 vs crash at 2890)
+- ✅ **Zero technical debt** - All items resolved (P0/P1/P2/P3), production ready
 - ✅ **Auto-restart training** - Hands-free 100-epoch training via modal.Period(hours=23), zero manual intervention
 - ✅ **StatefulDataLoader integrated** - Exact mid-epoch resume via PyTorch official dataloader state management
 - ✅ **Checkpoint resume fix** - Saves epoch+1 instead of epoch, prevents 14h waste per restart
@@ -406,9 +416,6 @@ Due to hardware differences, integration tests have adjusted thresholds:
 - ✅ **Bulletproof checkpoints** - Atomic saves every 30min, AMP scaler + RNG + DataLoader state capture
 - ✅ **Backward compatibility** - Old checkpoints still work (logs warning, restarts from epoch start)
 - ✅ **Timeout guard** - 23h wall-clock limit, 1h safety margin, graceful exit before Modal kill
-- ✅ **BiMamba2 baseline training LIVE** - Modal A100-80GB with v3.11.0 code, zero compute waste
-- ✅ **FLA research complete** - BiGatedDeltaNet implemented, all smoke tests passed
-- ✅ **Research comparison strategy** - Train both BiMamba2 and FLA stacks independently, document results for both
 - ✅ **Modal 1.0 migration complete** - Updated max_containers parameter, deprecation warnings fixed
-- 📊 **Research goal** - Empirical comparison on full TUSZ dataset; both results publishable regardless of outcome
-- 📚 **See**: `FLA_ROADMAP.md` for complete strategy, `MODAL_CLI_REFERENCE.md` for updated commands
+- 📊 **Current training**: BiMamba2 (Modal, Epoch 3) + FLA (Local, Epoch 2) - both progressing normally
+- 📚 **See**: `docs/08-operations/wsl2-sigbus-fix.md` for WSL2 details, `docs/archive_v4/` for incident analysis
