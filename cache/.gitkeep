@@ -4,5 +4,12 @@
 # - train/: 4667 NPY files (data + labels) + manifest.json
 # - dev/: 1832 NPY files (data + labels) + manifest.json
 #
+# ⚠️ CRITICAL WSL2 WARNING:
+# Memory-mapped files MUST be on native Linux filesystem (ext4/btrfs)!
+# DO NOT use Windows drives (/mnt/c/, /mnt/d/) - WSL2's 9P filesystem
+# causes mmap page evictions → SIGBUS crashes during training
+#
+# See SIGBUS_CRASH_ANALYSIS.md for full technical details
+#
 # The actual data files are excluded by .gitignore
 # This .gitkeep ensures the directory structure is documented in git
