@@ -103,34 +103,62 @@ docker compose run dev
 - **TensorBoard**: `docker compose up tensorboard` → http://localhost:6006
 
 ### Modal Cloud Deployment (A100-80GB)
+
+**🚨 CRITICAL: Choose the RIGHT action for your use case!**
+
+| Use Case | Action | Auto-Restart? | When to Use |
+|----------|--------|---------------|-------------|
+| **Full Training (100 epochs)** | `schedule-training` | ✅ YES | **ALWAYS use this for production!** |
+| Smoke test (validation) | `train` | ❌ NO | Quick tests (<1 hour) |
+| One-off experiment | `train` | ❌ NO | Single run experiments |
+
+**WHY THIS MATTERS:**
+- `--action train` → Runs ONCE, exits after 23h, **requires manual restart** ❌
+- `--action schedule-training` → Runs FOREVER with 23h auto-restart until 100 epochs ✅
+
 ```bash
 # Test Mamba CUDA before training
 modal run deploy/modal/app.py --action test-mamba
 
-# BiMamba2 smoke test (50 files, ~10 min - quick validation)
+# ============================================================================
+# SMOKE TESTS (use --action train, no auto-restart needed)
+# ============================================================================
+# BiMamba2 smoke test (50 files, ~10 min)
 modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
 
 # FLA smoke test (50 files, ~10 min)
 modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml
 
-# BiMamba2 full training - Manual (requires manual resume every 23h)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
-
-# BiMamba2 full training - Auto-Restart (RECOMMENDED: hands-free to 100 epochs)
+# ============================================================================
+# FULL TRAINING (use --action schedule-training for auto-restart!)
+# ============================================================================
+# BiMamba2 full training - Auto-Restart (CORRECT ✅)
 modal deploy deploy/modal/app.py
 modal run --detach deploy/modal/app.py --action schedule-training --config configs/modal/train_bimamba.yaml
 
-# FLA full training (ALWAYS use --detach for long runs)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train_fla.yaml
+# FLA full training - Auto-Restart (CORRECT ✅)
+modal deploy deploy/modal/app.py
+modal run --detach deploy/modal/app.py --action schedule-training --config configs/modal/train_fla.yaml
 
-# Monitor training
+# ============================================================================
+# MANUAL MODE (use ONLY for experiments, NOT production!)
+# ============================================================================
+# BiMamba2 manual (runs once, exits after 23h, requires manual resume)
+modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml --resume
+
+# ============================================================================
+# MONITORING & CONTROL
+# ============================================================================
 modal app list                    # List running apps
 modal app logs <app-id>           # Stream logs
-modal app stop brain-go-brr-v2    # Stop auto-restart training
+modal app stop brain-go-brr-v2    # Stop auto-restart scheduler
+```
 
-# Resume from checkpoint (manual, for one-off runs)
-modal run --detach deploy/modal/app.py --action train \
-  --config configs/modal/train_bimamba.yaml --resume
+**🔍 How to verify you started the RIGHT job:**
+```bash
+modal app list
+# Look for: 2 tasks running (scheduler + train) ✅
+# NOT: 1 task (manual train only) ❌
 ```
 
 **NOTE**: Modal automatically sets `BGB_NAN_DEBUG=1` via `deploy/modal/app.py`. Gradient clipping (0.5) provides primary NaN protection.
