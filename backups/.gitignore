@@ -1,0 +1,12 @@
+# Backup directory for Modal checkpoints
+# Track directory structure but ignore checkpoint files
+
+# Ignore all checkpoint files (large)
+*.pt
+*.pth
+*.ckpt
+
+# But track metadata and documentation
+!README.md
+!.gitkeep
+!.gitignore
