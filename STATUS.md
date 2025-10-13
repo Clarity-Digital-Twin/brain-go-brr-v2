@@ -1,9 +1,9 @@
 # Brain-Go-Brr v4.0.0 – Current Status
 
-**Last Updated:** 2025-10-12
+**Last Updated:** 2025-10-13
 **Branch:** `feature/flash-linear-attention`
 **Version:** v4.0.0 (FLA Production + WSL2 Fix)
-**Deployment:** DUAL PRODUCTION STACKS – BiMamba2 (Modal A100, Epoch 3) + FLA (Local RTX 4090, Epoch 2)
+**Deployment:** FLA FOCUS – BiMamba2 (Modal, PAUSED at Epoch 6) + FLA (Local RTX 4090, Epoch 2, ACTIVE)
 
 ---
 
@@ -181,27 +181,41 @@
 
 ## Current Deployment
 
-### DUAL PRODUCTION STACKS (v4.0.0)
+### FLA-FOCUSED TRAINING (v4.0.0)
 
-**BiMamba2 - Modal Full Training (LIVE)**:
+**BiMamba2 - Modal Training (⏸️ PAUSED)**:
 - Launch: Oct 10, 2025
-- Config: 100 epochs, batch_size=48, A100-80GB, mixed_precision=true
-- Cache: 4667 train + 1832 dev NPY files on Modal SSD volume
-- Status: ✅ **EPOCH 3** - Progressing normally with StatefulDataLoader
+- Stopped: Oct 13, 2025 (budget control decision)
+- Progress: **5 complete epochs + 50% of epoch 6** (batch 647/1284)
+- Cost: **$1,118 spent** (~$600 actual training, rest debugging/smoke tests)
+- Checkpoints: ✅ Backed up to Modal SSD (free storage) + local (`backups/modal_bimamba2_epoch6/`)
+- Files: `epoch_001.pt` through `epoch_005.pt`, `best.pt`, `last.pt`, `mid_epoch_006_000647.pt`
+- Resumable: Yes, anytime via `modal run --detach --action train --config configs/modal/train_bimamba.yaml --resume`
 - Stack: TCN + BiMamba2 + GNN + Dynamic LPE
 
-**FLA - Local Full Training (LIVE)**:
+**Rationale for Pause**:
+- Budget-conscious decision as independent researcher
+- BiMamba2 is baseline comparison (useful but not primary hypothesis)
+- FLA (Gated DeltaNet) is primary research focus
+- Remaining cost: ~$900 to complete epochs 6-100
+- Strategy: Finish FLA first (free local training), reassess if BiMamba2 comparison needed
+- Already have 6 epochs of data for early comparison if needed
+- Can resume incrementally later ($500-1k/month when budget allows)
+
+**FLA - Local Full Training (🟢 ACTIVE)**:
 - Launch: Oct 11, 2025 (after SIGBUS fix)
 - Config: 100 epochs, batch_size=8, RTX 4090 (24GB VRAM), mixed_precision=false
 - Cache: 4667 train + 1832 dev NPY files on native ext4 filesystem (WSL2)
-- Status: ✅ **EPOCH 2** - Stable past previous crash point (batch 5401 vs crash at 2890)
+- Status: ✅ **EPOCH 2** - Training progressing normally
 - Stack: TCN + BiGatedDeltaNet (FLA) + GNN + Dynamic LPE
+- Cost: $0 (local training)
+- Expected: ~200-300 hours total
 
 **Next Steps**:
-1. Continue monitoring both training runs
-2. Enable auto-restart for BiMamba2 if manual resume needed
-3. Let FLA complete locally to gather empirical results
-4. Compare final metrics: BiMamba2 vs FLA performance on full TUSZ dataset
+1. Let FLA training complete to epoch 100
+2. Analyze FLA results (sensitivity@1FA/@5FA/@10FA, AUROC, TAES scores)
+3. Decide if BiMamba2 comparison needed based on FLA performance
+4. If needed: Resume BiMamba2 training incrementally when budget allows
 
 ---
 
