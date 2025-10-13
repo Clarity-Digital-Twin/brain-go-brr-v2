@@ -50,7 +50,7 @@ Traditional approaches fail because they treat these as separate problems. We mo
 
 **Research transparency**: All three outcomes (Gated Delta wins, BiMamba2 wins, or tie) are scientifically valuable. No prior work compares these architectures on clinical EEG. See [FLA_ROADMAP.md](docs/flash-linear-attention/FLA_ROADMAP.md) for full strategy.
 
-**Current status (v4.0.0)**: **DUAL PRODUCTION STACKS** - BiMamba2 (Modal A100, Epoch 3) + FLA (Local RTX 4090, Epoch 2) both training simultaneously! WSL2 SIGBUS fix enables local FLA training. See [STATUS.md](STATUS.md) for details.
+**Current status (v4.0.0)**: **FLA-FOCUSED TRAINING** - BiMamba2 (Modal, PAUSED at Epoch 6, $1,118 spent, checkpoints backed up) + FLA (Local RTX 4090, Epoch 2, ACTIVE). Budget-conscious decision: finish FLA first (free), resume BiMamba2 later if needed. See [STATUS.md](STATUS.md) and [backup README](backups/modal_bimamba2_epoch6/README.md) for details.
 
 ## 🏗️ Architecture: Theory & Design
 
@@ -373,17 +373,17 @@ See [installation guide](docs/01-installation/) and [training docs](docs/05-trai
 
 ## 🔬 Research Timeline
 
-### Current Phase: A/B Comparison (October 2025)
+### Current Phase: FLA-Focused Training (October 2025)
 
-**🔷 Stack 1 (BiMamba2)**: Modal A100 training LIVE (Epoch 3), auto-restart enabled via modal.Period(hours=23).
+**🔷 Stack 1 (BiMamba2)**: ⏸️ **PAUSED** at Epoch 6 (batch 647/1284, 50% through). Modal A100 training stopped Oct 13 due to budget control ($1,118 spent). Checkpoints backed up to Modal SSD + local (`backups/modal_bimamba2_epoch6/`). Resumable anytime.
 
-**🔶 Stack 2 (Gated DeltaNet)**: Local RTX 4090 training LIVE (Epoch 2), stable after WSL2 SIGBUS fix (cache migrated to ext4).
+**🔶 Stack 2 (Gated DeltaNet)**: 🟢 **ACTIVE** - Local RTX 4090 training on Epoch 2, progressing normally. WSL2 SIGBUS fix enables local training (cache on ext4).
 
 **Research question**: Does the delta rule improve over pure gating for clinical EEG seizure detection?
 
-**Analysis plan**: Compare sensitivity@1FA/@5FA/@10FA, AUROC, and TAES scores. All three outcomes (Gated Delta wins, BiMamba2 wins, or equivalence) contribute novel empirical evidence—no prior work compares these architectures on TUSZ.
+**Current strategy**: Budget-conscious approach as independent researcher. Complete FLA training first (free, ~200-300 hours), analyze results, then decide if BiMamba2 comparison needed. If needed, resume BiMamba2 incrementally ($500-1k/month). Already have 6 epochs of BiMamba2 data for early comparison.
 
-**Next steps**: Document results, analyze training dynamics, assess deployment viability for both stacks.
+**Analysis plan**: Evaluate FLA on sensitivity@1FA/@5FA/@10FA, AUROC, and TAES scores. Compare against BiMamba2's 6-epoch baseline if both datasets available. All three outcomes (Gated Delta wins, BiMamba2 wins, or equivalence) are scientifically valuable—no prior work compares these architectures on TUSZ.
 
 ---
 
@@ -470,6 +470,6 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 **Updates?** [Watch the repo](https://github.com/clarity-digital-twin/brain-go-brr-v2) •
 **Discussion?** [Start a discussion](https://github.com/clarity-digital-twin/brain-go-brr-v2/discussions)
 
-**Current status (v4.0.0)**: Dual production stacks training simultaneously → BiMamba2 (Modal A100, Epoch 3, auto-restart) + FLA (Local RTX 4090, Epoch 2, WSL2 SIGBUS fixed) • Target: 100 epochs each for empirical A/B comparison
+**Current status (v4.0.0)**: FLA-focused training → BiMamba2 (Modal, PAUSED at Epoch 6, $1.1k spent, backed up) + FLA (Local RTX 4090, Epoch 2, ACTIVE) • Strategy: Complete FLA first (free), resume BiMamba2 incrementally if comparison needed • See [STATUS.md](STATUS.md) for full rationale
 
 </div>
