@@ -14,6 +14,8 @@
 
 **Target**: **4 FA/24h @ ~50% sensitivity**
 
+**Source**: Personal correspondence with Temple NEDC research team (October 2025)
+
 **Context from NEDC Research Team**:
 - Verified on **real clinical data** (72-hour continuous patient monitors)
 - ROC curve is **very steep** in low FA rate area
@@ -223,11 +225,12 @@ Different scorers measure different aspects of performance. **Choice of scorer c
 ## 📚 REFERENCES
 
 ### Primary Sources
-1. **Temple NEDC Research Team** - Private correspondence, October 2025 (4 FA/24h @ 50% sensitivity verified on 72-hour patient monitors)
-2. **Wu et al. 2025** - SeizureTransformer paper (arXiv:2504.00336), EpilepsyBench #1 winner
-3. **Shah et al. 2021** - "Validation of Temporal Scoring Metrics for Automatic Seizure Detection" (Neureka 2020 competition results)
-4. **NEDC Scoring Tools** - v6.0.0, Temple University official scorer
-5. **TUSZ Dataset** - v2.0.3, patient-disjoint splits (865 files, 127.7 hours, 469 seizures in eval set)
+1. **Temple NEDC Research Team** - Personal correspondence, October 2025 (4 FA/24h @ 50% sensitivity benchmark from clinical deployments)
+2. **Wu et al. 2025** - SeizureTransformer: arXiv:2504.00336, EpilepsyBench #1 winner, Table I (competition results)
+3. **Shah et al. 2021** - "Validation of Temporal Scoring Metrics for Automatic Seizure Detection," Table 4 (Neureka 2020 results)
+4. **Our SeizureTransformer Evaluation** - reference_repos/SeizureTransformer/docs/results/FINAL_COMPREHENSIVE_RESULTS_TABLE.md (NEDC v6.0.0 on TUSZ v2.0.3 eval)
+5. **NEDC Scoring Tools** - v6.0.0, Temple University official scorer
+6. **TUSZ Dataset** - v2.0.3, patient-disjoint splits (865 files, 127.7 hours, 469 seizures in eval set)
 
 ### Key Papers
 - **Shah et al. 2018**: TUSZ dataset description and annotation methodology
@@ -336,16 +339,18 @@ Different scorers measure different aspects of performance. **Choice of scorer c
 
 | Model | 1 FA/24h | 4 FA/24h | 10 FA/24h | Notes |
 |-------|----------|----------|-----------|-------|
-| **Temple SOTA** | - | **50% sens** | - | Verified on 72h clinical data |
+| **Temple SOTA** | - | **50% sens** | - | Personal correspondence |
 | **SeizureTransformer** (Dianalund) | **37% sens** | - | - | SzCORE Event scorer |
-| **SeizureTransformer** (TUSZ) | NOT TESTED | - | **34% sens** | NEDC OVERLAP |
+| **SeizureTransformer** (TUSZ) | NOT TESTED | - | **34% sens** | NEDC OVERLAP @ 10.27 FA |
 | **Neureka sia** (TUSZ) | **11% sens** | - | - | NEDC TAES |
-| **Neureka nedc** (TUSZ) | - | **~35% sens** | - | NEDC TAES (extrapolated) |
+| **Neureka nedc** (TUSZ) | - | - | - | 35.54% @ 17.2 FA (TAES)* |
 | **Our Target** | - | **≥55% sens** | **≥75% sens** | Optimistic goal |
+
+*Note: Neureka nedc baseline measured at 17.2 FA/24h, not 4 FA target. Included for reference.
 
 **Reality Check**:
 - **1 FA/24h**: Best achieved is 37% (SeizureTransformer on permissive SzCORE)
-- **4 FA/24h**: Temple's 50% is the clinical gold standard
+- **4 FA/24h**: Temple's 50% is the clinical gold standard (verified clinical data)
 - **10 FA/24h**: SeizureTransformer only hits 34% (NEDC OVERLAP)
 - **Gap to 75% @ 10 FA**: Would need **41 percentage point improvement** over SeizureTransformer
 
