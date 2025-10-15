@@ -1,4 +1,4 @@
-# docker-compose.yml for Brain-Go-Brr v3.6.1
+# docker-compose.yml for Brain-Go-Brr v4.0.0
 # GPU-accelerated EEG seizure detection training
 version: '3.8'
 
@@ -7,7 +7,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: brain-go-brr:v3.6.1
+    image: brain-go-brr:v4.0.0
 
     # GPU access (requires nvidia-container-toolkit)
     runtime: nvidia
@@ -76,7 +76,7 @@ services:
       - ./src:/app/src:rw
       # CRITICAL: Must match train-base paths (matches local training exactly)
       - ./data_ext4:/app/data_ext4:ro
-      - ./cache/tusz:/app/cache/tusz:ro
+      - ./cache/tusz_mmap:/app/cache/tusz_mmap:ro
       - ./results:/app/results:rw
       - ./configs:/app/configs:ro
 

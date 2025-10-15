@@ -1,4 +1,4 @@
-# Installation Guide for Brain-Go-Brr V3
+# Installation Guide for Brain-Go-Brr V4
 
 ## Stack Overview
 
@@ -113,11 +113,11 @@ Mount all three directories so smoke tests and full training behave exactly like
 
 ```
 - ./data_ext4:/app/data_ext4:ro   # Original EDFs (109 GB, enables smoke tests)
-- ./cache/tusz:/app/cache/tusz:ro # Preprocessed cache with manifests (449 GB)
+- ./cache/tusz_mmap:/app/cache/tusz_mmap:ro # Preprocessed cache with manifests (518 GB)
 - ./results:/app/results:rw       # Checkpoints, logs, TensorBoard runs
 ```
 
-These paths match the defaults in `configs/local/*.yaml` (`data_dir: data_ext4/tusz/edf`, `cache_dir: cache/tusz`).
+These paths match the defaults in `configs/local/*.yaml` (`data_dir: data_ext4/tusz/edf`, `cache_dir: cache/tusz_mmap`).
 
 ### Quick Start Commands
 
@@ -136,11 +136,11 @@ docker compose run --rm dev
 
 ```
 ls -lh data_ext4/tusz/edf/train/ | head -5     # Verify EDF mount exists
-ls -lh cache/tusz/train/manifest.json          # 27 MB manifest (balanced dataset)
-ls -lh cache/tusz/dev/manifest.json            # 13 MB manifest (validation)
-ls -1 cache/tusz/train/*.npz | wc -l           # Expect 4667 train NPZ files
-ls -1 cache/tusz/dev/*.npz | wc -l             # Expect 1832 dev NPZ files
-df -h .                                        # Ensure ~560 GB free for mounts
+ls -lh cache/tusz_mmap/train/manifest.json     # 26 MB manifest (balanced dataset)
+ls -lh cache/tusz_mmap/dev/manifest.json       # 13 MB manifest (validation)
+ls -1 cache/tusz_mmap/train/*.npy | wc -l      # Expect 9334 train NPY files
+ls -1 cache/tusz_mmap/dev/*.npy | wc -l        # Expect 3664 dev NPY files
+df -h .                                        # Ensure ~628 GB free for mounts
 ```
 
 Once the mounts and manifests are in place, Docker training loads instantly using the cached datasets, just like the RTX 4090 workflow.
