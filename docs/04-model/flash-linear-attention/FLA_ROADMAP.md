@@ -96,7 +96,7 @@ Backend: Gated fusion + decoder
 - Platform: Modal A100-80GB
 - Config: `configs/modal/train.yaml`
 - Status: **RUNNING NOW**
-- Cost: ~$319 (100 hours)
+- Cost: **$3,400-$5,300+** (700-1200 hours @ $4.40/hr; 7-12h per epoch × 100 epochs due to long validation)
 - Expected: sensitivity@10FA = 40-60%
 
 ---
@@ -114,7 +114,7 @@ Backend: Gated fusion + decoder (SAME as BiMamba2)
 - Platform: Modal A100-80GB (after BiMamba2 completes)
 - Config: `configs/modal/phase2_both_gdn.yaml` (TO BE CREATED)
 - Status: **BLOCKED** - waiting for BiMamba2 baseline
-- Cost: ~$319 (100 hours)
+- Cost: **$3,400-$5,300+** (700-1200 hours @ $4.40/hr; validation overhead documented as 5.8h per epoch)
 - What we learn: Actual sensitivity@10FA / AUROC vs BiMamba2 (open research question)
 
 ---
@@ -258,7 +258,7 @@ Both architectures are research contributions, regardless of which performs bett
    - Mitigation: Full dataset (4667 files) provides stable metrics
 
 3. ❌ **Multiple training runs for statistical significance**
-   - Reason: Each run costs ~$319 and takes 4-5 days
+   - Reason: Each run costs **$3,400-$5,300+** and takes 4-5 days wall-clock (but 700-1200 GPU hours due to long validation)
    - Impact: Can't measure variance across runs
    - Mitigation: Single-run comparison is standard in many papers
 
@@ -393,7 +393,7 @@ Oct 19:         Merge to main, tag release, write postmortem
 ```
 
 **Total time**: ~2-3 weeks from baseline start to fully documented comparison
-**Total cost**: ~$650 ($319 × 2 runs)
+**Total cost**: **$6,800-$10,600+** ($3,400-$5,300+ × 2 runs). Modal training is EXPENSIVE due to validation overhead.
 
 ---
 
@@ -407,8 +407,8 @@ We're not doing ablations because we can't afford them. We're training two full 
 **The method**: Full-dataset training (4667 train files, 100 epochs per stack).
 **The outcome**: Document results for BOTH stacks, regardless of which performs better.
 **The contribution**: First implementation + benchmarking of these novel architectures on clinical EEG.
-**The timeline**: 2-3 weeks.
-**The cost**: ~$650.
+**The timeline**: 2-3 weeks wall-clock.
+**The cost**: **$6,800-$10,600+** (actual costs from previous runs were $100+ per epoch; 7-12 hours per epoch documented).
 
 **Both results are publishable. Let's build it.** 🚀
 
