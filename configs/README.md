@@ -108,7 +108,7 @@ modal app logs <app-id>
 | Learning Rate | 1.0e-4 | 8.0e-5 | Stability vs. large batch scaling |
 | Workers | 0 | 4 | WSL2 fix vs parallel IO |
 | Prefetch Factor | 2 | 2 | Conservative for memory |
-| Persistent Workers | false | false | Prevents spawn delay + memory leaks |
+| Persistent Workers | false | true | Local: num_workers=0 incompatible; Modal: keeps mmap pages warm |
 | **Mid-Epoch Checkpoints** | **30 min** | **30 min** | Crash recovery for long epochs |
 | **Mid-Epoch Keep** | **3** | **3** | Rolling window of snapshots |
 | Cache Location | `cache/tusz_mmap/` | `/results/cache/tusz_mmap/` | Mmap NPY format |
