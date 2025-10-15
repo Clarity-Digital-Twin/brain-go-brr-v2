@@ -36,13 +36,13 @@ Traditional approaches fail because they treat these as separate problems. We mo
 
 ### 🔷 Stack 1: BiMamba2 (baseline)
 - **What**: Mamba2 with bidirectional processing
-- **Status**: Modal A100 training in progress, 100 epochs planned
+- **Status**: ⏸️ PAUSED at Epoch 6 (Modal A100, $1,118 spent, checkpoints backed up)
 - **Foundation**: Fast CUDA kernels, selective state propagation ([Gu & Dao 2023](https://arxiv.org/abs/2312.00752))
 - **Motivation**: Proven SSM architecture with O(N) efficiency
 
 ### 🔶 Stack 2: Gated DeltaNet (research variant)
 - **What**: FLA (Flash Linear Attention) with gating + delta rule
-- **Status**: Implementation complete, awaiting baseline results
+- **Status**: 🟢 ACTIVE - Local RTX 4090 training (Epoch 2, progressing normally)
 - **Foundation**: Beats Mamba2 on language modeling ([ICLR 2025](literature/markdown/GATED-DETLA))
 - **Hypothesis**: Better for EEG's abrupt context switches (seizure onsets)
 
@@ -346,9 +346,12 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 git clone https://github.com/clarity-digital-twin/brain-go-brr-v2.git
 cd brain-go-brr-v2
 
-# 3️⃣ Setup environment (installs mamba-ssm, PyG, FLA)
+# 3️⃣ Setup environment (installs mamba-ssm, PyG)
 make setup
 make setup-gpu
+
+# Optional: Install FLA for Gated DeltaNet research
+make setup-fla
 
 # 4️⃣ Download TUSZ corpus
 # Visit: https://isip.piconepress.com/projects/tuh_eeg/html/request_access.php
@@ -396,7 +399,7 @@ modal app logs <app-id>
 modal run --detach deploy/modal/app.py \
   --action train \
   --config configs/modal/train_bimamba.yaml \
-  --resume true
+  --resume
 ```
 
 See [installation guide](docs/01-installation/) and [training docs](docs/05-training/) for details.
