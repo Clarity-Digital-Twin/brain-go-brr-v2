@@ -1069,8 +1069,9 @@ git checkout v3.8.0-true-zero-debt-baseline
 ```bash
 modal run --detach deploy/modal/app.py --action train --config configs/modal/train.yaml
 ```
-- 100 epochs, ~100 hours, ~$319
+- 100 epochs, **~700-1200 hours** (7-12h per epoch observed), **$3,400-$5,300+** @ $4.40/hr
 - Target: <1 FA/24h @ >75% sensitivity
+- **Note**: Actual training costs significantly higher than initial estimates due to validation overhead
 
 ---
 
@@ -1641,10 +1642,11 @@ git checkout v3.6.0-modal-training-baseline
 
 **Expected Performance** (A100-80GB):
 - Initialization: ~10-15 minutes
-- Epoch duration: ~1 hour
-- Total training: ~100 hours
-- Cost: ~$319 @ $3.19/hour
+- Epoch duration: **7-12 hours** (training 1-2h + validation 5.8h documented)
+- Total training: **700-1200 hours**
+- Cost: **$3,400-$5,300+** @ $4.40/hr (GPU $2.50 + CPU $1.13 + RAM $0.77)
 - Peak VRAM: ~50GB (batch_size=32)
+- **Note**: Initial $319 estimate was GPU-only; actual costs include CPU/RAM and long validation times
 
 **Complete Feature Set**:
 - V3 dual-stream architecture (TCN + Node Mamba + Edge Mamba + GNN + Dynamic LPE)
@@ -2281,7 +2283,7 @@ This release introduces the production-ready V3 architecture, featuring dual-str
 
 ### Changed
 - **Training Performance**: 10x speedup (48s → 5s per batch) through config optimizations
-- **Cost Reduction**: 90% reduction ($3,190 → $319 for full training)
+- **Cost Reduction**: 90% reduction ($3,190 → $319 **estimated GPU-only**; **actual costs $3,400-$5,300+ including CPU/RAM and validation overhead**)
 - **Documentation Structure**: Reorganized docs into logical sections (01-data, 02-model, 03-deployment, 04-research)
 
 ### Removed

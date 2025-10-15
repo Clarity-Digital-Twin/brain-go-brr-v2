@@ -150,7 +150,7 @@ modal app stop <app-id>          # Stop training
 **Expected Performance:**
 - VRAM: 40-60GB (80GB total)
 - Speed: ~1 hour/epoch
-- Total: ~100 hours for 100 epochs (~$319)
+- Total: **~700-1200 hours** for 100 epochs (**$3,400-$5,300+** due to validation overhead)
 
 **Note**: Modal automatically sets `BGB_SANITIZE_GRADS=1` and `BGB_NAN_DEBUG=1`
 

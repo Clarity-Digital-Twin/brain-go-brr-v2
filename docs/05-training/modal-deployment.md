@@ -169,11 +169,11 @@ experiment:
 - Memory: ~20GB
 
 ### Full Training (100 epochs, 6499 files)
-- Time: ~100 hours total (~1 hour/epoch)
+- Time: **700-1200 hours total** (7-12h per epoch due to validation overhead; 5.8h validation documented)
 - AUROC: >0.95
 - Sensitivity@10FA: >90%
 - Memory: 40-60GB
-- Cost: ~$319
+- Cost: **$3,400-$5,300+** (may be higher due to bottlenecks; observed costs were $100+ per epoch)
 - Expect the timeout guard to exit every ~23 h; relaunch with `--resume` to continue.
 
 ## Monitoring & Debugging
@@ -224,10 +224,15 @@ export BGB_SMOKE_TEST=1          # Skip balanced sampling
 5. **Use spot instances** if available (not yet on Modal)
 
 ### Cost Breakdown (Full Training)
-- A100-80GB: ~$3.19/hour
-- 100 hours: ~$319
+**Actual Modal Pricing** (from modal.com/pricing):
+- A100-80GB GPU: $2.50/hour
+- 24 CPU cores: $1.13/hour
+- 96GB RAM: $0.77/hour
+- **Total compute: $4.40/hour**
+- **Per epoch (7-12h)**: $34-$53+
+- **100 epochs (700-1200h)**: **$3,400-$5,300+**
 - Storage: ~$10/month for 500GB
-- Total: ~$330 per full run
+- **Total per run: $3,400-$5,300+** (actual costs may be higher due to bottlenecks)
 
 ## Resume from Checkpoint
 

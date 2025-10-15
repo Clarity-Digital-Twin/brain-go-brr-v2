@@ -9,7 +9,7 @@ Targets (TAES)
 Training times (typical)
 
 - Local (RTX 4090, batch 8): ~3–4 hours/epoch; 100 epochs ~300–400 hours
-- Modal (A100‑80GB, batch 48): ~1 hour/epoch; 100 epochs ~100 hours (~$319)
+- Modal (A100‑80GB, batch 48): **7-12 hours/epoch** (training 1-2h + validation 5.8h documented); 100 epochs ~700-1200 hours. **Cost: $3,400-$5,300+ for 100 epochs** @ $4.40/hr (GPU $2.50 + CPU $1.13 + RAM $0.77). Actual costs may be higher due to bottlenecks.
 - Smoke test (local or Modal): ~5 minutes
 
 Resource usage (current configs)
