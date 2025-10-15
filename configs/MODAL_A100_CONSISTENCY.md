@@ -1,4 +1,4 @@
-# Modal A100 Config Consistency (v3.10.0-pre) ✅
+# Modal A100 Config Consistency (v4.0.0) ✅
 
 Config namespace:
 

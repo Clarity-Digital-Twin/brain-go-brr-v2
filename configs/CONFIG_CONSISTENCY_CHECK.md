@@ -1,4 +1,4 @@
-# Configuration Consistency Check (v3.10.0-pre)
+# Configuration Consistency Check (v4.0.0)
 
 The config namespace now has **dedicated files per architecture**:
 

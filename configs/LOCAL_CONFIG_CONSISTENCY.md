@@ -1,4 +1,4 @@
-# Local Config Consistency (v3.10.0-pre) ✅
+# Local Config Consistency (v4.0.0) ✅
 
 Two dedicated config pairs exist:
 

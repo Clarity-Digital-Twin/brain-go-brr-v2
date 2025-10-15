@@ -1,4 +1,4 @@
-# Brain-Go-Brr V3 Configuration Files
+# Brain-Go-Brr V4 Configuration Files
 
 ## 🧠 Architectures: BiMamba2 & FLA Dual-Stream Stacks
 
@@ -42,7 +42,7 @@ configs/
 data:
   cache_dir: cache/tusz_mmap  # Memory-mapped NPY cache for train/dev splits
 ```
-- **Location**: `cache/tusz_mmap/train/` (4667 NPY data+labels) + `cache/tusz_mmap/dev/` (1832 NPY data+labels)
+- **Location**: `cache/tusz_mmap/train/` (9334 NPY files: 4667 × 2 for data+labels) + `cache/tusz_mmap/dev/` (3664 NPY files: 1832 × 2)
 - **Format**: Uncompressed NPY (mmap-enabled) replaces old compressed NPZ
 
 ### Modal (A100)
@@ -190,8 +190,8 @@ See `docs/05-training/modal.md` for full memory profiling.
 ## ⚠️ Common Pitfalls
 
 1. **Wrong Cache Directory**:
-   - ❌ Local: `cache/v2.6_full/` (empty) or `cache/tusz/` (old NPZ format, historical reference only - not used by runtime configs)
-   - ✅ Local: `cache/tusz_mmap/{train,dev}/` (4667 + 1832 NPY files) - Using TUSZ's 'dev' naming!
+   - ❌ `cache/v2.6_full/` (old path, no longer exists)
+   - ✅ Local: `cache/tusz_mmap/{train,dev}/` (9334 + 3664 NPY files) - Using TUSZ's 'dev' naming!
 
 2. **Modal Cache Misconception**:
    - ❌ "Cache is on S3 causing slowdowns"
@@ -206,7 +206,7 @@ See `docs/05-training/modal.md` for full memory profiling.
    - ✅ Keep `mixed_precision: false` for stability
 
 4. **PyG Not Installed**:
-   - Run `make setup-gpu` locally (installs PyG from prebuilt wheels for torch 2.2.2+cu121)
+   - Run `make setup-gpu` locally (installs PyG from prebuilt wheels for PyTorch 2.5.0+cu124)
    - Modal image includes PyG automatically
 
 ## 🏗️ Model Configuration (All Configs)
@@ -245,11 +245,11 @@ model:
 
 | Config | Platform | Time/Epoch | Total Time |
 |--------|----------|------------|------------|
-| Local Train | RTX 4090 | ~3-4 hours | ~300-400 hours |
-| Modal Train | A100-80GB | ~1 hour | ~100 hours |
+| Local Train | RTX 4090 | ~3 hours | ~300 hours (12.5 days) |
+| Modal Train | A100-80GB | ~7-12 hours | ~700-1200 hours |
 | Smoke Test | Both | ~5 mins | 5 mins |
 
-**Note**: Local remains slower because of the smaller batch size (8 vs 48) required by the 24 GB RTX 4090.
+**Note**: Modal training is EXPENSIVE due to validation overhead (5.8h documented per epoch). BiMamba2 training PAUSED at Epoch 6 due to high costs ($1,118 spent). Modal cost: ~$4.40/hr (GPU+CPU+RAM) = $3,400-$5,300+ for 100 epochs. Local training preferred for cost-effectiveness.
 
 ## 🔧 Environment Variables
 
