@@ -403,9 +403,17 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 ## 📊 Expected Performance
 
 ### Training Times
-- **Local (RTX 4090)**: ~2-3 hours/epoch, ~200-300 hours total
-- **Modal (A100)**: ~1 hour/epoch, ~100 hours total (~$319)
+- **Local (RTX 4090)**: ~3 hours/epoch, ~300 hours total (12.5 days)
+- **Modal (A100)**: **COST UNCERTAIN** - Previous runs experienced 7-12 hours/epoch due to validation overhead (5.8h validation documented). Estimated $3,400-$10,000+ for 100 epochs depending on bottlenecks. Training paused due to high costs.
 - **Smoke test**: ~5 minutes (3 files local/Docker, 50 files Modal)
+
+**Modal A100-80GB Cost Breakdown** (from actual pricing):
+- GPU: $2.50/hr
+- 24 CPU cores: $1.13/hr
+- 96GB RAM: $0.77/hr
+- **Total: $4.40/hour**
+- **Per epoch (7-12h)**: $34-$53+ (may be higher with bottlenecks)
+- **100 epochs**: $3,400-$5,300+ (observed costs were higher in practice)
 
 ### Resource Usage
 - **VRAM**: 12-20GB (RTX 4090), 40-60GB (A100)

@@ -264,7 +264,7 @@ Modal sets `BGB_NAN_DEBUG=1`, `BGB_LIMIT_FILES=50`, timeout guard, and logging c
 | Scenario | Time/Epoch | Notes |
 |----------|------------|-------|
 | Local train (batch 8) | ~3 h | ~300 h total for 100 epochs |
-| Modal train (batch 48) | ~1 h | ~100 h total (~$319 at $3.19/hr blended) |
+| Modal train (batch 48) | **7-12 h** | **~700-1200 h total** (**$3,400-$5,300+** @ $4.40/hr GPU+CPU+RAM) |
 | Smoke tests | ~5 min | Local (3 files) or Modal (50 files) |
 
 Resource usage:

@@ -993,9 +993,9 @@ Our BiMamba2 concatenates forward/backward (2D → D with Linear projection). Sh
 ---
 
 **Q4: Training Cost**
-Full retraining costs ~$319 on Modal (100 epochs, A100). Worth it?
+Full retraining costs **$3,400-$5,300+** on Modal (100 epochs, A100, 7-12h per epoch due to validation overhead). Worth it?
 
-**Recommendation**: YES. GDN's theoretical advantages are compelling. Budget 2-3 full training runs for hyperparameter tuning.
+**Recommendation**: EXPENSIVE. Budget **$10,000-$16,000** for 2-3 full training runs. GDN's theoretical advantages are compelling but costs are significant.
 
 ---
 
@@ -1662,10 +1662,11 @@ else:
 - ✅ **Production-ready** → Used by Qwen3-Next, ICLR 2025 peer-reviewed
 - ⚠️ **NOT plug-and-play** → Parameter mapping required (0.75× q/k projection)
 
-**Risk**: Moderate
-- Requires retraining (~$319 Modal or ~10 days RTX 4090 per config)
+**Risk**: Moderate-High
+- Requires retraining (**$3,400-$5,300+ Modal** or ~10 days RTX 4090 per config)
 - FLA dependency (pin to v0.3.x for stability)
 - Throughput ~5-10% slower (acceptable for quality gains)
+- **Cost is primary risk factor** - Modal training is expensive due to long validation times
 - **EEG benefits unproven** (language benchmarks show +3.1% LongBench)
 
 **Reward**: Moderate-to-High potential

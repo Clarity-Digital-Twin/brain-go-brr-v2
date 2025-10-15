@@ -288,21 +288,53 @@ This allows the model to emphasize:
 
 ---
 
-## 🎯 Performance Targets: The Clinical Bar
+## 🎯 Performance Targets: Evidence-Based Goals
 
-Based on [Temple Any-Event Scoring (TAES)](literature/markdown/picone-2021-NEDC-SCORING):
+Based on verified clinical benchmarks and SOTA research (see [REALISTIC_PERFORMANCE_TARGETS.md](REALISTIC_PERFORMANCE_TARGETS.md) for comprehensive analysis):
 
-| False Alarm Rate | Sensitivity Target | Clinical Reality |
-|------------------|-------------------|-----------------|
-| **10 FA/24h** | >95% | Initial deployment - high alarm fatigue |
-| **5 FA/24h** | >90% | Standard care - manageable workload |
-| **1 FA/24h** | **>75%** | **Gold standard - sustained clinical use** 🎯 |
+### Primary Target (Match Temple Clinical SOTA)
+**≤4 FA/24h @ ≥50% sensitivity** (NEDC OVERLAP scoring)
 
-**Alarm fatigue**: At 10 FA/24h, clinical staff stop responding to alerts. System becomes useless.
+- **Temple NEDC verified**: 4 FA/24h @ ~50% sensitivity (real clinical deployments)
+- **SeizureTransformer #1**: 26.89 FA/24h @ 45.63% sensitivity (TUSZ eval, 2025)
+- **Our goal**: Match or beat Temple's verified clinical benchmark
 
-**Our goal**: <1 FA/24h while maintaining >75% sensitivity. This enables actual clinical deployment.
+### Stretch Goal (Clinical Deployment)
+**≤10 FA/24h @ ≥75% sensitivity** (NEDC OVERLAP scoring)
 
-**Literature baseline**: Most published models achieve 40-60% sensitivity@10FA ([EEG-Mamba](literature/markdown/EEG-BIMAMBA), EvoBrain). We're aiming higher.
+- Enables ICU monitoring with manageable alarm fatigue
+- Represents significant breakthrough over current systems
+- Current gap: SeizureTransformer @ 10 FA = 33.90% sensitivity (42-point gap to close)
+
+### Aspirational Gold Standard
+**≤1 FA/24h @ ≥75% sensitivity** (NEDC OVERLAP scoring)
+
+- Human reviewer performance level
+- Likely impossible with current architectures (64 points above SOTA)
+- Included as long-term research direction
+
+### Additional Metrics (Threshold-Independent)
+
+| Metric | Target | Baseline (SeizureTransformer) | Rationale |
+|--------|--------|-------------------------------|-----------|
+| **AUROC** | ≥0.90 | 0.902 (TUSZ eval) | Overall discrimination capability |
+| **AUPRC** | ≥0.40 | Not reported | Better for 12:1 class imbalance |
+| **F1 Score** | ≥0.45 | 0.414 (NEDC OVERLAP) | Balanced precision/recall |
+
+### Realistic Success Criteria
+
+| Outcome | Sensitivity @ 4 FA/24h | Publication Tier |
+|---------|------------------------|------------------|
+| **Breakthrough** | ≥60% | Top-tier venue (beats all known systems) |
+| **Strong** | ≥50% | Highly publishable (matches Temple SOTA) |
+| **Publishable** | ≥45% | Solid contribution (architectural novelty) |
+| **Minimum** | ≥40% | Viable if architectural insights clear |
+
+**Reality check**: Temple NEDC research confirms ROC curves are **very steep** at low FA rates. 5% absolute sensitivity change = massive FA rate shift. Our dual-stack (BiMamba2 vs Gated DeltaNet) comparison provides scientific value regardless of absolute performance.
+
+**Scoring impact**: Same predictions can yield 3-16× different FA rates depending on scorer (SzCORE vs NEDC OVERLAP vs NEDC TAES). We use **NEDC OVERLAP** as primary metric (standard for TUSZ evaluation).
+
+**Full analysis**: See [REALISTIC_PERFORMANCE_TARGETS.md](REALISTIC_PERFORMANCE_TARGETS.md) for comprehensive benchmark comparison, scorer differences, and architectural tables.
 
 ## 🚀 Quick Start
 
@@ -344,7 +376,7 @@ make train-bimamba    # or: make train-fla
 # Ctrl+B then D to detach | tmux attach -t train to reattach
 ```
 
-**Cloud training (Modal A100-80GB, ~100 hours, ~$319)**:
+**Cloud training (Modal A100-80GB, ~700-1200 hours, $3,400-$5,300+)** - **EXPENSIVE due to validation overhead**:
 ```bash
 # BiMamba2 baseline
 modal run --detach deploy/modal/app.py \
