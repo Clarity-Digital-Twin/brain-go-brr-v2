@@ -376,7 +376,7 @@ make train-bimamba    # or: make train-fla
 # Ctrl+B then D to detach | tmux attach -t train to reattach
 ```
 
-**Cloud training (Modal A100-80GB, ~100 hours, ~$319)**:
+**Cloud training (Modal A100-80GB, ~700-1200 hours, $3,400-$5,300+)** - **EXPENSIVE due to validation overhead**:
 ```bash
 # BiMamba2 baseline
 modal run --detach deploy/modal/app.py \

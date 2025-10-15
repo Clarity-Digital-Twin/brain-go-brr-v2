@@ -129,10 +129,10 @@ modal app logs <app-id>
 **Current config**: batch_size=48, gradient_accumulation_steps=1
 **Result**:
 - Batches/epoch: **~1283** (33% fewer than 32×2)
-- Epoch time: **~1 hour** (verified in smoke tests)
-- Full training (100 epochs): **~100 hours**, **~$319 @ $1.50/hr**
+- Epoch time: **~7-12 hours** (training 1-2h + validation 5.8h documented; smoke tests don't include full validation)
+- Full training (100 epochs): **~700-1200 hours**, **$3,400-$5,300+** @ $4.40/hr (GPU+CPU+RAM)
 - Peak memory: **~58GB** (smoke test verified)
-- **Status**: ✅ Production ready
+- **Status**: ⚠️ **EXPENSIVE** - validation overhead makes Modal training cost-prohibitive
 
 ### Mid-Epoch Checkpointing (v3.6.1) ✅
 **Problem**: Long epochs (1-7 hours) meant crashes could waste significant progress

@@ -13,7 +13,7 @@
 - BiMamba2 baseline training LIVE on Modal A100 (Epoch 3, v3.11.0 with StatefulDataLoader)
 
 **Next Steps**:
-1. Monitor BiMamba2 training completion (~100 hours total)
+1. Monitor BiMamba2 training completion (**~700-1200 hours total** due to validation overhead)
 2. Analyze results, document findings, and validate TAES metrics
 3. Launch FLA training using separate output directories (v3.11.0 config separation complete)
 4. Compare BiMamba2 vs FLA results (sensitivity@FA, AUROC, throughput) and document findings
