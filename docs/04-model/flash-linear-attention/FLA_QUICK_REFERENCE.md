@@ -112,7 +112,7 @@ TUSZ benchmark (see `literature/markdown/EEG-BIMAMBA`):
 
 **When will we know?** ~2-3 weeks from now (BiMamba2 done + FLA done + comparison)
 
-**Cost?** ~$650 total ($319 × 2 runs)
+**Cost?** **$6,800-$10,600+ total** (2 runs × $3,400-$5,300+ per run). Modal training is EXPENSIVE due to long validation times (5.8h per epoch documented).
 
 **Key insight**: Both stacks are novel. Both results are publishable regardless of outcome.
 
