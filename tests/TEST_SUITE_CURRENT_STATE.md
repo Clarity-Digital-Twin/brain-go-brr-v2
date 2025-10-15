@@ -1,9 +1,9 @@
-# Test Suite Snapshot – 2025‑10‑07
+# Test Suite Snapshot – 2025-10-15
 
 **Branch:** `main`  
-**Python test files:** 54  
-**Total lines (Python tests + fixtures):** 11 836  
-**Last refreshed:** 2025‑10‑07 (v3.8.2 → v3.8.3 manifest migration)
+**Python test files:** 65  
+**Total lines (Python tests + fixtures):** 15 344
+**Last refreshed:** 2025‑10‑15 (v4.0.0 FLA production + WSL2 fix)
 
 This document captures the state of the automated tests that ship with the repository.  
 All metrics below are generated from the checked-in sources. Install the project
@@ -17,9 +17,10 @@ dependencies (including `torch`) before running `pytest`—the suite imports
 | Path              | Python files | Lines | Notes |
 |-------------------|--------------|-------|-------|
 | `tests/clinical/` | 2            | 891   | TAES scoring & EEG channel order validation |
-| `tests/integration/` | 11       | 1 851 | End-to-end data/graph/model flows (`test_training_edge_cases.py`, `test_streaming.py`, …) |
+| `tests/integration/` | 11       | 1 862 | End-to-end data/graph/model flows (`test_training_edge_cases.py`, `test_streaming.py`, …) |
 | `tests/performance/` | 4        | 1 222 | GPU/CPU latency & memory benchmarks (marked with `@pytest.mark.performance`) |
-| `tests/unit/`     | 33           | 7 224 | Fine-grained coverage for data, models, train loop, utils (see below) |
+| `tests/unit/`     |  42           | 10 037 | Fine-grained coverage for data, models, train loop, utils (see below) |
+| `tests/train/`    | 2            | 684   | Training robustness tests (recording storage, validation memory) |
 | Root helpers      | 4            | 648   | `conftest.py`, `gpu_memory_guard.py`, `test_config.py`, `__init__.py` |
 
 ### Selected Highlights
@@ -52,8 +53,11 @@ dependencies (including `torch`) before running `pytest`—the suite imports
 ## Running the Suite
 
 ```bash
-# Fast path (CPU-safe, excludes GPU + performance)
+# Full test suite with coverage (CPU-safe, excludes GPU + performance)
 make test
+
+# Fast tests without coverage (use `make t` as shortcut)
+make test-fast
 
 # Safe during long GPU training sessions
 make test-safe        # pytest -m "not performance and not gpu"
