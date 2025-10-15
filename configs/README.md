@@ -118,11 +118,14 @@ modal app logs <app-id>
 ### Local (RTX 4090): batch_size 4 → 8 ✅
 **Discovered**: Actual VRAM usage was only 10GB @ batch_size=4 (not the expected 16GB)
 **Change**: Doubled batch_size to 8 for 2× speed improvement
-**Result**:
-- Epoch time: **~3 hours** (2× faster than batch=4)
-- Full training (100 epochs): **~300 hours** (~12.5 days)
-- VRAM usage: **~20GB** (4GB safety buffer)
-- **Status**: ✅ Production stable
+**Result** (MEASURED from FLA training logs):
+- **Training time**: **~4.1h** per epoch (7702 batches @ ~2.1s/batch)
+- **Validation time**: **~5.5h** per epoch (18528 batches, disk-backed)
+- **Total epoch time**: **~9.6h** (training 42.8% + validation 57.2%)
+- **Full training (100 epochs)**: **~960 hours** (40 days)
+- **VRAM usage**: ~20GB (4GB safety buffer)
+- **Status**: ✅ Production stable (Epoch 7/100 in progress)
+- **Note**: BiMamba2 may be faster than FLA; exact timing TBD
 
 ### Modal (A100-80GB): batch_size 32×2 → 48×1 ✅
 **Previous safe config**: batch_size=32, gradient_accumulation_steps=2
@@ -241,15 +244,26 @@ model:
     edge_similarity_margin: 0.01  # v3.2.0: Safety margin from ±1 boundaries
 ```
 
-## 📊 Expected Training Times
+## 📊 Actual Training Times (MEASURED from logs)
 
-| Config | Platform | Time/Epoch | Total Time |
-|--------|----------|------------|------------|
-| Local Train | RTX 4090 | ~3 hours | ~300 hours (12.5 days) |
-| Modal Train | A100-80GB | ~7-12 hours | ~700-1200 hours |
-| Smoke Test | Both | ~5 mins | 5 mins |
+| Config | Platform | Training | Validation | Total/Epoch | 100 Epochs |
+|--------|----------|----------|------------|-------------|------------|
+| **Local FLA** | **RTX 4090** | **~4.1h** | **~5.5h** | **~9.6h** | **960h (40 days)** |
+| Modal BiMamba2 | A100-80GB | ~1-2h (docs) | ~5.8h (docs) | ~7-12h (docs) | ~700-1200h |
+| Smoke Test | Both | N/A | N/A | ~5 mins | 5 mins |
 
-**Note**: Modal training is EXPENSIVE due to validation overhead (5.8h documented per epoch). BiMamba2 training PAUSED at Epoch 6 due to high costs ($1,118 spent). Modal cost: ~$4.40/hr (GPU+CPU+RAM) = $3,400-$5,300+ for 100 epochs. Local training preferred for cost-effectiveness.
+**CRITICAL FINDINGS (Local FLA on RTX 4090):**
+- **Validation is the bottleneck**: Takes 1.3× longer than training (5.5h vs 4.1h)
+- **Validation overhead**: 57.2% of total epoch time
+- **Training overhead**: 42.8% of total epoch time
+- **Epoch 1 anomaly**: 7.2h total (faster due to warmup/cache effects)
+- **Epochs 2-6 average**: 10.1h (consistent performance)
+
+**Modal BiMamba2 Status:**
+- Training PAUSED at Epoch 6 due to high costs
+- Cost so far: $1,118 (6 epochs) = **$186/epoch**
+- Estimated 100 epochs: **$18,600** at $4.40/hr (GPU+CPU+RAM)
+- **Local training saves $18,600!**
 
 ## 🔧 Environment Variables
 

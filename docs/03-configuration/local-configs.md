@@ -217,16 +217,25 @@ data:
   persistent_workers: true
 ```
 
-## Expected Performance
+## Expected Performance (MEASURED from FLA production training)
 
-| Platform | Batch Size | Time/Epoch | Total Training |
-|----------|-----------|------------|----------------|
-| RTX 4090 (WSL2) | 4 | ~3-4 hours | ~300-400 hours |
-| RTX 4090 (Linux) | 4 | ~2-3 hours | ~200-300 hours |
+**ACTUAL MEASURED TIMES** (RTX 4090 WSL2, batch_size=8):
+- **Training**: ~4.1h per epoch (7702 batches @ ~2.1s/batch)
+- **Validation**: ~5.5h per epoch (18528 batches, disk-backed)
+- **Total**: ~9.6h per epoch average
+- **100 epochs**: ~960 hours (40 days)
+- **Smoke test**: ~5 minutes (3 files)
 
-**Smoke test**: ~5 minutes
+**Breakdown by component**:
+- Training: 42.8% of epoch time
+- Validation: 57.2% of epoch time (BOTTLENECK!)
 
-**Note**: Smaller batch size is more stable but slower. Can experiment with batch_size=8-12 if no OOM occurs.
+**Cost vs Modal**:
+- Local: $0 (only electricity)
+- Modal: $18,600 for 100 epochs ($186/epoch measured)
+- **Savings**: $18,600 by training locally!
+
+**Note**: These times are for FLA (Gated DeltaNet). BiMamba2 may be faster - exact timing TBD.
 
 ## VRAM Usage
 

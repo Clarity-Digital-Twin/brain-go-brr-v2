@@ -157,8 +157,8 @@ training:
 
 ## Why This Matters
 
-1. **Long epochs**: Each epoch takes 2-3 hours locally
-2. **Failure recovery**: Never lose more than 30 minutes
+1. **Long epochs**: Each epoch takes ~9.6 hours locally (4.1h train + 5.5h validation, measured from FLA)
+2. **Failure recovery**: Never lose more than 30 minutes (vs 9.6 hours without mid-epoch saves!)
 3. **Experimentation**: Easy to try different hyperparameters
 4. **Standard practice**: All professional ML projects do this
 
