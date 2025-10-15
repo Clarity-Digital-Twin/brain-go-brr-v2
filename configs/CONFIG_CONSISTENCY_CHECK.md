@@ -40,9 +40,7 @@ mid_epoch_keep: 3             # Keep last 3 mid-epoch snapshots
 batch_size: 8
 use_dynamic_pe: true
 semi_dynamic_interval: 5
-temporal_type: gated_deltanet          # Global fallback
-temporal_type_node: gated_deltanet
-temporal_type_edge: gated_deltanet
+temporal_type: gated_deltanet          # Applied to both node and edge streams
 gdn_edge_num_heads: 3                  # 3 × 8 = 24 = 0.75 × edge_d_model
 gdn_edge_headdim: 8
 edge_mamba_d_model: 32                 # FLA causal_conv1d requirement
@@ -67,7 +65,7 @@ epochs: 1                     # Quick validation
 **Status**: ✅ CORRECT
 
 ### FLA – `smoke_fla.yaml`
-Same as BiMamba2 smoke config plus the FLA temporal overrides (`temporal_type*`,
+Same as BiMamba2 smoke config plus the FLA temporal override (`temporal_type: gated_deltanet`,
 `gdn_*`, `edge_mamba_d_model: 32`). No mid-epoch checkpoints (1 epoch only).
 
 ## Modal Configs (A100 - 80GB)
@@ -89,9 +87,7 @@ mid_epoch_keep: 3             # Keep last 3 mid-epoch snapshots
 ### FLA – `train_fla.yaml`
 ```yaml
 batch_size: 48
-temporal_type: gated_deltanet
-temporal_type_node: gated_deltanet
-temporal_type_edge: gated_deltanet
+temporal_type: gated_deltanet          # Applied to both node and edge streams
 gdn_edge_num_heads: 3
 gdn_edge_headdim: 8
 edge_mamba_d_model: 32
@@ -116,7 +112,7 @@ epochs: 1                     # Quick validation
 **Status**: ✅ VERIFIED
 
 ### FLA – `smoke_fla.yaml`
-Identical to BiMamba2 smoke config with the temporal overrides (`temporal_type*`,
+Identical to BiMamba2 smoke config with the temporal override (`temporal_type: gated_deltanet`,
 `gdn_*`, `edge_mamba_d_model: 32`). One epoch, no mid-epoch checkpoints.
 
 ## Key Differences by Platform
@@ -131,7 +127,7 @@ Identical to BiMamba2 smoke config with the temporal overrides (`temporal_type*`
 | **Learning Rate** | 1.0e-4 | 8.0e-5 | Stability vs batch-size scaling |
 | **Mid-Epoch Checkpoints** | 1800s | 1800s | Crash recovery (both platforms) |
 | **Temporal Stack (BiMamba2)** | implicit BiMamba2 | implicit BiMamba2 | Defaults |
-| **Temporal Stack (FLA)** | `temporal_type* = gated_deltanet` | Same | Explicit overrides |
+| **Temporal Stack (FLA)** | `temporal_type = gated_deltanet` | Same | Explicit override |
 | **Edge d_model (FLA)** | 32 | 32 | Required for FLA kernels |
 
 ## Critical Settings That MUST Match

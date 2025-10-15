@@ -20,7 +20,7 @@ GPU‑optimized loading
 ```yaml
 num_workers: 4                # SAFE: 8 caused overhead
 pin_memory: true
-persistent_workers: false     # CRITICAL: Prevents spawn delay + memory leaks
+persistent_workers: true      # Keeps mmap pages hot across epochs (fast start-up)
 prefetch_factor: 2            # SAFE: 4/8 caused OOM
 ```
 
@@ -73,7 +73,9 @@ data:
   data_dir: /data/edf  # Parent dir containing train/dev/eval
   cache_dir: /results/cache/tusz_mmap  # Persistent SSD volume (NPY mmap)
 experiment:
-  output_dir: /results/v3_full_training  # (smoke configs use /results/smoke)
+  output_dir: /results/v3_full_training     # BiMamba2 train configs
+  # OR: /results/v3_fla_training            # FLA train configs
+  # OR: /results/smoke                      # Smoke configs (both stacks)
   device: cuda
 ```
 
@@ -81,9 +83,7 @@ experiment:
 ```yaml
 model:
   mamba:
-    temporal_type: gated_deltanet
-    temporal_type_node: gated_deltanet
-    temporal_type_edge: gated_deltanet
+    temporal_type: gated_deltanet  # Applied to both node and edge streams
     gdn_fusion_mode: sum
     gdn_allow_neg_eigval: false
     gdn_edge_num_heads: 3
