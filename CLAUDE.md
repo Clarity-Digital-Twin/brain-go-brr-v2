@@ -396,11 +396,17 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 ### Key Files to Reference
 - Installation: `INSTALLATION.md`
 - Architecture evolution: `ARCHITECTURE_EVOLUTION.md`
+- **TAES naming collision**: `TAES_DISAMBIGUATION.md` (CRITICAL - explains TAES metric vs NEDC TAES scoring)
+- Realistic performance targets: `REALISTIC_PERFORMANCE_TARGETS.md`
 - Config details: `configs/README.md`
 - Modal training: `docs/05-training/modal.md`
 - Local training: `docs/05-training/local.md`
 
 ## 📊 Actual Performance (MEASURED from production training)
+
+**🚨 CRITICAL METRICS NOTE**: "TAES" has TWO different meanings! See `TAES_DISAMBIGUATION.md` for details.
+- **TAES: 0.9450** = quality score [0,1] from our `calculate_taes()` metric
+- **Sensitivity @ FA rates** = uses NEDC OVERLAP scoring (NOT NEDC TAES scoring!)
 
 ### Training Times (LOCAL FLA - RTX 4090)
 **MEASURED from 6 complete epochs (Epochs 1-6):**
