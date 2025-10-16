@@ -1,6 +1,6 @@
-# FLA Quick Reference - October 9, 2025
+# FLA Quick Reference - October 16, 2025
 
-**TL;DR**: BiMamba2 baseline training LIVE on Modal. FLA infrastructure complete. Wait for baseline → Create Modal config → Train FLA → A/B comparison. Architecture details now live in `docs/04-model/mamba.md`; this file tracks operational status.
+**TL;DR**: FLA training ACTIVE (Epoch 7/100, local RTX 4090, $0 cost). BiMamba2 PAUSED at Epoch 6 (Modal A100, $18,600 projected cost). Architecture details in `docs/04-model/mamba.md`; this file tracks operational status and dual-stack strategy.
 
 ---
 

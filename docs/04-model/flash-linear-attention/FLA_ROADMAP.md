@@ -129,7 +129,7 @@ Backend: Gated fusion + decoder (SAME as BiMamba2)
 - [x] BiGatedDeltaNet wrapper (bf16-safe, bidirectional)
 - [x] Config schema (`temporal_type_{edge,node}`, `gdn_*` params)
 - [x] Builder factory pattern (edge_stream.py, node_stream.py)
-- [x] FLA dependency (`flash-linear-attention==1.0.5`)
+- [x] FLA dependency (`flash-linear-attention>=0.3.0,<0.4.0` per pyproject.toml)
 - [x] Constraint validation (0.75× product rule for heads)
 
 **Evidence**: All code complete, quality checks pass
@@ -186,31 +186,28 @@ Backend: Gated fusion + decoder (SAME as BiMamba2)
 
 ---
 
-### ⏳ **Phase 4: FLA Full Training** (NEXT - After BiMamba2)
+### ⏳ **Phase 4: FLA Full Training** (HISTORICAL - Now uses train_fla.yaml)
 
-**Step 1: Create Modal FLA Config** (~30 minutes)
+> **NOTE**: This phase used `phase2_both_gdn.yaml` during validation. Current production uses `train_fla.yaml` instead.
+
+**Step 1: Use Existing Modal FLA Config**
 ```bash
-# Copy local config to Modal
-cp configs/local/phase2_both_gdn.yaml configs/modal/phase2_both_gdn.yaml
-
-# Adjust Modal-specific params:
-# - batch_size: 48 (A100-80GB can handle larger batches)
+# Config already exists: configs/modal/train_fla.yaml
+# Contains Modal-optimized params:
+# - batch_size: 48 (A100-80GB optimized)
 # - mixed_precision: true (A100 tensor cores)
 # - num_workers: 4 (avoid overhead)
 # - cache_dir: /results/cache/tusz_mmap (Modal persistent volume)
-
-# Keep FLA params unchanged:
-# - temporal_type: "gated_deltanet"
-# - gdn_edge_num_heads: 3, gdn_edge_headdim: 8
-# - edge_mamba_d_model: 32
+# - temporal_type: "gated_deltanet" (node + edge)
+# - gdn params: edge_num_heads=3, edge_headdim=8, edge_mamba_d_model=32
 ```
 
-**Step 2: Launch Modal Training**
+**Step 2: Launch Modal Training** (when budget permits)
 ```bash
 # Deploy FLA stack (DETACHED - long run)
 modal run --detach deploy/modal/app.py \
-  --action train \
-  --config configs/modal/phase2_both_gdn.yaml
+  --action schedule-training \
+  --config configs/modal/train_fla.yaml
 
 # Monitor
 modal app list

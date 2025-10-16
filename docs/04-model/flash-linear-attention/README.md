@@ -71,7 +71,7 @@ This folder contains **detailed research documentation** for the Flash Linear At
 - `configs/modal/{smoke,train}_fla.yaml` — Modal A100
 
 **Installation**: `docs/01-installation/gpu-stack.md`
-- FLA requires `flash-linear-attention==0.2.3`
+- FLA requires `flash-linear-attention>=0.3.0,<0.4.0` (per `pyproject.toml`)
 - Triton dependency notes (3.1.0 vs 3.2.0 compatibility)
 
 **Training Notes**: `docs/05-training/local.md`, `docs/05-training/modal.md`
