@@ -1,5 +1,9 @@
 # FLA Research Roadmap - Pragmatic Independent Researcher Strategy
 
+> **⚠️ HISTORICAL DOCUMENT**: This roadmap reflects the planning state as of October 9, 2025. For CURRENT training status (October 16, 2025), see:
+> - **CLAUDE.md** (lines 472-487): v4.0.0 status - BiMamba2 PAUSED, FLA Epoch 7/100
+> - **FLA_QUICK_REFERENCE.md**: Updated current status with cost analysis
+
 **Date**: October 9, 2025
 **Branch**: `feature/flash-linear-attention`
 **Status**: 🎯 BiMamba2 baseline training LIVE, FLA infrastructure complete
