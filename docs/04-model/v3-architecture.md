@@ -39,7 +39,7 @@
 
 ## Optional Enhancement
 
-- Lightweight time–frequency hybrid: add a 3‑band STFT side‑branch and fuse before `proj_to_electrodes`. See `docs_v2/04-model/time-frequency-hybrid.md`.
+- Lightweight time–frequency hybrid: add a 3‑band STFT side‑branch and fuse before `proj_to_electrodes`. See `docs/04-model/time-frequency-hybrid.md`.
 
 ## Key Parameters
 

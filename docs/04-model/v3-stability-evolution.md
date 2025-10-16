@@ -492,6 +492,6 @@ A = F.softmax(A / tau, dim=-1)
 **Current Status**: ✅ **PRODUCTION READY** - v3.4.1 architecture validated with 723 batches of perfect training
 
 **Related Docs**:
-- `docs_v2/08-operations/nan-prevention-complete.md` - Complete NaN protection guide
-- `docs_v2/08-operations/gradient-monitoring.md` - Realistic gradient expectations
-- `docs_v2/05-training/warmup-schedules.md` - Warmup schedule configuration and usage
+- `docs/08-operations/nan-prevention-complete.md` - Complete NaN protection guide
+- `docs/08-operations/gradient-monitoring.md` - Realistic gradient expectations
+- `docs/05-training/warmup-schedules.md` - Warmup schedule configuration and usage
