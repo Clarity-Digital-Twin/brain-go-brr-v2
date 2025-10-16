@@ -16,7 +16,7 @@ Pipeline summary
 - Load EDF with MNE; repair rare headers (colon→period) when necessary.
 - Map channels to canonical order, apply synonyms (T7→T3, T8→T4, P7→T5, P8→T6).
 - Resample to 256Hz, bandpass 0.5–120Hz, 60Hz notch; per‑channel z‑score.
-- Extract 60s windows with 10s stride; save to NPZ (windows and optional labels).
+- Extract 60s windows with 10s stride; save to memory-mapped NPY format (windows and optional labels).
 - Build manifest categorizing windows as partial/full/no‑seizure; Balanced dataset uses manifest directly.
 
 Channel order (must maintain)
@@ -49,4 +49,4 @@ See also
 
 - Preprocessing: `docs/02-data/preprocessing.md`
 - Cache and manifest: `docs/02-data/cache-layout.md`
- - Official TUSZ splits and policy: `docs/tusz/tusz-splits.md`
+- Official TUSZ splits and policy: `docs/tusz/tusz-splits.md`
