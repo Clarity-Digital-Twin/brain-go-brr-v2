@@ -12,13 +12,13 @@ The production configuration uses the V3 dual-stream pipeline with the mmap cach
 | Setting | Local | Modal | Reason |
 |---------|-------|-------|--------|
 | `data.cache_dir` | `cache/tusz_mmap` | `/results/cache/tusz_mmap` | SSD-backed memory-mapped cache |
-| `batch_size` | 8 | 48 | 80 GB vs 24 GB VRAM |
+| `batch_size` | 8 | 48 | 80 GB vs 24 GB VRAM  (experiment: testing if faster than 32×2) |
 | `gradient_accumulation_steps` | 1 | 1 | Effective batch 8 vs 48 |
 | `mixed_precision` | false | true | A100 tensor cores (3.8× speedup) |
 | `learning_rate` | 1.0e-4 | 8.0e-5 | Batch-size scaling |
 | `num_workers` | 0 (WSL2) / 4 (native) | 4 | Parallel I/O on Modal |
 | `persistent_workers` | false | true | Mmap cache keeps RSS low |
-| `prefetch_factor` | 2 | 2 | Stable loader footprint |
+| `prefetch_factor` | 2 | 2 | Stable loader footprint (4/8 caused OOM) |
 | CPU cores | N/A | 24 | Prevent dataloader bottlenecks |
 | RAM | N/A | 96 GB | Headroom for mmap + workers |
 
@@ -108,15 +108,21 @@ heartbeat_interval = 120  # seconds
 # Populate mmap cache (one-time)
 modal run --detach deploy/modal/app.py --action populate-cache
 
-# BiMamba2 smoke test (50 files)
+# BiMamba2 smoke test (50 files, ~10 min)
 modal run deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
 
-# BiMamba2 full training (detached)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
+# BiMamba2 full training with auto-restart (PRODUCTION)
+modal deploy deploy/modal/app.py
+modal run --detach deploy/modal/app.py --action schedule-training --config configs/modal/train_bimamba.yaml
 
-# FLA runs
+# FLA smoke test (50 files, ~10 min)
 modal run deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train_fla.yaml
+
+# FLA full training with auto-restart (PRODUCTION)
+modal deploy deploy/modal/app.py
+modal run --detach deploy/modal/app.py --action schedule-training --config configs/modal/train_fla.yaml
 ```
 
-Maintain the mmap cache on the Modal SSD and keep at least 600 GB free on the volume to avoid populate failures.
+**CRITICAL**: Use `--action schedule-training` for full 100-epoch training (hands-free auto-restart every 23h). Use `--action train` only for smoke tests (<1 hour).
+
+Maintain the mmap cache on the Modal SSD and keep at least 600 GB free on the volume to avoid populate failures.

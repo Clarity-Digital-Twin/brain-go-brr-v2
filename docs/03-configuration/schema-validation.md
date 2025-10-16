@@ -172,7 +172,14 @@ logging:
 model:
   architecture: "tcn"  # ❌ INVALID - must be "v3"
 ```
-**Fix**: Use `architecture: "v3"`
+**Fix**: Use `architecture: "v3"` (only supported architecture)
+
+### Error: use_balanced_sampling with smoke tests
+```yaml
+data:
+  use_balanced_sampling: true  # ❌ INVALID for smoke tests with BGB_SMOKE_TEST=1
+```
+**Fix**: Set `use_balanced_sampling: false` for smoke tests (3-50 files)
 
 ## Validation Command
 

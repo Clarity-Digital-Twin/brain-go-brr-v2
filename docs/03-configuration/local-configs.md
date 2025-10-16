@@ -196,7 +196,7 @@ make smoke-bimamba  # or: python -m src train configs/local/smoke_bimamba.yaml
 
 Config adjustments for smoke test (`configs/local/smoke_bimamba.yaml`; identical in `smoke_fla.yaml`):
 - `training.epochs: 1`
-- `data.use_balanced_sampling: false` (small dataset doesn't need oversampling)
+- `data.use_balanced_sampling: false` (REQUIRED: small dataset with BGB_SMOKE_TEST=1 needs natural distribution, not manifest-driven oversampling)
 
 ## WSL2 Considerations
 
@@ -219,12 +219,12 @@ data:
 
 ## Expected Performance (MEASURED from FLA production training)
 
-**ACTUAL MEASURED TIMES** (RTX 4090 WSL2, batch_size=8):
+**ACTUAL MEASURED TIMES** (RTX 4090 WSL2, batch_size=8, FLA stack):
 - **Training**: ~4.1h per epoch (7702 batches @ ~2.1s/batch)
-- **Validation**: ~5.5h per epoch (18528 batches, disk-backed)
+- **Validation**: ~5.5h per epoch (18528 batches, memory-mapped NPY cache)
 - **Total**: ~9.6h per epoch average
 - **100 epochs**: ~960 hours (40 days)
-- **Smoke test**: ~5 minutes (3 files)
+- **Smoke test**: ~5 minutes (3 files, 1 epoch)
 
 **Breakdown by component**:
 - Training: 42.8% of epoch time
@@ -232,10 +232,10 @@ data:
 
 **Cost vs Modal**:
 - Local: $0 (only electricity)
-- Modal: $18,600 for 100 epochs ($186/epoch measured)
+- Modal: $18,600 for 100 epochs ($186/epoch measured before pause)
 - **Savings**: $18,600 by training locally!
 
-**Note**: These times are for FLA (Gated DeltaNet). BiMamba2 may be faster - exact timing TBD.
+**Note**: These times are for FLA (Gated DeltaNet). BiMamba2 performance TBD (training paused at Epoch 6).
 
 ## VRAM Usage
 
