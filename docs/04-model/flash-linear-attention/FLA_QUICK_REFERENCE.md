@@ -97,21 +97,21 @@ TUSZ benchmark (see `literature/markdown/EEG-BIMAMBA`):
 |------|---------|
 | `FLA_ROADMAP.md` | **MAIN** - Complete strategy, constraints, timeline |
 | `FLA_QUICK_REFERENCE.md` | This file - Quick status check |
-| `CLAUDE.md` | Updated with FLA status (lines 368-378) |
-| `configs/local/phase2_both_gdn.yaml` | FLA config (smoke + medium validated) |
-| `configs/modal/phase2_both_gdn.yaml` | **TODO** - Create after BiMamba2 completes |
+| `CLAUDE.md` | Updated with FLA status (lines 472-487) - **SSOT** |
+| `configs/local/{smoke_fla.yaml, train_fla.yaml}` | ✅ FLA local configs (smoke test + full training) |
+| `configs/modal/{smoke_fla.yaml, train_fla.yaml}` | ✅ FLA Modal configs (smoke test + full training) |
 
 ---
 
 ## 🎯 **Bottom Line: Research Exploration**
 
-**Is FLA ready for local training?** YES (technically), but NOT RECOMMENDED (use Modal instead)
+**Is FLA ready for production?** YES - Currently training on local RTX 4090 (Epoch 7/100)
 
-**Do we need Modal configs now?** NO - create after BiMamba2 baseline completes
+**Why local instead of Modal?** Cost-effective ($0 vs $18,600) - BiMamba2 Modal training PAUSED due to budget
 
-**What's the strategy?** Two-stack research comparison - train both, document both, compare results
+**What's the strategy?** FLA is PRIMARY training stack; BiMamba2 provides comparison baseline (6 epochs available)
 
-**When will we know?** ~2-3 weeks from now (BiMamba2 done + FLA done + comparison)
+**When will we know?** ~40 days from now (FLA completes 100 epochs, then analyze results)
 
 **Cost?**
 - **BiMamba2 (Modal)**: $186/epoch measured → $18,600 projected for 100 epochs (PAUSED)
