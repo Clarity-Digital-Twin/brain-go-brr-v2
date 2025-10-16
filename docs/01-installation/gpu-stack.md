@@ -9,7 +9,7 @@ Exact versions (locked)
 - causal‑conv1d: 1.5.2 (latest stable for PyTorch 2.5+)
 - torch‑geometric: 2.6.1
 - numpy: 1.26.4
-- NVIDIA driver: **581.42** (Oct 2025) on RTX 4090; older 572.xx builds crash with SIGBUS around batch ~3000. Verify with `nvidia-smi` after install. If you run under WSL2, **move the mmap cache to native ext4** to avoid SIGBUS from the 9P filesystem (`docs/08-operations/wsl2-sigbus-fix.md`).
+- NVIDIA driver: **581.42 or later** (Oct 2025) on RTX 4090; older 572.xx builds have known stability issues (SIGBUS around batch ~3000). Verify with `nvidia-smi` after install. If you run under WSL2, **move the mmap cache to native ext4** to avoid SIGBUS from the 9P filesystem (`docs/08-operations/wsl2-sigbus-fix.md`).
 
 ## CRITICAL: CUDA Toolkit Installation
 
@@ -54,7 +54,7 @@ Manual verification
 - `.venv/bin/python -c "import torch; print(torch.version.cuda)"` → 12.4
 - `.venv/bin/python -c "from mamba_ssm import Mamba2; print('OK')"`
 - `.venv/bin/python -c "import torch_geometric as tg; print(tg.__version__)"` → 2.6.1
-- `nvidia-smi | head -n 3` → driver version should read `581.42`
+- `nvidia-smi | head -n 3` → driver version should read `581.42` or later
 
 ### Triton version warning (expected)
 
