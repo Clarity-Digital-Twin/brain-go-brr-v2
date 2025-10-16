@@ -140,7 +140,7 @@ model:
 
 training:
   epochs: 100
-  batch_size: 4                    # Conservative for 24GB VRAM
+  batch_size: 8                    # OPTIMIZED: 2x faster than batch=4 (measured ~20GB VRAM)
   loss: focal                      # REQUIRED for class imbalance
   focal_alpha: 0.5
   focal_gamma: 2.0                 # Warmup from 1.0 in v3.4.1
@@ -169,7 +169,7 @@ training:
   early_stopping:
     patience: 5
     metric: sensitivity_at_10fa
-  checkpoint_interval: 5
+  checkpoint_interval: 1           # Save every epoch for safety
 
 experiment:
   name: v3_local_training
@@ -239,14 +239,25 @@ data:
 
 ## VRAM Usage
 
+**Current Production (batch_size=8, MEASURED):**
+
 | Component | VRAM |
 |-----------|------|
 | Model (31M params) | ~0.12 GB (FP32) |
-| Batch (4 samples) | ~2.5-5 GB |
-| Gradients + Optimizer | ~5-8 GB |
-| **Total** | **~10-16 GB** |
+| Batch (8 samples) | ~10-12 GB |
+| Gradients + Optimizer | ~8-10 GB |
+| **Total** | **~18-22 GB** |
 
-**NOTE**: Batch size=4 leaves plenty of headroom. Can experiment with batch_size=8-12 for faster training if VRAM allows.
+**Conservative Fallback (batch_size=4):**
+
+| Component | VRAM |
+|-----------|------|
+| Model (31M params) | ~0.12 GB (FP32) |
+| Batch (4 samples) | ~5-6 GB |
+| Gradients + Optimizer | ~4-5 GB |
+| **Total** | **~9-11 GB** |
+
+**NOTE**: Batch size=8 is the current production standard (configs/local/train_bimamba.yaml:128). Only reduce to 4 if experiencing OOM.
 
 ## Reference Configs
 
