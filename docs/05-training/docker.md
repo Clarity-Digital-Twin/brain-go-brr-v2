@@ -1,6 +1,6 @@
 # Docker Training Guide
 
-**Last Updated**: October 4, 2025 (v3.6.1)
+**Last Updated**: October 16, 2025 (v4.0.0)
 **Status**: ✅ Production Ready
 
 ---

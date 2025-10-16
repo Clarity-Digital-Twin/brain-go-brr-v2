@@ -1,6 +1,6 @@
 # Modal Cloud Deployment Guide
 
-**Last Updated**: October 8, 2025
+**Last Updated**: October 16, 2025
 **Architecture**: V3 dual-stream (A100-80GB optimized)
 **Status**: Production-ready
 
@@ -173,7 +173,8 @@ experiment:
 - AUROC: >0.95
 - Sensitivity@10FA: >90%
 - Memory: 40-60GB
-- Cost: **$3,400-$5,300+** (may be higher due to bottlenecks; observed costs were $100+ per epoch)
+- Cost: **$18,600 projected** ($186/epoch actual from 6 epochs; original estimate $3,400-$5,300 was too low)
+- Status: **BiMamba2 training PAUSED at Epoch 6** due to high costs (see CLAUDE.md:486)
 - Expect the timeout guard to exit every ~23 h; relaunch with `--resume` to continue.
 
 ## Monitoring & Debugging
@@ -229,10 +230,11 @@ export BGB_SMOKE_TEST=1          # Skip balanced sampling
 - 24 CPU cores: $1.13/hour
 - 96GB RAM: $0.77/hour
 - **Total compute: $4.40/hour**
-- **Per epoch (7-12h)**: $34-$53+
-- **100 epochs (700-1200h)**: **$3,400-$5,300+**
+- **Per epoch (ACTUAL)**: **$186** (measured from 6 epochs, Oct 2025)
+- **100 epochs (PROJECTED)**: **$18,600** (6.3× higher than original estimate)
+- **Original estimate**: $3,400-$5,300 (underestimated due to validation overhead)
 - Storage: ~$10/month for 500GB
-- **Total per run: $3,400-$5,300+** (actual costs may be higher due to bottlenecks)
+- **Status**: BiMamba2 training PAUSED at Epoch 6 due to high costs (see CLAUDE.md:486)
 
 ## Resume from Checkpoint
 
