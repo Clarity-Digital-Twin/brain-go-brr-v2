@@ -244,10 +244,10 @@ training:
 
 ## References
 
-- **Stability evolution**: `docs_v2/04-model/v3-stability-evolution.md`
-- **Warmup schedules**: `docs_v2/05-training/warmup-schedules.md`
-- **Gradient monitoring**: `docs_v2/08-operations/gradient-monitoring.md`
-- **NaN prevention**: `docs_v2/08-operations/nan-prevention-complete.md`
-- **Laplacian PE details**: `docs_v2/04-model/laplacian-pe.md`
-- **GNN implementation**: `docs_v2/04-model/gnn.md`
-- **Edge features**: `docs_v2/04-model/edge-features-and-adjacency.md`
+- **Stability evolution**: `docs/04-model/v3-stability-evolution.md`
+- **Warmup schedules**: `docs/05-training/warmup-schedules.md`
+- **Gradient monitoring**: `docs/08-operations/gradient-monitoring.md`
+- **NaN prevention**: `docs/08-operations/nan-prevention-complete.md`
+- **Laplacian PE details**: `docs/04-model/laplacian-pe.md`
+- **GNN implementation**: `docs/04-model/gnn.md`
+- **Edge features**: `docs/04-model/edge-features-and-adjacency.md`
