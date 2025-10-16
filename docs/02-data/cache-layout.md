@@ -90,11 +90,11 @@ Training logs should include:
 
 ## Recovery Tips
 
-- To rebuild locally: `rm -rf cache/tusz_mmap && make train-local` (training will recreate the cache).
+- To rebuild locally: Use `python scripts/convert_cache_to_mmap.py --source cache/tusz/train --dest cache/tusz_mmap/train` to recreate NPY mmap cache from NPZ source.
 - To clean Modal cache: `modal run deploy/modal/app.py --action clean-cache` before re-populating.
 - To remove stray NPZ files left by aborted runs: `modal run deploy/modal/clean_stray_npz.py --confirm`.
 - To inspect Modal cache health without modifying it: `modal run deploy/modal/app.py --action check-cache`.
-- Keep the old NPZ cache (`cache/tusz/`) until the migration is fully validated; switching back only requires pointing configs to the old path.
+- Note: The NPY mmap format is required for production use. Dataset loaders will raise `FileNotFoundError` if *_data.npy files are missing.
 
 ## Cost Notes
 

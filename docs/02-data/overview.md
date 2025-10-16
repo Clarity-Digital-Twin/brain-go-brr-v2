@@ -25,9 +25,9 @@ Channel order (must maintain)
 
 Dataset classes
 
-- `EEGWindowDataset`: lazy NPZ cache builder/reader that can populate `_dataset_index.json` on demand. Returns dictionaries with keys `window`, `label`, `file_id`, and `window_start_s` so downstream code can stitch per-record timelines even when falling back from the balanced manifest.
+- `EEGWindowDataset`: reads from memory-mapped NPY cache or processes EDFs on-demand when `cache_dir` is not set. Populates `_dataset_index.json` for fast subsequent loads. Returns dictionaries with keys `window`, `label`, `file_id`, and `window_start_s` for timeline stitching. Raises `FileNotFoundError` if cache files are missing.
 - `BalancedSeizureDataset`: reads `train/manifest.json` and assembles a balanced slice (all partial, 0.3× full, 2.5× background). Returns the same dictionary structure and exposes `seizure_ratio` without sampling.
-- `ValidationDataset`: loads `dev/manifest.json`, groups windows by cache file, and preserves natural ordering. Validation now depends on the manifest metadata instead of re-scanning every NPZ.
+- `ValidationDataset`: loads `dev/manifest.json`, groups windows by cache file, and preserves natural ordering. Reads from memory-mapped NPY cache for fast, low-memory validation.
 
 Dataset Strategy (CRITICAL - This is correct ML practice!)
 
