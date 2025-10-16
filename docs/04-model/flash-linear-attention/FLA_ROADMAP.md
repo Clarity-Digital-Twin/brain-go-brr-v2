@@ -64,23 +64,24 @@ This roadmap remains accurate as **historical documentation** of the validation 
 
 ## 📊 **Current Status (October 9, 2025)**
 
-### **BiMamba2 Baseline (v3.9.1)** - TRAINING LIVE
+### **BiMamba2 Baseline (v3.9.1)** - PAUSED at Epoch 6
 ```
 Architecture: TCN + BiMamba2 + GNN + Dynamic LPE
-Status: Modal A100-80GB, 100 epochs, ~4667 train files
-Progress: ~10-20% complete (exact epoch TBD - check Modal logs)
-ETA: 4-5 days (with resume cycles)
+Status: Modal A100-80GB, PAUSED at 6/100 epochs (5 complete + 50% of epoch 6)
+Reason: High costs ($186/epoch actual → $18,600 projected for 100 epochs)
+Training switch: FLA now PRIMARY stack (local RTX 4090, $0 cost)
 Expected baseline: sensitivity@10FA = 40-60% (TUSZ benchmark range)
 ```
 
-### **FLA Research Stack** - INFRASTRUCTURE COMPLETE
+### **FLA Research Stack** - ACTIVELY TRAINING (PRIMARY STACK)
 ```
 Architecture: TCN + Gated DeltaNet + GNN + Dynamic LPE
 Code: ✅ BiGatedDeltaNet wrapper complete
-Config: ✅ All local configs exist
+Config: ✅ All local configs exist (smoke_fla.yaml, train_fla.yaml)
 Tests: ✅ Smoke tests passed (Phase 0, 1a, 1b, 2)
-Medium validation: ⚠️ Technical success (no crashes, no OOM), performance unstable (2.73% seizures)
-Status: READY for full training after BiMamba2 baseline completes
+Medium validation: ✅ Technical success (no crashes, no OOM)
+Status: 🚀 ACTIVELY TRAINING on local RTX 4090 (Epoch 7/100, ~9.6h per epoch)
+Cost: $0 (local training vs $18,600 projected for Modal)
 ```
 
 ---
@@ -98,14 +99,14 @@ Backend: Gated fusion + decoder
 
 **Training**:
 - Platform: Modal A100-80GB
-- Config: `configs/modal/train.yaml`
-- Status: **RUNNING NOW**
+- Config: `configs/modal/train_bimamba.yaml`
+- Status: **PAUSED at Epoch 6** (high costs: $186/epoch actual vs $31-53 estimated)
 - Cost: **$3,400-$5,300+** (700-1200 hours @ $4.40/hr; 7-12h per epoch × 100 epochs due to long validation)
 - Expected: sensitivity@10FA = 40-60%
 
 ---
 
-### **Stack 2: FLA Candidate** (NEXT)
+### **Stack 2: FLA Candidate** (PRIMARY STACK - ACTIVELY TRAINING)
 ```yaml
 Temporal (Node): Gated DeltaNet (6 layers, d_model=512, num_heads=6, headdim=8)
 Temporal (Edge): Gated DeltaNet (2 layers, d_model=32, num_heads=3, headdim=8)
@@ -115,10 +116,11 @@ Backend: Gated fusion + decoder (SAME as BiMamba2)
 ```
 
 **Training**:
-- Platform: Modal A100-80GB (after BiMamba2 completes)
-- Config: `configs/modal/phase2_both_gdn.yaml` (TO BE CREATED)
-- Status: **BLOCKED** - waiting for BiMamba2 baseline
-- Cost: **$3,400-$5,300+** (700-1200 hours @ $4.40/hr; validation overhead documented as 5.8h per epoch)
+- Platform: Local RTX 4090 (cost-effective vs Modal A100)
+- Config: `configs/local/train_fla.yaml` (production training config)
+- Status: **🚀 ACTIVELY TRAINING** - Epoch 7/100 (~9.6h per epoch)
+- Cost: **$0** (local electricity vs $18,600 Modal projected)
+- Progress: 7% complete (~40 days remaining for 100 epochs)
 - What we learn: Actual sensitivity@10FA / AUROC vs BiMamba2 (open research question)
 
 ---
@@ -175,14 +177,15 @@ Backend: Gated fusion + decoder (SAME as BiMamba2)
 
 ---
 
-### 🔄 **Phase 3: BiMamba2 Baseline Training** (IN PROGRESS)
-- [x] Config: `configs/modal/train.yaml`
+### ⏸️ **Phase 3: BiMamba2 Baseline Training** (PAUSED at Epoch 6)
+- [x] Config: `configs/modal/train_bimamba.yaml`
 - [x] Platform: Modal A100-80GB
 - [x] Validation OOM fix deployed (disk-backed storage)
-- [ ] **WAITING**: Training completion (~4-5 days)
-- [ ] **DELIVERABLE**: Baseline sensitivity@10FA metric
+- [x] Training ran for 6 epochs (5 complete + 50% of epoch 6, batch 647/1284)
+- ⏸️ **PAUSED**: High costs ($186/epoch actual → $18,600 projected for 100 epochs)
+- 📊 **CURRENT STATUS**: See CLAUDE.md:486 - FLA is PRIMARY training stack (local RTX 4090, Epoch 7/100)
 
-**Evidence**: Modal app running, logs show disk-backed validation
+**Evidence**: Modal training PAUSED, FLA training ACTIVE on local hardware
 
 ---
 
@@ -313,7 +316,10 @@ Both architectures are research contributions, regardless of which performs bett
 2. ✅ Monitor validation logs for disk-backed storage (user is doing this)
 3. ✅ Unified roadmap created (this document)
 
-### **AFTER BiMamba2 COMPLETES** (~4-5 days from now)
+### **AFTER BiMamba2 COMPLETES** (HISTORICAL - October 9, 2025 plan)
+
+> **⚠️ OUTDATED**: This workflow assumed BiMamba2 would complete first. Reality: BiMamba2 PAUSED at Epoch 6, FLA is PRIMARY stack (local RTX 4090, Epoch 7/100). See CLAUDE.md:486 for current status.
+
 1. 📊 Analyze BiMamba2 results:
    ```bash
    # Check W&B dashboard
@@ -323,6 +329,7 @@ Both architectures are research contributions, regardless of which performs bett
 
 2. 📝 Create Modal FLA config:
    ```bash
+   # NOTE: Config already exists as configs/modal/train_fla.yaml
    # Copy + adjust for Modal (batch_size, mixed_precision, etc.)
    # Validate with: make q
    # Git commit: "feat: Add Modal FLA config for A/B comparison"
@@ -330,9 +337,10 @@ Both architectures are research contributions, regardless of which performs bett
 
 3. 🚀 Launch FLA Modal training:
    ```bash
+   # NOTE: Use train_fla.yaml instead of phase2_both_gdn.yaml
    modal run --detach deploy/modal/app.py \
-     --action train \
-     --config configs/modal/phase2_both_gdn.yaml
+     --action schedule-training \
+     --config configs/modal/train_fla.yaml
    ```
 
 4. ⏳ Wait for FLA completion (~4-5 days)
