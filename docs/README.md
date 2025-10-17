@@ -1,6 +1,6 @@
 # Brain-Go-Brr Documentation (v4.0.0)
 
-**Last Updated**: October 12, 2025
+**Last Updated**: October 17, 2025
 **Codebase Version**: v4.0.0 (Dual Stack: BiMamba2 baseline + Flash Linear Attention variant)
 **Architecture**: V3 Dual-Stream (TCN + SSM + GNN + Dynamic LPE) with interchangeable BiMamba2 / BiGatedDeltaNet streams
 **Status**: 🟢 Zero active debt; Modal A100 + local RTX 4090 training live with deterministic resume and ext4-backed cache
@@ -204,15 +204,19 @@ export BGB_NAN_DEBUG=1         # Enable NaN warnings
 # Smoke test (5 minutes)
 make s
 
-# Full training (local)
+# Full training (local) - BiMamba2 baseline
 export BGB_NAN_DEBUG=1
-make train-local
-
-# Full training (Modal) - BiMamba2 baseline
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
+make train-bimamba
 
 # Or FLA research variant
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train_fla.yaml
+make train-fla
+
+# Full training (Modal) - BiMamba2 baseline (hands-free auto-restart)
+modal deploy deploy/modal/app.py
+modal run --detach deploy/modal/app.py --action schedule-training --config configs/modal/train_bimamba.yaml
+
+# Or FLA research variant (hands-free auto-restart)
+modal run --detach deploy/modal/app.py --action schedule-training --config configs/modal/train_fla.yaml
 
 # Validate config
 python -m src validate configs/local/train_bimamba.yaml
@@ -273,29 +277,26 @@ This documentation follows the **Diátaxis framework**:
 - **Historical incidents**: See `archived_docs/docs_v4_archive/reference/incidents-historical/`
 - **Development plans**: See `archived_docs/docs_v4_archive/reference/development/`
 
----
-
-## 🎯 Project Status
-
-**Current Version**: v3.9.1 (October 9, 2025) – Validation OOM Fix
+**Current Version**: v4.0.0 (October 17, 2025) – FLA Production + WSL2 Fix
 
 **Recent Milestones**:
+- ✅ v4.0.0 (Oct 17): WSL2 SIGBUS fix (cache on native ext4), FLA stack validated, dual production training live
 - ✅ v3.9.1 (Oct 9): Disk-backed validation + manifest guard eliminate Modal OOM (100-epoch runs stable)
 - ✅ v3.9.0 (Oct 8): Atomic checkpoints, timeout guard, W&B persistence, Modal training live
 - ✅ v3.8.3 (Oct 7): Manifest naming cleanup, zero technical debt
 - ✅ v3.8.2 (Oct 6): Zero warnings – copy-on-read tensors + AMP scheduler guard
 - ✅ v3.8.1 (Oct 6): Complete tensor safety – all datasets fixed (EEGWindowDataset `.clone()`)
-- ✅ v3.8.0 (Oct 6): NPZ contamination eliminated, cache tooling consolidated
 
 **Current Status**:
-- ✅ **Modal training**: LIVE – 100 epochs on A100-80GB (W&B run: 983c1fbf706b4d0f8870cc0331dc6201), disk-backed validation in place; resume every ~23 h via timeout guard
+- 🔶 **BiMamba2 (Modal A100)**: PAUSED at Epoch 6 ($1,118 spent, $18,600 projected) due to high costs
+- 🟢 **FLA (Local RTX 4090)**: ACTIVE at Epoch 7/100 (7% complete, ~960h total / 40 days)
 - ✅ **Smoke tests**: PASS – Local (3 files) & Modal (50 files) validated after each change
 - ✅ **Technical debt**: ZERO active issues (P0/P1/P2/P3 all resolved)
 
 **Next Steps**:
-- [ ] Monitor/relauch Modal run after each timeout guard exit (`--resume`)
+- [ ] Continue FLA local training to completion (Epoch 7 → 100)
 - [ ] Full TAES evaluation on dev set once training completes
-- [ ] Tune post-processing for <1 FA/24 h @ >75 % sensitivity
+- [ ] Tune post-processing for <1 FA/24h @ >75% sensitivity
 
 ---
 
