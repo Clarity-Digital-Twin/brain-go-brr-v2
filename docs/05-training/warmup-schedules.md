@@ -357,17 +357,17 @@ warmup_schedule:
 
 ### 4. Adjust for Platform
 
-**Local (RTX 4090, batch=4)**:
+**Local (RTX 4090, batch=8)**:
 ```yaml
-warmup_steps: 1000  # Fine for 15,404 batches/epoch
+warmup_steps: 1000  # ~13% of 7702 batches/epoch
 ```
 
-**Modal (A100-80GB, batch=64)**:
+**Modal (A100-80GB, batch=48)**:
 ```yaml
-warmup_steps: 500   # Faster convergence with larger batches
+warmup_steps: 1000  # Same as local for consistency
 ```
 
-**Rule of thumb**: `warmup_steps ≈ 5-10% of batches per epoch`
+**Rule of thumb**: `warmup_steps ≈ 5-15% of batches per epoch`
 
 ### 5. Disable for Short Runs
 
@@ -466,7 +466,7 @@ If you need different durations, file a feature request.
 # configs/local/train_bimamba.yaml
 training:
   epochs: 100
-  batch_size: 4
+  batch_size: 8                    # OPTIMIZED: 2x faster than batch=4
   learning_rate: 1.0e-4
   gradient_clip: 0.5
   loss: focal
@@ -494,16 +494,16 @@ model:
 # configs/modal/train_bimamba.yaml
 training:
   epochs: 100
-  batch_size: 64
+  batch_size: 48                   # EXPERIMENT: ~58GB peak (testing if faster than 32×2)
   learning_rate: 8.0e-5
   gradient_clip: 0.5
   loss: focal
   focal_gamma: 2.0
 
-  # Shorter warmup for larger batches
+  # Standard warmup
   warmup_schedule:
     enabled: true
-    warmup_steps: 500  # Faster convergence
+    warmup_steps: 1000              # Same as local for consistency
     adj_temperature_enabled: true
     adj_temperature_start: 2.0
     adj_temperature_end: 1.0

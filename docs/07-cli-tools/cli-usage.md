@@ -11,6 +11,7 @@ Commands
 - Build cache: `python -m src build-cache --data-dir <edf_dir> --cache-dir <cache_split_dir> [--split train|dev] [--limit-files N]`
 - Scan cache to manifest: `python -m src scan-cache --cache-dir <cache_split_dir>`
 - Evaluate: `python -m src evaluate <checkpoint.pt> <edf_dir> [--config <config.yaml>] [--device cuda] [--output-json out.json] [--output-csv-bi out.csv] [--dry-run]`
+- List configs: `python -m src list-configs`
 
 Validation and summary
 

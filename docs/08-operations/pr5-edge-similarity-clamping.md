@@ -82,8 +82,7 @@ model:
 # Local validation
 make s
 
-# With explicit margin
-BGB_EDGE_MARGIN=0.01 make s
+# Margin is configured in YAML (model.graph.edge_similarity_margin: 0.01)
 ```
 
 ## Migration Guide
@@ -111,20 +110,16 @@ model:
 
 ## Monitoring
 
-### Environment Variables
-```bash
-# Enable edge feature monitoring
-export BGB_MONITOR_EDGE_BOUNDS=1
-
-# Custom margin (testing only)
-export BGB_EDGE_MARGIN=0.02
+### Configuration
+Margin is set in YAML config files:
+```yaml
+model:
+  graph:
+    edge_similarity_margin: 0.01  # Adjust if needed (default: 0.01)
 ```
 
 ### Logs to Watch
-```
-[INFO] Edge similarities clamped to [-0.99, 0.99]
-[WARNING] Edge similarity hit boundary: 0.99
-```
+Edge similarity clamping is applied silently at the source. No special logging is emitted.
 
 ## Related PRs
 

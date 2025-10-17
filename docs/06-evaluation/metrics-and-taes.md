@@ -76,7 +76,7 @@ Expected calibration error (ECE):
 ECE = Σᵢ | accuracy(Bᵢ) - confidence(Bᵢ) | * P(Bᵢ)
 ```
 
-- Bins `Bᵢ` partition probability space (default `n = 15`).
+- Bins `Bᵢ` partition probability space (default `n = 10`).
 - `accuracy(Bᵢ)` = mean label for samples in `Bᵢ`.
 - `confidence(Bᵢ)` = mean probability for samples in `Bᵢ`.
 - `P(Bᵢ)` = fraction of samples in that bin.

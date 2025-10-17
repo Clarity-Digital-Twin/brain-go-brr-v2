@@ -24,7 +24,7 @@ modal secret create wandb WANDB_API_KEY=<your-key>
    ```bash
    modal run --detach deploy/modal/app.py --action populate-cache
    # Expected: 4667 train + 1832 dev files
-   # Time: ~1-2 hours for 450GB
+   # Time: ~1-2 hours for 518GB
    # NOTE: Intentionally clears existing cache before copying from S3
    ```
 
