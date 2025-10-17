@@ -47,6 +47,7 @@ WSL2 specifics
 - Set `UV_LINK_MODE=copy` to avoid hard‑link issues.
 - Prefer `data.num_workers: 0` to avoid dataloader hangs.
 - Keep repo/venv on WSL ext4 (not `/mnt/c`).
+- **CRITICAL**: Cache MUST be on native ext4 filesystem (not Windows drives like `/mnt/d/`) to avoid SIGBUS crashes. See `docs/08-operations/wsl2-sigbus-fix.md`.
 
 Common pitfalls
 
@@ -56,5 +57,7 @@ Common pitfalls
 
 Quick smoke check
 
-- Local: `make s` (1 epoch, 3 files)
-- Modal: `modal run deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml`
+- Local BiMamba2: `make smoke-bimamba` or `make s` (1 epoch, 3 files)
+- Local FLA: `make smoke-fla` (1 epoch, 3 files)
+- Modal BiMamba2: `modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml`
+- Modal FLA: `modal run --detach deploy/modal/app.py --action train --config configs/modal/smoke_fla.yaml`

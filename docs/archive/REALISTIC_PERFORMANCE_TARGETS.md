@@ -66,6 +66,8 @@
 
 ## 🔍 UNDERSTANDING SCORING SYSTEMS
 
+**🚨 CRITICAL**: "TAES" has TWO different meanings (metric vs scoring system)! See `TAES_DISAMBIGUATION.md` for full explanation.
+
 Different scorers measure different aspects of performance. **Choice of scorer can create 3-16× differences in reported FA rates for identical predictions.**
 
 ### 1. NEDC TAES (Strictest)

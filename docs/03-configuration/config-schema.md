@@ -88,9 +88,15 @@ Constraints and validations
 
 Examples
 
-- Local training: `configs/local/train_bimamba.yaml` (BiMamba2) / `configs/local/train_fla.yaml` (FLA)
-- Modal training: `configs/modal/train_bimamba.yaml` / `configs/modal/train_fla.yaml`
-- Smoke tests: `configs/local/smoke_bimamba.yaml`, `configs/local/smoke_fla.yaml`, `configs/modal/smoke_bimamba.yaml`, `configs/modal/smoke_fla.yaml`
+**Local Training (RTX 4090):**
+- BiMamba2: `configs/local/train_bimamba.yaml` (100 epochs, batch_size=8)
+- FLA: `configs/local/train_fla.yaml` (100 epochs, batch_size=8)
+- Smoke tests: `configs/local/smoke_bimamba.yaml`, `configs/local/smoke_fla.yaml` (1 epoch, 3 files)
+
+**Modal Training (A100-80GB):**
+- BiMamba2: `configs/modal/train_bimamba.yaml` (100 epochs, batch_size=48)
+- FLA: `configs/modal/train_fla.yaml` (100 epochs, batch_size=48)
+- Smoke tests: `configs/modal/smoke_bimamba.yaml`, `configs/modal/smoke_fla.yaml` (1 epoch, 50 files)
 
 Validation
 

@@ -140,7 +140,7 @@ model:
 
 training:
   epochs: 100
-  batch_size: 4                    # Conservative for 24GB VRAM
+  batch_size: 8                    # OPTIMIZED: 2x faster than batch=4 (measured ~20GB VRAM)
   loss: focal                      # REQUIRED for class imbalance
   focal_alpha: 0.5
   focal_gamma: 2.0                 # Warmup from 1.0 in v3.4.1
@@ -169,7 +169,7 @@ training:
   early_stopping:
     patience: 5
     metric: sensitivity_at_10fa
-  checkpoint_interval: 5
+  checkpoint_interval: 1           # Save every epoch for safety
 
 experiment:
   name: v3_local_training
@@ -196,7 +196,7 @@ make smoke-bimamba  # or: python -m src train configs/local/smoke_bimamba.yaml
 
 Config adjustments for smoke test (`configs/local/smoke_bimamba.yaml`; identical in `smoke_fla.yaml`):
 - `training.epochs: 1`
-- `data.use_balanced_sampling: false` (small dataset doesn't need oversampling)
+- `data.use_balanced_sampling: false` (REQUIRED: small dataset with BGB_SMOKE_TEST=1 needs natural distribution, not manifest-driven oversampling)
 
 ## WSL2 Considerations
 
@@ -217,27 +217,47 @@ data:
   persistent_workers: true
 ```
 
-## Expected Performance
+## Expected Performance (MEASURED from FLA production training)
 
-| Platform | Batch Size | Time/Epoch | Total Training |
-|----------|-----------|------------|----------------|
-| RTX 4090 (WSL2) | 4 | ~3-4 hours | ~300-400 hours |
-| RTX 4090 (Linux) | 4 | ~2-3 hours | ~200-300 hours |
+**ACTUAL MEASURED TIMES** (RTX 4090 WSL2, batch_size=8, FLA stack):
+- **Training**: ~4.1h per epoch (7702 batches @ ~2.1s/batch)
+- **Validation**: ~5.5h per epoch (18528 batches, memory-mapped NPY cache)
+- **Total**: ~9.6h per epoch average
+- **100 epochs**: ~960 hours (40 days)
+- **Smoke test**: ~5 minutes (3 files, 1 epoch)
 
-**Smoke test**: ~5 minutes
+**Breakdown by component**:
+- Training: 42.8% of epoch time
+- Validation: 57.2% of epoch time (BOTTLENECK!)
 
-**Note**: Smaller batch size is more stable but slower. Can experiment with batch_size=8-12 if no OOM occurs.
+**Cost vs Modal**:
+- Local: $0 (only electricity)
+- Modal: $18,600 for 100 epochs ($186/epoch measured before pause)
+- **Savings**: $18,600 by training locally!
+
+**Note**: These times are for FLA (Gated DeltaNet). BiMamba2 performance TBD (training paused at Epoch 6).
 
 ## VRAM Usage
+
+**Current Production (batch_size=8, MEASURED):**
 
 | Component | VRAM |
 |-----------|------|
 | Model (31M params) | ~0.12 GB (FP32) |
-| Batch (4 samples) | ~2.5-5 GB |
-| Gradients + Optimizer | ~5-8 GB |
-| **Total** | **~10-16 GB** |
+| Batch (8 samples) | ~10-12 GB |
+| Gradients + Optimizer | ~8-10 GB |
+| **Total** | **~18-22 GB** |
 
-**NOTE**: Batch size=4 leaves plenty of headroom. Can experiment with batch_size=8-12 for faster training if VRAM allows.
+**Conservative Fallback (batch_size=4):**
+
+| Component | VRAM |
+|-----------|------|
+| Model (31M params) | ~0.12 GB (FP32) |
+| Batch (4 samples) | ~5-6 GB |
+| Gradients + Optimizer | ~4-5 GB |
+| **Total** | **~9-11 GB** |
+
+**NOTE**: Batch size=8 is the current production standard (configs/local/train_bimamba.yaml:128). Only reduce to 4 if experiencing OOM.
 
 ## Reference Configs
 

@@ -1,4 +1,13 @@
-"""Evaluation metrics for seizure detection (TAES, FA/24h, sensitivity@FA)."""
+"""Evaluation metrics for seizure detection (TAES, FA/24h, sensitivity@FA).
+
+CRITICAL NAMING COLLISION: "TAES" means TWO different things!
+See TAES_DISAMBIGUATION.md for complete explanation.
+
+1. TAES Metric (implemented here): calculate_taes() returns quality score [0,1]
+2. NEDC TAES Scoring (NOT implemented): Would use partial credit for sensitivity calculation
+
+Our sensitivity calculations use NEDC OVERLAP scoring (binary TP), NOT NEDC TAES scoring.
+"""
 
 from __future__ import annotations
 

@@ -2,7 +2,7 @@
 
 > **HISTORICAL DOCUMENT**: This document covers the evolution from v3.3.0 → v3.4.1 (Sept 27 - Oct 1, 2025).
 > **Current version**: v4.0.0 (BiMamba2 baseline + Flash Linear Attention variant with deterministic resume).
-> **For current status**: See [STATUS.md](../../STATUS.md) and [checkpoint-strategy.md](../05-training/checkpoint-strategy.md).
+> **For current status**: See [STATUS.md](/STATUS.md) and [CLAUDE.md](/CLAUDE.md) (Single Source of Truth).
 
 **Last Updated**: October 1, 2025
 **Historical Version**: v3.4.1
@@ -492,6 +492,6 @@ A = F.softmax(A / tau, dim=-1)
 **Current Status**: ✅ **PRODUCTION READY** - v3.4.1 architecture validated with 723 batches of perfect training
 
 **Related Docs**:
-- `docs_v2/08-operations/nan-prevention-complete.md` - Complete NaN protection guide
-- `docs_v2/08-operations/gradient-monitoring.md` - Realistic gradient expectations
-- `docs_v2/05-training/warmup-schedules.md` - Warmup schedule configuration and usage
+- `docs/08-operations/nan-prevention-complete.md` - Complete NaN protection guide
+- `docs/08-operations/gradient-monitoring.md` - Realistic gradient expectations
+- `docs/05-training/warmup-schedules.md` - Warmup schedule configuration and usage

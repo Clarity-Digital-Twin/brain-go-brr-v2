@@ -53,7 +53,7 @@ Operational notes
 - Local smoke/full configs: `configs/local/{smoke,train}_fla.yaml`.
 - Modal configs mirror BiMamba2 with the same data settings (batch 48, mixed precision true); see `configs/modal/train_fla.yaml`.
 - Both streams share the same GNN and gated fusion stack; swapping the temporal type is isolated to the builder factory (`build_node_stream` / `build_edge_stream`).
-- Use `flash-linear-attention==0.2.3` (pinned in `pyproject.toml`); verify with `python -c "from fla.layers import GatedDeltaNet"`.
+- Use `flash-linear-attention>=0.3.0,<0.4.0` (pinned in `pyproject.toml`); verify with `python -c "from fla.layers import GatedDeltaNet"`.
 
 Validation summary
 

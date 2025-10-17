@@ -62,14 +62,14 @@ The following flags were documented in various places but **never actually check
 - `BGB_LOG_LEVEL=INFO|DEBUG|WARNING|ERROR` — Global logging verbosity (default: INFO)
 - `BGB_LOG_FILE=/path/to/file.log` — Write logs to a file in addition to stdout
 - `BGB_LOG_FORMAT=rich|simple|json` — Output format (default: auto-detect; simple in CI/Modal)
-- `BGB_LOG_EVERY_N_STEPS=50` — Progress logging cadence (Modal overrides to 10)
+- `BGB_LOG_EVERY_N_STEPS=N` — Progress logging cadence (default: 50 local, Modal overrides to 10)
 - `BGB_LOG_RING_BUFFER_SIZE=1000` — In-memory log buffer size
 - `BGB_FORCE_SIMPLE=1` — Force simple logging format (no Rich)
 - `BGB_FORCE_RICH=0` — Disable Rich formatting even if available
 
 ## Modal-Specific Defaults
 
-Modal sets a few environment variables automatically in [`deploy/modal/app.py`](../../deploy/modal/app.py):
+Modal sets environment variables automatically in [`deploy/modal/app.py`](../../deploy/modal/app.py):
 
 ```python
 # Memory allocator tweaks (prevent XID 31)
@@ -80,8 +80,13 @@ TRITON_CACHE_DIR = f"/tmp/triton_cache_run_{run_id}"
 TORCHINDUCTOR_CACHE_DIR = f"/tmp/tii_cache_run_{run_id}"
 
 # Logging
-BGB_LOG_EVERY_N_STEPS = "10"
-BGB_NAN_DEBUG = "1"
+BGB_LOG_EVERY_N_STEPS = "10"              # Faster logging on A100
+BGB_NAN_DEBUG = "1"                       # Always enabled for cloud debugging
+
+# Training Control
+BGB_WALL_CLOCK_LIMIT_S = "82800"          # 23h limit (1h safety margin before Modal 24h kill)
+BGB_DISABLE_TQDM = "1"                    # Disable progress bars in cloud logs
+BGB_LIMIT_FILES = <unset for full training> # Explicitly removed to prevent accidents
 ```
 
 > Modal no longer forces `BGB_SANITIZE_GRADS=1`. Gradient clipping already keeps training stable.

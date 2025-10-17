@@ -1,7 +1,7 @@
 # 5-Minute Quickstart
 
-**Last Updated**: October 8, 2025  
-**Codebase Version**: v3.9.1 (Validation OOM Fix)  
+**Last Updated**: October 17, 2025
+**Codebase Version**: v4.0.0 (FLA Production + WSL2 Fix)
 **Time Required**: ~5 minutes
 
 ---

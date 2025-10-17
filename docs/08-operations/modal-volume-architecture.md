@@ -132,9 +132,6 @@ modal run deploy/modal/app.py --action check-cache
 
 # Inspect volume usage
 modal volume ls brain-go-brr-results
-
-# Download manifests for inspection
-modal run deploy/modal/app.py --action dump-manifest --split train > train_manifest.json
 ```
 
 Use these before expensive runs or after cleanups to ensure the cache is populated and manifests are present.

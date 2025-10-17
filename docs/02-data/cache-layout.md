@@ -84,17 +84,17 @@ Training logs should include:
 1. Ensure local mmap cache is complete and manifests are up to date.
 2. Sync to S3: `aws s3 sync cache/tusz_mmap/...` (train and dev directories).
 3. Run `modal run --detach deploy/modal/app.py --action populate-cache` to copy into `/results/cache/tusz_mmap/`.
-4. Validate the volume: `modal run deploy/modal/app.py --action check-cache` (verifies train/dev counts, manifest freshness, and detecs stray NPZ files).
+4. Validate the volume: `modal run deploy/modal/app.py --action check-cache` (verifies train/dev counts, manifest freshness, and detects stray NPZ files).
 5. Smoke test BiMamba2 (`configs/modal/smoke_bimamba.yaml`) or FLA (`configs/modal/smoke_fla.yaml`) to verify memory usage and throughput.
 6. Launch full training: BiMamba2 baseline (`configs/modal/train_bimamba.yaml`) or FLA research (`configs/modal/train_fla.yaml`).
 
 ## Recovery Tips
 
-- To rebuild locally: `rm -rf cache/tusz_mmap && make train-local` (training will recreate the cache).
+- To rebuild locally: Use `python scripts/convert_cache_to_mmap.py --source cache/tusz/train --dest cache/tusz_mmap/train` to recreate NPY mmap cache from NPZ source.
 - To clean Modal cache: `modal run deploy/modal/app.py --action clean-cache` before re-populating.
 - To remove stray NPZ files left by aborted runs: `modal run deploy/modal/clean_stray_npz.py --confirm`.
 - To inspect Modal cache health without modifying it: `modal run deploy/modal/app.py --action check-cache`.
-- Keep the old NPZ cache (`cache/tusz/`) until the migration is fully validated; switching back only requires pointing configs to the old path.
+- Note: The NPY mmap format is required for production use. Dataset loaders will raise `FileNotFoundError` if *_data.npy files are missing.
 
 ## Cost Notes
 

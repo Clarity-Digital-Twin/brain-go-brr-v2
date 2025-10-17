@@ -2,9 +2,9 @@
 
 Commands
 
-- `make t` — quick tests
-- `make test` — full coverage
-- `make test-gpu` — GPU-specific
+- `make t` — quick tests (alias for `make test-fast`, no coverage)
+- `make test` — full test suite with coverage
+- `make test-gpu` — GPU-specific tests (uses `-k "mamba or cuda"`)
 
 Focus areas
 

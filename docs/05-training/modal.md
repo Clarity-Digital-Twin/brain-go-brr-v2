@@ -1,6 +1,6 @@
 # Modal Training (A100-80GB)
 
-**Last Updated**: October 8, 2025  
+**Last Updated**: October 16, 2025  
 **Baseline**: v3.9.1 – Validation OOM Fix
 
 Modal is the production environment for the 100‑epoch A100 run. This guide covers the recommended workflow, timeout guard behaviour, cache hygiene, and observability.
@@ -89,7 +89,7 @@ The job exports:
 
 - The timeout guard monitors wall-clock time and, after ~23 h, saves `timeout_exit.pt`, logs a warning, and exits cleanly. Modal never hard-kills mid-checkpoint.
 - Relaunch training with `--resume`. The loader prefers, in order: newest `mid_epoch_*.pt`, `timeout_exit.pt`, then `last.pt`.
-- Expect 4–5 resume cycles for a 100‑epoch run (~5 days wall-clock, ~$350).
+- Expect 4–5 resume cycles for a 100‑epoch run (~5 days wall-clock, **~$18,600 projected** based on $186/epoch actual from 6 epochs).
 - Each checkpoint contains model, optimizer, scheduler, AMP scaler, and RNG state (Python/NumPy/torch CPU/torch CUDA). Resumes are deterministic—no repeated batches.
 - `.wandb_run_id` is stored in the checkpoint directory; resumed runs continue the same W&B dashboard (`[W&B] Run resumed: …` in logs).
 - Logs will show the restored batch/step (`[RESUME] ✅ … batch 2527, global_step 2527`) thanks to `StatefulDataLoader` state capture; warmup schedules and progress bars continue from the saved position.

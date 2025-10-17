@@ -11,7 +11,7 @@
 ### Primary Protection: Gradient Clipping (ALWAYS ON)
 
 ```yaml
-# configs/*/train.yaml
+# configs/local/train_bimamba.yaml or configs/modal/train_bimamba.yaml
 training:
   gradient_clip: 0.5  # Scales gradients with norm > 0.5
 ```

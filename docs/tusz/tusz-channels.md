@@ -31,5 +31,6 @@ Montage notes
 Code anchors
 
 - src/brain_brr/constants.py (channel order, synonyms)
-- src/brain_brr/data/loader.py (EDF → canonical channel tensor)
+- src/brain_brr/data/io.py:load_edf_file (EDF → canonical channel tensor with interpolation)
+- src/brain_brr/utils/pick_utils.py:pick_and_order (robust channel ordering across MNE versions)
 

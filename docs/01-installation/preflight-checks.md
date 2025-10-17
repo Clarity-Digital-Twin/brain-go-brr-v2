@@ -19,7 +19,9 @@ Dataset cache
 
 Smoke test
 
-- Local: `make s` (1 epoch, 3 files). Confirm training runs end‑to‑end without NaNs.
+- Local BiMamba2: `make smoke-bimamba` or `make s` (1 epoch, 3 files)
+- Local FLA: `make smoke-fla` (1 epoch, 3 files)
+- Confirm training runs end-to-end without NaNs or SIGBUS crashes.
 
 Troubleshooting
 
