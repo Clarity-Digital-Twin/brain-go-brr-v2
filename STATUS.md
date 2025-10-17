@@ -209,7 +209,7 @@
 - Status: ✅ **EPOCH 7/100** - Training progressing normally (7% complete)
 - Stack: TCN + BiGatedDeltaNet (FLA) + GNN + Dynamic LPE
 - Cost: $0 (local training)
-- Expected: ~200-300 hours total
+- Expected: **~960 hours total** (40 days) - measured 9.6h/epoch average from Epochs 1-6
 
 **Next Steps**:
 1. Let FLA training complete to epoch 100

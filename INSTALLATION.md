@@ -369,9 +369,10 @@ tmux attach -t train
 # Test Mamba CUDA first
 modal run deploy/modal/app.py --action test-mamba
 
-# BiMamba2 full training (detached)
+# BiMamba2 full training (hands-free auto-restart, recommended)
+modal deploy deploy/modal/app.py
 modal run --detach deploy/modal/app.py \
-  --action train --config configs/modal/train_bimamba.yaml
+  --action schedule-training --config configs/modal/train_bimamba.yaml
 
 # Monitor
 modal app logs <app-id>

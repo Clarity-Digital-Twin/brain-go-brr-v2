@@ -84,31 +84,48 @@ training:
   gradient_clip: 0.5
   mid_checkpoint_interval_s: 1800
   mid_epoch_keep: 3
-  resume: true                  # Allows --resume flag or config toggle
 ```
 
-### Modal (A100-80GB, `configs/modal/train_bimamba.yaml`)
+### Modal (A100-80GB)
 
+**🚨 CRITICAL**: Use `--action schedule-training` for 100-epoch production runs (auto-restart every 23h).
+
+**BiMamba2 Stack** (`configs/modal/train_bimamba.yaml`):
 ```bash
-# Always detach for long runs
+# Deploy Modal functions first
+modal deploy deploy/modal/app.py
+
+# Launch with auto-restart scheduler (hands-free 100 epochs)
 modal run --detach deploy/modal/app.py \
-  --action train \
+  --action schedule-training \
   --config configs/modal/train_bimamba.yaml
 ```
 
-Modal-specific behaviour:
-- Batch size 48, mixed precision enabled
-- Timeout guard saves `timeout_exit.pt` around 23 h (one hour before Modal’s hard kill)
-- `.wandb_run_id` is persisted alongside checkpoints so resumes continue the same dashboard
-
-When the guard triggers, relaunch with:
+**FLA Stack** (`configs/modal/train_fla.yaml`):
 ```bash
+# Deploy Modal functions first
+modal deploy deploy/modal/app.py
+
+# Launch with auto-restart scheduler (hands-free 100 epochs)
+modal run --detach deploy/modal/app.py \
+  --action schedule-training \
+  --config configs/modal/train_fla.yaml
+```
+
+**Modal-specific behaviour**:
+- Auto-restart every ~23h until 100 epochs complete (zero manual intervention)
+- Batch size 48, mixed precision enabled
+- `.wandb_run_id` persisted so resumes continue same dashboard
+- Checkpoint priority: `mid_epoch_*.pt` → `timeout_exit.pt` → `last.pt`
+
+**Manual Mode** (use ONLY for experiments, NOT production):
+```bash
+# Runs ONCE, requires manual restart after 23h timeout
 modal run --detach deploy/modal/app.py \
   --action train \
   --config configs/modal/train_bimamba.yaml \
   --resume
 ```
-The loader will pick the newest `mid_epoch_*.pt`, then `timeout_exit.pt`, then `last.pt`.
 
 ---
 

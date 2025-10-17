@@ -372,7 +372,7 @@ python -m src build-cache \
 make smoke-bimamba    # Test BiMamba2 stack
 make smoke-fla        # Test Gated DeltaNet stack
 
-# 7️⃣ Full local training (RTX 4090, 200-300 hours)
+# 7️⃣ Full local training (RTX 4090, ~960 hours / 40 days)
 export BGB_NAN_DEBUG=1
 tmux new -s train
 make train-bimamba    # or: make train-fla
@@ -380,22 +380,29 @@ make train-bimamba    # or: make train-fla
 ```
 
 **Cloud training (Modal A100-80GB, ~700-1200 hours, $3,400-$5,300+)** - **EXPENSIVE due to validation overhead**:
+
+**🚨 CRITICAL**: Use `--action schedule-training` for 100-epoch production runs (auto-restart every 23h).
+
 ```bash
-# BiMamba2 baseline
+# Deploy Modal functions first
+modal deploy deploy/modal/app.py
+
+# BiMamba2 production (hands-free, auto-restart)
 modal run --detach deploy/modal/app.py \
-  --action train \
+  --action schedule-training \
   --config configs/modal/train_bimamba.yaml
 
-# Gated DeltaNet research
+# Gated DeltaNet production (hands-free, auto-restart)
 modal run --detach deploy/modal/app.py \
-  --action train \
+  --action schedule-training \
   --config configs/modal/train_fla.yaml
 
 # Monitor progress
 modal app list
 modal app logs <app-id>
 
-# Resume after timeout
+# Manual mode (use ONLY for experiments, NOT production)
+# Runs ONCE, requires manual restart after 23h timeout
 modal run --detach deploy/modal/app.py \
   --action train \
   --config configs/modal/train_bimamba.yaml \
@@ -412,11 +419,11 @@ See [installation guide](docs/01-installation/) and [training docs](docs/05-trai
 
 **🔷 Stack 1 (BiMamba2)**: ⏸️ **PAUSED** at Epoch 6 (batch 647/1284, 50% through). Modal A100 training stopped Oct 13 due to budget control ($1,118 spent). Checkpoints backed up to Modal SSD + local (`backups/modal_bimamba2_epoch6/`). Resumable anytime.
 
-**🔶 Stack 2 (Gated DeltaNet)**: 🟢 **ACTIVE** - Local RTX 4090 training on Epoch 2, progressing normally. WSL2 SIGBUS fix enables local training (cache on ext4).
+**🔶 Stack 2 (Gated DeltaNet)**: 🟢 **ACTIVE** - Local RTX 4090 training on Epoch 7/100 (7% complete), progressing normally. WSL2 SIGBUS fix enables local training (cache on ext4).
 
 **Research question**: Does the delta rule improve over pure gating for clinical EEG seizure detection?
 
-**Current strategy**: Budget-conscious approach as independent researcher. Complete FLA training first (free, ~200-300 hours), analyze results, then decide if BiMamba2 comparison needed. If needed, resume BiMamba2 incrementally ($500-1k/month). Already have 6 epochs of BiMamba2 data for early comparison.
+**Current strategy**: Budget-conscious approach as independent researcher. Complete FLA training first (free, ~960 hours / 40 days), analyze results, then decide if BiMamba2 comparison needed. If needed, resume BiMamba2 incrementally ($500-1k/month). Already have 6 epochs of BiMamba2 data for early comparison.
 
 **Analysis plan**: Evaluate FLA on sensitivity@1FA/@5FA/@10FA, AUROC, and TAES scores. Compare against BiMamba2's 6-epoch baseline if both datasets available. All three outcomes (Gated Delta wins, BiMamba2 wins, or equivalence) are scientifically valuable—no prior work compares these architectures on TUSZ.
 
@@ -505,6 +512,6 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 **Updates?** [Watch the repo](https://github.com/clarity-digital-twin/brain-go-brr-v2) •
 **Discussion?** [Start a discussion](https://github.com/clarity-digital-twin/brain-go-brr-v2/discussions)
 
-**Current status (v4.0.0)**: FLA-focused training → BiMamba2 (Modal, PAUSED at Epoch 6, $1.1k spent, backed up) + FLA (Local RTX 4090, Epoch 2, ACTIVE) • Strategy: Complete FLA first (free), resume BiMamba2 incrementally if comparison needed • See [STATUS.md](STATUS.md) for full rationale
+**Current status (v4.0.0)**: FLA-focused training → BiMamba2 (Modal, PAUSED at Epoch 6, $1.1k spent, backed up) + FLA (Local RTX 4090, Epoch 7/100, ACTIVE) • Strategy: Complete FLA first (free, ~960h), resume BiMamba2 incrementally if comparison needed • See [STATUS.md](STATUS.md) for full rationale
 
 </div>

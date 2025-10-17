@@ -126,8 +126,8 @@ make train-bimamba  # or: .venv/bin/python -m src train configs/local/train_bima
 
 **Expected Performance:**
 - VRAM: 12-20GB (24GB total)
-- Speed: ~2-3 hours/epoch
-- Total: ~200-300 hours for 100 epochs
+- Speed: ~9.6 hours/epoch (measured from Epochs 1-6)
+- Total: ~960 hours (40 days) for 100 epochs
 
 ### Modal Cloud Training (A100-80GB)
 
@@ -138,8 +138,9 @@ modal run deploy/modal/app.py --action test-mamba
 # Smoke test (50 files)
 modal run deploy/modal/app.py --action train --config configs/modal/smoke_bimamba.yaml
 
-# Full training (detached for long runs)
-modal run --detach deploy/modal/app.py --action train --config configs/modal/train_bimamba.yaml
+# Full training (hands-free auto-restart, recommended)
+modal deploy deploy/modal/app.py
+modal run --detach deploy/modal/app.py --action schedule-training --config configs/modal/train_bimamba.yaml
 
 # Monitor training
 modal app list                    # List running apps
