@@ -32,9 +32,11 @@ End-to-end flow
    - Window=60s, stride=10s → per-window tensors and label masks (shape: [n_windows, 19, 15360])
 
 5) Cache creation
-   - Cache writer: stored as NPZ with `windows` and `labels`
-   - File pattern: `<basename>_windows.npz`
-   - Code path: `src/brain_brr/data/dataset.py` (EEGWindowDataset caching path)
+   - Cache writer: memory-mapped NPY pairs for zero-copy loading (v3.8.0+)
+   - File pattern: `<basename>_data.npy` + `<basename>_labels.npy`
+   - Code path: `src/brain_brr/data/datasets.py` (EEGWindowDataset caching)
+   - Mmap loader: `src/brain_brr/data/cache_utils.py:load_cache_mmap`
+   - Legacy NPZ format (`*_windows.npz`) deprecated but still supported
 
 6) Manifest categorization
    - Scanner: `src/brain_brr/data/cache_utils.py:scan_existing_cache`
@@ -53,16 +55,17 @@ End-to-end flow
 
 8) Training integration
    - Selection: `src/brain_brr/train/loop.py`
-     - Uses BalancedSeizureDataset when `manifest.json` exists and non-empty
-     - Validation uses standard dataset (no balancing)
-     - Exits if balanced dataset length is zero
+     - Train: BalancedSeizureDataset when `manifest.json` exists and non-empty
+     - Validation: ValidationDataset (natural ~8% seizure distribution, no balancing)
+     - Exits if balanced dataset length is zero (fail-fast on missing seizures)
 
 Known failure points (and fixes)
 - CSV_BI misparsed as simple CSV → all-zero masks → FIX: parse_tusz_csv handles CSV_BI
 - Missing seizure types (e.g., `cpsz`) → false background → FIX: complete seizure label set
 - **mysz missing (Sept 2025 discovery)** → 44 seizures marked as background → FIX: added mysz to set
 - **spkz in old docs but not in data** → potential confusion → FIX: removed spkz from all docs
-- **Invalid caches from before mysz fix** → wrong training data → FIX: DELETE ALL CACHES AND REBUILD
+- **Invalid caches from before mysz fix** → wrong training data → FIX: Delete cache/*.npy + manifest.json, rebuild
+- **Old NPZ caches (pre-v3.8.0)** → massive RAM usage → FIX: Convert to NPY mmap via scripts/convert_cache_to_mmap.py
 - Broken EDF header → read failure → FIX: minimal header repair then retry
 - No manifest/guards → training proceeds with zero seizures → FIX: scan-cache + fail-fast
 

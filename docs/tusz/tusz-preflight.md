@@ -64,9 +64,14 @@ Cache hygiene and invalidation
 
 **Storage:**
 - Manifest uses relative filenames; keep it next to the mmap cache directory
-- Local: `cache/tusz_mmap/` (smoke tests use SAME cache with `BGB_LIMIT_FILES=3`)
+- Local: `cache/tusz_mmap/` (smoke tests use SAME cache with `BGB_SMOKE_TEST=1` → 3 files)
 - Modal: `/results/cache/tusz_mmap/` (persistent SSD; smoke tests use SAME cache with `BGB_LIMIT_FILES=50`)
 - Modal health check: `modal run deploy/modal/app.py --action check-cache` verifies train/dev counts, manifest freshness, and flags stray NPZ files before starting long runs.
+
+**Environment Variables for Cache Control:**
+- `BGB_SMOKE_TEST=1` - Auto-limit to 3 files (fast local validation, ~5 minutes)
+- `BGB_LIMIT_FILES=N` - Override: use N files instead (e.g., Modal smoke uses 50)
+- `BGB_FORCE_MANIFEST_REBUILD=1` - Force manifest rebuild even if it exists
 
 Code anchors
 
