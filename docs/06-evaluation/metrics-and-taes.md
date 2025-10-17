@@ -22,7 +22,8 @@ Core functions
   - `fa_per_24h` — false alarms per 24 hours (pred events without overlap)
   - `sensitivity_at_fa_rates` — computes event-level sensitivity at FA targets; supports window stitching
   - `calculate_taes` — TAES scoring (overlap reward minus FA penalty)
-  - `calculate_roc_auc` — AUROC; `calculate_ece` — calibration error (ECE)
+  - `calculate_ece` — calibration error (ECE)
+  - AUROC computed via sklearn's `roc_auc_score` (no wrapper function)
 
 Timeline metadata and stitching
 
