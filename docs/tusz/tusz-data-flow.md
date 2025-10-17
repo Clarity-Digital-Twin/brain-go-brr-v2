@@ -20,10 +20,11 @@ End-to-end flow
      - Deterministic rounding (int(start*fs), int(end*fs))
 
 3) EDF → canonical channels
-   - Loader: `src/brain_brr/data/loader.py`
-     - Canonical 19-ch order (see constants)
-     - Synonyms (T7→T3, T8→T4, P7→T5, P8→T6)
-     - Interpolation when rare channels missing; logs occurrences
+   - Loader: `src/brain_brr/data/io.py:load_edf_file`
+     - Canonical 19-ch order (see constants.CHANNEL_NAMES_10_20)
+     - Synonyms (T7→T3, T8→T4, P7→T5, P8→T6) via constants.CHANNEL_SYNONYMS
+     - Interpolation: only Fz/Pz when missing (via MNE montage)
+     - Channel ordering: `src/brain_brr/utils/pick_utils.py:pick_and_order` (robust across MNE versions)
 
 4) Preprocess + windowing
    - Bandpass 0.5–120 Hz; 60 Hz notch
@@ -31,12 +32,17 @@ End-to-end flow
    - Per-channel z-score
    - Window=60s, stride=10s → per-window tensors and label masks (shape: [n_windows, 19, 15360])
 
-5) Cache creation
-   - Cache writer: memory-mapped NPY pairs for zero-copy loading (v3.8.0+)
-   - File pattern: `<basename>_data.npy` + `<basename>_labels.npy`
-   - Code path: `src/brain_brr/data/datasets.py` (EEGWindowDataset caching)
-   - Mmap loader: `src/brain_brr/data/cache_utils.py:load_cache_mmap`
-   - Legacy NPZ format (`*_windows.npz`) deprecated but still supported
+5) Cache creation (OFFLINE - NOT done by datasets.py!)
+   - **CRITICAL**: Cache files must be pre-generated offline before training
+   - File format: `<basename>_data.npy` + `<basename>_labels.npy` (memory-mapped, v3.8.0+)
+   - **Cache generation methods**:
+     - **Modal (recommended)**: `modal run deploy/modal/app.py --action populate-cache`
+     - **NPZ conversion**: `scripts/convert_cache_to_mmap.py --source <npz_dir> --dest <npy_dir>`
+     - **Legacy CLI** (`python -m src build-cache`): EXISTS but deprecated, doesn't write NPY caches!
+   - **Cache loading** (read-only):
+     - Datasets: `src/brain_brr/data/datasets.py` (EEGWindowDataset, BalancedSeizureDataset, ValidationDataset)
+     - Mmap loader: `src/brain_brr/data/cache_utils.py:load_cache_mmap` (zero-copy, OS-managed)
+   - Legacy NPZ format (`*_windows.npz`) deprecated but still readable via scan_existing_cache
 
 6) Manifest categorization
    - Scanner: `src/brain_brr/data/cache_utils.py:scan_existing_cache`
@@ -73,5 +79,5 @@ Operational commands
 See README.md for quick command reference.
 
 See also
-- CSV_BI_PARSER.md, CHANNELS_AND_MONTAGE.md, CACHE_AND_SAMPLING.md, PREFLIGHT_AND_TROUBLESHOOTING.md, EDF_HEADER_REPAIR.md
+- tusz-csv-parser.md, tusz-channels.md, tusz-cache-sampling.md, tusz-preflight.md, tusz-edf-repair.md
 
