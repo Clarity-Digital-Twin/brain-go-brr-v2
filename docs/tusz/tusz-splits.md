@@ -30,13 +30,13 @@ Runtime verification
 - Logs print patient/file counts per split and “✅ PATIENT DISJOINTNESS VERIFIED”.
 
 Cache structure
-- Local: `cache/tusz_mmap/{train,dev}/` (smoke uses SAME cache with `BGB_LIMIT_FILES` env var).
-- Modal: `/results/cache/tusz_mmap/{train,dev}/` (persistent SSD volume; no S3 mounts).
+- Local: `cache/tusz_mmap/{train,dev}/` (smoke tests use `BGB_SMOKE_TEST=1` → 3 files from same cache).
+- Modal: `/results/cache/tusz_mmap/{train,dev}/` (persistent SSD volume; smoke tests use `BGB_LIMIT_FILES=50`).
 - CRITICAL: We use 'dev' naming to match TUSZ's official split names, NOT 'val'!
 
 Guardrails
 - If any overlap is detected between train/dev patients, training aborts.
-- Balanced dataset is used only for training (validation uses standard dataset).
+- BalancedSeizureDataset used for training (~30% seizures); ValidationDataset used for dev (natural ~8% distribution).
 
 Related
 - Data overview: `docs/02-data/overview.md`
