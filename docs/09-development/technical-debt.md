@@ -13,7 +13,7 @@
 | **P3 LOW** | 0 | None |
 | **P4 OPTIONAL** | 3 | None (future enhancements) |
 
-**Current Status**: All known technical debt has been eliminated. Codebase is clean and Modal A100 training is running.
+**Current Status**: All known technical debt has been eliminated. Codebase is clean and production ready. BiMamba2 (Modal A100) is PAUSED at Epoch 6 due to costs ($18,600 projected). FLA (local RTX 4090) is PRIMARY production stack at Epoch 7/100.
 
 Priority definitions (for quick reference):
 - **P0** — Blocks training/inference or corrupts results.

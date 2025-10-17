@@ -68,7 +68,7 @@ P2 — Open/Polish
   - TODO: add `TypedDict` (or `Protocol`) for the dataset batch dictionary to prevent regressions to tuple outputs.
 
 Notes
-- Local smoke: keep `batch_size ≥ 4` to avoid tiny‑batch NaNs on RTX 4090.
+- Local: Production batch_size=8 (optimized for RTX 4090), smoke tests use batch_size=4 minimum to avoid tiny-batch NaNs.
 - Modal: run `clean-cache` once to purge pre‑fix caches; app verifies patient disjointness.
 - Documented non-issues (tracked for completeness):
   - pytorch-tcn CPU hang scares (P2.2) — production uses the internal MinimalTCN backend; external pytorch-tcn stays optional (`docs/archive/REMAINING_ISSUES_INVESTIGATION.md`).
