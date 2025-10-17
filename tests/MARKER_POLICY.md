@@ -148,11 +148,15 @@ class TestGPUFeatures:
 
 ### `make test`
 ```bash
-pytest tests/ -m "not performance and not gpu" --cov
+# Runs 3 separate commands with coverage:
+pytest -n 1 -m "not performance and not gpu" tests/unit --cov=src --cov-append
+pytest -n 1 -m "not performance and not gpu" tests/integration --cov=src --cov-append
+pytest -n 1 tests/clinical --cov=src --cov-append --cov-report=html
 ```
-- **Runs**: Unit, integration, clinical tests WITHOUT GPU
+- **Runs**: Unit, integration, clinical tests WITHOUT GPU, with full coverage
 - **Excludes**: Performance tests, GPU tests
-- **Purpose**: Fast development cycle
+- **Purpose**: Full test suite with coverage reporting
+- **Note**: Use `make test-fast` or `make t` for faster tests without coverage
 
 ### `make test-safe` / `make ts`
 ```bash
@@ -183,10 +187,12 @@ pytest tests/ -v -k "mamba or cuda"
 
 | Category | Count | Marker Status |
 |----------|-------|---------------|
-| **Total tests** | ~500 | N/A |
-| **GPU tests** | ~45 | ✅ All marked |
-| **Performance tests** | ~18 | ✅ All marked |
-| **Both** | ~16 | ✅ All marked |
+| **Total tests** | 656 | N/A |
+| **GPU tests** | 68 | ✅ All marked |
+| **Performance tests** | 25 | ✅ All marked |
+| **Both (GPU + performance)** | 25 | ✅ All marked |
+
+**Note**: All 25 performance tests are GPU-intensive (performance tests = GPU + performance markers).
 
 ---
 

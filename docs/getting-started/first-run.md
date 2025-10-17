@@ -1,8 +1,8 @@
 # Your First Training Run
 
-**Last Updated**: October 8, 2025  
-**Codebase Version**: v3.9.1 (Validation OOM Fix)  
-**Estimated Time**: 30 minutes to launch, ~200–300 h (RTX 4090) or ~100 h (Modal A100) to complete
+**Last Updated**: October 17, 2025  
+**Codebase Version**: v4.0.0 (FLA Production + WSL2 Fix)  
+**Estimated Time**: 30 minutes to launch, ~960 h (40 days) for FLA on RTX 4090, ~700-1200 h for BiMamba2 on Modal A100 (both for 100 epochs)
 
 ---
 
@@ -54,17 +54,28 @@ Detach with `Ctrl+B, D` and reattach via `tmux attach -t train`.
 
 ## Part 2 – Launch Training
 
-### Local (RTX 4090, `configs/local/train_bimamba.yaml`)
+### Local (RTX 4090)
 
+**BiMamba2 Stack** (`configs/local/train_bimamba.yaml`):
 ```bash
 # Optional diagnostics
 export BGB_NAN_DEBUG=1
 # export BGB_SANITIZE_GRADS=1   # Use only while debugging NaNs
 
-make train-local
+make train-bimamba
 ```
 
-Key defaults (see config for full list):
+**FLA Stack** (`configs/local/train_fla.yaml`):
+```bash
+# Optional diagnostics
+export BGB_NAN_DEBUG=1
+
+make train-fla
+```
+
+**NOTE**: FLA training requires cache on native ext4 filesystem (not Windows `/mnt/` drives) to avoid WSL2 SIGBUS crashes. See `INSTALLATION.md` section 6 for details.
+
+Key defaults for both stacks (see config for full list):
 ```yaml
 training:
   batch_size: 8
@@ -73,31 +84,48 @@ training:
   gradient_clip: 0.5
   mid_checkpoint_interval_s: 1800
   mid_epoch_keep: 3
-  resume: true                  # Allows --resume flag or config toggle
 ```
 
-### Modal (A100-80GB, `configs/modal/train_bimamba.yaml`)
+### Modal (A100-80GB)
 
+**🚨 CRITICAL**: Use `--action schedule-training` for 100-epoch production runs (auto-restart every 23h).
+
+**BiMamba2 Stack** (`configs/modal/train_bimamba.yaml`):
 ```bash
-# Always detach for long runs
+# Deploy Modal functions first
+modal deploy deploy/modal/app.py
+
+# Launch with auto-restart scheduler (hands-free 100 epochs)
 modal run --detach deploy/modal/app.py \
-  --action train \
+  --action schedule-training \
   --config configs/modal/train_bimamba.yaml
 ```
 
-Modal-specific behaviour:
-- Batch size 48, mixed precision enabled
-- Timeout guard saves `timeout_exit.pt` around 23 h (one hour before Modal’s hard kill)
-- `.wandb_run_id` is persisted alongside checkpoints so resumes continue the same dashboard
-
-When the guard triggers, relaunch with:
+**FLA Stack** (`configs/modal/train_fla.yaml`):
 ```bash
+# Deploy Modal functions first
+modal deploy deploy/modal/app.py
+
+# Launch with auto-restart scheduler (hands-free 100 epochs)
+modal run --detach deploy/modal/app.py \
+  --action schedule-training \
+  --config configs/modal/train_fla.yaml
+```
+
+**Modal-specific behaviour**:
+- Auto-restart every ~23h until 100 epochs complete (zero manual intervention)
+- Batch size 48, mixed precision enabled
+- `.wandb_run_id` persisted so resumes continue same dashboard
+- Checkpoint priority: `mid_epoch_*.pt` → `timeout_exit.pt` → `last.pt`
+
+**Manual Mode** (use ONLY for experiments, NOT production):
+```bash
+# Runs ONCE, requires manual restart after 23h timeout
 modal run --detach deploy/modal/app.py \
   --action train \
   --config configs/modal/train_bimamba.yaml \
   --resume
 ```
-The loader will pick the newest `mid_epoch_*.pt`, then `timeout_exit.pt`, then `last.pt`.
 
 ---
 
@@ -169,4 +197,7 @@ More detail: see `docs/08-operations/troubleshooting.md` and `docs/08-operations
 - Run evaluation/TAES pipeline on dev and eval sets
 - Explore future work ideas in `docs/future-work/`
 
-With the v3.9.1 tooling (atomic checkpoints + timeout guard + disk-backed validation + W&B persistence), resuming long Modal runs is routine—expect to relaunch every ~23 h and lose at most 10–30 minutes of progress.
+With the v4.0.0 tooling (atomic checkpoints + timeout guard + StatefulDataLoader + W&B persistence), resuming long runs is routine:
+
+- **Modal**: Auto-restart every ~23h via `--action schedule-training` (hands-free 100 epochs)
+- **Local**: Manual resume with `--resume` flag, loses at most 30 minutes of progress (mid-epoch checkpoint interval)

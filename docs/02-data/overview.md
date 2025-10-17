@@ -16,7 +16,7 @@ Pipeline summary
 - Load EDF with MNE; repair rare headers (colon→period) when necessary.
 - Map channels to canonical order, apply synonyms (T7→T3, T8→T4, P7→T5, P8→T6).
 - Resample to 256Hz, bandpass 0.5–120Hz, 60Hz notch; per‑channel z‑score.
-- Extract 60s windows with 10s stride; save to NPZ (windows and optional labels).
+- Extract 60s windows with 10s stride; save to memory-mapped NPY format (windows and optional labels).
 - Build manifest categorizing windows as partial/full/no‑seizure; Balanced dataset uses manifest directly.
 
 Channel order (must maintain)
@@ -25,9 +25,9 @@ Channel order (must maintain)
 
 Dataset classes
 
-- `EEGWindowDataset`: lazy NPZ cache builder/reader that can populate `_dataset_index.json` on demand. Returns dictionaries with keys `window`, `label`, `file_id`, and `window_start_s` so downstream code can stitch per-record timelines even when falling back from the balanced manifest.
+- `EEGWindowDataset`: reads from memory-mapped NPY cache or processes EDFs on-demand when `cache_dir` is not set. Populates `_dataset_index.json` for fast subsequent loads. Returns dictionaries with keys `window`, `label`, `file_id`, and `window_start_s` for timeline stitching. Raises `FileNotFoundError` if cache files are missing.
 - `BalancedSeizureDataset`: reads `train/manifest.json` and assembles a balanced slice (all partial, 0.3× full, 2.5× background). Returns the same dictionary structure and exposes `seizure_ratio` without sampling.
-- `ValidationDataset`: loads `dev/manifest.json`, groups windows by cache file, and preserves natural ordering. Validation now depends on the manifest metadata instead of re-scanning every NPZ.
+- `ValidationDataset`: loads `dev/manifest.json`, groups windows by cache file, and preserves natural ordering. Reads from memory-mapped NPY cache for fast, low-memory validation.
 
 Dataset Strategy (CRITICAL - This is correct ML practice!)
 
@@ -49,4 +49,4 @@ See also
 
 - Preprocessing: `docs/02-data/preprocessing.md`
 - Cache and manifest: `docs/02-data/cache-layout.md`
- - Official TUSZ splits and policy: `docs/tusz/tusz-splits.md`
+- Official TUSZ splits and policy: `docs/tusz/tusz-splits.md`

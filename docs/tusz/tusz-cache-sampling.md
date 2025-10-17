@@ -7,12 +7,13 @@ Objective
 Cache building
 
 - Windowing: 60s windows, 10s stride (83% overlap), 256 Hz, per-channel z-score
-- Cache file: `<basename>_windows.npz` with arrays: `windows`, `labels`
+- Cache format (v3.8.0+): `<basename>_data.npy` + `<basename>_labels.npy` (memory-mapped, zero-copy)
+- Legacy format (deprecated): `<basename>_windows.npz` (compressed, high RAM usage)
 - Labels: per-window time-step binary mask built from CSV_BI events
 
 Manifest creation (categorization)
 
-- `scan_existing_cache(cache_dir)` reads each NPZ and categorizes windows:
+- `scan_existing_cache(cache_dir)` reads cache files (NPY pairs or legacy NPZ) and categorizes windows:
   - no_seizure: ratio == 0.0
   - full_seizure: ratio ≥ 0.99
   - partial_seizure: 0.0 < ratio < 0.99
@@ -29,8 +30,8 @@ BalancedSeizureDataset (exact formula)
 
 Training integration
 
-- Train: BalancedSeizureDataset when manifest exists and non-empty
-- Val/Test: standard dataset (no balancing) to avoid bias
+- Train: BalancedSeizureDataset when manifest exists and non-empty (~30% seizures after balancing)
+- Validation: ValidationDataset (natural ~8% seizure distribution, no balancing) for realistic metrics
 - Fail-fast: exit if balanced dataset length is zero
 
 Commands

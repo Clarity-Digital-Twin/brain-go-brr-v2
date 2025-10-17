@@ -34,11 +34,12 @@ How to verify
 
 Related docs
 
-- CSV_BI parsing: CSV_BI_PARSER.md
-- Preflight & troubleshooting: PREFLIGHT_AND_TROUBLESHOOTING.md
+- CSV_BI parsing: tusz-csv-parser.md
+- Preflight & troubleshooting: tusz-preflight.md
 
 Code anchors
 
-- Loader entry: channel normalization and EDF open live in the data loader.
-- Repair helper: header normalization is applied on read failure before retry.
+- src/brain_brr/data/io.py:load_edf_file (main loader with repair fallback)
+- src/brain_brr/data/io.py:_repair_edf_header_inplace (repairs colon separators at byte 168-175)
+- src/brain_brr/data/io.py:_read_raw_edf (MNE wrapper)
 

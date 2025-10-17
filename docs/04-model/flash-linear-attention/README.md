@@ -71,7 +71,7 @@ This folder contains **detailed research documentation** for the Flash Linear At
 - `configs/modal/{smoke,train}_fla.yaml` — Modal A100
 
 **Installation**: `docs/01-installation/gpu-stack.md`
-- FLA requires `flash-linear-attention==0.2.3`
+- FLA requires `flash-linear-attention>=0.3.0,<0.4.0` (per `pyproject.toml`)
 - Triton dependency notes (3.1.0 vs 3.2.0 compatibility)
 
 **Training Notes**: `docs/05-training/local.md`, `docs/05-training/modal.md`
@@ -83,14 +83,14 @@ This folder contains **detailed research documentation** for the Flash Linear At
 ## Current Status (v4.0.0)
 
 ### BiMamba2 Stack (Baseline)
-- **Training**: Modal A100, Epoch 3, auto-restart enabled
-- **Status**: Production baseline, ~100 epochs target
-- **Purpose**: Establish performance floor for comparison
+- **Training**: Modal A100, **PAUSED at Epoch 6** due to high costs
+- **Status**: Baseline established (6 epochs @ $1,118 total cost)
+- **Purpose**: High-end comparison baseline (when budget permits)
 
 ### FLA Stack (Research)
-- **Training**: Local RTX 4090, Epoch 2, stable after WSL2 fix
-- **Status**: Production research stack, parallel training
-- **Purpose**: Empirical A/B comparison vs BiMamba2
+- **Training**: Local RTX 4090, **Epoch 7/100** (7% complete, progressing normally)
+- **Status**: PRIMARY training stack (cost-effective at $0)
+- **Purpose**: Production candidate for clinical EEG seizure detection
 
 ### Next Milestone
 - Complete both 100-epoch runs

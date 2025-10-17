@@ -9,11 +9,11 @@
 **🚨 CRITICAL UPDATE** (Oct 9, 2025 - Bug Hunt):
 The documentation claimed "all phases COMPLETE" but this was **incorrect**. After config architecture separation (commit a08d5a36), the phase-specific configs (phase1a, phase1b, phase2) were deleted and replaced with a two-stack approach:
 
-**ACTUAL CURRENT STATE**:
+**ACTUAL CURRENT STATE** (Updated Oct 16, 2025 - v4.0.0):
 - ✅ **Phase 1a (BiMamba2 Baseline)**: Implemented and tested (configs: `{smoke,train}_bimamba.yaml`)
-- 🟡 **Phase 1b (FLA Integration)**: Code implemented, configs created (`{smoke,train}_fla.yaml`), **validation pending**
-- ⬜ **Phase 2**: Not started - requires Phase 1b validation first
-- ⬜ **Phase 3**: Not started - conditional on Phase 2 results
+- ✅ **Phase 1b (FLA Integration)**: COMPLETE - Code implemented, configs created, **production training active (Epoch 7/100)**
+- ✅ **Phase 2 (Dual-Stack)**: COMPLETE - Both architectures validated, FLA training on local RTX 4090
+- ⏸️ **BiMamba2 Modal**: PAUSED at Epoch 6 due to costs ($18,600 projected for 100 epochs)
 
 **WHAT EXISTS NOW** (Oct 9, 2025):
 - `configs/local/smoke_bimamba.yaml` - BiMamba2 smoke test (3 files)

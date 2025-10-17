@@ -22,7 +22,8 @@ Core functions
   - `fa_per_24h` — false alarms per 24 hours (pred events without overlap)
   - `sensitivity_at_fa_rates` — computes event-level sensitivity at FA targets; supports window stitching
   - `calculate_taes` — TAES scoring (overlap reward minus FA penalty)
-  - `calculate_roc_auc` — AUROC; `calculate_ece` — calibration error (ECE)
+  - `calculate_ece` — calibration error (ECE)
+  - AUROC computed via sklearn's `roc_auc_score` (no wrapper function)
 
 Timeline metadata and stitching
 
@@ -75,7 +76,7 @@ Expected calibration error (ECE):
 ECE = Σᵢ | accuracy(Bᵢ) - confidence(Bᵢ) | * P(Bᵢ)
 ```
 
-- Bins `Bᵢ` partition probability space (default `n = 15`).
+- Bins `Bᵢ` partition probability space (default `n = 10`).
 - `accuracy(Bᵢ)` = mean label for samples in `Bᵢ`.
 - `confidence(Bᵢ)` = mean probability for samples in `Bᵢ`.
 - `P(Bᵢ)` = fraction of samples in that bin.

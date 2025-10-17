@@ -396,24 +396,54 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 ### Key Files to Reference
 - Installation: `INSTALLATION.md`
 - Architecture evolution: `ARCHITECTURE_EVOLUTION.md`
+- **TAES naming collision**: `TAES_DISAMBIGUATION.md` (CRITICAL - explains TAES metric vs NEDC TAES scoring)
+- Realistic performance targets: `REALISTIC_PERFORMANCE_TARGETS.md`
 - Config details: `configs/README.md`
 - Modal training: `docs/05-training/modal.md`
 - Local training: `docs/05-training/local.md`
 
-## 📊 Expected Performance
+## 📊 Actual Performance (MEASURED from production training)
 
-### Training Times
-- **Local (RTX 4090)**: ~3 hours/epoch, ~300 hours total (12.5 days)
-- **Modal (A100)**: **COST UNCERTAIN** - Previous runs experienced 7-12 hours/epoch due to validation overhead (5.8h validation documented). Estimated $3,400-$10,000+ for 100 epochs depending on bottlenecks. Training paused due to high costs.
-- **Smoke test**: ~5 minutes (3 files local/Docker, 50 files Modal)
+**🚨 CRITICAL METRICS NOTE**: "TAES" has TWO different meanings! See `TAES_DISAMBIGUATION.md` for details.
+- **TAES: 0.9450** = quality score [0,1] from our `calculate_taes()` metric
+- **Sensitivity @ FA rates** = uses NEDC OVERLAP scoring (NOT NEDC TAES scoring!)
 
-**Modal A100-80GB Cost Breakdown** (from actual pricing):
-- GPU: $2.50/hr
-- 24 CPU cores: $1.13/hr
-- 96GB RAM: $0.77/hr
+### Training Times (LOCAL FLA - RTX 4090)
+**MEASURED from 6 complete epochs (Epochs 1-6):**
+- **Training**: ~4.1h per epoch (7702 batches @ ~2.1s/batch)
+- **Validation**: ~5.5h per epoch (18528 batches, disk-backed)
+- **Total**: ~9.6h per epoch average
+- **100 epochs**: ~960 hours (40 days)
+- **Current status**: Epoch 7/100 in progress (7% complete)
+
+**Breakdown by epoch:**
+- Epoch 1: 7.20h (1.62h train + 5.58h val) - faster due to warmup
+- Epochs 2-6: 10.1h avg (4.6h train + 5.5h val) - consistent performance
+
+**CRITICAL FINDING**: Validation takes **1.3× longer** than training (57.2% vs 42.8% of epoch time)
+
+### Training Times (MODAL BiMamba2 - A100-80GB)
+**DOCUMENTED** (not measured - training paused at Epoch 6):
+- Training: ~1-2h per epoch (documented)
+- Validation: ~5.8h per epoch (documented)
+- Total: ~7-12h per epoch (documented)
+- **Status**: PAUSED due to high costs
+
+### Cost Comparison
+| Platform | 6 Epochs | Cost/Epoch | 100 Epochs | Notes |
+|----------|----------|------------|------------|-------|
+| **Local FLA (RTX 4090)** | FREE | $0 | **$0** | Only electricity (~negligible) |
+| **Modal BiMamba2 (A100)** | $1,118 | **$186** | **$18,600** | Training PAUSED |
+
+**Modal A100-80GB Cost Breakdown**:
+- GPU: $2.50/hr + 24 CPU cores: $1.13/hr + 96GB RAM: $0.77/hr
 - **Total: $4.40/hour**
-- **Per epoch (7-12h)**: $34-$53+ (may be higher with bottlenecks)
-- **100 epochs**: $3,400-$5,300+ (observed costs were higher in practice)
+- **Per epoch (7-12h)**: $31-$53
+- **Actual cost**: $186/epoch (from 6 epochs measured)
+
+### Smoke Tests
+- **Local/Docker**: ~5 minutes (3 files)
+- **Modal**: ~5-10 minutes (50 files)
 
 ### Resource Usage
 - **VRAM**: 12-20GB (RTX 4090), 40-60GB (A100)
@@ -453,5 +483,5 @@ Due to hardware differences, integration tests have adjusted thresholds:
 - ✅ **Backward compatibility** - Old checkpoints still work (logs warning, restarts from epoch start)
 - ✅ **Timeout guard** - 23h wall-clock limit, 1h safety margin, graceful exit before Modal kill
 - ✅ **Modal 1.0 migration complete** - Updated max_containers parameter, deprecation warnings fixed
-- 📊 **Current training**: BiMamba2 (Modal, Epoch 3) + FLA (Local, Epoch 2) - both progressing normally
+- 📊 **Current training**: BiMamba2 (Modal, PAUSED at Epoch 6) + FLA (Local, Epoch 7/100) - local training progressing normally
 - 📚 **See**: `docs/08-operations/wsl2-sigbus-fix.md` for WSL2 details, `docs/archive_v4/` for incident analysis

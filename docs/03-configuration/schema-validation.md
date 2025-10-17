@@ -29,15 +29,15 @@ logging:       # LoggingConfig
 ### Data Configuration
 ```yaml
 data:
-  dataset: "tuh_eeg"              # or "chb_mit"
+  dataset: "tuh_eeg"              # ONLY tuh_eeg supported (TUSZ corpus)
   data_dir: path/to/data          # Path to raw EDF files (train/, dev/, eval/)
-  cache_dir: path/to/cache        # Path to preprocessed NPZ (train/, dev/ subdirs)
-  use_balanced_sampling: true     # CRITICAL for seizure detection
+  cache_dir: path/to/cache        # Path to memory-mapped NPY cache (train/, dev/ subdirs with *_data.npy/*_labels.npy pairs)
+  use_balanced_sampling: true     # CRITICAL for seizure detection (oversample seizures 8% → 30%)
   sampling_rate: 256              # MUST be 256 Hz
   n_channels: 19                  # MUST be 19 (10-20 montage)
   window_size: 60                 # MUST be 60 seconds
   stride: 10                      # MUST be 10 seconds
-  num_workers: 0                  # 0 for WSL2, 8 for native Linux
+  num_workers: 0                  # 0 for WSL2, 4 for native Linux
   pin_memory: false               # Enable when num_workers > 0 on Linux
   persistent_workers: false       # Requires num_workers > 0 to take effect
   prefetch_factor: 2              # Default per-worker prefetch depth
@@ -94,26 +94,35 @@ model:
 ```yaml
 training:
   epochs: 100
-  batch_size: 16                  # 12 for RTX 4090, 64 for A100
+  batch_size: 8                   # 8 for RTX 4090, 48 for A100
 
   # Loss configuration
-  loss: "focal"                   # Required for class imbalance
+  loss: "focal"                   # Required for class imbalance (ONLY option as of v3.7.0)
   focal_alpha: 0.5
   focal_gamma: 2.0
 
   # Optimizer
-  learning_rate: 0.0001           # 1e-4 local, 3e-5 modal
-  weight_decay: 0.05
-  optimizer: "adamw"
+  learning_rate: 1.0e-4           # 1.0e-4 local, 8.0e-5 modal (batch-size scaled)
+  weight_decay: 0.01              # 0.01 local, 0.05 modal
+  optimizer: "adamw"              # ONLY option
 
   # Training control
-  gradient_clip: 0.1              # Aggressive for stability
-  mixed_precision: false          # Disable on RTX 4090
+  gradient_clip: 0.5              # Increased from 0.1 (post eigendecomposition fix)
+  mixed_precision: false          # false for RTX 4090, true for A100
   checkpoint_interval: 1
+  mid_checkpoint_interval_s: 1800 # Save every 30 min for long epochs
+  mid_epoch_keep: 3               # Keep last 3 mid-epoch checkpoints
 
   scheduler:
-    type: "cosine"
-    warmup_ratio: 0.01            # 1% warmup to avoid near-zero LR
+    type: "cosine"                # ONLY option
+    warmup_ratio: 0.03            # 3% warmup (increased from 0.01)
+
+  # Optional: Warmup schedules for gradient stabilization
+  warmup_schedule:
+    enabled: true
+    warmup_steps: 1000
+    adj_temperature_enabled: true
+    focal_gamma_enabled: true
 ```
 
 ### Post-processing Configuration
@@ -172,7 +181,14 @@ logging:
 model:
   architecture: "tcn"  # ❌ INVALID - must be "v3"
 ```
-**Fix**: Use `architecture: "v3"`
+**Fix**: Use `architecture: "v3"` (only supported architecture)
+
+### Error: use_balanced_sampling with smoke tests
+```yaml
+data:
+  use_balanced_sampling: true  # ❌ INVALID for smoke tests with BGB_SMOKE_TEST=1
+```
+**Fix**: Set `use_balanced_sampling: false` for smoke tests (3-50 files)
 
 ## Validation Command
 

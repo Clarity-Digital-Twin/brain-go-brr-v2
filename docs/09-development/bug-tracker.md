@@ -52,12 +52,12 @@ P2 — Fixed / Cleanup
   - Fix: All optional config fields now use `Annotated[..., Field(...)]` so Pydantic v2.12 no longer emits `UnsupportedFieldAttributeWarning` (`src/brain_brr/config/schemas.py`).
   - Impact: `make q` runs warning-free; config validation stays strict with zero cosmetic noise.
 
-P1 — Open
-- **Validation loss weighting under imbalance** (ACTIVE)
-  - Issue: Training uses `pos_weight` (train_step.py:141), validation doesn't (val_step.py:239)
-  - Impact: Train/val loss not directly comparable due to different class weighting
-  - TODO: Mirror `pos_weight` in validation OR report both weighted+unweighted val loss
-  - Severity: P1 (affects interpretability, not correctness)
+P1 — Fixed
+- **Validation loss weighting consistency** (RESOLVED v3.8.0+)
+  - Historical issue: Training/validation used different loss weighting schemes
+  - Fix: Both now use identical focal loss (focal_alpha/gamma) - no pos_weight anywhere
+  - Code: train_step.py:319-328 and val_step.py:474-481 use same focal loss formula
+  - Impact: Train/val losses are now directly comparable (same weighting)
 
 P2 — Open/Polish
 - Edge adjacency sparsification ordering
@@ -68,7 +68,7 @@ P2 — Open/Polish
   - TODO: add `TypedDict` (or `Protocol`) for the dataset batch dictionary to prevent regressions to tuple outputs.
 
 Notes
-- Local smoke: keep `batch_size ≥ 4` to avoid tiny‑batch NaNs on RTX 4090.
+- Local: Production batch_size=8 (optimized for RTX 4090), smoke tests use batch_size=4 minimum to avoid tiny-batch NaNs.
 - Modal: run `clean-cache` once to purge pre‑fix caches; app verifies patient disjointness.
 - Documented non-issues (tracked for completeness):
   - pytorch-tcn CPU hang scares (P2.2) — production uses the internal MinimalTCN backend; external pytorch-tcn stays optional (`docs/archive/REMAINING_ISSUES_INVESTIGATION.md`).

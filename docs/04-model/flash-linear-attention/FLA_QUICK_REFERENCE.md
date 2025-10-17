@@ -1,17 +1,17 @@
-# FLA Quick Reference - October 9, 2025
+# FLA Quick Reference - October 16, 2025
 
-**TL;DR**: BiMamba2 baseline training LIVE on Modal. FLA infrastructure complete. Wait for baseline → Create Modal config → Train FLA → A/B comparison. Architecture details now live in `docs/04-model/mamba.md`; this file tracks operational status.
+**TL;DR**: FLA training ACTIVE (Epoch 7/100, local RTX 4090, $0 cost). BiMamba2 PAUSED at Epoch 6 (Modal A100, $18,600 projected cost). Architecture details in `docs/04-model/mamba.md`; this file tracks operational status and dual-stack strategy.
 
 ---
 
-## 🎯 **Current Status**
+## 🎯 **Current Status (v4.0.0 - October 16, 2025)**
 
 | Component | Status | Evidence |
 |-----------|--------|----------|
-| **BiMamba2 Baseline** | 🔄 Training LIVE (Modal A100) | Check Modal logs |
-| **FLA Infrastructure** | ✅ Complete | All smoke tests passed |
-| **Medium Validation** | ⚠️ Technical success, performance unstable | `/tmp/phase2_medium.log` |
-| **Modal FLA Config** | ❌ Not created yet | Create after BiMamba2 completes |
+| **BiMamba2 Baseline** | ⏸️ PAUSED at Epoch 6 (Modal A100) | High costs ($18,600 projected for 100 epochs) |
+| **FLA Training** | 🔄 ACTIVE - Epoch 7/100 (Local RTX 4090) | Progressing normally, $0 cost (local hardware) |
+| **WSL2 SIGBUS Fix** | ✅ RESOLVED | Cache on ext4 filesystem (see docs/08-operations/wsl2-sigbus-fix.md) |
+| **Dual-Stack Milestone** | ✅ ACHIEVED (v4.0.0) | Both architectures production-ready |
 
 ---
 
@@ -27,34 +27,35 @@
 
 ## 🚀 **Next Actions**
 
-### **NOW** (Waiting)
+### **NOW** (October 2025)
 ```bash
-# Monitor BiMamba2 Modal training
-modal app list
-modal app logs <app-id>
+# Monitor FLA local training (Epoch 7/100)
+tmux attach -t train-fla  # If in tmux
+tail -f results/local_fla_training/training.log
 
-# Look for: "[VALIDATION] Starting disk-backed validation"
+# FLA training progressing normally on local RTX 4090
+# BiMamba2 Modal training PAUSED due to costs ($186/epoch measured)
 ```
 
-### **AFTER BiMamba2 COMPLETES** (~4-5 days)
+### **STRATEGY UPDATE**
+**Decision**: FLA is PRIMARY training stack (local, $0 cost) while BiMamba2 remains PAUSED (Modal, expensive). Both are novel architectures; results publishable regardless of outcome.
+
+### **When FLA Completes** (~40 days remaining)
 ```bash
-# 1. Create Modal FLA config (~30 min)
-cp configs/local/phase2_both_gdn.yaml configs/modal/phase2_both_gdn.yaml
-# Edit: batch_size=48, mixed_precision=true, num_workers=4
-make q  # validate
+# 1. Document FLA results
+# - Record final sensitivity@10FA, AUROC, TAES metrics
+# - Analyze loss curves, gradient stability
+# - Document training time per epoch
 
-# 2. Launch FLA training
-modal run --detach deploy/modal/app.py \
-  --action train \
-  --config configs/modal/phase2_both_gdn.yaml
+# 2. Compare vs BiMamba2 baseline
+# - BiMamba2: 6 epochs of data available (Modal)
+# - FLA: Full 100-epoch training (Local)
+# - Calculate performance delta
 
-# 3. Wait ~4-5 days
-
-# 4. A/B comparison & documentation
-# - Document BiMamba2 results (sensitivity, AUROC, etc.)
-# - Document FLA results (sensitivity, AUROC, etc.)
-# - Calculate delta and statistical significance
-# - Both results are publishable (novel architectures)
+# 3. Both results are publishable
+# - Novel dual-stack architecture comparison
+# - First FLA application to clinical EEG
+# - Cost-effective local training methodology
 ```
 
 ---
@@ -96,27 +97,30 @@ TUSZ benchmark (see `literature/markdown/EEG-BIMAMBA`):
 |------|---------|
 | `FLA_ROADMAP.md` | **MAIN** - Complete strategy, constraints, timeline |
 | `FLA_QUICK_REFERENCE.md` | This file - Quick status check |
-| `CLAUDE.md` | Updated with FLA status (lines 368-378) |
-| `configs/local/phase2_both_gdn.yaml` | FLA config (smoke + medium validated) |
-| `configs/modal/phase2_both_gdn.yaml` | **TODO** - Create after BiMamba2 completes |
+| `CLAUDE.md` | Updated with FLA status (lines 472-487) - **SSOT** |
+| `configs/local/{smoke_fla.yaml, train_fla.yaml}` | ✅ FLA local configs (smoke test + full training) |
+| `configs/modal/{smoke_fla.yaml, train_fla.yaml}` | ✅ FLA Modal configs (smoke test + full training) |
 
 ---
 
 ## 🎯 **Bottom Line: Research Exploration**
 
-**Is FLA ready for local training?** YES (technically), but NOT RECOMMENDED (use Modal instead)
+**Is FLA ready for production?** YES - Currently training on local RTX 4090 (Epoch 7/100)
 
-**Do we need Modal configs now?** NO - create after BiMamba2 baseline completes
+**Why local instead of Modal?** Cost-effective ($0 vs $18,600) - BiMamba2 Modal training PAUSED due to budget
 
-**What's the strategy?** Two-stack research comparison - train both, document both, compare results
+**What's the strategy?** FLA is PRIMARY training stack; BiMamba2 provides comparison baseline (6 epochs available)
 
-**When will we know?** ~2-3 weeks from now (BiMamba2 done + FLA done + comparison)
+**When will we know?** ~40 days from now (FLA completes 100 epochs, then analyze results)
 
-**Cost?** **$6,800-$10,600+ total** (2 runs × $3,400-$5,300+ per run). Modal training is EXPENSIVE due to long validation times (5.8h per epoch documented).
+**Cost?**
+- **BiMamba2 (Modal)**: $186/epoch measured → $18,600 projected for 100 epochs (PAUSED)
+- **FLA (Local RTX 4090)**: $0 (only electricity, negligible)
+- **Strategy**: FLA is cost-effective primary training; BiMamba2 provides high-end comparison baseline
 
-**Key insight**: Both stacks are novel. Both results are publishable regardless of outcome.
+**Key insight**: Both stacks are novel. Both results are publishable regardless of outcome. Local training proved viable alternative to expensive cloud compute.
 
 ---
 
-**Last Updated**: October 9, 2025
-**Next Milestone**: BiMamba2 baseline completion (~4-5 days)
+**Last Updated**: October 16, 2025 (v4.0.0 training status)
+**Next Milestone**: FLA training completion (~40 days, Epoch 7/100 current)

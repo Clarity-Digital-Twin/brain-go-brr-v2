@@ -1,5 +1,9 @@
 # Time–Frequency Hybrid Strategy (TCN/Mamba2 + Lightweight STFT)
 
+**Status**: 🔮 Future Work (Deferred)
+**Priority**: Low (after baseline training complete)
+**Last Updated**: October 12, 2025 (v4.0.0)
+
 Purpose
 
 - Complement the time‑domain backbone (TCN + BiMamba2) with explicit frequency cues that are cheap and clinically interpretable.

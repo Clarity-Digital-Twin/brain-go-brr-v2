@@ -63,8 +63,8 @@ ln -sfn /mnt/cache_ext4/tusz_mmap cache/tusz_mmap
 ```
 
 ### Step 5 — Verify Integrity
-- `find cache/tusz_mmap -maxdepth 1 -type f` → expect manifest + `_data.npy/_labels.npy` pairs only.
-- `python -m src validate-cache --cache-dir cache/tusz_mmap/train` (optional sanity check).
+- `find cache/tusz_mmap/train -maxdepth 1 -type f` → expect manifest + `_data.npy/_labels.npy` pairs only.
+- Verify counts: `ls -1 cache/tusz_mmap/train/*_data.npy | wc -l` should show 4667.
 
 ### Step 6 — Resume Training
 ```bash
@@ -191,9 +191,8 @@ No. `rsync` preserves the mmap files. Rebuild only if `validate-cache` reports c
 ## 6. Related Documentation
 
 - `INSTALLATION.md` — GPU stack requirements and driver checklist.
-- `docs/01-installation/gpu-stack.md` — version matrix and WSL2 precautions.
-- `docs/05-training/local.md` — local training pipeline (update to reflect ext4 requirement).
-- `docs/08-operations/troubleshooting.md` — add SIGBUS troubleshooting entry pointing here.
+- `docs/05-training/local.md` — local training pipeline.
+- `docs/08-operations/troubleshooting.md` — SIGBUS troubleshooting entries.
 - `docs/archive_v4/` — full investigation, timelines, and audit evidence.
 
 ---

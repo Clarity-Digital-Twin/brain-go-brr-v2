@@ -1,4 +1,4 @@
-# Brain-Go-Brr V3 Configuration Files
+# Brain-Go-Brr V4 Configuration Files
 
 ## 🧠 Architectures: BiMamba2 & FLA Dual-Stream Stacks
 
@@ -42,7 +42,7 @@ configs/
 data:
   cache_dir: cache/tusz_mmap  # Memory-mapped NPY cache for train/dev splits
 ```
-- **Location**: `cache/tusz_mmap/train/` (4667 NPY data+labels) + `cache/tusz_mmap/dev/` (1832 NPY data+labels)
+- **Location**: `cache/tusz_mmap/train/` (9334 NPY files: 4667 × 2 for data+labels) + `cache/tusz_mmap/dev/` (3664 NPY files: 1832 × 2)
 - **Format**: Uncompressed NPY (mmap-enabled) replaces old compressed NPZ
 
 ### Modal (A100)
@@ -108,7 +108,7 @@ modal app logs <app-id>
 | Learning Rate | 1.0e-4 | 8.0e-5 | Stability vs. large batch scaling |
 | Workers | 0 | 4 | WSL2 fix vs parallel IO |
 | Prefetch Factor | 2 | 2 | Conservative for memory |
-| Persistent Workers | false | false | Prevents spawn delay + memory leaks |
+| Persistent Workers | false | true | Local: num_workers=0 incompatible; Modal: keeps mmap pages warm |
 | **Mid-Epoch Checkpoints** | **30 min** | **30 min** | Crash recovery for long epochs |
 | **Mid-Epoch Keep** | **3** | **3** | Rolling window of snapshots |
 | Cache Location | `cache/tusz_mmap/` | `/results/cache/tusz_mmap/` | Mmap NPY format |
@@ -118,11 +118,14 @@ modal app logs <app-id>
 ### Local (RTX 4090): batch_size 4 → 8 ✅
 **Discovered**: Actual VRAM usage was only 10GB @ batch_size=4 (not the expected 16GB)
 **Change**: Doubled batch_size to 8 for 2× speed improvement
-**Result**:
-- Epoch time: **~3 hours** (2× faster than batch=4)
-- Full training (100 epochs): **~300 hours** (~12.5 days)
-- VRAM usage: **~20GB** (4GB safety buffer)
-- **Status**: ✅ Production stable
+**Result** (MEASURED from FLA training logs):
+- **Training time**: **~4.1h** per epoch (7702 batches @ ~2.1s/batch)
+- **Validation time**: **~5.5h** per epoch (18528 batches, disk-backed)
+- **Total epoch time**: **~9.6h** (training 42.8% + validation 57.2%)
+- **Full training (100 epochs)**: **~960 hours** (40 days)
+- **VRAM usage**: ~20GB (4GB safety buffer)
+- **Status**: ✅ Production stable (Epoch 7/100 in progress)
+- **Note**: BiMamba2 may be faster than FLA; exact timing TBD
 
 ### Modal (A100-80GB): batch_size 32×2 → 48×1 ✅
 **Previous safe config**: batch_size=32, gradient_accumulation_steps=2
@@ -190,8 +193,8 @@ See `docs/05-training/modal.md` for full memory profiling.
 ## ⚠️ Common Pitfalls
 
 1. **Wrong Cache Directory**:
-   - ❌ Local: `cache/v2.6_full/` (empty) or `cache/tusz/` (old NPZ format, historical reference only - not used by runtime configs)
-   - ✅ Local: `cache/tusz_mmap/{train,dev}/` (4667 + 1832 NPY files) - Using TUSZ's 'dev' naming!
+   - ❌ `cache/v2.6_full/` (old path, no longer exists)
+   - ✅ Local: `cache/tusz_mmap/{train,dev}/` (9334 + 3664 NPY files) - Using TUSZ's 'dev' naming!
 
 2. **Modal Cache Misconception**:
    - ❌ "Cache is on S3 causing slowdowns"
@@ -206,7 +209,7 @@ See `docs/05-training/modal.md` for full memory profiling.
    - ✅ Keep `mixed_precision: false` for stability
 
 4. **PyG Not Installed**:
-   - Run `make setup-gpu` locally (installs PyG from prebuilt wheels for torch 2.2.2+cu121)
+   - Run `make setup-gpu` locally (installs PyG from prebuilt wheels for PyTorch 2.5.0+cu124)
    - Modal image includes PyG automatically
 
 ## 🏗️ Model Configuration (All Configs)
@@ -241,15 +244,26 @@ model:
     edge_similarity_margin: 0.01  # v3.2.0: Safety margin from ±1 boundaries
 ```
 
-## 📊 Expected Training Times
+## 📊 Actual Training Times (MEASURED from logs)
 
-| Config | Platform | Time/Epoch | Total Time |
-|--------|----------|------------|------------|
-| Local Train | RTX 4090 | ~3-4 hours | ~300-400 hours |
-| Modal Train | A100-80GB | ~1 hour | ~100 hours |
-| Smoke Test | Both | ~5 mins | 5 mins |
+| Config | Platform | Training | Validation | Total/Epoch | 100 Epochs |
+|--------|----------|----------|------------|-------------|------------|
+| **Local FLA** | **RTX 4090** | **~4.1h** | **~5.5h** | **~9.6h** | **960h (40 days)** |
+| Modal BiMamba2 | A100-80GB | ~1-2h (docs) | ~5.8h (docs) | ~7-12h (docs) | ~700-1200h |
+| Smoke Test | Both | N/A | N/A | ~5 mins | 5 mins |
 
-**Note**: Local remains slower because of the smaller batch size (8 vs 48) required by the 24 GB RTX 4090.
+**CRITICAL FINDINGS (Local FLA on RTX 4090):**
+- **Validation is the bottleneck**: Takes 1.3× longer than training (5.5h vs 4.1h)
+- **Validation overhead**: 57.2% of total epoch time
+- **Training overhead**: 42.8% of total epoch time
+- **Epoch 1 anomaly**: 7.2h total (faster due to warmup/cache effects)
+- **Epochs 2-6 average**: 10.1h (consistent performance)
+
+**Modal BiMamba2 Status:**
+- Training PAUSED at Epoch 6 due to high costs
+- Cost so far: $1,118 (6 epochs) = **$186/epoch**
+- Estimated 100 epochs: **$18,600** at $4.40/hr (GPU+CPU+RAM)
+- **Local training saves $18,600!**
 
 ## 🔧 Environment Variables
 

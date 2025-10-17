@@ -1,6 +1,6 @@
 # Architecture Summary
 
-- End‑to‑end: Input EEG → TCN → Dual‑Stream (Node Mamba, Edge Mamba) → Vectorized GNN (PyG) → Back‑Projection/Detection → Post‑processing
+- End-to-end: Input EEG → TCN → Dual-Stream (Node Mamba, Edge Mamba) → Vectorized GNN (PyG) → Back-Projection/Detection → Post-processing
 - Complexity: O(N) in sequence length across TCN, Mamba streams, and GNN (per timestep; vectorized over all timesteps)
 
 ASCII overview
@@ -9,12 +9,12 @@ ASCII overview
 Input (B,19,15360)
   → TCNEncoder (8×, 64→512, stride_down=16) → (B,512,960)
   → Electrode proj 512→19×64 → (B,19,960,64)
-    ├─ Node Mamba (BiMamba2, d_model=64, n_layers=6)
+    ├─ Node Mamba (BiMamba2 or FLA GatedDeltaNet, d_model=64, n_layers=6)
     └─ Edge features (cosine/corr) → (B,171,960,1)
-         → 1→16 lift → Edge Mamba (BiMamba2, d_model=16, n_layers=2) → 16→1 → Softplus
-         → Assemble adjacency (top‑k=3, thresh=1e‑4, sym, I+ fallback) → (B,960,19,19)
+         → 1→16/32 lift → Edge Mamba (BiMamba2 d=16 or FLA d=32, n_layers=2) → 16/32→1 → Softplus
+         → Assemble adjacency (top-k=3, thresh=1e-4, sym, I+ fallback) → (B,960,19,19)
   → Vectorized GNN (PyG SSGConv×2, Laplacian PE k=16; dynamic by default) → (B,19,960,64)
-  → Back‑proj 19×512→512 → (B,512,960) → Head (→19) → Upsample 960→15360 → Conv1d(19→1) → (B,15360)
+  → Back-proj 19×512→512 → (B,512,960) → Head (→19) → Upsample 960→15360 → Conv1d(19→1) → (B,15360)
 ```
 
 Shapes (V3)
@@ -27,9 +27,16 @@ Shapes (V3)
 - GNN out: `(B, 19, 960, 64)`
 - Bottleneck merged: `(B, 512, 960)` → Upsampled `(B, 19, 15360)` → Logits `(B, 15360)`
 
-V3 (current)
+V3 (current) - Dual Production Stacks
 
-- `TCN → Node Mamba(512) + Edge Mamba(16) → Learned adjacency → Vectorized PyG + Laplacian PE (dynamic by default) → Head`
+**BiMamba2 Stack** (Modal A100-80GB, PAUSED at Epoch 6):
+- `TCN → Node Mamba(64) + Edge Mamba(16) → Learned adjacency → Vectorized PyG + Laplacian PE (dynamic by default) → Head`
+- Config: `configs/modal/train_bimamba.yaml` (Modal) or `configs/local/train_bimamba.yaml` (local)
+
+**FLA (Gated DeltaNet) Stack** (Local RTX 4090, ongoing):
+- `TCN → Node FLA GatedDeltaNet(64) + Edge FLA GatedDeltaNet(32) → Learned adjacency → Vectorized PyG + Laplacian PE (dynamic by default) → Head`
+- Config: `configs/local/train_fla.yaml` (local) or `configs/modal/train_fla.yaml` (Modal)
+- **CRITICAL**: Edge d_model=32 (FLA requirement for causal_conv1d), NOT 16 like BiMamba2
 
 Note
 
@@ -38,20 +45,21 @@ Note
 Adjacency specifics (V3)
 
 - Metric: cosine (default) or correlation
-- Top‑k per row (default 3), threshold prune (default 1e‑4), symmetrize, identity fallback for disconnected nodes
+- Top-k per row (default 3), threshold prune (default 1e-4), symmetrize, identity fallback for disconnected nodes
 - Edge similarity clamped at source with margin: `graph.edge_similarity_margin` (default 0.01)
-- Bypass edge transform inside GNN because weights are already Softplus’ed upstream
+- Bypass edge transform inside GNN because weights are already Softplus'ed upstream
 
 Code references
 
 - Detector: `src/brain_brr/models/detector.py`
 - Edge/Adjacency: `src/brain_brr/models/edge_features.py`
 - GNN: `src/brain_brr/models/gnn_pyg.py`
-- Mamba: `src/brain_brr/models/mamba.py`
+- Mamba (BiMamba2 + FLA): `src/brain_brr/models/mamba.py`
 - TCN/Head: `src/brain_brr/models/tcn.py`
 
 Validated decisions (concise)
 
 - k=3 sparsity (EvoBrain): exact match, no change needed.
-- Time‑then‑graph ordering: temporal first (TCN+BiMamba), spatial next (GNN), vectorized for efficiency.
-- Dynamic PE: enabled with stability guards; semi‑dynamic interval recommended on 24GB VRAM.
+- Time-then-graph ordering: temporal first (TCN+BiMamba/FLA), spatial next (GNN), vectorized for efficiency.
+- Dynamic PE: enabled with stability guards; semi-dynamic interval recommended on 24GB VRAM.
+- Dual stacks: Both BiMamba2 and FLA use same V3 architecture, only temporal_type differs.

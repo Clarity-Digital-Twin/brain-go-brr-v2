@@ -3,7 +3,7 @@
 **Last Updated:** 2025-10-13
 **Branch:** `feature/flash-linear-attention`
 **Version:** v4.0.0 (FLA Production + WSL2 Fix)
-**Deployment:** FLA FOCUS – BiMamba2 (Modal, PAUSED at Epoch 6) + FLA (Local RTX 4090, Epoch 2, ACTIVE)
+**Deployment:** FLA FOCUS – BiMamba2 (Modal, PAUSED at Epoch 6) + FLA (Local RTX 4090, Epoch 7/100, ACTIVE)
 
 ---
 
@@ -33,7 +33,7 @@
 **New Capabilities**:
 - ✅ **MAJOR: FLA stack production-ready**: BiGatedDeltaNet fully validated, training successfully on local RTX 4090
 - ✅ **MAJOR: WSL2 SIGBUS fix**: Local FLA training now works after cache migration to native ext4 filesystem
-- ✅ **MAJOR: Dual training stacks**: BiMamba2 (Modal, Epoch 3) + FLA (Local, Epoch 2) running simultaneously
+- ✅ **MAJOR: Dual training stacks**: BiMamba2 (Modal, PAUSED at Epoch 6) + FLA (Local, Epoch 7/100) training simultaneously
 - ✅ **Critical WSL2 discovery**: Memory-mapped cache MUST be on native ext4, not Windows drives (/mnt/d/)
 - ✅ **Crash verification**: FLA training validated past previous crash point (batch 5401 vs crash at 2890)
 
@@ -186,7 +186,7 @@
 **BiMamba2 - Modal Training (⏸️ PAUSED)**:
 - Launch: Oct 10, 2025
 - Stopped: Oct 13, 2025 (budget control decision)
-- Progress: **5 complete epochs + 50% of epoch 6** (batch 647/1284)
+- Progress: **PAUSED at Epoch 6** (5 complete epochs + 50% of epoch 6, batch 647/1284)
 - Cost: **$1,118 spent** (~$600 actual training, rest debugging/smoke tests)
 - Checkpoints: ✅ Backed up to Modal SSD (free storage) + local (`backups/modal_bimamba2_epoch6/`)
 - Files: `epoch_001.pt` through `epoch_005.pt`, `best.pt`, `last.pt`, `mid_epoch_006_000647.pt`
@@ -206,10 +206,10 @@
 - Launch: Oct 11, 2025 (after SIGBUS fix)
 - Config: 100 epochs, batch_size=8, RTX 4090 (24GB VRAM), mixed_precision=false
 - Cache: 4667 train + 1832 dev NPY files on native ext4 filesystem (WSL2)
-- Status: ✅ **EPOCH 2** - Training progressing normally
+- Status: ✅ **EPOCH 7/100** - Training progressing normally (7% complete)
 - Stack: TCN + BiGatedDeltaNet (FLA) + GNN + Dynamic LPE
 - Cost: $0 (local training)
-- Expected: ~200-300 hours total
+- Expected: **~960 hours total** (40 days) - measured 9.6h/epoch average from Epochs 1-6
 
 **Next Steps**:
 1. Let FLA training complete to epoch 100
