@@ -1,8 +1,8 @@
 # Your First Training Run
 
-**Last Updated**: October 8, 2025  
-**Codebase Version**: v3.9.1 (Validation OOM Fix)  
-**Estimated Time**: 30 minutes to launch, ~200–300 h (RTX 4090) or ~100 h (Modal A100) to complete
+**Last Updated**: October 17, 2025  
+**Codebase Version**: v4.0.0 (FLA Production + WSL2 Fix)  
+**Estimated Time**: 30 minutes to launch, ~960 h (40 days) for FLA on RTX 4090, ~700-1200 h for BiMamba2 on Modal A100 (both for 100 epochs)
 
 ---
 
@@ -54,17 +54,28 @@ Detach with `Ctrl+B, D` and reattach via `tmux attach -t train`.
 
 ## Part 2 – Launch Training
 
-### Local (RTX 4090, `configs/local/train_bimamba.yaml`)
+### Local (RTX 4090)
 
+**BiMamba2 Stack** (`configs/local/train_bimamba.yaml`):
 ```bash
 # Optional diagnostics
 export BGB_NAN_DEBUG=1
 # export BGB_SANITIZE_GRADS=1   # Use only while debugging NaNs
 
-make train-local
+make train-bimamba
 ```
 
-Key defaults (see config for full list):
+**FLA Stack** (`configs/local/train_fla.yaml`):
+```bash
+# Optional diagnostics
+export BGB_NAN_DEBUG=1
+
+make train-fla
+```
+
+**NOTE**: FLA training requires cache on native ext4 filesystem (not Windows `/mnt/` drives) to avoid WSL2 SIGBUS crashes. See `INSTALLATION.md` section 6 for details.
+
+Key defaults for both stacks (see config for full list):
 ```yaml
 training:
   batch_size: 8
@@ -169,4 +180,7 @@ More detail: see `docs/08-operations/troubleshooting.md` and `docs/08-operations
 - Run evaluation/TAES pipeline on dev and eval sets
 - Explore future work ideas in `docs/future-work/`
 
-With the v3.9.1 tooling (atomic checkpoints + timeout guard + disk-backed validation + W&B persistence), resuming long Modal runs is routine—expect to relaunch every ~23 h and lose at most 10–30 minutes of progress.
+With the v4.0.0 tooling (atomic checkpoints + timeout guard + StatefulDataLoader + W&B persistence), resuming long runs is routine:
+
+- **Modal**: Auto-restart every ~23h via `--action schedule-training` (hands-free 100 epochs)
+- **Local**: Manual resume with `--resume` flag, loses at most 30 minutes of progress (mid-epoch checkpoint interval)
