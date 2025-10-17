@@ -25,7 +25,7 @@ services:
       # Required for: smoke tests with EEGWindowDataset (use_balanced_sampling: false)
       - ./data_ext4:/app/data_ext4:ro
 
-      # Preprocessed cache (read-only) - 449GB
+      # Memory-mapped cache (read-only) - 518GB
       # Required for: ALL training (BalancedSeizureDataset + ValidationDataset)
       - ./cache/tusz_mmap:/app/cache/tusz_mmap:ro
 

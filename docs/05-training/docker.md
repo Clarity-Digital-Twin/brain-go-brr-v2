@@ -41,17 +41,17 @@ Docker V2 mounts **THREE directories** to match local/Modal environments exactly
 **Used by**: `data_dir: data_ext4/tusz/edf` in configs
 **Contains**: Original EDF files + CSV labels (train/dev/eval)
 
-### 2. Preprocessed Cache (Read-Only, 449GB)
+### 2. Memory-Mapped Cache (Read-Only, 518GB)
 
 ```yaml
-- ./cache/tusz:/app/cache/tusz:ro
+- ./cache/tusz_mmap:/app/cache/tusz_mmap:ro
 ```
 
 **Purpose**: Primary data source for training
-**Used by**: `cache_dir: cache/tusz` in configs
+**Used by**: `cache_dir: cache/tusz_mmap` in configs
 **Contains**:
-- `train/` - 4667 NPZ files + `manifest.json`
-- `dev/` - 1832 NPZ files + `manifest.json`
+- `train/` - 4667 NPY pairs (`*_data.npy` + `*_labels.npy`) + `manifest.json`
+- `dev/` - 1832 NPY pairs (`*_data.npy` + `*_labels.npy`) + `manifest.json`
 
 ### 3. Results (Read-Write)
 
@@ -62,7 +62,7 @@ Docker V2 mounts **THREE directories** to match local/Modal environments exactly
 **Purpose**: Checkpoints, logs, outputs
 **Written by**: Training loop, evaluation, etc.
 
-**Total mounted**: ~560GB (all read-only except results)
+**Total mounted**: ~630GB (all read-only except results)
 
 ---
 
@@ -149,7 +149,7 @@ services:
 
 ## File Dependency Matrix
 
-| Use Case | Dataset | data_dir (EDFs) | cache_dir (NPZ) | manifest.json |
+| Use Case | Dataset | data_dir (EDFs) | cache_dir (mmap NPY) | manifest.json |
 |----------|---------|-----------------|-----------------|---------------|
 | **Smoke (3 files)** | EEGWindowDataset | ✅ REQUIRED | ✅ REQUIRED | ❌ |
 | **Integration (50 files)** | EEGWindowDataset | ✅ REQUIRED | ✅ REQUIRED | ❌ |
@@ -287,7 +287,7 @@ ls -1 cache/tusz_mmap/dev/*_data.npy   | wc -l  # Should be 1832
 
 # 4. Check disk space for volume mounts
 df -h .
-# Need: 560GB available (109GB data_ext4 + 449GB cache + headroom)
+# Need: 630GB available (109GB data_ext4 + 518GB cache + headroom)
 ```
 
 ---
