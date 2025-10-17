@@ -1,7 +1,7 @@
 # Technical Debt & Cleanup Status
 
-**Last Updated**: October 12, 2025 (v4.0.0)
-**Status**: 🟢 **ZERO ACTIVE DEBT** - Dual stacks (BiMamba2 + FLA) live with deterministic resume, ext4 cache migration, and WSL2 SIGBUS fix integrated
+**Last Updated**: October 17, 2025 (v4.0.0)
+**Status**: 🟢 **ZERO ACTIVE DEBT** - Dual stacks with deterministic resume, ext4 cache migration, WSL2 SIGBUS fix integrated
 
 ## Executive Summary
 
@@ -13,7 +13,7 @@
 | **P3 LOW** | 0 | None |
 | **P4 OPTIONAL** | 3 | None (future enhancements) |
 
-**Current Status**: All known technical debt has been eliminated. Codebase is clean and production ready. BiMamba2 (Modal A100) is PAUSED at Epoch 6 due to costs ($18,600 projected). FLA (local RTX 4090) is PRIMARY production stack at Epoch 7/100.
+**Current Status**: All known technical debt has been eliminated. Codebase is clean and production ready. BiMamba2 (Modal A100) is PAUSED at Epoch 6 due to costs ($18,600 projected for 100 epochs). FLA (local RTX 4090) is PRIMARY production stack at Epoch 7/100, progressing normally with $0 cost.
 
 Priority definitions (for quick reference):
 - **P0** — Blocks training/inference or corrupts results.
