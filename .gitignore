@@ -157,3 +157,6 @@ reference_repos/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Literature references (keep local only)
+literature/
