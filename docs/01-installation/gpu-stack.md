@@ -44,8 +44,8 @@ What `make setup-gpu` does
   - `uv pip install --no-build-isolation causal-conv1d==1.5.2`
   - `uv pip install --no-build-isolation mamba-ssm==2.2.5`
 - Installs PyG using prebuilt wheels for torch 2.5.0+cu124:
-  - `.venv/bin/pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html`
-  - `.venv/bin/pip install torch-geometric==2.6.1`
+  - `uv pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html`
+  - `uv pip install torch-geometric==2.6.1`
 - Installs TCN: `uv pip install pytorch-tcn==1.2.3`
 - Verifies Mamba‑SSM, PyG, and TCN installs.
 
