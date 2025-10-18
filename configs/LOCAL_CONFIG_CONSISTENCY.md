@@ -57,14 +57,45 @@ mid_epoch_keep: 3
 
 ## FLA Stack (`*_fla.yaml`)
 
+### Production Baseline (`train_fla.yaml`)
 - `model.mamba.temporal_type: gated_deltanet` (applied to both node and edge streams)
 - `gdn_fusion_mode: sum`, `gdn_allow_neg_eigval: false`
 - `gdn_edge_num_heads: 3`, `gdn_edge_headdim: 8`
 - `graph.edge_mamba_d_model: 32` (FLA causal_conv1d requirement)
-- All other hyperparameters match the BiMamba2 configs.
-- Usage:
-  - `make smoke-fla`
-  - `make train-fla`
+- `output_dir: results/local_fla_training`
+- Usage: `make train-fla` or `.venv/bin/python -m src train configs/local/train_fla.yaml`
+
+### Hyperparameter Experiments (Research)
+All experiments maintain FLA stack settings above but vary regularization/capacity:
+
+**Exp1 - Stronger Regularization (`train_fla_exp1_reg.yaml`)**
+- `model.tcn.dropout: 0.20` (UP from 0.15)
+- `model.mamba.dropout: 0.2` (UP from 0.1)
+- `model.graph.dropout: 0.2` (UP from 0.1)
+- `training.weight_decay: 0.05` (UP from 0.01)
+- `output_dir: results/local_fla_exp1_reg` ✅ ISOLATED
+- Usage: `.venv/bin/python -m src train configs/local/train_fla_exp1_reg.yaml`
+
+**Exp2 - Lower Learning Rate (`train_fla_exp2_lr.yaml`)**
+- `training.learning_rate: 5.0e-5` (DOWN from 1e-4)
+- `training.scheduler.warmup_ratio: 0.05` (UP from 0.03)
+- `output_dir: results/local_fla_exp2_lr` ✅ ISOLATED
+- Usage: `.venv/bin/python -m src train configs/local/train_fla_exp2_lr.yaml`
+
+**Exp3 - Smaller Model (`train_fla_exp3_smaller.yaml`)**
+- `model.mamba.n_layers: 4` (DOWN from 6)
+- `model.mamba.d_model: 384` (DOWN from 512)
+- `model.graph.n_layers: 1` (DOWN from 2)
+- `graph.edge_mamba_d_model: 32` **UNCHANGED** (FLA requirement)
+- Reduces 31M → 17M parameters
+- `output_dir: results/local_fla_exp3_smaller` ✅ ISOLATED
+- Usage: `.venv/bin/python -m src train configs/local/train_fla_exp3_smaller.yaml`
+
+**Execution Order:**
+- Baseline first (currently running, approaching early stopping)
+- Run Exp1 first (highest priority, 80% confidence)
+- Adapt Exp2/Exp3 based on Exp1 results
+- See `HYPERPARAMETER_EXPERIMENTS.md` for full decision tree
 
 ## WSL2 / RTX 4090 Notes
 - Always run with `num_workers: 0`.
