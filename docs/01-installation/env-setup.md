@@ -34,8 +34,8 @@ Install steps
 PyG prebuilt wheels
 
 - If needed, install explicitly with prebuilt wheels:
-- `.venv/bin/pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html`
-- `.venv/bin/pip install torch-geometric==2.6.1`
+- `uv pip install torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.5.0+cu124.html`
+- `uv pip install torch-geometric==2.6.1`
 
 UV build isolation note
 
