@@ -22,18 +22,52 @@ Both share:
 
 ```
 configs/
-├── local/                      # RTX 4090 optimized configs
-│   ├── smoke_bimamba.yaml      # BiMamba2 smoke (3 files, 1 epoch)
-│   ├── train_bimamba.yaml      # BiMamba2 full training (100 epochs)
-│   ├── smoke_fla.yaml          # FLA smoke
-│   └── train_fla.yaml          # FLA full training
+├── local/                          # RTX 4090 optimized configs
+│   ├── smoke_bimamba.yaml          # BiMamba2 smoke (3 files, 1 epoch)
+│   ├── train_bimamba.yaml          # BiMamba2 full training (100 epochs)
+│   ├── smoke_fla.yaml              # FLA smoke
+│   ├── train_fla.yaml              # FLA full training (baseline)
+│   ├── train_fla_exp1_reg.yaml     # FLA Exp1: Stronger regularization
+│   ├── train_fla_exp2_lr.yaml      # FLA Exp2: Lower learning rate
+│   └── train_fla_exp3_smaller.yaml # FLA Exp3: Smaller model (17M params)
 │
-└── modal/                      # Modal A100-80GB configs
-    ├── smoke_bimamba.yaml      # BiMamba2 smoke (50 files, 1 epoch)
-    ├── train_bimamba.yaml      # BiMamba2 full training
-    ├── smoke_fla.yaml          # FLA smoke
-    └── train_fla.yaml          # FLA full training
+└── modal/                          # Modal A100-80GB configs
+    ├── smoke_bimamba.yaml          # BiMamba2 smoke (50 files, 1 epoch)
+    ├── train_bimamba.yaml          # BiMamba2 full training
+    ├── smoke_fla.yaml              # FLA smoke
+    └── train_fla.yaml              # FLA full training
 ```
+
+## 🧪 Hyperparameter Experiment Configs (FLA Stack)
+
+Following the research methodology in `TRAINING_METHODOLOGY.md`, three targeted experiments test overfitting hypotheses:
+
+```
+configs/local/
+  train_fla.yaml              # Baseline FLA (31M params)
+  train_fla_exp1_reg.yaml     # Exp1: Stronger regularization (HIGH priority)
+  train_fla_exp2_lr.yaml      # Exp2: Lower learning rate (MEDIUM priority)
+  train_fla_exp3_smaller.yaml # Exp3: Smaller model 17M params (MEDIUM priority)
+```
+
+**Experiment Details:**
+
+| Experiment | Hypothesis | Changes | Output Dir |
+|------------|-----------|---------|------------|
+| **Baseline** | N/A | N/A | `results/local_fla_training` |
+| **Exp1: Regularization** | Insufficient regularization causing overfitting | dropout 0.1→0.2, weight_decay 0.01→0.05 | `results/local_fla_exp1_reg` |
+| **Exp2: Lower LR** | Learning rate too high, late instability | lr 1e-4→5e-5, warmup 0.03→0.05 | `results/local_fla_exp2_lr` |
+| **Exp3: Smaller Model** | Model too large for dataset (4,667 files) | 6→4 layers, 512→384 dim (31M→17M) | `results/local_fla_exp3_smaller` |
+
+**Critical Constraints:**
+- Each experiment uses **unique output_dir** to prevent overwriting baseline
+- All maintain `edge_mamba_d_model: 32` (FLA/Triton requirement from AGENTS.md)
+- See `HYPERPARAMETER_EXPERIMENTS.md` for full methodology and command examples
+
+**Execution Order:**
+1. Wait for baseline (`train_fla.yaml`) to complete early stopping
+2. Run Exp1 first (highest priority, 80% confidence)
+3. Adapt Exp2/Exp3 based on Exp1 results (see decision tree in methodology doc)
 
 ## ⚡ Critical Cache Configuration
 
@@ -68,9 +102,24 @@ BGB_LIMIT_FILES=3 BGB_SMOKE_TEST=1 python -m src train configs/local/smoke_fla.y
 tmux new -s train-bimamba
 python -m src train configs/local/train_bimamba.yaml
 
-# FLA full training
+# FLA full training (baseline)
 tmux new -s train-fla
 python -m src train configs/local/train_fla.yaml
+
+# FLA Experiment 1 (Stronger Regularization)
+tmux new -s exp1-reg
+export BGB_NAN_DEBUG=1
+python -m src train configs/local/train_fla_exp1_reg.yaml
+
+# FLA Experiment 2 (Lower Learning Rate)
+tmux new -s exp2-lr
+export BGB_NAN_DEBUG=1
+python -m src train configs/local/train_fla_exp2_lr.yaml
+
+# FLA Experiment 3 (Smaller Model)
+tmux new -s exp3-smaller
+export BGB_NAN_DEBUG=1
+python -m src train configs/local/train_fla_exp3_smaller.yaml
 ```
 
 ### Modal Cloud Training (A100)
