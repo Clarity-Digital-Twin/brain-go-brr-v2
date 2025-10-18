@@ -35,7 +35,7 @@ mid_epoch_keep: 3             # Keep last 3 mid-epoch snapshots
 ```
 **Status**: ✅ PRODUCTION STABLE
 
-### FLA – `train_fla.yaml`
+### FLA – `train_fla.yaml` (Baseline)
 ```yaml
 batch_size: 8
 use_dynamic_pe: true
@@ -49,8 +49,42 @@ learning_rate: 1.0e-4
 gradient_clip: 0.5
 mid_checkpoint_interval_s: 1800
 mid_epoch_keep: 3
+output_dir: results/local_fla_training
 ```
-**Status**: ✅ READY FOR RESEARCH (mirrors BiMamba2 config except for temporal stack)
+**Status**: ✅ PRODUCTION BASELINE (currently training, epoch 13/100, patience 4/5)
+
+### FLA Experiments (Hyperparameter Search)
+**Configs**: `train_fla_exp1_reg.yaml`, `train_fla_exp2_lr.yaml`, `train_fla_exp3_smaller.yaml`
+
+All three experiments:
+- Share baseline FLA temporal stack settings (gated_deltanet, heads, edge_d_model=32)
+- Use unique `output_dir` to prevent overwriting baseline results
+- Maintain all NaN protections (gradient_clip=0.5, boundary norms, etc.)
+- Follow research methodology in `TRAINING_METHODOLOGY.md`
+
+Key differences from baseline `train_fla.yaml`:
+```yaml
+# Exp1 (Regularization) - train_fla_exp1_reg.yaml
+tcn.dropout: 0.20          # UP from 0.15
+mamba.dropout: 0.2         # UP from 0.1
+graph.dropout: 0.2         # UP from 0.1
+weight_decay: 0.05         # UP from 0.01
+output_dir: results/local_fla_exp1_reg
+
+# Exp2 (Learning Rate) - train_fla_exp2_lr.yaml
+learning_rate: 5.0e-5      # DOWN from 1e-4
+warmup_ratio: 0.05         # UP from 0.03
+output_dir: results/local_fla_exp2_lr
+
+# Exp3 (Smaller Model) - train_fla_exp3_smaller.yaml
+mamba.n_layers: 4          # DOWN from 6
+mamba.d_model: 384         # DOWN from 512
+graph.n_layers: 1          # DOWN from 2
+edge_mamba_d_model: 32     # UNCHANGED (FLA requirement)
+output_dir: results/local_fla_exp3_smaller
+```
+
+**Status**: ✅ READY FOR EXECUTION (run after baseline completes early stopping)
 
 ### BiMamba2 – `smoke_bimamba.yaml`
 ```yaml

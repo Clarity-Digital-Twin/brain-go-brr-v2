@@ -245,7 +245,9 @@ def build_cache_cmd(data_dir: Path, cache_dir: Path, split: str, limit_files: in
         )
 
         cache_dir.mkdir(parents=True, exist_ok=True)
-        _ = EEGWindowDataset(edf_files, label_files=label_files, cache_dir=cache_dir)
+        _ = EEGWindowDataset(
+            edf_files, label_files=label_files, cache_dir=cache_dir, allow_on_demand=True
+        )
         status2 = check_cache_completeness(edf_files, cache_dir)
         if status2.missing_files == 0:
             try:
