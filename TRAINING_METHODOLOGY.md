@@ -1,6 +1,6 @@
 # Training Methodology & Hyperparameter Search Plan
 
-**Status**: Baseline training in progress (Epoch 13/100, patience 4/5)
+**Status**: Baseline run resumed after prior epoch 13 validation crash (patience 3/5, training in progress)
 **Created**: 2025-10-18
 **Last Updated**: 2025-10-18
 
@@ -11,20 +11,20 @@
 ### Baseline Training Run (FLA - RTX 4090)
 
 **Config**: `configs/local/train_fla.yaml`
-**Status**: Running, approaching early stopping (1 epoch away)
+**Status**: Resumed and currently training (after validation crash on prior attempt)
 
 **Performance**:
-- **Best epoch**: 8 with `sensitivity_at_10fa = 0.2801` (28%)
-- **Current epoch**: 13 (in progress)
-- **Epochs without improvement**: 4 (patience 5)
-- **Expected outcome**: Early stopping at epoch 14-15
+- **Best checkpoint**: `best.pt` saved after epoch 9 with `sensitivity_at_10fa = 0.2801` (28.0%)
+- **Latest completed epoch**: 12 (patience counter 3/5 with no new best since epoch 9)
+- **Run status**: Current session is a resume from `last.pt`; earlier attempt hit `CUDA error: unknown error` during epoch 13 validation
+- **Follow-up**: Monitor the active run until early stopping triggers cleanly; if it aborts again, treat epoch 9 as the baseline checkpoint
 
 **⚠️ OVERFITTING DETECTED**:
-- Validation loss: 0.027 (epoch 1-2) → **0.052 (epoch 10)** ❌
-- Training loss: 0.05 (epoch 0) → 0.007 (epoch 10) ✅
-- **Gap widening** = classic overfitting signature
+- Validation loss: 0.0270 (epoch 3) → **0.0386 (epoch 8)** ❌
+- Training loss: 0.0507 (epoch 1) → 0.0120 (epoch 7) ✅
+- **Gap widening** = classic overfitting signature (and crash prevented seeing later metrics)
 
-**Decision**: Let training run to natural early stopping, then proceed to hyperparameter search.
+**Decision**: Let the resumed run reach natural early stopping (or confirm a second crash) before starting the hyperparameter search.
 
 ---
 
@@ -51,7 +51,7 @@
 
 ### Phase 1: BASELINE (Current - Week 1)
 
-**Status**: ⏳ In progress (waiting for early stopping)
+**Status**: 🔄 In progress (resumed after validation crash; waiting for clean early stopping)
 
 **Goal**: Establish baseline performance with default hyperparameters
 
@@ -59,7 +59,7 @@
 1. Train on `train` split
 2. Validate on `dev` split after each epoch
 3. Early stopping based on `dev` metric (`sensitivity_at_10fa`)
-4. Save best checkpoint (epoch 8)
+4. Save best checkpoint (epoch 9 in current run)
 5. **DO NOT touch eval set**
 
 **Output**:
@@ -291,10 +291,10 @@ data:
 
 ### Immediate Actions (This Week):
 
-1. ✅ **Let baseline complete** - Wait for early stopping (1-2 epochs)
-2. ✅ **Document baseline results** - Save metrics, checkpoints, W&B link
-3. ✅ **Analyze overfitting** - Confirm validation loss spike root cause
-4. ✅ **Create experiment configs** - Write 3-5 YAML files for Phase 2
+1. 🔄 **Monitor baseline resume** - Current run is active; verify it finishes validation so early stopping fires cleanly
+2. ✅ **Document baseline so far** - Capture metrics, checkpoint hashes, and crash stack trace
+3. ✅ **Analyze overfitting** - Confirm validation loss trend and train/val gap
+4. 🔜 **Draft experiment configs** - Keep templates ready but block launches until baseline rerun is stable
 
 ### Phase 2 Execution (Next Week):
 
@@ -369,15 +369,15 @@ predictions = model(eval_data)
 
 ### What We've Learned from Baseline:
 
-1. **Model has sufficient capacity** - Training loss drops to near-zero
-2. **Regularization insufficient** - Validation loss spikes (overfitting)
-3. **Early stopping works** - Catches overfitting at epoch 8
-4. **28% sensitivity @ 10 FA/24h** - Below clinical target (need 40%+)
+1. **Model has sufficient capacity** - Training loss fell from 0.0507 → 0.0120 before the crash
+2. **Regularization insufficient** - Validation loss rose from 0.0270 → 0.0386 across epochs 3-8
+3. **Early stopping not reached** - Patience counter sits at 3/5 because the run aborted mid-validation
+4. **28% sensitivity @ 10 FA/24h** - Still below the 40%+ clinical bar
 
 ### What This Means:
 
-- ✅ Architecture is sound (TCN + FLA + GNN works)
-- ✅ Training pipeline is stable (no crashes, clean convergence)
+- ✅ Architecture is learning (TCN + FLA + GNN stack trains without NaNs)
+- ⚠️ Training pipeline hit a CUDA validation crash (needs repro + fix or reliable resume)
 - ❌ Hyperparameters need tuning (overfitting is fixable)
 - ❌ Performance gap to close (28% → 40%+)
 
@@ -394,7 +394,7 @@ predictions = model(eval_data)
 
 | Phase | Duration | Compute Time | Wall Time |
 |-------|----------|--------------|-----------|
-| Phase 1: Baseline | ~96h (complete) | ~96h GPU | 4 days |
+| Phase 1: Baseline | ~96h planned (current attempt aborted at epoch 13) | ~96h GPU | 4 days |
 | Phase 2: Experiments (5×) | ~480h total | ~480h GPU | 20 days (parallel) or 4 days (sequential planning) |
 | Phase 3: Architecture (optional) | ~192h | ~192h GPU | 8 days |
 | Phase 4: Final eval | ~10h | ~10h GPU | 1 day |
@@ -408,11 +408,12 @@ predictions = model(eval_data)
 ## 📝 Summary
 
 ### Where We Are:
-- ✅ Baseline training nearly complete
-- ✅ Overfitting diagnosed (validation loss spike)
-- ✅ Best checkpoint saved (epoch 8, 28% sensitivity @ 10 FA/24h)
+- 🔄 Baseline run is currently resumed after an epoch 13 validation crash (monitoring for completion)
+- ✅ Overfitting pattern confirmed (training vs validation gap)
+- ✅ Best checkpoint saved (epoch 9, 28% sensitivity @ 10 FA/24h)
 
 ### Where We're Going:
+- 🔄 Let the resumed baseline reach a clean early-stopping exit (or document a second failure)
 - 🔜 Phase 2: Hyperparameter search (3-5 experiments)
 - 🔜 Fix overfitting with stronger regularization
 - 🔜 Improve `dev` set performance to 40%+ sensitivity

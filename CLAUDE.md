@@ -396,7 +396,8 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 ### Key Files to Reference
 - Installation: `INSTALLATION.md`
 - Architecture evolution: `ARCHITECTURE_EVOLUTION.md`
-- **Training methodology**: `TRAINING_METHODOLOGY.md` (CRITICAL - train/dev/eval workflow, hyperparameter search plan)
+- **Training methodology**: `TRAINING_METHODOLOGY.md` (CRITICAL - train/dev/eval workflow principles)
+- **Hyperparameter experiments**: `HYPERPARAMETER_EXPERIMENTS.md` (CRITICAL - concrete 3-experiment plan with commands)
 - **TAES naming collision**: `TAES_DISAMBIGUATION.md` (CRITICAL - explains TAES metric vs NEDC TAES scoring)
 - Realistic performance targets: `REALISTIC_PERFORMANCE_TARGETS.md`
 - Config details: `configs/README.md`
