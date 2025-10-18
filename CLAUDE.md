@@ -396,6 +396,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 ### Key Files to Reference
 - Installation: `INSTALLATION.md`
 - Architecture evolution: `ARCHITECTURE_EVOLUTION.md`
+- **Training methodology**: `TRAINING_METHODOLOGY.md` (CRITICAL - train/dev/eval workflow, hyperparameter search plan)
 - **TAES naming collision**: `TAES_DISAMBIGUATION.md` (CRITICAL - explains TAES metric vs NEDC TAES scoring)
 - Realistic performance targets: `REALISTIC_PERFORMANCE_TARGETS.md`
 - Config details: `configs/README.md`
@@ -483,5 +484,5 @@ Due to hardware differences, integration tests have adjusted thresholds:
 - ✅ **Backward compatibility** - Old checkpoints still work (logs warning, restarts from epoch start)
 - ✅ **Timeout guard** - 23h wall-clock limit, 1h safety margin, graceful exit before Modal kill
 - ✅ **Modal 1.0 migration complete** - Updated max_containers parameter, deprecation warnings fixed
-- 📊 **Current training**: BiMamba2 (Modal, PAUSED at Epoch 6) + FLA (Local, Epoch 7/100) - local training progressing normally
+- 📊 **Current training**: BiMamba2 (Modal, PAUSED at Epoch 6) + FLA (Local, Epoch 13/100, patience 4/5) - approaching early stopping due to overfitting
 - 📚 **See**: `docs/08-operations/wsl2-sigbus-fix.md` for WSL2 details, `docs/archive_v4/` for incident analysis
