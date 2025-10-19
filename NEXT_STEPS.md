@@ -282,10 +282,11 @@ Running eval on the overfit baseline:
 ## Immediate Next Steps (Priority Order)
 
 ### 1. Let Exp1 Continue Training
-- Currently at epoch 2/100, validating
-- **ETA**: ~2-3 hours for epoch 2 to complete
+- Currently at epoch 3/100, training (mid-epoch checkpoint 4151/7702 batches)
+- **ETA**: ~5-6 hours for epoch 3 to complete (4.1h train + validation)
 - **Key checkpoint**: Epoch 9 (compare to baseline epoch 9)
 - **Watch for**: Does stronger regularization prevent overfitting?
+- **Current progress**: Epoch 2 showed improvement (25.30% vs 20.45% in epoch 1)
 
 ### 2. Locate TUSZ Eval/Test Set
 **Questions to answer**:
@@ -319,8 +320,8 @@ ls -lh /path/to/tusz/data/test/
 **Create comparison table**:
 | Experiment | Config | Best Epoch | Sens@10FA (dev) | Sens@10FA (test) | Status |
 |------------|--------|------------|-----------------|------------------|--------|
-| Baseline   | dropout=0.3, wd=1e-4 | 9 | 28.01% | TBD | Stopped epoch 13 |
-| Exp1       | dropout=0.4, wd=1e-3 | TBD | TBD | TBD | Running (2/100) |
+| Baseline   | TCN_drop=0.15, Mamba_drop=0.1, wd=0.01 | 9 | 28.01% | TBD | Stopped epoch 13 |
+| Exp1       | TCN_drop=0.20, Mamba_drop=0.2, wd=0.05 | 2 (so far) | 25.30% | TBD | Running (3/100) |
 
 ---
 
@@ -360,9 +361,9 @@ ls -lh /path/to/tusz/data/test/
 ## Resource Tracking
 
 ### Disk Space
-- Baseline checkpoints: ~2.1 GB (11 checkpoints)
-- Exp1 checkpoints: ~1.2 GB (growing, currently epoch 2)
-- Total checkpoint storage: ~3.3 GB
+- Baseline checkpoints: ~2.1 GB (11 checkpoints @ 189 MB each)
+- Exp1 checkpoints: ~1.3 GB (growing, currently epoch 3 - 7 checkpoints @ 198 MB each)
+- Total checkpoint storage: ~3.4 GB
 
 ### Compute Time (RTX 4090)
 - Baseline: Ran ~13 epochs (stopped Oct 18 13:47)
