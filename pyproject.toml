@@ -27,7 +27,7 @@ dependencies = [
     # Core ML dependencies - EXACT VERSIONS LOCKED for v3.3/V3 stack
     "torch==2.5.0",  # EXACT: PyTorch 2.5.0 with CUDA 12.4 for mamba-ssm 2.2.5 + PyG 2.7 compatibility
     "numpy==1.26.4",  # EXACT: numpy 2.x breaks mamba-ssm, use 1.26.4
-    "scipy==1.11.4",  # EXACT: Tested version for morphology ops
+    "scipy>=1.14.1",  # Required by nedc-bench (no scipy usage in main code yet)
     "scikit-learn==1.3.2",  # EXACT: Tested version for preprocessing
 
     # EEG Processing
