@@ -871,13 +871,18 @@ def _attach_nedc_metrics(
             logger.warning("Reference CSV_BI missing for %s; skipping", file_id)
             continue
 
+        # Load saved predictions (1D numpy array at 256 Hz)
         probs = np.load(probs_path)
+
+        # Convert to tensor for batch_probs_to_events (expects batch dimension)
         probs_tensor = torch.from_numpy(probs).unsqueeze(0)
+
+        # Extract event ranges using postprocessing pipeline
         pred_event_ranges = batch_probs_to_events(
             probs_tensor,
             cfg.postprocessing,
             cfg.data.sampling_rate,
-        )[0]
+        )[0]  # Get first (and only) item from batch
 
         events: list[SeizureEvent] = []
         for start_s, end_s in pred_event_ranges:
