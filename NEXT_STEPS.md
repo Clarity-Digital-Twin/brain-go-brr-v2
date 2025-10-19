@@ -411,11 +411,10 @@ ls -lh /path/to/tusz/data/test/
 ## Action Items (TODO)
 
 - [ ] Check Exp1 epoch 2 results when validation completes (~2-3 hours)
-- [ ] Locate TUSZ eval/test set
-- [ ] Write inference script for test set evaluation
-- [ ] **NEW**: Write CSV_BI format converter for NEDC scorer integration
-- [ ] **NEW**: Create NEDC wrapper module in brain-go-brr-v2
-- [ ] Run baseline best.pt on test set
+- [x] ~~Locate TUSZ eval/test set~~ (DONE - found at data_ext4/tusz/edf/eval/)
+- [ ] Implement NEDCScorer wrapper (~100 lines) for NEDC v6.0.0 scoring
+- [ ] Extend `python -m src evaluate` CLI with `--nedc-score` flag
+- [ ] Run baseline best.pt on eval set with NEDC scoring
 - [ ] Create experiment tracking spreadsheet
 - [ ] Monitor Exp1 training through epoch 9 (critical comparison point)
 - [ ] Decide on Exp2/Exp3 parameters based on Exp1 results
@@ -424,33 +423,28 @@ ls -lh /path/to/tusz/data/test/
 
 ## NEDC Evaluation Pipeline 🎯
 
-**STATUS**: All technical specifications extracted to separate documentation files (October 19, 2025)
+**STATUS**: Documentation complete, ready for implementation (October 19, 2025)
 
-**DOCUMENTATION FILES** (all reviewed and corrected):
-- 📋 `EVALUATION_00_OVERVIEW.md` - Architecture overview, timeline, existing code references
-- ❓ `EVALUATION_01_QUESTIONS_RESOLVED.md` - All pre-implementation questions answered with bash verification
-- 🔧 `EVALUATION_02_COMPONENT_CSVBI_CONVERTER.md` - CSV_BI converter spec (EXTENDS existing export_csv_bi)
-- 🧪 `EVALUATION_03_COMPONENT_NEDC_SCORER.md` - NEDCScorer spec with BetaPipeline integration
-- 🚀 `EVALUATION_04_COMPONENT_MODEL_EVALUATOR.md` - ModelEvaluator spec (EXTENDS existing run_evaluation)
-- ✅ `EVALUATION_05_TESTING_REQUIREMENTS.md` - Complete testing requirements (23 tests)
-- 📝 `EVALUATION_SUMMARY_FOR_AUDIT.md` - AI audit checklist
+**IMPLEMENTATION DOCS** (SSOT for implementation):
+- 📋 `EVALUATION_00_OVERVIEW.md` - Architecture, 2-week timeline, Quick Start commands
+- ❓ `EVALUATION_01_QUESTIONS_RESOLVED.md` - Data locations, file paths, bash-verified facts
+- 🧪 `EVALUATION_03_COMPONENT_NEDC_SCORER.md` - **PRIMARY SPEC** - NEDCScorer class, 9 tests, ~100 lines
+- ✅ `EVALUATION_05_TESTING_REQUIREMENTS.md` - Test specs, error handling, performance targets
 
-**CRITICAL FINDING**: We already have most of the infrastructure!
+**CRITICAL**: We only need to implement NEDCScorer (~100 lines) + extend existing CLI (~50 lines)
 - ✅ `python -m src evaluate` command exists (cli.py:305)
 - ✅ `export_csv_bi()` function exists (events/export.py:15)
 - ✅ `validate_epoch()` for inference exists (train/val_step.py:375)
-- 🆕 ONLY NEED: NEDCScorer wrapper (~100 lines) + extend existing CLI
+- 🆕 NEDCScorer wrapper (~100 lines) - see EVALUATION_03
+- 🔧 Add `--nedc-score` flag to evaluate CLI (~50 lines)
 
-**NEXT STEPS**:
-1. AI agent audit all EVALUATION_*.md docs for consistency
-2. Implement NEDCScorer (new nedc_wrapper.py file)
-3. Extend evaluate CLI with --nedc-score flag
-4. Run baseline.pt evaluation on test set
-5. Get official NEDC v6.0.0 metrics
+**IMPLEMENTATION PLAN** (2 weeks):
+- **Week 1**: Extend build-cache CLI + preprocess eval set + write 8 NEDCScorer unit tests (TDD)
+- **Week 2**: Implement NEDCScorer + extend evaluate CLI + integration test + run baseline
 
-**ESTIMATED EFFORT**: ~600 lines of new code (was 1,450 before finding existing infrastructure!)
+**TOTAL EFFORT**: ~150 lines new code, 9 tests
 
-**For details, see**: `EVALUATION_00_OVERVIEW.md` (start here)
+**Start here**: `EVALUATION_00_OVERVIEW.md` for architecture and Quick Start
 
 ---
 
