@@ -22,7 +22,7 @@ ls /home/jj/proj/brain-go-brr-v2/data_ext4/tusz/edf/eval/
 
 # Count EDF files
 find /home/jj/proj/brain-go-brr-v2/data_ext4/tusz/edf/eval/ -name "*.edf" | wc -l
-# Expected: ~2000 files
+# Expected: 865 files
 
 # Verify ground truth CSV_BI files exist (with # headers!)
 find /home/jj/proj/brain-go-brr-v2/data_ext4/tusz/edf/eval/ -name "*.csv_bi" | head -1 | xargs head -10
@@ -106,11 +106,11 @@ python -m src build-cache \
 ```bash
 # Check files created
 ls cache/tusz_mmap/eval/
-# Expected: _dataset_index.json + ~4000 NPY files (data + labels)
+# Expected: _dataset_index.json + ~1730 NPY files (865 data + 865 labels)
 
 # Count data files
 ls cache/tusz_mmap/eval/*_data.npy | wc -l
-# Expected: ~2000 files
+# Expected: 865 files
 
 # Verify manifest
 cat cache/tusz_mmap/eval/_dataset_index.json | head
@@ -1002,7 +1002,7 @@ cat results/eval_baseline/metrics.json | jq .nedc_overlap
 #   "precision": 0.42,
 #   "recall": 0.24,
 #   "f1": 0.31,
-#   "num_files": 2000
+#   "num_files": 865
 # }
 ```
 
