@@ -456,8 +456,8 @@ ls -lh /path/to/tusz/data/test/
 ## Immediate Action Items (Priority Order)
 
 **P0 - Running Now**:
-- [ ] Monitor Exp1 epoch 2 validation completion (~2-3 hours)
-- [ ] Check if early stopping triggers (patience 4/5)
+- [ ] Monitor Exp1 epoch 3 completion (~5-6 hours remaining)
+- [ ] Check if early stopping triggers (patience counter - epoch 2 was best so far)
 
 **P1 - Evaluation Readiness**:
 - [ ] Extend build-cache CLI to support eval split (cli.py:207)
@@ -484,7 +484,8 @@ ls -lh /path/to/tusz/data/test/
 
 **Current Performance** (Dev Set):
 - Baseline Epoch 9: 28.01% sensitivity@10FA
-- Exp1 Epoch 1: 20.45% sensitivity@10FA (expected with stronger regularization)
+- Exp1 Epoch 1: 20.45% sensitivity@10FA (expected dip with stronger regularization)
+- Exp1 Epoch 2: 25.30% sensitivity@10FA (recovering! +4.85% improvement)
 
 **Expected Performance** (Eval Set - not measured yet!):
 - Baseline: ~24-26% (3-4% gap due to overfitting)
