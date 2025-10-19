@@ -315,6 +315,11 @@ def scan_cache_cmd(cache_dir: Path) -> None:
 @click.option(
     "--output-csv-bi", type=click.Path(path_type=Path), help="Export events in CSV_BI format"
 )
+@click.option(
+    "--nedc-score",
+    is_flag=True,
+    help="Run NEDC v6.0.0 scoring via nedc-bench after inference",
+)
 @click.option("--dry-run", is_flag=True, help="Validate args and emit empty reports")
 def evaluate(
     checkpoint_path: Path,
@@ -323,6 +328,7 @@ def evaluate(
     device: str,
     output_json: Path | None,
     output_csv_bi: Path | None,
+    nedc_score: bool,
     dry_run: bool,
 ) -> None:
     """Evaluate model on test data.
