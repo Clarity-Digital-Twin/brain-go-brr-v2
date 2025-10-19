@@ -59,7 +59,8 @@ ls reference_repos/nedc-bench/src/nedc_bench/algorithms/overlap.py
 ls reference_repos/nedc-bench/src/nedc_bench/models/annotations.py
 
 # Verify sample data for integration test
-ls reference_repos/nedc-bench/data/csv_bi_parity/
+ls reference_repos/nedc-bench/nedc_eeg_eval/v6.0.0/data/csv/ref | head
+ls reference_repos/nedc-bench/nedc_eeg_eval/v6.0.0/data/csv/hyp | head
 ```
 
 ### 0.3: Extend build-cache CLI to Support Eval Split
@@ -415,10 +416,10 @@ class TestNEDCBenchIntegration:
         # Initialize scorer
         scorer = NEDCScorer()
 
-        # Find nedc-bench sample data
+        # Find nedc-bench sample data (ships with repo)
         nedc_bench_root = Path("reference_repos/nedc-bench")
-        sample_ref = nedc_bench_root / "data/csv_bi_parity/csv_bi_export_clean/ref"
-        sample_hyp = nedc_bench_root / "data/csv_bi_parity/csv_bi_export_clean/hyp"
+        sample_ref = nedc_bench_root / "nedc_eeg_eval/v6.0.0/data/csv/ref"
+        sample_hyp = nedc_bench_root / "nedc_eeg_eval/v6.0.0/data/csv/hyp"
 
         # Skip if sample data not found
         if not sample_ref.exists() or not sample_hyp.exists():
