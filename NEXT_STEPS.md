@@ -17,8 +17,9 @@
   - Sensitivity metrics declining after peak at epochs 6-9
 
 **Available checkpoints**:
-- `best.pt` - Epoch 9, 28.01% sensitivity@10FA (USE THIS for eval!)
-- `epoch_012.pt` - Last completed epoch
+- `best.pt` - Snapshot saved after epoch 8 sweep (`epoch` field = 8, carries best metric 28.01% for later comparison)
+- `epoch_009.pt` - Periodic save with `epoch` field = 9 (`best_metric` = 28.01%)
+- `epoch_012.pt` - Last fully completed epoch before crash
 - `signal_exit.pt` - Mid-epoch 13 (incomplete)
 
 **Location**: `/results/local_fla_training/checkpoints/`
@@ -35,7 +36,7 @@
   - Goal: Prevent overfitting seen in baseline, maintain/improve past epoch 6
 
 **Available checkpoints**:
-- `best.pt` - Epoch 2, 25.30% sensitivity@10FA
+- `best.pt` - Snapshot from epoch 1 (`best_metric` = 25.30% after epoch 2 sweep)
 - `epoch_001.pt` - Epoch 1 complete
 - `epoch_002.pt` - Epoch 2 complete
 - `mid_epoch_003_004151.pt` - Latest mid-epoch checkpoint (epoch 3 in progress)
