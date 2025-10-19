@@ -22,6 +22,7 @@ from src.brain_brr.eval.metrics import batch_probs_to_events
 from src.brain_brr.events import SeizureEvent, calculate_event_confidence
 from src.brain_brr.events.export import export_csv_bi
 from src.brain_brr.models import SeizureDetector
+from src.brain_brr.train.checkpoint import load_checkpoint
 from src.brain_brr.train.loop import validate_epoch
 
 logger = logging.getLogger(__name__)
@@ -186,7 +187,6 @@ def run_evaluation(request: EvaluationRequest) -> EvaluationResult:
         cfg.evaluation.save_predictions = True
 
     model = SeizureDetector.from_config(cfg.model)
-    model.load_state_dict(checkpoint["model_state_dict"])
 
     device = (
         request.device
@@ -194,6 +194,14 @@ def run_evaluation(request: EvaluationRequest) -> EvaluationResult:
         else ("cuda" if torch.cuda.is_available() else "cpu")
     )
     model = model.to(device)
+
+    load_checkpoint(
+        request.checkpoint_path,
+        model,
+        optimizer=None,
+        scheduler=None,
+        scaler=None,
+    )
 
     dataloader, edf_files = create_dataloader(request.data_path, cfg, device)
 
