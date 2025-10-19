@@ -258,5 +258,6 @@ module = [
     "torch_cluster.*",
     "fla.*",
     "dotenv",  # python-dotenv has no type stubs
+    "nedc_bench.*",  # nedc-bench dynamically imported at runtime
 ]
 ignore_missing_imports = true

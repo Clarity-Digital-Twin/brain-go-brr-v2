@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
+import shutil
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
@@ -16,10 +19,13 @@ from src.brain_brr.config.schemas import Config, PostprocessingConfig
 from src.brain_brr.constants import HYSTERESIS_DELTA, HYSTERESIS_TAU_ON
 from src.brain_brr.data import EEGWindowDataset
 from src.brain_brr.eval.metrics import batch_probs_to_events
-from src.brain_brr.events import SeizureEvent
+from src.brain_brr.events import SeizureEvent, calculate_event_confidence
 from src.brain_brr.events.export import export_csv_bi
 from src.brain_brr.models import SeizureDetector
+from src.brain_brr.train.checkpoint import load_checkpoint
 from src.brain_brr.train.loop import validate_epoch
+
+logger = logging.getLogger(__name__)
 
 
 def create_threshold_config(
@@ -57,6 +63,7 @@ class EvaluationRequest:
     device: str
     output_json: Path | None
     output_csv_bi: Path | None
+    nedc_score: bool = False
 
 
 @dataclass
@@ -124,9 +131,17 @@ def create_dataloader(
     if len(edf_files) == 0:
         raise ValueError(f"No EDF files found under: {data_path}")
 
+    split_name = data_path.name.lower()
+    cache_dir = Path(cfg.data.cache_dir) / split_name
+    if not cache_dir.exists():
+        raise FileNotFoundError(
+            f"Cache directory not found for split '{split_name}': {cache_dir}. "
+            f"Run: python -m src build-cache --data-dir {data_path} --cache-dir {cache_dir} --split {split_name}"
+        )
+
     dataset = EEGWindowDataset(
         edf_files,
-        cache_dir=Path(cfg.data.cache_dir) / "test",
+        cache_dir=cache_dir,
     )
 
     dataloader: DataLoader[Any] = DataLoader(
@@ -157,10 +172,21 @@ def run_evaluation(request: EvaluationRequest) -> EvaluationResult:
         FileNotFoundError: If checkpoint or data path not found
         ValueError: If configuration invalid or no EDF files found
     """
-    checkpoint, cfg = load_checkpoint_and_config(request.checkpoint_path, request.config_path)
+    _, cfg = load_checkpoint_and_config(request.checkpoint_path, request.config_path)
+
+    eval_output_dir = (
+        request.output_json.parent
+        if request.output_json is not None
+        else Path(cfg.experiment.output_dir) / "evaluation" / request.data_path.name
+    )
+    eval_output_dir = Path(eval_output_dir)
+    eval_output_dir.mkdir(parents=True, exist_ok=True)
+    cfg.experiment.output_dir = eval_output_dir
+
+    if request.nedc_score:
+        cfg.evaluation.save_predictions = True
 
     model = SeizureDetector.from_config(cfg.model)
-    model.load_state_dict(checkpoint["model_state_dict"])
 
     device = (
         request.device
@@ -169,7 +195,15 @@ def run_evaluation(request: EvaluationRequest) -> EvaluationResult:
     )
     model = model.to(device)
 
-    dataloader, _edf_files = create_dataloader(request.data_path, cfg, device)
+    load_checkpoint(
+        request.checkpoint_path,
+        model,
+        optimizer=None,
+        scheduler=None,
+        scaler=None,
+    )
+
+    dataloader, edf_files = create_dataloader(request.data_path, cfg, device)
 
     focal_alpha = cfg.training.focal_alpha if cfg.training.loss == "focal" else None
     focal_gamma = cfg.training.focal_gamma if cfg.training.loss == "focal" else None
@@ -186,6 +220,9 @@ def run_evaluation(request: EvaluationRequest) -> EvaluationResult:
         save_plots=cfg.evaluation.save_plots,
         output_dir=cfg.experiment.output_dir,
     )
+
+    if request.nedc_score:
+        _attach_nedc_metrics(request, cfg, metrics, edf_files, eval_output_dir)
 
     if request.output_json:
         _export_metrics_json(metrics, request, device)
@@ -275,4 +312,115 @@ def _export_events_csv_bi(
         patient_id="test",
         recording_id="eval",
         duration_s=total_duration,
+    )
+
+
+def _attach_nedc_metrics(
+    request: EvaluationRequest,
+    cfg: Config,
+    metrics: dict[str, Any],
+    edf_files: list[Path],
+    eval_output_dir: Path,
+) -> None:
+    """Convert predictions to CSV_BI, copy references, and run NEDC scoring.
+
+    Args:
+        request: Evaluation request parameters
+        cfg: Configuration
+        metrics: Metrics dictionary to attach NEDC results to
+        edf_files: List of EDF file paths
+        eval_output_dir: Output directory for evaluation results
+    """
+    predictions_dir = eval_output_dir / "predictions"
+    if not predictions_dir.exists():
+        logger.warning("Predictions directory missing (%s); skipping NEDC scoring", predictions_dir)
+        return
+
+    reference_dir = eval_output_dir / "nedc" / "reference"
+    hypothesis_dir = eval_output_dir / "nedc" / "hypothesis"
+    reference_dir.mkdir(parents=True, exist_ok=True)
+    hypothesis_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        from src.brain_brr.eval.nedc_wrapper import NEDCScorer
+    except Exception as exc:
+        logger.warning("nedc-bench unavailable (%s); skipping NEDC scoring", exc)
+        return
+
+    scorer = NEDCScorer()
+    prepared_pairs = 0
+
+    for edf_path in edf_files:
+        file_id = edf_path.stem
+        probs_path = predictions_dir / f"{file_id}_probs.npy"
+
+        if not probs_path.exists():
+            logger.warning("No predictions saved for %s; skipping", file_id)
+            continue
+
+        ref_csv = edf_path.with_suffix(".csv_bi")
+        if not ref_csv.exists():
+            logger.warning("Reference CSV_BI missing for %s; skipping", file_id)
+            continue
+
+        probs = np.load(probs_path)
+
+        probs_tensor = torch.from_numpy(probs).unsqueeze(0)
+
+        pred_event_ranges = batch_probs_to_events(
+            probs_tensor,
+            cfg.postprocessing,
+            cfg.data.sampling_rate,
+        )[0]
+
+        events: list[SeizureEvent] = []
+        for start_s, end_s in pred_event_ranges:
+            event = SeizureEvent(start_s=start_s, end_s=end_s)
+            event.confidence = calculate_event_confidence(
+                probs,
+                event,
+                sampling_rate=cfg.data.sampling_rate,
+                method="mean",
+            )
+            events.append(event)
+
+        patient_id, recording_suffix = [*file_id.split("_", 1), "unknown"][:2]
+        export_csv_bi(
+            events,
+            hypothesis_dir / f"{file_id}.csv_bi",
+            patient_id=patient_id,
+            recording_id=recording_suffix,
+            duration_s=len(probs) / cfg.data.sampling_rate,
+        )
+
+        shutil.copy2(ref_csv, reference_dir / f"{file_id}.csv_bi")
+        prepared_pairs += 1
+
+    if prepared_pairs == 0:
+        logger.warning("No prediction/reference pairs prepared for NEDC scoring")
+        return
+
+    nedc_metrics = scorer.score_predictions(reference_dir, hypothesis_dir, algorithm="overlap")
+    duration_hours = nedc_metrics.total_recording_duration_sec / 3600.0
+    fa_per_24h = (nedc_metrics.fp / duration_hours) * 24.0 if duration_hours > 0 else 0.0
+
+    metrics["nedc_overlap"] = {
+        "tp": nedc_metrics.tp,
+        "fp": nedc_metrics.fp,
+        "fn": nedc_metrics.fn,
+        "precision": nedc_metrics.precision,
+        "recall": nedc_metrics.recall,
+        "f1": nedc_metrics.f1,
+        "fa_per_24h": fa_per_24h,
+        "num_files": nedc_metrics.num_files,
+    }
+
+    logger.info(
+        "NEDC overlap: TP=%s FP=%s FN=%s F1=%.3f FA/24h=%.2f (files=%s)",
+        nedc_metrics.tp,
+        nedc_metrics.fp,
+        nedc_metrics.fn,
+        nedc_metrics.f1,
+        fa_per_24h,
+        nedc_metrics.num_files,
     )
