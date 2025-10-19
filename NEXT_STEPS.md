@@ -399,9 +399,10 @@ ls -lh /path/to/tusz/data/test/
    - Ensemble might be more robust
 
 3. **Hyperparameter search**: After Exp1, should we do systematic grid search?
-   - Dropout: [0.3, 0.35, 0.4, 0.45]
-   - Weight decay: [1e-4, 5e-4, 1e-3, 5e-3]
-   - Learning rate: [1e-4, 5e-4, 1e-3]
+   - TCN dropout: [0.15, 0.175, 0.20, 0.225, 0.25]
+   - Mamba dropout: [0.1, 0.15, 0.2, 0.25]
+   - Weight decay: [0.01, 0.025, 0.05, 0.075, 0.1]
+   - Learning rate: [5e-5, 1e-4, 2e-4]
 
 4. **Training time optimization**: 9.6h per epoch × 100 = 40 days
    - Can we speed up validation? (Currently 5.5h - 57% of epoch time!)
@@ -415,7 +416,7 @@ ls -lh /path/to/tusz/data/test/
 
 ## Action Items (TODO)
 
-- [ ] Check Exp1 epoch 2 results when validation completes (~2-3 hours)
+- [x] ~~Check Exp1 epoch 2 results when validation completes~~ (DONE - 25.30% sensitivity@10FA, improving!)
 - [x] ~~Locate TUSZ eval/test set~~ (DONE - found at data_ext4/tusz/edf/eval/)
 - [ ] Implement NEDCScorer wrapper (~100 lines) for NEDC v6.0.0 scoring
 - [ ] Extend `python -m src evaluate` CLI with `--nedc-score` flag
