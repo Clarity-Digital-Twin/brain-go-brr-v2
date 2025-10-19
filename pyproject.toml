@@ -69,6 +69,7 @@ dependencies = [
 # Note: scipy (for morphology) is already in base dependencies
 eval = [
     "pandas>=2.0.0",
+    "nedc-bench @ git+https://github.com/Clarity-Digital-Twin/nedc-bench.git@main",
 ]
 monitoring = [
     "wandb>=0.16.0",

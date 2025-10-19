@@ -4,13 +4,9 @@ Unit tests for NEDCScorer wrapper.
 Tests NEDCScorer class that provides Python API to nedc-bench (FILE-LEVEL API).
 """
 
-from pathlib import Path
-
 import pytest
 
-from src.brain_brr.eval.nedc_wrapper import NEDC_BENCH_PATH, NEDCScorer
-
-HAS_NEDC_BENCH = NEDC_BENCH_PATH.exists()
+from src.brain_brr.eval.nedc_wrapper import HAS_NEDC_BENCH, NEDCScorer
 
 
 @pytest.mark.skipif(not HAS_NEDC_BENCH, reason="nedc-bench not available")
@@ -23,14 +19,13 @@ class TestNEDCScorerInit:
         assert scorer is not None
         assert hasattr(scorer, "beta")
 
-    def test_init_nedc_bench_not_found(self, monkeypatch, tmp_path):
-        """NEDCScorer raises ImportError if nedc-bench not found"""
+    def test_init_nedc_bench_not_found(self, monkeypatch):
+        """NEDCScorer raises ImportError if nedc-bench not installed"""
         import src.brain_brr.eval.nedc_wrapper as wrapper_module
 
-        fake_path = tmp_path / "nonexistent"
-        monkeypatch.setattr(wrapper_module, "NEDC_BENCH_PATH", fake_path)
+        monkeypatch.setattr(wrapper_module, "HAS_NEDC_BENCH", False)
 
-        with pytest.raises(ImportError, match="NEDC-BENCH not found"):
+        with pytest.raises(ImportError, match="nedc-bench package not installed"):
             NEDCScorer()
 
 

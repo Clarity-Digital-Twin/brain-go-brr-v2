@@ -1,21 +1,25 @@
 """
 NEDCScorer - Direct Python integration with nedc-bench for NEDC v6.0.0 scoring.
 
-NO Docker! NO subprocess! Just sys.path.insert() + Python imports!
+NO Docker! NO subprocess! Just Python imports!
 
 CRITICAL: nedc-bench has FILE-LEVEL API, not directory-level.
 Must loop over matched file pairs and accumulate counts.
+
+Installation:
+    uv sync -E eval  # Installs nedc-bench from GitHub
 """
 
+import importlib.util
 import logging
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
 logger = logging.getLogger(__name__)
 
-NEDC_BENCH_PATH = Path(__file__).resolve().parents[3] / "reference_repos" / "nedc-bench" / "src"
+# Check if nedc-bench is installed as a package
+HAS_NEDC_BENCH = importlib.util.find_spec("nedc_bench") is not None
 
 
 @dataclass
@@ -58,24 +62,15 @@ class NEDCScorer:
         Initialize NEDC scorer with BetaPipeline.
 
         Raises:
-            ImportError: If nedc-bench not found at reference_repos/
+            ImportError: If nedc-bench package not installed
             RuntimeError: If nedc-bench import fails
         """
-        if not NEDC_BENCH_PATH.exists():
-            raise ImportError(
-                f"NEDC-BENCH not found at {NEDC_BENCH_PATH}. "
-                f"Clone from https://github.com/Clarity-Digital-Twin/nedc-bench"
-            )
-
-        sys.path.insert(0, str(NEDC_BENCH_PATH))
+        if not HAS_NEDC_BENCH:
+            raise ImportError("nedc-bench package not installed. Install with: uv sync -E eval")
 
         try:
-            from nedc_bench.models.annotations import (
-                AnnotationFile,  # type: ignore[import-not-found]
-            )
-            from nedc_bench.orchestration.dual_pipeline import (
-                BetaPipeline,  # type: ignore[import-not-found]
-            )
+            from nedc_bench.models.annotations import AnnotationFile
+            from nedc_bench.orchestration.dual_pipeline import BetaPipeline
 
             self.BetaPipeline = BetaPipeline
             self.AnnotationFile = AnnotationFile

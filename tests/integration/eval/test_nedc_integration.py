@@ -11,9 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from src.brain_brr.eval.nedc_wrapper import NEDC_BENCH_PATH, NEDCScorer
-
-HAS_NEDC_BENCH = NEDC_BENCH_PATH.exists()
+from src.brain_brr.eval.nedc_wrapper import HAS_NEDC_BENCH, NEDCScorer
 
 
 @pytest.mark.integration
