@@ -147,11 +147,11 @@ class NEDCScorer:
             else:
                 raise ValueError(f"Unknown algorithm: {algorithm}")
 
-            total_tp += result.total_hits
-            total_fp += result.total_false_alarms
-            total_fn += result.total_misses
+            total_tp += getattr(result, 'total_hits', 0)
+            total_fp += getattr(result, 'total_false_alarms', 0)
+            total_fn += getattr(result, 'total_misses', 0)
 
-            ref_ann = self.AnnotationFile.from_csv_bi(ref_file)
+            ref_ann = self.AnnotationFile.from_csv_bi(str(ref_file))
             total_duration += ref_ann.duration
 
         precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0.0
@@ -194,7 +194,8 @@ class NEDCScorer:
             True if valid, False otherwise
         """
         try:
-            self.AnnotationFile.from_csv_bi(str(csv_bi_path))
+            path_str = str(csv_bi_path) if isinstance(csv_bi_path, Path) else csv_bi_path
+            self.AnnotationFile.from_csv_bi(path_str)
             return True
         except Exception as e:
             logger.error(f"Invalid CSV_BI format in {csv_bi_path}: {e}")
