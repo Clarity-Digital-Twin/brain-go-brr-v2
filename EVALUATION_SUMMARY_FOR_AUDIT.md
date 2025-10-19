@@ -1,0 +1,241 @@
+# NEDC Evaluation Pipeline - Summary for AI Audit
+
+**Status**: Documentation complete - Ready for cross-reference audit
+
+**Date**: October 19, 2025
+
+---
+
+## Purpose
+
+This document summarizes ALL evaluation documentation for AI agent audit.
+
+**Audit objective**: Verify accuracy, completeness, and cross-reference consistency across all 6 docs.
+
+---
+
+## Documentation Files
+
+### 1. EVALUATION_00_OVERVIEW.md (✅ COMPLETE)
+**Lines**: 374
+**Purpose**: High-level architecture and timeline
+**Key content**:
+- 3-component pipeline diagram
+- 4-week TDD timeline
+- Success criteria
+- Publication-ready output examples
+
+### 2. EVALUATION_01_QUESTIONS_RESOLVED.md (✅ COMPLETE)
+**Lines**: 402
+**Purpose**: All critical questions answered with evidence
+**Key content**:
+- TUSZ eval set location (FOUND!)
+- Ground truth CSV_BI files (EXIST!)
+- Metadata extraction strategy
+- Pre-implementation checklist
+
+### 3. EVALUATION_02_COMPONENT_CSVBI_CONVERTER.md (✅ COMPLETE)
+**Lines**: 374
+**Purpose**: CSVBIConverter technical specification
+**Key content**:
+- Class signatures (`RecordingMetadata`, `CSVBIConverter`)
+- 3 method specifications with full docstrings
+- 10 unit test cases with fixtures
+- Acceptance criteria
+
+### 4. EVALUATION_03_COMPONENT_NEDC_SCORER.md (TO CREATE)
+**Estimated lines**: ~350
+**Purpose**: NEDCScorer technical specification
+**Key content**:
+- Direct Python import design (NO Docker!)
+- `NEDCScorer` class specification
+- 8 unit tests + 1 integration test
+- All 5 NEDC algorithms documented
+
+### 5. EVALUATION_04_COMPONENT_MODEL_EVALUATOR.md (TO CREATE)
+**Estimated lines**: ~400
+**Purpose**: ModelEvaluator orchestrator specification
+**Key content**:
+- End-to-end pipeline orchestration
+- CLI interface design
+- 4 integration tests
+- Publication table generation
+
+### 6. EVALUATION_05_TESTING_REQUIREMENTS.md (TO CREATE)
+**Estimated lines**: ~300
+**Purpose**: Complete testing requirements
+**Key content**:
+- Error handling specifications
+- Performance requirements
+- Logging specifications
+- CLI argument specifications
+
+---
+
+## Cross-Reference Points to Audit
+
+### Architecture Consistency
+
+**Component dependencies** (verify across all docs):
+```
+CSVBIConverter → batch_probs_to_events() (metrics.py)
+NEDCScorer → nedc-bench (reference_repos/)
+ModelEvaluator → CSVBIConverter + NEDCScorer
+```
+
+### File Paths Consistency
+
+**TUSZ data** (verify in Q&A + component docs):
+- Eval set: `/home/jj/proj/brain-go-brr-v2/data_ext4/tusz/edf/eval/`
+- Ground truth: `{tusz}/edf/eval/{patient}/{session}_YYYY/01_tcp_ar/{file_id}.csv_bi`
+- Cache: `cache/tusz_mmap/eval/` (empty, needs preprocessing)
+
+**Output paths** (verify in evaluator spec):
+```
+results/eval_{experiment}/
+├── predictions/eval/*.npy
+├── csv_bi/reference/*.csv_bi
+├── csv_bi/hypothesis/*.csv_bi
+└── metrics/eval_overlap_metrics.json
+```
+
+### Timeline Consistency
+
+**4-week plan** (verify matches component specs):
+- Week 1: CSVBIConverter (10 tests → implementation → validation)
+- Week 2: NEDCScorer (8 tests → implementation → integration)
+- Week 3: ModelEvaluator (4 tests → implementation → end-to-end)
+- Week 4: Production evaluation (baseline + Exp1)
+
+### Test Count Consistency
+
+**Total tests** (verify sum matches):
+- CSVBIConverter: 10 unit tests
+- NEDCScorer: 8 unit tests + 1 integration test
+- ModelEvaluator: 4 integration tests
+- **Total**: 23 tests
+
+### Performance Targets Consistency
+
+**Verify same targets in all docs**:
+- Convert 1 recording: < 100ms
+- Convert 1000 recordings: < 60s
+- Score 1000 file pairs: < 30s (overlap algorithm)
+- Full eval on eval set: < 40 min (includes inference)
+
+### Acceptance Criteria Consistency
+
+**CSVBIConverter** (verify in component doc):
+- All 10 tests pass
+- Coverage ≥ 95%
+- Converts dev set in < 60s
+- CSV_BI files parse in nedc-bench
+
+**NEDCScorer** (verify when doc created):
+- All 8+1 tests pass
+- Coverage ≥ 90%
+- Scores 1000 pairs in < 30s
+- All 5 algorithms work
+
+**ModelEvaluator** (verify when doc created):
+- All 4 tests pass
+- Full eval on dev set works
+- CLI interface complete
+- Generates publication tables
+
+---
+
+## Known Facts to Cross-Check
+
+### TUSZ Dataset Facts
+
+✅ **Confirmed via bash exploration**:
+1. Eval set exists at `/data_ext4/tusz/edf/eval/`
+2. Ground truth `.csv_bi` files exist (no conversion needed!)
+3. Structure: `{patient}/{session_year}/01_tcp_ar/{file_id}.{edf,csv,csv_bi}`
+
+### Code Reuse Facts
+
+✅ **Confirmed in codebase**:
+1. `batch_probs_to_events()` exists in `src/brain_brr/eval/metrics.py`
+2. `PostprocessingConfig` exists in `src/brain_brr/config/schemas.py`
+3. `run_validation()` exists in `src/brain_brr/train/val_step.py`
+
+### NEDC-BENCH Facts
+
+✅ **Confirmed**:
+1. Located at `reference_repos/nedc-bench/`
+2. Has 5 algorithms: overlap, taes, dp, epoch, ira
+3. Has Python API (not just CLI)
+4. Sample data exists for testing
+
+---
+
+## Audit Checklist
+
+**For AI agent to verify**:
+
+### Consistency Checks
+- [ ] All file paths match across docs
+- [ ] Timeline matches component breakdown
+- [ ] Test count totals match
+- [ ] Performance targets consistent
+- [ ] Acceptance criteria complete
+
+### Accuracy Checks
+- [ ] TUSZ paths exist (verified via bash)
+- [ ] Ground truth format correct (.csv_bi confirmed)
+- [ ] Code dependencies exist (batch_probs_to_events, etc.)
+- [ ] nedc-bench accessible
+
+### Completeness Checks
+- [ ] All 3 components specified
+- [ ] All test cases detailed
+- [ ] All error conditions handled
+- [ ] All CLI arguments specified
+
+### Implementation-Ready Checks
+- [ ] Class signatures complete with types
+- [ ] Method docstrings complete
+- [ ] Test fixtures defined
+- [ ] Acceptance criteria measurable
+
+---
+
+## Open Items (Before Implementation)
+
+**Prerequisites**:
+1. Preprocess eval set (generate cache)
+   ```bash
+   python -m src.brain_brr.data.preprocess --split eval --output cache/tusz_mmap/eval/
+   ```
+
+2. Verify nedc-bench sample data accessible
+   ```bash
+   ls reference_repos/nedc-bench/data/csv_bi_parity/
+   ```
+
+3. Run baseline inference with save_predictions=true (if not done)
+
+---
+
+## Files Remaining to Create
+
+- [ ] EVALUATION_03_COMPONENT_NEDC_SCORER.md (~350 lines)
+- [ ] EVALUATION_04_COMPONENT_MODEL_EVALUATOR.md (~400 lines)
+- [ ] EVALUATION_05_TESTING_REQUIREMENTS.md (~300 lines)
+
+**Total remaining**: ~1,050 lines
+
+---
+
+## Next Actions
+
+1. **Create remaining 3 docs** (NEDCScorer, ModelEvaluator, Testing)
+2. **AI audit all 6 docs** for cross-reference accuracy
+3. **Update NEXT_STEPS.md** (remove massive spec, add references to new docs)
+4. **Begin Week 1** (CSVBIConverter TDD implementation)
+
+---
+
+**Ready for AI audit after remaining docs created!**
