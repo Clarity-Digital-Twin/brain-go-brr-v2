@@ -109,11 +109,16 @@ class EEGWindowDataset(torch.utils.data.Dataset):
                     windows_mmap, _labels_mmap = self._load_cache_for_worker(cache_path)
                     n_windows = windows_mmap.shape[0]
                 except FileNotFoundError:
-                    raise FileNotFoundError(
-                        f"Cache not found for {edf_path.name} at {cache_path.parent}. "
-                        f"Run populate_cache first: "
-                        f"modal run deploy/modal/app.py --action populate-cache"
-                    ) from None
+                    # Cache miss: process on-demand if allowed
+                    if not self.allow_on_demand:
+                        raise FileNotFoundError(
+                            f"Cache not found for {edf_path.name} at {cache_path.parent}. "
+                            f"Run populate_cache first: "
+                            f"modal run deploy/modal/app.py --action populate-cache"
+                        ) from None
+                    # Fall back to on-demand processing for window counting
+                    windows_arr, _labels_arr = self._process_file(edf_path, i)
+                    n_windows = windows_arr.shape[0]
             else:
                 # No cache_dir: process on-demand (for tests or non-cached workflows)
                 windows_arr, _labels_arr = self._process_file(edf_path, i)
