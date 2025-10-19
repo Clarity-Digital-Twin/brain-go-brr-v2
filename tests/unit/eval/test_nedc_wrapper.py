@@ -4,10 +4,10 @@ Unit tests for NEDCScorer wrapper.
 Tests NEDCScorer class that provides Python API to nedc-bench (FILE-LEVEL API).
 """
 
-import pytest
-from pathlib import Path
 
-from src.brain_brr.eval.nedc_wrapper import NEDCScorer, NEDCMetrics
+import pytest
+
+from src.brain_brr.eval.nedc_wrapper import NEDCScorer
 
 
 class TestNEDCScorerInit:
@@ -17,11 +17,12 @@ class TestNEDCScorerInit:
         """NEDCScorer initializes successfully with nedc-bench found"""
         scorer = NEDCScorer()
         assert scorer is not None
-        assert hasattr(scorer, 'beta')
+        assert hasattr(scorer, "beta")
 
     def test_init_nedc_bench_not_found(self, monkeypatch, tmp_path):
         """NEDCScorer raises ImportError if nedc-bench not found"""
         import src.brain_brr.eval.nedc_wrapper as wrapper_module
+
         fake_path = tmp_path / "nonexistent"
         monkeypatch.setattr(wrapper_module, "NEDC_BENCH_PATH", fake_path)
 
@@ -153,9 +154,7 @@ TERM,200.0000,220.0000,seiz,1.0
         assert abs(metrics.recall - 0.5) < 0.01
         assert abs(metrics.precision - 0.5) < 0.01
 
-    def test_score_predictions_batch(
-        self, scorer, sample_csv_bi_ref, sample_csv_bi_hyp_perfect
-    ):
+    def test_score_predictions_batch(self, scorer, sample_csv_bi_ref, sample_csv_bi_hyp_perfect):
         """Score with multiple algorithms simultaneously"""
         results = scorer.score_predictions_batch(
             reference_dir=sample_csv_bi_ref,

@@ -7,8 +7,9 @@ Uses actual sample files from nedc-bench repository to verify:
 3. We get real results back
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from src.brain_brr.eval.nedc_wrapper import NEDCScorer
 

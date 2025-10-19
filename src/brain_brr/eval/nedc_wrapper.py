@@ -7,11 +7,11 @@ CRITICAL: nedc-bench has FILE-LEVEL API, not directory-level.
 Must loop over matched file pairs and accumulate counts.
 """
 
+import logging
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
-from dataclasses import dataclass
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,7 @@ class NEDCMetrics:
     We compute precision/recall/f1 from counts.
     sensitivity_at_*FA must be computed separately (threshold sweep).
     """
+
     algorithm: str
     tp: int
     fp: int
@@ -69,8 +70,9 @@ class NEDCScorer:
         sys.path.insert(0, str(NEDC_BENCH_PATH))
 
         try:
-            from nedc_bench.orchestration.dual_pipeline import BetaPipeline
             from nedc_bench.models.annotations import AnnotationFile
+            from nedc_bench.orchestration.dual_pipeline import BetaPipeline
+
             self.BetaPipeline = BetaPipeline
             self.AnnotationFile = AnnotationFile
             self.beta = BetaPipeline()
@@ -147,9 +149,9 @@ class NEDCScorer:
             else:
                 raise ValueError(f"Unknown algorithm: {algorithm}")
 
-            total_tp += getattr(result, 'total_hits', 0)
-            total_fp += getattr(result, 'total_false_alarms', 0)
-            total_fn += getattr(result, 'total_misses', 0)
+            total_tp += getattr(result, "total_hits", 0)
+            total_fp += getattr(result, "total_false_alarms", 0)
+            total_fn += getattr(result, "total_misses", 0)
 
             ref_ann = self.AnnotationFile.from_csv_bi(ref_file)
             total_duration += ref_ann.duration
