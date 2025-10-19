@@ -36,13 +36,13 @@ This document summarizes ALL evaluation documentation for AI agent audit.
 
 ## Documentation Files
 
-### 1. EVALUATION_00_OVERVIEW.md (✅ COMPLETE)
-**Lines**: 374
+### 1. EVALUATION_00_OVERVIEW.md (✅ UPDATED)
+**Lines**: ~374
 **Purpose**: High-level architecture and timeline
 **Key content**:
-- 3-component pipeline diagram
-- 4-week TDD timeline
-- Success criteria
+- Architecture diagram (REVISED - shows code reuse!)
+- 2-week timeline (REVISED from 4 weeks)
+- Success criteria (REVISED - NEDCScorer + CLI extensions only)
 - Publication-ready output examples
 
 ### 2. EVALUATION_01_QUESTIONS_RESOLVED.md (✅ COMPLETE)
@@ -54,33 +54,31 @@ This document summarizes ALL evaluation documentation for AI agent audit.
 - Metadata extraction strategy
 - Pre-implementation checklist
 
-### 3. EVALUATION_02_COMPONENT_CSVBI_CONVERTER.md (✅ COMPLETE)
+### 3. EVALUATION_02_COMPONENT_CSVBI_CONVERTER.md (⚠️ OBSOLETE)
 **Lines**: 374
-**Purpose**: CSVBIConverter technical specification
-**Key content**:
-- Class signatures (`RecordingMetadata`, `CSVBIConverter`)
-- 3 method specifications with full docstrings
-- 10 unit test cases with fixtures
-- Acceptance criteria
+**Purpose**: ~~CSVBIConverter technical specification~~ HISTORICAL REFERENCE ONLY
+**Status**: **MARKED OBSOLETE** - export_csv_bi() already exists (events/export.py:15-52)
+**Action**: DO NOT implement this spec, use existing export_csv_bi() function
 
-### 4. EVALUATION_03_COMPONENT_NEDC_SCORER.md (TO CREATE)
-**Estimated lines**: ~350
-**Purpose**: NEDCScorer technical specification
+### 4. EVALUATION_03_COMPONENT_NEDC_SCORER.md (✅ PRIMARY SPEC)
+**Lines**: ~520
+**Purpose**: NEDCScorer technical specification - THE ONLY NEW COMPONENT
+**Status**: **IMPLEMENT THIS** - ~100 lines new code
 **Key content**:
 - Direct Python import design (NO Docker!)
-- `NEDCScorer` class specification
+- `NEDCScorer` class specification with FA-sensitivity computation details
 - 8 unit tests + 1 integration test
 - All 5 NEDC algorithms documented
 
-### 5. EVALUATION_04_COMPONENT_MODEL_EVALUATOR.md ✅ CREATED (PARTIALLY OBSOLETE)
-**Lines**: ~500 (historical spec preserved)
-**Purpose**: ModelEvaluator specification (NOW OBSOLETE - extend existing run_evaluation instead)
-**Status**: Marked OBSOLETE at top, preserved for reference
-**Action**: Use as guidance to extend CLI, don't implement as written
+### 5. EVALUATION_04_COMPONENT_MODEL_EVALUATOR.md (⚠️ PARTIALLY OBSOLETE)
+**Lines**: ~480
+**Purpose**: ~~ModelEvaluator orchestrator~~ HISTORICAL REFERENCE ONLY
+**Status**: **MARKED PARTIALLY OBSOLETE** - run_evaluation() already exists (cli/services/evaluation.py)
+**Action**: Extend existing `python -m src evaluate` CLI with `--nedc-score` flag (~50 lines), don't create new evaluator.py
 
-### 6. EVALUATION_05_TESTING_REQUIREMENTS.md ✅ CREATED (UPDATED)
-**Lines**: ~460 (updated)
-**Purpose**: Testing requirements (updated to reflect code reuse)
+### 6. EVALUATION_05_TESTING_REQUIREMENTS.md (✅ UPDATED)
+**Lines**: ~460
+**Purpose**: Testing requirements (REVISED for reduced scope)
 **Status**: Updated with revised test counts (23 → 9 tests)
 **Action**: Follow revised test plan for NEDCScorer only
 
@@ -88,13 +86,20 @@ This document summarizes ALL evaluation documentation for AI agent audit.
 
 ## Cross-Reference Points to Audit
 
-### Architecture Consistency
+### Architecture Consistency (REVISED)
 
-**Component dependencies (REVISED)** (verify across all docs):
+**Component dependencies** (verify across all docs):
 ```
-export_csv_bi() → SeizureEvent objects (existing)
-NEDCScorer → nedc-bench (reference_repos/) + export_csv_bi output
-run_evaluation() + NEDCScorer → Complete eval pipeline (extend existing)
+Component 1 (CSV_BI Export): ✅ ALREADY EXISTS
+  export_csv_bi() → SeizureEvent objects (events/export.py:15-52)
+
+Component 2 (NEDCScorer): 🆕 NEW - IMPLEMENT THIS
+  NEDCScorer → nedc-bench (reference_repos/) + export_csv_bi output
+  ~100 lines new code
+
+Component 3 (Evaluation CLI): ✅ ALREADY EXISTS - EXTEND IT
+  run_evaluation() + NEDCScorer → Complete eval pipeline
+  Extend python -m src evaluate with --nedc-score flag (~50 lines)
 ```
 
 ### File Paths Consistency
@@ -113,19 +118,21 @@ results/eval_{experiment}/
 └── metrics/eval_overlap_metrics.json
 ```
 
-### Timeline Consistency
+### Timeline Consistency (REVISED)
 
-**2-week plan (REVISED)** (verify matches EVALUATION_00):
-- Week 1: Extend build-cache CLI + preprocess eval set + write NEDCScorer tests
-- Week 2: Implement NEDCScorer + extend evaluate CLI + run baseline evaluation
+**2-week plan** (verify matches EVALUATION_00):
+- **Week 1**: Extend build-cache CLI + preprocess eval set + write 8 NEDCScorer unit tests (TDD)
+- **Week 2**: Implement NEDCScorer (~100 lines) + extend evaluate CLI (~50 lines) + integration test + run baseline
+
+**MAJOR CHANGE**: Reduced from 4 weeks → 2 weeks by reusing existing infrastructure!
 
 ### Test Count Consistency (REVISED)
 
-**Total tests** (verify sum matches):
-- ~~CSVBIConverter: 10 unit tests~~ → OBSOLETE (already exists)
-- NEDCScorer: 8 unit tests + 1 integration test → IMPLEMENT THESE
-- ~~ModelEvaluator: 4 integration tests~~ → OBSOLETE (already exists)
-- **Total**: 9 tests (was 23 before discovering existing code)
+**Total tests** (verify sum matches EVALUATION_05):
+- ~~CSVBIConverter: 10 unit tests~~ → ✅ **OBSOLETE** (export_csv_bi already exists)
+- **NEDCScorer: 8 unit tests + 1 integration test** → 🆕 **IMPLEMENT THESE**
+- ~~ModelEvaluator: 4 integration tests~~ → ✅ **OBSOLETE** (run_evaluation already exists)
+- **TOTAL: 9 tests** (REVISED from 23 tests - 60% reduction!)
 
 ### Performance Targets Consistency
 
@@ -135,25 +142,25 @@ results/eval_{experiment}/
 - Score 1000 file pairs: < 30s (overlap algorithm)
 - Full eval on eval set: < 40 min (includes inference)
 
-### Acceptance Criteria Consistency
+### Acceptance Criteria Consistency (REVISED)
 
-**CSVBIConverter** (verify in component doc):
-- All 10 tests pass
-- Coverage ≥ 95%
-- Converts dev set in < 60s
-- CSV_BI files parse in nedc-bench
+**~~CSVBIConverter~~** → ✅ **ALREADY EXISTS** (no new criteria needed)
+- export_csv_bi() already works (events/export.py)
+- Already tested in existing test suite
+- Already used by `python -m src evaluate --output-csv-bi`
 
-**NEDCScorer** (verify when doc created):
-- All 8+1 tests pass
+**NEDCScorer** (ONLY NEW COMPONENT - verify in EVALUATION_03):
+- All 8 unit tests + 1 integration test pass
 - Coverage ≥ 90%
-- Scores 1000 pairs in < 30s
-- All 5 algorithms work
+- Scores 1000 file pairs in < 30s
+- All 5 NEDC algorithms work
+- FA-sensitivity computation accurate
 
-**ModelEvaluator** (verify when doc created):
-- All 4 tests pass
-- Full eval on dev set works
-- CLI interface complete
-- Generates publication tables
+**~~ModelEvaluator~~** → ✅ **ALREADY EXISTS** (extend with ~50 lines)
+- Extend existing `python -m src evaluate` CLI
+- Add `--nedc-score` flag
+- Integrate NEDCScorer into run_evaluation() service
+- Generates publication-ready metrics
 
 ---
 
@@ -166,12 +173,15 @@ results/eval_{experiment}/
 2. Ground truth `.csv_bi` files exist (no conversion needed!)
 3. Structure: `{patient}/{session_year}/01_tcp_ar/{file_id}.{edf,csv,csv_bi}`
 
-### Code Reuse Facts
+### Code Reuse Facts (REVISED)
 
 ✅ **Confirmed in codebase**:
-1. `batch_probs_to_events()` exists in `src/brain_brr/eval/metrics.py`
-2. `PostprocessingConfig` exists in `src/brain_brr/config/schemas.py`
-3. `run_validation()` exists in `src/brain_brr/train/val_step.py`
+1. `export_csv_bi()` exists in `src/brain_brr/events/export.py:15-52` (Component 1 DONE!)
+2. `run_evaluation()` exists in `src/brain_brr/cli/services/evaluation.py:143-201` (Component 3 mostly DONE!)
+3. `validate_epoch()` exists in `src/brain_brr/train/val_step.py:375-584` (inference pipeline DONE!)
+4. `python -m src evaluate` CLI exists in `src/brain_brr/cli/cli.py:305-413` (just needs --nedc-score flag!)
+
+**CRITICAL**: We only need to implement NEDCScorer (~100 lines) + extend CLI (~50 lines) = ~150 lines total!
 
 ### NEDC-BENCH Facts
 
@@ -231,22 +241,31 @@ results/eval_{experiment}/
 
 ---
 
-## Files Remaining to Create
+## Implementation-Ready Status
 
-- [ ] EVALUATION_03_COMPONENT_NEDC_SCORER.md (~350 lines)
-- [ ] EVALUATION_04_COMPONENT_MODEL_EVALUATOR.md (~400 lines)
-- [ ] EVALUATION_05_TESTING_REQUIREMENTS.md (~300 lines)
-
-**Total remaining**: ~1,050 lines
+**All documentation COMPLETE** ✅:
+- ✅ EVALUATION_00_OVERVIEW.md (UPDATED - 2-week timeline, reuse-first approach)
+- ✅ EVALUATION_01_QUESTIONS_RESOLVED.md (accurate factual Q&A)
+- ✅ EVALUATION_02_COMPONENT_CSVBI_CONVERTER.md (MARKED OBSOLETE - reference only)
+- ✅ EVALUATION_03_COMPONENT_NEDC_SCORER.md (PRIMARY SPEC - implement this!)
+- ✅ EVALUATION_04_COMPONENT_MODEL_EVALUATOR.md (MARKED PARTIALLY OBSOLETE - reference only)
+- ✅ EVALUATION_05_TESTING_REQUIREMENTS.md (UPDATED - 9 tests)
+- ✅ EVALUATION_SUMMARY_FOR_AUDIT.md (UPDATED - this doc!)
+- ✅ EVALUATION_DOCS_COMPLETE.md (UPDATED - meta documentation)
 
 ---
 
 ## Next Actions
 
-1. **Create remaining 3 docs** (NEDCScorer, ModelEvaluator, Testing)
-2. **AI audit all 6 docs** for cross-reference accuracy
-3. **Update NEXT_STEPS.md** (remove massive spec, add references to new docs)
-4. **Begin Week 1** (CSVBIConverter TDD implementation)
+1. ✅ **Documentation complete** - All docs created and audited (Round 1 + Round 2 + Round 3)
+2. **Begin Week 1 Implementation**:
+   - Extend `python -m src build-cache` to support `--split eval`
+   - Preprocess TUSZ eval set to cache
+   - Write 8 unit tests for NEDCScorer (TDD approach)
+3. **Begin Week 2 Implementation**:
+   - Implement NEDCScorer (~100 lines)
+   - Extend `python -m src evaluate` with `--nedc-score` flag (~50 lines)
+   - Run baseline evaluation on eval set
 
 ---
 
