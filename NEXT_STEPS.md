@@ -472,14 +472,62 @@ ls -lh /path/to/tusz/data/test/
 
 #### Q1: What format are our model outputs after running on eval dataset?
 
-**Current state (during validation)**:
-- Raw logits/probabilities per 60s window (batch outputs from model forward pass)
-- Binary predictions after threshold (seizure/non-seizure per window)
-- Post-processed predictions (hysteresis + morphology from `src/brain_brr/post/postprocess.py`)
+**FOUND THE CODE!** 🎯 (See `src/brain_brr/train/val_step.py:267-301`)
 
-**Format**: Likely PyTorch tensors or numpy arrays stored in memory
+**Current Prediction Format** (what validation actually outputs):
 
-**What we need for evaluation**: Continuous time-stamped event predictions in CSV_BI format
+**During validation loop** (`val_step.py:486-509`):
+```python
+for i, fid in enumerate(file_ids):
+    current_windows.append({
+        "start_s": float(window_starts[i]),      # Window start time in seconds
+        "probs": probs[i].cpu(),                 # PyTorch tensor (60s × sampling_rate)
+        "labels": labels[i].cpu(),               # PyTorch tensor (60s × sampling_rate)
+    })
+```
+
+**Saved to disk** (`val_step.py:267-301`, IF `save_predictions: true`):
+```python
+# One file per recording, TWO .npy files per recording:
+predictions/
+├── epoch_009/
+│   ├── aaaaaaaa_s001_t000_probs.npy   # Probabilities (numpy array)
+│   ├── aaaaaaaa_s001_t000_labels.npy  # Ground truth labels (numpy array)
+│   ├── aaaaaaab_s002_t001_probs.npy
+│   ├── aaaaaaab_s002_t001_labels.npy
+│   └── ...
+```
+
+**Format Details**:
+- **probs.npy**: Continuous probability timeline (0-1 float per sample)
+  - Shape: `(n_samples,)` where `n_samples = recording_duration_sec × sampling_rate`
+  - Example: 300s recording × 256 Hz = 76,800 samples
+  - Values: Sigmoid outputs from model (per-sample seizure probability)
+
+- **labels.npy**: Ground truth binary labels (0/1 per sample)
+  - Shape: Same as probs
+  - Values: 1 = seizure, 0 = background
+
+**CRITICAL**: These are NOT event lists! They're continuous timelines!
+
+**What we actually have**:
+```
+Recording: aaaaaaaa_s001_t000 (300 seconds)
+probs.npy:  [0.02, 0.03, 0.05, ..., 0.91, 0.93, 0.95, ..., 0.08, 0.05]
+            ↑                        ↑                        ↑
+         Background              Seizure detected         Background
+         (low prob)              (high prob)              (low prob)
+```
+
+**What NEDC-BENCH needs**:
+```
+CSV_BI format (event list):
+channel,start_time,stop_time,label,confidence
+TERM,45.2000,67.8000,seiz,1.0
+TERM,102.5000,115.3000,seiz,1.0
+```
+
+**The Gap**: We need to convert continuous probability timelines → discrete event lists!
 
 #### Q2: Does NEDC scorer accept our format directly or need conversion?
 
@@ -508,8 +556,39 @@ TERM,25.6000,30.1000,seiz,1.0
 - Must include metadata: version, patient, session, duration
 
 **Format Converter Needed**: `brain-go-brr-v2/src/brain_brr/eval/format_converter.py`
-- Input: Model predictions (per-window probabilities + post-processing)
-- Output: CSV_BI files (one per recording in TUSZ test set)
+
+**THE CONVERSION PIPELINE**:
+```python
+# Input: probs.npy (continuous timeline)
+probs = np.load("aaaaaaaa_s001_t000_probs.npy")
+# Shape: (76800,) for 300s recording @ 256 Hz
+
+# Step 1: Apply threshold + hysteresis (ALREADY implemented!)
+from src.brain_brr.eval.metrics import batch_probs_to_events
+events = batch_probs_to_events(
+    probs,
+    post_config,  # Contains tau_on, tau_off, morphology params
+    sampling_rate=256
+)
+# Output: [(45.2, 67.8), (102.5, 115.3)]  # List of (start_s, end_s) tuples
+
+# Step 2: Convert to CSV_BI format
+csv_bi_content = f"""version = csv_bi_v01.00.00
+patient = aaaaaaaa
+session = s001
+duration = 300.0000 secs
+
+channel,start_time,stop_time,label,confidence
+"""
+for start, end in events:
+    csv_bi_content += f"TERM,{start:.4f},{end:.4f},seiz,1.0\n"
+
+# Step 3: Write to file
+with open("aaaaaaaa_s001_t000.csv_bi", "w") as f:
+    f.write(csv_bi_content)
+```
+
+**KEY INSIGHT**: We ALREADY have the event conversion code (`batch_probs_to_events`), we just need to wrap it in CSV_BI format!
 
 #### Q3: Should nedc-bench repo contain the converter or should we add it to brain-go-brr-v2?
 
@@ -528,17 +607,91 @@ TERM,25.6000,30.1000,seiz,1.0
   - brain-go-brr-v2: Full pipeline (model → predictions → CSV_BI → metrics)
 
 **Where to add converter**: `src/brain_brr/eval/format_converter.py`
+
+**ULTRA GOD BANGER SIMPLE VERSION** (uses existing code!):
 ```python
+from pathlib import Path
+import numpy as np
+from src.brain_brr.eval.metrics import batch_probs_to_events
+from src.brain_brr.config.schemas import PostprocessingConfig
+
 class CSVBIConverter:
-    def convert_predictions_to_csv_bi(
+    """Convert brain-go-brr-v2 predictions to NEDC CSV_BI format"""
+
+    def __init__(self, post_config: PostprocessingConfig, sampling_rate: int = 256):
+        self.post_config = post_config
+        self.sampling_rate = sampling_rate
+
+    def convert_recording(
         self,
-        predictions: dict,  # Model outputs
-        output_dir: Path,
-        metadata: dict,  # Patient, session, duration info
-    ) -> List[Path]:
-        """Convert model predictions to CSV_BI format for NEDC scoring"""
-        pass
+        probs_path: Path,          # Path to recording_id_probs.npy
+        output_path: Path,         # Path to output .csv_bi file
+        patient_id: str,           # e.g., "aaaaaaaa"
+        session_id: str,           # e.g., "s001"
+        duration_sec: float,       # e.g., 300.0
+    ) -> Path:
+        """Convert one recording from .npy to CSV_BI format"""
+
+        # Load probabilities
+        probs = np.load(probs_path)
+
+        # Convert to events using EXISTING post-processing!
+        events = batch_probs_to_events(
+            torch.from_numpy(probs).unsqueeze(0),  # Add batch dim
+            self.post_config,
+            self.sampling_rate
+        )[0]  # Get first (only) recording
+
+        # Write CSV_BI format
+        with open(output_path, "w") as f:
+            f.write(f"version = csv_bi_v01.00.00\n")
+            f.write(f"patient = {patient_id}\n")
+            f.write(f"session = {session_id}\n")
+            f.write(f"duration = {duration_sec:.4f} secs\n")
+            f.write(f"\n")
+            f.write(f"channel,start_time,stop_time,label,confidence\n")
+
+            for start, end in events:
+                f.write(f"TERM,{start:.4f},{end:.4f},seiz,1.0\n")
+
+        return output_path
+
+    def convert_directory(
+        self,
+        predictions_dir: Path,     # e.g., results/eval_baseline/predictions/epoch_009/
+        output_dir: Path,          # e.g., results/eval_baseline/csv_bi/
+        metadata: dict,            # {file_id: {"patient": "xxx", "session": "sXXX", "duration": 300.0}}
+    ) -> list[Path]:
+        """Convert all recordings in directory"""
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+        converted = []
+
+        # Find all *_probs.npy files
+        for probs_file in predictions_dir.glob("*_probs.npy"):
+            file_id = probs_file.stem.replace("_probs", "")
+
+            if file_id not in metadata:
+                logger.warning(f"No metadata for {file_id}, skipping")
+                continue
+
+            meta = metadata[file_id]
+            output_file = output_dir / f"{file_id}.csv_bi"
+
+            self.convert_recording(
+                probs_path=probs_file,
+                output_path=output_file,
+                patient_id=meta["patient"],
+                session_id=meta["session"],
+                duration_sec=meta["duration"],
+            )
+
+            converted.append(output_file)
+
+        return converted
 ```
+
+**That's IT!** We reuse `batch_probs_to_events()` which ALREADY does hysteresis + morphology!
 
 #### Q4: Should we import nedc-bench as a reference repo and create a wrapper?
 
@@ -552,43 +705,85 @@ class CSVBIConverter:
 - Clean snapshot of your maintained code
 - Can update independently when needed
 
-**2. Create NEDC wrapper in brain-go-brr-v2**:
+**2. Create NEDC wrapper in brain-go-brr-v2** (ULTRA GOD BANGER - Direct Python Import!):
 ```python
 # src/brain_brr/eval/nedc_wrapper.py
 
+import sys
 from pathlib import Path
-import subprocess
-import json
+from typing import Dict, List
+
+# Add nedc-bench to Python path (direct import, NO Docker!)
+NEDC_BENCH_PATH = Path(__file__).resolve().parents[3] / "reference_repos" / "nedc-bench" / "src"
+sys.path.insert(0, str(NEDC_BENCH_PATH))
+
+# Direct Python imports - NO subprocess, NO CLI, NO Docker!
+from nedc_bench.orchestration.dual_pipeline import DualPipeline
+from nedc_bench.models.annotations import AnnotationFile
 
 class NEDCScorer:
-    """Wrapper for NEDC-BENCH scorer integration"""
+    """Direct Python integration with NEDC-BENCH (NO Docker, NO subprocess!)"""
 
-    def __init__(self, nedc_bench_path: Path):
-        self.nedc_bench_path = nedc_bench_path
+    def __init__(self):
+        self.pipeline = DualPipeline()
 
     def score_predictions(
         self,
-        reference_dir: Path,  # Ground truth CSV_BI files
-        hypothesis_dir: Path,  # Model predictions CSV_BI files
-        algorithm: str = "overlap",  # taes, dp, epoch, ira
-        pipeline: str = "beta",  # alpha (legacy), beta (modern)
+        reference_dir: Path,       # Ground truth CSV_BI files
+        hypothesis_dir: Path,      # Model predictions CSV_BI files
+        algorithm: str = "overlap", # overlap, taes, dp, epoch, ira
+        pipeline: str = "beta",    # beta (modern) or alpha (legacy)
     ) -> dict:
         """
-        Score model predictions using NEDC-BENCH
+        Score predictions using NEDC-BENCH Python API (direct import!)
 
         Returns official metrics:
-        - Sensitivity @ 10FA/24h
-        - Sensitivity @ 5FA/24h
-        - Sensitivity @ 1FA/24h
+        - Sensitivity @ 10FA/24h, 5FA/24h, 1FA/24h
         - TAES score
         - F1, Precision, Recall
         - TP, FP, FN counts
         """
-        # Call nedc-bench API or CLI
-        # Parse results
-        # Return structured metrics
-        pass
+        # Load CSV_BI files
+        ref_files = list(reference_dir.glob("*.csv_bi"))
+        hyp_files = list(hypothesis_dir.glob("*.csv_bi"))
+
+        logger.info(f"[NEDC] Scoring {len(hyp_files)} predictions against {len(ref_files)} references")
+
+        # Direct Python API call - FAST! NO Docker! NO subprocess!
+        results = self.pipeline.evaluate(
+            reference=ref_files,
+            hypothesis=hyp_files,
+            algorithms=[algorithm],
+            pipeline=pipeline,  # Use modern Beta implementation
+        )
+
+        # Extract metrics from NEDC results
+        metrics = {
+            "sensitivity_at_10FA_24h": results["sensitivity_10fa"],
+            "sensitivity_at_5FA_24h": results["sensitivity_5fa"],
+            "sensitivity_at_1FA_24h": results["sensitivity_1fa"],
+            "taes_score": results.get("taes", None),
+            "f1": results["f1"],
+            "precision": results["precision"],
+            "recall": results["recall"],
+            "tp": results["tp"],
+            "fp": results["fp"],
+            "fn": results["fn"],
+        }
+
+        logger.info(f"[NEDC] Sensitivity@10FA: {metrics['sensitivity_at_10FA_24h']:.2f}%")
+        logger.info(f"[NEDC] F1: {metrics['f1']:.4f}")
+
+        return metrics
 ```
+
+**KEY BENEFITS**:
+- 🚀 **FAST**: Pure Python, no Docker/subprocess overhead
+- 💪 **SIMPLE**: Just `sys.path.insert()` + import
+- 🧠 **CLEAN**: All in ONE process
+- 📊 **RICH**: Full API access, structured data
+
+**NO Docker! NO data transfer! NO CLI parsing!** This is the ULTRA GOD BANGER way! 💯
 
 **3. Complete workflow wrapper**:
 ```python
