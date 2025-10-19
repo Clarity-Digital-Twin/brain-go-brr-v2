@@ -22,7 +22,7 @@ NEDC_BENCH_PATH = Path(__file__).resolve().parents[3] / "reference_repos" / "ned
 sys.path.insert(0, str(NEDC_BENCH_PATH))
 
 # Direct imports - FAST! NO overhead!
-from nedc_bench.orchestration.dual_pipeline import DualPipeline
+from nedc_bench.orchestration import DualPipelineOrchestrator, BetaPipeline
 from nedc_bench.models.annotations import AnnotationFile
 ```
 
@@ -79,9 +79,10 @@ class NEDCMetrics:
 
 ### Responsibilities
 1. Import nedc-bench Python modules via sys.path
-2. Call DualPipeline.evaluate() with .csv_bi files
-3. Parse NEDC results into structured metrics
-4. Handle all 5 scoring algorithms
+2. Use BetaPipeline for evaluation with .csv_bi files
+3. Compute FA-targeted sensitivities from raw counts (hits/misses/FAs)
+4. Parse NEDC results into structured metrics
+5. Handle all 5 scoring algorithms (overlap recommended)
 
 ### Dependencies
 - nedc-bench at `reference_repos/nedc-bench/` (must exist!)
@@ -103,8 +104,8 @@ def __init__(self):
 
     Behavior:
     1. Verify NEDC_BENCH_PATH exists
-    2. Import DualPipeline from nedc-bench
-    3. Initialize pipeline instance
+    2. Import DualPipelineOrchestrator and BetaPipeline from nedc-bench
+    3. Initialize pipeline instances (beta for evaluation)
     """
 ```
 
@@ -150,9 +151,20 @@ def score_predictions(
     Behavior:
     1. Validate directories exist and contain .csv_bi files
     2. Match reference and hypothesis files by filename
-    3. Call nedc_bench.orchestration.dual_pipeline.evaluate()
-    4. Parse results into NEDCMetrics
-    5. Log summary statistics
+    3. Call BetaPipeline.evaluate() (returns hits, misses, false_alarms, durations)
+    4. Compute FA-targeted sensitivities from raw counts:
+       - Extract total_recording_duration from results
+       - For each FA target (10, 5, 1 FA/24h):
+         * This is NOT provided by NEDC API - we need to compute it
+         * May require threshold sweeping OR use existing model thresholds
+         * sensitivity = hits / (hits + misses)
+    5. Parse raw counts into NEDCMetrics structure
+    6. Log summary statistics
+
+    CRITICAL NOTE: BetaPipeline returns raw counts (hits, misses, false_alarms),
+    NOT FA-targeted sensitivities. The NEDCMetrics fields like sensitivity_at_10FA_24h
+    must be computed separately, potentially via threshold sweeping similar to what
+    src/brain_brr/eval/helpers/false_alarm.py:find_threshold_for_fa_target() does.
 
     Performance:
     - Overlap algorithm: ~100-200 file pairs per second

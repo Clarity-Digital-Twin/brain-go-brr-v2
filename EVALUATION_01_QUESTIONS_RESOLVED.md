@@ -110,15 +110,27 @@ cache/tusz_mmap/
 2. Generate eval cache (memory-mapped NPY files)
 3. Create `_dataset_index.json` manifest
 
-**Command** (estimate):
+**Command**:
 ```bash
-# Preprocess eval set (one-time setup)
-python -m src.brain_brr.data.preprocess \
-  --split eval \
-  --output cache/tusz_mmap/eval/
+# CRITICAL: build-cache currently only supports train/dev splits (cli.py:207)
+# Need to extend CLI to support eval split OR manually preprocess
+
+# Option 1: Extend CLI (RECOMMENDED - add "eval" to choices in cli.py:207)
+python -m src build-cache \
+  --data-dir data_ext4/tusz/edf/eval/ \
+  --cache-dir cache/tusz_mmap/eval/ \
+  --split eval
+
+# Option 2: Use existing preprocessing directly (if CLI not extended)
+# Instantiate EEGWindowDataset with eval files to trigger cache build
+# See src/brain_brr/data/datasets.py:EEGWindowDataset for on-demand caching
 
 # Expected time: ~2-4 hours (depending on eval set size)
 ```
+
+**NOTE**: The `build-cache` CLI (src/brain_brr/cli/cli.py:204-277) currently only accepts `--split` values of `["train", "dev"]`. Before running eval preprocessing, we need to either:
+1. Extend the CLI to support "eval" split, OR
+2. Use the dataset's on-demand caching by instantiating EEGWindowDataset directly
 
 ---
 

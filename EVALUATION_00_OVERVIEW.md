@@ -8,39 +8,54 @@
 
 ---
 
+## 🚨 CRITICAL: Extend Existing Code, Don't Rewrite!
+
+**EXISTING EVALUATION INFRASTRUCTURE**:
+- ✅ `python -m src evaluate` CLI command (cli.py:305-413)
+- ✅ `run_evaluation()` service (cli/services/evaluation.py:143-201)
+- ✅ `export_csv_bi()` function (events/export.py:15-52)
+- ✅ `validate_epoch()` inference (train/val_step.py:375-584)
+
+**WHAT WE NEED TO ADD**:
+- NEDC integration (Component 2: NEDCScorer)
+- Extend eval CLI to support NEDC scoring
+- NOT rewrite existing converters/evaluation!
+
+---
+
 ## What This Is
 
 NEDC evaluation pipeline to get **official, publication-ready metrics** on TUSZ eval/test set using Temple University's NEDC v6.0.0 scorer.
 
 **The Problem**: We have baseline.pt (28.01% dev sensitivity@10FA) but NO official test metrics yet!
 
-**The Solution**: 3-component pipeline to convert our predictions → CSV_BI format → NEDC scorer → official metrics
+**The Solution**: 3-component pipeline (2 NEW components + extend 1 existing)
 
 ---
 
-## Architecture (3 Components)
+## Architecture (2 NEW + 1 EXTEND)
 
 ```
 ┌────────────────────────────────────────────────────────────┐
 │                  NEDC Evaluation Pipeline                  │
 ├────────────────────────────────────────────────────────────┤
 │                                                            │
-│  Component 1: CSVBIConverter (format_converter.py)        │
+│  Component 1: CSV_BI Export (✅ ALREADY EXISTS!)          │
 │  ┌──────────────────────────────────────────────────────┐ │
-│  │ .npy predictions → CSV_BI text files                │ │
-│  │ Reuses existing batch_probs_to_events()             │ │
+│  │ export_csv_bi() - events/export.py:15-52           │ │
+│  │ Predictions → CSV_BI with header (# version...)    │ │
 │  └──────────────────────────────────────────────────────┘ │
 │                          ↓                                 │
-│  Component 2: NEDCScorer (nedc_wrapper.py)                │
+│  Component 2: NEDCScorer (🆕 NEW - nedc_wrapper.py)       │
 │  ┌──────────────────────────────────────────────────────┐ │
 │  │ Direct Python import of nedc-bench                  │ │
-│  │ NO Docker! Just sys.path.insert()                   │ │
+│  │ BetaPipeline.evaluate() + FA-sensitivity compute    │ │
 │  └──────────────────────────────────────────────────────┘ │
 │                          ↓                                 │
-│  Component 3: ModelEvaluator (evaluator.py)               │
+│  Component 3: Evaluation CLI (🔧 EXTEND existing!)        │
 │  ┌──────────────────────────────────────────────────────┐ │
-│  │ End-to-end: load checkpoint → inference → score     │ │
-│  │ Publication-ready JSON + markdown tables            │ │
+│  │ Add --nedc-score flag to existing evaluate command │ │
+│  │ Wraps run_evaluation() + NEDCScorer                 │ │
 │  └──────────────────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────┘
 ```
@@ -49,16 +64,16 @@ NEDC evaluation pipeline to get **official, publication-ready metrics** on TUSZ 
 
 ## Files to Create
 
-| File | Lines | Purpose |
-|------|-------|---------|
-| `src/brain_brr/eval/format_converter.py` | ~150 | Convert .npy → CSV_BI |
-| `src/brain_brr/eval/nedc_wrapper.py` | ~100 | Direct Python NEDC integration |
-| `src/brain_brr/eval/evaluator.py` | ~200 | End-to-end orchestrator + CLI |
-| `tests/unit/eval/test_format_converter.py` | ~400 | 10 unit tests |
-| `tests/unit/eval/test_nedc_wrapper.py` | ~350 | 8 unit tests |
-| `tests/integration/eval/test_evaluator.py` | ~250 | 4 integration tests |
+| File | Lines | Purpose | Status |
+|------|-------|---------|--------|
+| ~~`src/brain_brr/eval/format_converter.py`~~ | ~~150~~ | ~~Convert .npy → CSV_BI~~ | ✅ EXISTS (events/export.py) |
+| `src/brain_brr/eval/nedc_wrapper.py` | ~100 | Direct Python NEDC integration | 🆕 NEW |
+| ~~`src/brain_brr/eval/evaluator.py`~~ | ~~200~~ | ~~End-to-end orchestrator + CLI~~ | ✅ EXISTS (cli/services/evaluation.py) |
+| ~~`tests/unit/eval/test_format_converter.py`~~ | ~~400~~ | ~~10 unit tests~~ | ✅ EXISTS |
+| `tests/unit/eval/test_nedc_wrapper.py` | ~350 | 8 unit tests | 🆕 NEW |
+| `tests/integration/eval/test_nedc_integration.py` | ~150 | NEDC integration test | 🆕 NEW |
 
-**Total new code**: ~1,450 lines
+**Total new code**: ~600 lines (MUCH less than originally planned!)
 
 ---
 

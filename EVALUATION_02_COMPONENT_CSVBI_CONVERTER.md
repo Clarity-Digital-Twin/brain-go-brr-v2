@@ -92,14 +92,17 @@ def convert_recording(
         IOError: If cannot write output_path
 
     CSV_BI Output Format:
-        version = csv_bi_v01.00.00
-        patient = {metadata.patient}
-        session = {metadata.session}
-        duration = {metadata.duration_sec:.4f} secs
-
+        # version = csv_v1.0.0
+        # bname = {metadata.patient}_{metadata.session}
+        # duration = {metadata.duration_sec:.4f} secs
+        # montage_file = nedc_eas_default_montage.txt
+        #
         channel,start_time,stop_time,label,confidence
         TERM,{start:.4f},{end:.4f},seiz,1.0
         ...
+
+    NOTE: Header lines MUST have "#" prefix! This matches NEDC/TUSZ ground truth format.
+    See src/brain_brr/events/export.py:36-44 for reference implementation.
 
     Workflow:
     1. Load probs from probs_path
@@ -206,9 +209,10 @@ def test_convert_recording_simple(self, converter, sample_probs_simple, sample_m
     assert output_path.exists()
 
     content = output_path.read_text()
-    assert "version = csv_bi_v01.00.00" in content
-    assert "patient = aaaaaaaa" in content
-    assert "duration = 300.0000 secs" in content
+    assert "# version = csv_v1.0.0" in content
+    assert "# bname = aaaaaaaa_s001_t000" in content
+    assert "# duration = 300.0000 secs" in content
+    assert "# montage_file = nedc_eas_default_montage.txt" in content
 
     lines = [l for l in content.split("\n") if l.startswith("TERM,")]
     assert len(lines) == 1

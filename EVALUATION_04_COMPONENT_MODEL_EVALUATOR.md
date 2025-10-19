@@ -58,7 +58,9 @@ class EvaluationResults:
 - `CSVBIConverter` (Component 1)
 - `NEDCScorer` (Component 2)
 - `SeizureDetector` (model)
-- `run_validation()` (for inference)
+- `validate_epoch()` from src/brain_brr/train/val_step.py (for inference)
+- `run_evaluation()` from src/brain_brr/cli/services/evaluation.py (EXISTING evaluation service!)
+- `export_csv_bi()` from src/brain_brr/events/export.py (EXISTING CSV_BI exporter!)
 
 ---
 
@@ -517,11 +519,17 @@ results/eval_baseline/
 
 ## Implementation Notes
 
-1. **Reuse validation code**: Use `run_validation()` for inference
-2. **Metadata extraction**: Get patient/session/duration from EDF files or cache
-3. **Ground truth copy**: Copy .csv_bi files from TUSZ to reference/ dir
-4. **Atomic operations**: Save predictions before conversion, save CSV_BI before scoring
-5. **Progress logging**: INFO logs for each major step
+1. **CRITICAL: Extend existing code, don't duplicate!**
+   - `python -m src evaluate` command ALREADY exists (cli.py:305)
+   - `run_evaluation()` service ALREADY exists (cli/services/evaluation.py:143)
+   - `export_csv_bi()` ALREADY exists (events/export.py:15)
+   - ModelEvaluator should WRAP these, NOT reimplement them!
+
+2. **Reuse validation code**: Use `validate_epoch()` from val_step.py:375 for inference
+3. **Metadata extraction**: Get patient/session/duration from EDF files or cache
+4. **Ground truth copy**: Copy .csv_bi files from TUSZ to reference/ dir
+5. **Atomic operations**: Save predictions before conversion, save CSV_BI before scoring
+6. **Progress logging**: INFO logs for each major step
 
 ---
 
