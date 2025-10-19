@@ -53,7 +53,7 @@ class NEDCScorer:
     We must loop over file pairs and accumulate counts.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialize NEDC scorer with BetaPipeline.
 
@@ -70,8 +70,8 @@ class NEDCScorer:
         sys.path.insert(0, str(NEDC_BENCH_PATH))
 
         try:
-            from nedc_bench.models.annotations import AnnotationFile
-            from nedc_bench.orchestration.dual_pipeline import BetaPipeline
+            from nedc_bench.models.annotations import AnnotationFile  # type: ignore[import-not-found]
+            from nedc_bench.orchestration.dual_pipeline import BetaPipeline  # type: ignore[import-not-found]
 
             self.BetaPipeline = BetaPipeline
             self.AnnotationFile = AnnotationFile
@@ -182,7 +182,7 @@ class NEDCScorer:
         algorithms: list[AlgorithmType],
     ) -> dict[str, NEDCMetrics]:
         """Score predictions with multiple algorithms."""
-        results = {}
+        results: dict[str, NEDCMetrics] = {}
         for algorithm in algorithms:
             logger.info(f"Scoring with algorithm: {algorithm}")
             results[algorithm] = self.score_predictions(reference_dir, hypothesis_dir, algorithm)
