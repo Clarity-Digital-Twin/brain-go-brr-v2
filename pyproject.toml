@@ -133,6 +133,9 @@ run-experiment = "src.brain_brr.cli.cli:main"
 [tool.hatch.version]
 path = "src/brain_brr/__init__.py"
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
 
