@@ -30,13 +30,15 @@
   - Mamba dropout: 0.1 → 0.2
   - Weight decay: 0.01 → 0.05
 - **Epoch 1 results**: 20.45% sensitivity@10FA
-- **Epoch 2 results**: 25.30% sensitivity@10FA (improving!)
   - Lower than baseline epoch 1 (~25%) - EXPECTED with stronger regularization
+- **Epoch 2 results**: 25.30% sensitivity@10FA (improving! +4.85% from epoch 1)
   - Goal: Prevent overfitting seen in baseline, maintain/improve past epoch 6
 
 **Available checkpoints**:
+- `best.pt` - Epoch 2, 25.30% sensitivity@10FA
 - `epoch_001.pt` - Epoch 1 complete
-- `mid_epoch_002_007539.pt` - Currently saving mid-epoch checkpoints
+- `epoch_002.pt` - Epoch 2 complete
+- `mid_epoch_003_004151.pt` - Latest mid-epoch checkpoint (epoch 3 in progress)
 
 **Location**: `/results/local_fla_exp1_reg/checkpoints/`
 
