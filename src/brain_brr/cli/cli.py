@@ -384,6 +384,7 @@ def evaluate(
             device=device,
             output_json=output_json,
             output_csv_bi=output_csv_bi,
+            nedc_score=nedc_score,
         )
 
         result = run_evaluation(request)

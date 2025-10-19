@@ -57,6 +57,7 @@ class EvaluationRequest:
     device: str
     output_json: Path | None
     output_csv_bi: Path | None
+    nedc_score: bool = False
 
 
 @dataclass
