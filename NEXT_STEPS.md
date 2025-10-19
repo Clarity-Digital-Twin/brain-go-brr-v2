@@ -225,9 +225,9 @@ Baseline            | 28.01%        | XX.XX%         | X.XX%        | Overfittin
 ```
 "Our baseline model achieved 28.01% sensitivity@10FA on the development set but
 only 24.3% on the test set (3.7% gap), indicating overfitting. With stronger
-regularization (dropout 0.4, weight_decay 1e-3), we achieved 29.2% on dev and
-27.8% on test (1.4% gap), demonstrating both improved performance AND better
-generalization (62% reduction in overfitting gap)."
+regularization (TCN dropout 0.20, Mamba dropout 0.2, weight_decay 0.05), we
+achieved 29.2% on dev and 27.8% on test (1.4% gap), demonstrating both improved
+performance AND better generalization (62% reduction in overfitting gap)."
 ```
 
 ### Recommendation: Two-Track Approach 🚀
