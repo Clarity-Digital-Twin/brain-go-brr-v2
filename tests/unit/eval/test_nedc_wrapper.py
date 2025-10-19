@@ -4,7 +4,6 @@ Unit tests for NEDCScorer wrapper.
 Tests NEDCScorer class that provides Python API to nedc-bench (FILE-LEVEL API).
 """
 
-
 import pytest
 
 from src.brain_brr.eval.nedc_wrapper import NEDCScorer
