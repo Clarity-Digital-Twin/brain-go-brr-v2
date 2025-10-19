@@ -78,7 +78,7 @@ class NEDCScorer:
             self.beta = BetaPipeline()
             logger.info("NEDC-BENCH imported successfully")
         except ImportError as e:
-            raise RuntimeError(f"Failed to import nedc-bench: {e}")
+            raise RuntimeError(f"Failed to import nedc-bench: {e}") from e
 
     def score_predictions(
         self,

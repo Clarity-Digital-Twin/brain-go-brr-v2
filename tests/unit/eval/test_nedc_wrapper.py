@@ -191,7 +191,7 @@ class TestNEDCScorerErrors:
         empty_ref.mkdir()
         empty_hyp.mkdir()
 
-        with pytest.raises(ValueError, match="No .csv_bi files found"):
+        with pytest.raises(ValueError, match=r"No \.csv_bi files found"):
             scorer.score_predictions(
                 reference_dir=empty_ref,
                 hypothesis_dir=empty_hyp,
