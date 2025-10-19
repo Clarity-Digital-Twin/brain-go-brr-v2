@@ -763,14 +763,22 @@ class NEDCScorer:
 
 1. Update imports at the top of the file:
    ```python
+   # Add new imports (add to existing import section):
    import logging
    import shutil
 
    import numpy as np
+   import torch  # Already imported at line 12
 
-   from src.brain_brr.events import SeizureEvent, calculate_event_confidence
+   # Extend existing import (line 19):
+   # FROM: from src.brain_brr.events import SeizureEvent
+   # TO:   from src.brain_brr.events import SeizureEvent, calculate_event_confidence
    ```
-   (keep existing imports; add the new ones, and create `logger = logging.getLogger(__name__)` after imports.)
+
+   Then add logger after imports:
+   ```python
+   logger = logging.getLogger(__name__)
+   ```
 
 2. In `run_evaluation()`:
    - Capture the EDF list returned from `create_dataloader`.
