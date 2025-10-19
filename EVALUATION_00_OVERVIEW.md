@@ -168,31 +168,34 @@ NEDC evaluation pipeline to get **official, publication-ready metrics** on TUSZ 
 ## Quick Start (After Implementation)
 
 ```bash
-# Evaluate baseline on eval set
-python -m src.brain_brr.eval.evaluator \
+# Evaluate baseline on eval set with NEDC scoring
+python -m src evaluate \
   --checkpoint results/local_fla_training/checkpoints/best.pt \
   --split eval \
-  --algorithm overlap \
+  --nedc-score \
   --output results/eval_baseline/
 
 # View results
 cat results/eval_baseline/metrics/eval_overlap_metrics.json
 ```
 
+**NOTE**: Uses EXISTING `python -m src evaluate` CLI (cli.py:305) with new `--nedc-score` flag, NOT a new evaluator.py module!
+
 ---
 
 ## Success Criteria
 
-**Phase 1 Complete**:
-- [ ] CSVBIConverter: 10/10 tests pass, 95% coverage
-- [ ] NEDCScorer: 8/8 tests pass, 90% coverage
-- [ ] ModelEvaluator: 4/4 tests pass, end-to-end works
+**Phase 1 Complete** (NEDCScorer + CLI Extension):
+- [ ] NEDCScorer: 8/8 unit tests pass, 90% coverage
+- [ ] NEDC integration test passes with nedc-bench
+- [ ] Extend `python -m src evaluate` with `--nedc-score` flag
+- [ ] Extend `python -m src build-cache` with `--split eval`
 
-**Phase 2 Complete**:
-- [ ] Baseline evaluated on eval set
-- [ ] Official NEDC metrics obtained
-- [ ] Results documented and reproducible
-- [ ] Publication tables generated
+**Phase 2 Complete** (Production Evaluation):
+- [ ] Eval cache built (cache/tusz_mmap/eval/)
+- [ ] Baseline evaluated on eval set with NEDC scoring
+- [ ] Official NEDC metrics obtained and documented
+- [ ] Dev-test gap analysis complete
 
 ---
 
