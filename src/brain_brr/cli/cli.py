@@ -204,7 +204,7 @@ def train(config_path: Path, resume: bool, device: str) -> None:
 @cli.command("build-cache")
 @click.option("--data-dir", type=click.Path(exists=True, path_type=Path), required=True)
 @click.option("--cache-dir", type=click.Path(path_type=Path), required=True)
-@click.option("--split", type=click.Choice(["train", "dev"]), default="train")
+@click.option("--split", type=click.Choice(["train", "dev", "eval"]), default="train")
 @click.option(
     "--limit-files", type=int, default=None, help="Limit number of files to process (for testing)"
 )
