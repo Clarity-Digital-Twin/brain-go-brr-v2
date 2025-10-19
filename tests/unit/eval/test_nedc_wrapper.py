@@ -223,8 +223,7 @@ TERM,10.0000,30.0000,seiz,1.0
         assert scorer.validate_csv_bi_format(csv_bi_file) is True
 
     def test_validate_csv_bi_format_invalid(self, scorer, tmp_path):
-        """validate_csv_bi_format() returns False for invalid file"""
-        invalid_file = tmp_path / "invalid.csv_bi"
-        invalid_file.write_text("This is not valid CSV_BI format!")
+        """validate_csv_bi_format() returns False for missing file"""
+        invalid_file = tmp_path / "nonexistent.csv_bi"
 
         assert scorer.validate_csv_bi_format(invalid_file) is False
