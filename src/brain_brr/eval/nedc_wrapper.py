@@ -151,7 +151,7 @@ class NEDCScorer:
             total_fp += getattr(result, 'total_false_alarms', 0)
             total_fn += getattr(result, 'total_misses', 0)
 
-            ref_ann = self.AnnotationFile.from_csv_bi(str(ref_file))
+            ref_ann = self.AnnotationFile.from_csv_bi(ref_file)
             total_duration += ref_ann.duration
 
         precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0.0
@@ -194,8 +194,7 @@ class NEDCScorer:
             True if valid, False otherwise
         """
         try:
-            path_str = str(csv_bi_path) if isinstance(csv_bi_path, Path) else csv_bi_path
-            self.AnnotationFile.from_csv_bi(path_str)
+            self.AnnotationFile.from_csv_bi(csv_bi_path)
             return True
         except Exception as e:
             logger.error(f"Invalid CSV_BI format in {csv_bi_path}: {e}")
