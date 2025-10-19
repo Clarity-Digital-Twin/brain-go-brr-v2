@@ -1,6 +1,6 @@
 # Next Steps - Brain-Go-Brr Training & Evaluation
 
-**Status**: Baseline training incomplete (stopped epoch 13/100), Exp1 training in progress (epoch 2/100)
+**Status**: Baseline training incomplete (stopped epoch 13/100), Exp1 training in progress (epoch 3/100)
 
 **Date**: October 19, 2025
 
@@ -24,11 +24,13 @@
 **Location**: `/results/local_fla_training/checkpoints/`
 
 ### Exp1 Run (local_fla_exp1_reg) - Stronger Regularization
-- **Status**: Running epoch 2/100 (validating)
-- **Config changes**:
-  - Dropout: 0.3 → 0.4
-  - Weight decay: 1e-4 → 1e-3
+- **Status**: Running epoch 3/100 (training)
+- **Config changes** (stronger regularization):
+  - TCN dropout: 0.15 → 0.20
+  - Mamba dropout: 0.1 → 0.2
+  - Weight decay: 0.01 → 0.05
 - **Epoch 1 results**: 20.45% sensitivity@10FA
+- **Epoch 2 results**: 25.30% sensitivity@10FA (improving!)
   - Lower than baseline epoch 1 (~25%) - EXPECTED with stronger regularization
   - Goal: Prevent overfitting seen in baseline, maintain/improve past epoch 6
 
