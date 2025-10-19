@@ -423,28 +423,27 @@ ls -lh /path/to/tusz/data/test/
 
 ## NEDC Evaluation Pipeline 🎯
 
-**STATUS**: Documentation complete, ready for implementation (October 19, 2025)
+**STATUS**: Documentation complete, ready for TDD implementation (October 19, 2025)
 
-**IMPLEMENTATION DOCS** (SSOT for implementation):
-- 📋 `EVALUATION_00_OVERVIEW.md` - Architecture, 2-week timeline, Quick Start commands
-- ❓ `EVALUATION_01_QUESTIONS_RESOLVED.md` - Data locations, file paths, bash-verified facts
-- 🧪 `EVALUATION_03_COMPONENT_NEDC_SCORER.md` - **PRIMARY SPEC** - NEDCScorer class, 9 tests, ~100 lines
-- ✅ `EVALUATION_05_TESTING_REQUIREMENTS.md` - Test specs, error handling, performance targets
+**IMPLEMENTATION DOCS** (3 iron-clad docs, zero drift):
+- 📋 **`NEDC_EVALUATION_OVERVIEW.md`** - What/Why, architecture, 2-week timeline, expected outputs
+- 🔨 **`NEDC_IMPLEMENTATION_GUIDE.md`** - Step-by-step TDD phases (Phase 0-3), complete code samples
+- 📚 **`NEDC_REFERENCE.md`** - Dataclasses, CSV_BI format, error tables, bash commands
 
 **CRITICAL**: We only need to implement NEDCScorer (~100 lines) + extend existing CLI (~50 lines)
 - ✅ `python -m src evaluate` command exists (cli.py:305)
 - ✅ `export_csv_bi()` function exists (events/export.py:15)
 - ✅ `validate_epoch()` for inference exists (train/val_step.py:375)
-- 🆕 NEDCScorer wrapper (~100 lines) - see EVALUATION_03
+- 🆕 NEDCScorer wrapper (~100 lines) - Direct Python import of nedc-bench
 - 🔧 Add `--nedc-score` flag to evaluate CLI (~50 lines)
 
-**IMPLEMENTATION PLAN** (2 weeks):
-- **Week 1**: Extend build-cache CLI + preprocess eval set + write 8 NEDCScorer unit tests (TDD)
-- **Week 2**: Implement NEDCScorer + extend evaluate CLI + integration test + run baseline
+**IMPLEMENTATION PLAN** (2 weeks, TDD approach):
+- **Week 1**: Extend build-cache CLI + preprocess eval set + write 9 tests FIRST (TDD)
+- **Week 2**: Implement NEDCScorer (~100 lines) + extend evaluate CLI (~50 lines) + run baseline
 
-**TOTAL EFFORT**: ~150 lines new code, 9 tests
+**TOTAL EFFORT**: ~150 lines new code, ~500 lines tests
 
-**Start here**: `EVALUATION_00_OVERVIEW.md` for architecture and Quick Start
+**Start here**: `NEDC_IMPLEMENTATION_GUIDE.md` for TDD step-by-step instructions
 
 ---
 
