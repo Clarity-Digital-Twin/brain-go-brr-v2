@@ -48,7 +48,7 @@
 
 ### What's in a `.pt` checkpoint file?
 
-**File size**: ~189 MB each
+**File size**: ~189 MB (baseline), ~198 MB (Exp1 - slightly larger due to optimizer state growth)
 
 **Contents** (from `best.pt` example):
 ```
