@@ -35,20 +35,21 @@ We have baseline.pt trained (28.01% dev sensitivity@10FA) but **NO official test
 │  Step 1: CSV_BI Export (✅ ALREADY EXISTS!)               │
 │  ┌──────────────────────────────────────────────────────┐ │
 │  │ export_csv_bi() - events/export.py:15-52          │ │
-│  │ Predictions → CSV_BI with header (# version...)   │ │
+│  │ Predictions → CSV_BI with # headers               │ │
 │  └──────────────────────────────────────────────────────┘ │
 │                          ↓                                 │
 │  Step 2: NEDC Scoring (🆕 NEW - nedc_wrapper.py)          │
 │  ┌──────────────────────────────────────────────────────┐ │
-│  │ NEDCScorer - Direct Python import of nedc-bench    │ │
-│  │ BetaPipeline.evaluate() + FA-sensitivity compute   │ │
+│  │ NEDCScorer - File-level loop over CSV_BI pairs    │ │
+│  │ BetaPipeline.evaluate_overlap() per pair           │ │
+│  │ Accumulate counts → compute metrics                │ │
 │  │ ~100 lines, 9 tests                                │ │
 │  └──────────────────────────────────────────────────────┘ │
 │                          ↓                                 │
-│  Step 3: Evaluation CLI (🔧 EXTEND existing!)             │
+│  Step 3: Evaluation Service (🔧 EXTEND existing!)         │
 │  ┌──────────────────────────────────────────────────────┐ │
-│  │ Add --nedc-score flag to `python -m src evaluate` │ │
-│  │ Integrates NEDCScorer with run_evaluation()       │ │
+│  │ Add NEDC scoring to run_evaluation() service      │ │
+│  │ Integrates NEDCScorer with EvaluationRequest       │ │
 │  │ ~50 lines extension                                │ │
 │  └──────────────────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────┘
@@ -72,8 +73,9 @@ We have baseline.pt trained (28.01% dev sensitivity@10FA) but **NO official test
     "sensitivity_at_10FA_24h": 24.3,
     "sensitivity_at_5FA_24h": 21.8,
     "sensitivity_at_1FA_24h": 15.2,
-    "taes_score": 0.67,
     "f1": 0.31,
+    "precision": 0.42,
+    "recall": 0.24,
     "tp": 145,
     "fp": 198,
     "fn": 456
@@ -102,7 +104,7 @@ We have baseline.pt trained (28.01% dev sensitivity@10FA) but **NO official test
 ## Implementation Timeline (2 Weeks)
 
 ### Week 1: Preprocessing + Tests (TDD)
-- **Day 1**: Extend `build-cache` CLI to support `--split eval`
+- **Day 1**: Extend build-cache to support `--split eval` (change line 207 of cli.py)
 - **Day 2-3**: Preprocess TUSZ eval set to cache (2-4 hours + validation)
 - **Day 4-5**: Write 8 unit tests + 1 integration test for NEDCScorer (TDD)
 
@@ -110,7 +112,7 @@ We have baseline.pt trained (28.01% dev sensitivity@10FA) but **NO official test
 
 ### Week 2: NEDCScorer Implementation + Integration
 - **Day 1-2**: Implement NEDCScorer (~100 lines) - make tests pass
-- **Day 3**: Extend `python -m src evaluate` with `--nedc-score` flag (~50 lines)
+- **Day 3**: Extend run_evaluation() service with NEDC scoring (~50 lines)
 - **Day 4**: Integration test with nedc-bench on dev set
 - **Day 5**: Run baseline.pt on eval set, get official NEDC metrics
 
@@ -120,25 +122,34 @@ We have baseline.pt trained (28.01% dev sensitivity@10FA) but **NO official test
 
 ## Quick Start (After Implementation)
 
+### Step 1: Preprocess eval set (Week 1, Day 2-3)
+
 ```bash
-# Preprocess eval set ONCE (Week 1, Day 2-3)
+# FIRST: Extend CLI to support eval split (change cli.py line 207)
+# FROM: type=click.Choice(["train", "dev"])
+# TO:   type=click.Choice(["train", "dev", "eval"])
+
+# THEN: Preprocess eval set
 python -m src build-cache \
   --data-dir data_ext4/tusz/edf/eval/ \
   --cache-dir cache/tusz_mmap/eval/ \
   --split eval
-
-# Run evaluation with NEDC scoring (Week 2, Day 5)
-python -m src evaluate \
-  --checkpoint results/local_fla_training/checkpoints/best.pt \
-  --split eval \
-  --nedc-score \
-  --output results/eval_baseline/
-
-# View results
-cat results/eval_baseline/metrics/eval_overlap_metrics.json
 ```
 
-**NOTE**: Uses EXISTING `python -m src evaluate` CLI (cli.py:305) with new `--nedc-score` flag!
+### Step 2: Run evaluation with NEDC scoring (Week 2, Day 5)
+
+```bash
+# After implementing NEDCScorer + extending run_evaluation()
+python -m src evaluate \
+  results/local_fla_training/checkpoints/best.pt \
+  data_ext4/tusz/edf/eval/ \
+  --output-json results/eval_baseline/metrics.json
+
+# NEDCScorer will be called internally from run_evaluation() service
+# Results saved to JSON with NEDC metrics
+```
+
+**NOTE**: Uses EXISTING Click-based CLI (positional args `checkpoint_path` and `data_path`)
 
 ---
 
@@ -146,7 +157,7 @@ cat results/eval_baseline/metrics/eval_overlap_metrics.json
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `src/brain_brr/eval/nedc_wrapper.py` | ~100 | NEDCScorer class - Direct Python NEDC integration |
+| `src/brain_brr/eval/nedc_wrapper.py` | ~100 | NEDCScorer class - File-level NEDC integration |
 | `tests/unit/eval/test_nedc_wrapper.py` | ~350 | 8 unit tests for NEDCScorer |
 | `tests/integration/eval/test_nedc_integration.py` | ~150 | Integration test with nedc-bench |
 
@@ -156,11 +167,11 @@ cat results/eval_baseline/metrics/eval_overlap_metrics.json
 
 ## Success Criteria
 
-**Phase 1 Complete** (NEDCScorer + CLI):
+**Phase 1 Complete** (NEDCScorer + Service Integration):
 - [ ] 8/8 NEDCScorer unit tests pass
 - [ ] 1/1 NEDC integration test passes
 - [ ] Coverage ≥ 90% for nedc_wrapper.py
-- [ ] `python -m src evaluate --nedc-score` works
+- [ ] run_evaluation() service extended with NEDC scoring
 - [ ] `python -m src build-cache --split eval` works
 
 **Phase 2 Complete** (Production Evaluation):
@@ -175,22 +186,15 @@ cat results/eval_baseline/metrics/eval_overlap_metrics.json
 
 ```
 results/eval_baseline/
-├── predictions/
-│   └── eval/
-│       ├── aaaaaaaq_s006_t000_probs.npy
-│       ├── aaaaaaaq_s006_t000_labels.npy
-│       └── ... (~2000 files)
-├── csv_bi/
-│   ├── reference/          # Ground truth (copied from TUSZ)
-│   │   ├── aaaaaaaq_s006_t000.csv_bi
-│   │   └── ... (~2000 files)
-│   └── hypothesis/         # Model predictions (converted)
-│       ├── aaaaaaaq_s006_t000.csv_bi
-│       └── ... (~2000 files)
-└── metrics/
-    ├── eval_overlap_metrics.json    # Official NEDC scores
-    └── eval_comparison_to_dev.json  # Dev-test gap analysis
+├── metrics.json              # Main evaluation metrics (includes NEDC scores)
+└── predictions/
+    └── eval/
+        ├── aaaaaaaq_s006_t000_probs.npy
+        ├── aaaaaaaq_s006_t000_labels.npy
+        └── ... (~2000 files)
 ```
+
+**NOTE**: CSV_BI files will be generated in memory during NEDC scoring, not saved to disk (unless needed for debugging)
 
 ---
 
@@ -201,4 +205,4 @@ results/eval_baseline/
 
 ---
 
-**Next Step**: Read `NEDC_IMPLEMENTATION_GUIDE.md` for TDD implementation phases
+**Next Step**: Read `NEDC_IMPLEMENTATION_GUIDE.md` for TDD implementation phases with ACTUAL codebase patterns
