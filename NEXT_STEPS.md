@@ -1,0 +1,256 @@
+# Next Steps - Brain-Go-Brr Training & Evaluation
+
+**Status**: Baseline training incomplete (stopped epoch 13/100), Exp1 training in progress (epoch 2/100)
+
+**Date**: October 19, 2025
+
+---
+
+## Current Training Status
+
+### Baseline Run (local_fla_training)
+- **Status**: Manually stopped during epoch 13
+- **Best performance**: Epoch 9 - 28.01% sensitivity@10FA
+- **Problem identified**: Clear overfitting after epoch 6
+  - val_loss rising (0.027 → 0.053)
+  - train_loss falling (0.05 → 0.008)
+  - Sensitivity metrics declining after peak at epochs 6-9
+
+**Available checkpoints**:
+- `best.pt` - Epoch 9, 28.01% sensitivity@10FA (USE THIS for eval!)
+- `epoch_012.pt` - Last completed epoch
+- `signal_exit.pt` - Mid-epoch 13 (incomplete)
+
+**Location**: `/results/local_fla_training/checkpoints/`
+
+### Exp1 Run (local_fla_exp1_reg) - Stronger Regularization
+- **Status**: Running epoch 2/100 (validating)
+- **Config changes**:
+  - Dropout: 0.3 → 0.4
+  - Weight decay: 1e-4 → 1e-3
+- **Epoch 1 results**: 20.45% sensitivity@10FA
+  - Lower than baseline epoch 1 (~25%) - EXPECTED with stronger regularization
+  - Goal: Prevent overfitting seen in baseline, maintain/improve past epoch 6
+
+**Available checkpoints**:
+- `epoch_001.pt` - Epoch 1 complete
+- `mid_epoch_002_007539.pt` - Currently saving mid-epoch checkpoints
+
+**Location**: `/results/local_fla_exp1_reg/checkpoints/`
+
+---
+
+## Understanding Checkpoint Files
+
+### What's in a `.pt` checkpoint file?
+
+**File size**: ~189 MB each
+
+**Contents** (from `best.pt` example):
+```
+Top-level keys:
+├── model_state_dict      ← **FULL MODEL WEIGHTS** (411 tensors, ~180MB)
+│   ├── tcn_encoder.*     - TCN conv layers
+│   ├── mamba.*           - BiGatedDeltaNet/FLA layers
+│   ├── gnn.*             - Graph neural network layers
+│   └── classifier.*      - Output head
+├── optimizer_state_dict  - Adam optimizer (for resuming training)
+├── scheduler_state_dict  - Learning rate scheduler
+├── scaler_state_dict     - Mixed precision training
+├── rng_state             - Random number generators
+├── config                - Full training config
+├── epoch                 - Which epoch this checkpoint is from
+├── best_metric           - Best validation metric achieved
+├── global_step           - Total training steps
+└── timestamp             - When checkpoint was saved
+```
+
+**For inference, we only need**:
+1. `model_state_dict` (the trained weights)
+2. Model architecture code (in `src/brain_brr/models/`)
+
+**How to load for inference**:
+```python
+import torch
+from src.brain_brr.models.detector import SeizureDetector
+
+# Load checkpoint
+ckpt = torch.load('results/local_fla_training/checkpoints/best.pt', map_location='cpu')
+
+# Create model with same architecture
+model = SeizureDetector(config)
+
+# Load trained weights
+model.load_state_dict(ckpt['model_state_dict'])
+
+# Ready for inference!
+model.eval()
+```
+
+---
+
+## TUSZ Dataset Split Status
+
+### Current Usage
+- **train/** (4667 files): Used for training both baseline and Exp1
+- **dev/** (1832 files): Used for validation during training both runs
+
+### NOT TOUCHED YET
+- **eval/** or **test/**: Official TUSZ test set - **WE HAVEN'T EVALUATED ON THIS YET!**
+
+**Key insight**: All our current metrics (28.01% sensitivity@10FA) are from the **dev set**, not the official test set!
+
+---
+
+## Immediate Next Steps (Priority Order)
+
+### 1. Let Exp1 Continue Training
+- Currently at epoch 2/100, validating
+- **ETA**: ~2-3 hours for epoch 2 to complete
+- **Key checkpoint**: Epoch 9 (compare to baseline epoch 9)
+- **Watch for**: Does stronger regularization prevent overfitting?
+
+### 2. Locate TUSZ Eval/Test Set
+**Questions to answer**:
+- Do we have the TUSZ eval/test set downloaded?
+- Where is it located?
+- Does it need preprocessing like train/dev?
+
+**Action**: Search for TUSZ test data
+```bash
+# Check common locations
+ls -lh /path/to/tusz/data/eval/
+ls -lh /path/to/tusz/data/test/
+```
+
+### 3. Create Inference Script
+**What we need**:
+- Load `best.pt` checkpoint (baseline epoch 9)
+- Run inference on eval/test set
+- Calculate official metrics:
+  - Sensitivity @ 10FA/24h
+  - Sensitivity @ 5FA/24h
+  - Sensitivity @ 1FA/24h
+  - TAES score
+
+**Benefits**:
+- Get official baseline numbers to beat
+- Validate dev set results generalize to test set
+- Establish ground truth for experiment comparisons
+
+### 4. Set Up Experiment Tracking
+**Create comparison table**:
+| Experiment | Config | Best Epoch | Sens@10FA (dev) | Sens@10FA (test) | Status |
+|------------|--------|------------|-----------------|------------------|--------|
+| Baseline   | dropout=0.3, wd=1e-4 | 9 | 28.01% | TBD | Stopped epoch 13 |
+| Exp1       | dropout=0.4, wd=1e-3 | TBD | TBD | TBD | Running (2/100) |
+
+---
+
+## Key Questions to Answer
+
+### Training Strategy
+1. Should we resume baseline training from epoch 13 to 100?
+   - Pro: See if it recovers from overfitting
+   - Con: Already showing clear overfitting pattern
+   - **Recommendation**: No, wait for Exp1 results first
+
+2. When should we stop Exp1 if it's not improving?
+   - Early stopping patience currently set in config
+   - Monitor validation metrics closely
+
+### Evaluation Strategy
+3. Do we have the TUSZ official eval/test set?
+   - If yes: Where is it and is it preprocessed?
+   - If no: How do we download/access it?
+
+4. Should we evaluate baseline best.pt on test set now or wait?
+   - **Recommendation**: Do it now to establish baseline
+   - Gives us target to beat while Exp1 trains
+
+### Next Experiments
+5. If Exp1 prevents overfitting but sensitivity is lower, what's next?
+   - Exp2: Different regularization balance
+   - Exp3: Data augmentation
+   - Exp4: Architecture changes
+
+6. Should we consider ensemble methods?
+   - Combine multiple checkpoints (epochs 6,7,8,9)
+   - Might smooth out overfitting
+
+---
+
+## Resource Tracking
+
+### Disk Space
+- Baseline checkpoints: ~2.1 GB (11 checkpoints)
+- Exp1 checkpoints: ~1.2 GB (growing, currently epoch 2)
+- Total checkpoint storage: ~3.3 GB
+
+### Compute Time (RTX 4090)
+- Baseline: Ran ~13 epochs (stopped Oct 18 13:47)
+- Exp1: Started Oct 18 14:52
+- **Cost**: Free (local training)
+- **Time per epoch**: ~9.6 hours (4.1h train + 5.5h val)
+
+---
+
+## Success Criteria
+
+### Exp1 Success Metrics
+- **Minimal success**: Match baseline 28.01% @ epoch 9 without overfitting
+- **Good success**: Exceed 28.01% and maintain through epoch 20+
+- **Great success**: Achieve 30%+ sensitivity@10FA with stable val_loss
+
+### Evaluation Success
+- Test set performance within 2-3% of dev set performance
+- No major distribution shift issues
+- Reproducible metrics matching TUSZ benchmarks
+
+---
+
+## Open Questions / Brainstorming
+
+1. **Overfitting analysis**: Why did baseline overfit so hard after epoch 6?
+   - Model capacity too high (31M params)?
+   - Training data too small (4667 files)?
+   - Need different regularization strategy?
+
+2. **Best checkpoint selection**: Should we use epoch 9 or ensemble epochs 6-9?
+   - Single best epoch might be lucky
+   - Ensemble might be more robust
+
+3. **Hyperparameter search**: After Exp1, should we do systematic grid search?
+   - Dropout: [0.3, 0.35, 0.4, 0.45]
+   - Weight decay: [1e-4, 5e-4, 1e-3, 5e-3]
+   - Learning rate: [1e-4, 5e-4, 1e-3]
+
+4. **Training time optimization**: 9.6h per epoch × 100 = 40 days
+   - Can we speed up validation? (Currently 5.5h - 57% of epoch time!)
+   - Should we validate less frequently after epoch 20?
+
+5. **Early stopping**: What's the right patience?
+   - Current setting: TBD (check config)
+   - Baseline would have stopped around epoch 12-13 anyway
+
+---
+
+## Action Items (TODO)
+
+- [ ] Check Exp1 epoch 2 results when validation completes (~2-3 hours)
+- [ ] Locate TUSZ eval/test set
+- [ ] Write inference script for test set evaluation
+- [ ] Run baseline best.pt on test set
+- [ ] Create experiment tracking spreadsheet
+- [ ] Monitor Exp1 training through epoch 9 (critical comparison point)
+- [ ] Decide on Exp2/Exp3 parameters based on Exp1 results
+
+---
+
+## Notes
+
+**Latest W&B screenshot**: `WB-Baseline-Training.png` (shows overfitting pattern clearly)
+
+**Key insight from baseline**: The model CAN learn to detect seizures (28% is decent for first attempt), but it's overfitting the training data. Regularization and/or more training data likely needed.
+
+**Patience required**: Exp1 won't show results for ~7 more epochs (need to reach epoch 9 for fair comparison). ETA: ~67 hours (2.8 days) from now.
