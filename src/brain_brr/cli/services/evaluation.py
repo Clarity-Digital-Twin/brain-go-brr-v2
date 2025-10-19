@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
+import shutil
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
@@ -16,10 +19,12 @@ from src.brain_brr.config.schemas import Config, PostprocessingConfig
 from src.brain_brr.constants import HYSTERESIS_DELTA, HYSTERESIS_TAU_ON
 from src.brain_brr.data import EEGWindowDataset
 from src.brain_brr.eval.metrics import batch_probs_to_events
-from src.brain_brr.events import SeizureEvent
+from src.brain_brr.events import SeizureEvent, calculate_event_confidence
 from src.brain_brr.events.export import export_csv_bi
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train.loop import validate_epoch
+
+logger = logging.getLogger(__name__)
 
 
 def create_threshold_config(
