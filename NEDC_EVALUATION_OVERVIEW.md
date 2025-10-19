@@ -138,6 +138,8 @@ python -m src build-cache \
   --split eval
 ```
 
+**Note**: The evaluation service automatically maps the `data_path` name (`train`, `dev`, `eval`) to the corresponding mmap cache directory under `cache/tusz_mmap/{split}`. Make sure the target split exists before running evaluation.
+
 ### Step 2: Run evaluation with NEDC scoring (Week 2, Day 5)
 
 ```bash

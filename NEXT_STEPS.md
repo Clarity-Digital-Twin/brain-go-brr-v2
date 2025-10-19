@@ -456,6 +456,7 @@ ls -lh /path/to/tusz/data/test/
 **P1 - Evaluation Readiness**:
 - [ ] Extend build-cache CLI to support eval split (cli.py:207)
 - [ ] Preprocess TUSZ eval set to cache (2-4 hours one-time)
+- [ ] Update evaluation dataloader to resolve cache/tusz_mmap/{split} automatically
 - [ ] Implement NEDCScorer wrapper (nedc_wrapper.py)
 - [ ] Add --nedc-score flag to evaluate CLI
 

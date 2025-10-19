@@ -188,6 +188,9 @@ python -m src build-cache \
 # Verify cache created
 ls cache/tusz_mmap/eval/
 ls cache/tusz_mmap/eval/*_data.npy | wc -l  # Expected: ~2000
+
+# Evaluation pipeline automatically looks in cache/tusz_mmap/{split} based on the --data-path
+# argument (train/dev/eval). Ensure the matching directory exists before running the CLI.
 ```
 
 ### Testing

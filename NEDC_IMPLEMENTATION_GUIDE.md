@@ -757,7 +757,7 @@ class NEDCScorer:
       nedc_score: bool = False
   ```
 
-### 3.1: Prepare evaluation outputs and persist predictions
+### 3.1: Prepare evaluation outputs, cache mapping, and persist predictions
 
 **File**: `src/brain_brr/cli/services/evaluation.py`
 
@@ -767,8 +767,8 @@ class NEDCScorer:
    import logging
    import shutil
 
-   import numpy as np
-   import torch  # Already imported at line 12
+   import numpy as np  # NEW
+   # torch import already exists at the top of the file
 
    # Extend existing import (line 19):
    # FROM: from src.brain_brr.events import SeizureEvent
@@ -782,8 +782,8 @@ class NEDCScorer:
 
 2. In `run_evaluation()`:
    - Capture the EDF list returned from `create_dataloader`.
-   - Ensure predictions are saved to a dedicated evaluation directory before the call to `validate_epoch`.
-   - Invoke a helper to attach NEDC metrics after inference when `request.nedc_score` is true.
+   - Resolve the evaluation output directory and force `save_predictions=True` so `validate_epoch` writes `{output_dir}/predictions/*.npy`.
+   - Invoke the NEDC helper *before* exporting metrics so JSON output includes the `nedc_overlap` payload.
 
    ```python
    def run_evaluation(request: EvaluationRequest) -> EvaluationResult:
@@ -814,17 +814,40 @@ class NEDCScorer:
            output_dir=cfg.experiment.output_dir,
        )
 
+       if request.nedc_score:
+           _attach_nedc_metrics(request, cfg, metrics, edf_files, eval_output_dir)
+
        if request.output_json:
            _export_metrics_json(metrics, request, device)
 
        if request.output_csv_bi:
            _export_events_csv_bi(model, dataloader, metrics, cfg, device, request.output_csv_bi)
 
-       if request.nedc_score:
-           _attach_nedc_metrics(request, cfg, metrics, edf_files, eval_output_dir)
-
        return EvaluationResult(...)
    ```
+
+3. Update `create_dataloader()` (same file) so it loads the correct mmap cache split based on `data_path`:
+
+   ```python
+   def create_dataloader(...):
+       ...
+       split_name = data_path.name.lower()
+       cache_dir = Path(cfg.data.cache_dir) / split_name
+       if not cache_dir.exists():
+           raise FileNotFoundError(
+               f"Cache directory not found for split '{split_name}': {cache_dir}"
+           )
+
+       dataset = EEGWindowDataset(
+           edf_files,
+           cache_dir=cache_dir,
+           ...
+       )
+       ...
+       return dataloader, edf_files
+   ```
+
+   This keeps training defaults intact (`train/dev`) while allowing evaluation runs on `dev` and `eval` to reuse the existing mmap cache (`cache/tusz_mmap/{split}`).
 
 ### 3.2: Generate CSV_BI hypotheses and score with nedc-bench
 
@@ -965,7 +988,8 @@ cat results/test_nedc_integration/metrics.json | jq .nedc_overlap
 python -m src evaluate \
   results/local_fla_training/checkpoints/best.pt \
   data_ext4/tusz/edf/eval/ \
-  --output-json results/eval_baseline/metrics.json
+  --output-json results/eval_baseline/metrics.json \
+  --nedc-score
 
 # View results
 cat results/eval_baseline/metrics.json | jq .nedc_overlap
