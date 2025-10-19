@@ -70,15 +70,19 @@ We have baseline.pt trained (28.01% dev sensitivity@10FA) but **NO official test
   "split": "eval",
   "algorithm": "NEDC v6.0.0 Overlap",
   "metrics": {
-    "sensitivity_at_10FA_24h": 24.3,
-    "sensitivity_at_5FA_24h": 21.8,
-    "sensitivity_at_1FA_24h": 15.2,
-    "f1": 0.31,
-    "precision": 0.42,
-    "recall": 0.24,
-    "tp": 145,
-    "fp": 198,
-    "fn": 456
+    "sensitivity_at_10fa": 24.3,
+    "sensitivity_at_5fa": 21.8,
+    "sensitivity_at_1fa": 15.2,
+    "nedc_overlap": {
+      "tp": 145,
+      "fp": 198,
+      "fn": 456,
+      "precision": 0.42,
+      "recall": 0.24,
+      "f1": 0.31,
+      "fa_per_24h": 9.5,
+      "num_files": 2000
+    }
   },
   "comparison_to_dev": {
     "dev_sensitivity_10FA": 28.01,
@@ -143,13 +147,14 @@ python -m src build-cache \
 python -m src evaluate \
   results/local_fla_training/checkpoints/best.pt \
   data_ext4/tusz/edf/eval/ \
-  --output-json results/eval_baseline/metrics.json
+  --output-json results/eval_baseline/metrics.json \
+  --nedc-score
 
 # NEDCScorer will be called internally from run_evaluation() service
 # Results saved to JSON with NEDC metrics
 ```
 
-**NOTE**: Uses EXISTING Click-based CLI (positional args `checkpoint_path` and `data_path`)
+**NOTE**: Uses the Click-based CLI (positional args `checkpoint_path` and `data_path`) plus the new `--nedc-score` flag to trigger nedc-bench scoring.
 
 ---
 

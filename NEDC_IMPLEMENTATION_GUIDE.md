@@ -704,96 +704,244 @@ class NEDCScorer:
 
 ---
 
-## Phase 3: Extend run_evaluation Service (Day 3 of Week 2)
+## Phase 3: Extend CLI + run_evaluation Service (Day 3 of Week 2)
 
-### 3.1: Extend run_evaluation() Service
+### 3.0: Wire CLI flag and request payload
+
+**File**: `src/brain_brr/cli/cli.py`
+
+1. Add the NEDC flag to the Click command:
+   ```python
+   @cli.command("evaluate")
+   @click.argument("checkpoint_path", type=click.Path(exists=False, path_type=Path))
+   @click.argument("data_path", type=click.Path(exists=False, path_type=Path))
+   ...
+   @click.option(
+       "--nedc-score",
+       is_flag=True,
+       help="Run NEDC v6.0.0 scoring via nedc-bench after inference",
+   )
+   def evaluate(
+       checkpoint_path: Path,
+       data_path: Path,
+       config: Path | None,
+       device: str,
+       output_json: Path | None,
+       output_csv_bi: Path | None,
+       dry_run: bool,
+       nedc_score: bool,
+   ) -> None:
+   ```
+
+2. When constructing the request, pass the new flag:
+   ```python
+       request = EvaluationRequest(
+           checkpoint_path=checkpoint_path,
+           data_path=data_path,
+           config_path=config,
+           device=device,
+           output_json=output_json,
+           output_csv_bi=output_csv_bi,
+           nedc_score=nedc_score,
+       )
+   ```
 
 **File**: `src/brain_brr/cli/services/evaluation.py`
 
-**Find the `run_evaluation()` function** (line ~143) and ADD NEDC integration:
+- Extend the dataclass:
+  ```python
+  @dataclass
+  class EvaluationRequest:
+      ...
+      output_csv_bi: Path | None
+      nedc_score: bool = False
+  ```
+
+### 3.1: Prepare evaluation outputs and persist predictions
+
+**File**: `src/brain_brr/cli/services/evaluation.py`
+
+1. Update imports at the top of the file:
+   ```python
+   import logging
+   import shutil
+
+   import numpy as np
+
+   from src.brain_brr.events import SeizureEvent, calculate_event_confidence
+   ```
+   (keep existing imports; add the new ones, and create `logger = logging.getLogger(__name__)` after imports.)
+
+2. In `run_evaluation()`:
+   - Capture the EDF list returned from `create_dataloader`.
+   - Ensure predictions are saved to a dedicated evaluation directory before the call to `validate_epoch`.
+   - Invoke a helper to attach NEDC metrics after inference when `request.nedc_score` is true.
+
+   ```python
+   def run_evaluation(request: EvaluationRequest) -> EvaluationResult:
+       ...
+       checkpoint, cfg = load_checkpoint_and_config(request.checkpoint_path, request.config_path)
+
+       # Ensure evaluation outputs land in a dedicated directory
+       eval_output_dir = (
+           request.output_json.parent
+           if request.output_json is not None
+           else Path(cfg.experiment.output_dir) / "evaluation" / request.data_path.name
+       )
+       eval_output_dir = Path(eval_output_dir)
+       eval_output_dir.mkdir(parents=True, exist_ok=True)
+       cfg.experiment.output_dir = eval_output_dir
+       cfg.evaluation.save_predictions = True
+
+       model = SeizureDetector.from_config(cfg.model)
+       ...
+
+       dataloader, edf_files = create_dataloader(request.data_path, cfg, device)
+       ...
+       metrics = validate_epoch(
+           model,
+           dataloader,
+           cfg.postprocessing,
+           ...
+           output_dir=cfg.experiment.output_dir,
+       )
+
+       if request.output_json:
+           _export_metrics_json(metrics, request, device)
+
+       if request.output_csv_bi:
+           _export_events_csv_bi(model, dataloader, metrics, cfg, device, request.output_csv_bi)
+
+       if request.nedc_score:
+           _attach_nedc_metrics(request, cfg, metrics, edf_files, eval_output_dir)
+
+       return EvaluationResult(...)
+   ```
+
+### 3.2: Generate CSV_BI hypotheses and score with nedc-bench
+
+Add the helper to the bottom of `evaluation.py` (after existing helpers):
 
 ```python
-def run_evaluation(request: EvaluationRequest) -> EvaluationResult:
-    """Run model evaluation on test data.
+def _attach_nedc_metrics(
+    request: EvaluationRequest,
+    cfg: Config,
+    metrics: dict[str, Any],
+    edf_files: list[Path],
+    eval_output_dir: Path,
+) -> None:
+    """Convert predictions to CSV_BI, copy references, and run NEDC scoring."""
+    predictions_dir = eval_output_dir / "predictions"
+    if not predictions_dir.exists():
+        logger.warning("Predictions directory missing (%s); skipping NEDC scoring", predictions_dir)
+        return
 
-    ... existing docstring ...
-    """
-    # ... existing code for loading checkpoint, creating model, running inference ...
-    # (Lines 143-200 remain unchanged)
+    reference_dir = eval_output_dir / "nedc" / "reference"
+    hypothesis_dir = eval_output_dir / "nedc" / "hypothesis"
+    reference_dir.mkdir(parents=True, exist_ok=True)
+    hypothesis_dir.mkdir(parents=True, exist_ok=True)
 
-    # ... after saving output_json and output_csv_bi ...
+    try:
+        from src.brain_brr.eval.nedc_wrapper import NEDCScorer
+    except Exception as exc:
+        logger.warning("nedc-bench unavailable (%s); skipping NEDC scoring", exc)
+        return
 
-    # NEW: Add NEDC scoring if predictions were saved
-    # (Add this at end of function, before return statement)
+    scorer = NEDCScorer()
+    prepared_pairs = 0
 
-    if output_json:  # Only run NEDC if we saved predictions
-        logger.info("Computing NEDC metrics...")
+    for edf_path in edf_files:
+        file_id = edf_path.stem
+        probs_path = predictions_dir / f"{file_id}_probs.npy"
 
-        try:
-            from src.brain_brr.eval.nedc_wrapper import NEDCScorer
-            from src.brain_brr.events.export import export_csv_bi
-            import tempfile
-            import shutil
+        if not probs_path.exists():
+            logger.warning("No predictions saved for %s; skipping", file_id)
+            continue
 
-            # Create temporary directories for CSV_BI files
-            with tempfile.TemporaryDirectory() as tmpdir:
-                tmpdir = Path(tmpdir)
-                csv_bi_ref_dir = tmpdir / "reference"
-                csv_bi_hyp_dir = tmpdir / "hypothesis"
-                csv_bi_ref_dir.mkdir()
-                csv_bi_hyp_dir.mkdir()
+        ref_csv = edf_path.with_suffix(".csv_bi")
+        if not ref_csv.exists():
+            logger.warning("Reference CSV_BI missing for %s; skipping", file_id)
+            continue
 
-                # Convert predictions to CSV_BI format
-                # ... loop over edf_files and convert predictions using export_csv_bi() ...
-                # TODO: Implementation depends on where predictions are stored
+        probs = np.load(probs_path)
+        probs_tensor = torch.from_numpy(probs).unsqueeze(0)
+        pred_event_ranges = batch_probs_to_events(
+            probs_tensor,
+            cfg.postprocessing,
+            cfg.data.sampling_rate,
+        )[0]
 
-                # Score with NEDC
-                scorer = NEDCScorer()
-                nedc_metrics = scorer.score_predictions(
-                    reference_dir=csv_bi_ref_dir,
-                    hypothesis_dir=csv_bi_hyp_dir,
-                    algorithm="overlap",
-                )
+        events: list[SeizureEvent] = []
+        for start_s, end_s in pred_event_ranges:
+            event = SeizureEvent(start_s=start_s, end_s=end_s)
+            event.confidence = calculate_event_confidence(
+                probs,
+                event,
+                sampling_rate=cfg.data.sampling_rate,
+                method="mean",
+            )
+            events.append(event)
 
-                # Add NEDC metrics to result
-                metrics["nedc_overlap"] = {
-                    "tp": nedc_metrics.tp,
-                    "fp": nedc_metrics.fp,
-                    "fn": nedc_metrics.fn,
-                    "precision": nedc_metrics.precision,
-                    "recall": nedc_metrics.recall,
-                    "f1": nedc_metrics.f1,
-                    "num_files": nedc_metrics.num_files,
-                }
+        patient_id, recording_suffix = (file_id.split("_", 1) + ["unknown"])[:2]
+        export_csv_bi(
+            events,
+            hypothesis_dir / f"{file_id}.csv_bi",
+            patient_id=patient_id,
+            recording_id=recording_suffix,
+            duration_s=len(probs) / cfg.data.sampling_rate,
+        )
 
-                logger.info(f"NEDC metrics: TP={nedc_metrics.tp}, FP={nedc_metrics.fp}, FN={nedc_metrics.fn}")
-                logger.info(f"NEDC F1: {nedc_metrics.f1:.3f}")
+        shutil.copy2(ref_csv, reference_dir / f"{file_id}.csv_bi")
+        prepared_pairs += 1
 
-        except Exception as e:
-            logger.warning(f"NEDC scoring failed: {e}")
-            # Don't fail the whole evaluation if NEDC fails
+    if prepared_pairs == 0:
+        logger.warning("No prediction/reference pairs prepared for NEDC scoring")
+        return
 
-    return EvaluationResult(
-        metrics=metrics,
-        checkpoint_path=str(checkpoint_path),
-        data_path=str(data_path),
-        device=device,
+    nedc_metrics = scorer.score_predictions(reference_dir, hypothesis_dir, algorithm="overlap")
+    duration_hours = nedc_metrics.total_recording_duration_sec / 3600.0
+    fa_per_24h = (nedc_metrics.fp / duration_hours) * 24.0 if duration_hours > 0 else 0.0
+
+    metrics["nedc_overlap"] = {
+        "tp": nedc_metrics.tp,
+        "fp": nedc_metrics.fp,
+        "fn": nedc_metrics.fn,
+        "precision": nedc_metrics.precision,
+        "recall": nedc_metrics.recall,
+        "f1": nedc_metrics.f1,
+        "fa_per_24h": fa_per_24h,
+        "num_files": nedc_metrics.num_files,
+    }
+
+    logger.info(
+        "NEDC overlap: TP=%s FP=%s FN=%s F1=%.3f FA/24h=%.2f (files=%s)",
+        nedc_metrics.tp,
+        nedc_metrics.fp,
+        nedc_metrics.fn,
+        nedc_metrics.f1,
+        fa_per_24h,
+        nedc_metrics.num_files,
     )
 ```
 
-**Test the integration**:
+### 3.3: Verify CLI + service end-to-end
+
 ```bash
-# Test on dev set first (faster)
+# Re-run unit + integration suites
+.venv/bin/pytest tests/unit/eval/test_nedc_wrapper.py -v
+.venv/bin/pytest tests/integration/eval/test_nedc_integration.py -v -m integration
+
+# Exercise CLI on dev split (fast sanity check)
 python -m src evaluate \
   results/local_fla_training/checkpoints/best.pt \
   data_ext4/tusz/edf/dev/ \
-  --output-json results/test_nedc_integration/metrics.json
+  --output-json results/test_nedc_integration/metrics.json \
+  --nedc-score
 
-# Verify NEDC metrics in output
-cat results/test_nedc_integration/metrics.json | grep -A10 "nedc_overlap"
+cat results/test_nedc_integration/metrics.json | jq .nedc_overlap
 ```
 
-**Phase 3 Complete!** ✅ Service extended, NEDC integration working
+**Phase 3 Complete!** ✅ CLI flag + service updated, NEDC metrics attached to evaluation results
 
 ---
 

@@ -212,13 +212,15 @@ ls cache/tusz_mmap/eval/*_data.npy | wc -l  # Expected: ~2000
 python -m src evaluate \
   results/local_fla_training/checkpoints/best.pt \
   data_ext4/tusz/edf/dev/ \
-  --output-json results/test_nedc/metrics.json
+  --output-json results/test_nedc/metrics.json \
+  --nedc-score
 
 # Run evaluation on eval set (official)
 python -m src evaluate \
   results/local_fla_training/checkpoints/best.pt \
   data_ext4/tusz/edf/eval/ \
-  --output-json results/eval_baseline/metrics.json
+  --output-json results/eval_baseline/metrics.json \
+  --nedc-score
 
 # View NEDC results
 cat results/eval_baseline/metrics.json | jq .nedc_overlap
