@@ -102,6 +102,179 @@ model.eval()
 
 ---
 
+## Should We Run Eval/Test Despite Overfitting? YES! 🎯
+
+**Critical Question**: The baseline model clearly overfits (val_loss rising after epoch 6). Does this mean test set results would be meaningless?
+
+**Answer: NO! Test results are EXTREMELY meaningful, even more so BECAUSE of the overfitting!**
+
+### Why Test Set Results Matter Despite Overfitting
+
+#### 1. Overfitting is on TRAINING data, not TEST data
+
+**What actually happened:**
+- Model memorized patterns in **train set** (4667 files)
+- Model validated against **dev set** (1832 files) during training
+- Model has **NEVER seen** the eval/test set
+
+**What overfitting means:**
+- Gap between train performance (great) and dev performance (declining)
+- Does NOT mean the test set results are invalid
+- Test set shows **true generalization** to unseen data
+
+#### 2. Test Performance Quantifies HOW BAD the Overfitting Is
+
+**Expected scenario:**
+```
+Baseline Epoch 9:
+├── Train loss: ~0.015 (low, model learned training data well)
+├── Dev sensitivity@10FA: 28.01% (validation set during training)
+└── Test sensitivity@10FA: ??? (we expect LOWER, maybe 23-26%)
+```
+
+**The dev→test gap is the KEY metric:**
+- Small gap (28% → 27%): Overfitting not too bad, model generalizes okay
+- Large gap (28% → 20%): Severe overfitting, model memorized training data
+- **This gap quantifies the overfitting problem objectively!**
+
+#### 3. Even Overfit Models Can Be Clinically Useful
+
+**Perspective:**
+- Random baseline: ~8% (class distribution)
+- Overfit model test result: Maybe 24-26%?
+- That's still **3x better than random!**
+
+**This tells us:**
+- The architecture CAN learn seizure patterns
+- The approach is fundamentally sound
+- We just need better regularization (Exp1!)
+
+#### 4. Establishes Scientific Baseline for All Future Work
+
+**You NEED this for rigorous research:**
+
+| Experiment | Dev Sens@10FA | Test Sens@10FA | Dev-Test Gap | Analysis |
+|------------|---------------|----------------|--------------|----------|
+| Baseline (overfit) | 28.01% | **???** | **???** | Overfitting hurts generalization by X% |
+| Exp1 (stronger reg) | TBD | TBD | TBD | Regularization reduces gap to Y% |
+
+**Without baseline test results:**
+- ❌ Can't quantify overfitting impact
+- ❌ Can't prove Exp1 actually improved generalization
+- ❌ Can't compare to literature benchmarks
+- ❌ Can't write a proper research paper
+
+#### 5. Tests Your Full Evaluation Pipeline
+
+**Even if model performance is suboptimal, you validate:**
+- ✅ Inference code works correctly
+- ✅ Data loading works on test set
+- ✅ Metric calculation is correct
+- ✅ Post-processing (hysteresis, morphology) works
+- ✅ No bugs in evaluation pipeline
+- ✅ End-to-end pipeline is sound
+
+**Better to find bugs NOW with baseline than later with your best model!**
+
+#### 6. Required for Research/Publication
+
+**Any ML paper requires:**
+```
+Table 1: Model Performance on TUSZ Test Set
+
+Model               | Dev Sens@10FA | Test Sens@10FA | Dev-Test Gap | Notes
+--------------------|---------------|----------------|--------------|------------------
+Baseline            | 28.01%        | XX.XX%         | X.XX%        | Overfitting observed
++ Regularization    | XX.XX%        | XX.XX%         | X.XX%        | Improved generalization
++ Data Augmentation | XX.XX%        | XX.XX%         | X.XX%        | Further improvement
+```
+
+**You can't skip the baseline test results just because it overfit - that's scientifically invalid!**
+
+### What Test Results WILL Tell You
+
+✅ **How much overfitting hurt real-world performance** (dev-test gap quantification)
+✅ **Whether the model beats random baseline** (~8% seizure rate)
+✅ **Actual clinical utility** (even if not SOTA, might be useful)
+✅ **Distribution shift** (if any) between dev/test splits
+✅ **Baseline to beat** for all future experiments (critical reference point)
+✅ **Pipeline correctness** (validates entire inference/eval pipeline)
+✅ **Proof of concept** (architecture can learn seizure detection)
+
+### What Test Results WON'T Tell You
+
+❌ **Model's true potential** (limited by overfitting, not architecture)
+❌ **Best possible performance** (that's what Exp1+ experiments are for)
+❌ **Whether architecture is optimal** (need more experiments to determine)
+❌ **Final production-ready model** (needs more refinement)
+
+### The Scientific Value
+
+**Overfitting makes test results MORE meaningful, not less:**
+
+1. **Quantifies the problem**: Measures exact generalization gap
+2. **Validates the solution**: Exp1 must reduce this gap to prove effectiveness
+3. **Establishes rigor**: Shows you understand train/dev/test methodology
+4. **Enables comparison**: Future experiments measured against this baseline
+
+**Example narrative for paper:**
+```
+"Our baseline model achieved 28.01% sensitivity@10FA on the development set but
+only 24.3% on the test set (3.7% gap), indicating overfitting. With stronger
+regularization (dropout 0.4, weight_decay 1e-3), we achieved 29.2% on dev and
+27.8% on test (1.4% gap), demonstrating both improved performance AND better
+generalization (62% reduction in overfitting gap)."
+```
+
+### Recommendation: Two-Track Approach 🚀
+
+**Track 1: Baseline Eval (Do This NOW)**
+```bash
+# Use best.pt (epoch 9, 28.01% dev)
+python -m src eval --checkpoint results/local_fla_training/checkpoints/best.pt --split test
+
+# Expected outcome:
+# - Test sensitivity@10FA: 23-27% (lower than dev 28.01%)
+# - Quantifies overfitting impact
+# - Validates evaluation pipeline
+# - Establishes baseline to beat
+```
+
+**Track 2: Exp1 Training (Ongoing)**
+```
+- Let it run to epoch 9+
+- Compare dev AND test results to baseline
+- Prove regularization helped both:
+  a) Performance (higher test score)
+  b) Generalization (smaller dev-test gap)
+```
+
+**The combination tells the complete story:**
+- Baseline: "Here's the problem" (overfitting quantified)
+- Exp1: "Here's the solution" (regularization improves generalization)
+- Science: Hypothesis → Evidence → Conclusion ✅
+
+### Bottom Line: RUN THE EVAL!
+
+**The overfitting doesn't invalidate test results - it makes them ESSENTIAL!**
+
+Running eval on the overfit baseline:
+1. ✅ Quantifies the overfitting problem objectively
+2. ✅ Establishes baseline for all future experiments
+3. ✅ Tests your evaluation pipeline thoroughly
+4. ✅ Required for scientific rigor and publication
+5. ✅ Proves architecture viability (even if not optimal)
+6. ✅ Enables meaningful comparison with Exp1/Exp2/Exp3
+
+**Not running eval would be like:**
+- A doctor diagnosing a problem but never measuring vital signs
+- An engineer building a bridge without stress testing
+- A scientist proposing a hypothesis without collecting data
+
+**DO IT!** The results will be valuable regardless of the numbers. 🔬
+
+---
+
 ## Immediate Next Steps (Priority Order)
 
 ### 1. Let Exp1 Continue Training
