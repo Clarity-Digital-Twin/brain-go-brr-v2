@@ -4,11 +4,16 @@ Unit tests for NEDCScorer wrapper.
 Tests NEDCScorer class that provides Python API to nedc-bench (FILE-LEVEL API).
 """
 
+from pathlib import Path
+
 import pytest
 
-from src.brain_brr.eval.nedc_wrapper import NEDCScorer
+from src.brain_brr.eval.nedc_wrapper import NEDC_BENCH_PATH, NEDCScorer
+
+HAS_NEDC_BENCH = NEDC_BENCH_PATH.exists()
 
 
+@pytest.mark.skipif(not HAS_NEDC_BENCH, reason="nedc-bench not available")
 class TestNEDCScorerInit:
     """Test NEDCScorer initialization"""
 
@@ -29,6 +34,7 @@ class TestNEDCScorerInit:
             NEDCScorer()
 
 
+@pytest.mark.skipif(not HAS_NEDC_BENCH, reason="nedc-bench not available")
 class TestNEDCScorerScoring:
     """Test NEDCScorer scoring functionality (FILE-LEVEL API)"""
 
@@ -166,6 +172,7 @@ TERM,200.0000,220.0000,seiz,1.0
         assert "epoch" in results
 
 
+@pytest.mark.skipif(not HAS_NEDC_BENCH, reason="nedc-bench not available")
 class TestNEDCScorerErrors:
     """Test error handling"""
 
@@ -199,6 +206,7 @@ class TestNEDCScorerErrors:
             )
 
 
+@pytest.mark.skipif(not HAS_NEDC_BENCH, reason="nedc-bench not available")
 class TestNEDCScorerValidation:
     """Test CSV_BI validation"""
 

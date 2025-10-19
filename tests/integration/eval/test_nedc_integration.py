@@ -11,10 +11,13 @@ from pathlib import Path
 
 import pytest
 
-from src.brain_brr.eval.nedc_wrapper import NEDCScorer
+from src.brain_brr.eval.nedc_wrapper import NEDC_BENCH_PATH, NEDCScorer
+
+HAS_NEDC_BENCH = NEDC_BENCH_PATH.exists()
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(not HAS_NEDC_BENCH, reason="nedc-bench not available")
 class TestNEDCBenchIntegration:
     """Integration tests with nedc-bench"""
 
