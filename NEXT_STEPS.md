@@ -426,6 +426,37 @@ ls -lh /path/to/tusz/data/test/
 
 **Status**: NEDC-BENCH v1.1.0 imported to `reference_repos/nedc-bench/` (October 19, 2025)
 
+### TL;DR - The ULTRA GOD BANGER Plan 🚀
+
+**Architecture**: Direct Python import (NO Docker, NO data transfer!)
+
+**What We Have**:
+- Model predictions: `.npy` files (continuous probability timelines)
+- Location: `results/*/predictions/epoch_XXX/*.npy`
+- Format: `recording_id_probs.npy` (numpy array, shape: `(n_samples,)`)
+
+**What NEDC Needs**:
+- Event lists: `.csv_bi` files (discrete start/stop times)
+- Format: `TERM,start_s,stop_s,seiz,1.0` per line
+
+**The Pipeline** (3 simple steps):
+1. **Convert**: `.npy` → `.csv_bi` (reuse existing `batch_probs_to_events()`)
+2. **Import**: `sys.path.insert()` to add nedc-bench (direct Python import!)
+3. **Score**: Call nedc-bench API (pure Python, returns official metrics)
+
+**Files to Create**:
+- `src/brain_brr/eval/format_converter.py` (~100 lines, reuses existing code)
+- `src/brain_brr/eval/nedc_wrapper.py` (~80 lines, direct Python import)
+- `src/brain_brr/eval/evaluator.py` (~150 lines, orchestrates everything)
+
+**Why This is Perfect**:
+- ✅ NO Docker complexity
+- ✅ NO data transfer overhead
+- ✅ Reuses existing post-processing code
+- ✅ Official NEDC v6.0.0 metrics
+- ✅ Publication-ready results
+- ✅ Fast, clean, simple!
+
 ### The Complete Evaluation Pipeline
 
 ```
