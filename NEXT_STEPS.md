@@ -1014,3 +1014,148 @@ Target (Clinical)  | >75%      | >75%     | >75%     | -     | -    | -         
 **Patience required**: Exp1 won't show results for ~7 more epochs (need to reach epoch 9 for fair comparison). ETA: ~67 hours (2.8 days) from now.
 
 **NEDC-BENCH**: Your maintained version at https://github.com/Clarity-Digital-Twin/nedc-bench provides official NEDC v6.0.0 scoring with modern Python API. This is THE standard for seizure detection evaluation in literature.
+
+---
+
+## Next Steps Summary (Priority Order) 📋
+
+### Immediate Actions (While Exp1 Trains)
+
+**1. Understand Current Data Formats** ✅ DONE!
+- ✅ Found validation output code (`val_step.py`)
+- ✅ Identified prediction format (`.npy` continuous timelines)
+- ✅ Identified NEDC requirement (`.csv_bi` event lists)
+- ✅ Imported nedc-bench to `reference_repos/nedc-bench/`
+
+**2. Locate TUSZ Eval/Test Set** 🔍
+- [ ] Find TUSZ eval/test data location
+- [ ] Verify ground truth labels exist (CSV_BI format)
+- [ ] Check if preprocessing needed (like train/dev)
+
+**3. Build Evaluation Pipeline** 🔧
+
+**Phase 1: Format Converter** (Build First!)
+- [ ] Create `src/brain_brr/eval/format_converter.py`
+- [ ] Implement `CSVBIConverter` class (reuse `batch_probs_to_events()`)
+- [ ] Test conversion: `.npy` → `.csv_bi`
+- [ ] Verify CSV_BI format correctness
+
+**Phase 2: NEDC Wrapper** (Build Second!)
+- [ ] Create `src/brain_brr/eval/nedc_wrapper.py`
+- [ ] Add `sys.path.insert()` for nedc-bench import
+- [ ] Implement `NEDCScorer` class (direct Python API)
+- [ ] Test scoring with sample CSV_BI files
+
+**Phase 3: End-to-End Evaluator** (Build Third!)
+- [ ] Create `src/brain_brr/eval/evaluator.py`
+- [ ] Implement `ModelEvaluator` class
+- [ ] Wire up: load checkpoint → run inference → convert → score
+- [ ] Add CLI interface (`python -m src.brain_brr.eval.evaluator`)
+
+**Phase 4: Baseline Evaluation** (Do This Now!)
+- [ ] Enable `save_predictions: true` in config (temporarily)
+- [ ] Run inference on eval/test set with `best.pt`
+- [ ] Convert predictions to CSV_BI
+- [ ] Score with NEDC-BENCH
+- [ ] Document official metrics
+- [ ] Compare to dev set results (quantify overfitting)
+
+### Medium-Term Actions
+
+**5. Exp1 Comparison** (When Exp1 reaches epoch 9+)
+- [ ] Run Exp1 best checkpoint on test set
+- [ ] Score with NEDC-BENCH
+- [ ] Compare: Baseline vs Exp1 (both dev AND test)
+- [ ] Prove regularization improved generalization
+- [ ] Update experiment tracking table
+
+**6. Literature Comparison** (After baseline + Exp1 results)
+- [ ] Create comparison table (our results vs papers)
+- [ ] Identify performance gaps
+- [ ] Plan next experiments (Exp2, Exp3, etc.)
+
+### Long-Term Actions
+
+**7. Next Experiments** (Based on baseline + Exp1 results)
+- Exp2: Different regularization balance?
+- Exp3: Data augmentation?
+- Exp4: Architecture changes?
+- Exp5: Ensemble methods?
+
+**8. Publication Preparation**
+- Write methods section (architecture + training)
+- Create results tables (NEDC metrics)
+- Generate figures (learning curves, predictions)
+- Compare to SOTA (literature benchmarks)
+
+---
+
+## Key Decision Points 🎯
+
+### Should we evaluate baseline despite overfitting?
+**YES!** (See reasoning in "Should We Run Eval/Test Despite Overfitting?" section)
+- Quantifies overfitting impact objectively
+- Establishes baseline for all future work
+- Required for scientific rigor
+- Tests evaluation pipeline
+
+### What evaluation approach should we use?
+**Direct Python import of nedc-bench!** (See "TL;DR" section)
+- NO Docker complexity
+- NO data transfer overhead
+- Fast, clean, simple
+- Official NEDC v6.0.0 metrics
+
+### When should we run baseline evaluation?
+**NOW! While Exp1 trains!** (~67 hours until Exp1 reaches epoch 9)
+- Build evaluation pipeline
+- Run baseline inference on test set
+- Get official metrics
+- Have baseline numbers ready for Exp1 comparison
+
+---
+
+## Success Criteria ✅
+
+**Evaluation Pipeline Success**:
+- [ ] Can convert `.npy` predictions to `.csv_bi` format
+- [ ] Can call nedc-bench via direct Python import
+- [ ] Get official NEDC metrics (sensitivity@FA, TAES, F1, etc.)
+- [ ] Results match internal validation metrics (sanity check)
+
+**Baseline Evaluation Success**:
+- [ ] Test set performance within expected range (23-27% sens@10FA)
+- [ ] Dev-test gap quantified (measures overfitting)
+- [ ] Beats random baseline (~8%)
+- [ ] Proves architecture viability
+
+**Exp1 Comparison Success**:
+- [ ] Exp1 test performance ≥ baseline test performance
+- [ ] Exp1 dev-test gap < baseline dev-test gap (better generalization)
+- [ ] Proves regularization effectiveness
+
+---
+
+## What This Enables 🚀
+
+**Once evaluation pipeline is built**:
+- ✅ Official NEDC v6.0.0 metrics for ALL experiments
+- ✅ Direct comparison to literature (apples-to-apples)
+- ✅ Publication-ready results
+- ✅ Clinical utility assessment (FA/24h is what clinicians care about!)
+- ✅ Rapid experimentation (eval any checkpoint in minutes)
+- ✅ Proof of generalization (test set validates dev set results)
+
+**The complete story you'll tell**:
+```
+Table 1: Performance on TUSZ Eval Set (NEDC v6.0.0 Overlap Scoring)
+
+Model              | Dev Sens@10FA | Test Sens@10FA | Dev-Test Gap | Analysis
+-------------------|---------------|----------------|--------------|------------------
+Baseline (overfit) | 28.01%        | 24.3%          | 3.7%         | Overfitting observed
+Exp1 (stronger reg)| 26.5%         | 25.8%          | 0.7%         | Better generalization!
+Literature [Shah]  | -             | 89%            | -            | SOTA benchmark
+Target (Clinical)  | -             | >75%           | -            | <1 FA/24h needed
+```
+
+**This is the path to publication!** 📄🎯
