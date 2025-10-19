@@ -70,8 +70,12 @@ class NEDCScorer:
         sys.path.insert(0, str(NEDC_BENCH_PATH))
 
         try:
-            from nedc_bench.models.annotations import AnnotationFile  # type: ignore[import-not-found]
-            from nedc_bench.orchestration.dual_pipeline import BetaPipeline  # type: ignore[import-not-found]
+            from nedc_bench.models.annotations import (
+                AnnotationFile,  # type: ignore[import-not-found]
+            )
+            from nedc_bench.orchestration.dual_pipeline import (
+                BetaPipeline,  # type: ignore[import-not-found]
+            )
 
             self.BetaPipeline = BetaPipeline
             self.AnnotationFile = AnnotationFile
