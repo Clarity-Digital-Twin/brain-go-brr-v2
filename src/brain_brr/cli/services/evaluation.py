@@ -172,7 +172,7 @@ def run_evaluation(request: EvaluationRequest) -> EvaluationResult:
         FileNotFoundError: If checkpoint or data path not found
         ValueError: If configuration invalid or no EDF files found
     """
-    checkpoint, cfg = load_checkpoint_and_config(request.checkpoint_path, request.config_path)
+    _, cfg = load_checkpoint_and_config(request.checkpoint_path, request.config_path)
 
     eval_output_dir = (
         request.output_json.parent
