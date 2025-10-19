@@ -69,21 +69,19 @@ We have baseline.pt trained (28.01% dev sensitivity@10FA) but **NO official test
   "checkpoint": "best.pt (epoch 9)",
   "split": "eval",
   "algorithm": "NEDC v6.0.0 Overlap",
-  "metrics": {
-    "sensitivity_at_10fa": 24.3,
-    "sensitivity_at_5fa": 21.8,
-    "sensitivity_at_1fa": 15.2,
-    "nedc_overlap": {
-      "tp": 145,
-      "fp": 198,
-      "fn": 456,
-      "precision": 0.42,
-      "recall": 0.24,
-      "f1": 0.31,
-      "fa_per_24h": 9.5,
-      "num_files": 2000
-    }
+  "nedc_overlap": {
+    "tp": 145,
+    "fp": 198,
+    "fn": 456,
+    "precision": 0.42,
+    "recall": 0.24,
+    "f1": 0.31,
+    "fa_per_24h": 9.5,
+    "num_files": 2000
   },
+  "sensitivity_at_10fa": 24.3,
+  "sensitivity_at_5fa": 21.8,
+  "sensitivity_at_1fa": 15.2,
   "comparison_to_dev": {
     "dev_sensitivity_10FA": 28.01,
     "test_sensitivity_10FA": 24.3,
@@ -192,14 +190,17 @@ python -m src evaluate \
 ```
 results/eval_baseline/
 ├── metrics.json              # Main evaluation metrics (includes NEDC scores)
-└── predictions/
-    └── eval/
-        ├── aaaaaaaq_s006_t000_probs.npy
-        ├── aaaaaaaq_s006_t000_labels.npy
-        └── ... (~2000 files)
+├── predictions/
+│   ├── {file_id}_probs.npy  # Per-recording probability timelines (1D, 256 Hz)
+│   └── {file_id}_labels.npy # Per-recording ground truth
+└── nedc/
+    ├── reference/
+    │   └── *.csv_bi         # Ground truth CSV_BI files (copied from TUSZ)
+    └── hypothesis/
+        └── *.csv_bi         # Model predictions as CSV_BI (generated from probs)
 ```
 
-**NOTE**: CSV_BI files will be generated in memory during NEDC scoring, not saved to disk (unless needed for debugging)
+**NOTE**: CSV_BI files are generated during NEDC scoring from saved predictions (probs.npy files)
 
 ---
 
