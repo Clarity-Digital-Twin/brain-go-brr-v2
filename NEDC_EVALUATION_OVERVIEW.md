@@ -77,7 +77,7 @@ We have baseline.pt trained (28.01% dev sensitivity@10FA) but **NO official test
     "recall": 0.24,
     "f1": 0.31,
     "fa_per_24h": 9.5,
-    "num_files": 2000
+    "num_files": 865
   },
   "sensitivity_at_10fa": 24.3,
   "sensitivity_at_5fa": 21.8,

@@ -161,11 +161,11 @@ ls data_ext4/tusz/edf/eval/
 
 # Count EDF files
 find data_ext4/tusz/edf/eval/ -name "*.edf" | wc -l
-# Expected: ~2000
+# Expected: 865
 
 # Count CSV_BI ground truth files (with # headers!)
 find data_ext4/tusz/edf/eval/ -name "*.csv_bi" | wc -l
-# Expected: ~2000
+# Expected: 865
 
 # View sample CSV_BI file (verify # headers)
 find data_ext4/tusz/edf/eval/ -name "*.csv_bi" | head -1 | xargs head -10
@@ -187,7 +187,7 @@ python -m src build-cache \
 
 # Verify cache created
 ls cache/tusz_mmap/eval/
-ls cache/tusz_mmap/eval/*_data.npy | wc -l  # Expected: ~2000
+ls cache/tusz_mmap/eval/*_data.npy | wc -l  # Expected: 865
 
 # Evaluation pipeline automatically looks in cache/tusz_mmap/{split} based on the --data-path
 # argument (train/dev/eval). Ensure the matching directory exists before running the CLI.
@@ -249,8 +249,8 @@ cat results/eval_baseline/metrics.json | jq .nedc_overlap
 | Operation | Target Time | Notes |
 |-----------|-------------|-------|
 | Score 1 file pair (overlap) | < 30ms | Per-pair overhead |
-| Score 1000 file pairs | < 30s | Dev set scale |
-| Score 2000 file pairs (eval) | < 60s | Full eval set |
+| Score 865 file pairs (eval) | < 26s | Full eval set |
+| Score 1832 file pairs (dev) | < 55s | Dev set scale |
 
 ---
 
