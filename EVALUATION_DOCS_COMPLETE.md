@@ -25,38 +25,43 @@
 
 ## Documentation Breakdown
 
+### 🔄 UPDATE: Reduced Scope Due to Code Reuse
+
+**CRITICAL**: After discovering existing infrastructure, most "components" are OBSOLETE!
+
 ### Overview & Planning (776 lines)
-- **00_OVERVIEW.md**: Architecture, timeline, success criteria
+- **00_OVERVIEW.md**: Architecture, 2-week timeline (REVISED from 4 weeks)
 - **01_QUESTIONS_RESOLVED.md**: All 12 questions answered with evidence
 - **SUMMARY_FOR_AUDIT.md**: Cross-reference guide for AI audit
 
-### Component Specifications (1,374 lines)
-- **02_COMPONENT_CSVBI_CONVERTER.md**: Format converter (10 tests)
-- **03_COMPONENT_NEDC_SCORER.md**: NEDC wrapper (8+1 tests)
-- **04_COMPONENT_MODEL_EVALUATOR.md**: Orchestrator (4 tests)
+### Component Specifications (REVISED)
+- ~~**02_COMPONENT_CSVBI_CONVERTER.md**~~: ✅ **OBSOLETE** - export_csv_bi() already exists
+- **03_COMPONENT_NEDC_SCORER.md**: NEDC wrapper (~100 lines new code, 9 tests)
+- ~~**04_COMPONENT_MODEL_EVALUATOR.md**~~: ✅ **PARTIALLY OBSOLETE** - extend existing run_evaluation()
 
-### Testing & Quality (460 lines)
-- **05_TESTING_REQUIREMENTS.md**: Error handling, performance, logging
+### Testing & Quality (REVISED)
+- **05_TESTING_REQUIREMENTS.md**: 9 tests total (REVISED from 23 tests)
 
 ---
 
 ## What Each Doc Contains
 
-### EVALUATION_00_OVERVIEW.md
+### EVALUATION_00_OVERVIEW.md ✅ UPDATED
 **Purpose**: High-level architecture and roadmap
 
 **Contents**:
-- 3-component pipeline diagram
-- 4-week TDD timeline
-- File structure after implementation
-- Quick start commands
-- Success criteria
+- Architecture diagram (REVISED - shows code reuse!)
+- 2-week timeline (REVISED from 4 weeks)
+- Success criteria (REVISED - NEDCScorer + CLI extensions only)
+- Quick start commands (uses EXISTING `python -m src evaluate`)
+
+**Status**: Reflects reuse-first approach
 
 **Audience**: Developers, project managers
 
 ---
 
-### EVALUATION_01_QUESTIONS_RESOLVED.md
+### EVALUATION_01_QUESTIONS_RESOLVED.md ✅ ACCURATE
 **Purpose**: All critical questions answered with evidence
 
 **Contents**:
@@ -66,68 +71,63 @@
 - Pre-implementation checklist
 - Summary table of all answers
 
+**Status**: No changes needed - factual Q&A
+
 **Audience**: Implementers, AI auditors
 
 ---
 
-### EVALUATION_02_COMPONENT_CSVBI_CONVERTER.md
-**Purpose**: CSVBIConverter technical specification
+### EVALUATION_02_COMPONENT_CSVBI_CONVERTER.md ⚠️ OBSOLETE
+**Purpose**: ~~CSVBIConverter technical specification~~ HISTORICAL REFERENCE ONLY
 
-**Contents**:
-- Class signatures (RecordingMetadata, CSVBIConverter)
-- 3 method specifications with full docstrings
-- 10 unit test cases with detailed fixtures
-- Error handling table
-- Performance targets
-- Acceptance criteria
+**Status**: **MARKED OBSOLETE** - export_csv_bi() already exists (events/export.py:15-52)
 
-**Audience**: TDD developers
+**Action**: DO NOT implement this spec, use existing export_csv_bi() function
+
+**Audience**: Reference only
 
 ---
 
-### EVALUATION_03_COMPONENT_NEDC_SCORER.md
-**Purpose**: NEDCScorer technical specification
+### EVALUATION_03_COMPONENT_NEDC_SCORER.md ✅ PRIMARY SPEC
+**Purpose**: NEDCScorer technical specification - THE ONLY NEW COMPONENT
 
 **Contents**:
 - Direct Python import architecture (NO Docker!)
 - Class signatures (NEDCMetrics, NEDCScorer)
-- 3 method specifications
+- 3 method specifications with FA-sensitivity computation details
 - All 5 NEDC algorithms documented
 - 8 unit tests + 1 integration test
 - Test fixtures with sample CSV_BI files
 - Acceptance criteria
 
+**Status**: IMPLEMENT THIS - ~100 lines new code
+
 **Audience**: TDD developers
 
 ---
 
-### EVALUATION_04_COMPONENT_MODEL_EVALUATOR.md
-**Purpose**: ModelEvaluator orchestrator specification
+### EVALUATION_04_COMPONENT_MODEL_EVALUATOR.md ⚠️ PARTIALLY OBSOLETE
+**Purpose**: ~~ModelEvaluator orchestrator~~ HISTORICAL REFERENCE ONLY
 
-**Contents**:
-- End-to-end pipeline class signature
-- CLI interface design (evaluate + compare subcommands)
-- 4 integration test specifications
-- Publication table generation
-- Output file structure
-- Complete CLI argument specification
+**Status**: **MARKED PARTIALLY OBSOLETE** - run_evaluation() already exists (cli/services/evaluation.py)
 
-**Audience**: TDD developers, CLI users
+**Action**: Extend existing `python -m src evaluate` CLI with `--nedc-score` flag (~50 lines), don't create new evaluator.py
+
+**Audience**: Reference only
 
 ---
 
-### EVALUATION_05_TESTING_REQUIREMENTS.md
-**Purpose**: Comprehensive testing requirements
+### EVALUATION_05_TESTING_REQUIREMENTS.md ✅ UPDATED
+**Purpose**: Testing requirements (REVISED for reduced scope)
 
 **Contents**:
-- Test suite summary (23 total tests)
-- Coverage requirements (90% overall)
-- Performance benchmarks for all operations
-- Error handling specifications (3 tables)
-- Logging specifications (DEBUG/INFO/WARNING/ERROR)
-- Test fixture specifications
-- CI/CD configuration
-- Complete acceptance criteria
+- Test suite summary (9 tests, REVISED from 23)
+- Coverage requirements (NEDCScorer only)
+- Performance benchmarks
+- Error handling specifications
+- Strikethrough for obsolete components
+
+**Status**: Reflects reuse-first approach
 
 **Audience**: QA, TDD developers
 
@@ -156,32 +156,37 @@
 ✅ **Structure**: `{patient}/{session_year}/01_tcp_ar/{file_id}.csv_bi`
 ✅ **Cache**: `cache/tusz_mmap/eval/` (empty, needs preprocessing)
 
-### Architecture
+### Architecture (REVISED)
 
-**Component 1**: CSVBIConverter
+**Component 1**: ~~CSVBIConverter~~ → ✅ **ALREADY EXISTS** as export_csv_bi() (events/export.py)
 - Converts .npy → CSV_BI
 - Reuses existing `batch_probs_to_events()`
-- ~150 lines of code
+- **0 lines new code** (already done!)
 
-**Component 2**: NEDCScorer
+**Component 2**: NEDCScorer (ONLY NEW COMPONENT!)
 - Direct Python import (NO Docker!)
 - `sys.path.insert()` for nedc-bench
-- ~100 lines of code
+- **~100 lines of code**
 
-**Component 3**: ModelEvaluator
-- End-to-end orchestrator
-- CLI interface
-- ~200 lines of code
+**Component 3**: ~~ModelEvaluator~~ → ✅ **ALREADY EXISTS** as run_evaluation() (cli/services/evaluation.py)
+- End-to-end orchestrator already there
+- Just extend existing CLI with `--nedc-score` flag
+- **~50 lines of extensions** (not 200!)
 
-**Total new code**: ~450 lines (excluding tests)
-**Total tests**: ~1,000 lines (23 tests)
+**Total new code**: ~150 lines (REVISED from 450 lines)
+**Total tests**: ~350 lines (9 tests, REVISED from 23 tests)
 
-### Timeline
+### Timeline (REVISED)
 
-**Week 1**: CSVBIConverter (tests → implementation → validation)
-**Week 2**: NEDCScorer (tests → implementation → integration)
-**Week 3**: ModelEvaluator (tests → implementation → end-to-end)
-**Week 4**: Production evaluation (baseline + Exp1)
+**Week 1**: Preprocessing + NEDCScorer Tests
+- Extend build-cache CLI for eval split
+- Preprocess TUSZ eval set
+- Write 8 unit tests for NEDCScorer (TDD)
+
+**Week 2**: NEDCScorer Implementation + Integration
+- Implement NEDCScorer (~100 lines)
+- Extend evaluate CLI with --nedc-score (~50 lines)
+- Run baseline evaluation on eval set
 
 ---
 
