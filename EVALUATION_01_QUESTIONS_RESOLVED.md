@@ -230,15 +230,17 @@ results/local_fla_training/predictions/
 
 **Content example**:
 ```
-version = csv_bi_v01.00.00
-patient = aaaaaaaq
-session = s006
-duration = 300.0000 secs
-
+# version = csv_v1.0.0
+# bname = aaaaaaaq_s006_t000
+# duration = 300.0000 secs
+# montage_file = nedc_eas_default_montage.txt
+#
 channel,start_time,stop_time,label,confidence
 TERM,45.2000,67.8000,seiz,1.0
 TERM,102.5000,115.3000,seiz,1.0
 ```
+
+**NOTE**: Header lines MUST have `#` prefix! (Matches TUSZ ground truth format)
 
 ---
 

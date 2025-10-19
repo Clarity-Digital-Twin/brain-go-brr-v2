@@ -1,10 +1,25 @@
-# Component 1: CSVBIConverter - Technical Specification
+# Component 1: CSV_BI Export - Technical Specification
 
-**File**: `src/brain_brr/eval/format_converter.py` (~150 lines)
+## 🚨 STATUS: OBSOLETE - DO NOT IMPLEMENT THIS SPEC
 
-**Purpose**: Convert brain-go-brr-v2 predictions (.npy) to NEDC CSV_BI format (.csv_bi)
+**Why Obsolete**: CSV_BI export functionality ALREADY EXISTS in the codebase!
 
-**Status**: Specification complete - Ready for TDD implementation
+**Existing Implementation**:
+- ✅ `export_csv_bi()` function: `src/brain_brr/events/export.py:15-52`
+- ✅ CLI integration: `python -m src evaluate --output-csv-bi path.csv`
+- ✅ Service integration: `cli/services/evaluation.py:220-278`
+
+**What This Doc Described**: Creating a new `CSVBIConverter` class and `format_converter.py` file (~150 lines)
+
+**What We Actually Need**: NOTHING - just use existing `export_csv_bi()` or extend it if needed
+
+**For NEDC Integration**: See `EVALUATION_03_COMPONENT_NEDC_SCORER.md` for how to use existing CSV_BI export with NEDC scorer
+
+---
+
+## Historical Spec (For Reference Only - DO NOT IMPLEMENT)
+
+The sections below describe a proposed `CSVBIConverter` class that was planned before discovering the existing `export_csv_bi()` implementation. **This spec is preserved for audit purposes only.**
 
 ---
 

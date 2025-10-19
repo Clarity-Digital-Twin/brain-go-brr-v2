@@ -1,10 +1,29 @@
-# Component 3: ModelEvaluator - Technical Specification
+# Component 3: Model Evaluation - Technical Specification
 
-**File**: `src/brain_brr/eval/evaluator.py` (~200 lines)
+## 🚨 STATUS: PARTIALLY OBSOLETE - DO NOT IMPLEMENT AS WRITTEN
 
-**Purpose**: End-to-end evaluation pipeline orchestrator with CLI
+**Why Partially Obsolete**: Evaluation infrastructure ALREADY EXISTS in the codebase!
 
-**Status**: Specification complete - Ready for TDD implementation
+**Existing Implementation**:
+- ✅ `python -m src evaluate` CLI command: `src/brain_brr/cli/cli.py:305-413`
+- ✅ `run_evaluation()` service: `src/brain_brr/cli/services/evaluation.py:143-201`
+- ✅ `validate_epoch()` inference: `src/brain_brr/train/val_step.py:375-584`
+- ✅ `export_csv_bi()` CSV_BI export: `src/brain_brr/events/export.py:15-52`
+
+**What This Doc Described**: Creating a new `ModelEvaluator` class and `evaluator.py` file (~200 lines) with bespoke CLI
+
+**What We Actually Need**:
+1. Add `--nedc-score` flag to existing `evaluate` CLI
+2. Integrate NEDCScorer into existing `run_evaluation()` service
+3. ~50 lines of integration code, NOT 200 lines of new orchestration
+
+**For Implementation**: Focus on NEDC integration, not rebuilding evaluation from scratch
+
+---
+
+## Historical Spec (For Reference - Adapt for CLI Extension)
+
+The sections below describe a proposed `ModelEvaluator` class. **Instead of implementing this class, extend the existing `run_evaluation()` service with NEDC scoring capability.**
 
 ---
 

@@ -1,8 +1,28 @@
 # NEDC Evaluation Pipeline - Summary for AI Audit
 
-**Status**: Documentation complete - Ready for cross-reference audit
+**Status**: Documentation UPDATED after two audit rounds - Ready for final review
 
-**Date**: October 19, 2025
+**Date**: October 19, 2025 (Updated: October 19, 2025 - Audit Round 2)
+
+---
+
+## 🔄 AUDIT STATUS
+
+**Round 1 (October 19, 2025)**: Fixed 6 critical errors
+- ✅ Wrong CLI commands corrected
+- ✅ CSV_BI format headers added
+- ✅ NEDC import names fixed
+- ✅ Function names corrected
+- ✅ Existing code references added
+
+**Round 2 (October 19, 2025)**: Fixed inconsistent sections
+- ✅ Timeline updated (4 weeks → 2 weeks)
+- ✅ Test counts updated (23 → 9 tests)
+- ✅ OBSOLETE warnings added to docs
+- ✅ FA-sensitivity computation clarified
+- ✅ Meta doc status tables updated
+
+**Ready for**: Final audit of cross-references and implementation
 
 ---
 
@@ -52,23 +72,17 @@ This document summarizes ALL evaluation documentation for AI agent audit.
 - 8 unit tests + 1 integration test
 - All 5 NEDC algorithms documented
 
-### 5. EVALUATION_04_COMPONENT_MODEL_EVALUATOR.md (TO CREATE)
-**Estimated lines**: ~400
-**Purpose**: ModelEvaluator orchestrator specification
-**Key content**:
-- End-to-end pipeline orchestration
-- CLI interface design
-- 4 integration tests
-- Publication table generation
+### 5. EVALUATION_04_COMPONENT_MODEL_EVALUATOR.md ✅ CREATED (PARTIALLY OBSOLETE)
+**Lines**: ~500 (historical spec preserved)
+**Purpose**: ModelEvaluator specification (NOW OBSOLETE - extend existing run_evaluation instead)
+**Status**: Marked OBSOLETE at top, preserved for reference
+**Action**: Use as guidance to extend CLI, don't implement as written
 
-### 6. EVALUATION_05_TESTING_REQUIREMENTS.md (TO CREATE)
-**Estimated lines**: ~300
-**Purpose**: Complete testing requirements
-**Key content**:
-- Error handling specifications
-- Performance requirements
-- Logging specifications
-- CLI argument specifications
+### 6. EVALUATION_05_TESTING_REQUIREMENTS.md ✅ CREATED (UPDATED)
+**Lines**: ~460 (updated)
+**Purpose**: Testing requirements (updated to reflect code reuse)
+**Status**: Updated with revised test counts (23 → 9 tests)
+**Action**: Follow revised test plan for NEDCScorer only
 
 ---
 
@@ -76,11 +90,11 @@ This document summarizes ALL evaluation documentation for AI agent audit.
 
 ### Architecture Consistency
 
-**Component dependencies** (verify across all docs):
+**Component dependencies (REVISED)** (verify across all docs):
 ```
-CSVBIConverter → batch_probs_to_events() (metrics.py)
-NEDCScorer → nedc-bench (reference_repos/)
-ModelEvaluator → CSVBIConverter + NEDCScorer
+export_csv_bi() → SeizureEvent objects (existing)
+NEDCScorer → nedc-bench (reference_repos/) + export_csv_bi output
+run_evaluation() + NEDCScorer → Complete eval pipeline (extend existing)
 ```
 
 ### File Paths Consistency
@@ -101,19 +115,17 @@ results/eval_{experiment}/
 
 ### Timeline Consistency
 
-**4-week plan** (verify matches component specs):
-- Week 1: CSVBIConverter (10 tests → implementation → validation)
-- Week 2: NEDCScorer (8 tests → implementation → integration)
-- Week 3: ModelEvaluator (4 tests → implementation → end-to-end)
-- Week 4: Production evaluation (baseline + Exp1)
+**2-week plan (REVISED)** (verify matches EVALUATION_00):
+- Week 1: Extend build-cache CLI + preprocess eval set + write NEDCScorer tests
+- Week 2: Implement NEDCScorer + extend evaluate CLI + run baseline evaluation
 
-### Test Count Consistency
+### Test Count Consistency (REVISED)
 
 **Total tests** (verify sum matches):
-- CSVBIConverter: 10 unit tests
-- NEDCScorer: 8 unit tests + 1 integration test
-- ModelEvaluator: 4 integration tests
-- **Total**: 23 tests
+- ~~CSVBIConverter: 10 unit tests~~ → OBSOLETE (already exists)
+- NEDCScorer: 8 unit tests + 1 integration test → IMPLEMENT THESE
+- ~~ModelEvaluator: 4 integration tests~~ → OBSOLETE (already exists)
+- **Total**: 9 tests (was 23 before discovering existing code)
 
 ### Performance Targets Consistency
 

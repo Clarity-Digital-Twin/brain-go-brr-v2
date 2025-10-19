@@ -56,13 +56,25 @@ class NEDCMetrics:
     """
     Structured NEDC evaluation metrics.
 
-    All metrics directly from NEDC v6.0.0 scoring.
+    CRITICAL: NEDC API only provides counts (tp/fp/fn).
+    sensitivity_at_*FA fields must be computed by NEDCScorer!
+
+    Fields from NEDC (hits, misses, false_alarms):
+    - tp, fp, fn: Event counts from NEDC scoring
+    - precision, recall, f1: Basic metrics (computed from counts)
+    - taes_score: Only for "taes" algorithm
+
+    Fields computed by NEDCScorer (NOT from NEDC API):
+    - sensitivity_at_10FA_24h: Requires FA calibration (NOT provided by NEDC)
+    - sensitivity_at_5FA_24h: Requires FA calibration (NOT provided by NEDC)
+    - sensitivity_at_1FA_24h: Requires FA calibration (NOT provided by NEDC)
+    - total_recording_duration_sec: Sum of AnnotationFile.duration (NOT in OverlapResult)
     """
     algorithm: str
-    sensitivity_at_10FA_24h: float
-    sensitivity_at_5FA_24h: float
-    sensitivity_at_1FA_24h: float
-    taes_score: Optional[float]  # Only for "taes" algorithm
+    sensitivity_at_10FA_24h: float  # Computed via threshold sweep or model thresholds
+    sensitivity_at_5FA_24h: float   # Computed via threshold sweep or model thresholds
+    sensitivity_at_1FA_24h: float   # Computed via threshold sweep or model thresholds
+    taes_score: Optional[float]     # Only for "taes" algorithm
     f1: float
     precision: float
     recall: float
@@ -70,7 +82,7 @@ class NEDCMetrics:
     fp: int
     fn: int
     total_seizure_duration_sec: float
-    total_recording_duration_sec: float
+    total_recording_duration_sec: float  # Must compute from AnnotationFile.duration
 ```
 
 ---
@@ -134,10 +146,9 @@ def score_predictions(
             - "epoch": 250ms epoch-based sampling
             - "ira": Inter-Rater Agreement (Cohen's κ)
             - "all": Run all algorithms (returns list)
-        pipeline: Which NEDC pipeline to use
+        pipeline: Which NEDC pipeline to use (NOTE: DualPipelineOrchestrator only supports one algorithm at a time)
             - "beta": Modern reimplementation (faster, recommended)
-            - "alpha": Legacy wrapper (100% parity with NEDC v6.0.0)
-            - "dual": Both (for parity validation)
+            - NOTE: "alpha" and "dual" options not currently needed for our use case
 
     Returns:
         NEDCMetrics object with official NEDC scores
@@ -151,20 +162,26 @@ def score_predictions(
     Behavior:
     1. Validate directories exist and contain .csv_bi files
     2. Match reference and hypothesis files by filename
-    3. Call BetaPipeline.evaluate() (returns hits, misses, false_alarms, durations)
-    4. Compute FA-targeted sensitivities from raw counts:
-       - Extract total_recording_duration from results
-       - For each FA target (10, 5, 1 FA/24h):
-         * This is NOT provided by NEDC API - we need to compute it
-         * May require threshold sweeping OR use existing model thresholds
-         * sensitivity = hits / (hits + misses)
-    5. Parse raw counts into NEDCMetrics structure
-    6. Log summary statistics
+    3. Load AnnotationFile objects (for duration extraction)
+    4. Call BetaPipeline.evaluate() → returns OverlapResult(total_hits, total_misses, total_false_alarms)
+    5. Compute total_recording_duration by summing AnnotationFile.duration across all files
+    6. Compute basic metrics from counts:
+       - precision = tp / (tp + fp)
+       - recall = tp / (tp + fn)
+       - f1 = 2 * (precision * recall) / (precision + recall)
+    7. Compute FA-targeted sensitivities (CRITICAL - NOT provided by NEDC!):
+       - Option A: Use existing model calibration thresholds (from validate_epoch metrics)
+       - Option B: Implement threshold sweep on hypothesis .csv_bi files
+       - For each FA target (10, 5, 1 FA/24h), find threshold that achieves target FA rate
+       - sensitivity_at_NFA = recall at that threshold
+    8. Parse all results into NEDCMetrics structure
+    9. Log summary statistics
 
-    CRITICAL NOTE: BetaPipeline returns raw counts (hits, misses, false_alarms),
-    NOT FA-targeted sensitivities. The NEDCMetrics fields like sensitivity_at_10FA_24h
-    must be computed separately, potentially via threshold sweeping similar to what
-    src/brain_brr/eval/helpers/false_alarm.py:find_threshold_for_fa_target() does.
+    CRITICAL IMPLEMENTATION NOTE:
+    - BetaPipeline.evaluate() ONLY returns counts (hits, misses, false_alarms)
+    - total_recording_duration must be computed from AnnotationFile objects
+    - sensitivity_at_*FA metrics require ADDITIONAL computation beyond NEDC API
+    - Consider reusing brain_brr's existing FA calibration logic from validate_epoch
 
     Performance:
     - Overlap algorithm: ~100-200 file pairs per second

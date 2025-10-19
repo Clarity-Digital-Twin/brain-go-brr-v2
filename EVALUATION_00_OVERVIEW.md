@@ -77,35 +77,24 @@ NEDC evaluation pipeline to get **official, publication-ready metrics** on TUSZ 
 
 ---
 
-## Implementation Timeline (4 Weeks)
+## Implementation Timeline (2 Weeks - REVISED)
 
-### Week 1: CSVBIConverter
-- **Day 1-2**: Write all 10 unit tests (TDD)
-- **Day 3-4**: Implement CSVBIConverter
-- **Day 5**: Test on real dev predictions, validate CSV_BI format
+### Week 1: NEDCScorer + Preprocessing
+- **Day 1**: Extend build-cache CLI to support eval split (cli.py:207)
+- **Day 2-3**: Preprocess TUSZ eval set to cache (2-4 hours + validation)
+- **Day 4-5**: Write 8 unit tests for NEDCScorer (TDD)
 
-**Success**: 10/10 tests pass, dev predictions convert successfully
+**Success**: Eval cache built, NEDCScorer tests passing
 
-### Week 2: NEDCScorer
-- **Day 1-2**: Write all 8 unit tests
-- **Day 3-4**: Implement NEDCScorer with direct Python import
-- **Day 5**: Integration test with nedc-bench sample data
-
-**Success**: 8/8 tests pass, integration with nedc-bench works
-
-### Week 3: ModelEvaluator
-- **Day 1-2**: Write 4 integration tests (with mocking)
-- **Day 3-5**: Implement ModelEvaluator + CLI
-- **Day 6-7**: Full end-to-end test on dev set
-
-**Success**: Full pipeline works, CLI functional
-
-### Week 4: Production Evaluation
-- **Baseline**: Evaluate baseline.pt on eval set, get official metrics
-- **Exp1**: (When ready) Evaluate Exp1 on eval set, compare to baseline
-- **Documentation**: Update experiment tracking, generate publication tables
+### Week 2: NEDCScorer Implementation + Integration
+- **Day 1-2**: Implement NEDCScorer with BetaPipeline import (~100 lines)
+- **Day 3**: Extend evaluate CLI with --nedc-score flag
+- **Day 4**: Integration test with nedc-bench on dev set
+- **Day 5**: Run baseline.pt on eval set, get official NEDC metrics
 
 **Success**: Official test metrics obtained, baseline documented
+
+**MAJOR CHANGE**: Reduced from 4 weeks (~1,450 lines) to 2 weeks (~600 lines) by reusing existing infrastructure!
 
 ---
 

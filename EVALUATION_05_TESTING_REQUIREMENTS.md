@@ -1,30 +1,40 @@
 # Testing Requirements - Complete Specifications
 
-**Purpose**: Comprehensive testing requirements for all 3 components
+**Purpose**: Comprehensive testing requirements for NEDC integration
 
-**Status**: Specification complete - Ready for TDD implementation
-
----
-
-## Test Suite Summary
-
-| Component | Unit Tests | Integration Tests | Total |
-|-----------|------------|-------------------|-------|
-| CSVBIConverter | 10 | 0 | 10 |
-| NEDCScorer | 8 | 1 | 9 |
-| ModelEvaluator | 0 | 4 | 4 |
-| **TOTAL** | **18** | **5** | **23** |
+**Status**: UPDATED to reflect existing infrastructure reuse (October 19, 2025)
 
 ---
 
-## Test Coverage Requirements
+## 🔄 UPDATE: Reduced Scope Due to Code Reuse
+
+**Original Plan**: 23 tests across 3 new components (CSVBIConverter, NEDCScorer, ModelEvaluator)
+
+**Revised Plan**: ~10 tests for 1 new component (NEDCScorer only)
+
+**Why**: CSVBIConverter and ModelEvaluator already exist as `export_csv_bi()` and `run_evaluation()`
+
+---
+
+## Test Suite Summary (REVISED)
+
+| Component | Unit Tests | Integration Tests | Total | Status |
+|-----------|------------|-------------------|-------|--------|
+| ~~CSVBIConverter~~ | ~~10~~ | ~~0~~ | ~~10~~ | ✅ Already exists (export_csv_bi) |
+| NEDCScorer | 8 | 1 | 9 | 🆕 NEW - implement these |
+| ~~ModelEvaluator~~ | ~~0~~ | ~~4~~ | ~~4~~ | ✅ Already exists (run_evaluation) |
+| **TOTAL** | **8** | **1** | **9** | **~60% reduction!** |
+
+---
+
+## Test Coverage Requirements (REVISED)
 
 | Component | Target Coverage | Rationale |
 |-----------|----------------|-----------|
-| format_converter.py | ≥ 95% | High reliability needed for format conversion |
+| ~~format_converter.py~~ | ~~≥ 95%~~ | N/A - already exists as export_csv_bi |
 | nedc_wrapper.py | ≥ 90% | Critical integration point with NEDC |
-| evaluator.py | ≥ 85% | Some CLI code hard to test |
-| **Overall** | **≥ 90%** | **Production-ready quality** |
+| ~~evaluator.py~~ | ~~≥ 85%~~ | N/A - already exists as run_evaluation |
+| **nedc_wrapper.py** | **≥ 90%** | **Only new component** |
 
 ---
 
