@@ -1,8 +1,29 @@
 # NEDC Evaluation Pipeline - Overview
 
-**Status**: Ready for implementation (October 19, 2025)
+**⚠️ HISTORICAL DOCUMENT** - This planning document was created before implementation.
 
-**Purpose**: Get **official, publication-ready metrics** on TUSZ eval set using Temple University's NEDC v6.0.0 scorer
+**Implementation Status**: ✅ **COMPLETE** (October 19, 2025)
+- **Code**: `src/brain_brr/eval/nedc_wrapper.py` (~200 lines)
+- **Tests**: `tests/unit/eval/test_nedc_wrapper.py` (8 tests), `tests/integration/eval/test_nedc_integration.py` (1 test)
+- **All tests passing**: ✅ 9/9 tests pass
+- **See**: `docs/06-evaluation/NEDC_REFERENCE.md` for usage guide
+
+**Original Purpose**: Get **official, publication-ready metrics** on TUSZ eval set using Temple University's NEDC v6.0.0 scorer
+
+---
+
+## ✅ Implementation Completed
+
+This document described the NEDC evaluation pipeline **before** implementation. The implementation is now complete and production-ready. All content below is historical planning documentation.
+
+For current usage, see:
+- **Quick reference**: `docs/06-evaluation/NEDC_REFERENCE.md`
+- **TAES naming**: `docs/06-evaluation/TAES_DISAMBIGUATION.md`
+- **Metrics guide**: `docs/06-evaluation/metrics-and-taes.md`
+
+---
+
+# ORIGINAL PLANNING DOCUMENT
 
 ---
 
