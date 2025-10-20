@@ -259,7 +259,7 @@ This allows the model to emphasize:
 
 ### TUH EEG Seizure Corpus
 
-**World's largest open-source seizure dataset** ([Temple University](https://isip.piconepress.com/projects/tuh_eeg/html/downloads.shtml)):
+**World's largest open-source seizure dataset** ([Temple University](https://isip.piconepress.com/projects/nedc/html/tuh_eeg/index.shtml)):
 - **504 hours** of continuous EEG from 592 patients
 - **36 hours** of seizures (~7% prevalence) → 12:1 class imbalance
 - **19-channel** 10-20 montage @ 256Hz (clinical standard)
@@ -340,7 +340,7 @@ make setup-gpu
 make setup-fla
 
 # 4️⃣ Download TUSZ corpus
-# Visit: https://isip.piconepress.com/projects/tuh_eeg/html/request_access.php
+# Visit: https://isip.piconepress.com/projects/nedc/html/tuh_eeg/index.shtml
 # Place in: data_ext4/tusz/edf/
 
 # 5️⃣ Build preprocessing cache (one-time, ~2 hours)
@@ -452,7 +452,7 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 ## 🙏 Acknowledgments
 
 **Datasets**:
-- [TUH EEG Seizure Corpus](https://isip.piconepress.com/projects/tuh_eeg/html/downloads.shtml) (Temple University)
+- [TUH EEG Seizure Corpus](https://isip.piconepress.com/projects/nedc/html/tuh_eeg/index.shtml) (Temple University)
 - CHB-MIT Scalp EEG Database (Boston Children's Hospital / MIT)
 
 **Foundational Papers**:
