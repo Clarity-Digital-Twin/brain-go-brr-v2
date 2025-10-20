@@ -19,9 +19,7 @@
 
 **50 million people worldwide** suffer from epilepsy. Continuous EEG monitoring in ICUs could catch seizures early—but current systems fail at a critical bottleneck: **false alarm fatigue**.
 
-At 10 false alarms per 24 hours, clinical staff stop responding. The gold standard? **<1 false alarm per day** while maintaining >75% seizure detection.
-
-That's what we're building.
+At 10 false alarms per 24 hours, clinical staff stop responding. The gold standard? **<1 false alarm per day** while maintaining >75% seizure detection. That's what we're building.
 
 ---
 
@@ -462,6 +460,7 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 - **Mamba** ([Gu & Dao 2023](https://arxiv.org/abs/2312.00752)) - Selective state-space models
 - **Gated DeltaNet** ([Yang et al., ICLR 2025](https://github.com/NVlabs/GatedDeltaNet)) - Memory erasure + delta rule
 - **SeizureTransformer** ([Wu et al. 2025](https://arxiv.org/abs/2504.00336)) - SOTA baseline, U-Net + Transformer (EpilepsyBench #1)
+- **EEGMamba** ([Gui et al. 2024](https://arxiv.org/abs/2407.20254)) - Bidirectional Mamba for EEG (speed benchmark)
 - **TCN** ([Bai et al. 2018](https://arxiv.org/abs/1803.01271)) - Temporal convolutional networks
 - **Focal Loss** ([Lin et al. 2017](https://arxiv.org/abs/1708.02002)) - Class imbalance handling
 

@@ -2,7 +2,7 @@
 
 **Purpose**: Comprehensive list of all papers/references cited in README.md, organized for easy verification and updating with live arXiv links.
 
-**Status**: 🟡 IN PROGRESS - 7/8 verified, 1 remaining (EEG-Mamba)
+**Status**: ✅ COMPLETE - All 8 references verified with arXiv links
 
 ---
 
@@ -52,11 +52,12 @@
 - **Note**: Not a paper, but dataset documentation
 
 ### 7. EEG-Mamba (2024)
-- **Current link**: NONE (only mentioned as "EEG-Mamba 2024")
-- **Context**: "128 Hz/batch (EEG-Mamba 2024) vs 8 Hz/batch for Transformers"
+- **Verified link**: https://arxiv.org/abs/2407.20254
+- **Title**: "EEGMamba: Bidirectional State Space Model with Mixture of Experts for EEG Multi-task Classification"
+- **Authors**: Yiyu Gui, MingZhi Chen, Yuqi Su, Guibo Luo, Yuchao Yang
+- **Context**: Speed comparison reference ("128 Hz/batch (EEG-Mamba 2024) vs 8 Hz/batch for Transformers")
 - **Local file**: `literature/markdown/EEG-BIMAMBA/EEG-BIMAMBA.md`
-- **Quote in README**: Only speed comparison reference
-- **Needs**: Full arXiv link
+- **Status**: ✅ VERIFIED - Optional to add to README (only mentioned for speed benchmark, not foundational)
 
 ### 8. SeizureTransformer (Wu et al. 2025)
 - **Verified link**: https://arxiv.org/abs/2504.00336
@@ -89,15 +90,15 @@
 
 ## Summary of Actions Needed
 
-### High Priority (README references)
-1. ✅ **Mamba** - Verified (https://arxiv.org/abs/2312.00752)
-2. ✅ **Gated DeltaNet** - Verified (https://github.com/NVlabs/GatedDeltaNet)
-3. ✅ **TCN** - Verified (https://arxiv.org/abs/1803.01271)
-4. ✅ **Focal Loss** - Verified (https://arxiv.org/abs/1708.02002)
-5. ✅ **TUSZ** - Verified (Temple official site)
-6. ✅ **EvoBrain** - Verified (https://arxiv.org/abs/2509.15857) - UPDATED IN README
-7. ✅ **SeizureTransformer** - Verified (https://arxiv.org/abs/2504.00336) - ADDED TO README
-8. 🟡 **EEG-Mamba** - Only mentioned in text (NEEDS: arXiv link if available)
+### All References Verified ✅
+1. ✅ **Mamba** - https://arxiv.org/abs/2312.00752
+2. ✅ **Gated DeltaNet** - https://github.com/NVlabs/GatedDeltaNet
+3. ✅ **TCN** - https://arxiv.org/abs/1803.01271
+4. ✅ **Focal Loss** - https://arxiv.org/abs/1708.02002
+5. ✅ **TUSZ** - Temple official site (dataset)
+6. ✅ **EvoBrain** - https://arxiv.org/abs/2509.15857 (UPDATED IN README)
+7. ✅ **EEG-Mamba** - https://arxiv.org/abs/2407.20254 (OPTIONAL: add to README for speed benchmark citation)
+8. ✅ **SeizureTransformer** - https://arxiv.org/abs/2504.00336 (ADDED TO README)
 
 ### Low Priority (local reference only)
 - EEMG2 (not in README)
@@ -106,21 +107,25 @@
 
 ---
 
-## Instructions for Update
+## ✅ Verification Complete!
 
-**Step 1**: User provides live arXiv links for:
-1. EvoBrain (NeurIPS 2025)
-2. EEG-Mamba (2024)
-3. SeizureTransformer (Wu et al. 2025) - if adding to README
+**All steps completed** (2025-10-20):
 
-**Step 2**: Update this LITERATURE.md with verified links
+✅ **Step 1**: User provided live arXiv links:
+1. EvoBrain (NeurIPS 2025) - https://arxiv.org/abs/2509.15857
+2. EEG-Mamba (2024) - https://arxiv.org/abs/2407.20254
+3. SeizureTransformer (Wu et al. 2025) - https://arxiv.org/abs/2504.00336
 
-**Step 3**: Update README.md with verified links:
-- Replace EvoBrain search link with direct arXiv
-- Add EEG-Mamba citation if needed
-- Add SeizureTransformer to acknowledgments (it's our main SOTA baseline!)
+✅ **Step 2**: Updated LITERATURE.md with verified links
 
-**Step 4**: Mark all as ✅ VERIFIED
+✅ **Step 3**: Updated README.md:
+- Replaced EvoBrain search link with direct arXiv
+- Added SeizureTransformer to acknowledgments (was missing!)
+- EEG-Mamba verified but optional (only speed benchmark reference)
+
+✅ **Step 4**: All 8 references marked as ✅ VERIFIED
+
+**Optional**: Add EEG-Mamba to README acknowledgments for speed benchmark citation (line 81: "128 Hz/batch (EEG-Mamba 2024)")
 
 ---
 
