@@ -1,10 +1,34 @@
 # NEDC Evaluation - TDD Implementation Guide
 
-**Purpose**: Step-by-step TDD implementation guide for NEDC integration
+**⚠️ HISTORICAL DOCUMENT** - This TDD implementation guide was followed during development.
+
+**Implementation Status**: ✅ **COMPLETE** (October 19, 2025)
+- **Implementation**: All phases complete, tests passing
+- **Code**: `src/brain_brr/eval/nedc_wrapper.py` (203 lines)
+- **Tests**: 9/9 passing (8 unit + 1 integration)
+- **Coverage**: ≥90% on nedc_wrapper.py
+
+**Original Purpose**: Step-by-step TDD guide for implementing NEDC integration
+
+---
+
+## ✅ Implementation Completed
+
+This document was the TDD implementation guide followed during development (October 2025). All phases have been completed successfully. The content below is preserved for reference but is no longer needed for development.
+
+**For current usage, see**:
+- `docs/06-evaluation/NEDC_REFERENCE.md` - Quick reference for usage
+- `src/brain_brr/eval/nedc_wrapper.py` - Final implementation
+- `tests/unit/eval/test_nedc_wrapper.py` - Unit tests
+- `tests/integration/eval/test_nedc_integration.py` - Integration test
+
+---
+
+# ORIGINAL TDD IMPLEMENTATION GUIDE
 
 **Approach**: Test-Driven Development (write tests first, then implement)
 
-**Total Effort**: ~150 lines code, ~500 lines tests, 2 weeks
+**Total Effort**: ~150 lines code, ~500 lines tests, 2 weeks ✅ COMPLETED
 
 **CRITICAL**: This guide uses ACTUAL codebase patterns (Click CLI, EvaluationRequest dataclass, file-level nedc-bench API)
 

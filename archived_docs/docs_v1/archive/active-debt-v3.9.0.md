@@ -1,7 +1,18 @@
-# Active Technical Debt
+# Active Technical Debt (v3.9.0)
 
-**Last Updated**: 2025-10-08
-**Status**: 🟢 **0 P0/P1/P2/P3 issues** (all debt resolved!) — v3.9.0 production training baseline
+**⚠️ HISTORICAL SNAPSHOT** - Captured state as of v3.9.0 (October 8, 2025)
+
+**Status at v3.9.0**: 🟢 **0 P0/P1/P2/P3 issues** (all debt resolved!)
+
+**Current Status**: See `docs/09-development/technical-debt.md` for latest debt tracking
+
+---
+
+This document captures the technical debt state at v3.9.0 when zero P0-P3 issues remained. It's preserved for historical reference showing the debt resolution journey from v3.0.0 → v3.9.0.
+
+---
+
+# SNAPSHOT: v3.9.0 Technical Debt State
 
 ---
 
