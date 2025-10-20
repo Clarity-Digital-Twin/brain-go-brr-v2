@@ -52,7 +52,7 @@ Traditional approaches fail because they treat these as separate problems. We mo
 
 **Why both?** Seizures have **abrupt onsets** (need memory clearing via gating) *and* **persistent patterns** (need selective retention via delta rule). Gated Delta theoretically handles both. But does theory match clinical reality? That's what we're testing.
 
-**Research transparency**: All three outcomes (Gated Delta wins, BiMamba2 wins, or tie) are scientifically valuable. No prior work compares these architectures on clinical EEG. See [`docs/04-model/flash-linear-attention/FLA_ROADMAP.md`](docs/04-model/flash-linear-attention/FLA_ROADMAP.md) for full strategy.
+**Research transparency**: All three outcomes (Gated Delta wins, BiMamba2 wins, or tie) are scientifically valuable. No prior work compares these architectures on clinical EEG analysis. See [`docs/04-model/flash-linear-attention/FLA_ROADMAP.md`](docs/04-model/flash-linear-attention/FLA_ROADMAP.md) for full strategy.
 
 ---
 
