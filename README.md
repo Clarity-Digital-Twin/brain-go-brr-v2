@@ -8,7 +8,10 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
 [![v4.0.0](https://img.shields.io/badge/version-4.0.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v4.0.0-fla-production-wsl2-fix)
 
-**Current Status (v4.0.0):** FLA stack training actively (Epoch 7/100, local RTX 4090) • BiMamba2 stack PAUSED (Epoch 6, Modal A100, $1.1k spent, checkpoints backed up) • Research strategy: complete FLA first (free), resume BiMamba2 incrementally if comparison needed
+**Current Status (v4.0.0):**
+- 🟢 **FLA Stack**: Training actively (Epoch 7/100, local RTX 4090)
+- ⏸️ **BiMamba2 Stack**: PAUSED at Epoch 6 (Modal A100, $1.1k spent, checkpoints backed up)
+- 🎯 **Research Strategy**: Complete FLA first (free), resume BiMamba2 incrementally if comparison needed
 
 ---
 
@@ -59,7 +62,7 @@ Traditional approaches fail because they treat these as separate problems. We mo
 
 ### 🤔 Why Time-Then-Graph?
 
-EvoBrain ([NeurIPS 2025](https://arxiv.org/search/?query=EvoBrain+seizure+detection)) establishes two critical theorems:
+EvoBrain ([NeurIPS 2025](https://arxiv.org/abs/2509.15857)) establishes two critical theorems:
 
 - **Theorem 1 (Dynamic Graphs)**: Explicit dynamic modeling (time-varying adjacency) is strictly more expressive than implicit (static graphs)
 - **Theorem 2 (Temporal Ordering)**: time-then-graph > time-and-graph > graph-then-time
@@ -455,7 +458,7 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 - CHB-MIT Scalp EEG Database (Boston Children's Hospital / MIT)
 
 **Foundational Papers**:
-- **EvoBrain** (NeurIPS 2025) - Time-then-graph paradigm, dynamic graphs ([arXiv search](https://arxiv.org/search/?query=EvoBrain+seizure+detection))
+- **EvoBrain** ([Kotoge et al., NeurIPS 2025](https://arxiv.org/abs/2509.15857)) - Time-then-graph paradigm, dynamic graphs
 - **Mamba** ([Gu & Dao 2023](https://arxiv.org/abs/2312.00752)) - Selective state-space models
 - **Gated DeltaNet** ([Yang et al., ICLR 2025](https://github.com/NVlabs/GatedDeltaNet)) - Memory erasure + delta rule
 - **TCN** ([Bai et al. 2018](https://arxiv.org/abs/1803.01271)) - Temporal convolutional networks
