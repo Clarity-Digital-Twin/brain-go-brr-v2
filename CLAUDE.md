@@ -240,8 +240,17 @@ export SEIZURE_MAMBA_FORCE_FALLBACK=1 # Conv1d fallback
 export BGB_SMOKE_TEST=1             # 3 files
 export BGB_LIMIT_FILES=50           # Override
 
+# Cache
+export BGB_FORCE_MANIFEST_REBUILD=1 # Rebuild manifest
+
+# Timeout (Modal sets automatically)
+export BGB_WALL_CLOCK_LIMIT_S=82800 # 23h limit
+
 # Testing
 export BGB_SKIP_GPU_TESTS=1         # Skip GPU tests
+
+# WSL2
+export UV_LINK_MODE=copy            # Prevent permission issues
 ```
 
 ## Common Issues
