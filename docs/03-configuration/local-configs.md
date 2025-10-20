@@ -167,8 +167,10 @@ training:
   mixed_precision: false           # DISABLED: NaNs on RTX 4090
   gradient_accumulation_steps: 1
   early_stopping:
-    patience: 5
+    patience: 20                   # v4.1.0: Updated from 5 (full training)
+    min_epochs: 30                 # v4.1.0: Prevents premature stopping
     metric: sensitivity_at_10fa
+    # NOTE: Experiments use patience=5 for fair comparison to baseline
   checkpoint_interval: 1           # Save every epoch for safety
 
 experiment:

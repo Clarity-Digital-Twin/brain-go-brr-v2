@@ -9,9 +9,10 @@
 [![v4.1.0](https://img.shields.io/badge/version-4.1.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v4.1.0-nedc-eval-docs-optimization)
 
 **Current Status (v4.1.0):**
-- 🟢 **FLA Stack**: Training actively (Epoch 13/100, local RTX 4090, patience 4/5)
+- 📊 **FLA Baseline**: Complete - 0.284 @ 10 FA/24h (epoch 9 best, stopped epoch 13)
+- 🧪 **Exp1 (Regularization)**: Running epoch 5, testing if stronger regularization improves baseline
+- 🔄 **Next**: Resume baseline with patience=20 after exp1 completes (tests "second peak" hypothesis)
 - ⏸️ **BiMamba2 Stack**: PAUSED at Epoch 6 (Modal A100, $1.1k spent, checkpoints backed up)
-- 🎯 **Research Strategy**: Complete FLA first (free), resume BiMamba2 incrementally if comparison needed
 - ✅ **NEDC Evaluation**: Official clinical metrics now available via `--nedc` flag
 
 ---
@@ -47,9 +48,10 @@ Traditional approaches fail because they treat these as separate problems. We mo
 
 ### 🔶 Stack 2: Gated DeltaNet (Research Variant)
 - **What**: FLA (Flash Linear Attention) with gating + delta rule
-- **Status**: 🟢 **ACTIVE** - Local RTX 4090 training (Epoch 7/100, 7% complete)
+- **Status**: 📊 **Baseline Complete** - 0.284 @ 10 FA/24h (epoch 9), 🧪 Exp1 running (testing regularization)
 - **Foundation**: Beats Mamba2 on language modeling ([ICLR 2025](https://github.com/NVlabs/GatedDeltaNet))
 - **Hypothesis**: Better for EEG's abrupt context switches (seizure onsets)
+- **Next**: Resume baseline with patience=20 to test "second peak" hypothesis (after exp1 completes)
 
 **Why both?** Seizures have **abrupt onsets** (need memory clearing via gating) *and* **persistent patterns** (need selective retention via delta rule). Gated Delta theoretically handles both. But does theory match clinical reality? That's what we're testing.
 

@@ -72,8 +72,10 @@ training:
   focal_alpha: 0.5
   focal_gamma: 2.0
   early_stopping:
-    patience: 5
+    patience: 20                   # v4.1.0: Updated from 5 (full training)
+    min_epochs: 30                 # v4.1.0: Prevents premature stopping
     metric: sensitivity_at_10fa
+    # NOTE: Experiments use patience=5 for fair comparison to baseline
   checkpoint_interval: 1
   mid_checkpoint_interval_s: 1800
   mid_epoch_keep: 3

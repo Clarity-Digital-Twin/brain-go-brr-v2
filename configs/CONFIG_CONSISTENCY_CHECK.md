@@ -50,8 +50,12 @@ gradient_clip: 0.5
 mid_checkpoint_interval_s: 1800
 mid_epoch_keep: 3
 output_dir: results/local_fla_training
+early_stopping:
+  patience: 20                       # Updated from 5 (Oct 2025)
+  min_epochs: 30                     # Prevents premature stopping
+  metric: sensitivity_at_10fa
 ```
-**Status**: ✅ PRODUCTION BASELINE (currently training, epoch 13/100, patience 4/5)
+**Status**: ✅ BASELINE COMPLETE - Best: 0.284 @ 10 FA/24h (epoch 9), stopped epoch 13. Config now uses patience=20 for future runs.
 
 ### FLA Experiments (Hyperparameter Search)
 **Configs**: `train_fla_exp1_reg.yaml`, `train_fla_exp2_lr.yaml`, `train_fla_exp3_smaller.yaml`
