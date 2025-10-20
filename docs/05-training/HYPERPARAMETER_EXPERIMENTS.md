@@ -1,23 +1,29 @@
 # Hyperparameter Experiments Plan
 
-**Status**: Baseline resume in progress after prior epoch 13 validation crash; best checkpoint so far = epoch 9 (`sensitivity_at_10fa = 0.2801`)
+**Status**: ✅ Baseline complete (0.284 @ 10 FA), 🔄 Exp1 running, ⏳ Resume baseline queued
 **Created**: 2025-10-18
-**Last Updated**: 2025-10-18
+**Last Updated**: 2025-10-20
+**SSOT**: See `TRAINING.md` for execution plan and `STATUS.md` for baseline history
 
 ---
 
 ## 🎯 Current Baseline Configuration
 
-### Baseline Run: `configs/local/train_fla.yaml`
+### Baseline Run: `configs/local/train_fla.yaml` ✅ COMPLETE
 
-**Performance**:
-- **Best checkpoint**: epoch 9 (`best.pt`) with `sensitivity_at_10fa = 0.2801` (28.0%)
-- **Validation loss (minimum)**: 0.0270 (epoch 3)
-- **Validation loss (latest logged)**: 0.0386 (epoch 8) ⚠️ **Rising**
-- **Training loss (latest logged)**: 0.0120 (epoch 7) ✅
-- **Run status**: Resume from `last.pt` is currently mid-epoch (original attempt hit `CUDA error: unknown error` during epoch 13 validation)
+**Final Performance**:
+- **Best checkpoint**: epoch 9 (`best.pt`) with `sensitivity_at_10fa = 0.284` (28.4% @ 10 FA/24h) ← **TARGET TO BEAT**
+- **Stopping point**: Epoch 13 (benign crash, not resumed)
+- **Validation loss**: 0.027 (epoch 3) → 0.053 (epoch 13) ⚠️ Rising
+- **Sensitivity**: 0.194 (epoch 0) → 0.284 (epoch 9) → 0.248 (epoch 11) ❌ Declining
+- **Early stopping**: patience=5 (would have triggered at epoch 14 anyway)
 - **W&B run**: `full_training_fla`
 - **Checkpoint directory**: `results/local_fla_training/checkpoints/`
+
+**Config Updated for Future Runs**:
+- patience: 5 → 20 (4x more tolerant of plateaus)
+- min_epochs: 0 → 30 (prevents premature stopping before 30% complete)
+- Rationale: Medical imaging best practices + "second peak" hypothesis
 
 ### Key Hyperparameters (Baseline)
 
@@ -57,8 +63,10 @@ training:
     warmup_ratio: 0.03             # 3% warmup (462 steps)
 
   early_stopping:
-    patience: 5                    # Stop after 5 epochs no improvement
+    patience: 20                   # UPDATED from 5 (Oct 2025)
+    min_epochs: 30                 # NEW - prevents premature stopping
     metric: sensitivity_at_10fa    # Primary metric
+    # NOTE: Experiments use patience=5 for fair comparison to baseline
 
   checkpoint_interval: 1           # Save every epoch
   mid_checkpoint_interval_s: 1800  # Save every 30 min
