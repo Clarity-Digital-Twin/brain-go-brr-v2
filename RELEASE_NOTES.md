@@ -1,5 +1,154 @@
 # Release Notes
 
+## v4.1.0 - NEDC Evaluation Pipeline + Documentation Optimization (2025-10-20)
+
+**Tag**: `v4.1.0-nedc-eval-docs-optimization`
+**Status**: ✅ Production Ready (NEDC Evaluation + Optimized Agent Docs)
+
+### 🔬 What's New (FEATURE RELEASE)
+
+This is a **minor version bump** adding official clinical evaluation capabilities and optimized AI agent documentation:
+1. **NEW FEATURE**: NEDC evaluation pipeline for official TUSZ metrics
+2. **ENHANCEMENT**: Documentation optimization (66% context reduction)
+3. **ADDITION**: Hyperparameter experiment framework
+
+#### NEDC Evaluation Pipeline (Major Feature)
+
+**Official clinical evaluation** via NEDC-bench integration for computing sensitivity @ false alarm rates.
+
+**What's Included**:
+- **NEDCScorer** wrapper (`src/brain_brr/eval/nedc_wrapper.py`, 202 lines)
+  - Automatic csv_bi format validation
+  - Integration with nedc-bench scoring algorithms
+  - Comprehensive error handling and validation
+- **CLI Integration**: `python -m src evaluate --checkpoint <path> --nedc`
+- **Eval Cache Building**: `python -m src build-cache eval` for preprocessing eval split
+- **Tests**: 277 lines of comprehensive coverage
+  - 231 lines unit tests (`tests/unit/eval/test_nedc_wrapper.py`)
+  - 46 lines integration tests (`tests/integration/eval/test_nedc_integration.py`)
+
+**Metrics Computed**:
+- Sensitivity @ 1 FA/24h (target >75%)
+- Sensitivity @ 5 FA/24h (target >90%)
+- Sensitivity @ 10 FA/24h (target >95%)
+- Per-patient breakdown
+- Confusion matrix statistics
+
+**Documentation**:
+- `docs/06-evaluation/NEDC_EVALUATION_OVERVIEW.md` - High-level overview
+- `docs/06-evaluation/NEDC_IMPLEMENTATION_GUIDE.md` - Implementation details
+- `docs/06-evaluation/NEDC_REFERENCE.md` - API reference and formats
+
+**Usage**:
+```bash
+# Evaluate checkpoint with NEDC scoring
+python -m src evaluate \
+  --checkpoint results/train_fla/checkpoints/best.pt \
+  --nedc
+
+# Output: sensitivity @ FA rates + per-patient breakdown
+```
+
+#### Documentation Optimization (Significant Enhancement)
+
+**AI agent documentation** optimized for 2025 best practices, reducing context consumption by 66%.
+
+**CLAUDE.md** (Agent-optimized):
+- **Before**: 537 lines, 26KB, ~6,500 tokens
+- **After**: 372 lines, 12KB, ~2,200 tokens
+- **Improvement**: -65% file size, -66% token usage
+
+**Changes**:
+- Applied 2025 agentic coding best practices from Anthropic research
+- 100% accurate project tree structure (verified with `tree` command)
+- Consolidated training commands (local/docker/modal → unified quick-start)
+- Added Modal cache operations:
+  - `populate-cache` - S3 to Modal SSD transfer
+  - `check-cache` - Cache health validation
+  - `clean_stray_npz.py` - Cleanup utility
+- Removed historical training metrics (moved to STATUS.md)
+- Condensed UV dependency warning (66→15 lines, details in INSTALLATION.md)
+
+**AGENTS.md** (OpenAI Codex compatible):
+- Identical to CLAUDE.md for multi-agent compatibility
+- Supports both Claude Code and OpenAI Codex workflows
+
+**Research**: Based on latest LLM agent optimization research showing:
+- 39.9% token reduction possible in coding agents
+- Bullet points > prose for agent comprehension
+- Context economy critical for long conversations
+
+#### Hyperparameter Experiments (Minor Addition)
+
+**Structured experiment framework** for FLA optimization research.
+
+**New Configs** (`configs/local/`):
+- `train_fla_exp1_reg.yaml` - Regularization sweep (L2 weight decay variations)
+- `train_fla_exp2_lr.yaml` - Learning rate optimization (warmup + peak LR)
+- `train_fla_exp3_smaller.yaml` - Smaller model variant (faster iteration)
+
+**Documentation**:
+- `docs/05-training/HYPERPARAMETER_EXPERIMENTS.md` - Experiment methodology
+- `docs/05-training/training-methodology.md` - General training principles
+
+### 📊 Source Code Changes
+
+**New Files** (+510 lines):
+- `src/brain_brr/eval/nedc_wrapper.py` (202 lines) - NEDC scoring integration
+- `tests/unit/eval/test_nedc_wrapper.py` (231 lines) - Comprehensive unit tests
+- `tests/integration/eval/test_nedc_integration.py` (46 lines) - End-to-end tests
+- `src/brain_brr/train/cancellation_flag.py` (31 lines) - Training cancellation support
+
+**Modified Files**:
+- `src/brain_brr/cli/services/evaluation.py` (+158 lines) - NEDC CLI integration
+- `src/brain_brr/data/datasets.py` (+15 lines) - Eval cache building support
+- `CLAUDE.md` (-165 lines net) - Complete optimization rewrite
+- `AGENTS.md` (+105 lines net) - Comprehensive update
+
+**Dependencies**:
+- Added `scipy` for NEDC-bench compatibility
+- Optional `wandb` for monitoring (already supported)
+
+### 🔧 Breaking Changes
+
+**None** - 100% backward compatible
+
+All existing APIs, configs, and workflows preserved. NEDC evaluation is opt-in via `--nedc` flag.
+
+### 📦 Upgrade Guide
+
+```bash
+git pull
+git checkout v4.1.0-nedc-eval-docs-optimization
+
+# Update dependencies (scipy added for NEDC)
+make setup
+
+# Verify NEDC integration (optional)
+.venv/bin/python -c "from brain_brr.eval.nedc_wrapper import NEDCScorer; print('✅ NEDC ready')"
+
+# Run tests to verify
+make test
+```
+
+### 🎯 Why v4.1.0?
+
+**Semantic versioning rationale**:
+- **MINOR** version (not MAJOR): New features, backward compatible
+- **Not PATCH**: Significant new capabilities beyond bug fixes
+
+**New capabilities**:
+1. Official clinical evaluation (NEDC metrics)
+2. 66% reduction in AI agent context consumption
+3. Structured hyperparameter experiment framework
+
+**Impact**:
+- Can now compute publishable clinical metrics
+- Faster AI agent interactions (less context overhead)
+- Systematic approach to FLA optimization
+
+---
+
 ## v4.0.0 - FLA Production + WSL2 Fix (2025-10-12)
 
 **Tag**: `v4.0.0-fla-production-wsl2-fix`

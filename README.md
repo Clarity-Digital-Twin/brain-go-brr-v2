@@ -6,12 +6,13 @@
 [![PyTorch 2.5.0](https://img.shields.io/badge/pytorch-2.5.0-red.svg)](https://pytorch.org)
 [![CUDA 12.4](https://img.shields.io/badge/cuda-12.4-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
-[![v4.0.0](https://img.shields.io/badge/version-4.0.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v4.0.0-fla-production-wsl2-fix)
+[![v4.1.0](https://img.shields.io/badge/version-4.1.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v4.1.0-nedc-eval-docs-optimization)
 
-**Current Status (v4.0.0):**
-- 🟢 **FLA Stack**: Training actively (Epoch 7/100, local RTX 4090)
+**Current Status (v4.1.0):**
+- 🟢 **FLA Stack**: Training actively (Epoch 13/100, local RTX 4090, patience 4/5)
 - ⏸️ **BiMamba2 Stack**: PAUSED at Epoch 6 (Modal A100, $1.1k spent, checkpoints backed up)
 - 🎯 **Research Strategy**: Complete FLA first (free), resume BiMamba2 incrementally if comparison needed
+- ✅ **NEDC Evaluation**: Official clinical metrics now available via `--nedc` flag
 
 ---
 
