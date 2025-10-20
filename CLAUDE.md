@@ -261,6 +261,7 @@ export BGB_SKIP_GPU_TESTS=1         # Skip GPU tests
 ### Actions
 - **Production**: `--action schedule-training` (auto-restart every 23h until 100 epochs)
 - **Smoke tests**: `--action train` (single run)
+- **Cache ops**: `populate-cache`, `check-cache`, `clean_stray_npz.py`
 
 ### Verify Auto-Restart
 ```bash
@@ -270,6 +271,18 @@ modal app list
 
 ### Commands
 ```bash
+# Populate cache from S3 to Modal SSD (first-time setup)
+modal run --detach deploy/modal/app.py --action populate-cache
+
+# Verify cache health + manifests
+modal run deploy/modal/app.py --action check-cache
+
+# Clean stray NPZ files (if check-cache warns)
+modal run deploy/modal/clean_stray_npz.py --confirm
+
+# Test CUDA/Mamba
+modal run deploy/modal/app.py --action test-mamba
+
 # Smoke test (50 files, ~10min)
 modal run --detach deploy/modal/app.py \
   --action train \
@@ -281,11 +294,32 @@ modal run --detach deploy/modal/app.py \
   --action schedule-training \
   --config configs/modal/train_bimamba.yaml
 
+# Resume after timeout (uses timeout_exit.pt)
+modal run --detach deploy/modal/app.py \
+  --action train \
+  --config configs/modal/train_bimamba.yaml \
+  --resume true
+
 # Monitor
 modal app list
 modal app logs <app-id>
 modal app stop brain-go-brr-v2
 ```
+
+### Modal-Specific Config
+```yaml
+data:
+  persistent_workers: true     # Keeps mmap pages warm
+training:
+  mid_checkpoint_interval_s: 1800  # Checkpoint every 30min
+  mid_epoch_keep: 3                # Keep last 3 mid-epoch checkpoints
+```
+
+### Timeout Guard
+- Exits at 23h (1h before Modal 24h kill limit)
+- Writes `timeout_exit.pt` with full state
+- Resume with `--resume true` to continue from timeout checkpoint
+- Env: `BGB_WALL_CLOCK_LIMIT_S=82800` (set automatically by Modal)
 
 ## Key Documentation
 
