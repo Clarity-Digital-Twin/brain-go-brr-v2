@@ -461,6 +461,7 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 - **EvoBrain** ([Kotoge et al., NeurIPS 2025](https://arxiv.org/abs/2509.15857)) - Time-then-graph paradigm, dynamic graphs
 - **Mamba** ([Gu & Dao 2023](https://arxiv.org/abs/2312.00752)) - Selective state-space models
 - **Gated DeltaNet** ([Yang et al., ICLR 2025](https://github.com/NVlabs/GatedDeltaNet)) - Memory erasure + delta rule
+- **SeizureTransformer** ([Wu et al. 2025](https://arxiv.org/abs/2504.00336)) - SOTA baseline, U-Net + Transformer (EpilepsyBench #1)
 - **TCN** ([Bai et al. 2018](https://arxiv.org/abs/1803.01271)) - Temporal convolutional networks
 - **Focal Loss** ([Lin et al. 2017](https://arxiv.org/abs/1708.02002)) - Class imbalance handling
 

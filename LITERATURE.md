@@ -2,7 +2,7 @@
 
 **Purpose**: Comprehensive list of all papers/references cited in README.md, organized for easy verification and updating with live arXiv links.
 
-**Status**: 🟡 IN PROGRESS - 6/8 verified, 2 remaining (EEG-Mamba, SeizureTransformer)
+**Status**: 🟡 IN PROGRESS - 7/8 verified, 1 remaining (EEG-Mamba)
 
 ---
 
@@ -90,14 +90,14 @@
 ## Summary of Actions Needed
 
 ### High Priority (README references)
-1. ✅ **Mamba** - Already has correct arXiv link (https://arxiv.org/abs/2312.00752)
-2. ✅ **Gated DeltaNet** - GitHub link is correct (https://github.com/NVlabs/GatedDeltaNet)
-3. ✅ **TCN** - Already has correct arXiv link (https://arxiv.org/abs/1803.01271)
-4. ✅ **Focal Loss** - Already has correct arXiv link (https://arxiv.org/abs/1708.02002)
-5. ✅ **TUSZ** - Temple official site link is correct
-6. ✅ **EvoBrain** - VERIFIED (https://arxiv.org/abs/2509.15857) - READY TO UPDATE README
-7. 🟡 **EEG-Mamba** - Only mentioned in text (NEEDS: arXiv link)
-8. ❌ **SeizureTransformer** - Missing from acknowledgments (NEEDS: arXiv link + add to README)
+1. ✅ **Mamba** - Verified (https://arxiv.org/abs/2312.00752)
+2. ✅ **Gated DeltaNet** - Verified (https://github.com/NVlabs/GatedDeltaNet)
+3. ✅ **TCN** - Verified (https://arxiv.org/abs/1803.01271)
+4. ✅ **Focal Loss** - Verified (https://arxiv.org/abs/1708.02002)
+5. ✅ **TUSZ** - Verified (Temple official site)
+6. ✅ **EvoBrain** - Verified (https://arxiv.org/abs/2509.15857) - UPDATED IN README
+7. ✅ **SeizureTransformer** - Verified (https://arxiv.org/abs/2504.00336) - ADDED TO README
+8. 🟡 **EEG-Mamba** - Only mentioned in text (NEEDS: arXiv link if available)
 
 ### Low Priority (local reference only)
 - EEMG2 (not in README)
