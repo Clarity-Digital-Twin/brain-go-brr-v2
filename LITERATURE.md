@@ -59,11 +59,12 @@
 - **Needs**: Full arXiv link
 
 ### 8. SeizureTransformer (Wu et al. 2025)
-- **Current link**: NONE (mentioned in docs but not README acknowledgments)
-- **Context**: SOTA baseline (26.89 FA/24h @ 45.63% sensitivity)
+- **Verified link**: https://arxiv.org/abs/2504.00336
+- **Title**: "SeizureTransformer: Scaling U-Net with Transformer for Simultaneous Time-Step Level Seizure Detection from Long EEG Recordings"
+- **Authors**: Kerui Wu, Ziyue Zhao, Bülent Yener
+- **Context**: SOTA baseline (26.89 FA/24h @ 45.63% sensitivity, EpilepsyBench #1)
 - **Local file**: `literature/markdown/seizure_transformer/SeizureTransformer.md`
-- **Status**: ❌ MISSING from README acknowledgments
-- **Needs**: arXiv link + add to acknowledgments section
+- **Status**: ✅ VERIFIED - READY TO ADD to README acknowledgments
 
 ---
 
