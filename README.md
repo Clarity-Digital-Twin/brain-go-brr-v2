@@ -8,6 +8,10 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
 [![v4.0.0](https://img.shields.io/badge/version-4.0.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v4.0.0-fla-production-wsl2-fix)
 
+**Current Status (v4.0.0):** FLA stack training actively (Epoch 7/100, local RTX 4090) • BiMamba2 stack PAUSED (Epoch 6, Modal A100, $1.1k spent, checkpoints backed up) • Research strategy: complete FLA first (free), resume BiMamba2 incrementally if comparison needed
+
+---
+
 ## 📋 The Clinical Problem
 
 **50 million people worldwide** suffer from epilepsy. Continuous EEG monitoring in ICUs could catch seizures early—but current systems fail at a critical bottleneck: **false alarm fatigue**.
@@ -23,7 +27,6 @@ That's what we're building.
 Seizures aren't just temporal patterns or spatial patterns—they're **both simultaneously**:
 
 - **Temporal dynamics**: Multi-scale patterns from milliseconds (spike transients) → seconds (rhythmic activity) → minutes (ictal evolution)
-
 - **Spatial propagation**: Time-varying electrode connectivity as seizures propagate through neural networks (e.g., C3 → C4 → P3)
 
 Traditional approaches fail because they treat these as separate problems. We model them jointly via **time-then-graph ordering**.
@@ -32,31 +35,31 @@ Traditional approaches fail because they treat these as separate problems. We mo
 
 ## 🔬 Our Approach: Dual-Stack Research Experiment
 
-**Controlled A/B comparison** of two state-space architectures:
+**Controlled A/B comparison** of two state-space architectures on identical pipeline:
 
-### 🔷 Stack 1: BiMamba2 (baseline)
+### 🔷 Stack 1: BiMamba2 (Baseline)
 - **What**: Mamba2 with bidirectional processing
-- **Status**: ⏸️ PAUSED at Epoch 6 (Modal A100, $1,118 spent, checkpoints backed up)
+- **Status**: ⏸️ **PAUSED** at Epoch 6 (Modal A100, $1.1k spent, checkpoints backed up in `backups/modal_bimamba2_epoch6/`)
 - **Foundation**: Fast CUDA kernels, selective state propagation ([Gu & Dao 2023](https://arxiv.org/abs/2312.00752))
 - **Motivation**: Proven SSM architecture with O(N) efficiency
 
-### 🔶 Stack 2: Gated DeltaNet (research variant)
+### 🔶 Stack 2: Gated DeltaNet (Research Variant)
 - **What**: FLA (Flash Linear Attention) with gating + delta rule
-- **Status**: 🟢 ACTIVE - Local RTX 4090 training (Epoch 2, progressing normally)
-- **Foundation**: Beats Mamba2 on language modeling ([ICLR 2025](literature/markdown/GATED-DETLA))
+- **Status**: 🟢 **ACTIVE** - Local RTX 4090 training (Epoch 7/100, 7% complete)
+- **Foundation**: Beats Mamba2 on language modeling ([ICLR 2025](https://github.com/NVlabs/GatedDeltaNet))
 - **Hypothesis**: Better for EEG's abrupt context switches (seizure onsets)
 
 **Why both?** Seizures have **abrupt onsets** (need memory clearing via gating) *and* **persistent patterns** (need selective retention via delta rule). Gated Delta theoretically handles both. But does theory match clinical reality? That's what we're testing.
 
-**Research transparency**: All three outcomes (Gated Delta wins, BiMamba2 wins, or tie) are scientifically valuable. No prior work compares these architectures on clinical EEG. See [FLA_ROADMAP.md](docs/flash-linear-attention/FLA_ROADMAP.md) for full strategy.
+**Research transparency**: All three outcomes (Gated Delta wins, BiMamba2 wins, or tie) are scientifically valuable. No prior work compares these architectures on clinical EEG. See [`docs/04-model/flash-linear-attention/FLA_ROADMAP.md`](docs/04-model/flash-linear-attention/FLA_ROADMAP.md) for full strategy.
 
-**Current status (v4.0.0)**: **FLA-FOCUSED TRAINING** - BiMamba2 (Modal, PAUSED at Epoch 6, $1,118 spent, checkpoints backed up) + FLA (Local RTX 4090, Epoch 2, ACTIVE). Budget-conscious decision: finish FLA first (free), resume BiMamba2 later if needed. See [STATUS.md](STATUS.md) and [backup README](backups/modal_bimamba2_epoch6/README.md) for details.
+---
 
 ## 🏗️ Architecture: Theory & Design
 
 ### 🤔 Why Time-Then-Graph?
 
-[EvoBrain (NeurIPS 2025)](literature/markdown/EVOBRAIN.md) establishes two critical theorems:
+EvoBrain ([NeurIPS 2025](https://arxiv.org/search/?query=EvoBrain+seizure+detection)) establishes two critical theorems:
 
 - **Theorem 1 (Dynamic Graphs)**: Explicit dynamic modeling (time-varying adjacency) is strictly more expressive than implicit (static graphs)
 - **Theorem 2 (Temporal Ordering)**: time-then-graph > time-and-graph > graph-then-time
@@ -75,7 +78,7 @@ Traditional approaches fail because they treat these as separate problems. We mo
 **State-space solution**: Mamba/GatedDelta achieve O(N) via selective state propagation:
 - **Cost**: 15K operations (1500× reduction)
 - **Memory**: O(N) = 60KB per layer
-- **Inference**: 128 Hz/batch ([EEG-Mamba 2024](literature/markdown/EEG-BIMAMBA)) vs 8 Hz/batch for Transformers
+- **Inference**: 128 Hz/batch (EEG-Mamba 2024) vs 8 Hz/batch for Transformers
 
 ### 🔄 Architecture Flow
 
@@ -136,15 +139,17 @@ EEG Input (B, 19 channels, 15360 samples @ 256Hz = 60s)
                         (B, 15360) logits
 ```
 
-**🔑 Key**: SSM boxes = **🔷 BiMamba2** (Stack 1) or **🔶 Gated DeltaNet** (Stack 2)
+**Key**: SSM boxes = **🔷 BiMamba2** (Stack 1) or **🔶 Gated DeltaNet** (Stack 2)
 
 Everything else is identical—TCN frontend, GNN backend, fusion layer. Only the temporal core changes.
 
+---
+
 ## 💡 Component Justification
 
-### 1. TCN Encoder: Why Not RNNs?
+### 1. TCN Encoder: Multi-Scale Temporal Decomposition
 
-**Temporal Convolutional Networks** ([Bai et al. 2018](literature/markdown/TCN)):
+**Temporal Convolutional Networks** ([Bai et al. 2018](https://arxiv.org/abs/1803.01271)):
 - **Parallelism**: Entire 60s window processed simultaneously (vs sequential RNN)
 - **Multi-scale**: Dilated convolutions capture patterns at exponentially growing timescales:
   - Layer 1 (dilation=1): 50ms receptive field (spike detection)
@@ -206,23 +211,23 @@ S_t = α_t ⊙ S_{t-1} + β_t ⊙ (k_t ⊗ v_t - old_memory)
 
 **Reality check**: This is a hypothesis. Full TUSZ training will tell us if it's true.
 
-### 3. Dynamic Laplacian PE: Why Not Static Graphs?
+### 3. Dynamic Laplacian PE: Time-Evolving Graph Structure
 
-**EvoBrain Theorem 1** proves explicit time-varying adjacency is strictly more expressive than static graphs or implicit learning.
+EvoBrain's Theorem 1 proves explicit time-varying adjacency is strictly more expressive than static graphs.
 
 **Implementation**:
 - Compute **k=16 eigenvectors** of normalized graph Laplacian every 5 timesteps
 - Eigenvectors = fixed positional coordinates in spectral space (like Transformer sinusoidal PE)
-- Learning happens in GNN layers that **process** PE, not in PE itself ([best practice 2025](docs/04-model/laplacian-pe.md))
+- Learning happens in GNN layers that **process** PE, not in PE itself ([best practice](docs/04-model/laplacian-pe.md))
 
-**Why top-k=3 neighbors?** Validated by [EvoBrain](literature/markdown/EVOBRAIN.md) on EEG: 3 strongest connections capture 85%+ of spatial variance.
+**Why top-k=3 neighbors?** 3 strongest connections capture 85%+ of spatial variance (validated by EvoBrain on EEG).
 
-### 4. Gated Fusion: Why Not Simple Addition?
+### 4. Gated Fusion: Adaptive Feature Combination
 
 **Problem**: Node stream and GNN produce different feature scales and semantics.
 
 **Solution**: Multi-head gated fusion learns optimal combination:
-```
+```python
 g = σ(W_g [node_out; gnn_out])        # Per-feature gates
 fused = g ⊙ node_out + (1-g) ⊙ gnn_out  # Weighted merge
 ```
@@ -231,45 +236,33 @@ This allows the model to emphasize:
 - **Node features** when electrodes evolve independently (early seizure)
 - **GNN features** when spatial synchronization dominates (propagated seizure)
 
+---
+
 ## 📊 Model Statistics: Side-by-Side Comparison
 
-### 🔷 Stack 1: BiMamba2
+| Component | BiMamba2 (Stack 1) | Gated DeltaNet (Stack 2) | Complexity |
+|-----------|-------------------|-------------------------|------------|
+| **TCN Encoder** | 12.8M | 12.8M (identical) | O(N log N) |
+| **Node SSM** | 7.2M (d_model=64) | 7.2M (d_model=512) | O(N) |
+| **Edge SSM** | 1.2M (d_model=16) | 1.2M (d_model=32) | O(N) |
+| **GNN + LPE** | 6.2M | 6.2M (identical) | O(N·k²) |
+| **Fusion** | 2.1M | 2.1M (identical) | O(N) |
+| **Decoder** | 1.0M | 1.0M (identical) | O(N) |
+| **Total** | **30.5M** | **30.5M** (matched) | **O(N)** |
 
-| Component | Parameters | Complexity | Details |
-|-----------|-----------|------------|---------|
-| **TCN Encoder** | 12.8M | O(N log N) | 8 layers, channels [64,128,256,512] |
-| **Node BiMamba2** | 7.2M | O(N) | 19 parallel SSMs, 6 layers, d_model=64 |
-| **Edge BiMamba2** | 1.2M | O(N) | 171 pairwise SSMs, 2 layers, d_model=16 |
-| **GNN + LPE** | 6.2M | O(N·k²) | 2× SSGConv, k=16 eigenvectors |
-| **Gated Fusion** | 2.1M | O(N) | 4-head attention fusion |
-| **Decoder** | 1.0M | O(N) | 16× upsampling, detection head |
-| **Total** | **30.5M** | **O(N)** | SSM bottleneck dominates |
+**🔑 Key**: Parameter counts matched for fair comparison. Only Node/Edge SSM layers differ. TCN frontend, GNN backend, fusion, and decoder are 100% identical.
 
-### 🔶 Stack 2: Gated DeltaNet
-
-| Component | Parameters | Complexity | Details |
-|-----------|-----------|------------|---------|
-| **TCN Encoder** | 12.8M | O(N log N) | *Identical to Stack 1* |
-| **Node GatedDelta** | 7.2M | O(N) | 19 parallel SSMs, 6 layers, d_model=512 |
-| **Edge GatedDelta** | 1.2M | O(N) | 171 pairwise SSMs, 2 layers, d_model=32 |
-| **GNN + LPE** | 6.2M | O(N·k²) | *Identical to Stack 1* |
-| **Gated Fusion** | 2.1M | O(N) | *Identical to Stack 1* |
-| **Decoder** | 1.0M | O(N) | *Identical to Stack 1* |
-| **Total** | **30.5M** | **O(N)** | Matched parameter count for fair comparison |
-
-**🔑 Key Difference**: Only Node/Edge SSM layers differ. TCN frontend, GNN backend, fusion, and decoder are 100% identical.
-
-**Note**: GNN is O(N·k²) but k=19 (fixed electrode count) makes it effectively O(N) in sequence length.
+---
 
 ## 🏥 Dataset: TUSZ Clinical Reality
 
 ### TUH EEG Seizure Corpus
 
-**World's largest open-source seizure dataset** ([Temple University](literature/markdown/TUSZ-DATA)):
+**World's largest open-source seizure dataset** ([Temple University](https://isip.piconepress.com/projects/tuh_eeg/html/downloads.shtml)):
 - **504 hours** of continuous EEG from 592 patients
 - **36 hours** of seizures (~7% prevalence) → 12:1 class imbalance
 - **19-channel** 10-20 montage @ 256Hz (clinical standard)
-- **Patient-based splits** (train/dev/test) → no data leakage
+- **Patient-based splits** (train/dev/eval) → no data leakage
 
 **Preprocessing pipeline**:
 1. Bandpass filter: 0.5-120Hz
@@ -284,13 +277,13 @@ This allows the model to emphasize:
 - **Speed**: 99.6% faster startup than NPZ (manifest-based loading)
 - **Memory**: <1 GB RAM vs 387 GB for NPZ
 
-**Why oversample training?** Standard ML practice: Train on balanced data (model learns seizure patterns), validate on natural distribution (measures real-world performance).
+**Why oversample training?** Standard ML practice: Train on balanced data (model learns seizure patterns), validate on natural distribution (measures real-world performance). See [`docs/05-training/training-methodology.md`](docs/05-training/training-methodology.md) for detailed explanation.
 
 ---
 
 ## 🎯 Performance Targets: Evidence-Based Goals
 
-Based on verified clinical benchmarks and SOTA research (see [REALISTIC_PERFORMANCE_TARGETS.md](REALISTIC_PERFORMANCE_TARGETS.md) for comprehensive analysis):
+Based on verified clinical benchmarks and SOTA research (see [`docs/00-overview/performance-targets.md`](docs/00-overview/performance-targets.md) for comprehensive analysis):
 
 ### Primary Target (Match Temple Clinical SOTA)
 **≤4 FA/24h @ ≥50% sensitivity** (NEDC OVERLAP scoring)
@@ -303,15 +296,7 @@ Based on verified clinical benchmarks and SOTA research (see [REALISTIC_PERFORMA
 **≤10 FA/24h @ ≥75% sensitivity** (NEDC OVERLAP scoring)
 
 - Enables ICU monitoring with manageable alarm fatigue
-- Represents significant breakthrough over current systems
 - Current gap: SeizureTransformer @ 10 FA = 33.90% sensitivity (42-point gap to close)
-
-### Aspirational Gold Standard
-**≤1 FA/24h @ ≥75% sensitivity** (NEDC OVERLAP scoring)
-
-- Human reviewer performance level
-- Likely impossible with current architectures (64 points above SOTA)
-- Included as long-term research direction
 
 ### Additional Metrics (Threshold-Independent)
 
@@ -332,9 +317,9 @@ Based on verified clinical benchmarks and SOTA research (see [REALISTIC_PERFORMA
 
 **Reality check**: Temple NEDC research confirms ROC curves are **very steep** at low FA rates. 5% absolute sensitivity change = massive FA rate shift. Our dual-stack (BiMamba2 vs Gated DeltaNet) comparison provides scientific value regardless of absolute performance.
 
-**Scoring impact**: Same predictions can yield 3-16× different FA rates depending on scorer (SzCORE vs NEDC OVERLAP vs NEDC TAES). We use **NEDC OVERLAP** as primary metric (standard for TUSZ evaluation).
+**Scoring impact**: Same predictions can yield 3-16× different FA rates depending on scorer (SzCORE vs NEDC OVERLAP vs NEDC TAES). We use **NEDC OVERLAP** as primary metric. See [`docs/06-evaluation/TAES_DISAMBIGUATION.md`](docs/06-evaluation/TAES_DISAMBIGUATION.md) for critical naming collision explanation.
 
-**Full analysis**: See [REALISTIC_PERFORMANCE_TARGETS.md](REALISTIC_PERFORMANCE_TARGETS.md) for comprehensive benchmark comparison, scorer differences, and architectural tables.
+---
 
 ## 🚀 Quick Start
 
@@ -379,9 +364,7 @@ make train-bimamba    # or: make train-fla
 # Ctrl+B then D to detach | tmux attach -t train to reattach
 ```
 
-**Cloud training (Modal A100-80GB, ~700-1200 hours, $3,400-$5,300+)** - **EXPENSIVE due to validation overhead**:
-
-**🚨 CRITICAL**: Use `--action schedule-training` for 100-epoch production runs (auto-restart every 23h).
+**Cloud training (Modal A100-80GB)** - See [`docs/05-training/modal.md`](docs/05-training/modal.md) for details:
 
 ```bash
 # Deploy Modal functions first
@@ -400,32 +383,11 @@ modal run --detach deploy/modal/app.py \
 # Monitor progress
 modal app list
 modal app logs <app-id>
-
-# Manual mode (use ONLY for experiments, NOT production)
-# Runs ONCE, requires manual restart after 23h timeout
-modal run --detach deploy/modal/app.py \
-  --action train \
-  --config configs/modal/train_bimamba.yaml \
-  --resume
 ```
 
-See [installation guide](docs/01-installation/) and [training docs](docs/05-training/) for details.
+**🚨 CRITICAL**: Use `--action schedule-training` for 100-epoch production runs (auto-restart every 23h). Use `--action train` ONLY for smoke tests and experiments.
 
----
-
-## 🔬 Research Timeline
-
-### Current Phase: FLA-Focused Training (October 2025)
-
-**🔷 Stack 1 (BiMamba2)**: ⏸️ **PAUSED** at Epoch 6 (batch 647/1284, 50% through). Modal A100 training stopped Oct 13 due to budget control ($1,118 spent). Checkpoints backed up to Modal SSD + local (`backups/modal_bimamba2_epoch6/`). Resumable anytime.
-
-**🔶 Stack 2 (Gated DeltaNet)**: 🟢 **ACTIVE** - Local RTX 4090 training on Epoch 7/100 (7% complete), progressing normally. WSL2 SIGBUS fix enables local training (cache on ext4).
-
-**Research question**: Does the delta rule improve over pure gating for clinical EEG seizure detection?
-
-**Current strategy**: Budget-conscious approach as independent researcher. Complete FLA training first (free, ~960 hours / 40 days), analyze results, then decide if BiMamba2 comparison needed. If needed, resume BiMamba2 incrementally ($500-1k/month). Already have 6 epochs of BiMamba2 data for early comparison.
-
-**Analysis plan**: Evaluate FLA on sensitivity@1FA/@5FA/@10FA, AUROC, and TAES scores. Compare against BiMamba2's 6-epoch baseline if both datasets available. All three outcomes (Gated Delta wins, BiMamba2 wins, or equivalence) are scientifically valuable—no prior work compares these architectures on TUSZ.
+See [`docs/01-installation/`](docs/01-installation/) and [`docs/05-training/`](docs/05-training/) for complete setup guides.
 
 ---
 
@@ -441,23 +403,25 @@ See [installation guide](docs/01-installation/) and [training docs](docs/05-trai
 - [Stability Evolution](docs/04-model/v3-stability-evolution.md) - NaN prevention history
 
 ### Research
-- [FLA Roadmap](docs/flash-linear-attention/FLA_ROADMAP.md) - Complete A/B strategy
-- [FLA Quick Reference](docs/flash-linear-attention/FLA_QUICK_REFERENCE.md) - Config guide
+- [FLA Roadmap](docs/04-model/flash-linear-attention/FLA_ROADMAP.md) - Complete A/B strategy
+- [FLA Quick Reference](docs/04-model/flash-linear-attention/FLA_QUICK_REFERENCE.md) - Config guide
 - [Future Work](docs/future-work/) - Post-training enhancements
 
 ### Operations
 - [Training Guide](docs/05-training/) - Local + Modal setup
+- [Training Methodology](docs/05-training/training-methodology.md) - Why validation has more batches
+- [Modal Timeout Guard](docs/08-operations/modal-timeout-guard.md) - Three-layer defense system
 - [Troubleshooting](docs/08-operations/troubleshooting.md) - Common issues
-- [NaN Prevention](docs/08-operations/nan-prevention-complete.md) - Gradient stability
+- [NaN Prevention](docs/08-operations/gradient-protection-guide.md) - Gradient stability
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! See [development docs](docs/09-development/) for:
-- Coding standards (Ruff, mypy, no comments unless requested)
-- Testing strategy (`make q` before committing)
-- Architecture decision records
+We welcome contributions! See [`docs/09-development/`](docs/09-development/) for:
+- [Coding Standards](docs/09-development/coding-standards.md) (Ruff, mypy, no comments unless requested)
+- [Testing Strategy](docs/09-development/testing.md) (`make q` before committing)
+- [Technical Debt](docs/09-development/technical-debt.md) (currently zero!)
 
 **Zero technical debt policy**: All P0/P1/P2 issues resolved before major releases.
 
@@ -487,16 +451,15 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 ## 🙏 Acknowledgments
 
 **Datasets**:
-- [TUH EEG Seizure Corpus](literature/markdown/TUSZ-DATA) (Temple University)
+- [TUH EEG Seizure Corpus](https://isip.piconepress.com/projects/tuh_eeg/html/downloads.shtml) (Temple University)
 - CHB-MIT Scalp EEG Database (Boston Children's Hospital / MIT)
 
 **Foundational Papers**:
-- **EvoBrain** ([NeurIPS 2025](literature/markdown/EVOBRAIN.md)) - Time-then-graph paradigm, dynamic graphs
+- **EvoBrain** (NeurIPS 2025) - Time-then-graph paradigm, dynamic graphs ([arXiv search](https://arxiv.org/search/?query=EvoBrain+seizure+detection))
 - **Mamba** ([Gu & Dao 2023](https://arxiv.org/abs/2312.00752)) - Selective state-space models
-- **Gated DeltaNet** ([Yang et al., ICLR 2025](literature/markdown/GATED-DETLA)) - Memory erasure + delta rule
-- **EEG-Mamba** ([2024](literature/markdown/EEG-BIMAMBA)) - BiMamba for EEG classification
-- **TCN** ([Bai et al. 2018](literature/markdown/TCN)) - Temporal convolutional networks
-- **Focal Loss** ([Lin et al. 2017](literature/markdown/FOCAL_LOSS)) - Class imbalance handling
+- **Gated DeltaNet** ([Yang et al., ICLR 2025](https://github.com/NVlabs/GatedDeltaNet)) - Memory erasure + delta rule
+- **TCN** ([Bai et al. 2018](https://arxiv.org/abs/1803.01271)) - Temporal convolutional networks
+- **Focal Loss** ([Lin et al. 2017](https://arxiv.org/abs/1708.02002)) - Class imbalance handling
 
 **Infrastructure & Libraries**:
 - [Modal.com](https://modal.com) - A100-80GB GPU infrastructure
@@ -508,10 +471,8 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 
 <div align="center">
 
-**Questions?** [Open an issue](https://github.com/clarity-digital-twin/brain-go-brr-v2/issues) •
-**Updates?** [Watch the repo](https://github.com/clarity-digital-twin/brain-go-brr-v2) •
-**Discussion?** [Start a discussion](https://github.com/clarity-digital-twin/brain-go-brr-v2/discussions)
+**Questions?** [Open an issue](https://github.com/clarity-digital-twin/brain-go-brr-v2/issues) • **Updates?** [Watch the repo](https://github.com/clarity-digital-twin/brain-go-brr-v2) • **Discussion?** [Start a discussion](https://github.com/clarity-digital-twin/brain-go-brr-v2/discussions)
 
-**Current status (v4.0.0)**: FLA-focused training → BiMamba2 (Modal, PAUSED at Epoch 6, $1.1k spent, backed up) + FLA (Local RTX 4090, Epoch 7/100, ACTIVE) • Strategy: Complete FLA first (free, ~960h), resume BiMamba2 incrementally if comparison needed • See [STATUS.md](STATUS.md) for full rationale
+**Status**: FLA training active (Epoch 7/100) • BiMamba2 paused (Epoch 6, backed up) • See [`STATUS.md`](STATUS.md) for full details
 
 </div>
