@@ -1,15 +1,99 @@
 # Performance Targets and System Profile
 
-Targets (TAES)
+**Last Updated**: October 20, 2025
 
-**🚨 CRITICAL METRICS NOTE**: "TAES" has TWO different meanings! See `TAES_DISAMBIGUATION.md` for complete explanation.
+**🚨 CRITICAL METRICS NOTE**: "TAES" has TWO different meanings! See `docs/06-evaluation/TAES_DISAMBIGUATION.md` for complete explanation.
 - TAES score = quality metric [0,1] from `calculate_taes()`
 - Sensitivity @ FA rates = uses NEDC OVERLAP scoring (NOT NEDC TAES scoring!)
 
-Clinical targets (sensitivity at FA rates):
-- 10 FA/24h → Sensitivity > 95%
-- 5 FA/24h → Sensitivity > 90%
-- 1 FA/24h → Sensitivity > 75%
+---
+
+## 🎯 Gold Standard: Temple NEDC (October 2025)
+
+> **"Our best systems operate at about 4 FAs/24 hours at a sensitivity of about 50% for the seizure class in a two-class problem - seizure vs. background."**
+>
+> — Temple University NEDC Research Team (creators of TUSZ dataset)
+
+**Verified Clinical SOTA**: **4 FA/24h @ ~50% sensitivity**
+
+**Key Context**:
+- Verified on **real clinical data** (72-hour continuous patient monitors)
+- ROC curve is **very steep** in low FA rate area
+- 5% absolute sensitivity change → **huge change in FA rate**
+- ML algorithms claiming better at high FA rates **don't hold at low FA rates**
+- Transformers are promising but **no systems yet that can control FA rates** for newer architectures
+
+**Source**: Personal correspondence with Temple NEDC research team (October 2025)
+
+---
+
+## 📊 Current State-of-the-Art (2025)
+
+### SeizureTransformer (EpilepsyBench #1 Winner)
+
+**Model**: U-Net + Transformer, ~41M parameters
+**Dataset**: TUSZ v2.0.3 eval set (865 files, 127.7 hours, 469 seizures)
+
+#### Performance by Scoring System
+
+| Scoring System | Sensitivity | FA/24h | Notes |
+|----------------|-------------|--------|-------|
+| **SzCORE Event** (most permissive) | 52.35% | **8.59** | ±30s/60s tolerances, merges events <90s |
+| **NEDC OVERLAP** (standard) | 45.63% | **26.89** | Any temporal overlap = TP |
+| **NEDC TAES** (strictest) | 65.21% | **136.73** | Partial credit, time-aligned |
+
+**🔥 Key Insight**: Same predictions, different scorers → **3.1× difference in FA/24h** (NEDC OVERLAP vs SzCORE Event)
+
+**⚠️ Warning**: Always check which scorer papers use! A model claiming 1 FA/24h with SzCORE Event might be 3-5 FA/24h with NEDC OVERLAP.
+
+---
+
+## 🎯 Realistic Performance Targets
+
+### Aspirational Targets (Original README - NEEDS REVISION)
+
+| FA Rate | Target Sensitivity | Reality Check |
+|---------|-------------------|---------------|
+| 10 FA/24h | >95% | SeizureTransformer: 34% ❌ (**61 points gap**) |
+| 5 FA/24h | >90% | SeizureTransformer: ~25% ❌ (**65 points gap**) |
+| 1 FA/24h | >75% | Temple SOTA: 50% @ 4 FA ❌ (**impossible with current architectures**) |
+
+**Reality**: These targets are **64 percentage points above SOTA**. Would require fundamental breakthrough, not incremental improvement.
+
+### Revised Realistic Targets
+
+#### Optimistic Scenario (Architectural Edge)
+**Target**: **≤4 FA/24h @ ≥55% sensitivity** (NEDC OVERLAP)
+- Matches Temple's verified clinical SOTA
+- 5% better sensitivity than Temple's baseline
+- **Highly publishable** (beats verified clinical systems)
+
+#### Realistic Scenario (Incremental Improvements)
+**Target**: **≤8 FA/24h @ ≥50% sensitivity** (NEDC OVERLAP)
+- Matches SeizureTransformer's SzCORE Event performance on NEDC OVERLAP scale
+- Solid improvement over current TUSZ baselines
+- **Publishable**
+
+#### Conservative Scenario (Similar to SOTA)
+**Target**: **≤15 FA/24h @ ≥45% sensitivity** (NEDC OVERLAP)
+- Better than SeizureTransformer's 26.89 FA/24h
+- Demonstrates architectural value
+- **Publishable with strong ablation studies**
+
+### Minimum Viable Result (Publishable)
+**Either**:
+- Match SeizureTransformer on **SzCORE Event** (8.59 FA/24h @ 52.35% sensitivity)
+- **OR** beat SeizureTransformer on **NEDC OVERLAP** (≤20 FA/24h @ ≥45% sensitivity)
+
+**Why Publishable**:
+- First BiMamba2 + FLA comparison on TUSZ
+- First dual-stream (node + edge Mamba) architecture for seizure detection
+- First dynamic Laplacian PE for EEG
+- Empirical validation even if not SOTA
+
+---
+
+## 📈 Current Measured Performance
 
 Current measured performance (Epoch 6, FLA on RTX 4090):
 - TAES: **0.9450** (quality score, not sensitivity!)
