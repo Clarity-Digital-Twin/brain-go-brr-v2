@@ -45,7 +45,7 @@
 - **Quote in README**: "Focal Loss for Dense Object Detection"
 
 ### 6. TUH EEG Seizure Corpus (TUSZ)
-- **Current link**: https://isip.piconepress.com/projects/tuh_eeg/html/downloads.shtml
+- **Current link**: https://isip.piconepress.com/projects/nedc/html/tuh_eeg/index.shtml
 - **Context**: Dataset (504 hours, 592 patients)
 - **Local file**: `literature/markdown/TUSZ-DATA/TUSZ-DATA.md`
 - **Status**: ✅ VERIFIED (Temple University official site)
