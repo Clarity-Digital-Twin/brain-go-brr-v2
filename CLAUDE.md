@@ -280,6 +280,53 @@ sudo apt-get install -y cuda-toolkit-12-4
 
 **Triton Warning**: FLA installation may show "Triton 3.1.0 below recommended 3.2.0" - this is expected and harmless. Triton 3.2.0 requires PyTorch 2.6+, which breaks mamba-ssm compatibility. FLA requirement (Triton >=3.0) is satisfied.
 
+### ⚠️ CRITICAL: UV Dependency Management Warning
+
+**🚨 NEVER RUN `uv sync` AFTER GPU SETUP! 🚨**
+
+GPU packages (mamba-ssm, FLA, PyG) are **intentionally NOT in pyproject.toml** because they require:
+- CUDA toolkit (system dependency)
+- PyTorch pre-installed (build-time dependency)
+- Special compilation flags (`--no-build-isolation`)
+
+**UV's default behavior**: `uv sync` = "make .venv match pyproject.toml exactly"
+- UV will **DELETE** mamba-ssm, FLA, and PyG because they're "not declared"
+- This breaks training even though it was working before!
+
+**Safe Installation Order** (DO THIS):
+```bash
+make setup           # Base dependencies (runs uv sync)
+make setup-gpu       # Manually installs mamba-ssm + PyG + TCN
+make setup-fla       # Manually installs flash-linear-attention
+
+# NEVER run plain 'uv sync' after this! It will delete GPU packages.
+```
+
+**If You Need to Update Dependencies**:
+```bash
+# ✅ SAFE - Preserves manually-installed packages
+uv sync --no-prune
+
+# ❌ DANGEROUS - Will delete GPU packages!
+uv sync
+```
+
+**How to Detect if GPU Packages Were Deleted**:
+```bash
+# Quick check
+.venv/bin/python -c "import mamba_ssm, fla; print('✅ GPU packages OK')" 2>&1
+
+# If you see ModuleNotFoundError, re-run:
+make setup-gpu && make setup-fla
+```
+
+**Why This Matters**:
+- Python keeps imported modules in memory even after files are deleted
+- Training can run for HOURS after `uv sync` deletes packages
+- Only breaks when starting a NEW Python process (like resume after crash)
+
+**Full Analysis**: See `DEPENDENCY_MYSTERY_SOLVED.md` for incident forensics and long-term solutions.
+
 ## 🏥 Clinical Specifications
 
 ### Data Pipeline
@@ -371,6 +418,7 @@ export UV_LINK_MODE=copy             # Prevent permission issues
 
 | Issue | Solution |
 |-------|----------|
+| **ModuleNotFoundError: mamba_ssm / fla** | **UV deleted packages! Re-run: `make setup-gpu && make setup-fla`. NEVER use `uv sync` after GPU setup (use `uv sync --no-prune` instead). See DEPENDENCY_MYSTERY_SOLVED.md** |
 | **Symbol mismatch: `_ZN3c104cuda9SetDeviceEab`** | **Rebuild mamba-ssm from source with `--no-binary` flag (see INSTALLATION.md#1)** |
 | **CUDA 12.4 toolkit not found** | **Install: `sudo apt-get install -y cuda-toolkit-12-4`** |
 | **WSL2 SIGBUS crash (FLA training)** | **Cache on Windows drives causes mmap page evictions. Move cache to native ext4 filesystem (see INSTALLATION.md#6, SIGBUS_CRASH_ANALYSIS.md)** |
