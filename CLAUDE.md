@@ -261,8 +261,15 @@ export UV_LINK_MODE=copy            # Prevent permission issues
 | **Symbol mismatch** | Rebuild mamba-ssm: `INSTALLATION.md#1` |
 | **CUDA 12.4 not found** | `sudo apt-get install -y cuda-toolkit-12-4` |
 | **WSL2 SIGBUS** | Move cache to ext4 (not Windows drives): `INSTALLATION.md#6` |
+| **Cache directory wrong** | Local: `cache/tusz_mmap/`, Modal: `/results/cache/tusz_mmap/` |
+| **Stray NPZ files** | `modal run deploy/modal/clean_stray_npz.py --confirm` |
+| **Dev manifest stale** | `modal run deploy/modal/app.py --action check-cache` → rebuild if prompted |
+| **Cache miss errors** | Run `populate-cache` (Modal) or rebuild locally (datasets fail-fast) |
+| **Modal 24h timeout** | Timeout guard writes `timeout_exit.pt`; resume with `--resume true` |
+| **Modal hangs** | Ensure `/results` volume has ≥600GB free; run `check-cache` |
 | **Zero seizures in batches** | `use_balanced_sampling: true` |
 | **NaN losses (RTX 4090)** | `mixed_precision: false` |
+| **A100 OOM (batch 64)** | Use `batch_size: 48`, `gradient_accumulation_steps: 1` |
 | **Edge similarity explosion** | `edge_similarity_margin: 0.01` |
 
 ## Modal-Specific
@@ -336,6 +343,13 @@ training:
 **Training**: `STATUS.md` (current progress)
 **Methodology**: `docs/05-training/training-methodology.md`
 **Troubleshooting**: `docs/08-operations/troubleshooting.md`
+**Architecture**: `docs/04-model/v3-architecture.md`
+**Checkpoints**: `docs/05-training/checkpoint-strategy.md`
+
+**FLA Research** (if working with Flash Linear Attention):
+- `FLASH_LINEAR_ATTENTION_RESEARCH.md` (SSOT)
+- `docs/04-model/flash-linear-attention/FLA_ROADMAP.md`
+- `docs/04-model/flash-linear-attention/FLA_QUICK_REFERENCE.md`
 
 ## Performance Metrics
 
