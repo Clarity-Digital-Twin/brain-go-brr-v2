@@ -95,12 +95,45 @@
 
 ## 📈 Current Measured Performance
 
-Current measured performance (Epoch 6, FLA on RTX 4090):
+**Epoch 6 (FLA on RTX 4090, early training)**:
 - TAES: **0.9450** (quality score, not sensitivity!)
 - AUROC: **0.8141**
 - Sensitivity @ 10 FA/24h: **24.84%** (OVERLAP scoring)
 - Sensitivity @ 5 FA/24h: **16.81%**
 - Sensitivity @ 1 FA/24h: **7.38%**
+
+**Gap to Targets**:
+- Need **+20 points** to reach conservative target (45% @ 15 FA)
+- Need **+25 points** to reach realistic target (50% @ 8 FA)
+- Need **+30 points** to beat Temple SOTA (55% @ 4 FA)
+
+**Status**: Training in progress (Epoch 13/100), expect significant improvement as model converges
+
+---
+
+## 🚨 Reality Check: Why 1 FA/24h @ 75% is Probably Impossible
+
+### Evidence
+
+1. **Temple's SOTA**: 4 FA/24h @ 50% sensitivity (best real-world system)
+2. **SeizureTransformer**: 26.89 FA/24h @ 45.63% sensitivity (2025 #1 model)
+3. **ROC Curve Reality**: 5% absolute sensitivity change = massive FA rate change in low FA region
+
+### What This Means
+
+- Going from 4 FA/24h → 1 FA/24h requires **~25% sensitivity drop** (not improvement!)
+- Current aspirational targets (1 FA/24h @ 75%) are **64 percentage points above SOTA**
+- Would require **fundamental breakthrough**, not incremental improvement
+
+### Neureka 2020 Competition Evidence
+
+**Dataset**: TUSZ v1.5.1 eval set, 16 participating systems
+
+- **Best system (sia)**: 1 FA/24h @ **11.37% sensitivity** (TAES scoring)
+- **Baseline (nedc)**: 17 FA/24h @ **35.54% sensitivity** (TAES scoring)
+- **Key Insight**: Achieving 1 FA/24h with good sensitivity (>50%) is **extremely difficult**
+
+**Conclusion**: 1 FA/24h @ 75% sensitivity is likely impossible with current architectures. More realistic to target 4-8 FA/24h @ 50-55% sensitivity.
 
 Training times (MEASURED from production runs)
 
@@ -138,3 +171,17 @@ Post-processing defaults
 - Hysteresis: τ_on=0.86, τ_off=0.78
 - Morphology: Opening(11), Closing(31)
 - Duration: 3–600s; Merge within 2s
+
+---
+
+## 📚 References
+
+1. **Temple NEDC Research Team** - Personal correspondence, October 2025 (4 FA/24h @ 50% sensitivity benchmark from clinical deployments)
+2. **Wu et al. 2025** - SeizureTransformer: arXiv:2504.00336, EpilepsyBench #1 winner
+3. **Shah et al. 2021** - "Validation of Temporal Scoring Metrics for Automatic Seizure Detection" (Neureka 2020 results)
+4. **Our SeizureTransformer Evaluation** - NEDC v6.0.0 on TUSZ v2.0.3 eval set
+5. **TUSZ Dataset** - v2.0.3, patient-disjoint splits (865 files, 127.7 hours, 469 seizures in eval set)
+
+**See Also**:
+- `docs/06-evaluation/TAES_DISAMBIGUATION.md` - CRITICAL naming collision explanation
+- `docs/archive/REALISTIC_PERFORMANCE_TARGETS.md` - Full analysis with additional tables and comparisons
