@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 try:
     # wandb is optional dependency (may not be installed)
-    import wandb  # type: ignore[import-not-found]
+    import wandb
 
     WANDB_AVAILABLE = True
 except ImportError:
