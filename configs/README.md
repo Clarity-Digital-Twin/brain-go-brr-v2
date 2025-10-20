@@ -348,7 +348,73 @@ postprocessing:
    - **Validation**: Always uses natural distribution (~8% seizures) for real metrics
    - **Why different**: Train on balanced data to learn, validate on real distribution
 3. **Cosine Schedule**: Smooth learning rate decay
-4. **Early Stopping**: Patience=5 on sensitivity@10FA/24h
+4. **Early Stopping**: See "Two-Tier Early Stopping Strategy" below
+
+## 🛑 Two-Tier Early Stopping Strategy
+
+**IMPORTANT**: Configs use different `patience` and `min_epochs` based on purpose:
+
+### Full Training Configs (train_*.yaml)
+```yaml
+early_stopping:
+  patience: 20        # Tolerant of plateaus
+  min_epochs: 30      # Don't stop before 30% complete
+  metric: sensitivity_at_10fa
+```
+
+**Why patience=20?**
+- Medical imaging literature: Best clinical checkpoints often come 10-20 epochs AFTER minimum val_loss
+- "Second peak" phenomenon: Sensitivity can improve at epochs 30-50 even as val_loss rises
+- Original patience=5 stopped baseline FLA at epoch 13 (13% complete) - too aggressive
+
+**Files using patience=20:**
+- `train_bimamba.yaml` (local + modal)
+- `train_fla.yaml` (local + modal)
+
+### Experiment Configs (*_exp*.yaml)
+```yaml
+early_stopping:
+  patience: 5         # Match baseline training
+  min_epochs: 0       # Allow early stopping anytime
+  metric: sensitivity_at_10fa
+```
+
+**Why keep patience=5 for experiments?**
+- **Fair comparison**: Baseline trained with patience=5, experiments must too
+- **Scientific method**: Change one variable (hyperparameters), not training procedure
+- **Isolate effect**: Test if regularization/LR/size helps, not if longer training helps
+
+**Files using patience=5:**
+- `train_fla_exp1_reg.yaml` (stronger regularization)
+- `train_fla_exp2_lr.yaml` (lower learning rate)
+- `train_fla_exp3_smaller.yaml` (smaller model)
+
+### Smoke Test Configs (smoke_*.yaml)
+```yaml
+early_stopping:
+  patience: 5         # Appropriate for short runs
+  min_epochs: 0       # Allow immediate stopping
+  metric: sensitivity_at_10fa
+```
+
+**Why patience=5 for smoke tests?**
+- Smoke tests run 1-3 epochs max (not 100)
+- Early stopping rarely triggers anyway
+- Fast iteration for debugging
+
+**Decision Tree After Experiments Complete:**
+```
+IF any experiment beats baseline (>0.284 @ 10 FA):
+  → Winner becomes new baseline
+  → Re-run winner with patience=20 for production
+
+ELSE IF all experiments fail:
+  → Option A: Resume baseline with patience=20, min_epochs=30
+              (test "second peak" hypothesis)
+  → Option B: Accept 0.284 as best for this architecture
+```
+
+See `STATUS.md` "Lessons Learned - Early Stopping" for full history and rationale.
 
 ## 🚨 Critical Notes
 
