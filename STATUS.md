@@ -232,20 +232,90 @@
 - Already have 6 epochs of data for early comparison if needed
 - Can resume incrementally later ($500-1k/month when budget allows)
 
-**FLA - Local Full Training (🟢 ACTIVE)**:
+**FLA - Local Full Training (📊 BASELINE COMPLETE, EXPERIMENTS ACTIVE)**:
 - Launch: Oct 11, 2025 (after SIGBUS fix)
 - Config: 100 epochs, batch_size=8, RTX 4090 (24GB VRAM), mixed_precision=false
 - Cache: 4667 train + 1832 dev NPY files on native ext4 filesystem (WSL2)
-- Status: ✅ **EPOCH 7/100** - Training progressing normally (7% complete)
 - Stack: TCN + BiGatedDeltaNet (FLA) + GNN + Dynamic LPE
 - Cost: $0 (local training)
-- Expected: **~960 hours total** (40 days) - measured 9.6h/epoch average from Epochs 1-6
 
-**Next Steps**:
-1. Let FLA training complete to epoch 100
-2. Analyze FLA results (sensitivity@1FA/@5FA/@10FA, AUROC, TAES scores)
-3. Decide if BiMamba2 comparison needed based on FLA performance
-4. If needed: Resume BiMamba2 training incrementally when budget allows
+**Baseline Training** (Oct 11-18, 2025):
+- Stopped: Epoch 13 (benign crash, not resumed)
+- Best checkpoint: **Epoch 9** - 0.284 sensitivity @ 10 FA/24h, 0.95 TAES
+- Reason for stopping: Val loss increasing (0.027→0.053), sensitivity declining after epoch 9
+- Early stop would have triggered: Epoch 14 (patience=5, 5 epochs after best)
+- Decision: Pragmatic stop - chart showed clear overfitting, no upward trend
+- Result: ✅ **Baseline established at 0.284 @ 10 FA/24h**
+- Checkpoints: `results/local_fla_training/checkpoints/epoch_008-012.pt`, `best.pt` (epoch 9)
+
+**Hyperparameter Experiments** (Oct 18-20, 2025, ACTIVE):
+- Exp1 (Regularization): `train_fla_exp1_reg.yaml` - Epoch 3/100 🔄
+- Exp2 (Learning Rate): `train_fla_exp2_lr.yaml` - Queued ⏳
+- Exp3 (Smaller Model): `train_fla_exp3_smaller.yaml` - Queued ⏳
+- Goal: Beat baseline 0.284 @ 10 FA/24h with architectural/hyperparameter changes
+
+**Next Steps (Decision Tree)**:
+
+**Phase 1: Complete Experiments (IN PROGRESS)**
+1. ✅ Exp1 (Regularization): Running, epoch 3/100
+2. ⏳ Exp2 (Lower LR): Queued
+3. ⏳ Exp3 (Smaller Model): Queued
+
+**Phase 2: Analyze Results**
+- Compare all experiments to baseline 0.284 @ 10 FA/24h
+- Identify best performing config (if any beat baseline)
+
+**Phase 3: Decide Next Action (use this decision tree)**
+
+```
+IF any experiment beats baseline (>0.284 @ 10 FA):
+  → Winner becomes new baseline
+  → Re-run winner with patience=20, min_epochs=30 for production
+  → Archive old baseline
+
+ELSE IF all experiments fail to beat baseline:
+  → Option A: Resume baseline with patience=20, min_epochs=30
+             (test if "second peak" exists at epochs 30-50)
+  → Option B: Accept baseline 0.284 as best for this architecture
+             (move to BiMamba2 comparison or deployment)
+  → Decision criteria: Time/compute budget vs expected gain (~20% chance of improvement)
+
+THEN:
+  → Analyze best FLA results (sensitivity@1FA/@5FA/@10FA, AUROC, TAES)
+  → Compare to Temple SOTA (4 FA/24h @ 50% sensitivity)
+  → Decide if BiMamba2 comparison needed
+```
+
+**Phase 4: Production (Future)**
+- Deploy best model with patience=20 config for any future training
+- All production configs now have patience=20, min_epochs=30
+
+**Lessons Learned - Early Stopping**:
+
+**What Happened:**
+- Baseline FLA crashed at epoch 13 (benign, not resumed)
+- Best checkpoint: Epoch 9 (0.284 @ 10 FA/24h)
+- Val loss rising, sensitivity declining → looked like overfitting
+- Made pragmatic decision not to resume
+
+**Root Cause:**
+- Config used patience=5 (too aggressive for 100-epoch plan)
+- Stopped at 13% complete (standard medical imaging: 30-50% before early stop allowed)
+- May have missed "second peak" common in clinical ML (epochs 30-50)
+
+**Fix Applied:**
+1. ✅ Updated `train_*.yaml`: patience=20, min_epochs=30 (prevents premature stopping)
+2. ✅ Updated code: Added `min_epochs` field to schema + early_stopping.py
+3. ⏳ Kept `*_exp*.yaml`: patience=5, min_epochs=0 (INTENTIONAL - see below)
+
+**Why Experiments Keep patience=5:**
+- **Fair comparison**: Baseline trained with patience=5, experiments must too
+- **Isolate effect**: Test if hyperparameters help, not if longer training helps
+- **Scientific method**: Change one variable at a time (hyperparams, not training procedure)
+- **Decision tree**: See "Next Steps" below for post-experiment actions
+
+**Future Smoke Tests:**
+- Keep patience=5, min_epochs=0 (appropriate for 3-10 epoch quick tests)
 
 ---
 

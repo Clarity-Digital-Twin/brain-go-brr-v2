@@ -540,6 +540,12 @@ class EarlyStoppingConfig(StrictModel):
     """Early stopping configuration."""
 
     patience: int = Field(default=5, ge=1, le=50, description="Patience epochs")
+    min_epochs: int = Field(
+        default=0,
+        ge=0,
+        le=100,
+        description="Minimum epochs before early stopping can trigger (prevents premature stopping)",
+    )
     metric: str = Field(
         default="sensitivity_at_10fa",
         description="Metric to monitor (e.g., sensitivity_at_10fa)",

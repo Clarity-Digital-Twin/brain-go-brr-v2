@@ -161,7 +161,8 @@ training:
   mixed_precision: true                # A100 is 3.8x faster at FP16! Critical for performance
   gradient_accumulation_steps: 1       # EXPERIMENT: No accumulation with batch_size=48
   early_stopping:
-    patience: 5
+    patience: 20                       # Increased from 5 (too aggressive for 100-epoch plan)
+    min_epochs: 30                     # Don't allow early stop before epoch 30
     metric: sensitivity_at_10fa
   checkpoint_interval: 1               # Save every epoch for full training
   mid_checkpoint_interval_s: 1800      # Save every 30 minutes (critical for 6-7h epochs)

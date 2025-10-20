@@ -198,6 +198,7 @@ training:
   # Early stopping
   early_stopping:
     patience: 5
+    min_epochs: 0                      # Experiments: same as baseline for fair comparison
     metric: sensitivity_at_10fa
 
   # Checkpointing

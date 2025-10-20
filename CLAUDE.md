@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-**Brain-Go-Brr v4.0** - Clinical EEG seizure detection with dual production stacks (BiMamba2 + FLA). TCN + SSM + GNN + Dynamic LPE achieving O(N) complexity for <1 FA/24h detection.
+**Brain-Go-Brr v4.0** - Clinical EEG seizure detection with dual production stacks (BiMamba2 + FLA). TCN + SSM + GNN + Dynamic LPE achieving O(N) complexity targeting clinical deployment thresholds.
 
 ## Quick Reference
 
@@ -111,6 +111,9 @@ training:
   mixed_precision: false          # Causes NaNs
   loss: focal                     # 12:1 imbalance
   use_balanced_sampling: true     # CRITICAL
+  early_stopping:
+    patience: 20                  # Full training (was 5, too aggressive)
+    min_epochs: 30                # Prevent premature stopping
 model:
   graph:
     edge_similarity_margin: 0.01  # ±1.0 boundary safety
@@ -126,6 +129,9 @@ training:
   batch_size: 48                  # ~58GB peak
   gradient_accumulation_steps: 1
   mixed_precision: true
+  early_stopping:
+    patience: 20                  # Full training (was 5, too aggressive)
+    min_epochs: 30                # Prevent premature stopping
 model:
   graph:
     edge_similarity_margin: 0.01
@@ -209,10 +215,19 @@ make setup-gpu && make setup-fla
 - Duration: 3-600s valid
 - Merge: Events within 2s
 
-### Performance Targets
-- 10 FA/24h → >95% sensitivity
-- 5 FA/24h → >90% sensitivity
-- 1 FA/24h → >75% sensitivity
+### Performance Targets (NEDC OVERLAP Scoring)
+
+**Primary Target** (Match Temple SOTA):
+- ≤4 FA/24h @ ≥50% sensitivity (verified clinical systems)
+
+**Optimistic Scenario** (Strong Publication):
+- ≤4 FA/24h @ ≥55% sensitivity
+- ≤8 FA/24h @ ≥50% sensitivity
+
+**Minimum Viable** (Publishable):
+- ≤15 FA/24h @ ≥45% sensitivity (beat SeizureTransformer's 26.89 FA)
+
+**Context**: Temple NEDC SOTA = 4 FA/24h @ 50% (real clinical data). SeizureTransformer (2025 #1) = 26.89 FA/24h @ 45.63% on TUSZ eval. See `docs/06-evaluation/REALISTIC_PERFORMANCE_TARGETS.md` for detailed analysis.
 
 ## Development Guidelines
 
@@ -367,6 +382,6 @@ training:
 
 ---
 
-**Mission**: <1 FA/24h clinical seizure detection with V3 dual-stream architecture 🚀
+**Mission**: Match/beat Temple SOTA (4 FA/24h @ 50% sensitivity) with V3 dual-stream architecture 🚀
 
-**Status (v4.0.0)**: BiMamba2 (Modal PAUSED Epoch 6) + FLA (Local Epoch 13/100, patience 4/5)
+**Status (v4.1.0)**: BiMamba2 (Modal PAUSED Epoch 6) + FLA Baseline (Epoch 9 best, 0.284@10FA) + Experiments (Exp1 running)

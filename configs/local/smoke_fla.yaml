@@ -144,6 +144,7 @@ training:
 
   early_stopping:
     patience: 5
+    min_epochs: 0                      # Smoke tests: allow immediate early stopping
     metric: sensitivity_at_10fa
 
 postprocessing:

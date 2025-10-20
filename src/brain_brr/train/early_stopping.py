@@ -16,6 +16,7 @@ class EarlyStopping:
 
     def __init__(self, config: EarlyStoppingConfig) -> None:
         self.patience = config.patience
+        self.min_epochs = config.min_epochs
         self.metric = config.metric
         self.mode = config.mode
         self.best_score = float("-inf") if self.mode == "max" else float("inf")
@@ -27,11 +28,21 @@ class EarlyStopping:
 
         Args:
             score: Current metric value
-            epoch: Current epoch
+            epoch: Current epoch (0-indexed)
 
         Returns:
             True if should stop
         """
+        # Don't allow early stopping before min_epochs
+        if epoch < self.min_epochs:
+            # Still track best score for later
+            improved = score > self.best_score if self.mode == "max" else score < self.best_score
+            if improved:
+                self.best_score = score
+                self.best_epoch = epoch
+                self.counter = 0
+            return False
+
         improved = score > self.best_score if self.mode == "max" else score < self.best_score
 
         if improved:

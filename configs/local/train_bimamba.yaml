@@ -175,7 +175,8 @@ training:
 
   # Early stopping
   early_stopping:
-    patience: 5
+    patience: 20                       # Increased from 5 (too aggressive for 100-epoch plan)
+    min_epochs: 30                     # Don't allow early stop before epoch 30
     metric: sensitivity_at_10fa
 
   # Checkpointing
