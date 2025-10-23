@@ -337,9 +337,9 @@ Target hierarchy:
 ```
 
 ### Tracking Files
-- **Baseline**: `TRAINING_METRICS_BASELINE.md` (to be created)
-- **Exp1**: `TRAINING_METRICS_EXP1_REG.md` (✅ exists)
-- **Exp2**: `TRAINING_METRICS_EXP2_LR.md` (to be created)
+- **Baseline**: `docs/archive/METRICS_BASELINE_FLA.md` (✅ created, archived)
+- **Exp1**: `docs/archive/METRICS_EXP1_REGULARIZATION.md` (✅ cancelled, archived)
+- **Exp2**: TBD (if needed based on baseline results)
 
 ### Update Frequency
 - After each epoch validation completes
