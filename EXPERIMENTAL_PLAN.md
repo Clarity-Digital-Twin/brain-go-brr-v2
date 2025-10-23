@@ -7,6 +7,26 @@
 
 ---
 
+## 📌 Executive Summary (Oct 23 Update)
+
+**Current Status**:
+- ✅ **Baseline**: Running (epoch 13+), wandb tracking perfectly
+- ❌ **Exp1 (Regularization)**: Cancelled @ epoch 10, negative result (-2.7% vs baseline)
+- ⏸️ **Exp2 (Lower LR)**: On hold, decision after baseline epoch ~17-20
+
+**Key Finding**: **Model is NOT overfitting**
+- Exp1 regularization made performance worse (0.2726 vs baseline 0.2801)
+- Baseline plateau (epochs 9-12) due to other causes (LR barrier or local optimum)
+
+**Next Milestone**: Baseline epoch 17 (~Oct 25) → Decide if Exp2 needed
+
+**Quick Links**:
+- Baseline wandb: https://wandb.ai/jj-vcmcswaggins-novamindnyc/seizure-v3-rtx4090/runs/5ee302c0a01d4e43b8e782fa2ffb0e90
+- Exp1 analysis: `docs/archive/METRICS_EXP1_REGULARIZATION.md`
+- Baseline tracker: `docs/archive/METRICS_BASELINE_FLA.md`
+
+---
+
 ## 🎯 Research Question
 
 **Can we improve upon baseline FLA performance (0.28 sensitivity @ 10 FA/24h) through systematic hyperparameter optimization?**
@@ -429,37 +449,57 @@ Target hierarchy:
 
 ## 📖 References
 
-- **Baseline config**: `configs/local/train_fla.yaml`
-- **Exp1 config**: `configs/local/train_fla_exp1_reg.yaml`
-- **Exp2 config**: `configs/local/train_fla_exp2_lr.yaml`
-- **Exp1 tracker**: `TRAINING_METRICS_EXP1_REG.md`
-- **Wandb audit**: `WANDB_AUDIT_REPORT.md`
+**Configs**:
+- Baseline: `configs/local/train_fla.yaml` ✅ Running
+- Exp1: `configs/local/train_fla_exp1_reg.yaml` ❌ Cancelled
+- Exp2: `configs/local/train_fla_exp2_lr.yaml` ⏸️ On hold
+
+**Documentation**:
+- Baseline tracker: `docs/archive/METRICS_BASELINE_FLA.md`
+- Exp1 analysis: `docs/archive/METRICS_EXP1_REGULARIZATION.md`
+- Wandb audit: `docs/archive/WANDB_AUDIT_REPORT.md`
+- Config review: `docs/archive/CONFIG_REVIEW_FOR_CONSENSUS.md`
+
+**Wandb**:
+- Baseline (running): https://wandb.ai/jj-vcmcswaggins-novamindnyc/seizure-v3-rtx4090/runs/5ee302c0a01d4e43b8e782fa2ffb0e90
 
 ---
 
 ## 🎯 Decision Criteria
 
-After all experiments complete (epochs 25-50):
+After baseline epochs 15-30 complete:
 
-### Scenario 1: Baseline Best
-**Decision**: Use baseline config for production
-**Next**: Explore architecture changes (different Mamba variants, etc.)
+### Scenario 1: Baseline Improves (>0.2801)
+**Decision**: ✅ Baseline config works, just needed more epochs!
+**Next**:
+- Continue to convergence
+- No need for Exp2
+- Validate on eval set when ready
 
-### Scenario 2: Exp1 (Regularization) Best
-**Decision**: Adopt stronger regularization
-**Next**: Fine-tune dropout/weight_decay ratios
+### Scenario 2: Baseline Plateaus (=0.2801)
+**Decision**: ⏸️ Start Exp2 (lower LR) to test if can escape plateau
+**Next**:
+- Launch Exp2 with lr=5e-5
+- Compare convergence patterns
+- Choose best performer
 
-### Scenario 3: Exp2 (Lower LR) Best
-**Decision**: Use lr=5e-5 for future training
-**Next**: Explore even lower LRs (1e-5) or adaptive schedules
+### Scenario 3: Exp2 Also Plateaus (~0.28)
+**Decision**: 🔬 Hit architecture/data limitation
+**Next**:
+- Consider architectural experiments
+- Explore data augmentation
+- Review BiMamba2 alternative
 
-### Scenario 4: All Similar
-**Decision**: Baseline is robust, hyperparameters not critical
-**Next**: Focus on data augmentation, architecture search
+### Scenario 4: Baseline Degrades (<0.2801)
+**Decision**: ⚠️ Re-evaluate (unlikely based on Exp1 evidence)
+**Next**:
+- Investigate why Exp1 ruled out overfitting but baseline degraded
+- Likely other issue (data quality, hardware, etc.)
 
 ---
 
 **Generated**: 2025-10-22 19:45 EDT
+**Updated**: 2025-10-23 17:45 EDT (after Exp1 cancellation)
 **Owner**: @jj
-**Status**: Active
-**Next Review**: After Exp2 completes (~Nov 12)
+**Status**: Active - Baseline Resume
+**Next Review**: After baseline epoch 17-20 (Oct 25-26) for Exp2 decision
