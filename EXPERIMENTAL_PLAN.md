@@ -1,8 +1,8 @@
 # 🧪 Experimental Plan - FLA Hyperparameter Study
 
-**Version**: 1.0
-**Date**: 2025-10-22
-**Status**: Active
+**Version**: 1.1
+**Date**: 2025-10-23 (Updated after Exp1 cancellation)
+**Status**: Active - Baseline Resume
 **Target**: Optimize FLA (Gated DeltaNet) architecture for clinical EEG seizure detection
 
 ---
@@ -12,10 +12,10 @@
 **Can we improve upon baseline FLA performance (0.28 sensitivity @ 10 FA/24h) through systematic hyperparameter optimization?**
 
 Sub-questions:
-1. Was baseline training stopped too early? (stopped epoch 13, best epoch 9)
-2. Is the model overfitting? (would stronger regularization help?)
-3. Is the learning rate too high? (causing late-training instability?)
-4. How do these interventions affect long-term convergence (epochs 20-30+)?
+1. ✅ **ANSWERED**: Was baseline training stopped too early? → **YES** (stopped epoch 12, best epoch 9)
+2. ✅ **ANSWERED**: Is the model overfitting? → **NO** (Exp1 regularization made it worse: 0.2726 vs baseline's 0.2801)
+3. ⏸️ **PENDING**: Is the learning rate too high? → Testing via baseline resume first, Exp2 later if needed
+4. ⏸️ **PENDING**: Will baseline improve past 0.2801 with more epochs (13-30+)?
 
 ---
 
@@ -54,8 +54,9 @@ Sub-questions:
 ### Baseline (Control)
 
 **Config**: `configs/local/train_fla.yaml`
-**Status**: ⚠️ **NEEDS RESUME** (stopped too early)
-**History**: Epochs 8-13 (best: epoch 9 @ 0.2801)
+**Status**: ✅ **RUNNING** (resumed @ epoch 13, Oct 23 17:31)
+**History**: Epochs 8-12 (best: epoch 9 @ 0.2801)
+**Wandb**: https://wandb.ai/jj-vcmcswaggins-novamindnyc/seizure-v3-rtx4090/runs/5ee302c0a01d4e43b8e782fa2ffb0e90
 
 **Parameters**:
 ```yaml
@@ -78,19 +79,18 @@ training:
     min_epochs: 30      # ✨ UPDATED (was 0)
 ```
 
-**Why Resume?**:
-- Stopped at epoch 13 with OLD config (patience=5)
-- Best was epoch 9 (0.2801) - only 4 epochs of patience used
+**Why Resumed** (Oct 23):
+- Stopped at epoch 12 with OLD config (patience=5)
+- Best was epoch 9 (0.2801) - only 3 epochs of patience used
 - NEW config has patience=20, min_epochs=30
 - Could improve at epochs 15, 20, 25, 30+
-- **Need to know TRUE baseline performance before comparing experiments**
+- **Exp1 proved model NOT overfitting** (regularization made it worse)
 
-**Action Required**:
+**✅ COMPLETED**:
 ```bash
-# Resume baseline to epoch 30+ with patience=20
-tmux new -s baseline-resume
-export BGB_NAN_DEBUG=1
-.venv/bin/python -m src train configs/local/train_fla.yaml --resume
+# Baseline resumed successfully @ epoch 13
+tmux attach -t baseline-resume
+# Wandb continuing RED LINE from previous run
 ```
 
 ---
@@ -98,8 +98,9 @@ export BGB_NAN_DEBUG=1
 ### Experiment 1: Stronger Regularization
 
 **Config**: `configs/local/train_fla_exp1_reg.yaml`
-**Status**: ✅ Running (Epoch 8, best: epoch 6 @ 0.2726)
-**Hypothesis**: Model overfitting → stronger regularization helps long-term
+**Status**: ❌ **CANCELLED** @ Epoch 10 (Oct 23, 17:31)
+**Result**: **NEGATIVE** - Regularization hurt performance (-2.7% vs baseline)
+**Conclusion**: ✅ **Model is NOT overfitting** (hypothesis disproven)
 
 **Changes vs Baseline**:
 ```yaml
@@ -112,34 +113,33 @@ training:
   weight_decay: 0.01 → 0.05      # +400%
 ```
 
-**Config Status**: ✅ **FIXED** (patience: 5→20, min_epochs: 0→30)
+**Final Performance**:
+| Epoch | Sens@10FA | Status |
+|-------|-----------|--------|
+| 6 | 0.2726 | ⭐ BEST |
+| 7-9 | 0.2726 | Plateau |
+| 10 | (cancelled) | |
 
-**Restart Required**: ⚠️ **YES** (config changed mid-run)
+**vs Baseline**: 0.2726 vs 0.2801 = **-2.7% worse**
 
-**Action Required**:
-```bash
-# Wait for epoch 8 to complete (validation at 91%)
-# Then restart from epoch 8 checkpoint with new config
-tmux kill-session -t exp1-reg-resume
-tmux new -s exp1-reg-resume
-export BGB_NAN_DEBUG=1
-.venv/bin/python -m src train configs/local/train_fla_exp1_reg.yaml --resume
-```
+**Why Cancelled**:
+1. ✅ Clear negative result after 4-epoch plateau (epochs 6-9)
+2. ✅ Proved hypothesis FALSE (regularization hurts, not helps)
+3. ⏱️ Resources better spent on baseline resume
+4. 📊 See `METRICS_EXP1_REGULARIZATION.md` for full analysis
 
-**Wandb Fix Opportunity**: ✅ Can attempt to fix 502 error on restart
-
-**Expected Outcome**:
-- **IF overfitting**: Exp1 beats baseline at epochs 15-30
-- **IF underfitting**: Exp1 plateaus below baseline
-- **Current**: -4% vs baseline (0.2726 vs 0.2801) at epoch 6/9
+**Key Learning**:
+- Model is **NOT overfitting** at baseline regularization
+- Baseline plateau (epochs 9-12) is NOT due to overfitting
+- Likely causes: Learning rate barrier OR true local optimum
 
 ---
 
 ### Experiment 2: Lower Learning Rate
 
 **Config**: `configs/local/train_fla_exp2_lr.yaml`
-**Status**: ⏸️ **NOT STARTED**
-**Hypothesis**: LR too high → causing late-training instability / oscillation
+**Status**: ⏸️ **ON HOLD** (waiting for baseline epochs 13-20 data)
+**Hypothesis**: LR too high → causing late-training instability / plateau at suboptimal point
 
 **Changes vs Baseline**:
 ```yaml
@@ -159,13 +159,24 @@ training:
 - **More stable** late training (epochs 15-30)
 - **Potentially higher** final performance if LR was issue
 
-**Action Required**:
+**Decision Criteria for Starting Exp2**:
+
+**IF baseline improves past 0.2801** (epochs 13-20):
+- ✅ **DON'T start Exp2** - baseline config is working, just needs time
+- ✅ Let baseline continue to convergence
+
+**IF baseline stays at 0.2801** (epochs 13-20):
+- ✅ **START Exp2** - test if lower LR can escape plateau
+- ✅ Hypothesis: LR=1e-4 too high, preventing fine-tuning
+
+**Action When Ready**:
 ```bash
-# Ensure patience=20, min_epochs=30 in config, then start
 tmux new -s exp2-lr
 export BGB_NAN_DEBUG=1
 .venv/bin/python -m src train configs/local/train_fla_exp2_lr.yaml
 ```
+
+**Timeline**: Decision after baseline epoch ~17-20 (Oct 26-28)
 
 ---
 
@@ -203,28 +214,45 @@ export BGB_NAN_DEBUG=1
 
 ---
 
-## 📅 Execution Timeline
+## 📅 Execution Timeline (UPDATED Oct 23)
 
-### Phase 1: Resume & Start (Oct 22-23)
+### Phase 1: ✅ COMPLETED (Oct 23)
 
-| Run | Action | Start | ETA |
-|-----|--------|-------|-----|
-| **Baseline** | Resume from epoch 13 | Oct 22, 20:00 | Nov 8 (~17 days) |
-| **Exp1** | Update config (patience=20), continue | Running | Nov 5 (~14 days) |
-| **Exp2** | Start fresh | Oct 23, 09:00 | Nov 12 (~20 days) |
+| Run | Action | Status |
+|-----|--------|--------|
+| **Baseline** | Resume from epoch 13 | ✅ **RUNNING** (started Oct 23, 17:31) |
+| **Exp1** | Test regularization hypothesis | ❌ **CANCELLED** (negative result @ epoch 10) |
+| **Exp2** | Start if needed | ⏸️ **ON HOLD** (decision after baseline epoch ~17-20) |
 
-### Phase 2: Monitor & Early Stopping (ongoing)
+### Phase 2: Baseline Monitoring (Oct 23 - Nov ~5)
 
-- **Check epochs 15, 20, 25, 30**: Record best metrics
-- **Early stopping**: Automatic at patience=20 from each run's best epoch
-- **Expected stop range**: Epochs 25-50 (depending on when peaks occur)
+**Key Milestones**:
+- ✅ **Epoch 13**: Oct 23, ~21:00 (baseline resumes, first check)
+- 📅 **Epoch 15**: Oct 24, ~19:00 (early signal if improving)
+- 📅 **Epoch 17**: Oct 25, ~17:00 (Exp2 decision point)
+- 📅 **Epoch 20**: Oct 26, ~15:00 (clear pattern should emerge)
+- 📅 **Epoch 30**: Nov 2, ~09:00 (min_epochs reached, patience countdown starts)
 
-### Phase 3: Analysis & Decision (Nov 12+)
+**What We're Looking For**:
+- ✅ Improvement past 0.2801 → Baseline working, just needed time!
+- ⏸️ Stays at 0.2801 → LR barrier, start Exp2
+- ⚠️ Degradation → Re-evaluate (unlikely based on Exp1)
 
-- Compare final best metrics
-- Analyze convergence curves
-- Decide on optimal hyperparameters
-- Plan follow-up experiments (if needed)
+### Phase 3: Decision & Next Steps (Nov ~5+)
+
+**Scenario A**: Baseline improves
+- ✅ Continue baseline to convergence
+- ✅ Validate improvement is stable
+- ⏸️ Hold Exp2 unless baseline plateaus again
+
+**Scenario B**: Baseline stays flat
+- ✅ Start Exp2 (lower LR hypothesis)
+- ✅ Compare Exp2 vs baseline convergence
+- 📊 Decide optimal LR for architecture
+
+**Scenario C**: Both plateau similarly
+- 🔬 Architecture limitations identified
+- 🎯 Plan architectural experiments (future work)
 
 ---
 
@@ -259,19 +287,19 @@ Target hierarchy:
 
 ---
 
-### Hypothesis 2: Model is Overfitting
+### Hypothesis 2: Model is Overfitting → ✅ **DISPROVEN**
 **Test**: Exp1 (stronger regularization) vs Baseline
 
-**Predictions**:
-- **IF overfitting**: Exp1 > Baseline at epochs 20-30
-- **IF NOT overfitting**: Exp1 < Baseline (regularization hurts)
+**Result** (Exp1 cancelled @ epoch 10):
+- Exp1: 0.2726 (best @ epoch 6, plateaued 7-9)
+- Baseline: 0.2801 (best @ epoch 9)
+- **Exp1 is -2.7% WORSE** → Model is **NOT overfitting**
 
-**Current Data** (epochs 6-9):
-- Exp1: 0.2726 (epoch 6)
-- Baseline: 0.2801 (epoch 9)
-- Exp1 is -4% → suggests NO overfitting OR regularization too strong
-
-**Key Question**: Does Exp1 catch up / overtake at epochs 15-25?
+**Conclusion**:
+- ✅ Regularization made performance worse, not better
+- ✅ Baseline plateau (epochs 9-12) NOT due to overfitting
+- ✅ Other causes: Learning rate barrier OR local optimum
+- 📊 Full analysis: `docs/archive/METRICS_EXP1_REGULARIZATION.md`
 
 ---
 
