@@ -349,39 +349,21 @@ Target hierarchy:
 
 ## ⚠️ Known Issues & Mitigations
 
-### Issue 1: Wandb Upload Failures
-**Problem**: 502 errors on file_stream endpoint (since 12:35 EDT Oct 22)
-**Impact**: No live web UI monitoring for epochs 7-8
-**Root Cause**: Wandb backend hit server error, stopped uploading (but local logging continues)
+### Issue 1: Wandb Upload Failures → ✅ **RESOLVED**
+**Problem**: Exp1 had 502 errors on file_stream endpoint (Oct 22)
+**Impact**: Lost epochs 7-8 tracking for Exp1
+**Root Cause**: Wandb backend hit server error
 
-**Immediate Mitigation**: ✅ Use local checkpoint-based tracking (TRAINING_METRICS_*.md files)
+**Resolution**:
+- ✅ Exp1 cancelled, wandb data archived to `wandb_old_run_oct18_22/`
+- ✅ Baseline wandb working perfectly (continuing RED LINE seamlessly)
+- ✅ Fresh start avoided upload corruption
+- 📊 Audit report: `docs/archive/WANDB_AUDIT_REPORT.md`
 
-**Potential Fix on Exp1 Restart**:
-When restarting Exp1 with new config, wandb will re-initialize. Options:
-
-1. **Fresh Start** (safest):
-   - Delete old wandb run directory
-   - Start with new run ID
-   - ❌ Lose connection to epochs 1-6 history (already lost due to 502)
-   - ✅ Clean slate, no upload corruption
-
-2. **Resume Attempt** (risky):
-   - Keep same run ID
-   - Hope wandb backend recovered
-   - ⚠️ May hit same 502 error
-   - ⚠️ Step numbers might conflict (epochs 7-8 logged twice)
-
-**Recommendation**: Fresh start with new run ID when restarting Exp1
-```bash
-# Before restart, archive old wandb data
-mv results/local_fla_exp1_reg/wandb results/local_fla_exp1_reg/wandb_old_run
-# Then restart will create fresh wandb run
-```
-
-### Issue 2: Inconsistent Early Stopping
-**Problem**: Configs had different patience values
-**Impact**: Unfair comparison (baseline patience=5, updated to 20)
-**Mitigation**: ✅ Standardize all experiments to patience=20, min_epochs=30
+### Issue 2: Inconsistent Early Stopping → ✅ **FIXED**
+**Problem**: Configs had different patience values (baseline=5, experiments varied)
+**Impact**: Would have caused unfair comparison
+**Resolution**: ✅ All configs standardized to patience=20, min_epochs=30
 
 ### Issue 3: WSL2 Stability
 **Problem**: Long-running tmux sessions can crash
@@ -412,49 +394,36 @@ mv results/local_fla_exp1_reg/wandb results/local_fla_exp1_reg/wandb_old_run
 
 ---
 
-## 🚀 Next Actions (Priority Order)
+## 🚀 Next Actions (Updated Oct 23)
 
-### 1. ~~Fix Exp1 Config~~ ✅ DONE
-**Status**: Config updated (patience: 5→20, min_epochs: 0→30)
-**Also fixed**: Exp2 config (same issue)
+### ✅ COMPLETED
+1. ✅ Cancelled Exp1 (negative result confirmed)
+2. ✅ Resumed baseline @ epoch 13 with patience=20
+3. ✅ Fixed all config early stopping inconsistencies
+4. ✅ Created tracking files (archived to `docs/archive/`)
+5. ✅ Wandb tracking restored (RED LINE continuing)
 
-**Restart Pending**: Waiting for epoch 8 validation to complete (~5 min remaining)
+### 🔄 IN PROGRESS
+**Baseline Training** (tmux: `baseline-resume`)
+- Currently: Epoch 13, batch ~7600+ (99% done)
+- Next checkpoint: Epoch 13 validation (~Oct 23, 21:00)
+- Monitor: `tmux attach -t baseline-resume`
 
-### 2. Restart Exp1 with Fixed Config (NEXT)
-```bash
-# After epoch 8 completes:
-# 1. Archive old wandb data (fix 502 issue)
-mv results/local_fla_exp1_reg/wandb results/local_fla_exp1_reg/wandb_old_run
+### ⏸️ PENDING DECISION (Oct 26-28)
+**Exp2 (Lower LR)**: Wait for baseline epochs 15-20 data
 
-# 2. Restart training
-tmux kill-session -t exp1-reg-resume
-tmux new -s exp1-reg-resume
-export BGB_NAN_DEBUG=1
-.venv/bin/python -m src train configs/local/train_fla_exp1_reg.yaml --resume
-```
+**Decision Tree**:
+- Baseline improves → Don't start Exp2 (baseline works!)
+- Baseline plateaus → Start Exp2 (test LR hypothesis)
 
-**Why now**: Config changed mid-run, need fresh start with new early stopping
-
-### 3. Resume Baseline (CRITICAL)
-```bash
-tmux new -s baseline-resume
-export BGB_NAN_DEBUG=1
-.venv/bin/python -m src train configs/local/train_fla.yaml --resume
-```
-
-**Why critical**: Need TRUE baseline performance to compare against
-
-### 3. Start Exp2 (WHEN READY)
-```bash
-# After baseline resumes
-tmux new -s exp2-lr
-export BGB_NAN_DEBUG=1
-.venv/bin/python -m src train configs/local/train_fla_exp2_lr.yaml
-```
-
-### 4. Create Tracking Files
-- `TRAINING_METRICS_BASELINE.md`
-- `TRAINING_METRICS_EXP2_LR.md`
+### 📊 MONITORING SCHEDULE
+| Epoch | ETA | Check |
+|-------|-----|-------|
+| 13 | Oct 23, 21:00 | First post-resume metric |
+| 15 | Oct 24, 19:00 | Early improvement signal |
+| 17 | Oct 25, 17:00 | **Exp2 decision point** |
+| 20 | Oct 26, 15:00 | Clear pattern confirmation |
+| 30 | Nov 2, 09:00 | Min epochs, patience starts |
 
 ---
 
