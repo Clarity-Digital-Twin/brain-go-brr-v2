@@ -107,7 +107,7 @@ def train(
         except Exception:
             # Silently skip if anomaly detection unavailable (e.g., torch.compile mode)
             pass
-    set_seed(config.experiment.seed)
+    # Note: set_seed() is now called in main() BEFORE DataLoader creation for proper determinism
     device = config.experiment.device
     if device == "auto":
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -166,6 +166,25 @@ def train(
             except Exception:
                 # Corrupt checkpoint file, proceed with best_metric=0.0
                 pass
+        # Restore early stopping state
+        if "early_stopping_state" in ckpt:
+            early_stopping.load_state_dict(ckpt["early_stopping_state"])
+            logger.info(
+                f"[RESUME] Restored early stopping state: "
+                f"best_score={early_stopping.best_score:.6f}, counter={early_stopping.counter}"
+            )
+        else:
+            logger.warning(
+                "[RESUME] No early stopping state in checkpoint - "
+                "early stopping will reset (expected before v4.2.0)"
+            )
+            # Backward compat: seed best_score from checkpoint's best_metric
+            # to prevent next validation from corrupting historical best
+            if "best_metric" in ckpt and ckpt["best_metric"] != 0.0:
+                early_stopping.best_score = ckpt["best_metric"]
+                logger.info(
+                    f"[RESUME] Seeded early_stopping.best_score from checkpoint: {early_stopping.best_score:.6f}"
+                )
         # Restore DataLoader state for exact batch resume
         if "dataloader_state_dict" in ckpt:
             train_loader.load_state_dict(ckpt["dataloader_state_dict"])  # type: ignore[attr-defined]
@@ -193,6 +212,25 @@ def train(
             device=device,
         )
         ckpt = torch.load(checkpoint_dir / CHECKPOINT_LAST, map_location="cpu", weights_only=False)
+        # Restore early stopping state
+        if "early_stopping_state" in ckpt:
+            early_stopping.load_state_dict(ckpt["early_stopping_state"])
+            logger.info(
+                f"[RESUME] Restored early stopping state: "
+                f"best_score={early_stopping.best_score:.6f}, counter={early_stopping.counter}"
+            )
+        else:
+            logger.warning(
+                "[RESUME] No early stopping state in checkpoint - "
+                "early stopping will reset (expected before v4.2.0)"
+            )
+            # Backward compat: seed best_score from checkpoint's best_metric
+            # to prevent next validation from corrupting historical best
+            if "best_metric" in ckpt and ckpt["best_metric"] != 0.0:
+                early_stopping.best_score = ckpt["best_metric"]
+                logger.info(
+                    f"[RESUME] Seeded early_stopping.best_score from checkpoint: {early_stopping.best_score:.6f}"
+                )
         resume_batch_idx = 0
         resume_global_step = ckpt.get("global_step", 0)
         logger.info(f"Resumed from epoch {start_epoch + 1}, global_step {resume_global_step}")
@@ -261,6 +299,7 @@ def train(
                 scaler=scaler,
                 save_rng=True,
                 global_step=global_step,
+                extra={"early_stopping_state": early_stopping.state_dict()},
             )
             logger.info("[TIMEOUT] Saved timeout_exit.pt, resume with --resume flag")
             break
@@ -301,6 +340,7 @@ def train(
             log_weights=config.logging.log_weights,
             wandb_logger=wandb_logger,
             resume_batch_idx=resume_batch_idx if epoch == start_epoch else 0,
+            early_stopping_state=early_stopping.state_dict().copy(),
         )
 
         # Type narrowing for mypy
@@ -323,6 +363,7 @@ def train(
                 scaler=scaler,
                 save_rng=True,
                 global_step=global_step,
+                extra={"early_stopping_state": early_stopping.state_dict()},
             )
             logger.info("[SIGNAL] Saved signal_exit.pt, exiting gracefully")
             break
@@ -362,6 +403,7 @@ def train(
                 scaler=scaler,
                 save_rng=True,
                 global_step=global_step,
+                extra={"early_stopping_state": early_stopping.state_dict()},
             )
             logger.info("[SIGNAL] Saved signal_exit.pt, exiting gracefully")
             break
@@ -469,6 +511,7 @@ def train(
                     scaler=scaler,  # Save scaler for FP16 resume
                     save_rng=True,  # Save RNG for deterministic resume
                     global_step=global_step,
+                    extra={"early_stopping_state": early_stopping.state_dict()},
                 )
                 # Log best model to W&B
                 wandb_logger.log_model(checkpoint_dir / CHECKPOINT_BEST, name=f"best-{metric_name}")
@@ -496,6 +539,7 @@ def train(
                 scaler=scaler,  # Save scaler for FP16 resume
                 save_rng=True,  # Save RNG for deterministic resume
                 global_step=global_step,
+                extra={"early_stopping_state": early_stopping.state_dict()},
             )
             logger.info(f"  Saved periodic checkpoint: {checkpoint_path.name}")
 
@@ -513,6 +557,7 @@ def train(
                 scaler=scaler,  # Save scaler for FP16 resume
                 save_rng=True,  # Save RNG for deterministic resume
                 global_step=global_step,
+                extra={"early_stopping_state": early_stopping.state_dict()},
             )
 
         # Check timeout after epoch completion (validation can be slow)
@@ -571,7 +616,14 @@ def main() -> None:
 
     # Load config
     config = Config.from_yaml(Path(args.config))
-    config.training.resume = args.resume
+
+    # Only override resume if explicitly set via CLI (preserves YAML default)
+    if args.resume:
+        config.training.resume = True
+
+    # Set seed FIRST (before any random operations, datasets, or DataLoaders)
+    # CRITICAL: Must be before DataLoader creation for deterministic shuffle
+    set_seed(config.experiment.seed)
 
     # Initialize logging with config-driven level (env > config > default precedence)
     log_level_env = os.getenv("BGB_LOG_LEVEL")
