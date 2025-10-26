@@ -12,7 +12,7 @@ import warnings
 from collections.abc import Sized
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from src.brain_brr.train.wandb_integration import WandBLogger
@@ -188,6 +188,7 @@ def train_epoch(
     log_weights: bool = False,
     wandb_logger: WandBLogger | None = None,
     resume_batch_idx: int = 0,
+    early_stopping_state: dict[str, Any] | None = None,
 ) -> float | tuple[float, int, GradScaler]:
     """Train for one epoch.
 
@@ -537,6 +538,13 @@ def train_epoch(
             ):
                 mid_path = checkpoint_dir / f"mid_epoch_{epoch_index + 1:03d}_{batch_idx:06d}.pt"
                 try:
+                    extra_metadata = {
+                        "batch_idx": batch_idx,
+                        "kind": "mid_epoch",
+                        "dataloader_state_dict": dataloader.state_dict(),  # type: ignore[attr-defined]
+                    }
+                    if early_stopping_state is not None:
+                        extra_metadata["early_stopping_state"] = early_stopping_state
                     save_checkpoint(
                         model,
                         optimizer,
@@ -548,11 +556,7 @@ def train_epoch(
                         scaler=scaler,  # Save scaler for FP16 resume
                         save_rng=True,  # Save RNG for deterministic resume
                         global_step=global_step,
-                        extra={
-                            "batch_idx": batch_idx,
-                            "kind": "mid_epoch",
-                            "dataloader_state_dict": dataloader.state_dict(),  # type: ignore[attr-defined]
-                        },
+                        extra=extra_metadata,
                     )
                     logger.info(f"[CHECKPOINT] Saved mid-epoch snapshot: {mid_path.name}")
                     last_mid_save = time.time()
