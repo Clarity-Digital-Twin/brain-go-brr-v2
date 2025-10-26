@@ -54,3 +54,25 @@ class EarlyStopping:
         self.counter += 1
         # Allow exactly `patience` non-improving epochs; stop on the next one.
         return self.counter > self.patience
+
+    def state_dict(self) -> dict:
+        """Get early stopping state for checkpointing.
+
+        Returns:
+            Dictionary containing early stopping state
+        """
+        return {
+            "best_score": self.best_score,
+            "counter": self.counter,
+            "best_epoch": self.best_epoch,
+        }
+
+    def load_state_dict(self, state: dict) -> None:
+        """Load early stopping state from checkpoint.
+
+        Args:
+            state: Dictionary containing early stopping state
+        """
+        self.best_score = state["best_score"]
+        self.counter = state["counter"]
+        self.best_epoch = state["best_epoch"]
