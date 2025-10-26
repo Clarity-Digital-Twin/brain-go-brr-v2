@@ -41,9 +41,13 @@ early_stopping:
 | 12 | 0.2801 | 92,424 | Oct 18 | Plateau (pre-crash) |
 | 13 | 0.2493 | 100,126 | Oct 23 | Post-resume, performance drop |
 | 14 | 0.2493 | 107,828 | Oct 24 | Matches epoch 13, plateau low |
-| 15 | TBD | TBD | Oct 24 | Training started 09:24 |
+| 15 | 0.2493 | 115,530 | Oct 24 | Plateau continues |
+| 16 | 0.2493 | 123,232 | Oct 25 | Plateau (3 epochs at 0.2493) |
+| 17 | 0.2577 | 130,934 | Oct 25 | 🎉 Recovery! +3.4% improvement |
+| 18 | In progress | TBD | Oct 26 | Crashed @ batch 4589, resumed from 4165 |
 
 **Best Overall**: 0.2801 @ Epoch 9 (Oct 16)
+**Post-Resume Best**: 0.2577 @ Epoch 17 (Oct 25) - Recovering!
 
 ---
 
@@ -53,7 +57,12 @@ early_stopping:
 - **Oct 18, 13:47**: WSL2 suspend (mid-epoch 13, batch 7355)
 - **Oct 23, 17:31**: Training resumed from mid-epoch checkpoint
 - **Oct 23, 23:15**: Epoch 13 completed
-- **Oct 24, 09:15**: Epoch 14 validation completing
+- **Oct 24, 09:24**: Epoch 14 complete (0.2493)
+- **Oct 24, 19:35**: Epoch 15 complete (0.2493)
+- **Oct 25, 05:46**: Epoch 16 complete (0.2493)
+- **Oct 25, 15:55**: Epoch 17 complete (0.2577 - recovery!)
+- **Oct 25, 18:39**: Epoch 18 crash (glibc malloc corruption, WSL2 issue)
+- **Oct 26, 09:53**: Training resumed from epoch 18, batch 4165
 
 ---
 
@@ -64,13 +73,16 @@ early_stopping:
 - Prompted investigation into overfitting hypothesis
 - Led to Exp1 (regularization) experiment
 
-### Post-Resume Performance Drop (Epochs 13-14)
-- Sensitivity dropped to 0.2493 after resume (from 0.2801 peak)
-- **-11% decline** from best (epoch 9)
-- Epoch 14 confirms this is real, not just variance
-- Both epochs 13-14 plateau at 0.2493
-- Possible causes: resume disruption, scheduler state, natural variance
-- Need to monitor epochs 15-17 to see if recovery occurs
+### Post-Resume Performance Pattern (Epochs 13-17)
+- **Initial Drop (Epochs 13-16)**: Sensitivity dropped to 0.2493 after resume (from 0.2801 peak)
+  - **-11% decline** from best (epoch 9)
+  - Plateaued for 4 epochs (13-16) at 0.2493
+  - Possible causes: resume disruption, scheduler state, natural variance
+
+- **Recovery Starting (Epoch 17)**: 🎉 **0.2577 (+3.4% improvement!)**
+  - First improvement in 5 epochs
+  - Still **-8%** below peak (0.2801) but trending up
+  - Suggests model is adapting and climbing back
 
 ### Experiment Context
 - **Exp1 (Regularization)**: Cancelled @ epoch 9, peaked at 0.2726 (worse than baseline)
@@ -107,4 +119,4 @@ Add the result to the table above.
 
 ---
 
-**Last Updated**: Oct 24, 2025 09:25 EDT (Epoch 14 complete, Epoch 15 training started)
+**Last Updated**: Oct 26, 2025 09:54 EDT (Epoch 18 in progress after crash recovery, **model is recovering - 0.2577!**)
