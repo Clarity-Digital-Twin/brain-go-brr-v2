@@ -150,7 +150,9 @@ def train(
 
     # Check for mid-epoch checkpoints first (for crash recovery)
     mid_epoch_checkpoints = sorted(checkpoint_dir.glob("mid_epoch_*.pt"))
-    logger.info(f"[DEBUG] config.training.resume={config.training.resume}, mid_checkpoints={len(mid_epoch_checkpoints)}")
+    logger.info(
+        f"[DEBUG] config.training.resume={config.training.resume}, mid_checkpoints={len(mid_epoch_checkpoints)}"
+    )
     if mid_epoch_checkpoints and config.training.resume:
         latest_mid = mid_epoch_checkpoints[-1]
         logger.info(f"[RESUME] Found mid-epoch checkpoint: {latest_mid.name}")
@@ -179,6 +181,13 @@ def train(
                 "[RESUME] No early stopping state in checkpoint - "
                 "early stopping will reset (expected before v4.2.0)"
             )
+            # Backward compat: seed best_score from checkpoint's best_metric
+            # to prevent next validation from corrupting historical best
+            if "best_metric" in ckpt and ckpt["best_metric"] != 0.0:
+                early_stopping.best_score = ckpt["best_metric"]
+                logger.info(
+                    f"[RESUME] Seeded early_stopping.best_score from checkpoint: {early_stopping.best_score:.6f}"
+                )
         # Restore DataLoader state for exact batch resume
         if "dataloader_state_dict" in ckpt:
             train_loader.load_state_dict(ckpt["dataloader_state_dict"])  # type: ignore[attr-defined]
@@ -218,6 +227,13 @@ def train(
                 "[RESUME] No early stopping state in checkpoint - "
                 "early stopping will reset (expected before v4.2.0)"
             )
+            # Backward compat: seed best_score from checkpoint's best_metric
+            # to prevent next validation from corrupting historical best
+            if "best_metric" in ckpt and ckpt["best_metric"] != 0.0:
+                early_stopping.best_score = ckpt["best_metric"]
+                logger.info(
+                    f"[RESUME] Seeded early_stopping.best_score from checkpoint: {early_stopping.best_score:.6f}"
+                )
         resume_batch_idx = 0
         resume_global_step = ckpt.get("global_step", 0)
         logger.info(f"Resumed from epoch {start_epoch + 1}, global_step {resume_global_step}")
@@ -603,7 +619,10 @@ def main() -> None:
 
     # Load config
     config = Config.from_yaml(Path(args.config))
-    config.training.resume = args.resume
+
+    # Only override resume if explicitly set via CLI (preserves YAML default)
+    if args.resume:
+        config.training.resume = True
 
     # Set seed FIRST (before any random operations, datasets, or DataLoaders)
     # CRITICAL: Must be before DataLoader creation for deterministic shuffle
