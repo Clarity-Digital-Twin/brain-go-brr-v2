@@ -150,9 +150,6 @@ def train(
 
     # Check for mid-epoch checkpoints first (for crash recovery)
     mid_epoch_checkpoints = sorted(checkpoint_dir.glob("mid_epoch_*.pt"))
-    logger.info(
-        f"[DEBUG] config.training.resume={config.training.resume}, mid_checkpoints={len(mid_epoch_checkpoints)}"
-    )
     if mid_epoch_checkpoints and config.training.resume:
         latest_mid = mid_epoch_checkpoints[-1]
         logger.info(f"[RESUME] Found mid-epoch checkpoint: {latest_mid.name}")
