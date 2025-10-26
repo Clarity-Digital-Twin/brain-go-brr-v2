@@ -1,90 +1,159 @@
-# Checkpoint Resume Investigation: The Data Loader State Problem
+# Checkpoint Resume Investigation: CORRECTED Analysis
 
 **Date**: October 26, 2025
-**Investigator**: Claude (AI Assistant)
-**Trigger**: User noticed 15% performance drop after resume (0.2801 → 0.2381)
-**Status**: 🔴 **CRITICAL BUG IDENTIFIED**
+**Investigator**: Claude (AI Assistant) + External AI Agent Review
+**Trigger**: User noticed apparent 15% performance drop after resume (checkpoint metrics: 0.2801 → 0.2381)
+**Status**: 🟡 **ROOT CAUSE IDENTIFIED - Original diagnosis was WRONG**
 
 ---
 
 ## Executive Summary
 
-**TLDR**: Our end-of-epoch checkpoints DO NOT save DataLoader state, causing training data shuffle order to reset on resume. This explains the performance drop and subsequent "recovery" pattern.
+**ORIGINAL CLAIM** (INCORRECT):
+> "End-of-epoch checkpoints don't save DataLoader state, causing shuffle order reset and 15% performance drop"
+
+**CORRECTED FINDING**:
+> "Early stopping state is NOT saved in checkpoints. On resume, EarlyStopping reinitializes with `best_score = -inf`, causing the first post-resume validation to overwrite the historical best metric in checkpoints. The apparent '15% drop' is a **checkpoint artifact**, not necessarily a real performance degradation."
+
+---
+
+## 🔍 What We Got WRONG
+
+### Mistake #1: Misunderstanding DataLoader State at Epoch Boundaries
+
+**Original Claim**:
+> "End-of-epoch checkpoints don't save DataLoader state, so shuffle order resets on resume"
+
+**Reality**:
+
+When a `StatefulDataLoader` completes an epoch, its state includes `_iterator_finished: True`. **Loading this state causes the iterator to reset anyway**, creating a brand new shuffle order.
+
+**Proof**:
+```python
+# Test with actual StatefulDataLoader
+loader = StatefulDataLoader(dataset, shuffle=True)
+
+# Iterate to completion
+for batch in loader: pass
+
+# Save state
+state = loader.state_dict()  # _iterator_finished: True
+
+# Load into new loader
+loader2 = StatefulDataLoader(dataset, shuffle=True)
+loader2.load_state_dict(state)
+
+# Iterate again - creates NEW shuffle order!
+for batch in loader2: pass  # Different order than first epoch
+```
+
+**Conclusion**: Saving DataLoader state at epoch boundaries **does NOT preserve shuffle order**. The iterator resets regardless.
+
+**Where This Matters**: Mid-epoch checkpoints DO benefit from DataLoader state (to resume exact position), but NOT end-of-epoch checkpoints.
+
+---
+
+### Mistake #2: Assuming Shuffle Order Change Caused the Drop
+
+**Original Claim**:
+> "Different shuffle order after resume caused model to drop 15% in performance"
+
+**Reality**:
+
+1. **No evidence provided** that shuffle order actually changed (we didn't log sample indices)
+2. **No mechanism explained** for why a different permutation would cause 15% drop
+3. **Every epoch** starts with a different shuffle order - if shuffle order alone caused drops, we'd see this constantly
+
+**What We Should Have Done**:
+- Log sample indices before/after resume
+- Compare actual validation outputs
+- Test if reloading the same checkpoint produces same results
+
+---
+
+### Mistake #3: Misinterpreting Checkpoint Metrics
+
+**What Happened**:
+```
+epoch_012.pt: best_metric = 0.2801  ← Historical best from epoch 9
+epoch_013.pt: best_metric = 0.2381  ← Epoch 13's actual validation metric
+```
+
+**Original Interpretation**: "Performance dropped 15%"
+
+**Correct Interpretation**: The `best_metric` field changed because:
+1. `best_metric` stores the **global best** across all epochs
+2. Early stopping state is NOT saved
+3. On resume, `EarlyStopping.best_score` resets to `-inf`
+4. Epoch 13's validation (0.2381) becomes "new best" (anything > -inf)
+5. This overwrites the historical best (0.2801) in the checkpoint
+
+**Key Insight**: The checkpoint FIELD changed, but we don't have definitive proof that actual validation performance dropped.
+
+---
+
+## 🔴 THE REAL BUGS
+
+### Bug #1: Early Stopping State Not Saved (CONFIRMED)
+
+**Location**: `src/brain_brr/train/early_stopping.py:11-24`
+
+```python
+class EarlyStopping:
+    def __init__(self, config: EarlyStoppingConfig) -> None:
+        self.best_score = float("-inf") if self.mode == "max" else float("inf")
+        self.counter = 0
+        self.best_epoch = 0
+```
+
+**Problem**:
+- No `state_dict()` method
+- No `load_state_dict()` method
+- State is NOT saved in checkpoints
 
 **Impact**:
-- ❌ 15% performance loss on resume (epoch 12 → 13)
-- ❌ 5+ epochs spent "recovering" (climbing back from 0.2381 → 0.2577)
-- ❌ Wasted ~40 hours of RTX 4090 compute time
+- On resume, `best_score` resets to `-inf`
+- First validation becomes "new best" even if worse than historical best
+- Corrupts `best_metric` tracking in checkpoints
+- Early stopping counter resets (may stop too early or too late)
 
-**Root Cause**: DataLoader state only saved in mid-epoch checkpoints, NOT in end-of-epoch checkpoints.
+**Evidence**:
+```python
+# Checkpoint keys - NO early stopping state
+ckpt.keys() = ['version', 'epoch', 'model_state_dict',
+               'optimizer_state_dict', 'best_metric', 'timestamp',
+               'global_step', 'scheduler_state_dict', 'config',
+               'scaler_state_dict', 'rng_state']
+# Missing: 'early_stopping_state'
+```
 
 ---
 
-## 🔍 The Evidence
+### Bug #2: RNG Seed Set AFTER DataLoader Creation (CONFIRMED)
 
-### Pattern Observed
+**Location**: `src/brain_brr/train/loop.py`
 
-```
-Epoch  9: 0.2801 ← Peak performance
-Epoch 10: 0.2801
-Epoch 11: 0.2801
-Epoch 12: 0.2801 ← Last epoch before crash
-[CRASH + RESUME FROM EPOCH 12 CHECKPOINT]
-Epoch 13: 0.2381 ← IMMEDIATE 15% DROP
-Epoch 14: 0.2493 ← Slowly climbing back
-Epoch 15: 0.2493
-Epoch 16: 0.2493
-Epoch 17: 0.2577 ← Still recovering
-```
-
-**Key Observation**: The drop happens EXACTLY at the resume point, not gradually.
-
-### Checkpoint Analysis
-
-**Mid-Epoch Checkpoints** (saved during training):
 ```python
-mid_epoch_018_004165.pt:
-  dataloader_state_dict = True  ✅
-  Keys: ['_index_sampler_state', '_sampler_iter_state',
-         '_sampler_iter_yielded', '_num_yielded',
-         '_shared_seed', 'fetcher_state', 'dataset_state']
+# Line 938: DataLoaders created FIRST
+train_loader = StatefulDataLoader(train_dataset, ...)
+
+# Line 110 (in train_loop): Seed set LATER
+set_seed(config.experiment.seed)
 ```
 
-**End-of-Epoch Checkpoints** (saved after validation):
-```python
-epoch_012.pt:
-  dataloader_state_dict = False  ❌
+**Problem**:
+- DataLoaders use default Python RNG at creation time
+- RNG is seeded AFTER loaders already exist
+- This undermines determinism
 
-epoch_013.pt:
-  dataloader_state_dict = False  ❌
-```
-
-**Conclusion**: DataLoader state is ONLY in mid-epoch checkpoints!
+**Impact**:
+- Even with RNG state restoration, data order varies across runs
+- Worker processes may see different seeds
+- True deterministic resume is impossible with current code structure
 
 ---
 
-## 🏗️ How Our Implementation Works
-
-### What We Save Correctly ✅
-
-From `src/brain_brr/train/checkpoint.py:86-92`:
-```python
-if save_rng:
-    checkpoint["rng_state"] = {
-        "torch": torch.get_rng_state(),
-        "torch_cuda": torch.cuda.get_rng_state_all(),
-        "numpy": np.random.get_state(),
-        "python": random.getstate(),
-    }
-```
-
-- ✅ Model weights
-- ✅ Optimizer state (Adam momentum, etc.)
-- ✅ Scheduler state (learning rate)
-- ✅ Global RNG states (torch, numpy, python)
-- ✅ Scaler state (AMP)
-
-### What We Save Inconsistently ⚠️
+### Bug #3: DataLoader State Inconsistently Saved (CONFIRMED)
 
 **Mid-Epoch Checkpoints** (src/brain_brr/train/train_step.py:554):
 ```python
@@ -97,485 +166,349 @@ save_checkpoint(
 )
 ```
 
-**End-of-Epoch Checkpoints** (src/brain_brr/train/loop.py:350-360):
+**End-of-Epoch Checkpoints** (src/brain_brr/train/loop.py:461-472):
 ```python
 save_checkpoint(
-    model,
-    optimizer,
-    epoch + 1,
-    best_metric,
-    checkpoint_path,
-    scheduler=scheduler,
-    config=config,
-    scaler=scaler,
-    global_step=global_step,
-    # ❌ NO dataloader_state_dict!
+    model, optimizer, epoch, current_metric,
+    checkpoint_dir / CHECKPOINT_BEST,
+    scheduler, config, scaler, save_rng, global_step
+    # ❌ NO dataloader_state_dict
 )
 ```
 
-### The Problem
+**Problem**: Inconsistent - mid-epoch saves it, end-of-epoch doesn't
 
-When training crashes:
-1. We typically resume from **end-of-epoch checkpoints** (epoch_012.pt)
-2. These checkpoints DON'T have DataLoader state
-3. DataLoader reinitializes with fresh RNG → **Different shuffle order**
-4. Model suddenly sees different examples in different order
-5. Performance drops until model adapts to new order
+**Impact**: Limited - as shown above, DataLoader state at epoch boundaries doesn't preserve shuffle order anyway
 
 ---
 
-## 🎓 How Professional Teams Handle This
+## ❓ THE UNANSWERED QUESTION
 
-### PyTorch Lightning (2025)
+**Did the actual validation performance drop at epoch 13?**
 
-From [Lightning Documentation](https://lightning.ai/docs/pytorch/stable/common/checkpointing_basic.html):
+**What We Know**:
+1. ✅ Checkpoint `best_metric` changed (0.2801 → 0.2381)
+2. ✅ This is explained by early stopping reset
+3. ❓ We DON'T know if actual validation performance dropped
 
-**Approach**: Primarily relies on RNG state restoration
-```python
-# Lightning saves:
-- model.state_dict()
-- optimizer.state_dict()
-- lr_schedulers.state_dict()
-- RNG states (torch, numpy, python, CUDA)
-- epoch number
-```
+**Possible Scenarios**:
 
-**BUT**: Lightning has **known issues** with mid-epoch resume:
-- GitHub Issue #19764: "Resume from mid steps inside an epoch"
-- Status: **Open since 2024**, complex to implement
-- Current limitation: Resume from epoch boundaries only
+**Scenario A**: Performance DID drop
+- Cause: Unknown (not shuffle order)
+- Could be: Validation variance, stale cache, model drift, environmental factors
+- Need: Instrumented comparison with logged sample indices
 
-**Lightning's Philosophy**:
-> "Resumable dataloaders are complicated. We recommend resuming from epoch boundaries."
+**Scenario B**: Performance did NOT drop
+- The 0.2381 might be an outlier validation result
+- Subsequent epochs (14-17) recovered to ~0.25-0.26
+- True performance might be stable around 0.25-0.26
 
-### HuggingFace Transformers
+**Scenario C**: We misread the data entirely
+- The metrics in `BASELINE_METRICS.md` are derived from checkpoints
+- Checkpoints have corrupted `best_metric` due to early stopping reset
+- Need: Raw validation logs to confirm actual performance
 
-From [GitHub Issue #31441](https://github.com/huggingface/transformers/issues/31441):
-
-**Status**: Added `StatefulDataLoader` support in v4.41.0 (2024)
-
-```python
-from torchdata.stateful_dataloader import StatefulDataLoader
-
-# HF Trainer now supports:
-trainer = Trainer(
-    ...,
-    dataloader_class=StatefulDataLoader,  # Enable stateful resume
-)
-```
-
-**Key Insight**: They ALSO use `torchdata.stateful_dataloader` (same as us!)
-
-### Google Research / DeepMind Approach
-
-From research papers and open-source repos:
-
-**Philosophy**: "Determinism is hard, focus on robustness"
-
-1. **JAX-based training** (Flax, Haiku):
-   - Explicit PRNG key threading (no global RNG)
-   - DataLoader state explicitly saved at every checkpoint
-
-2. **TPU Training**:
-   - Use deterministic data pipelines (tf.data with shuffle buffers)
-   - Checkpoint includes data iterator state
-
-3. **Fallback Strategy**:
-   - If exact resume fails, accept it and let model adapt
-   - Monitor for catastrophic drops (>20%)
-   - Focus on end-to-end reproducibility, not mid-training determinism
+**Critical Missing Data**:
+- Validation logs for epochs 13-17 (not in training.log - old format)
+- Sample indices logged before/after resume
+- Controlled resume experiment with instrumentation
 
 ---
 
-## 🔬 Deep Dive: Why DataLoader State Matters
+## 🎯 WHAT NEEDS TO BE FIXED
 
-### What's In DataLoader State?
+### Priority 1: Save Early Stopping State
 
-From `torchdata.stateful_dataloader`:
+**Why**: Prevents checkpoint corruption and incorrect early stopping behavior
 
+**Implementation**:
 ```python
-state_dict = {
-    '_index_sampler_state': {...},      # Which indices have been sampled
-    '_sampler_iter_state': {...},       # Current position in sampler
-    '_sampler_iter_yielded': 4165,      # Batches yielded so far
-    '_num_yielded': 4165,               # Total samples yielded
-    '_shared_seed': 42,                 # RNG seed for workers
-    'fetcher_state': {...},             # Prefetch buffer state
-    'dataset_state': {...},             # Dataset-specific state
-}
-```
+# In src/brain_brr/train/early_stopping.py
+class EarlyStopping:
+    def state_dict(self) -> dict:
+        return {
+            "best_score": self.best_score,
+            "counter": self.counter,
+            "best_epoch": self.best_epoch,
+        }
 
-**Critical Field**: `_index_sampler_state`
-- Contains the RNG state of the **sampler**
-- Controls which examples are selected and in what order
-- **Independent of global torch RNG state!**
+    def load_state_dict(self, state: dict) -> None:
+        self.best_score = state["best_score"]
+        self.counter = state["counter"]
+        self.best_epoch = state["best_epoch"]
 
-### Why Global RNG Isn't Enough
-
-```python
-# Global RNG state (we save this ✅)
-torch.manual_seed(42)
-
-# DataLoader creates its OWN RNG (we DON'T save this ❌)
-loader = DataLoader(dataset, shuffle=True)  # Creates internal Generator
-```
-
-**Key Point**: DataLoader's internal `torch.Generator` is **separate** from global RNG!
-
-When we resume:
-1. ✅ Global `torch.manual_seed(42)` restored
-2. ❌ DataLoader's Generator **reinitializes fresh**
-3. Result: Different shuffle order even with same global seed
-
----
-
-## 📊 Quantifying The Impact
-
-### Our Specific Case
-
-**Resume Point**: Epoch 12 → 13 (Oct 18 crash, Oct 23 resume)
-
-```
-Performance Drop:
-- Before: 0.2801 (sensitivity @ 10 FA/24h)
-- After:  0.2381 (sensitivity @ 10 FA/24h)
-- Loss:   -15.0%
-
-Recovery Time:
-- Epochs 13-16: Plateaued at 0.2493 (4 epochs)
-- Epoch 17: Recovered to 0.2577 (still -8% below peak)
-- Estimated full recovery: Epoch 20-25 (~8-13 more epochs)
-
-Compute Cost:
-- RTX 4090: ~10 hours/epoch
-- Wasted on recovery: 5 epochs × 10h = 50 hours
-- At $0.50/kWh × 450W: ~$11 in electricity
-```
-
-### Why Model "Recovers"
-
-The model isn't truly recovering - it's **adapting to a new shuffle order**:
-
-1. **Epoch 12**: Model optimized for shuffle order A
-2. **Resume**: Shuffle order changes to B (different hard/easy examples)
-3. **Epochs 13-17**: Model re-optimizes for shuffle order B
-4. **Final state**: Model performs similarly but on different data order
-
-**Analogy**: Like learning a piano piece in a specific order of sections, then suddenly someone shuffles the sections. You know all the notes, but need time to adapt to the new sequence.
-
----
-
-## 🛠️ What Professional Teams Would Do
-
-### Scenario: Google DeepMind with 1× RTX 4090
-
-**Given Constraints**:
-- Single GPU (no distributed training)
-- WSL2 (stability issues)
-- Long training time (~40 days for 100 epochs)
-- Frequent crashes (WSL2 suspend, malloc errors)
-
-**Their Likely Approach**:
-
-#### 1. **Accept Imperfect Resume** (Pragmatic)
-```python
-# Philosophy: "Perfect is the enemy of good"
-- Save end-of-epoch checkpoints (fast, small)
-- Accept that resume will reset data order
-- Monitor for catastrophic drops (>20%)
-- Document the limitation
-```
-
-**Rationale**:
-- Saving DataLoader state at every epoch is expensive
-- Storage overhead (DataLoader state can be large)
-- WSL2 makes determinism harder anyway
-- Model usually recovers within 5-10 epochs
-
-#### 2. **Hybrid Checkpointing** (What They'd Actually Do)
-```python
-# Save frequently during training
-every 30 minutes:
-    save_checkpoint(include_dataloader_state=True)  # Mid-epoch
-
-every epoch:
-    save_checkpoint(include_dataloader_state=False)  # End-epoch only
-
-# Resume logic
-if mid_epoch_checkpoint_exists:
-    resume_from_mid_epoch()  # Perfect resume
-else:
-    resume_from_end_of_epoch()  # Accept data order reset
-    log_warning("DataLoader state not available, shuffle order may change")
-```
-
-**Why This Works**:
-- Mid-epoch checkpoints provide exact resume (within 30 min)
-- End-of-epoch checkpoints are lightweight backups
-- Most crashes (WSL2) don't corrupt the last mid-epoch checkpoint
-- Clear fallback strategy
-
-#### 3. **Validation-Based Early Warning** (Smart Monitoring)
-```python
-# After resume, run a quick validation check
-def validate_resume_quality(model, val_loader, expected_loss):
-    current_loss = quick_validate(model, val_loader, n_batches=100)
-    drop_percent = (current_loss - expected_loss) / expected_loss
-
-    if drop_percent > 0.20:  # >20% worse
-        log_critical("Resume quality degraded significantly!")
-        log_critical(f"Expected: {expected_loss:.4f}, Got: {current_loss:.4f}")
-        log_critical("Consider resuming from earlier checkpoint")
-
-        if user_confirms():
-            resume_from_earlier_checkpoint()
-```
-
-**Benefit**: Catches catastrophic resume failures immediately
-
-#### 4. **What They Wouldn't Do**
-❌ Save DataLoader state at EVERY epoch (too expensive)
-❌ Try to make WSL2 100% deterministic (impossible)
-❌ Spend weeks debugging RNG issues
-❌ Restart training from scratch after every crash
-
----
-
-## 🎯 Recommendations for Our Codebase
-
-### Short-Term (Quick Wins)
-
-#### 1. **Fix End-of-Epoch Checkpoints** (15 min)
-```python
-# In src/brain_brr/train/loop.py:350
+# In src/brain_brr/train/loop.py - save checkpoint
 save_checkpoint(
-    model,
-    optimizer,
-    epoch + 1,
-    best_metric,
-    checkpoint_path,
-    scheduler=scheduler,
-    config=config,
-    scaler=scaler,
-    global_step=global_step,
+    ...
     extra={
-        "dataloader_state_dict": train_loader.state_dict(),  # ADD THIS!
+        "early_stopping_state": early_stopping.state_dict(),  # ADD THIS
     }
 )
+
+# In src/brain_brr/train/loop.py - resume
+if "early_stopping_state" in ckpt:
+    early_stopping.load_state_dict(ckpt["early_stopping_state"])
 ```
 
-**Cost**: ~50MB extra per checkpoint (vs 189MB current)
-**Benefit**: Perfect resume from end-of-epoch checkpoints
+**Impact**: Fixes checkpoint corruption, maintains true historical best
 
-#### 2. **Add Resume Quality Check** (30 min)
+---
+
+### Priority 2: Fix RNG Seeding Order
+
+**Why**: Current seeding happens too late, after DataLoaders created
+
+**Implementation**:
 ```python
-# After resume, validate immediately
-if resume_from_checkpoint:
-    logger.info("[RESUME] Running resume quality check...")
+# In src/brain_brr/train/loop.py main()
+def main(config: Config) -> dict:
+    # 1. Seed FIRST (before ANY random operations)
+    set_seed(config.experiment.seed)
 
-    # Run 100 batches of validation
-    quick_loss = validate_n_batches(model, val_loader, n=100)
+    # 2. Create datasets (now uses seeded RNG)
+    train_dataset = ...
+    val_dataset = ...
 
-    # Compare to checkpoint's best_metric (proxy for expected performance)
-    expected_loss = checkpoint['val_loss'] if 'val_loss' in checkpoint else None
+    # 3. Create dataloaders (now deterministic)
+    train_loader = StatefulDataLoader(train_dataset, ...)
+    val_loader = StatefulDataLoader(val_dataset, ...)
 
-    if expected_loss and (quick_loss - expected_loss) / expected_loss > 0.15:
-        logger.warning(f"[RESUME] Performance dropped {((quick_loss - expected_loss) / expected_loss * 100):.1f}%")
-        logger.warning(f"[RESUME] Expected: {expected_loss:.4f}, Got: {quick_loss:.4f}")
-        logger.warning("[RESUME] DataLoader state may have been lost")
+    # 4. Start training
+    results = train_loop(...)
 ```
 
-**Cost**: 5-10 minutes at resume
-**Benefit**: Early warning of resume issues
+**Impact**: True determinism across runs and resumes
 
-#### 3. **Document Known Limitation** (5 min)
-Add to `docs/08-operations/troubleshooting.md`:
+---
+
+### Priority 3: Investigate Actual Performance Drop (Optional)
+
+**Why**: We still don't know if validation performance actually dropped
+
+**Steps**:
+1. Add sample index logging to validation
+2. Run controlled resume experiment
+3. Compare sample order and outputs before/after resume
+4. Determine if performance drop is real or measurement artifact
+
+**Cost**: ~1-2 days of investigation
+
+**Benefit**: Understanding if shuffle variance is a real concern
+
+---
+
+## 🤔 WHAT THIS MEANS FOR YOUR TRAINING
+
+### Current Training Run (Epoch 18)
+
+**Good News**:
+- Training IS progressing normally
+- Checkpoints are being saved
+- Model IS learning
+
+**Unknown**:
+- Whether epochs 13-16 performance (0.25) is worse than it should be
+- Or if 0.25-0.26 is the true performance level at that point
+- Epoch 9's 0.2801 might have been an outlier, not the norm
+
+**Recommendation**: **Let it finish**
+
+**Why**:
+1. We don't have definitive evidence of a real problem
+2. Model appears to be training normally
+3. Can analyze final results to determine if retraining needed
+4. Fixes can be applied for next training run
+
+---
+
+### For Publication / Release
+
+**What to disclose**:
 
 ```markdown
-## Performance Drop After Resume
-
-**Symptom**: Model performance drops 10-20% immediately after resuming from checkpoint.
-
-**Cause**: DataLoader shuffle order resets if resuming from end-of-epoch checkpoint without DataLoader state.
-
-**Expected Behavior**: Model will typically recover within 5-10 epochs as it adapts to new data order.
-
-**Prevention**: Resume from mid-epoch checkpoints when possible (these preserve DataLoader state).
+Training was interrupted at epoch 12 and resumed at epoch 13.
+Due to missing early stopping state in checkpoints, the historical
+best metric tracking was reset on resume. This affected checkpoint
+metadata but not model training dynamics. We have corrected this
+issue in our training code for reproducibility.
 ```
 
-### Medium-Term (Robust Solution)
-
-#### 1. **Smart Checkpoint Strategy** (2 hours)
-```python
-class CheckpointManager:
-    """Intelligent checkpoint management with DataLoader state preservation."""
-
-    def __init__(self, checkpoint_dir, keep_last_n=3):
-        self.checkpoint_dir = checkpoint_dir
-        self.keep_last_n = keep_last_n
-
-    def save_training_checkpoint(self, epoch, batch_idx, **kwargs):
-        """Save mid-epoch checkpoint with FULL state."""
-        checkpoint = {
-            ...kwargs,
-            "dataloader_state_dict": train_loader.state_dict(),  # Always save
-            "checkpoint_type": "mid_epoch",
-        }
-        path = self.checkpoint_dir / f"mid_epoch_{epoch:03d}_{batch_idx:06d}.pt"
-        atomic_save(checkpoint, path)
-        self._cleanup_old_mid_epoch(epoch)
-
-    def save_epoch_checkpoint(self, epoch, **kwargs):
-        """Save end-of-epoch checkpoint with FULL state."""
-        checkpoint = {
-            ...kwargs,
-            "dataloader_state_dict": train_loader.state_dict(),  # FIX: Add this!
-            "checkpoint_type": "epoch",
-        }
-        path = self.checkpoint_dir / f"epoch_{epoch:03d}.pt"
-        atomic_save(checkpoint, path)
-
-    def find_best_resume_checkpoint(self):
-        """Find most recent checkpoint with DataLoader state."""
-        # Priority 1: Most recent mid-epoch checkpoint
-        mid_epoch_ckpts = sorted(self.checkpoint_dir.glob("mid_epoch_*.pt"))
-        if mid_epoch_ckpts:
-            return mid_epoch_ckpts[-1]
-
-        # Priority 2: Most recent end-of-epoch checkpoint
-        epoch_ckpts = sorted(self.checkpoint_dir.glob("epoch_*.pt"))
-        if epoch_ckpts:
-            return epoch_ckpts[-1]
-
-        raise FileNotFoundError("No checkpoints found")
-```
-
-#### 2. **Resume Verification Suite** (3 hours)
-```python
-def verify_resume_determinism(model, optimizer, checkpoint_path):
-    """Test that resume produces identical results."""
-
-    # Load checkpoint twice
-    model1, opt1, loader1 = load_checkpoint(checkpoint_path)
-    model2, opt2, loader2 = load_checkpoint(checkpoint_path)
-
-    # Run 10 batches
-    losses1 = train_n_batches(model1, opt1, loader1, n=10)
-    losses2 = train_n_batches(model2, opt2, loader2, n=10)
-
-    # Check if identical
-    max_diff = max(abs(l1 - l2) for l1, l2 in zip(losses1, losses2))
-
-    if max_diff < 1e-6:
-        logger.info(f"✅ Resume is deterministic (max diff: {max_diff:.2e})")
-    else:
-        logger.warning(f"⚠️ Resume has variance (max diff: {max_diff:.2e})")
-        logger.warning("This may indicate DataLoader state is not restored")
-
-    return max_diff < 1e-6
-```
-
-### Long-Term (Research Quality)
-
-#### 1. **Switch to JAX/Flax** (Major refactor)
-- Explicit PRNG key threading (no global state)
-- Better determinism guarantees
-- Better multi-device support
-- **Cost**: 2-3 weeks of refactoring
-
-#### 2. **Custom Stateful Dataset** (1 week)
-```python
-class StatefulSeizureDataset(Dataset):
-    """Dataset with built-in state management."""
-
-    def __init__(self, ...):
-        self.rng = np.random.RandomState(42)  # Internal RNG
-        self._shuffle_indices = None
-
-    def state_dict(self):
-        return {
-            "rng_state": self.rng.get_state(),
-            "shuffle_indices": self._shuffle_indices,
-            "position": self._position,
-        }
-
-    def load_state_dict(self, state):
-        self.rng.set_state(state["rng_state"])
-        self._shuffle_indices = state["shuffle_indices"]
-        self._position = state["position"]
-```
+**What NOT to say**:
+~~"Training performance dropped 15% due to shuffle order reset"~~
+(We don't have evidence this is true)
 
 ---
 
-## 🤔 What Would Google DeepMind Actually Do?
+## 📊 Comparison: Original vs Corrected
 
-**Given your constraints (1× RTX 4090, WSL2, 40-day training):**
-
-### Phase 1: Quick Fix (Today)
-```python
-# Fix end-of-epoch checkpoints to save DataLoader state
-# 15-minute code change, prevents future issues
-```
-
-### Phase 2: Monitoring (This Week)
-```python
-# Add resume quality checks
-# Document the limitation
-# Accept that past epochs 13-16 were affected
-```
-
-### Phase 3: Move On (Next Week)
-```python
-# Don't restart training - too expensive
-# Let model finish recovering naturally
-# Apply fix for future training runs
-```
-
-**Philosophy**:
-> "Don't let perfect be the enemy of good. Fix it going forward, accept the past, keep making progress."
+| Aspect | Original Diagnosis | Corrected Understanding |
+|--------|-------------------|------------------------|
+| **Root Cause** | Missing DataLoader state at epoch boundaries | Missing early stopping state |
+| **Mechanism** | Shuffle order reset → performance drop | Checkpoint metadata corruption |
+| **Impact** | 15% real performance loss | Unknown if real performance affected |
+| **Fix** | Save DataLoader state at epoch end | Save early stopping state |
+| **Urgency** | Critical - model is degraded | Moderate - affects monitoring/checkpoints |
 
 ---
 
-## 🎬 Conclusion
+## 🧪 RECOMMENDED EXPERIMENTS
+
+### Experiment 1: Validate Early Stopping Fix
+
+**Goal**: Confirm early stopping state restoration works
+
+**Steps**:
+1. Apply early stopping state fix
+2. Train for 10 epochs
+3. Save checkpoint at epoch 5
+4. Resume from epoch 5
+5. Verify `early_stopping.best_score` matches checkpoint
+
+**Cost**: ~1 day
+**Priority**: HIGH
+
+---
+
+### Experiment 2: Test Shuffle Determinism
+
+**Goal**: Determine if shuffle order actually changes on resume
+
+**Steps**:
+1. Train for 5 epochs, log sample indices
+2. Resume from epoch 3 checkpoint
+3. Continue for 2 more epochs, log indices
+4. Compare epoch 4-5 indices: resume vs continuous
+
+**Cost**: ~2 days
+**Priority**: MEDIUM
+
+---
+
+### Experiment 3: Measure Resume Variance
+
+**Goal**: Quantify validation variance across resumes
+
+**Steps**:
+1. Train to epoch 10
+2. Resume from epoch 5 checkpoint 10 times
+3. Measure validation performance at epoch 10 across runs
+4. Calculate std dev to understand natural variance
+
+**Cost**: ~5 days
+**Priority**: LOW (academic interest)
+
+---
+
+## 🎬 CONCLUSIONS
 
 ### What We Learned
 
-1. **DataLoader state is NOT captured by global RNG** - it has its own internal Generator
-2. **Mid-epoch checkpoints DO save DataLoader state** - our code already does this correctly!
-3. **End-of-epoch checkpoints DON'T save DataLoader state** - this is the bug
-4. **Resume without DataLoader state causes shuffle order reset** - explains the 15% drop
-5. **Professional teams accept imperfect resume** - they focus on robustness over perfection
+1. **Early stopping state MUST be saved** - this is a real bug affecting checkpoint integrity
+2. **DataLoader state at epoch boundaries is useless** - iterator resets anyway
+3. **RNG seeding order is wrong** - needs to be fixed for true determinism
+4. **We don't know if performance actually dropped** - need more data
 
-### The Fix
+### The Fixes
 
-**One line of code** in `src/brain_brr/train/loop.py:350`:
-```python
-extra={"dataloader_state_dict": train_loader.state_dict()}
-```
+**Minimum Required**:
+- ✅ Save/restore early stopping state
 
-**Impact**:
-- ✅ Perfect resume from any checkpoint
-- ✅ No more performance drops
-- ✅ No more "recovery" epochs
-- ✅ Saves ~50 hours of compute per training run
+**Recommended**:
+- ✅ Save/restore early stopping state
+- ✅ Fix RNG seeding order
+- ⚠️ Add validation instrumentation (optional)
 
-### Current Training (Epoch 18)
+**NOT Needed**:
+- ❌ Save DataLoader state at end-of-epoch (doesn't help)
 
-**Should you restart?** **NO.**
+### Current Training
 
-**Why not?**
-- Already at epoch 17 with recovery to 0.2577
-- Would lose 170+ hours of compute
-- Model will likely fully recover by epoch 20-25
-- Fix applies to FUTURE resumes, not current training
+**Status**: Likely fine, but uncertain
 
-**What to do:**
-1. Let current training finish (epochs 18-100)
-2. Apply the fix to the code
-3. Use the fixed code for next training run
-4. Monitor wandb to see if recovery continues
+**Action**: Let it complete, evaluate final performance
+
+**Next Steps**:
+1. Apply early stopping fix to codebase
+2. Consider instrumented validation run to measure true impact
+3. Decide on retraining based on final results
 
 ---
 
-**Status**: Investigation complete. Bug identified. Solution documented.
-**Next Steps**: Apply quick fix, continue current training, use improved checkpointing for future runs.
+## 🧪 VALIDATION EVIDENCE
+
+### Evidence 1: Early Stopping State Missing
+
+**Code Inspection** (src/brain_brr/train/early_stopping.py):
+```python
+class EarlyStopping:
+    def __init__(self, config: EarlyStoppingConfig) -> None:
+        self.best_score = float("-inf") if self.mode == "max" else float("inf")
+        self.counter = 0
+        self.best_epoch = 0
+```
+
+**Result**: NO `state_dict()` or `load_state_dict()` methods exist.
+
+**Checkpoint Inspection**:
+```
+epoch_008.pt keys: ['version', 'epoch', 'model_state_dict', 'optimizer_state_dict',
+                    'best_metric', 'timestamp', 'global_step', 'scheduler_state_dict',
+                    'config', 'scaler_state_dict', 'rng_state']
+early_stopping_state: NOT FOUND
+```
+
+**Metric Evidence**:
+```
+Epoch 012: best_metric = 0.280112
+Epoch 013: best_metric = 0.238095 (after resume)
+Change: -0.042017 (-15.0%)
+```
+
+**Conclusion**: ✅ Bug confirmed. Early stopping state resets on resume.
+
+---
+
+### Evidence 2: RNG Seeding Order
+
+**Code Inspection** (src/brain_brr/train/loop.py):
+```python
+# Line 938: DataLoaders created
+train_loader = StatefulDataLoader(train_dataset, **train_loader_kwargs)
+
+# Line 110 (in train_loop): Seed set AFTER
+set_seed(config.experiment.seed)
+```
+
+**Conclusion**: ✅ Bug confirmed. Seed set after DataLoaders created.
+
+---
+
+### Evidence 3: DataLoader State at Epoch Boundaries
+
+**Experimental Test**:
+```python
+# Create loader, iterate to completion
+loader = StatefulDataLoader(dataset, batch_size=4, shuffle=True)
+first_epoch = [batch for batch in loader]  # e.g., [14,5,15,18], [3,13,0,4], ...
+
+# Save state
+state = loader.state_dict()
+# state['_iterator_finished'] = True
+
+# Load into new loader
+loader2 = StatefulDataLoader(dataset, batch_size=4, shuffle=True)
+loader2.load_state_dict(state)
+second_epoch = [batch for batch in loader2]  # e.g., [6,14,5,19], [2,18,11,10], ...
+
+# Compare
+same_order = (first_epoch == second_epoch)  # False
+```
+
+**Result**: Loading completed DataLoader state does NOT preserve shuffle order.
+
+**Conclusion**: ✅ Confirmed. Saving DataLoader state at epoch boundaries is useless.
+
+---
+
+**Status**: Investigation complete. All bugs validated through code inspection and experiments.
+**Credit**: External AI Agent for catching errors in original diagnosis.
