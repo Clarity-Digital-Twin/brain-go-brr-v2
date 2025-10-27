@@ -6,14 +6,15 @@
 [![PyTorch 2.5.0](https://img.shields.io/badge/pytorch-2.5.0-red.svg)](https://pytorch.org)
 [![CUDA 12.4](https://img.shields.io/badge/cuda-12.4-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
-[![v4.1.0](https://img.shields.io/badge/version-4.1.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v4.1.0-nedc-eval-docs-optimization)
+[![v4.2.0](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v4.2.0-checkpoint-resume-fixes)
 
-**Current Status (v4.1.0):**
-- 📊 **FLA Baseline**: Complete - 0.284 @ 10 FA/24h (epoch 9 best, stopped epoch 13)
-- 🧪 **Exp1 (Regularization)**: Running epoch 5, testing if stronger regularization improves baseline
-- 🔄 **Next**: Resume baseline with patience=20 after exp1 completes (tests "second peak" hypothesis)
+**Current Status (v4.2.0):**
+- ✅ **Checkpoint Resume Fixed**: Early stopping state persistence, CLI flag fix, RNG determinism (v4.2.0)
+- 🔄 **FLA Baseline**: RESUMED at Epoch 18/100 with patience=20 (training epoch 18, batch 3852/7702)
+- 📊 **Previous Best**: 0.284 @ 10 FA/24h (epoch 9), testing "second peak" hypothesis with extended patience
+- 🧪 **Exp1 (Regularization)**: Complete (stronger regularization did not improve baseline)
 - ⏸️ **BiMamba2 Stack**: PAUSED at Epoch 6 (Modal A100, $1.1k spent, checkpoints backed up)
-- ✅ **NEDC Evaluation**: Official clinical metrics now available via `--nedc` flag
+- ✅ **NEDC Evaluation**: Official clinical metrics available via `--nedc` flag
 
 ---
 
@@ -438,7 +439,7 @@ We welcome contributions! See [`docs/09-development/`](docs/09-development/) for
   title = {Brain-Go-Brr V4: Clinical EEG Seizure Detection via Dual-Stack State-Space Models},
   author = {Clarity Digital Twin},
   year = {2025},
-  version = {4.0.0},
+  version = {4.2.0},
   url = {https://github.com/clarity-digital-twin/brain-go-brr-v2},
   note = {Empirical A/B comparison of BiMamba2 and Flash Linear Attention (BiGatedDeltaNet) architectures on TUSZ}
 }
@@ -479,6 +480,6 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 
 **Questions?** [Open an issue](https://github.com/clarity-digital-twin/brain-go-brr-v2/issues) • **Updates?** [Watch the repo](https://github.com/clarity-digital-twin/brain-go-brr-v2) • **Discussion?** [Start a discussion](https://github.com/clarity-digital-twin/brain-go-brr-v2/discussions)
 
-**Status**: FLA training active (Epoch 7/100) • BiMamba2 paused (Epoch 6, backed up) • See [`STATUS.md`](STATUS.md) for full details
+**Status**: v4.2.0 checkpoint resume fixes released • FLA training resumed (Epoch 18/100) • BiMamba2 paused (Epoch 6, backed up) • See [`STATUS.md`](STATUS.md) for full details
 
 </div>

@@ -160,3 +160,6 @@ reference_repos/
 
 # Literature references (keep local only)
 literature/
+
+# WandB local files (in project root)
+wandb/

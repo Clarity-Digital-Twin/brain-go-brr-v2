@@ -597,8 +597,13 @@ def main() -> None:
     import argparse
     import logging
 
+    from dotenv import load_dotenv
+
     from src.brain_brr.data import BalancedSeizureDataset, EEGWindowDataset, ValidationDataset
     from src.brain_brr.utils.logging_config import setup_logging
+
+    # Load .env file FIRST to get WANDB_API_KEY and other secrets
+    load_dotenv()
 
     parser = argparse.ArgumentParser(description="Train seizure detection model")
     parser.add_argument(

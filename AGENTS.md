@@ -1,6 +1,32 @@
-# CLAUDE.md
+# AGENTS.md
 
 **Brain-Go-Brr v4.0** - Clinical EEG seizure detection with dual production stacks (BiMamba2 + FLA). TCN + SSM + GNN + Dynamic LPE achieving O(N) complexity targeting clinical deployment thresholds.
+
+## 🚨 CRITICAL: Environment Variables & Secrets
+
+**ALWAYS use .env file for secrets - NEVER export manually in tmux!**
+
+```bash
+# ✅ CORRECT: .env file (already exists at project root)
+# .env is gitignored - SAFE to store secrets
+WANDB_API_KEY=your_key_here
+
+# ❌ WRONG: Manual export in tmux (FORGOTTEN EVERY TIME)
+export WANDB_API_KEY=...  # THIS GETS LOST!
+
+# ✅ CORRECT: Training loads .env automatically
+# src/brain_brr/train/loop.py calls load_dotenv() on startup
+make train-fla  # .env loaded automatically
+
+# ⚠️  VERIFY .env is gitignored (line 123 of .gitignore)
+git check-ignore -v .env  # Should show: .gitignore:123:.env
+```
+
+**Why this matters**:
+- WandB needs `WANDB_API_KEY` to upload metrics
+- Forgetting to export = offline mode = no cloud sync
+- .env file = loaded automatically = NEVER forgotten
+- .gitignore prevents committing secrets to GitHub
 
 ## Quick Reference
 
