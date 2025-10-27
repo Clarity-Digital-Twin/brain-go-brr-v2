@@ -9,9 +9,7 @@ from __future__ import annotations
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 
 class TestDotenvLoading:
@@ -32,9 +30,9 @@ class TestDotenvLoading:
         assert "load_dotenv()" in source, "load_dotenv() not called in main()"
 
         # Verify it's called early (before dataset loading)
-        assert source.index("load_dotenv()") < source.index(
-            "load_tusz_for_training"
-        ), "load_dotenv() must be called before dataset loading"
+        assert source.index("load_dotenv()") < source.index("load_tusz_for_training"), (
+            "load_dotenv() must be called before dataset loading"
+        )
 
     def test_load_dotenv_called_early_in_main(self):
         """Verify load_dotenv() is called early in main() before training starts."""
@@ -48,14 +46,10 @@ class TestDotenvLoading:
 
         # Verify it's called before training function
         train_idx = source.index("train(")
-        assert (
-            load_dotenv_idx < train_idx
-        ), "load_dotenv() must be called before train() function"
+        assert load_dotenv_idx < train_idx, "load_dotenv() must be called before train() function"
 
         # Verify it's within first 1000 characters of function (early in main)
-        assert (
-            load_dotenv_idx < 1000
-        ), "load_dotenv() should be called early in main() function"
+        assert load_dotenv_idx < 1000, "load_dotenv() should be called early in main() function"
 
     def test_env_vars_available_from_dotenv(self):
         """Test that env vars from .env are available after load_dotenv()."""
@@ -76,9 +70,9 @@ class TestDotenvLoading:
 
                 # Verify env vars are loaded
                 assert os.getenv("TEST_VAR") == "test_value", "TEST_VAR not loaded from .env"
-                assert (
-                    os.getenv("WANDB_API_KEY") == "fake_key"
-                ), "WANDB_API_KEY not loaded from .env"
+                assert os.getenv("WANDB_API_KEY") == "fake_key", (
+                    "WANDB_API_KEY not loaded from .env"
+                )
 
             finally:
                 # Cleanup - restore original values
@@ -101,9 +95,9 @@ class TestDotenvSecurityChecks:
         gitignore_content = gitignore_path.read_text()
 
         # Check for .env in gitignore
-        assert (
-            ".env" in gitignore_content
-        ), ".env file is NOT in .gitignore - CRITICAL SECURITY ISSUE"
+        assert ".env" in gitignore_content, (
+            ".env file is NOT in .gitignore - CRITICAL SECURITY ISSUE"
+        )
 
     def test_wandb_directory_is_gitignored(self):
         """Verify wandb/ directory is in .gitignore to prevent committing local runs."""
@@ -113,9 +107,9 @@ class TestDotenvSecurityChecks:
         gitignore_content = gitignore_path.read_text()
 
         # Check for wandb/ in gitignore
-        assert (
-            "wandb/" in gitignore_content
-        ), "wandb/ directory is NOT in .gitignore - can leak WandB data"
+        assert "wandb/" in gitignore_content, (
+            "wandb/ directory is NOT in .gitignore - can leak WandB data"
+        )
 
 
 class TestWandBOfflineModePrevention:
@@ -134,14 +128,16 @@ class TestWandBOfflineModePrevention:
         config.experiment.name = "test-run"
 
         # Ensure no API key in environment
-        with patch.dict(os.environ, {}, clear=True):
-            with patch("src.brain_brr.train.wandb_integration.WANDB_AVAILABLE", True):
-                from src.brain_brr.train.wandb_integration import WandBLogger
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("src.brain_brr.train.wandb_integration.WANDB_AVAILABLE", True),
+        ):
+            from src.brain_brr.train.wandb_integration import WandBLogger
 
-                logger = WandBLogger(config, resume=False)
+            logger = WandBLogger(config, resume=False)
 
-                # Should not enable WandB without API key
-                assert logger.enabled is False, "WandB should be disabled without API key"
+            # Should not enable WandB without API key
+            assert logger.enabled is False, "WandB should be disabled without API key"
 
     def test_wandb_works_with_api_key_from_env(self):
         """WandB should initialize successfully when WANDB_API_KEY is in environment."""
@@ -168,6 +164,4 @@ class TestWandBOfflineModePrevention:
 
             # Should enable WandB with API key
             assert logger.enabled is True, "WandB should be enabled with API key present"
-            assert (
-                mock_wandb.init.called
-            ), "wandb.init() should be called when API key is present"
+            assert mock_wandb.init.called, "wandb.init() should be called when API key is present"
