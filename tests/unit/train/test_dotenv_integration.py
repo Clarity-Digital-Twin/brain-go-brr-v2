@@ -151,13 +151,15 @@ class TestWandBOfflineModePrevention:
         )
         config.experiment.name = "test-run"
 
+        # Create a mock wandb module with all necessary attributes
+        mock_wandb = MagicMock()
+        mock_wandb.init.return_value = MagicMock()
+
         with (
             patch.dict(os.environ, {"WANDB_API_KEY": "test-key-12345"}),
             patch("src.brain_brr.train.wandb_integration.WANDB_AVAILABLE", True),
-            patch("src.brain_brr.train.wandb_integration.wandb") as mock_wandb,
+            patch("src.brain_brr.train.wandb_integration.wandb", mock_wandb, create=True),
         ):
-            mock_wandb.init.return_value = MagicMock()
-
             from src.brain_brr.train.wandb_integration import WandBLogger
 
             logger = WandBLogger(config, resume=False)
