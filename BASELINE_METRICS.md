@@ -2,10 +2,11 @@
 
 **Experiment**: Full FLA Gated DeltaNet baseline (31M params)
 **Config**: `configs/local/train_fla.yaml`
-**Status**: 🟢 RUNNING (Epoch 14 in progress)
+**Status**: 🟢 RUNNING (Epoch 20 validating - 9% complete)
 **Started**: Oct 16, 2025 10:55 AM EDT
 **Hardware**: RTX 4090 (24GB VRAM)
-**Wandb Run**: https://wandb.ai/jj-vcmcswaggins-novamindnyc/seizure-v3-rtx4090/runs/5ee302c0a01d4e43b8e782fa2ffb0e90
+**Wandb Run (Old)**: https://wandb.ai/jj-vcmcswaggins-novamindnyc/seizure-v3-rtx4090/runs/5ee302c0a01d4e43b8e782fa2ffb0e90 (Epochs 0-15)
+**Wandb Run (Current)**: https://wandb.ai/jj-vcmcswaggins-novamindnyc/seizure-v3-rtx4090/runs/c7eb044ceee34392ad1c793e783f4bc4 (Epoch 17+, partial sync)
 
 ---
 
@@ -44,10 +45,12 @@ early_stopping:
 | 15 | 0.2493 | 115,530 | Oct 24 | Plateau continues |
 | 16 | 0.2493 | 123,232 | Oct 25 | Plateau (3 epochs at 0.2493) |
 | 17 | 0.2577 | 130,934 | Oct 25 | 🎉 Recovery! +3.4% improvement |
-| 18 | In progress | TBD | Oct 26 | Crashed @ batch 4589, resumed from 4165 |
+| 18 | 0.2577 | 138,636 | Oct 27 | Plateau at recovery level |
+| 19 | 0.2577 | 146,338 | Oct 27 | Plateau continues (3 epochs) |
+| 20 | Validating (9%) | TBD | Oct 27 | Will restart with WandB fix after validation |
 
 **Best Overall**: 0.2801 @ Epoch 9 (Oct 16)
-**Post-Resume Best**: 0.2577 @ Epoch 17 (Oct 25) - Recovering!
+**Post-Resume Best**: 0.2577 @ Epochs 17-19 (Oct 25-27) - Plateaued after recovery
 
 ---
 
@@ -63,6 +66,11 @@ early_stopping:
 - **Oct 25, 15:55**: Epoch 17 complete (0.2577 - recovery!)
 - **Oct 25, 18:39**: Epoch 18 crash (glibc malloc corruption, WSL2 issue)
 - **Oct 26, 09:53**: Training resumed from epoch 18, batch 4165
+- **Oct 26, 16:52**: New WandB run started (c7eb044c) - resumed training
+- **Oct 27, 03:04**: Epoch 18 complete (0.2577 - plateau continues)
+- **Oct 27, 13:16**: Epoch 19 complete (0.2577 - 3rd epoch at recovery level)
+- **Oct 27, ~18:00**: Epoch 20 validation started (currently 9% complete)
+- **Oct 27, ~23:00** (est): Will stop training and restart with .env WandB fix
 
 ---
 
@@ -73,16 +81,20 @@ early_stopping:
 - Prompted investigation into overfitting hypothesis
 - Led to Exp1 (regularization) experiment
 
-### Post-Resume Performance Pattern (Epochs 13-17)
+### Post-Resume Performance Pattern (Epochs 13-19)
 - **Initial Drop (Epochs 13-16)**: Sensitivity dropped to 0.2493 after resume (from 0.2801 peak)
   - **-11% decline** from best (epoch 9)
   - Plateaued for 4 epochs (13-16) at 0.2493
   - Possible causes: resume disruption, scheduler state, natural variance
 
-- **Recovery Starting (Epoch 17)**: 🎉 **0.2577 (+3.4% improvement!)**
+- **Recovery (Epoch 17)**: 🎉 **0.2577 (+3.4% improvement!)**
   - First improvement in 5 epochs
-  - Still **-8%** below peak (0.2801) but trending up
-  - Suggests model is adapting and climbing back
+  - Still **-8%** below peak (0.2801) but recovery confirmed
+
+- **New Plateau (Epochs 17-19)**: 📊 **0.2577 (stable for 3 epochs)**
+  - Model settled at new plateau after recovery
+  - Consistent performance at recovery level
+  - May need intervention to break plateau (patience counter: 13/20)
 
 ### Experiment Context
 - **Exp1 (Regularization)**: Cancelled @ epoch 9, peaked at 0.2726 (worse than baseline)
@@ -93,11 +105,19 @@ early_stopping:
 
 ## Next Milestones
 
-- **Epoch 14** (~Oct 24, 09:15): Check if metric recovers from epoch 13 drop
-- **Epoch 15** (~Oct 24, 19:00): Early improvement signal
-- **Epoch 17** (~Oct 25, 17:00): **EXP2 DECISION POINT** - Continue baseline or start lower LR experiment?
-- **Epoch 20** (~Oct 26, 15:00): Clear pattern confirmation
-- **Epoch 30** (~Nov 2, 09:00): Min epochs reached, patience countdown begins
+- ✅ **Epoch 14** (Oct 24): Plateau continued at 0.2493
+- ✅ **Epoch 15** (Oct 24): Plateau continued at 0.2493
+- ✅ **Epoch 17** (Oct 25): Recovery to 0.2577 confirmed
+- 🔄 **Epoch 20** (Oct 27, ~23:00): Will restart training with WandB .env fix after validation
+- **Epoch 21+** (~Oct 28+): Training resumes with proper WandB syncing
+- **Epoch 30** (~Nov 3): Min epochs reached, patience countdown begins (if no improvement)
+
+### WandB Data Status
+- ✅ **Epochs 0-15**: Synced to old run (5ee302c0)
+- ❌ **Epochs 16, 18, 19**: Lost (not synced to WandB)
+- ⚠️ **Epoch 17**: Partially synced to new run (c7eb044c)
+- 🔄 **Epoch 20**: Will be lost unless manually synced
+- ✅ **Epoch 21+**: Will sync automatically with .env fix
 
 ---
 
@@ -119,4 +139,4 @@ Add the result to the table above.
 
 ---
 
-**Last Updated**: Oct 26, 2025 09:54 EDT (Epoch 18 in progress after crash recovery, **model is recovering - 0.2577!**)
+**Last Updated**: Oct 27, 2025 18:55 EDT (Epoch 20 validating 9%, will restart with WandB .env fix after completion. **New plateau at 0.2577 for 3 epochs.**)
