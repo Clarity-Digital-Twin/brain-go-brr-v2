@@ -131,6 +131,18 @@ train-fla: ## Train FLA (Gated DeltaNet) model locally (100 epochs) with NaN pro
 
 train-local: train-bimamba ## Alias: Local training (defaults to BiMamba2)
 
+resume-bimamba: ## Resume BiMamba2 training from last checkpoint
+	@echo "${CYAN}Resuming BiMamba2 training from last checkpoint...${NC}"
+	@echo "${YELLOW}NaN protection: BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1${NC}"
+	BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 .venv/bin/python -m src train configs/local/train_bimamba.yaml --resume
+
+resume-fla: ## Resume FLA training from last checkpoint
+	@echo "${CYAN}Resuming FLA training from last checkpoint...${NC}"
+	@echo "${YELLOW}NaN protection: BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1${NC}"
+	BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1 .venv/bin/python -m src train configs/local/train_fla.yaml --resume
+
+resume: resume-fla ## Alias: Resume training (defaults to FLA)
+
 smoke-bimamba: ## Run BiMamba2 local smoke test (1 epoch, 3 files) with NaN protection
 	@echo "${CYAN}Running BiMamba2 smoke test (3 files only) with NaN protection...${NC}"
 	@echo "${YELLOW}NaN protection: BGB_SANITIZE_GRADS=1 BGB_NAN_DEBUG=1${NC}"

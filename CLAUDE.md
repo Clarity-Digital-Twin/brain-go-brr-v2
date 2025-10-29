@@ -43,14 +43,21 @@ make smoke-bimamba      # BiMamba2: 1 epoch, 3 files (~5min)
 make smoke-fla          # FLA: 1 epoch, 3 files (~5min)
 make train-bimamba      # BiMamba2: Full training (100 epochs)
 make train-fla          # FLA: Full training (100 epochs)
+make resume-bimamba     # Resume BiMamba2 from last checkpoint
+make resume-fla         # Resume FLA from last checkpoint (or: make resume)
 ```
 
 ### Training Quick Start
 ```bash
-# Local (RTX 4090)
+# Local (RTX 4090) - Fresh start
 export BGB_NAN_DEBUG=1
 tmux new -s train-fla
 make train-fla          # Detach: Ctrl+B D
+
+# Local (RTX 4090) - Resume after crash
+export BGB_NAN_DEBUG=1
+tmux new -s train-fla
+make resume-fla         # Detach: Ctrl+B D
 
 # Modal (A100-80GB) - Production
 modal deploy deploy/modal/app.py
