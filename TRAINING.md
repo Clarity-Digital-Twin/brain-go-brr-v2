@@ -1,285 +1,326 @@
 # Active Training Plan
 
 **Created**: October 20, 2025
-**Status**: 🟢 ACTIVE - Exp1 Running, Baseline Queued
-**Last Updated**: October 20, 2025
+**Status**: 🟢 ACTIVE - Baseline Running (Plateaued), Exp4 Ready
+**Last Updated**: November 1, 2025
 
 ---
 
 ## 📊 Current Situation
 
-### Baseline FLA (COMPLETE - Waiting for Resume Decision)
-- **Status**: Stopped at epoch 13 (benign crash, not resumed)
+### Baseline FLA (🔄 RUNNING - PLATEAUED)
+- **Status**: Running at epoch 30+, plateaued at 0.257 for 13 epochs (17-29)
 - **Best checkpoint**: Epoch 9 → **0.284 sensitivity @ 10 FA/24h**, 0.95 TAES
-- **Location**: `results/local_fla_training/checkpoints/best.pt`
-- **Early stopping**: patience=5 (would have triggered at epoch 14 anyway)
-- **Val loss trajectory**: Rising from 0.027 → 0.053 (overfitting signal)
-- **Decision**: Pragmatic stop, looked like overfitting
+- **Current performance**: 0.257 (stuck in local minimum)
+- **Patience**: 13/20 (early stop triggers at 20)
+- **Expected stop**: Epoch 36 (~Nov 4-5)
+- **Location**: `results/local_fla_training/checkpoints/`
+- **Config**: `configs/local/train_fla.yaml` (patience=20, min_epochs=30)
 
-### Exp1 - Stronger Regularization (ACTIVE)
-- **Status**: 🔄 Running at epoch 5
-- **Best checkpoint**: Epoch 2 → **0.271 sensitivity @ 10 FA/24h**
-- **Gap vs baseline**: -4.6% (WORSE than baseline)
-- **Early stopping**: patience=5, counter=3 (3 epochs without improvement)
-- **Expected stop**: Epoch 7 (2 more epochs, ~20 hours)
+### Exp1 - Stronger Regularization (✅ COMPLETED - FAILED)
+- **Status**: ✅ Completed, early stopped at epoch 6
+- **Best checkpoint**: Epoch 2 → **0.272 sensitivity @ 10 FA/24h**
+- **Gap vs baseline**: -2.7% (WORSE than baseline 0.284)
 - **Hypothesis verdict**: ❌ Stronger regularization HURTS performance
+- **Conclusion**: Model NOT overfitting (underfitting rare seizure class instead)
 - **Location**: `results/local_fla_exp1_reg/`
 
-### Exp2 & Exp3 (QUEUED)
-- **Status**: ⏸️ PAUSED - Will decide after baseline resume completes
-- **Rationale**: If exp1 failed, similar hyperparameter tweaks likely won't help
-- **Better strategy**: Resume baseline first, establish true ceiling, then design new experiments
+### Exp4 - Cyclic LR (SGDR) (🚀 READY TO LAUNCH)
+- **Status**: ⏳ Waiting for baseline early stop (~epoch 36)
+- **Config**: `configs/local/train_fla_exp4_cyclic.yaml`
+- **Hypothesis**: Stuck in local minimum at 0.257, SGDR restarts will escape
+- **Strategy**: Cyclic LR (1e-4 ↔ 1e-6) with warm restarts every 10→20→40 epochs
+- **Expected**: Break plateau, potentially recover 0.28+ region
+- **Launch**: After baseline stops (~Nov 4-5)
+
+### Exp2 & Exp3 (❌ PAUSED/REJECTED)
+- **Exp2 (Lower LR)**: ⏸️ Available but not prioritized (Exp4 more promising)
+- **Exp3 (Smaller Model)**: ❌ Rejected (capacity reduction not justified)
 
 ---
 
 ## 🎯 Sequential Execution Plan
 
-### Phase 1: Complete Exp1 Naturally (IN PROGRESS)
+### Phase 1: Wait for Baseline Early Stop (IN PROGRESS)
 
-**Timeline**: NOW → ~2 days (epoch 5 → epoch 7)
+**Timeline**: NOW → ~Nov 4-5 (epoch 30+ → epoch 36)
 
-**Action**: ✅ **Let it run, don't touch it**
+**Status**: ✅ **Baseline running, patience 13/20**
 
-**Why:**
-- Test that early stopping logic works correctly
-- Clean completion: "Exp1 tested fully, patience=5 worked as designed"
-- Confirms hypothesis: Regularization hurts (0.271 vs 0.284 baseline)
+**What's happening:**
+- Baseline resumed Oct 16 with patience=20, min_epochs=30
+- Reached epoch 30+, plateaued at 0.257 for 13 epochs (17-29)
+- Best still epoch 9 (0.284)
+- Early stop will trigger at epoch 36 when patience exhausted
 
-**Expected outcome:**
-```
-Epoch 6: No improvement → counter = 4
-Epoch 7: No improvement → counter = 5 (STOP TRIGGER)
-```
-
-**When exp1 stops:**
-- Review final metrics
-- Document lessons learned
-- Proceed to Phase 2
+**When baseline stops:**
+- Review final metrics (confirm no improvement after epoch 9)
+- Confirm hypothesis: Stuck in local minimum at 0.257
+- Proceed to Phase 2 (launch Exp4)
 
 ---
 
-### Phase 2: Resume Baseline with patience=20 (AFTER EXP1)
+### Phase 2: Launch Exp4 (SGDR) (AFTER BASELINE STOPS)
 
-**Timeline**: Day 2 → Day 10-12 (~8-10 days, 17-20 more epochs)
+**Timeline**: Nov 4-5 → Dec 14-18 (~40 days, 100 epochs)
 
-**Objective**: Test "second peak" hypothesis
-- Medical imaging literature: Best clinical performance often comes 10-20 epochs AFTER minimum val_loss
-- Question: Does sensitivity improve at epochs 25-40 even as val_loss rises?
+**Objective**: Test local minimum escape via cyclic LR restarts
 
-**Config** (already updated in `configs/local/train_fla.yaml`):
+**Hypothesis**:
+- Stuck in local minimum at 0.257 (lost 0.284 peak after resume chaos)
+- SGDR LR spikes will help escape and rediscover better solutions
+- May recover 0.28+ region or find new optimum
+
+**Config** (`configs/local/train_fla_exp4_cyclic.yaml`):
 ```yaml
 training:
-  epochs: 100  # Keep as-is
+  learning_rate: 1.0e-4            # Peak LR
+  scheduler:
+    type: cosine_restarts          # SGDR with warm restarts
+    t_initial: 10                  # First cycle: 10 epochs
+    t_mult: 2                      # Double each cycle: 10→20→40
+    eta_min: 1.0e-6                # Min LR before restart to 1e-4
   early_stopping:
-    patience: 20        # Was 5 (now 4x more tolerant)
-    min_epochs: 30      # Don't allow early stop before epoch 30
-    metric: sensitivity_at_10fa
+    patience: 15                   # Faster verdict than baseline (20)
+    min_epochs: 30                 # Don't stop before epoch 30
 ```
 
-**What this does:**
+**How SGDR works:**
 ```
-Resume from epoch 13
-├─ Epochs 13-29: Can't early stop (min_epochs=30 prevents it)
-├─ Epoch 30+: Early stopping enabled
-└─ Will stop when 20 epochs pass without improvement
-
-Expected scenarios:
-  70% chance: No improvement, stops at epoch 30-31
-  20% chance: Small improvement (0.29-0.31), stops at epoch 40-50
-  10% chance: Significant improvement (>0.32), major win
+Cycle 1 (epochs 3-13):   LR 1e-4 → 1e-6, then restart to 1e-4
+Cycle 2 (epochs 13-33):  LR 1e-4 → 1e-6, then restart to 1e-4
+Cycle 3 (epochs 33-73):  LR 1e-4 → 1e-6, then restart to 1e-4
+Goal: LR spikes help escape 0.257 plateau, rediscover 0.28+ region
 ```
 
 **Command to run:**
 ```bash
-# After exp1 stops, run this:
-tmux new -s baseline-resume
-cd /home/jj/proj/brain-go-brr-v2
+# After baseline stops at epoch 36:
+tmux new -s exp4
 export BGB_NAN_DEBUG=1
-python -m src train configs/local/train_fla.yaml \
-  --resume results/local_fla_training/checkpoints/last.pt
+.venv/bin/python -m src train configs/local/train_fla_exp4_cyclic.yaml
 # Detach: Ctrl+B D
 ```
 
 **What to monitor:**
-- Watch for sensitivity @ 10 FA/24h
-- Compare to baseline best (0.284 @ epoch 9)
-- Check if val_loss stabilizes or continues rising
-- Look for any "second peak" at epochs 25-40
+- **Critical window**: Epochs 1-15 (should hit 0.28+ if hypothesis correct)
+- Baseline hit 0.284 @ epoch 9, so Exp4 should show similar trajectory if working
+- Watch for LR restarts: should see metric spikes when LR resets to 1e-4
+- Compare to baseline plateau (0.257) - any improvement validates hypothesis
 
 ---
 
-### Phase 3: Decision Tree After Baseline Resume (Day 10-12)
+### Phase 3: Decision Tree After Exp4 (Dec 14-18)
 
 **Three Possible Outcomes:**
 
-#### Outcome A: No Improvement (70% Expected)
+#### Outcome A: No Improvement (50% Expected)
 ```
-Best checkpoint: Still epoch 9 (0.284)
-Early stop trigger: Epoch 30-31
-Conclusion: Overfitting signal at epoch 13 was real
+Best checkpoint: Still 0.257-0.27 range (no escape from plateau)
+Conclusion: Local minimum hypothesis wrong, architecture limit reached
 ```
 
 **Action:**
-- ✅ Accept 0.284 @ 10 FA/24h as best for FLA architecture
+- ✅ Accept 0.284 @ epoch 9 as best for FLA architecture
 - Compare to Temple SOTA (4 FA/24h @ 50% sensitivity)
-- Decide: BiMamba2 comparison OR deploy as-is OR accept results
-- Archive exp2/exp3 (unlikely to beat 0.284 if exp1 failed)
+- Decide: BiMamba2 comparison OR deploy as-is
+- Archive remaining experiments (Exp2/Exp3 unlikely to help)
 
-#### Outcome B: Small Improvement (20% Chance)
+#### Outcome B: Moderate Improvement (30% Chance)
 ```
-Best checkpoint: Epoch 25-35 (0.29-0.31)
-Early stop trigger: Epoch 45-55
-Conclusion: "Second peak" was real, baseline had more potential
-```
-
-**Action:**
-- ✅ New baseline: 0.29-0.31 @ 10 FA/24h
-- Design NEW experiments targeting this higher bar
-- Update experiment configs to use patience=20
-- Test different hypotheses (architecture changes, not just regularization)
-
-#### Outcome C: Significant Improvement (10% Chance)
-```
-Best checkpoint: Epoch 30-45 (>0.32)
-Early stop trigger: Epoch 50-65
-Conclusion: Major win, "second peak" dramatic
+Best checkpoint: 0.28-0.30 range (recovered baseline or slightly better)
+Conclusion: SGDR helped escape plateau, found similar/better optimum
 ```
 
 **Action:**
-- 🎉 Celebrate! This would be a major finding
+- ✅ New baseline: 0.28-0.30 @ 10 FA/24h
+- Analyze what worked: LR restarts effective for local minimum escape
+- Consider applying SGDR to other experiments
+- May warrant longer training with SGDR (extend to 150 epochs)
+
+#### Outcome C: Major Improvement (20% Chance)
+```
+Best checkpoint: >0.32 (significant jump, new optimum found)
+Conclusion: SGDR discovered better solution space, major win
+```
+
+**Action:**
+- 🎉 Major research finding! SGDR enabled substantial improvement
 - New baseline: >0.32 @ 10 FA/24h
 - Compare to Temple SOTA and SeizureTransformer
-- Potentially publishable result
-- Rethink entire experiment strategy
+- Publish findings: "SGDR enables local minimum escape in seizure detection"
+- Consider BiMamba2 with SGDR for comparison
 
 ---
 
 ## 📋 Checklist
 
-### Before Resuming Baseline (After Exp1 Stops)
+### Before Baseline Stops (~Nov 4-5)
 
-- [ ] Verify exp1 stopped cleanly (check logs)
-- [ ] Document exp1 final metrics in STATUS.md
-- [ ] Confirm `train_fla.yaml` has patience=20, min_epochs=30
-- [ ] Check disk space for 20 more checkpoints (~4GB needed)
-- [ ] Start tmux session for baseline resume
+- [x] Exp1 completed and documented
+- [x] Baseline running with patience=20, min_epochs=30
+- [x] Exp4 config validated (`train_fla_exp4_cyclic.yaml`)
+- [x] SGDR scheduler tested and validated
+- [ ] Monitor baseline for early stop (~epoch 36)
+- [ ] Confirm disk space for Exp4 checkpoints (~20GB needed for 100 epochs)
+
+### When Baseline Stops
+
+- [ ] Verify baseline stopped cleanly at epoch 36
+- [ ] Document final baseline metrics in STATUS.md
+- [ ] Confirm best checkpoint is still epoch 9 (0.284)
+- [ ] Archive baseline run (save logs, checkpoints)
+- [ ] Update BASELINE_METRICS.md with final summary
+
+### Before Launching Exp4
+
+- [ ] Verify `train_fla_exp4_cyclic.yaml` validated
+- [ ] Check isolated output directory: `results/local_fla_exp4_cyclic/`
+- [ ] Start fresh tmux session: `tmux new -s exp4`
 - [ ] Export BGB_NAN_DEBUG=1
-- [ ] Run resume command with `--resume` flag
-- [ ] Monitor first 2-3 epochs for crashes
+- [ ] Launch: `.venv/bin/python -m src train configs/local/train_fla_exp4_cyclic.yaml`
+- [ ] Monitor first epoch for crashes
+- [ ] Detach safely: Ctrl+B D
 
-### During Baseline Resume
+### During Exp4 Training
 
+- [ ] **Critical**: Monitor epochs 1-15 closely (should hit 0.28+ if working)
 - [ ] Check progress every 2-3 days
-- [ ] Watch for any new best checkpoints
-- [ ] Note if val_loss stabilizes or continues rising
+- [ ] Watch for LR restart spikes (should see metric jumps)
+- [ ] Note if escaping 0.257 plateau
 - [ ] Monitor GPU memory/temperature
-- [ ] Keep tmux session alive (Ctrl+B D to detach)
+- [ ] Keep tmux session alive
 
-### After Baseline Completes
+### After Exp4 Completes
 
 - [ ] Identify final best epoch
-- [ ] Compare to original best (epoch 9, 0.284)
+- [ ] Compare to baseline best (epoch 9, 0.284)
+- [ ] Analyze SGDR effectiveness (did restarts help?)
 - [ ] Update STATUS.md with results
 - [ ] Make decision per "Decision Tree" above
-- [ ] Update configs/README.md if needed
+- [ ] Update EXPERIMENTAL_PLAN.md
 
 ---
 
 ## 🔬 Scientific Rationale
 
-### Why We're Doing This
+### Why Exp4 (SGDR) Over Other Approaches
 
-**Problem:** Baseline stopped at epoch 13 (13% complete) with:
-- Val loss rising (0.027 → 0.053)
-- Sensitivity declining after epoch 9
-- Looked like classic overfitting
+**Problem:** Baseline plateaued at 0.257 for 13 epochs (17-29)
+- Best: 0.284 @ epoch 9 (lost after resume chaos at epoch 13)
+- Current: 0.257 (stuck in local minimum)
+- Hypothesis: Resume broke optimizer momentum, trapped in suboptimal basin
 
-**But:** patience=5 was too aggressive for 100-epoch plan
+**Why SGDR (Cyclic LR Restarts)?**
 
-**Literature evidence:**
-- Medical imaging: Best clinical metrics often lag minimum val_loss by 10-20 epochs
-- "Second peak" phenomenon: Model learns rare patterns (seizures) after general patterns (background)
-- Standard practice: Don't allow early stopping before 30% complete
+1. **Proven technique** (Loshchilov & Hutter, 2017):
+   - LR spikes help escape local minima
+   - Periodic restarts explore new solution spaces
+   - Used successfully in ImageNet, NLP, medical imaging
+
+2. **Better than alternatives**:
+   - **Exp2 (Lower LR)**: Would make plateau WORSE (too conservative)
+   - **Exp3 (Smaller model)**: Might reduce capacity below 0.284 peak
+   - **SGDR**: Actively tries to ESCAPE the plateau via LR spikes
+
+3. **Addresses root cause**:
+   - Resume chaos likely broke optimizer momentum
+   - SGDR gives fresh starts every 10/20/40 epochs
+   - Multiple chances to rediscover 0.28+ region
 
 **What we're testing:**
-- H0 (null): Overfitting signal was real, epoch 9 is the best
-- H1 (alternative): "Second peak" exists at epochs 25-40
+- H0 (null): 0.257 plateau is architecture ceiling, SGDR won't help
+- H1 (alternative): Stuck in local minimum, SGDR will escape to ≥0.28
 
 **Why this is good science:**
-- Changes one variable (patience 5→20)
-- Tests specific hypothesis ("second peak")
-- Has clear success criteria (improvement beyond 0.284)
-- Falsifiable (if no improvement, we know epoch 9 is best)
+- Isolated variable: Only changes LR schedule (architecture/data same)
+- Testable hypothesis: Should hit 0.28+ by epoch 15 if working
+- Falsifiable: If no improvement, accept 0.284 as ceiling
+- Fresh start: Eliminates resume chaos confound
 
 ---
 
 ## 📊 Expected Timeline
 
 ```
-Day 0 (Oct 20):   Exp1 @ epoch 5
-Day 1:            Exp1 @ epoch 6
-Day 2:            Exp1 @ epoch 7 → STOPS (patience=5)
-                  Resume baseline from epoch 13
-Day 3:            Baseline @ epoch 14-15
-Day 5:            Baseline @ epoch 17-18
-Day 7:            Baseline @ epoch 20-22
-Day 10:           Baseline @ epoch 25-27
-Day 12:           Baseline @ epoch 30-31
+Oct 20:           Exp1 completed (FAILED, 0.272 vs 0.284 baseline)
+Oct 16-Nov 1:     Baseline resumed, epochs 13-30+, plateaued at 0.257
+Nov 1 (TODAY):    Baseline @ epoch 30+, patience 13/20
+Nov 4-5:          Baseline early stop @ epoch 36 (patience exhausted)
+                  → Launch Exp4 immediately
 
-                  IF no improvement:
-                    → Stops at epoch 30-31 (patience triggers)
+Nov 5:            Exp4 epoch 1 (monitor closely!)
+Nov 6-7:          Exp4 epochs 2-4 (watch for early signal)
+Nov 10:           Exp4 epoch 9 (baseline peaked here)
+Nov 15:           Exp4 epoch 15 (CRITICAL: should hit 0.28+ if hypothesis correct)
+Nov 20:           Exp4 epoch 20 (end of first full restart cycle)
+Nov 30:           Exp4 epoch 30 (min_epochs met)
+Dec 14-18:        Exp4 completion (epoch 100 or early stop)
 
-                  IF improvement found:
-                    → Continues to epoch 40-50
-                    → Stops when 20 epochs pass without new improvement
+                  IF no improvement by epoch 15:
+                    → Hypothesis likely wrong, let it run to completion for data
+
+                  IF improvement by epoch 15:
+                    → Hypothesis validated, expect continued improvement
+                    → May exceed 0.284 baseline
 ```
 
 **Total time investment:**
-- Exp1 completion: 2 days
-- Baseline resume: 8-10 days (pessimistic) or 15-20 days (optimistic)
-- **Total: 10-22 days** to definitive answer
+- Baseline completion: ~3 days (Nov 1-5)
+- Exp4 training: ~40 days (Nov 5 - Dec 15)
+- **Total: ~43 days** to definitive answer on SGDR hypothesis
 
 ---
 
 ## 🎯 Success Criteria
 
 ### Minimum Success (What We Need)
-- ✅ Exp1 completes cleanly (tests early stopping works)
-- ✅ Baseline resumes successfully from checkpoint
-- ✅ Baseline runs to min_epochs=30 without crashes
-- ✅ Clear data on whether "second peak" exists
+- ✅ Exp1 completed cleanly (confirmed regularization doesn't help)
+- ✅ Baseline running to patience exhaustion (confirming plateau)
+- ⏳ Baseline stops at epoch 36 (patience 20/20)
+- ⏳ Exp4 launches successfully from epoch 1
+- ⏳ Exp4 runs to min_epochs=30 without crashes
+- ⏳ Clear data on whether SGDR escapes local minimum
 
 ### Stretch Success (What We Hope For)
-- 🎯 Baseline improves beyond 0.284
-- 🎯 Clear evidence of "second peak" at epochs 25-40
+- 🎯 Exp4 reaches 0.28+ by epoch 15 (validates hypothesis)
+- 🎯 Exp4 recovers baseline 0.284 peak
+- 🎯 Clear evidence SGDR restarts help escape plateau
 - 🎯 New baseline >0.30 @ 10 FA/24h
 
-### Dream Success (Unlikely But Possible)
-- 🌟 Baseline reaches >0.35 @ 10 FA/24h
+### Dream Success (20% Chance)
+- 🌟 Exp4 reaches >0.32 @ 10 FA/24h
+- 🌟 SGDR discovers substantially better solution space
+- 🌟 Publishable finding: "SGDR enables local minimum escape in seizure detection"
 - 🌟 Approaches Temple SOTA territory (4 FA/24h @ 50%)
-- 🌟 Publishable result from architecture alone
 
 ---
 
 ## 📝 Notes & Lessons
 
 ### Why Exp1 Failed
-- Hypothesis: Insufficient regularization causing overfitting
-- Reality: Stronger regularization (dropout 0.1→0.2, weight_decay 0.01→0.05) HURT performance
-- Lesson: Model was NOT overfitting in traditional sense (underfitting rare seizure class)
-- Better strategy: Increase model capacity or seizure sampling, not regularization
+- **Hypothesis**: Model overfitting, needs stronger regularization
+- **Reality**: Stronger regularization (dropout 0.1→0.2, weight_decay 0.01→0.05) HURT performance (-2.7%)
+- **Lesson**: Model was NOT overfitting in traditional sense
+- **Insight**: Likely underfitting rare seizure class, needs more capacity/exploration, not less
 
-### Why Exp2/Exp3 Are Paused
-- If exp1 (highest confidence hypothesis) failed badly, similar tweaks likely fail
-- Better: Establish true baseline ceiling first
-- Then: Design experiments against confirmed baseline
+### Why SGDR (Exp4) Over Exp2/Exp3
+- **Exp2 (Lower LR)**: Current LR already decayed to 8.3e-5, going lower would worsen plateau
+- **Exp3 (Smaller model)**: Capacity reduction risks losing ability to reach 0.284 peak
+- **Exp4 (SGDR)**: Actively tries to ESCAPE plateau via LR restarts, addresses root cause (local minimum)
 
-### Key Insight
-Medical ML is different from computer vision:
-- Rare class (seizures) needs MORE capacity, not less
-- Validation loss rising ≠ clinical performance declining
-- Early stopping on val_loss can be premature
-- Need patience for model to learn rare patterns
+### Why Starting Fresh (Not Resuming)
+- **Resume chaos**: Baseline crashed at epoch 13, lost 0.284 peak, never recovered
+- **Fresh start**: Eliminates optimizer state corruption, clean test of SGDR
+- **Scientific validity**: Isolated experiment (only variable is SGDR scheduler)
+- **Multiple chances**: SGDR gives 3+ restart cycles to rediscover good solutions
+
+### Key Insights - Medical ML
+- **Rare class dynamics**: Seizures (8% of data) need special handling
+- **Local minima**: Easy to get trapped, especially after resume/interruption
+- **Validation ≠ Clinical**: Val loss rising doesn't mean clinical metrics declining
+- **Patience required**: Model needs time to explore, but also tools to escape traps
+- **SGDR promise**: Periodic fresh starts may help rediscover rare pattern solutions
 
 ---
 
@@ -293,6 +334,6 @@ Medical ML is different from computer vision:
 
 ---
 
-**Last updated**: October 20, 2025
-**Next update**: When exp1 completes (~2 days)
-**Status**: Let exp1 finish, then resume baseline with patience=20 🎯
+**Last updated**: November 1, 2025
+**Next update**: When baseline stops (~Nov 4-5)
+**Status**: Wait for baseline early stop @ epoch 36, then launch Exp4 (SGDR) 🚀
