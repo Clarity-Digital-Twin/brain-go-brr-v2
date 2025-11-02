@@ -64,6 +64,7 @@ def create_scheduler(
     optimizer: Optimizer,
     config: SchedulerConfig,
     total_steps: int,
+    steps_per_epoch: int | None = None,
 ) -> LRScheduler:
     """Create learning rate scheduler.
 
@@ -72,6 +73,12 @@ def create_scheduler(
     - cosine_restarts: Linear warmup followed by SGDR (Stochastic Gradient Descent with Warm Restarts)
 
     Both step once per optimization update.
+
+    Args:
+        optimizer: Optimizer being scheduled.
+        config: Scheduler configuration.
+        total_steps: Total number of optimizer steps planned.
+        steps_per_epoch: Optimizer steps per epoch (required for cosine_restarts).
     """
     warmup_steps = max(1, int(config.warmup_ratio * total_steps))
 
@@ -99,24 +106,24 @@ def create_scheduler(
             g["lr"] = lr
         return sched
 
-    elif config.type == "cosine_restarts":
+    if config.type == "cosine_restarts":
         # SGDR (Stochastic Gradient Descent with Warm Restarts)
         # References:
         # - Loshchilov & Hutter (2017): "SGDR: Stochastic Gradient Descent with Warm Restarts"
         # - https://arxiv.org/abs/1608.03983
         if config.t_initial is None:
             raise ValueError("t_initial is required for cosine_restarts scheduler")
+        if steps_per_epoch is None or steps_per_epoch <= 0:
+            raise ValueError("steps_per_epoch must be provided and > 0 for cosine_restarts")
 
-        # Convert t_initial from epochs to steps
-        # Note: This function receives total_steps but not num_epochs.
-        # We need to estimate steps_per_epoch. For this project, configs use epochs: 100,
-        # so we can derive: steps_per_epoch = total_steps / 100
-        # TODO: Make this more robust by passing num_epochs as parameter
-        num_epochs_estimate = 100  # Standard for this project's configs
-        steps_per_epoch = total_steps / num_epochs_estimate
+        # Convert cycle length (in epochs) to optimizer steps
         t_0_steps = max(1, int(config.t_initial * steps_per_epoch))
-
         initial_lrs = [g["lr"] for g in optimizer.param_groups]
+        base_lr = initial_lrs[0] if initial_lrs else 1.0
+        eta_min_value = max(0.0, config.eta_min if config.eta_min is not None else 0.0)
+        # Convert absolute eta_min to multiplier relative to base_lr
+        eta_min_ratio = min(eta_min_value / base_lr, 1.0) if base_lr > 0 else 0.0
+        t_mult = config.t_mult if config.t_mult is not None else 1
 
         # For SGDR, we need to handle warmup separately then apply restarts
         # We'll use a custom lambda that does warmup first, then delegates to SGDR logic
@@ -130,21 +137,16 @@ def create_scheduler(
             post_warmup_step = step - warmup_steps
             t_cur = post_warmup_step
             t_i = t_0_steps
-            t_mult = config.t_mult if config.t_mult is not None else 1
 
             # Find which cycle we're in
-            cycle = 0
             while t_cur >= t_i:
                 t_cur -= t_i
                 t_i *= t_mult
-                cycle += 1
 
             # Cosine annealing within current cycle
-            eta_min = config.eta_min if config.eta_min is not None else 0.0
-            eta_max = 1.0  # Will be multiplied by base LR
             progress = t_cur / t_i
             cosine_factor = (
-                eta_min + (eta_max - eta_min) * (1.0 + math.cos(math.pi * progress)) / 2.0
+                eta_min_ratio + (1.0 - eta_min_ratio) * (1.0 + math.cos(math.pi * progress)) / 2.0
             )
             return cosine_factor
 
@@ -156,10 +158,14 @@ def create_scheduler(
             g["lr"] = lr
 
         logger.info(
-            f"[SCHEDULER] SGDR with warmup: {warmup_steps} steps warmup, "
-            f"T_0={t_0_steps} steps, T_mult={config.t_mult}, eta_min={config.eta_min}"
+            "[SCHEDULER] SGDR with warmup: %s steps warmup, T_0=%s steps, "
+            "T_mult=%s, eta_min=%s (ratio %.4f)",
+            warmup_steps,
+            t_0_steps,
+            t_mult,
+            eta_min_value,
+            eta_min_ratio,
         )
         return sched
 
-    else:
-        raise ValueError(f"Unknown scheduler: {config.type}")
+    raise ValueError(f"Unknown scheduler: {config.type}")

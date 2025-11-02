@@ -7,7 +7,12 @@ import pytest
 import torch
 from torch.utils.data import DataLoader
 
-from src.brain_brr.config.schemas import Config, EarlyStoppingConfig, TrainingConfig
+from src.brain_brr.config.schemas import (
+    Config,
+    EarlyStoppingConfig,
+    SchedulerConfig,
+    TrainingConfig,
+)
 from src.brain_brr.models import SeizureDetector
 from src.brain_brr.train import (
     create_optimizer,
@@ -180,8 +185,6 @@ class TestTrainingSmoke:
 
     def test_scheduler_creation(self, model: SeizureDetector) -> None:
         """Test scheduler creation."""
-        from src.brain_brr.config.schemas import SchedulerConfig
-
         optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
         scheduler_cfg = SchedulerConfig(
             type="cosine",
@@ -196,6 +199,48 @@ class TestTrainingSmoke:
         optimizer.step()
         scheduler.step()
         assert optimizer.param_groups[0]["lr"] < initial_lr  # Starts low
+
+    def test_scheduler_cosine_restarts(self, model: SeizureDetector) -> None:
+        """Ensure cosine_restarts scheduler warmup and restarts behave as expected."""
+        base_lr = 1e-3
+        optimizer = torch.optim.AdamW(model.parameters(), lr=base_lr)
+        scheduler_cfg = SchedulerConfig(
+            type="cosine_restarts",
+            warmup_ratio=0.1,
+            t_initial=2,
+            t_mult=2,
+            eta_min=1e-4,
+        )
+        total_steps = 40
+        steps_per_epoch = 4
+        scheduler = create_scheduler(
+            optimizer,
+            scheduler_cfg,
+            total_steps=total_steps,
+            steps_per_epoch=steps_per_epoch,
+        )
+
+        warmup_steps = max(1, int(scheduler_cfg.warmup_ratio * total_steps))
+        t_0_steps = scheduler_cfg.t_initial * steps_per_epoch
+        first_restart_index = warmup_steps + t_0_steps - 1
+
+        lrs: list[float] = []
+        for _ in range(first_restart_index + steps_per_epoch + 1):
+            optimizer.step()
+            scheduler.step()
+            lrs.append(optimizer.param_groups[0]["lr"])
+
+        # Warmup should reach the base LR.
+        assert lrs[warmup_steps - 1] == pytest.approx(base_lr, rel=1e-3)
+
+        # LR should dip close to eta_min before the first restart.
+        min_lr = min(lrs[warmup_steps:first_restart_index])
+        assert min_lr < base_lr
+        assert min_lr <= scheduler_cfg.eta_min * 1.5
+
+        # Restart should bring LR back near base and increase relative to previous step.
+        assert lrs[first_restart_index] == pytest.approx(base_lr, rel=1e-2)
+        assert lrs[first_restart_index] > lrs[first_restart_index - 1]
 
     def test_checkpoint_save_load(self, model: SeizureDetector) -> None:
         """Test checkpoint saving and loading."""
