@@ -9,12 +9,9 @@
 [![v4.2.0](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v4.2.0-checkpoint-resume-fixes)
 
 **Current Status (v4.2.0):**
-- ✅ **Checkpoint Resume Fixed**: Early stopping state persistence, CLI flag fix, RNG determinism (v4.2.0)
-- 🔄 **FLA Baseline**: RESUMED at Epoch 18/100 with patience=20 (training epoch 18, batch 3852/7702)
-- 📊 **Previous Best**: 0.284 @ 10 FA/24h (epoch 9), testing "second peak" hypothesis with extended patience
-- 🧪 **Exp1 (Regularization)**: Complete (stronger regularization did not improve baseline)
-- ⏸️ **BiMamba2 Stack**: PAUSED at Epoch 6 (Modal A100, $1.1k spent, checkpoints backed up)
-- ✅ **NEDC Evaluation**: Official clinical metrics available via `--nedc` flag
+- 🔄 **FLA Baseline**: Epoch 30+, plateaued at 0.257 for 13 epochs (best: 0.284 @ epoch 9), early stop ~epoch 36
+- 🚀 **Exp4 (Cyclic LR)**: Ready to launch - SGDR restarts to escape local minimum
+- ⏸️ **BiMamba2**: Paused (focusing on local training due to cost)
 
 ---
 
