@@ -1,9 +1,9 @@
-# Brain-Go-Brr v4.1.0 – Current Status
+# Brain-Go-Brr v4.2.0 – Current Status
 
-**Last Updated:** 2025-10-20
-**Branch:** `main` / `development` / `feature/nedc-eval`
-**Version:** v4.1.0 (NEDC Evaluation + Documentation Optimization)
-**Deployment:** FLA FOCUS – BiMamba2 (Modal, PAUSED at Epoch 6) + FLA (Local RTX 4090, Epoch 13/100, ACTIVE)
+**Last Updated:** 2025-11-01
+**Branch:** `development`
+**Version:** v4.2.0 (SGDR Scheduler + Experimental Pipeline)
+**Deployment:** FLA FOCUS – Baseline (Epoch 30+, plateaued), Exp4 ready to launch
 
 ---
 
@@ -25,6 +25,35 @@
 ---
 
 ## Latest Improvements
+
+### v4.2.0 - SGDR Scheduler + Experimental Pipeline (November 1, 2025)
+
+**FEATURE RELEASE**: Cyclic learning rate scheduler + validated experimental framework
+
+**New Capabilities**:
+- ✅ **SGDR (Cosine Restarts) Scheduler**: Cyclic LR with warm restarts to escape local minima
+  - Implements Loshchilov & Hutter (2017) SGDR with proper gradient accumulation awareness
+  - Config parameters: `t_initial` (cycle length), `t_mult` (cycle multiplier), `eta_min` (min LR)
+  - Fixed 4 critical bugs from initial implementation (agent validation)
+  - Test coverage: `test_scheduler_cosine_restarts` validates warmup and restart behavior
+- ✅ **Experimental Framework**: Validated hyperparameter experiment pipeline
+  - Exp1 (Regularization): Completed, FAILED (-2.7% vs baseline 0.284)
+  - Exp4 (Cyclic LR): Ready to launch after baseline early stop
+  - Isolated output directories for clean A/B testing
+- ✅ **Baseline Progress**: FLA training reached epoch 30+, plateaued at 0.257
+  - Best: 0.284 @ epoch 9, 0.95 TAES
+  - Plateau: 0.257 for 13 epochs (17-29), patience 13/20
+  - Early stop expected: Epoch 36
+
+**Documentation**:
+- ✅ EXPERIMENTAL_PLAN.md: Concise experiment tracking (506→121 lines)
+- ✅ README.md: Updated current status (7→3 bullets)
+- ✅ BASELINE_METRICS.md: Epochs 1-29 tracked with plateau analysis
+
+**Impact**:
+- **Research Tools**: SGDR scheduler enables local minimum escape strategies
+- **Validated Pipeline**: Exp1 proved regularization hypothesis false, model not overfitting
+- **Next Step**: Launch Exp4 to test SGDR escape from 0.257 plateau
 
 ### v4.1.0 - NEDC Evaluation Pipeline + Documentation Optimization (October 20, 2025)
 
@@ -177,145 +206,70 @@
 
 ---
 
-## 🚨 IMPORTANT - Auto-Restart Instructions
-
-**After current manual resume completes Epoch 2 (~23h from 16:54 EDT Oct 10)**:
-
-1. **Verify Epoch 2 completed successfully** (check Modal logs + W&B)
-
-2. **Deploy auto-restart function** (one-time setup):
-   ```bash
-   modal deploy deploy/modal/app.py
-   ```
-
-3. **Start hands-free auto-restart** (Epochs 3-100, zero manual intervention):
-   ```bash
-   modal run --detach deploy/modal/app.py \
-     --action schedule-training \
-     --config configs/modal/train_bimamba.yaml
-   ```
-
-4. **Monitor** (optional):
-   ```bash
-   modal app list                    # See active scheduled job
-   modal app logs brain-go-brr-v2    # Stream logs
-   modal app stop brain-go-brr-v2    # Stop if needed
-   ```
-
-**Current vs. Auto-Restart**:
-- ✅ **Current (manual)**: Tests checkpoint fixes, runs once, stops after Epoch 2
-- 🔄 **Auto-restart**: Restarts every 23h via `modal.Period(hours=23)`, runs to epoch 100
-- 🎉 **Result**: Zero manual resume from Epoch 3 → 100!
-
----
-
 ## Current Deployment
 
-### FLA-FOCUSED TRAINING (v4.0.0)
+### FLA-FOCUSED TRAINING (v4.2.0)
 
 **BiMamba2 - Modal Training (⏸️ PAUSED)**:
 - Launch: Oct 10, 2025
 - Stopped: Oct 13, 2025 (budget control decision)
-- Progress: **PAUSED at Epoch 6** (5 complete epochs + 50% of epoch 6, batch 647/1284)
-- Cost: **$1,118 spent** (~$600 actual training, rest debugging/smoke tests)
-- Checkpoints: ✅ Backed up to Modal SSD (free storage) + local (`backups/modal_bimamba2_epoch6/`)
-- Files: `epoch_001.pt` through `epoch_005.pt`, `best.pt`, `last.pt`, `mid_epoch_006_000647.pt`
-- Resumable: Yes, anytime via `modal run --detach --action train --config configs/modal/train_bimamba.yaml --resume`
+- Progress: **PAUSED at Epoch 6** (5 complete epochs + 50% of epoch 6)
+- Cost: **$1,118 spent**
+- Checkpoints: ✅ Backed up to Modal SSD + local (`backups/modal_bimamba2_epoch6/`)
 - Stack: TCN + BiMamba2 + GNN + Dynamic LPE
+- Resumable: Yes, anytime via `modal run --detach --action train --config configs/modal/train_bimamba.yaml --resume`
 
 **Rationale for Pause**:
 - Budget-conscious decision as independent researcher
-- BiMamba2 is baseline comparison (useful but not primary hypothesis)
 - FLA (Gated DeltaNet) is primary research focus
-- Remaining cost: ~$900 to complete epochs 6-100
-- Strategy: Finish FLA first (free local training), reassess if BiMamba2 comparison needed
-- Already have 6 epochs of data for early comparison if needed
-- Can resume incrementally later ($500-1k/month when budget allows)
+- BiMamba2 useful for comparison but not critical path
+- Can resume incrementally when budget allows
 
-**FLA - Local Full Training (📊 BASELINE COMPLETE, EXPERIMENTS ACTIVE)**:
-- Launch: Oct 11, 2025 (after SIGBUS fix)
-- Config: 100 epochs, batch_size=8, RTX 4090 (24GB VRAM), mixed_precision=false
-- Cache: 4667 train + 1832 dev NPY files on native ext4 filesystem (WSL2)
+**FLA Baseline - Local Training (🔄 RUNNING, PLATEAUED)**:
+- Launch: Oct 16, 2025 (resumed from epoch 13)
+- Current: **Epoch 30+** (running, will auto-stop ~epoch 36)
+- Status: **Plateaued at 0.257** for 13 epochs (17-29)
+- Best: **0.284 @ epoch 9** (0.95 TAES, 10 FA/24h)
+- Patience: 13/20 (early stop triggers at 20)
+- Expected stop: Epoch 36 (patience exhausted)
+- Config: `configs/local/train_fla.yaml` (patience=20, min_epochs=30)
 - Stack: TCN + BiGatedDeltaNet (FLA) + GNN + Dynamic LPE
-- Cost: $0 (local training)
+- Cost: $0 (local RTX 4090)
+- Checkpoints: `results/local_fla_training/checkpoints/`
 
-**Baseline Training** (Oct 11-18, 2025):
-- Stopped: Epoch 13 (benign crash, not resumed)
-- Best checkpoint: **Epoch 9** - 0.284 sensitivity @ 10 FA/24h, 0.95 TAES
-- Reason for stopping: Val loss increasing (0.027→0.053), sensitivity declining after epoch 9
-- Early stop would have triggered: Epoch 14 (patience=5, 5 epochs after best)
-- Decision: Pragmatic stop - chart showed clear overfitting, no upward trend
-- Result: ✅ **Baseline established at 0.284 @ 10 FA/24h**
-- Checkpoints: `results/local_fla_training/checkpoints/epoch_008-012.pt`, `best.pt` (epoch 9)
+**Timeline**:
+- Oct 11-13: Initial training, stopped at epoch 13 (crash)
+- Oct 16: Resumed from epoch 13 with patience=20
+- Oct 16-Nov 1: Epochs 13-30+, plateaued at 0.257
+- Expected: Nov 4-5: Early stop at epoch 36
 
-**Hyperparameter Experiments** (Oct 18-20, 2025, ACTIVE):
-- Exp1 (Regularization): `train_fla_exp1_reg.yaml` - Epoch 3/100 🔄
-- Exp2 (Learning Rate): `train_fla_exp2_lr.yaml` - Queued ⏳
-- Exp3 (Smaller Model): `train_fla_exp3_smaller.yaml` - Queued ⏳
-- Goal: Beat baseline 0.284 @ 10 FA/24h with architectural/hyperparameter changes
+**Hypothesis**: Stuck in local minimum at 0.257 (lost 0.284 peak after resume chaos)
 
-**Next Steps (Decision Tree)**:
+**Experiments Completed**:
+- ✅ **Exp1 (Regularization)**: FAILED (-2.7% vs baseline)
+  - Best: 0.272 @ epoch 6 vs baseline 0.284
+  - Config: Dropout 0.1→0.2, weight_decay 0.01→0.05
+  - Conclusion: Model NOT overfitting, regularization hurts
+  - Status: Completed, archived
 
-**Phase 1: Complete Experiments (IN PROGRESS)**
-1. ✅ Exp1 (Regularization): Running, epoch 3/100
-2. ⏳ Exp2 (Lower LR): Queued
-3. ⏳ Exp3 (Smaller Model): Queued
+**Experiments Ready to Launch**:
+- 🚀 **Exp4 (Cyclic LR / SGDR)**: Ready after baseline stops
+  - Config: `configs/local/train_fla_exp4_cyclic.yaml`
+  - Strategy: SGDR restarts to escape 0.257 local minimum
+  - Params: t_initial=10, t_mult=2, eta_min=1e-6, patience=15
+  - Expected: Break plateau, potentially recover 0.28+ region
+  - Launch: After baseline early stops (~epoch 36)
 
-**Phase 2: Analyze Results**
-- Compare all experiments to baseline 0.284 @ 10 FA/24h
-- Identify best performing config (if any beat baseline)
+**Experiments Paused/Rejected**:
+- ⏸️ **Exp2 (Lower LR)**: Available but not prioritized (Exp4 more promising)
+- ❌ **Exp3 (Smaller Model)**: Rejected (capacity reduction not justified)
 
-**Phase 3: Decide Next Action (use this decision tree)**
-
-```
-IF any experiment beats baseline (>0.284 @ 10 FA):
-  → Winner becomes new baseline
-  → Re-run winner with patience=20, min_epochs=30 for production
-  → Archive old baseline
-
-ELSE IF all experiments fail to beat baseline:
-  → Option A: Resume baseline with patience=20, min_epochs=30
-             (test if "second peak" exists at epochs 30-50)
-  → Option B: Accept baseline 0.284 as best for this architecture
-             (move to BiMamba2 comparison or deployment)
-  → Decision criteria: Time/compute budget vs expected gain (~20% chance of improvement)
-
-THEN:
-  → Analyze best FLA results (sensitivity@1FA/@5FA/@10FA, AUROC, TAES)
-  → Compare to Temple SOTA (4 FA/24h @ 50% sensitivity)
-  → Decide if BiMamba2 comparison needed
-```
-
-**Phase 4: Production (Future)**
-- Deploy best model with patience=20 config for any future training
-- All production configs now have patience=20, min_epochs=30
-
-**Lessons Learned - Early Stopping**:
-
-**What Happened:**
-- Baseline FLA crashed at epoch 13 (benign, not resumed)
-- Best checkpoint: Epoch 9 (0.284 @ 10 FA/24h)
-- Val loss rising, sensitivity declining → looked like overfitting
-- Made pragmatic decision not to resume
-
-**Root Cause:**
-- Config used patience=5 (too aggressive for 100-epoch plan)
-- Stopped at 13% complete (standard medical imaging: 30-50% before early stop allowed)
-- May have missed "second peak" common in clinical ML (epochs 30-50)
-
-**Fix Applied:**
-1. ✅ Updated `train_*.yaml`: patience=20, min_epochs=30 (prevents premature stopping)
-2. ✅ Updated code: Added `min_epochs` field to schema + early_stopping.py
-3. ⏳ Kept `*_exp*.yaml`: patience=5, min_epochs=0 (INTENTIONAL - see below)
-
-**Why Experiments Keep patience=5:**
-- **Fair comparison**: Baseline trained with patience=5, experiments must too
-- **Isolate effect**: Test if hyperparameters help, not if longer training helps
-- **Scientific method**: Change one variable at a time (hyperparams, not training procedure)
-- **Decision tree**: See "Next Steps" below for post-experiment actions
-
-**Future Smoke Tests:**
-- Keep patience=5, min_epochs=0 (appropriate for 3-10 epoch quick tests)
+**Next Actions**:
+1. ⏳ Wait for baseline early stop (~epoch 36, Nov 4-5)
+2. 🚀 Launch Exp4 (SGDR) to test local minimum escape hypothesis
+3. 📊 Monitor Exp4 epochs 1-15 for early signal (should hit 0.28+ if hypothesis correct)
+4. 🎯 If Exp4 succeeds: New baseline >0.28
+5. 🎯 If Exp4 fails: Accept 0.284 as architecture ceiling, consider BiMamba2 comparison
 
 ---
 
