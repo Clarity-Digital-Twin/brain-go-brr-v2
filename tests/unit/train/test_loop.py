@@ -328,11 +328,10 @@ class TestTrainingSmoke:
         assert not early_stopping(0.6)
         assert not early_stopping(0.7)
 
-        # Simulate plateauing
-        assert not early_stopping(0.7)
-        assert not early_stopping(0.7)
-        assert not early_stopping(0.7)
-        assert early_stopping(0.7)  # Should stop after patience
+        # Simulate plateauing (patience=3)
+        assert not early_stopping(0.7)  # counter=1
+        assert not early_stopping(0.7)  # counter=2
+        assert early_stopping(0.7)  # counter=3, stop (counter >= patience)
 
     def test_balanced_sampling(self) -> None:
         """Test balanced sampler creation."""

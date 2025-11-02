@@ -52,8 +52,7 @@ class EarlyStopping:
             return False
 
         self.counter += 1
-        # Allow exactly `patience` non-improving epochs; stop on the next one.
-        return self.counter > self.patience
+        return self.counter >= self.patience
 
     def state_dict(self) -> dict:
         """Get early stopping state for checkpointing.
