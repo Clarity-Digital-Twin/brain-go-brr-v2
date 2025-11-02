@@ -4,10 +4,14 @@ Two dedicated config pairs exist:
 
 ```
 configs/local/
-  smoke_bimamba.yaml   # BiMamba2: 3 files, 1 epoch (BGB_SMOKE_TEST)
-  train_bimamba.yaml   # BiMamba2: 100 epochs, official train/dev
-  smoke_fla.yaml       # FLA (Gated DeltaNet): smoke
-  train_fla.yaml       # FLA (Gated DeltaNet): full run
+  smoke_bimamba.yaml       # BiMamba2: 3 files, 1 epoch (BGB_SMOKE_TEST)
+  train_bimamba.yaml       # BiMamba2: 100 epochs, official train/dev
+  smoke_fla.yaml           # FLA (Gated DeltaNet): smoke
+  train_fla.yaml           # FLA (Gated DeltaNet): full run (baseline)
+  train_fla_exp1_reg.yaml  # FLA: stronger regularization (Exp1, completed)
+  train_fla_exp2_lr.yaml   # FLA: lower LR (Exp2, optional)
+  train_fla_exp3_smaller.yaml # FLA: smaller model (Exp3, archived)
+  train_fla_exp4_cyclic.yaml  # FLA: cyclic LR restarts (Exp4, next run)
 ```
 
 Both stacks share the same TCN → GNN pipeline; only the temporal blocks differ.
@@ -90,12 +94,22 @@ All experiments maintain FLA stack settings above but vary regularization/capaci
 - Reduces 31M → 17M parameters
 - `output_dir: results/local_fla_exp3_smaller` ✅ ISOLATED
 - Usage: `.venv/bin/python -m src train configs/local/train_fla_exp3_smaller.yaml`
+- **Status**: Archived (capacity reduction deemed unnecessary)
 
-**Execution Order:**
-- Baseline first (currently running, approaching early stopping)
-- Run Exp1 first (highest priority, 80% confidence)
-- Adapt Exp2/Exp3 based on Exp1 results
-- See `HYPERPARAMETER_EXPERIMENTS.md` for full decision tree
+**Exp4 - Cyclic LR (`train_fla_exp4_cyclic.yaml`)**
+- `training.scheduler.type: cosine_restarts` (SGDR with warm restarts)
+- `training.scheduler.t_initial: 10`, `t_mult: 2`, `eta_min: 1.0e-6`
+- `training.early_stopping.patience: 15` (faster verdict with restarts)
+- `output_dir: results/local_fla_exp4_cyclic` ✅ ISOLATED
+- Usage: `.venv/bin/python -m src train configs/local/train_fla_exp4_cyclic.yaml`
+- **Status**: Ready to launch when baseline early-stops (~epoch 36)
+
+**Current Status (Nov 2025):**
+- Baseline (`train_fla.yaml`): Running, plateaued at 0.257 (best 0.284 @ epoch 9)
+- Exp1: Completed (negative result, confirmed model not overfitting)
+- Exp4: Validated and scheduled immediately after baseline completes
+- Exp2: Optional follow-up if Exp4 fails to improve plateau
+- Exp3: Archived (no longer under consideration)
 
 ## WSL2 / RTX 4090 Notes
 - Always run with `num_workers: 0`.
