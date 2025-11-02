@@ -11,7 +11,7 @@ import warnings
 
 import torch.nn as nn
 from torch.optim import AdamW, Optimizer
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, LambdaLR, LRScheduler
+from torch.optim.lr_scheduler import LambdaLR, LRScheduler
 
 from src.brain_brr.config.schemas import SchedulerConfig, TrainingConfig
 from src.brain_brr.constants import EPSILON_ADAMW
@@ -143,7 +143,9 @@ def create_scheduler(
             eta_min = config.eta_min if config.eta_min is not None else 0.0
             eta_max = 1.0  # Will be multiplied by base LR
             progress = t_cur / t_i
-            cosine_factor = eta_min + (eta_max - eta_min) * (1.0 + math.cos(math.pi * progress)) / 2.0
+            cosine_factor = (
+                eta_min + (eta_max - eta_min) * (1.0 + math.cos(math.pi * progress)) / 2.0
+            )
             return cosine_factor
 
         with warnings.catch_warnings():
