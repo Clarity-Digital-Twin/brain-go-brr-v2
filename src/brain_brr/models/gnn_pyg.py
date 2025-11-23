@@ -264,24 +264,60 @@ class GraphChannelMixerPyG(nn.Module):
             with torch.amp.autocast("cuda", enabled=False):
                 l_stable = laplacian.to(torch.float32)
 
+                # CRITICAL FIX: Add random jitter to diagonal to break symmetries
+                # This prevents eigenvalue degeneracy which crashes cuSOLVER
+                batch_total = l_stable.size(0)
+                jitter = torch.randn(batch_total, N, device=device, dtype=torch.float32) * 1e-5
+                l_stable.diagonal(dim1=-2, dim2=-1).add_(jitter)
+
                 try:
                     eigenvalues, eigenvectors = torch.linalg.eigh(l_stable)
 
                     # CRITICAL FIX: Detach eigenvectors to prevent gradient explosion
-                    # PyTorch eigendecomposition backward uses 1/(λᵢ - λⱼ) which explodes
-                    # when eigenvalues are close (near-degenerate from row-softmax/EMA/symmetry)
-                    # Best practice 2025: Eigenvectors are FIXED positional coordinates
-                    # Learning happens in GNN layers that PROCESS PE, not in PE itself
                     eigenvectors = eigenvectors.detach()
 
+                    # Check for NaN/Inf
                     if (
                         torch.isnan(eigenvalues).any()
                         or torch.isnan(eigenvectors).any()
                         or torch.isinf(eigenvalues).any()
                         or torch.isinf(eigenvectors).any()
                     ):
-                        logger.warning("NaN/Inf detected in eigendecomposition, using fallback PE")
-                        # Check if buffer has valid shape (not just placeholder 1,1,1,k)
+                        raise RuntimeError("NaN/Inf in GPU eigendecomposition")
+
+                    # Clamp eigenvalues
+                    eigenvalues = torch.clamp(
+                        eigenvalues, min=EPSILON_NUMERICAL, max=EIGENVALUE_CLAMP_MAX
+                    )
+                    pe = eigenvectors[..., : self.k_eigenvectors]
+
+                except RuntimeError as e:
+                    logger.warning(f"GPU Eigendecomposition failed: {e}, trying CPU fallback")
+                    try:
+                        # CPU Fallback: often more robust for pathological matrices
+                        l_cpu = l_stable.cpu()
+                        evals_cpu, evecs_cpu = torch.linalg.eigh(l_cpu)
+                        
+                        eigenvalues = evals_cpu.to(device)
+                        eigenvectors = evecs_cpu.to(device).detach()
+                        
+                        # Check for NaN/Inf again
+                        if (
+                            torch.isnan(eigenvalues).any()
+                            or torch.isnan(eigenvectors).any()
+                            or torch.isinf(eigenvalues).any()
+                            or torch.isinf(eigenvectors).any()
+                        ):
+                            raise RuntimeError("NaN/Inf in CPU eigendecomposition")
+                            
+                        eigenvalues = torch.clamp(
+                            eigenvalues, min=EPSILON_NUMERICAL, max=EIGENVALUE_CLAMP_MAX
+                        )
+                        pe = eigenvectors[..., : self.k_eigenvectors]
+                        logger.info("CPU fallback successful")
+                        
+                    except RuntimeError as cpu_e:
+                        logger.warning(f"CPU Eigendecomposition failed: {cpu_e}, using last valid PE")
                         if self.last_valid_pe.shape[0] == B and self.last_valid_pe.shape[1] == T:
                             pe = self.last_valid_pe.reshape(B * T, N, self.k_eigenvectors).to(
                                 torch.float32
@@ -297,22 +333,6 @@ class GraphChannelMixerPyG(nn.Module):
                                 )
                                 * 0.01
                             )
-                    else:
-                        # Clamp eigenvalues to SAFER range [EPSILON_NUMERICAL, EIGENVALUE_CLAMP_MAX]
-                        eigenvalues = torch.clamp(
-                            eigenvalues, min=EPSILON_NUMERICAL, max=EIGENVALUE_CLAMP_MAX
-                        )
-                        # Take k smallest eigenvectors (ascending order)
-                        pe = eigenvectors[..., : self.k_eigenvectors]  # (B*T, N, k)
-
-                except RuntimeError as e:
-                    logger.warning(f"Eigendecomposition failed: {e}, using fallback PE")
-                    pe = (
-                        torch.randn(
-                            B * T, N, self.k_eigenvectors, device=device, dtype=torch.float32
-                        )
-                        * 0.01
-                    )
         else:
             # CPU/MPS: No autocast needed (already in fp32 context)
             l_stable = laplacian.to(torch.float32)
