@@ -240,15 +240,11 @@ class GraphChannelMixerPyG(nn.Module):
         if laplacian.ndim == 3:
             batch, N, _ = laplacian.shape  # noqa: N806
             jitter = (
-                torch.randn(batch, N, device=laplacian.device, dtype=laplacian.dtype)
-                * jitter_scale
+                torch.randn(batch, N, device=laplacian.device, dtype=laplacian.dtype) * jitter_scale
             )
         else:
             N = laplacian.size(0)  # noqa: N806
-            jitter = (
-                torch.randn(N, device=laplacian.device, dtype=laplacian.dtype)
-                * jitter_scale
-            )
+            jitter = torch.randn(N, device=laplacian.device, dtype=laplacian.dtype) * jitter_scale
         laplacian.diagonal(dim1=-2, dim2=-1).add_(jitter)
         return laplacian
 
@@ -277,9 +273,7 @@ class GraphChannelMixerPyG(nn.Module):
         ):
             raise RuntimeError("NaN/Inf in eigendecomposition")
 
-        eigenvalues = torch.clamp(
-            eigenvalues, min=EPSILON_NUMERICAL, max=EIGENVALUE_CLAMP_MAX
-        )
+        eigenvalues = torch.clamp(eigenvalues, min=EPSILON_NUMERICAL, max=EIGENVALUE_CLAMP_MAX)
         pe = eigenvectors[..., : self.k_eigenvectors]
         return pe, eigenvalues
 
@@ -374,16 +368,12 @@ class GraphChannelMixerPyG(nn.Module):
             try:
                 eigenvalues, eigenvectors = torch.linalg.eigh(l_stable)
                 eigenvectors = eigenvectors.detach()
-                pe, eigenvalues = self._validate_and_process_eigendecomp(
-                    eigenvalues, eigenvectors
-                )
+                pe, eigenvalues = self._validate_and_process_eigendecomp(eigenvalues, eigenvectors)
 
             except RuntimeError as e:
                 logger.warning(f"Eigendecomp failed: {e}, using fallback PE")
                 if self.last_valid_pe.shape[0] == B and self.last_valid_pe.shape[1] == T:
-                    pe = self.last_valid_pe.reshape(B * T, N, self.k_eigenvectors).to(
-                        torch.float32
-                    )
+                    pe = self.last_valid_pe.reshape(B * T, N, self.k_eigenvectors).to(torch.float32)
                 else:
                     pe = (
                         torch.randn(

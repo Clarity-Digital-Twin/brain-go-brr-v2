@@ -65,7 +65,9 @@ def test_jitter_prevents_eigenvalue_degeneracy():
     gaps = evals_jittered[1:] - evals_jittered[:-1]
     num_distinct = (gaps.abs() > 1e-8).sum()
     min_required = int(0.75 * (N - 1))  # At least 75% distinct
-    assert num_distinct >= min_required, f"Only {num_distinct}/{N-1} gaps are distinct (need ≥{min_required})"
+    assert num_distinct >= min_required, (
+        f"Only {num_distinct}/{N - 1} gaps are distinct (need ≥{min_required})"
+    )
 
     # Test 2: Eigenvalues should be close to original (only perturbed slightly)
     assert torch.allclose(evals_jittered, torch.ones(N), atol=1e-4)
@@ -79,7 +81,9 @@ def test_jitter_prevents_eigenvalue_degeneracy():
         evals_b = torch.linalg.eigvalsh(batch_jittered[b])
         gaps_b = evals_b[1:] - evals_b[:-1]
         num_distinct_b = (gaps_b.abs() > 1e-8).sum()
-        assert num_distinct_b >= min_required, f"Batch {b}: Only {num_distinct_b}/{N-1} gaps are distinct (need ≥{min_required})"
+        assert num_distinct_b >= min_required, (
+            f"Batch {b}: Only {num_distinct_b}/{N - 1} gaps are distinct (need ≥{min_required})"
+        )
 
 
 @pytest.mark.unit
