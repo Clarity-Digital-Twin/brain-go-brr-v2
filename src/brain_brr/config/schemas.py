@@ -528,12 +528,35 @@ class PostprocessingConfig(StrictModel):
 class SchedulerConfig(StrictModel):
     """Learning rate scheduler configuration."""
 
-    type: Literal["cosine"] = Field(
-        default="cosine", description="Learning rate scheduler type (only cosine supported)"
+    type: Literal["cosine", "cosine_restarts"] = Field(
+        default="cosine",
+        description="Learning rate scheduler type: cosine (standard) or cosine_restarts (SGDR)",
     )
     warmup_ratio: float = Field(
         default=0.1, ge=0.0, le=0.5, description="Warmup fraction of total steps"
     )
+
+    # SGDR-specific parameters (for cosine_restarts)
+    t_initial: Annotated[
+        int | None,
+        Field(
+            ge=1,
+            le=100,
+            description="Initial restart cycle length in epochs (required for cosine_restarts)",
+        ),
+    ] = None
+    t_mult: Annotated[
+        int | None,
+        Field(
+            ge=1,
+            le=10,
+            description="Cycle length multiplier after each restart (e.g., 2 = double each cycle)",
+        ),
+    ] = 1
+    eta_min: Annotated[
+        float | None,
+        Field(ge=0.0, le=1e-3, description="Minimum learning rate at end of each cycle"),
+    ] = 0.0
 
 
 class EarlyStoppingConfig(StrictModel):

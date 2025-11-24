@@ -28,8 +28,9 @@ configs/
 │   ├── smoke_fla.yaml              # FLA smoke
 │   ├── train_fla.yaml              # FLA full training (baseline)
 │   ├── train_fla_exp1_reg.yaml     # FLA Exp1: Stronger regularization
-│   ├── train_fla_exp2_lr.yaml      # FLA Exp2: Lower learning rate
-│   └── train_fla_exp3_smaller.yaml # FLA Exp3: Smaller model (17M params)
+│   ├── train_fla_exp2_lr.yaml      # FLA Exp2: Lower learning rate (standby)
+│   ├── train_fla_exp3_smaller.yaml # FLA Exp3: Smaller model (RETIRED)
+│   └── train_fla_exp4_cyclic.yaml  # FLA Exp4: Cyclic LR restarts (next run)
 │
 └── modal/                          # Modal A100-80GB configs
     ├── smoke_bimamba.yaml          # BiMamba2 smoke (50 files, 1 epoch)
@@ -46,8 +47,9 @@ Following the research methodology in `TRAINING_METHODOLOGY.md`, three targeted 
 configs/local/
   train_fla.yaml              # Baseline FLA (31M params)
   train_fla_exp1_reg.yaml     # Exp1: Stronger regularization (HIGH priority)
-  train_fla_exp2_lr.yaml      # Exp2: Lower learning rate (MEDIUM priority)
-  train_fla_exp3_smaller.yaml # Exp3: Smaller model 17M params (MEDIUM priority)
+  train_fla_exp2_lr.yaml      # Exp2: Lower learning rate (available, lower priority)
+  train_fla_exp3_smaller.yaml # Exp3: Smaller model 17M params (rejected)
+  train_fla_exp4_cyclic.yaml  # Exp4: Cyclic LR restarts (READY)
 ```
 
 **Experiment Details:**
@@ -58,16 +60,19 @@ configs/local/
 | **Exp1: Regularization** | Insufficient regularization causing overfitting | dropout 0.1→0.2, weight_decay 0.01→0.05 | `results/local_fla_exp1_reg` |
 | **Exp2: Lower LR** | Learning rate too high, late instability | lr 1e-4→5e-5, warmup 0.03→0.05 | `results/local_fla_exp2_lr` |
 | **Exp3: Smaller Model** | Model too large for dataset (4,667 files) | 6→4 layers, 512→384 dim (31M→17M) | `results/local_fla_exp3_smaller` |
+| **Exp4: Cyclic LR** | Stuck in local minimum at 0.257 | cosine→cosine_restarts, t_initial=10, t_mult=2, eta_min=1e-6, patience 20→15 | `results/local_fla_exp4_cyclic` |
+
+**Status Snapshot (Nov 2025):**
+- Baseline: Running, plateaued at 0.257 (best 0.284 @ epoch 9), will early-stop ~epoch 36
+- Exp1: Completed (negative result, model not overfitting)
+- Exp4: Validated and queued to launch immediately after baseline stops
+- Exp2: Optional follow-up if Exp4 fails to improve
+- Exp3: Archived (capacity reduction no longer considered)
 
 **Critical Constraints:**
-- Each experiment uses **unique output_dir** to prevent overwriting baseline
-- All maintain `edge_mamba_d_model: 32` (FLA/Triton requirement from AGENTS.md)
-- See `HYPERPARAMETER_EXPERIMENTS.md` for full methodology and command examples
-
-**Execution Order:**
-1. Wait for baseline (`train_fla.yaml`) to complete early stopping
-2. Run Exp1 first (highest priority, 80% confidence)
-3. Adapt Exp2/Exp3 based on Exp1 results (see decision tree in methodology doc)
+- Each experiment uses a unique `output_dir` to protect checkpoints
+- `edge_mamba_d_model` remains 32 to satisfy FLA kernel requirements
+- Refer to `EXPERIMENTAL_PLAN.md` for current sequencing and rationale
 
 ## ⚡ Critical Cache Configuration
 
@@ -116,10 +121,10 @@ tmux new -s exp2-lr
 export BGB_NAN_DEBUG=1
 python -m src train configs/local/train_fla_exp2_lr.yaml
 
-# FLA Experiment 3 (Smaller Model)
-tmux new -s exp3-smaller
+# FLA Experiment 4 (Cyclic LR restarts)
+tmux new -s exp4-cyclic
 export BGB_NAN_DEBUG=1
-python -m src train configs/local/train_fla_exp3_smaller.yaml
+python -m src train configs/local/train_fla_exp4_cyclic.yaml
 ```
 
 ### Modal Cloud Training (A100)

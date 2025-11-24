@@ -8,6 +8,7 @@ configs/local/
   train_bimamba.yaml   # BiMamba2 stack – full training (100 epochs)
   smoke_fla.yaml       # FLA (Gated DeltaNet) stack – smoke
   train_fla.yaml       # FLA (Gated DeltaNet) stack – full training
+  train_fla_exp4_cyclic.yaml # FLA (Gated DeltaNet) stack – cyclic LR experiment
 
 configs/modal/
   smoke_bimamba.yaml   # BiMamba2 stack – smoke (50 files, 1 epoch)
@@ -55,10 +56,10 @@ early_stopping:
   min_epochs: 30                     # Prevents premature stopping
   metric: sensitivity_at_10fa
 ```
-**Status**: ✅ BASELINE COMPLETE - Best: 0.284 @ 10 FA/24h (epoch 9), stopped epoch 13. Config now uses patience=20 for future runs.
+**Status** (Nov 2025): 🔄 RUNNING — Reached 0.284 @ epoch 9, currently plateaued at 0.257 (epochs 17-29). Early stop expected ≈epoch 36 (patience=20, min_epochs=30).
 
 ### FLA Experiments (Hyperparameter Search)
-**Configs**: `train_fla_exp1_reg.yaml`, `train_fla_exp2_lr.yaml`, `train_fla_exp3_smaller.yaml`
+**Configs**: `train_fla_exp1_reg.yaml`, `train_fla_exp2_lr.yaml`, `train_fla_exp3_smaller.yaml`, `train_fla_exp4_cyclic.yaml`
 
 All three experiments:
 - Share baseline FLA temporal stack settings (gated_deltanet, heads, edge_d_model=32)
@@ -86,9 +87,21 @@ mamba.d_model: 384         # DOWN from 512
 graph.n_layers: 1          # DOWN from 2
 edge_mamba_d_model: 32     # UNCHANGED (FLA requirement)
 output_dir: results/local_fla_exp3_smaller
+
+# Exp4 (Cyclic LR) - train_fla_exp4_cyclic.yaml
+scheduler.type: cosine_restarts   # Warm restarts to escape plateau
+scheduler.t_initial: 10           # First cycle = 10 epochs (local step estimate)
+scheduler.t_mult: 2               # 10→20→40 cycle growth
+scheduler.eta_min: 1.0e-6         # Restart floor
+early_stopping.patience: 15       # Tighter verdict for restart schedule
+output_dir: results/local_fla_exp4_cyclic
 ```
 
-**Status**: ✅ READY FOR EXECUTION (run after baseline completes early stopping)
+**Status Snapshot**:
+- Exp1: ✅ Completed (negative result, confirms baseline not overfitting)
+- Exp4: ✅ Validated & queued to run immediately after baseline stops
+- Exp2: ⏸️ Optional follow-up if Exp4 fails to improve plateau
+- Exp3: ❌ Archived (capacity reduction no longer pursued)
 
 ### BiMamba2 – `smoke_bimamba.yaml`
 ```yaml

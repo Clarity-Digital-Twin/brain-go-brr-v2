@@ -33,10 +33,11 @@
 ```
 
 ### Technical Analysis
-- **Error Code**: `-75` = `EBADF` (Bad file descriptor)
+- **Error Code**: `-75` = `EOVERFLOW` (Value overflow, not "bad file descriptor")
 - **Component**: WSL2 DirectX Graphics Kernel (`dxg`)
 - **Operation**: GPU memory allocation via Windows-Linux bridge
 - **Pattern**: Failures accumulate over time, then CUDA crashes
+- **Note**: Earlier analysis incorrectly stated -75 = EBADF (which is errno 9)
 
 ### Why It's NOT a Code Bug
 1. ✅ **GPU is healthy**: `nvidia-smi` shows normal operation (43°C, 70W)

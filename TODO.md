@@ -1,60 +1,60 @@
 # TODO - Active Tasks
 
-**Last Updated:** 2025-10-11
-**Status:** 🟢 **ZERO ACTIVE TASKS** - All known work completed
+**Last Updated:** 2025-11-01
+**Status:** 🟡 **WAITING** - Baseline early stop, then launch Exp4
 
 ---
 
 ## Current Status
 
-**Active Work**: None - codebase is ready for production training
+**Active Work**: FLA Baseline running (epoch 30+, plateaued at 0.257)
 
 **In Progress**:
-- BiMamba2 baseline training LIVE on Modal A100 (Epoch 3, v3.11.0 with StatefulDataLoader)
+- FLA Baseline: Epoch 30+, patience 13/20, expected early stop at epoch 36 (~Nov 4-5)
+- BiMamba2: PAUSED at epoch 6 (Modal, budget control)
 
 **Next Steps**:
-1. Monitor BiMamba2 training completion (**~700-1200 hours total** due to validation overhead)
-2. Analyze results, document findings, and validate TAES metrics
-3. Launch FLA training using separate output directories (v3.11.0 config separation complete)
-4. Compare BiMamba2 vs FLA results (sensitivity@FA, AUROC, throughput) and document findings
-5. Optional post-training optimizations (P4/P5)
+1. ⏳ Monitor baseline early stop (~epoch 36, Nov 4-5)
+2. 🚀 Launch Exp4 (SGDR) immediately after baseline stops
+3. 📊 Monitor Exp4 epochs 1-15 for early signal (should hit 0.28+ if hypothesis correct)
+4. 🎯 Analyze Exp4 results, update experimental plan
+5. 💡 Decide next action based on Exp4 outcome (see TRAINING.md decision tree)
 
 ---
 
-## Recently Completed (October 7, 2025)
+## Recently Completed (November 1, 2025)
 
-### v3.8.3 - Manifest Naming Cleanup Complete
-- [x] Backed up existing manifests (train + dev)
-- [x] Verified cache integrity (4667 train + 1832 dev NPY files)
-- [x] Updated 11 code locations to eliminate `.replace("_windows", "")` workarounds
-- [x] Regenerated train manifest: 303,990 windows from 4438 NPY files
-- [x] Regenerated dev manifest: 148,224 windows
-- [x] Verified 100% NPY naming, 0 NPZ references
-- [x] Smoke test validation passed
-- [x] Version bumped to v3.8.3
-- [x] All documentation updated
-- [x] Git commit, tag, and push completed
-- [x] **ZERO P0/P1/P2/P3 TECHNICAL DEBT ACHIEVED**
+### v4.2.0 - SGDR Scheduler + Experimental Pipeline
+- [x] Implemented SGDR (cosine restarts) scheduler
+- [x] Fixed 4 critical bugs in initial SGDR implementation (agent validation)
+- [x] Added test coverage: `test_scheduler_cosine_restarts`
+- [x] Created Exp4 config: `train_fla_exp4_cyclic.yaml`
+- [x] Validated all configs (100% passing)
+- [x] Completed Exp1 (Regularization): FAILED (-2.7% vs baseline)
+- [x] Updated documentation: EXPERIMENTAL_PLAN.md (506→121 lines), README.md, STATUS.md, TRAINING.md
+- [x] Baseline reached epoch 30+, plateaued at 0.257
+- [x] Confirmed best: 0.284 @ epoch 9
+- [x] All quality checks passing (lint, format, mypy, tests)
 
-### Previous Milestones (October 6, 2025)
+### v4.1.0 - NEDC Evaluation Pipeline (October 20, 2025)
+- [x] NEDC evaluation integration (nedc-bench wrapper)
+- [x] CLI integration: `python -m src evaluate --checkpoint <path> --nedc`
+- [x] Eval cache building: `python -m src build-cache eval`
+- [x] 277 lines of tests (231 unit + 46 integration)
+- [x] Documentation optimization (CLAUDE.md: 537→372 lines)
 
-#### v3.8.2 - Zero Warnings
-- [x] NumPy copy-on-read tensors across all 3 dataset classes
-- [x] AMP scheduler guard for accurate LR schedule
-- [x] Verified 0 PyTorch warnings in Modal logs
+### Previous Milestones
+- [x] v4.0.0: FLA stack production + WSL2 SIGBUS fix
+- [x] v3.11.0: StatefulDataLoader & mid-epoch resume
+- [x] v3.10.0: Auto-restart training + checkpoint fix
+- [x] v3.9.1: Validation OOM fix (disk-backed storage)
+- [x] v3.8.3: Manifest naming cleanup
+- [x] **ZERO P0/P1/P2/P3 TECHNICAL DEBT MAINTAINED**
 
-#### v3.8.1 - Complete Tensor Safety
-- [x] EEGWindowDataset hardened with proper .clone() calls
-
-#### v3.8.0 - NPZ Cache Cleanup
-- [x] Clean 3 stray NPZ files from Modal cache
-- [x] Fix datasets.py NPZ creation bug
-- [x] Fix all type annotations (3 files)
-- [x] Extract duplicate `_load_cache_for_worker` (120 lines eliminated)
-
-### Quality Verification
-- [x] Run `make q` (lint + format + mypy + config validation)
-- [x] Run `make test` (104 tests, 83.80% coverage)
+### Quality Verification (Nov 1, 2025)
+- [x] Run `make q` (lint + format + mypy + config validation) → ✅ PASS
+- [x] Run `make test` (592 tests passing) → ✅ PASS
+- [x] Config validation (12 configs) → ✅ 11 valid (exp3 has pre-existing issue)
 
 ---
 

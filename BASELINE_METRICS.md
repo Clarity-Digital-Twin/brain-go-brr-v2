@@ -47,10 +47,19 @@ early_stopping:
 | 17 | 0.2577 | 130,934 | Oct 25 | 🎉 Recovery! +3.4% improvement |
 | 18 | 0.2577 | 138,636 | Oct 27 | Plateau at recovery level |
 | 19 | 0.2577 | 146,338 | Oct 27 | Plateau continues (3 epochs) |
-| 20 | Validating (9%) | TBD | Oct 27 | Will restart with WandB fix after validation |
+| 20 | 0.2577 | 154,040 | Oct 27 | Plateau holds (4th epoch) |
+| 21 | 0.2577 | 161,742 | Oct 28 | No change; patience 9/20 |
+| 22 | 0.2577 | 169,444 | Oct 29 | Plateau continues (6th epoch) |
+| 23 | 0.2577 | 177,146 | Oct 29 | Plateau continues (7th epoch) |
+| 24 | 0.2577 | 184,848 | Oct 30 | Plateau continues (8th epoch) |
+| 25 | 0.2577 | 192,550 | Oct 30 | Plateau continues (9th epoch) |
+| 26 | 0.2577 | 200,252 | Oct 31 | Plateau continues (10th epoch) |
+| 27 | 0.2577 | 207,954 | Oct 31 | Plateau continues (11th epoch) |
+| 28 | 0.2577 | 215,656 | Nov 01 | Plateau continues (12th epoch) |
+| 29 | 0.2577 | 223,358 | Nov 01 | Plateau continues (13th epoch); patience 13/20 |
 
 **Best Overall**: 0.2801 @ Epoch 9 (Oct 16)
-**Post-Resume Best**: 0.2577 @ Epochs 17-19 (Oct 25-27) - Plateaued after recovery
+**Post-Resume Best**: 0.2577 @ Epochs 17-29 (Oct 25 - Nov 01) - Stuck in plateau for 13 epochs
 
 ---
 
@@ -91,10 +100,11 @@ early_stopping:
   - First improvement in 5 epochs
   - Still **-8%** below peak (0.2801) but recovery confirmed
 
-- **New Plateau (Epochs 17-19)**: 📊 **0.2577 (stable for 3 epochs)**
+- **Extended Plateau (Epochs 17-29)**: 📊 **0.2577 (stuck for 13 epochs!)**
   - Model settled at new plateau after recovery
-  - Consistent performance at recovery level
-  - May need intervention to break plateau (patience counter: 13/20)
+  - No improvement for 13 consecutive epochs (Oct 25 → Nov 01)
+  - Patience counter: 13/20 (will early stop at epoch 36 if no improvement)
+  - LR decayed to ~8.3e-05 (30% through cosine schedule)
 
 ### Experiment Context
 - **Exp1 (Regularization)**: Cancelled @ epoch 9, peaked at 0.2726 (worse than baseline)
@@ -108,9 +118,9 @@ early_stopping:
 - ✅ **Epoch 14** (Oct 24): Plateau continued at 0.2493
 - ✅ **Epoch 15** (Oct 24): Plateau continued at 0.2493
 - ✅ **Epoch 17** (Oct 25): Recovery to 0.2577 confirmed
-- 🔄 **Epoch 20** (Oct 27, ~23:00): Will restart training with WandB .env fix after validation
-- **Epoch 21+** (~Oct 28+): Training resumes with proper WandB syncing
-- **Epoch 30** (~Nov 3): Min epochs reached, patience countdown begins (if no improvement)
+- ✅ **Epochs 20-29** (Oct 27 - Nov 01): Plateau extended to 13 epochs at 0.2577
+- 🔄 **Epoch 30** (Nov 01, in progress): Min epochs reached, patience 13/20
+- **Epoch 36** (~Nov 3-4): Expected early stop (patience exhausted)
 
 ### WandB Data Status
 - ✅ **Epochs 0-15**: Synced to old run (5ee302c0)
@@ -139,4 +149,4 @@ Add the result to the table above.
 
 ---
 
-**Last Updated**: Oct 27, 2025 18:55 EDT (Epoch 20 validating 9%, will restart with WandB .env fix after completion. **New plateau at 0.2577 for 3 epochs.**)
+**Last Updated**: Nov 01, 2025 20:45 EDT (Epoch 30 in progress. **Plateau at 0.2577 for 13 consecutive epochs (17-29). Patience 13/20, early stop expected at epoch 36.**)

@@ -11,6 +11,7 @@ SOLID principles applied:
 from __future__ import annotations
 
 import logging
+import math
 import os
 import signal
 from pathlib import Path
@@ -117,9 +118,17 @@ def train(
     # Create optimizer and scheduler
     optimizer = create_optimizer(model, config.training)
 
-    total_steps = config.training.epochs * len(train_loader)
+    batches_per_epoch = len(train_loader)
+    grad_accum = max(1, config.training.gradient_accumulation_steps)
+    steps_per_epoch = max(1, math.ceil(batches_per_epoch / grad_accum))
+    total_steps = config.training.epochs * steps_per_epoch
     scheduler = (
-        create_scheduler(optimizer, config.training.scheduler, total_steps)
+        create_scheduler(
+            optimizer,
+            config.training.scheduler,
+            total_steps,
+            steps_per_epoch=steps_per_epoch,
+        )
         if config.training.scheduler
         else None
     )
