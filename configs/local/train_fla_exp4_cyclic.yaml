@@ -144,8 +144,14 @@ preprocessing:
 
 training:
   epochs: 100
-  batch_size: 8                    # Optimized for RTX 4090 (2x faster than 4)
-  learning_rate: 1.0e-4            # BASELINE peak LR (cycles down then restarts)
+  # RTX 4090 OPTIMIZED: measured 10GB @ batch=4, safe to double
+  # 8 = 2x faster: ~20GB usage, 4GB buffer, cuts epoch time in half
+  # OOM FIX (Nov 24): Reduced to 4 due to repeated silent crashes at 17.5GB reserved
+  batch_size: 4   # REDUCED from 8 to prevent OOM
+
+  # Conservative learning rate to prevent NaN
+  # RTX 4090: balanced between stability and learning
+  learning_rate: 1.0e-4  # Increased from 1e-5 which was too low during warmup
 
   optimizer: adamw
 
@@ -201,7 +207,7 @@ training:
   checkpoint_interval: 1  # Save every epoch for safety
   mid_checkpoint_interval_s: 1800  # Save every 30 minutes (safety for long epochs)
   mid_epoch_keep: 3  # Keep last 3 mid-epoch checkpoints
-  gradient_accumulation_steps: 1  # Can increase if batch_size too small
+  gradient_accumulation_steps: 2  # INCREASED to 2 (matches effective batch 8)
 
 postprocessing:
   hysteresis:
