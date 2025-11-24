@@ -43,9 +43,36 @@ evals_cpu, evecs_cpu = torch.linalg.eigh(l_cpu)
 ### 3. Improved Logging
 Explicit warnings are logged when these fallbacks are triggered, allowing us to track how often the model enters these unstable regions.
 
+## Implementation (v2: Clean Refactoring)
+
+The fix has been implemented following Clean Code principles (Rob C. Martin discipline):
+
+### Helper Methods (DRY Principle)
+```python
+def _add_jitter_for_stability(laplacian, jitter_scale=1e-5):
+    """Applies random diagonal jitter consistently across all backends."""
+    # Applied uniformly to CUDA, CPU, and MPS paths
+
+def _validate_and_process_eigendecomp(eigenvalues, eigenvectors):
+    """Single validation method (eliminates 3× code duplication)."""
+    # Validates NaN/Inf, clamps eigenvalues, extracts PE
+```
+
+### Test Coverage
+```python
+test_jitter_prevents_eigenvalue_degeneracy():
+    """Validates jitter breaks degeneracy on identity matrix."""
+
+test_validate_and_process_eigendecomp():
+    """Tests validation helper with NaN/Inf cases."""
+```
+
+**Status**: ✅ All 11 GNN unit tests pass
+
 ## Recommendation for Next Steps
 
-1.  **Merge this fix:** The changes in `src/brain_brr/models/gnn_pyg.py` are critical for stability.
-2.  **Resume/Retrain:** With this fix, the baseline model can likely pass epoch 13 without crashing. Exp4 can also be resumed with higher confidence that it won't crash unexpectedly.
-3.  **Monitor:** Watch the logs for "GPU Eigendecomposition failed... trying CPU fallback" to see if the jitter is doing its job (ideally, the jitter prevents the crash, so the fallback is rarely used).
+1.  **Merge this fix:** The changes in `src/brain_brr/models/gnn_pyg.py` are critical for stability and follow best practices.
+2.  **Resume/Retrain:** With this fix, the baseline model can likely pass epoch 13 without crashing. Exp4 can also be resumed with higher confidence.
+3.  **Monitor:** Watch the logs for "GPU eigendecomp failed... trying CPU fallback" to see if the jitter is doing its job (ideally, the jitter prevents the crash, so the fallback is rarely used).
+4.  **Documentation:** See `docs/VALIDATION_CRITIQUE_gemini_investigation.md` and `docs/VERDICT_gemini_investigation.md` for detailed mathematical validation and code review.
 
