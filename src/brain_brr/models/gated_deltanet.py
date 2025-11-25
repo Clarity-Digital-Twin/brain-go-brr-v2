@@ -133,9 +133,24 @@ class BiGatedDeltaNet(nn.Module):
         for layer in self.layers:
             residual = x
 
+            # CUDA sync points around FLA kernels to prevent async race conditions.
+            # FLA's chunk_gated_delta_rule uses Triton kernels that can have unsafe
+            # memory access patterns under concurrent execution. These sync points
+            # ensure each kernel completes before the next starts.
+            # See: https://github.com/Clarity-Digital-Twin/brain-go-brr-v2 crash investigation
+            if x.is_cuda:
+                torch.cuda.synchronize()
+
             x_fwd, _, _ = layer["fwd"](x)
 
+            if x.is_cuda:
+                torch.cuda.synchronize()
+
             x_bwd, _, _ = layer["bwd"](x.flip(dims=[1]).contiguous())
+
+            if x.is_cuda:
+                torch.cuda.synchronize()
+
             x_bwd = x_bwd.flip(dims=[1])
 
             if self.fusion_mode == "sum":
