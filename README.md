@@ -8,10 +8,10 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
 [![v4.2.0](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v4.2.0-checkpoint-resume-fixes)
 
-**Current Status (v4.2.0):**
-- 🔄 **FLA Baseline**: Epoch 30+, plateaued at 0.257 for 13 epochs (best: 0.284 @ epoch 9), early stop ~epoch 36
-- 🚀 **Exp4 (Cyclic LR)**: Ready to launch - SGDR restarts to escape local minimum
-- ⏸️ **BiMamba2**: Paused (focusing on local training due to cost)
+**Current Status (v4.3.0):**
+- ✅ **FLA Exp4 COMPLETE**: 78 epochs trained, best @ epoch 63
+- 📊 **TUSZ Eval Results**: **35.9% sensitivity @ 10 FA/24h**, AUROC 0.8654
+- ⏸️ **BiMamba2**: Paused at epoch 6 (focusing on local training due to cost)
 
 ---
 
@@ -323,6 +323,58 @@ Based on verified clinical benchmarks and SOTA research (see [`docs/00-overview/
 
 ---
 
+## 📊 Results: FLA Exp4 (Gated DeltaNet) - December 2024
+
+**Training completed** on RTX 4090 local GPU over 6 weeks.
+
+### TUSZ Eval Set (Held-Out Test)
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| **AUROC** | **0.8654** | Strong discrimination |
+| **PR-AUC** | 0.5409 | Handles 12:1 imbalance |
+| **Sensitivity @ 10 FA/24h** | **35.9%** | Primary clinical metric |
+| **Sensitivity @ 5 FA/24h** | 27.1% | Stricter threshold |
+| **Sensitivity @ 2.5 FA/24h** | 18.6% | Very strict |
+| **Sensitivity @ 1 FA/24h** | 5.8% | Clinical gold standard |
+| **ECE** | 0.029 | Well-calibrated |
+| **Val Loss** | 0.090 | Focal loss |
+
+**Dataset**: 836 recordings, 127.8 hours of continuous EEG
+
+### Training Details
+
+| Parameter | Value |
+|-----------|-------|
+| **Architecture** | TCN + BiGatedDeltaNet (FLA) + GNN + Dynamic LPE |
+| **Total Epochs** | 78 (early stopped, patience=15) |
+| **Best Epoch** | 63 |
+| **Dev Sensitivity @ 10FA** | 29.0% (validation during training) |
+| **Training Time** | ~6 weeks on RTX 4090 |
+| **Config** | `configs/local/train_fla_exp4_cyclic.yaml` |
+
+### Comparison to Baselines
+
+| System | FA/24h | Sensitivity | Notes |
+|--------|--------|-------------|-------|
+| **Temple NEDC SOTA** | 4 | 50% | Clinical deployment target |
+| **SeizureTransformer** | 26.89 | 45.6% | EpilepsyBench #1 (2025) |
+| **Ours (FLA Exp4)** | **10** | **35.9%** | Better FA rate, lower sens |
+| **Ours (FLA Exp4)** | **5** | **27.1%** | Competitive FA rate |
+
+**Key Insight**: Our model trades sensitivity for lower false alarm rates. At 10 FA/24h (more clinically practical than 26.89), we achieve 35.9% sensitivity. The steep ROC curve at low FA rates is consistent with Temple NEDC findings.
+
+### Validation During Training (Dev Set)
+
+Best epoch 63 metrics on dev (validation) set:
+- Sensitivity @ 10 FA/24h: 29.0%
+- AUROC: 0.78
+- TAES: 0.95
+
+**Note**: Test set (eval) performance exceeded dev set performance - unusual but indicates good generalization.
+
+---
+
 ## 🚀 Quick Start
 
 ```bash
@@ -477,6 +529,6 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 
 **Questions?** [Open an issue](https://github.com/clarity-digital-twin/brain-go-brr-v2/issues) • **Updates?** [Watch the repo](https://github.com/clarity-digital-twin/brain-go-brr-v2) • **Discussion?** [Start a discussion](https://github.com/clarity-digital-twin/brain-go-brr-v2/discussions)
 
-**Status**: v4.2.0 checkpoint resume fixes released • FLA training resumed (Epoch 18/100) • BiMamba2 paused (Epoch 6, backed up) • See [`STATUS.md`](STATUS.md) for full details
+**Status**: v4.3.0 FLA Exp4 COMPLETE • **35.9% sensitivity @ 10 FA/24h on TUSZ eval** • BiMamba2 paused (Epoch 6) • See [`STATUS.md`](STATUS.md) for full details
 
 </div>

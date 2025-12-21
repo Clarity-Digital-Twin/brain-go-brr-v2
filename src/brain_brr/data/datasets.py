@@ -211,8 +211,8 @@ class EEGWindowDataset(torch.utils.data.Dataset):
 
         This is a placeholder; format-specific loaders can be added later.
         """
-        # CSV_BI (Temple/TUSZ) annotations
-        if label_path.suffix.lower() == ".csv" and label_path.exists():
+        # CSV_BI (Temple/TUSZ) annotations - handle both .csv and .csv_bi
+        if label_path.suffix.lower() in (".csv", ".csv_bi") and label_path.exists():
             _duration_s, events = parse_tusz_csv(label_path)
             # Convert to binary mask aligned to requested n_samples @ 256 Hz
             # NOTE: events_to_binary_mask expects duration in SECONDS, not samples!
