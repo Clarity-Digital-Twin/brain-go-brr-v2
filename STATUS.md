@@ -275,8 +275,8 @@ SeizureTransformer numbers are from our run in `reference_repos/SeizureTransform
 ### FLA Exp4 - COMPLETE (v4.3.0)
 
 **FLA Exp4 (Cyclic LR / SGDR) - ✅ COMPLETE**:
-- Launch: Nov 2024
-- Completed: Dec 17, 2024 (early stopped at epoch 78)
+- Launch: Nov 2025
+- Completed: Dec 18, 2025 (early stopped at epoch 78)
 - Best epoch: **63**
 - Dev sensitivity @ 10FA: **29.0%**
 - **TUSZ Eval (held-out test)**: **35.9% @ 10 FA/24h, AUROC 0.8654**

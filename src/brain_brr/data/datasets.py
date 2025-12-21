@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -32,7 +32,7 @@ class EEGWindowDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         edf_files: list[Path],
-        label_files: list[Path] | None = None,
+        label_files: Sequence[Path | None] | None = None,
         cache_dir: Path | None = None,
         transform: Callable[[torch.Tensor], torch.Tensor] | None = None,
         allow_on_demand: bool = True,
@@ -191,7 +191,8 @@ class EEGWindowDataset(torch.utils.data.Dataset):
         labels = None
         if self.label_files is not None and file_idx < len(self.label_files):
             label_path = self.label_files[file_idx]
-            labels = self._load_labels(label_path, n_samples=data_proc.shape[1])
+            if label_path is not None:
+                labels = self._load_labels(label_path, n_samples=data_proc.shape[1])
 
         # Windowing
         windows, window_labels, _ = extract_windows(

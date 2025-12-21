@@ -6,7 +6,7 @@
 [![PyTorch 2.5.0](https://img.shields.io/badge/pytorch-2.5.0-red.svg)](https://pytorch.org)
 [![CUDA 12.4](https://img.shields.io/badge/cuda-12.4-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
-[![v4.2.0](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v4.2.0-checkpoint-resume-fixes)
+[![v4.3.0](https://img.shields.io/badge/version-4.3.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v4.3.0)
 
 **Current Status (v4.3.0):**
 - ✅ **FLA Exp4 COMPLETE**: 78 epochs trained, best @ epoch 63
@@ -491,7 +491,7 @@ We welcome contributions! See [`docs/09-development/`](docs/09-development/) for
   title = {Brain-Go-Brr V4: Clinical EEG Seizure Detection via Dual-Stack State-Space Models},
   author = {Clarity Digital Twin},
   year = {2025},
-  version = {4.2.0},
+  version = {4.3.0},
   url = {https://github.com/clarity-digital-twin/brain-go-brr-v2},
   note = {Empirical A/B comparison of BiMamba2 and Flash Linear Attention (BiGatedDeltaNet) architectures on TUSZ}
 }
