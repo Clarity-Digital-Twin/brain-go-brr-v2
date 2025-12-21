@@ -80,7 +80,7 @@ This folder contains **detailed research documentation** for the Flash Linear At
 
 ---
 
-## Current Status (v4.0.0)
+## Current Status (v4.3.0)
 
 ### BiMamba2 Stack (Baseline)
 - **Training**: Modal A100, **PAUSED at Epoch 6** due to high costs
@@ -88,14 +88,14 @@ This folder contains **detailed research documentation** for the Flash Linear At
 - **Purpose**: High-end comparison baseline (when budget permits)
 
 ### FLA Stack (Research)
-- **Training**: Local RTX 4090, **Epoch 7/100** (7% complete, progressing normally)
-- **Status**: PRIMARY training stack (cost-effective at $0)
+- **Training**: Local RTX 4090, **Exp4 COMPLETE** (78 epochs, best epoch 63)
+- **Status**: PRIMARY validated stack (cost-effective at $0)
+- **Held-out TUSZ eval**: 35.9% sensitivity @ 10 FA/24h (AUROC 0.8654)
+- SSOT: `results/local_fla_exp4_cyclic/eval_results_v2.json`
 - **Purpose**: Production candidate for clinical EEG seizure detection
 
 ### Next Milestone
-- Complete both 100-epoch runs
-- Compare sensitivity/FA curves
-- Publish results regardless of winner (novel dual-stack architecture)
+- Add a 4 FA/24h operating point + run official NEDC scoring for publication-ready results
 
 ---
 

@@ -1,13 +1,13 @@
 # Brain-Go-Brr v4.3.0 – Current Status
 
-**Last Updated:** 2024-12-20
+**Last Updated:** 2025-12-20
 **Branch:** `development`
 **Version:** v4.3.0 (FLA Exp4 Complete + TUSZ Eval Benchmark)
 **Deployment:** FLA Exp4 COMPLETE - 35.9% sensitivity @ 10 FA/24h on TUSZ eval
 
 ---
 
-## TUSZ Eval Benchmark Results (December 2024)
+## TUSZ Eval Benchmark Results (December 2025)
 
 **FLA Exp4 (Gated DeltaNet)** - Held-out test set evaluation:
 
@@ -20,6 +20,7 @@
 | **Sensitivity @ 2.5 FA/24h** | 18.6% |
 | **Sensitivity @ 1 FA/24h** | 5.8% |
 | **ECE** | 0.029 |
+| **Val Loss** | 0.090 |
 
 **Training Details**:
 - Total epochs: 78 (early stopped, patience=15)
@@ -27,13 +28,20 @@
 - Dev sensitivity @ 10FA: 29.0%
 - Training time: ~6 weeks on RTX 4090
 - Checkpoint: `results/local_fla_exp4_cyclic/checkpoints/best.pt`
+- Results JSON (SSOT): `results/local_fla_exp4_cyclic/eval_results_v2.json`
+- Eval log: `results/local_fla_exp4_cyclic/eval_v2.log`
+
+**Dataset notes**:
+- TUSZ eval split has 865 EDF/label pairs; 29 yield 0 windows under 60s windowing
+- Metrics above are computed on 836 scored recordings totaling 127.8 hours
 
 **Comparison**:
-| System | FA/24h | Sensitivity |
-|--------|--------|-------------|
-| Temple NEDC SOTA | 4 | 50% |
-| SeizureTransformer | 26.89 | 45.6% |
-| **Ours (FLA Exp4)** | **10** | **35.9%** |
+| FA Rate | FLA Exp4 | SeizureTransformer | Delta |
+|--------:|---------:|------------------:|------:|
+| 10 FA/24h | **35.9%** | 33.90% | **+2.0%** |
+| 2.5 FA/24h | **18.6%** | 14.50% | **+4.1%** |
+
+SeizureTransformer numbers are from our run in `reference_repos/SeizureTransformer/docs/results/FINAL_COMPREHENSIVE_RESULTS_TABLE.md` (Python OVERLAP = NEDC OVERLAP).
 
 ---
 
@@ -56,12 +64,13 @@
 
 ## Latest Improvements
 
-### v4.3.0 - FLA Exp4 Complete + TUSZ Eval Benchmark (December 20, 2024)
+### v4.3.0 - FLA Exp4 Complete + TUSZ Eval Benchmark (December 20, 2025)
 
 **MILESTONE RELEASE**: First complete training run with held-out test set evaluation
 
 **Results**:
 - ✅ **TUSZ Eval Benchmark**: 35.9% sensitivity @ 10 FA/24h, AUROC 0.8654
+- ✅ **Head-to-head vs SeizureTransformer**: +2.0% @ 10 FA/24h, +4.1% @ 2.5 FA/24h (same TUSZ eval split, OVERLAP scoring)
 - ✅ **Training Complete**: 78 epochs (early stopped), best @ epoch 63
 - ✅ **Generalization**: Test set exceeded dev set performance (unusual but good)
 - ✅ **Bug Fixes**: Critical eval label loading bugs fixed (2 bugs found and resolved)

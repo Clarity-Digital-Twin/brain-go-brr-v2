@@ -9,9 +9,10 @@
 # - training.scheduler.eta_min: 1e-6 (NEW - minimum LR before restart to 1e-4)
 # - early_stopping.patience: 20 → 15 (shorter - expect faster results with restarts)
 #
-# HYPOTHESIS: Stuck in local minimum at 0.257 (lost 0.284 peak after resume chaos)
+# HYPOTHESIS (pre-run): Stuck in local minimum at 0.257 (lost 0.284 peak after resume chaos)
 # SOLUTION: Cyclic LR restarts to escape local minimum and rediscover better solutions
-# EXPECTED: Break through 0.257 plateau, possibly recover 0.28+ peak
+# EXPECTED (pre-run): Break through 0.257 plateau, possibly recover 0.28+ peak
+# RESULT (2025-12-20): Early-stopped at epoch 78 (best epoch 63); TUSZ eval 35.9% @ 10 FA/24h (AUROC 0.8654)
 #
 # WHY THIS OVER Exp2/Exp3:
 # - Exp2 (lower LR): Would make plateau WORSE (more conservative learning)
@@ -27,7 +28,7 @@
 
 experiment:
   name: full_training_fla_exp4_cyclic
-  description: "Experiment 4: Cyclic LR Restarts - escape 0.257 local minimum, target 0.28+ recovery"
+  description: "Experiment 4: Cyclic LR Restarts (SGDR) - COMPLETE (best epoch 63, early stop 78)"
   seed: 42
   output_dir: results/local_fla_exp4_cyclic    # ISOLATED from baseline (results/local_fla_training)
   cache_dir: cache/tusz_mmap                   # Same as data.cache_dir for consistency (mmap NPY format)

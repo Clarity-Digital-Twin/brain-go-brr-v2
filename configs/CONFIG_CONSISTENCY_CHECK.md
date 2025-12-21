@@ -56,7 +56,7 @@ early_stopping:
   min_epochs: 30                     # Prevents premature stopping
   metric: sensitivity_at_10fa
 ```
-**Status** (Nov 2025): 🔄 RUNNING — Reached 0.284 @ epoch 9, currently plateaued at 0.257 (epochs 17-29). Early stop expected ≈epoch 36 (patience=20, min_epochs=30).
+**Status** (Dec 2025): Historical baseline run notes (superseded by Exp4).
 
 ### FLA Experiments (Hyperparameter Search)
 **Configs**: `train_fla_exp1_reg.yaml`, `train_fla_exp2_lr.yaml`, `train_fla_exp3_smaller.yaml`, `train_fla_exp4_cyclic.yaml`
@@ -99,8 +99,8 @@ output_dir: results/local_fla_exp4_cyclic
 
 **Status Snapshot**:
 - Exp1: ✅ Completed (negative result, confirms baseline not overfitting)
-- Exp4: ✅ Validated & queued to run immediately after baseline stops
-- Exp2: ⏸️ Optional follow-up if Exp4 fails to improve plateau
+- Exp4: ✅ COMPLETE — TUSZ eval 35.9% sensitivity @ 10 FA/24h (AUROC 0.8654); SSOT: `results/local_fla_exp4_cyclic/eval_results_v2.json`
+- Exp2: ⏸️ Optional follow-up (not executed)
 - Exp3: ❌ Archived (capacity reduction no longer pursued)
 
 ### BiMamba2 – `smoke_bimamba.yaml`

@@ -417,4 +417,4 @@ training:
 
 **Mission**: Match/beat Temple SOTA (4 FA/24h @ 50% sensitivity) with V3 dual-stream architecture 🚀
 
-**Status (v4.1.0)**: BiMamba2 (Modal PAUSED Epoch 6) + FLA Baseline (Epoch 9 best, 0.284@10FA) + Experiments (Exp1 running)
+**Status (v4.3.0)**: FLA Exp4 COMPLETE (78 epochs, best epoch 63; TUSZ eval 35.9% @ 10 FA/24h, AUROC 0.8654) + BiMamba2 paused (epoch 6)

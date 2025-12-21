@@ -1,4 +1,4 @@
-# Friction Points & Bugs - December 2024 Session
+# Friction Points & Bugs - December 2025 Session
 
 Documented during FLA Exp4 training cycle completion and eval run.
 
@@ -142,7 +142,7 @@ run.delete()
 
 **Status**: FIXED
 
-See `EVAL_LABELS_BUG_2024_12.md` for full details.
+See `docs/bugs/EVAL_LABELS_BUG_2024_12.md` for full details.
 
 ---
 
@@ -156,7 +156,7 @@ See `EVAL_LABELS_BUG_2024_12.md` for full details.
 
 **Status**: FIXED
 
-See `EVAL_LABELS_BUG_2024_12.md` for full details.
+See `docs/bugs/EVAL_LABELS_BUG_2024_12.md` for full details.
 
 ---
 

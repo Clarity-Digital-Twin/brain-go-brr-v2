@@ -1,6 +1,6 @@
 # CRITICAL BUG: Evaluation Service Does Not Load Labels
 
-**Date**: 2024-12-18
+**Date**: 2025-12-18
 **Severity**: CRITICAL
 **Status**: FIXED (2 bugs found and fixed)
 
@@ -111,7 +111,7 @@ The comment said "CSV_BI (Temple/TUSZ)" but the code only checked for `.csv`!
 
 ## Resolution
 
-After fixing both bugs, eval was rerun on 2024-12-20:
+After fixing both bugs, eval was rerun on 2025-12-20:
 
 **Final Results (TUSZ Eval, held-out test set)**:
 - AUROC: **0.8654** (was 0.5 when broken)
@@ -121,10 +121,11 @@ After fixing both bugs, eval was rerun on 2024-12-20:
 - Sensitivity @ 1 FA/24h: 5.8%
 - ECE: 0.029
 - Dataset: 836 recordings, 127.8 hours
+- SSOT: `results/local_fla_exp4_cyclic/eval_results_v2.json`
 
 The model works correctly. Training was valid. Only the eval code was broken.
 
 ## Related Issues
 
-- Friction point #5 in `FRICTION_POINTS_2024_12.md`: evaluate expects EDF not cache
+- Friction point #5 in `docs/bugs/FRICTION_POINTS_2024_12.md`: evaluate expects EDF not cache
 - The cache issue was a red herring - real bug was label loading

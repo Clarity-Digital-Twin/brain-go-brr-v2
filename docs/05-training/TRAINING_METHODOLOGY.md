@@ -1,13 +1,21 @@
 # Training Methodology & Hyperparameter Search Plan
 
-**Status**: 🔄 **ACTIVE** - Exp1 running, baseline complete, resume queued
+**Status**: ⚠️ Historical planning doc (Exp4 complete; see SSOT)
 **Created**: 2025-10-18
-**Last Updated**: 2025-10-20
-**SSOT**: See `TRAINING.md` for current execution plan
+**Last Updated**: 2025-12-20
+**SSOT**: `results/local_fla_exp4_cyclic/eval_results_v2.json` (held-out TUSZ eval)
 
 ---
 
-## 🎯 Current Situation (October 20, 2025)
+## Current Best (Held-Out TUSZ Eval)
+
+- ✅ FLA Exp4 (Gated DeltaNet): **35.9% sensitivity @ 10 FA/24h** (AUROC 0.8654)
+- SSOT: `results/local_fla_exp4_cyclic/eval_results_v2.json`
+- For updated comparison/targets: `docs/06-evaluation/REALISTIC_PERFORMANCE_TARGETS.md`
+
+---
+
+## 🎯 Snapshot (October 20, 2025)
 
 ### Baseline Training Run (FLA - RTX 4090) ✅ COMPLETE
 
@@ -70,7 +78,7 @@ See `TRAINING.md` for complete execution plan and decision tree.
 |-------|------|---------|-------------|-----------|
 | **train** | 4,667 files | Train models | Every experiment | Unlimited |
 | **dev** | 1,832 files | Validate & tune hyperparameters | Every experiment | Unlimited |
-| **eval** | ~1,000 files | Final test (unbiased performance) | **ONCE at end** | **ONE TIME ONLY** |
+| **eval** | 865 files | Final test (unbiased performance) | **ONCE at end** | **ONE TIME ONLY** |
 
 ### Critical Rules:
 

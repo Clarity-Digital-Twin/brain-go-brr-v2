@@ -1,6 +1,6 @@
 # Training Validity Analysis: Is Our Training Valid?
 
-## TL;DR: **YES - Exp4 Training is VALID ✅**
+## TL;DR: **YES - Exp4 Training is VALID (and COMPLETE) ✅**
 
 ---
 
@@ -24,12 +24,14 @@
 - **Epochs 0-13**: ✅ Valid training data
 - **Checkpoints**: Exist for epoch 13 (Oct 18)
 
-### Exp4 SGDR ✅ (survived)
+### Exp4 SGDR ✅ (completed)
 - **Config**: `configs/local/train_fla_exp4_cyclic.yaml` (SGDR)
-- **Current epoch**: 33 (last checkpoint Nov 19, 2025)
-- **Best metric**: 0.2633 @ 10 FA/24h
+- **Completed**: 78 epochs (early stopped), best epoch 63
+- **Best dev metric**: 0.2904 @ 10 FA/24h (during training validation)
+- **Held-out TUSZ eval**: 35.9% sensitivity @ 10 FA/24h (AUROC 0.8654)
+- **SSOT**: `results/local_fla_exp4_cyclic/eval_results_v2.json`
 - **Eigendecomp warnings**: ZERO ❌ (searched all logs)
-- **Status**: **FULLY VALID** - SGDR prevented convergence to pathological region
+- **Status**: **FULLY VALID** - training + evaluation completed cleanly
 
 ---
 
@@ -39,9 +41,9 @@
 |----------|--------|-------------|
 | Did Exp4 hit the crash condition? | ❌ No | Training ran correctly |
 | Does Exp4 have eigendecomp warnings? | ❌ None | No numerical instability detected |
-| Are Exp4's metrics stable? | ✅ Yes | 0.2633 best (epochs 6-28 plateau analyzed) |
+| Are Exp4's metrics stable? | ✅ Yes | Training ran to early stop without crash |
 | Can we trust Exp4's checkpoints? | ✅ Yes | No code bugs, only avoided crash |
-| Should we restart Exp4 from scratch? | ❌ No | Waste of 33 epochs × 9.6h = 13.2 days |
+| Should we restart Exp4 from scratch? | ❌ No | Already complete; reruns only for ablations |
 
 ---
 
@@ -49,76 +51,25 @@
 
 Based on AlphaFold/Gemini development practices:
 
-### ✅ **CONTINUE Exp4** (Recommended)
-1. **Resume from epoch 33** with our fix
-2. **Run to epoch 100** with jitter protection
-3. **Validate fix works** (monitor "GPU eigendecomp failed" logs)
-4. **Compare final Exp4** (epochs 0-100) vs new baseline
-
-**Reasoning**:
-- Exp4 never hit the bug (SGDR kept it safe)
-- All 33 epochs are valid training
-- Fix is defensive (prevents future crashes)
-- Time saved: ~13 days of compute
-
-### ⚠️ **START New Baseline in PARALLEL**
-1. Fresh training with the fix from epoch 0
-2. Validates fix effectiveness
-3. Provides clean comparison data
-4. Doesn't block Exp4 completion
-
-**Reasoning**:
-- Scientific rigor: verify fix works end-to-end
-- Baseline crashed → don't know if it would've been better
-- Can compare Exp4 (with SGDR luck) vs Baseline (with jitter fix)
-
-### ❌ **DON'T Discard Exp4**
-- Throwing away 33 valid epochs = scientific malpractice
-- Exp4 avoided the crash through SGDR's design
-- All metrics are valid (no correctness bug)
+### ✅ **Proceed with Post-Training Validation**
+1. Keep the jitter protection enabled for future runs
+2. Run official NEDC scoring for Exp4 outputs (OVERLAP/TAES/SzCORE) for publication-ready reporting
+3. Treat the baseline crash as an operational stability issue (not a correctness invalidation of Exp4)
 
 ---
 
 ## Validation Checklist
 
-Before resuming:
+Post-completion checklist:
 - [x] Fix merged to `development` ✅
 - [x] Tests pass (595/595) ✅
 - [x] Exp4 logs clean (no eigendecomp warnings) ✅
-- [x] Exp4 checkpoint valid (epoch 33, 0.2633 metric) ✅
-- [ ] Resume Exp4 → epoch 34+ (next step)
-- [ ] Start new baseline (parallel, optional but recommended)
-- [ ] Monitor logs for "GPU eigendecomp failed" warnings
-- [ ] Compare Exp4 final vs baseline final
-
----
-
-## Commands
-
-```bash
-# Option 1: Resume Exp4 (RECOMMENDED)
-tmux new -s exp4-resume
-export BGB_NAN_DEBUG=1
-make resume  # Uses configs/local/train_fla_exp4_cyclic.yaml
-# Detach: Ctrl+B D
-
-# Option 2: Start Fresh Baseline (PARALLEL)
-tmux new -s baseline-fresh
-export BGB_NAN_DEBUG=1
-rm -rf results/local_fla_baseline_v2  # Clean slate
-.venv/bin/python -m src train configs/local/train_fla.yaml \
-  --output-dir results/local_fla_baseline_v2
-# Detach: Ctrl+B D
-
-# Monitor both
-tmux attach -t exp4-resume
-tmux attach -t baseline-fresh
-```
+- [x] Exp4 checkpoint valid (`results/local_fla_exp4_cyclic/checkpoints/best.pt`) ✅
+- [x] Exp4 training complete (early stopped at epoch 78) ✅
+- [x] Held-out eval complete (SSOT JSON written) ✅
 
 ---
 
 ## Bottom Line
 
-**Exp4's 33 epochs are VALID**. The bug was a crash condition that Exp4 avoided through SGDR's design. Resume Exp4 confidently, and optionally start a fresh baseline in parallel for scientific comparison.
-
-**What DeepMind would do**: Resume Exp4 + start new baseline in parallel = maximize data while validating fix. 🎯
+Exp4 training is valid and complete; the eigendecomp issue was a crash condition, not a correctness bug. The next validation step is producing publication-ready NEDC scorer outputs for the Exp4 checkpoint.

@@ -45,7 +45,7 @@ def calculate_taes(pred_events, ref_events, alpha=0.15) -> float:
 
 ### Example Output
 ```
-TAES: 0.9450  ← This is a QUALITY METRIC, NOT a sensitivity!
+TAES: 0.9658  ← This is a QUALITY METRIC, NOT a sensitivity!
 ```
 
 ### Key Properties
@@ -99,13 +99,14 @@ When calculating **sensitivity** (not a single score!):
 
 ## 🔥 WHAT OUR CODE ACTUALLY IMPLEMENTS
 
-### Our Metrics (Epoch 6 Example)
+### Our Metrics (FLA Exp4 Eval Example)
 ```
-TAES: 0.9450                      ← METRIC #1 (quality score)
-AUROC: 0.8141                     ← Discrimination ability
-Sensitivity @ 10 FA/24h: 24.84%   ← Uses OVERLAP SCORING (#2 variant)
-Sensitivity @ 5 FA/24h:  16.81%   ← Uses OVERLAP SCORING (#2 variant)
-Sensitivity @ 1 FA/24h:   7.38%   ← Uses OVERLAP SCORING (#2 variant)
+TAES: 0.9658                      ← METRIC #1 (quality score)
+AUROC: 0.8654                     ← Discrimination ability
+Sensitivity @ 10 FA/24h: 35.9%    ← Uses OVERLAP SCORING (#2 variant)
+Sensitivity @ 5 FA/24h:  27.1%    ← Uses OVERLAP SCORING (#2 variant)
+Sensitivity @ 2.5 FA/24h: 18.6%   ← Uses OVERLAP SCORING (#2 variant)
+Sensitivity @ 1 FA/24h:   5.8%    ← Uses OVERLAP SCORING (#2 variant)
 ```
 
 ### Sensitivity Calculation (false_alarm.py:144-146)
@@ -135,11 +136,11 @@ for ref_start, ref_end in refs:
 
 ### ✅ CORRECT Comparisons
 
-**Our TAES metric (0.9450)**:
+**Our TAES metric (0.9658)**:
 - Compare to: Other papers reporting "TAES score" as a single quality metric
 - Do NOT compare to: Sensitivity values calculated with NEDC TAES scoring
 
-**Our Sensitivity @ FA rates (24.84% @ 10 FA/24h)**:
+**Our Sensitivity @ FA rates (35.9% @ 10 FA/24h)**:
 - ✅ Compare to: **NEDC OVERLAP** results (e.g., SeizureTransformer: 45.63% @ 26.89 FA)
 - ✅ Compare to: **SzCORE Event** results (more permissive)
 - ❌ DO NOT compare to: **NEDC TAES** sensitivity results (different scoring!)
@@ -148,7 +149,7 @@ for ref_start, ref_end in refs:
 
 **WRONG**:
 ```
-Our TAES: 0.9450
+Our TAES: 0.9658
 vs
 SeizureTransformer TAES sensitivity: 65.21%
 ```
@@ -156,7 +157,7 @@ These are COMPLETELY DIFFERENT metrics!
 
 **CORRECT**:
 ```
-Our Sensitivity @ 10 FA/24h: 24.84% (OVERLAP scoring)
+Our Sensitivity @ 10 FA/24h: 35.9% (OVERLAP scoring)
 vs
 SeizureTransformer @ 26.89 FA/24h: 45.63% (OVERLAP scoring)
 ```
@@ -174,13 +175,13 @@ SeizureTransformer @ 26.89 FA/24h: 45.63% (OVERLAP scoring)
 | "TAES sensitivity: 65%" | **Scoring system #2** | NOT implemented |
 | "Using TAES metric" | Ambiguous! | Check paper carefully |
 
-### Our Training Logs
+### Our Eval Logs (Example)
 
 | Log Line | Meaning | Type |
 |----------|---------|------|
-| `TAES: 0.9450` | Quality score [0,1] | Metric #1 |
-| `Sensitivity@10.0FA/24h: 0.2484` | Event detection @ 10 FA | OVERLAP scoring |
-| `AUROC: 0.8141` | Discrimination ability | Standard metric |
+| `TAES: 0.9658` | Quality score [0,1] | Metric #1 |
+| `Sensitivity@10.0FA/24h: 0.3590` | Event detection @ 10 FA | OVERLAP scoring |
+| `AUROC: 0.8654` | Discrimination ability | Standard metric |
 
 ---
 
@@ -235,7 +236,7 @@ for ref_start, ref_end in refs:
 1. **TAES Metric** (what we compute):
    - Single quality score [0,1]
    - Measures event alignment with partial credit
-   - Our output: `TAES: 0.9450`
+   - Our output: `TAES: 0.9658`
 
 2. **NEDC TAES Scoring** (what literature uses):
    - Way to calculate sensitivity with partial credit
@@ -246,10 +247,10 @@ for ref_start, ref_end in refs:
 
 **Bottom Line**:
 - ✅ Compare our sensitivity to **NEDC OVERLAP** results in literature
-- ❌ Never compare our TAES score (0.9450) to TAES-scored sensitivity values
+- ❌ Never compare our TAES score (0.9658) to TAES-scored sensitivity values
 - 🚨 Always check which scorer papers use before comparing!
 
 ---
 
-**Last Updated**: 2025-10-15
-**See Also**: REALISTIC_PERFORMANCE_TARGETS.md (section on scoring systems)
+**Last Updated**: 2025-12-20
+**See Also**: `docs/06-evaluation/REALISTIC_PERFORMANCE_TARGETS.md` (section on scoring systems)

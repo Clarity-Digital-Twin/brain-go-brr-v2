@@ -2,13 +2,19 @@
 
 **Experiment**: Full FLA Gated DeltaNet baseline (31M params)
 **Config**: `configs/local/train_fla.yaml`
-**Status**: 🟢 RUNNING (Epoch 20 validating - 9% complete)
+**Status**: ⚠️ HISTORICAL SNAPSHOT (baseline run notes from Oct–Nov 2025; superseded by Exp4)
 **Started**: Oct 16, 2025 10:55 AM EDT
 **Hardware**: RTX 4090 (24GB VRAM)
 **Wandb Run (Old)**: https://wandb.ai/jj-vcmcswaggins-novamindnyc/seizure-v3-rtx4090/runs/5ee302c0a01d4e43b8e782fa2ffb0e90 (Epochs 0-15)
 **Wandb Run (Current)**: https://wandb.ai/jj-vcmcswaggins-novamindnyc/seizure-v3-rtx4090/runs/c7eb044ceee34392ad1c793e783f4bc4 (Epoch 17+, partial sync)
 
 ---
+
+## Current Best (Held-Out TUSZ Eval)
+
+FLA Exp4 (Gated DeltaNet) is the current best held-out benchmark:
+- **35.9% sensitivity @ 10 FA/24h** (AUROC 0.8654) on TUSZ eval
+- SSOT: `results/local_fla_exp4_cyclic/eval_results_v2.json` (checkpoint: `results/local_fla_exp4_cyclic/checkpoints/best.pt`)
 
 ## Training Configuration
 
@@ -120,7 +126,7 @@ early_stopping:
 - ✅ **Epoch 17** (Oct 25): Recovery to 0.2577 confirmed
 - ✅ **Epochs 20-29** (Oct 27 - Nov 01): Plateau extended to 13 epochs at 0.2577
 - 🔄 **Epoch 30** (Nov 01, in progress): Min epochs reached, patience 13/20
-- **Epoch 36** (~Nov 3-4): Expected early stop (patience exhausted)
+- **Epoch 36** (~Nov 3-4, projected at the time): Expected early stop (patience exhausted)
 
 ### WandB Data Status
 - ✅ **Epochs 0-15**: Synced to old run (5ee302c0)
@@ -149,4 +155,4 @@ Add the result to the table above.
 
 ---
 
-**Last Updated**: Nov 01, 2025 20:45 EDT (Epoch 30 in progress. **Plateau at 0.2577 for 13 consecutive epochs (17-29). Patience 13/20, early stop expected at epoch 36.**)
+**Snapshot Last Updated**: Nov 01, 2025 20:45 EDT (Epoch 30 in progress at the time; plateau at 0.2577 for 13 consecutive epochs (17-29))

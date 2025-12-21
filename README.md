@@ -46,10 +46,11 @@ Traditional approaches fail because they treat these as separate problems. We mo
 
 ### 🔶 Stack 2: Gated DeltaNet (Research Variant)
 - **What**: FLA (Flash Linear Attention) with gating + delta rule
-- **Status**: 📊 **Baseline Complete** - 0.284 @ 10 FA/24h (epoch 9), 🧪 Exp1 running (testing regularization)
+- **Status**: ✅ **Exp4 COMPLETE** - **35.9% sensitivity @ 10 FA/24h** on TUSZ eval (AUROC 0.8654)
+- **Checkpoint/Config**: `results/local_fla_exp4_cyclic/checkpoints/best.pt`, `configs/local/train_fla_exp4_cyclic.yaml`
 - **Foundation**: Beats Mamba2 on language modeling ([ICLR 2025](https://github.com/NVlabs/GatedDeltaNet))
 - **Hypothesis**: Better for EEG's abrupt context switches (seizure onsets)
-- **Next**: Resume baseline with patience=20 to test "second peak" hypothesis (after exp1 completes)
+- **Next**: Close gap to Temple SOTA (4 FA/24h @ ~50% sensitivity)
 
 **Why both?** Seizures have **abrupt onsets** (need memory clearing via gating) *and* **persistent patterns** (need selective retention via delta rule). Gated Delta theoretically handles both. But does theory match clinical reality? That's what we're testing.
 
@@ -298,7 +299,7 @@ Based on verified clinical benchmarks and SOTA research (see [`docs/00-overview/
 **≤10 FA/24h @ ≥75% sensitivity** (NEDC OVERLAP scoring)
 
 - Enables ICU monitoring with manageable alarm fatigue
-- Current gap: SeizureTransformer @ 10 FA = 33.90% sensitivity (42-point gap to close)
+- SeizureTransformer @ ~10 FA (OVERLAP): 33.90% sensitivity → Exp4: 35.9% (+2.0 points), still below Temple target (4 FA/24h @ ~50%)
 
 ### Additional Metrics (Threshold-Independent)
 
@@ -323,7 +324,7 @@ Based on verified clinical benchmarks and SOTA research (see [`docs/00-overview/
 
 ---
 
-## 📊 Results: FLA Exp4 (Gated DeltaNet) - December 2024
+## 📊 Results: FLA Exp4 (Gated DeltaNet) - December 2025
 
 **Training completed** on RTX 4090 local GPU over 6 weeks.
 
@@ -340,7 +341,7 @@ Based on verified clinical benchmarks and SOTA research (see [`docs/00-overview/
 | **ECE** | 0.029 | Well-calibrated |
 | **Val Loss** | 0.090 | Focal loss |
 
-**Dataset**: 836 recordings, 127.8 hours of continuous EEG
+**Dataset**: TUSZ eval split (865 EDF/label pairs) → 836 recordings scored (29 yielded 0 windows under 60s windowing), 127.8 hours
 
 ### Training Details
 
@@ -352,26 +353,28 @@ Based on verified clinical benchmarks and SOTA research (see [`docs/00-overview/
 | **Dev Sensitivity @ 10FA** | 29.0% (validation during training) |
 | **Training Time** | ~6 weeks on RTX 4090 |
 | **Config** | `configs/local/train_fla_exp4_cyclic.yaml` |
+| **Checkpoint** | `results/local_fla_exp4_cyclic/checkpoints/best.pt` |
+| **Results JSON (SSOT)** | `results/local_fla_exp4_cyclic/eval_results_v2.json` |
 
-### Comparison to Baselines
+### Comparison to SeizureTransformer (Same TUSZ Eval Split, OVERLAP Scoring)
 
-| System | FA/24h | Sensitivity | Notes |
-|--------|--------|-------------|-------|
-| **Temple NEDC SOTA** | 4 | 50% | Clinical deployment target |
-| **SeizureTransformer** | 26.89 | 45.6% | EpilepsyBench #1 (2025) |
-| **Ours (FLA Exp4)** | **10** | **35.9%** | Better FA rate, lower sens |
-| **Ours (FLA Exp4)** | **5** | **27.1%** | Competitive FA rate |
+| FA Rate | FLA Exp4 | SeizureTransformer | Delta |
+|--------:|---------:|------------------:|------:|
+| 10 FA/24h | **35.9%** | 33.90% | **+2.0%** |
+| 2.5 FA/24h | **18.6%** | 14.50% | **+4.1%** |
 
-**Key Insight**: Our model trades sensitivity for lower false alarm rates. At 10 FA/24h (more clinically practical than 26.89), we achieve 35.9% sensitivity. The steep ROC curve at low FA rates is consistent with Temple NEDC findings.
+SeizureTransformer numbers are from our run in `reference_repos/SeizureTransformer/docs/results/FINAL_COMPREHENSIVE_RESULTS_TABLE.md` (Python OVERLAP = NEDC OVERLAP).
+
+**Key Insight**: We now beat SeizureTransformer at the two tuned clinical operating points (10 and 2.5 FA/24h), but remain below Temple's verified clinical SOTA (≈50% @ 4 FA/24h).
 
 ### Validation During Training (Dev Set)
 
 Best epoch 63 metrics on dev (validation) set:
 - Sensitivity @ 10 FA/24h: 29.0%
-- AUROC: 0.78
-- TAES: 0.95
+- AUROC: 0.7792
+- TAES (metric): 1.0000
 
-**Note**: Test set (eval) performance exceeded dev set performance - unusual but indicates good generalization.
+**Note**: Eval performance exceeded dev at the 10 FA operating point (35.9% vs 29.0%); this can happen due to split differences.
 
 ---
 

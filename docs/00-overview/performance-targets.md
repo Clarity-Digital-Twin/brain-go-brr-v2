@@ -1,6 +1,6 @@
 # Performance Targets and System Profile
 
-**Last Updated**: October 20, 2025
+**Last Updated**: 2025-12-20
 
 **🚨 CRITICAL METRICS NOTE**: "TAES" has TWO different meanings! See `docs/06-evaluation/TAES_DISAMBIGUATION.md` for complete explanation.
 - TAES score = quality metric [0,1] from `calculate_taes()`
@@ -54,9 +54,9 @@
 
 | FA Rate | Target Sensitivity | Reality Check |
 |---------|-------------------|---------------|
-| 10 FA/24h | >95% | SeizureTransformer: 34% ❌ (**61 points gap**) |
-| 5 FA/24h | >90% | SeizureTransformer: ~25% ❌ (**65 points gap**) |
-| 1 FA/24h | >75% | Temple SOTA: 50% @ 4 FA ❌ (**impossible with current architectures**) |
+| 10 FA/24h | >95% | Brain-Go-Brr (FLA Exp4): 35.9% (OVERLAP); SeizureTransformer: 33.90% |
+| 5 FA/24h | >90% | Brain-Go-Brr (FLA Exp4): 27.1% (OVERLAP) |
+| 1 FA/24h | >75% | Brain-Go-Brr (FLA Exp4): 5.8% (OVERLAP); Temple SOTA: 50% @ 4 FA |
 
 **Reality**: These targets are **64 percentage points above SOTA**. Would require fundamental breakthrough, not incremental improvement.
 
@@ -95,19 +95,17 @@
 
 ## 📈 Current Measured Performance
 
-**Epoch 6 (FLA on RTX 4090, early training)**:
-- TAES: **0.9450** (quality score, not sensitivity!)
-- AUROC: **0.8141**
-- Sensitivity @ 10 FA/24h: **24.84%** (OVERLAP scoring)
-- Sensitivity @ 5 FA/24h: **16.81%**
-- Sensitivity @ 1 FA/24h: **7.38%**
+**FLA Exp4 (Gated DeltaNet) – TUSZ eval (held-out)**:
+- AUROC: **0.8654**
+- PR-AUC: **0.5409**
+- Sensitivity @ 10 FA/24h: **35.9%** (OVERLAP scoring)
+- Sensitivity @ 5 FA/24h: 27.1%
+- Sensitivity @ 2.5 FA/24h: 18.6%
+- Sensitivity @ 1 FA/24h: 5.8%
+- ECE: 0.029
+- Source of truth: `results/local_fla_exp4_cyclic/eval_results_v2.json`
 
-**Gap to Targets**:
-- Need **+20 points** to reach conservative target (45% @ 15 FA)
-- Need **+25 points** to reach realistic target (50% @ 8 FA)
-- Need **+30 points** to beat Temple SOTA (55% @ 4 FA)
-
-**Status**: Training in progress (Epoch 13/100), expect significant improvement as model converges
+**Status**: Training complete (78 epochs, best epoch 63); see `docs/06-evaluation/REALISTIC_PERFORMANCE_TARGETS.md` for updated target framing.
 
 ---
 
@@ -184,4 +182,4 @@ Post-processing defaults
 
 **See Also**:
 - `docs/06-evaluation/TAES_DISAMBIGUATION.md` - CRITICAL naming collision explanation
-- `docs/archive/REALISTIC_PERFORMANCE_TARGETS.md` - Full analysis with additional tables and comparisons
+- `docs/06-evaluation/REALISTIC_PERFORMANCE_TARGETS.md` - Full analysis with additional tables and comparisons
