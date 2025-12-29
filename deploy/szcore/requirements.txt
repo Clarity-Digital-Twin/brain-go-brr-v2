@@ -1,0 +1,30 @@
+# NOTE: SzCORE runs inference offline. All dependencies must be installed at build time.
+#
+# PyTorch CUDA 12.4 wheels
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+# PyG CUDA wheels for torch 2.5.0 + cu124
+-f https://data.pyg.org/whl/torch-2.5.0+cu124.html
+
+numpy==1.26.4
+scipy==1.14.1
+mne==1.5.1
+pyyaml==6.0.2
+pydantic==2.10.6
+
+# CUDA-enabled PyTorch (importable on CPU hosts; CUDA will be unavailable without a driver)
+torch==2.5.0+cu124
+
+# Flash Linear Attention (Gated DeltaNet). Pinned to 0.3.x for API stability.
+flash-linear-attention==0.3.2
+
+# PyTorch Geometric stack (pinned to project lock)
+torch-scatter==2.1.2+pt25cu124
+torch-sparse==0.6.18+pt25cu124
+torch-cluster==1.6.3+pt25cu124
+torch-spline-conv==1.2.2+pt25cu124
+torch-geometric==2.6.1
+
+# Model/runtime deps
+einops==0.8.0
+

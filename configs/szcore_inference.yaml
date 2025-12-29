@@ -1,0 +1,88 @@
+# SzCORE inference config for Brain-Go-Brr (FLA Exp4 checkpoint).
+#
+# Used by `src.brain_brr.szcore` inside the SzCORE Docker image at:
+#   /app/configs/szcore_inference.yaml
+#
+# NOTE: This config is intentionally minimal (only model + postprocessing). Other
+# sections are filled by defaults in `src/brain_brr/config/schemas.py`.
+
+model:
+  architecture: v3
+
+  norms:
+    boundary_norm: layernorm
+    boundary_eps: 1.0e-5
+    layerscale_alpha: 0.1
+    after_tcn_proj: true
+    after_node_mamba: true
+    after_edge_mamba: true
+    after_gnn: true
+    before_decoder: true
+
+  tcn:
+    num_layers: 8
+    kernel_size: 7
+    dropout: 0.15
+    causal: false
+    stride_down: 16
+    use_cuda_optimizations: true
+
+  mamba:
+    n_layers: 6
+    d_model: 512
+    d_state: 16
+    conv_kernel: 4
+    dropout: 0.1
+
+    temporal_type: gated_deltanet
+    gdn_fusion_mode: sum
+    gdn_allow_neg_eigval: false
+    gdn_edge_num_heads: 3
+    gdn_edge_headdim: 8
+
+  graph:
+    enabled: true
+
+    edge_lift_activation: tanh
+    edge_lift_norm: layernorm
+    edge_lift_init_gain: 0.1
+
+    edge_features: cosine
+    edge_top_k: 3
+    edge_threshold: 1.0e-4
+    edge_mamba_layers: 2
+    edge_mamba_d_state: 8
+    edge_mamba_d_model: 32
+    edge_similarity_margin: 0.01
+
+    adj_row_softmax: true
+    adj_softmax_tau: 1.0
+    adj_ema_beta: 0.95
+    adj_force_symmetric: true
+    laplacian_eps: 1.0e-3
+    laplacian_normalize: true
+
+    n_layers: 2
+    dropout: 0.1
+    use_residual: true
+    alpha: 0.05
+    k_eigenvectors: 16
+
+    use_dynamic_pe: true
+    semi_dynamic_interval: 5
+    pe_sign_consistency: true
+
+postprocessing:
+  hysteresis:
+    tau_on: 0.86
+    tau_off: 0.78
+  morphology:
+    opening_kernel: 11
+    closing_kernel: 31
+  duration:
+    min_duration_s: 3.0
+    max_duration_s: 600.0
+  events:
+    tau_merge: 2.0
+    confidence_method: mean
+

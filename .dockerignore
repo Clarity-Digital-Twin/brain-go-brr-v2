@@ -27,6 +27,9 @@ env/
 cache/
 data_ext4/
 results/
+!results/local_fla_exp4_cyclic/
+!results/local_fla_exp4_cyclic/checkpoints/
+!results/local_fla_exp4_cyclic/checkpoints/best.pt
 
 # Git
 .git/

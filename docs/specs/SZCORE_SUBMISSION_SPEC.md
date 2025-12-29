@@ -1,9 +1,10 @@
 # SzCORE/epilepsybenchmarks.com Submission Specification
 
-**Version:** 1.0.0
-**Date:** 2025-12-28
-**Status:** DRAFT - AWAITING SENIOR REVIEW
-**Author:** Claude Code (automated research)
+**Version:** 1.1.0
+**Date:** 2025-12-29
+**Status:** IMPLEMENTED - READY FOR SUBMISSION
+**Author:** Claude Code (initial draft) + Brain-Go-Brr team (verification + implementation)
+**Last Verified Against (SSOT):** epilepsybenchmarks.com/framework, epilepsybenchmarks.com/contribute, and `esl-epfl/szcore/.github/workflows/1-pr-check.yml` (2025-12-29)
 
 ---
 
@@ -51,7 +52,7 @@ This spec documents the requirements for submitting our Brain-Go-Brr seizure det
 6. [Output Format: TSV Files](#6-output-format-tsv-files)
 7. [YAML Submission File](#7-yaml-submission-file)
 8. [Scoring Methodology](#8-scoring-methodology)
-9. [Implementation Plan](#9-implementation-plan)
+9. [Implementation Status](#9-implementation-status)
 10. [Risk Analysis](#10-risk-analysis)
 11. [References](#11-references)
 
@@ -88,23 +89,24 @@ We can still submit to the **permanent benchmark** (non-challenge).
 | **Registry** | Public (Docker Hub, GHCR, etc.) |
 | **Volumes** | `/data` (read-only), `/output` (read-write) |
 | **Environment** | `INPUT` (EDF path), `OUTPUT` (TSV path) |
-| **Entrypoint** | `CMD python3 -m algorithm "/data/$INPUT" "/output/$OUTPUT"` |
+| **Entrypoint** | `CMD python3 -m <module> "/data/${INPUT}" "/output/${OUTPUT}"` |
 | **Network** | OFFLINE (no internet access during inference) |
-| **Resources** | 10 CPU cores, 40GB RAM, 1 V100 GPU, 15min max per 1hr EEG |
+| **CI Validation** | GitHub Actions (`ubuntu-latest`, CPU-only) - quick format check on `tests/data/unipolar.edf` |
+| **Evaluation Resources** | Official docs do not specify; the 2025 challenge evaluation ran on the EPFL Research Computing Platform (CaaS) with **400+ GPUs** and executed GPU workloads on A100-SXM4-80GB nodes (arXiv:2505.18191) |
 
 ### 2.2 YAML Submission File
 
-Required fields:
+Schema-validated keys (PR CI validates against `config/schema.json`; minimum required keys are `title`, `short_title`, `image`, `authors`, `license`):
 ```yaml
 title: "Brain-Go-Brr: TCN+SSM+GNN Seizure Detection"
 short_title: "BrainGoBrr"  # Max 20 chars
-image: "ghcr.io/clarity-digital-twin/brain-go-brr:v4.3.0"
+	image: "ghcr.io/clarity-digital-twin/brain-go-brr-szcore:v4.3.0"
 version: "4.3.0"
-date: "2025-12-28"
+	date_released: "2025-12-29"
 authors:
-  - given_name: "Author"
-    family_name: "Name"
-    institution: "Institution"
+  - given_names: "Author"
+    family_names: "Name"
+    affiliation: "Institution"
     email: "email@example.com"  # Optional
 license: "Apache-2.0"  # Or MIT, GPL-3.0, etc.
 repository: "https://github.com/Clarity-Digital-Twin/brain-go-brr-v2"
@@ -239,204 +241,29 @@ def normalize_szcore_channel(name: str) -> str:
 
 ### 4.1 Dockerfile
 
-```dockerfile
-# syntax=docker/dockerfile:1
-FROM python:3.11-slim
+SSOT Docker image definition: `deploy/szcore/Dockerfile`.
 
-# Prevent Python buffering
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+Key invariants (must match SzCORE PR CI + framework/contribute docs):
+- Runs as non-root user
+- Reads `/data/${INPUT}` and writes `/output/${OUTPUT}`
+- Produces HED-SCORE TSV header exactly (tabs, not spaces)
+- Runs offline at inference time (no network calls)
+- Bundles the Exp4 checkpoint at `/app/checkpoints/best.pt`
 
-# SzCORE environment variables
-ENV INPUT=""
-ENV OUTPUT=""
+Notes:
+- The official SzCORE template uses `python:X-slim` as a base; GPU support is provided via CUDA-enabled wheels in our image.
+- `.dockerignore` must allow the checkpoint path used by the Docker build (`results/local_fla_exp4_cyclic/checkpoints/best.pt`).
 
-# Create non-root user (security best practice)
-RUN useradd -m -u 10001 appuser
+### 4.2 Inference Entrypoint
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgomp1 \
-    && rm -rf /var/lib/apt/lists/*
+SSOT entrypoint module: `src/brain_brr/szcore/__main__.py` (invoked as `python3 -m src.brain_brr.szcore`).
 
-# Set working directory
-WORKDIR /app
-
-# Copy and install dependencies
-COPY requirements-docker.txt .
-RUN pip install --no-cache-dir -r requirements-docker.txt
-
-# Copy model code and checkpoint
-COPY src/ ./src/
-COPY configs/ ./configs/
-COPY checkpoints/best.pt ./checkpoints/
-
-# Copy inference entrypoint
-COPY docker/szcore_inference.py .
-
-# Create volume mount points
-VOLUME ["/data", "/output"]
-
-# Switch to non-root user
-USER appuser
-
-# Entrypoint for SzCORE
-CMD ["python3", "-m", "szcore_inference", "/data/${INPUT}", "/output/${OUTPUT}"]
-```
-
-### 4.2 Inference Entrypoint (`docker/szcore_inference.py`)
-
-```python
-#!/usr/bin/env python3
-"""SzCORE-compliant inference entrypoint for Brain-Go-Brr."""
-
-import sys
-from pathlib import Path
-from datetime import datetime
-
-import numpy as np
-import torch
-import mne
-
-# Import our modules
-from src.brain_brr.models import SeizureDetector
-from src.brain_brr.config.schemas import Config
-from src.brain_brr.streaming import StreamingPostProcessor
-from src.brain_brr.constants import SAMPLING_RATE
-
-# Channel mapping (see Section 3.2)
-SZCORE_ORDER = [
-    "Fp1-Avg", "F3-Avg", "C3-Avg", "P3-Avg", "O1-Avg",
-    "F7-Avg", "T3-Avg", "T5-Avg", "Fz-Avg", "Cz-Avg", "Pz-Avg",
-    "Fp2-Avg", "F4-Avg", "C4-Avg", "P4-Avg", "O2-Avg",
-    "F8-Avg", "T4-Avg", "T6-Avg"
-]
-
-OUR_ORDER = [
-    "Fp1", "F3", "C3", "P3", "F7", "T3", "T5", "O1",
-    "Fz", "Cz", "Pz",
-    "Fp2", "F4", "C4", "P4", "F8", "T4", "T6", "O2"
-]
-
-# Mapping: szcore_idx -> our_idx
-SZCORE_TO_OURS = [0, 1, 2, 3, 7, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 18, 15, 16, 17]
-
-
-def load_edf_szcore(edf_path: Path) -> tuple[np.ndarray, float, float]:
-    """Load SzCORE-formatted EDF and remap channels.
-
-    Returns:
-        data: (19, T) float32 in OUR channel order
-        fs: sampling rate
-        duration_sec: recording duration
-    """
-    raw = mne.io.read_raw_edf(edf_path, preload=True, verbose=False)
-
-    # Verify channel order matches SzCORE spec
-    for i, expected in enumerate(SZCORE_ORDER):
-        if raw.ch_names[i] != expected:
-            raise ValueError(
-                f"Channel mismatch at index {i}: "
-                f"expected '{expected}', got '{raw.ch_names[i]}'"
-            )
-
-    # Extract data and remap to our order
-    data = raw.get_data()[:19]  # First 19 channels only
-    remapped = data[SZCORE_TO_OURS]
-
-    # Resample if needed (SzCORE guarantees 256Hz but verify)
-    fs = raw.info["sfreq"]
-    if fs != SAMPLING_RATE:
-        from scipy.signal import resample
-        n_samples_new = int(len(data[0]) * SAMPLING_RATE / fs)
-        remapped = np.array([resample(ch, n_samples_new) for ch in remapped])
-        fs = SAMPLING_RATE
-
-    duration_sec = raw.times[-1]
-    return remapped.astype(np.float32), fs, duration_sec
-
-
-def run_inference(edf_path: Path, output_path: Path) -> None:
-    """Run seizure detection and write HED-SCORE compliant TSV."""
-
-    # Load and remap EDF
-    eeg_data, fs, duration_sec = load_edf_szcore(edf_path)
-
-    # Load model
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    config = Config.from_yaml(Path("/app/configs/inference.yaml"))
-    model = SeizureDetector.from_config(config.model).to(device)
-
-    checkpoint = torch.load("/app/checkpoints/best.pt", map_location=device)
-    model.load_state_dict(checkpoint["model"])
-    model.eval()
-
-    # Windowed inference
-    window_samples = 60 * int(fs)  # 60 seconds
-    stride_samples = 10 * int(fs)  # 10 seconds
-
-    all_probs = []
-    with torch.no_grad():
-        for start in range(0, eeg_data.shape[1] - window_samples + 1, stride_samples):
-            window = eeg_data[:, start:start + window_samples]
-            x = torch.from_numpy(window).unsqueeze(0).to(device)
-            logits = model(x)
-            probs = torch.sigmoid(logits).cpu().numpy()
-            all_probs.append(probs)
-
-    # Concatenate and post-process
-    probs = np.concatenate(all_probs, axis=0)
-
-    # Apply hysteresis and morphology (use streaming post-processor)
-    processor = StreamingPostProcessor(config.postprocessing, sampling_rate=int(fs))
-
-    events = []
-    # ... (event detection logic)
-
-    # Write HED-SCORE compliant TSV
-    write_szcore_tsv(output_path, events, duration_sec, edf_path.stem)
-
-
-def write_szcore_tsv(
-    output_path: Path,
-    events: list[tuple[float, float, float]],  # (onset, duration, confidence)
-    recording_duration: float,
-    filename: str,
-) -> None:
-    """Write HED-SCORE compliant TSV output.
-
-    Format:
-        onset	duration	eventType	confidence	channels	dateTime	recordingDuration
-    """
-    # Get current datetime for dateTime field
-    dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    with open(output_path, "w") as f:
-        # Header
-        f.write("onset\tduration\teventType\tconfidence\tchannels\tdateTime\trecordingDuration\n")
-
-        if len(events) == 0:
-            # No seizures: write single "bckg" row
-            f.write(f"0.0\t{recording_duration:.1f}\tbckg\tn/a\tall\t{dt}\t{recording_duration:.1f}\n")
-        else:
-            # Write each seizure event
-            for onset, duration, confidence in events:
-                f.write(
-                    f"{onset:.3f}\t{duration:.3f}\tsz\t{confidence:.3f}\t"
-                    f"all\t{dt}\t{recording_duration:.1f}\n"
-                )
-
-
-if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python -m szcore_inference <input.edf> <output.tsv>")
-        sys.exit(1)
-
-    edf_path = Path(sys.argv[1])
-    output_path = Path(sys.argv[2])
-
-    run_inference(edf_path, output_path)
-```
+Behavior:
+- Loads EDF and enforces/picks SzCORE channels (`src/brain_brr/szcore/loader.py`).
+- Remaps SzCORE channel order into our `CHANNEL_NAMES_10_20` order (`src/brain_brr/szcore/channels.py`).
+- If `torch.cuda.is_available()` is true: loads `configs/szcore_inference.yaml` + `best.pt` and runs windowed GPU inference (`src/brain_brr/szcore/infer.py`).
+- If no GPU is available: uses a conservative CPU heuristic fallback (real detector; no dummy TSV).
+- Writes HED-SCORE TSV (`src/brain_brr/szcore/hed_score.py`).
 
 ---
 
@@ -499,19 +326,21 @@ Tab-separated values with these columns:
 | `dateTime` | string | POSIX format: `%Y-%m-%d %H:%M:%S` |
 | `recordingDuration` | float | Total recording length in seconds |
 
+Note: In the current SzCORE benchmark, the `confidence` and `channels` fields are not used for evaluation (epilepsybenchmarks.com/contribute). Keep the columns but using `n/a` is acceptable.
+
 ### 6.2 Example Output
 
 **With seizures:**
 ```tsv
 onset	duration	eventType	confidence	channels	dateTime	recordingDuration
-125.5	45.2	sz	0.92	all	2025-12-28 10:30:00	3600.0
-890.1	32.8	sz	0.87	all	2025-12-28 10:30:00	3600.0
+125.5	45.2	sz	n/a	n/a	2025-12-28 10:30:00	3600.0
+890.1	32.8	sz	n/a	n/a	2025-12-28 10:30:00	3600.0
 ```
 
 **No seizures:**
 ```tsv
 onset	duration	eventType	confidence	channels	dateTime	recordingDuration
-0.0	3600.0	bckg	n/a	all	2025-12-28 10:30:00	3600.0
+0.0	3600.0	bckg	n/a	n/a	2025-12-28 10:30:00	3600.0
 ```
 
 ---
@@ -520,82 +349,35 @@ onset	duration	eventType	confidence	channels	dateTime	recordingDuration
 
 ### 7.1 Complete Template
 
-```yaml
-# Brain-Go-Brr submission to SzCORE benchmark
-# File: algorithms/brain_go_brr.yaml
+SSOT template: `deploy/szcore/brain_go_brr.yaml.template` (kept schema-valid against `esl-epfl/szcore/config/schema.json`).
 
-title: "Brain-Go-Brr v4.3: Dual-Stream TCN+SSM+GNN with Dynamic LPE for Seizure Detection"
+```yaml
+---
+# SzCORE algorithm submission file (copy into `esl-epfl/szcore/algorithms/`).
+# Must validate against: https://github.com/esl-epfl/szcore/blob/main/config/schema.json
+
+title: "Brain-Go-Brr v4.3.0: Dual-Stream TCN + Gated DeltaNet + GNN for Seizure Detection"
 short_title: "BrainGoBrr"
-image: "ghcr.io/clarity-digital-twin/brain-go-brr:v4.3.0"
+image: "ghcr.io/clarity-digital-twin/brain-go-brr-szcore:v4.3.0"
 version: "4.3.0"
-date: "2025-12-28"
+date_released: "2025-12-29"
 
 authors:
-  - given_name: "[First Name]"
-    family_name: "[Last Name]"
-    institution: "[Institution]"
-    email: "[email]"  # Optional
+  - given_names: "[Given Names]"
+    family_names: "[Family Names]"
+    affiliation: "[Affiliation]"
 
-license: "Apache-2.0"
 repository: "https://github.com/Clarity-Digital-Twin/brain-go-brr-v2"
+license: "Apache-2.0"
 
-abstract: |
-  # Algorithm Overview
-
-  Brain-Go-Brr is a 31M parameter neural network combining Temporal Convolutional
-  Networks (TCN), State Space Models (SSM via Flash Linear Attention), Graph Neural
-  Networks (GNN), and Dynamic Laplacian Positional Encoding (LPE) for EEG seizure
-  detection. The architecture achieves O(N) complexity through linear attention
-  mechanisms.
-
-  Key components:
-  - TCN: 8 layers, [64,128,256,512] channels, stride_down=16
-  - SSM: 6-layer Gated DeltaNet with bidirectional fusion
-  - GNN: SSGConv (alpha=0.05), 2 layers for spatial relationships
-  - LPE: 16 Laplacian eigenvectors computed dynamically per timestep
-
-  # Input Specification
-
-  - 19-channel EEG (10-20 international system)
-  - Common average reference montage
-  - 256 Hz sampling rate
-  - 60-second windows with 10-second stride
-
-  # Training Data
-
-  - TUH EEG Seizure Corpus v2.0.3 (train split)
-  - 4,667 recordings
-  - Balanced sampling (8% -> 30% seizure windows)
-  - Focal loss (alpha=0.5, gamma=2.0)
-
-  # Preprocessing
-
-  - Bandpass filter: 0.5-120 Hz
-  - Notch filter: 60 Hz (US power line)
-  - Per-channel z-score normalization
-  - Amplitude clipping: +/- 10 sigma
-
-  # Post-processing
-
-  - Hysteresis thresholding (tau_on=0.86, tau_off=0.78)
-  - Morphological operations (opening=11, closing=31 samples)
-  - Event duration filtering (3s - 600s)
-  - Event merging (gap < 2s)
-
-  # Performance (TUSZ eval set, 836 recordings)
-
-  - AUROC: 0.8654
-  - Sensitivity @ 10 FA/24h: 35.9%
-  - F1 (NEDC OVERLAP): Pending official evaluation
-
-  # Computational Complexity
-
-  - Parameters: 31M
-  - Inference time: ~5s per 1-hour recording (GPU)
-  - Memory: ~4GB GPU RAM
+abstract: >-
+  Brain-Go-Brr is a seizure detection algorithm for long-term scalp EEG.
+  It expects 19-channel 10-20 EEG at 256 Hz and produces HED-SCORE TSV event
+  annotations. This submission uses Brain-Go-Brr's V3 architecture and the
+  FLA (Gated DeltaNet) variant trained on TUH EEG Seizure Corpus.
 
 datasets:
-  - "tuh_sz"
+  - "TUH EEG Sz Corpus v2"
 ```
 
 ---
@@ -619,51 +401,43 @@ datasets:
 - **F1-score**: 2 × sensitivity × precision / (sensitivity + precision)
 - **False Alarms per 24h**: FP / total_hours × 24
 
-### 8.3 Our Current Performance
+### 8.3 Internal Reference Metrics (Chosen Checkpoint)
 
-From FLA Exp4 evaluation on TUSZ eval set:
+These metrics are from our held-out TUSZ eval run for the exact checkpoint bundled in the SzCORE image:
+- Results JSON: `results/local_fla_exp4_cyclic/eval_results_v2.json`
+- Eval log: `results/local_fla_exp4_cyclic/eval_v2.log`
+
+Note: SzCORE leaderboard scoring is event-based F1 with pre/post-ictal tolerances; these internal TUSZ numbers are not directly comparable.
 
 | Metric | Value |
 |--------|-------|
-| Recordings | 836 |
-| Duration | 127.8 hours |
+| EDF files in eval dir | 865 |
+| Recordings included in metrics | 836 |
+| Duration | 127.8139 hours |
 | AUROC | 0.8654 |
+| PR-AUC | 0.5409 |
+| ECE | 0.0289 |
 | Sensitivity @ 10 FA/24h | 35.9% |
-| NEDC OVERLAP F1 | 0.357 |
+| Sensitivity @ 5 FA/24h | 27.1% |
+| Sensitivity @ 2.5 FA/24h | 18.6% |
+| Sensitivity @ 1 FA/24h | 5.8% |
+| Val Loss | 0.0901 |
 
 ---
 
-## 9. Implementation Plan
+## 9. Implementation Status
 
-### Phase 1: Docker Infrastructure (1-2 days)
+Implementation is complete in this repo:
+- SzCORE inference package: `src/brain_brr/szcore/`
+- Frozen inference config: `configs/szcore_inference.yaml`
+- Buildable Docker image: `deploy/szcore/Dockerfile` + `deploy/szcore/requirements.txt`
+- Submission YAML template: `deploy/szcore/brain_go_brr.yaml.template`
+- Unit tests (mapping + TSV header): `tests/unit/szcore/test_szcore_submission.py`
 
-1. [ ] Create `docker/` directory structure
-2. [ ] Write `Dockerfile` following SzCORE template
-3. [ ] Create `requirements-docker.txt` (minimal deps)
-4. [ ] Implement `szcore_inference.py` with channel remapping
-5. [ ] Create `configs/inference.yaml` (frozen inference config)
-
-### Phase 2: Local Testing (1 day)
-
-1. [ ] Build Docker image locally
-2. [ ] Download SzCORE test data (if available)
-3. [ ] Run inference on sample EDF files
-4. [ ] Validate TSV output format
-5. [ ] Test channel remapping correctness
-
-### Phase 3: Registry & Submission (1 day)
-
-1. [ ] Push image to GitHub Container Registry
-2. [ ] Create `algorithms/brain_go_brr.yaml`
-3. [ ] Fork esl-epfl/szcore repository
-4. [ ] Submit PR with YAML file
-5. [ ] Monitor CI validation
-
-### Phase 4: Iteration
-
-1. [ ] Address any CI failures
-2. [ ] Review benchmark results
-3. [ ] Iterate on thresholds if needed
+Next actions to submit:
+1. Build + push the Docker image to a public registry (GHCR recommended).
+2. Copy and fill `deploy/szcore/brain_go_brr.yaml.template` into `esl-epfl/szcore/algorithms/` as `brain_go_brr.yaml`.
+3. Open a PR; SzCORE CI validates schema + header via `.github/workflows/1-pr-check.yml`.
 
 ---
 
@@ -696,10 +470,13 @@ From FLA Exp4 evaluation on TUSZ eval set:
 
 **Risk:** Missing CUDA/Mamba/FLA dependencies in Docker.
 
+**Reality:** Challenge evaluation ran on the EPFL Research Computing Platform (CaaS) and used A100 GPUs for GPU workloads (arXiv:2505.18191). The public PR CI check remains CPU-only and only validates TSV format.
+
 **Mitigation:**
-- Use CPU-only inference initially (slower but simpler)
-- Include pre-compiled wheels in image
-- Test thoroughly before submission
+- Prefer aligning with the official SzCORE Docker template (python `*-slim`) and ship CUDA support via pinned CUDA-enabled wheels.
+- Pin `torch==2.5.0+cu124` and PyG CUDA wheels at build time (`deploy/szcore/requirements.txt`).
+- Keep PR CI (CPU-only) safe: the container must still run and emit a valid TSV header (use a real CPU fallback, not a dummy TSV).
+- If CUDA wheels fail to import at runtime, switch the base image to an `nvidia/cuda:*runtime*` or `pytorch/pytorch:*runtime*` image and rebuild.
 
 ### 10.4 Low Risk: TSV Format
 
@@ -715,11 +492,14 @@ From FLA Exp4 evaluation on TUSZ eval set:
 
 ### Primary Sources
 
-1. [SzCORE Benchmark](https://epilepsybenchmarks.com/) - Main platform
-2. [SzCORE GitHub](https://github.com/esl-epfl/szcore) - Submission repository
-3. [SzCORE Framework Paper](https://arxiv.org/abs/2402.13005) - Technical details
-4. [Contribution Guide](https://epilepsybenchmarks.com/contribute/) - Submission requirements
-5. [szcore-evaluation](https://github.com/esl-epfl/szcore-evaluation) - Evaluation library
+1. [Framework Docs](https://epilepsybenchmarks.com/framework/) - Channel order, HED-SCORE TSV, scoring parameters
+2. [Contribution Guide](https://epilepsybenchmarks.com/contribute/) - Docker requirements + offline execution
+3. [SzCORE GitHub](https://github.com/esl-epfl/szcore) - Submission repository
+4. [PR CI Workflow](https://raw.githubusercontent.com/esl-epfl/szcore/main/.github/workflows/1-pr-check.yml) - Schema + header validation
+5. [YAML Schema](https://raw.githubusercontent.com/esl-epfl/szcore/main/config/schema.json) - Required YAML keys/format
+6. [Dockerfile Template](https://raw.githubusercontent.com/esl-epfl/szcore/main/config/template.Dockerfile) - Official Docker conventions
+7. [SzCORE Framework Paper](https://arxiv.org/abs/2402.13005) - Technical details
+8. [SzCORE Challenge Report](https://arxiv.org/abs/2505.18191) - Evaluation compute platform (CaaS, GPU workloads)
 
 ### Tools
 
@@ -779,9 +559,13 @@ def remap_eeg(data: "np.ndarray") -> "np.ndarray":
     import numpy as np
 
     if data.ndim == 2:
-        return data[SZCORE_TO_OURS]
+        out = np.empty_like(data)
+        out[SZCORE_TO_OURS] = data
+        return out
     elif data.ndim == 3:
-        return data[:, SZCORE_TO_OURS, :]
+        out = np.empty_like(data)
+        out[:, SZCORE_TO_OURS, :] = data
+        return out
     else:
         raise ValueError(f"Expected 2D or 3D array, got {data.ndim}D")
 
@@ -806,8 +590,8 @@ if __name__ == "__main__":
 | Decision | Option A | Option B | Recommendation |
 |----------|----------|----------|----------------|
 | Channel handling | Remap at inference | Retrain | **Option A** (faster) |
-| Docker base | python:3.11-slim | pytorch/pytorch:2.5.0 | slim (smaller image) |
-| GPU support | Include CUDA | CPU only | CPU initially, add GPU later |
+| Docker base | python:3.11-slim (SzCORE template) | nvidia/cuda:*runtime* | **python:3.11-slim** + CUDA wheels; switch base only if runtime import issues |
+| GPU support | CUDA wheels + GPU inference | CPU-only | **GPU inference** for benchmark + CPU heuristic fallback for PR CI |
 | Output format | HED-SCORE TSV | CSV_BI | **HED-SCORE TSV** (required) |
 | Initial submission | FLA Exp4 checkpoint | Retrain | **FLA Exp4** (proven) |
 
@@ -815,4 +599,4 @@ if __name__ == "__main__":
 
 **END OF SPECIFICATION**
 
-**Next Step:** Senior review of this specification before implementation.
+**Next Step:** Build + push `deploy/szcore/Dockerfile`, then submit `brain_go_brr.yaml` PR to `esl-epfl/szcore` (see Section 9).
