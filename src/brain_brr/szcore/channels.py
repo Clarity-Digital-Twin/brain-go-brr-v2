@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import numpy as np
+import numpy.typing as npt
+
 from src.brain_brr.constants import CHANNEL_NAMES_10_20
 
 # Official SzCORE order (19 channels) as documented on epilepsybenchmarks.com and arXiv:2402.13005.
@@ -45,7 +48,7 @@ def _validate_mapping() -> None:
 _validate_mapping()
 
 
-def remap_szcore_to_ours(data: "np.ndarray") -> "np.ndarray":
+def remap_szcore_to_ours(data: npt.NDArray[np.floating]) -> npt.NDArray[np.floating]:
     """Remap EEG array from SzCORE channel order to our training order.
 
     Args:
@@ -54,8 +57,6 @@ def remap_szcore_to_ours(data: "np.ndarray") -> "np.ndarray":
     Returns:
         Array with same shape in `CHANNEL_NAMES_10_20` order.
     """
-    import numpy as np
-
     if data.ndim == 2:
         out = np.empty_like(data)
         out[SZCORE_TO_OURS] = data

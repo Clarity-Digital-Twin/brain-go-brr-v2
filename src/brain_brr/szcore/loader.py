@@ -77,11 +77,7 @@ def load_szcore_edf(edf_path: Path) -> SzcoreRecording:
 
     # MNE meas_date can be datetime | float | None
     meas_date = raw.info.get("meas_date")
-    start_dt: datetime | None
-    if isinstance(meas_date, datetime):
-        start_dt = meas_date
-    else:
-        start_dt = None
+    start_dt = meas_date if isinstance(meas_date, datetime) else None
 
     # Convert to µV and remap to our canonical order
     data_uv = (data_volts * 1e6).astype(np.float32)
