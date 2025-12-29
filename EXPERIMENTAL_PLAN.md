@@ -7,7 +7,7 @@
 
 ---
 
-## 📌 Current Status (v4.2.0)
+## 📌 Current Status (v4.3.0)
 
 **Current Best (Held-Out TUSZ Eval)**:
 - ✅ **FLA Exp4 (Cyclic LR / SGDR)**: **35.9% sensitivity @ 10 FA/24h** (AUROC 0.8654)
