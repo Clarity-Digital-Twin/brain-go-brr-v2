@@ -9,4 +9,3 @@ This package contains a self-contained inference entrypoint that:
 """
 
 from __future__ import annotations
-

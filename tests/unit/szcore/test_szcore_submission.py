@@ -48,7 +48,10 @@ def test_remap_szcore_to_ours_3d() -> None:
 
 
 def test_hed_score_header_exact() -> None:
-    assert HED_SCORE_HEADER == "onset\tduration\teventType\tconfidence\tchannels\tdateTime\trecordingDuration\n"
+    assert (
+        HED_SCORE_HEADER
+        == "onset\tduration\teventType\tconfidence\tchannels\tdateTime\trecordingDuration\n"
+    )
 
 
 def test_write_hed_score_tsv_bckg(tmp_path) -> None:

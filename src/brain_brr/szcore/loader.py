@@ -40,7 +40,9 @@ def load_szcore_edf(edf_path: Path) -> SzcoreRecording:
     raw = _read_raw_edf(edf_path)
 
     if len(raw.ch_names) < 19:
-        raise ValueError(f"SzCORE EDF must contain >=19 channels, found {len(raw.ch_names)}: {raw.ch_names}")
+        raise ValueError(
+            f"SzCORE EDF must contain >=19 channels, found {len(raw.ch_names)}: {raw.ch_names}"
+        )
 
     expected = SZCORE_CHANNELS_AVG
     ch0 = list(raw.ch_names[:19])
@@ -84,4 +86,3 @@ def load_szcore_edf(edf_path: Path) -> SzcoreRecording:
     data_uv = remap_szcore_to_ours(data_uv)
 
     return SzcoreRecording(data_uv=data_uv, fs=fs, duration_s=duration_s, start_dt=start_dt)
-

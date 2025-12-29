@@ -66,4 +66,3 @@ def remap_szcore_to_ours(data: npt.NDArray[np.floating]) -> npt.NDArray[np.float
         out[:, SZCORE_TO_OURS, :] = data
         return out
     raise ValueError(f"Expected 2D or 3D array, got {data.ndim}D")
-

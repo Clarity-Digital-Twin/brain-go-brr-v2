@@ -143,7 +143,9 @@ def _run_gpu_model(x: np.ndarray, fs: int, paths: SzcorePaths) -> list[SeizureEv
     cfg = Config.from_yaml(paths.config_yaml)
 
     device = torch.device("cuda")
-    model = SeizureDetector.from_config(cfg.model, warmup_schedule=cfg.training.warmup_schedule).to(device)
+    model = SeizureDetector.from_config(cfg.model, warmup_schedule=cfg.training.warmup_schedule).to(
+        device
+    )
 
     checkpoint = torch.load(paths.checkpoint_pt, map_location=device)
     state_dict = checkpoint
@@ -154,7 +156,9 @@ def _run_gpu_model(x: np.ndarray, fs: int, paths: SzcorePaths) -> list[SeizureEv
                 break
 
     if not isinstance(state_dict, dict):  # pragma: no cover
-        raise RuntimeError(f"Unexpected checkpoint format at {paths.checkpoint_pt}: {type(state_dict)}")
+        raise RuntimeError(
+            f"Unexpected checkpoint format at {paths.checkpoint_pt}: {type(state_dict)}"
+        )
 
     # Handle known dynamic buffers that can have shape mismatches (e.g., gnn.last_valid_pe).
     model_state = model.state_dict()
@@ -185,7 +189,9 @@ def _run_gpu_model(x: np.ndarray, fs: int, paths: SzcorePaths) -> list[SeizureEv
     # Enforce "no silent mismatch" while allowing known dynamic buffers to be recomputed.
     allowed_missing = {"gnn.last_valid_pe"}
     missing_filtered = [k for k in incompatible.missing_keys if k not in allowed_missing]
-    unexpected_filtered = [k for k in incompatible.unexpected_keys if not k.endswith(".last_valid_pe")]
+    unexpected_filtered = [
+        k for k in incompatible.unexpected_keys if not k.endswith(".last_valid_pe")
+    ]
 
     if missing_filtered or unexpected_filtered:
         raise RuntimeError(

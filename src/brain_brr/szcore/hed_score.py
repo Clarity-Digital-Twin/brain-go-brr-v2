@@ -89,4 +89,3 @@ def write_hed_score_tsv(
                 f"{r.onset_s:.3f}\t{r.duration_s:.3f}\t{r.event_type}\t{r.confidence}\t"
                 f"{r.channels}\t{r.date_time}\t{r.recording_duration_s:.2f}\n"
             )
-
