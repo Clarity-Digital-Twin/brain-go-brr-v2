@@ -15,15 +15,14 @@ docker build -f deploy/szcore/Dockerfile -t brain-go-brr-szcore:local .
 SzCORE PR CI runs the container on a CPU-only GitHub Actions runner and checks the TSV header.
 
 ```bash
-mkdir -p /tmp/szcore_out
 curl -fsSL -L https://raw.githubusercontent.com/esl-epfl/szcore/main/tests/data/unipolar.edf -o /tmp/unipolar.edf
 docker run --rm \
   -v /tmp:/data \
-  -v /tmp/szcore_out:/output \
+  -v /tmp:/output \
   -e INPUT=unipolar.edf \
   -e OUTPUT=brain_go_brr.tsv \
   brain-go-brr-szcore:local
-head -n1 /tmp/szcore_out/brain_go_brr.tsv
+head -n1 /tmp/brain_go_brr.tsv
 ```
 
 Expected header:
@@ -36,4 +35,4 @@ onset	duration	eventType	confidence	channels	dateTime	recordingDuration
 
 - The container uses a CPU heuristic fallback when no GPU is present (to satisfy PR CI).
 - When a GPU is available, it loads the FLA Exp4 checkpoint and runs full Brain-Go-Brr inference.
-
+- To force CPU mode on a GPU host (CI simulation), set `-e CUDA_VISIBLE_DEVICES=` when running the container.

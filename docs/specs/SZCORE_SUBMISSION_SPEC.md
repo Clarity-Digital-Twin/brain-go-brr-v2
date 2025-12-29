@@ -96,40 +96,22 @@ We can still submit to the **permanent benchmark** (non-challenge).
 
 ### 2.2 YAML Submission File
 
-Schema-validated keys (PR CI validates against `config/schema.json`; minimum required keys are `title`, `short_title`, `image`, `authors`, `license`):
+SzCORE validates this YAML against `esl-epfl/szcore/config/schema.json` in PR CI.
+
+- Required keys (schema): `title`, `short_title`, `image`, `authors`, `license`
+- SSOT template: `deploy/szcore/brain_go_brr.yaml.template` (copy into `esl-epfl/szcore/algorithms/brain_go_brr.yaml`)
+
+Minimal required example (spaces only; no tabs):
+
 ```yaml
 title: "Brain-Go-Brr: TCN+SSM+GNN Seizure Detection"
-short_title: "BrainGoBrr"  # Max 20 chars
-	image: "ghcr.io/clarity-digital-twin/brain-go-brr-szcore:v4.3.0"
-version: "4.3.0"
-	date_released: "2025-12-29"
+short_title: "BrainGoBrr"
+image: "ghcr.io/clarity-digital-twin/brain-go-brr-szcore:v4.3.0"
 authors:
-  - given_names: "Author"
+  - given_names: "Given"
     family_names: "Name"
     affiliation: "Institution"
-    email: "email@example.com"  # Optional
-license: "Apache-2.0"  # Or MIT, GPL-3.0, etc.
-repository: "https://github.com/Clarity-Digital-Twin/brain-go-brr-v2"
-abstract: |
-  # Algorithm overview
-  [Description of architecture]
-
-  # Input
-  19-channel 10-20 EEG at 256Hz, common average reference
-
-  # Training data
-  TUH EEG Seizure Corpus v2.0.3 (train split)
-
-  # Preprocessing
-  [Description]
-
-  # Performance analysis
-  [Validation metrics]
-
-  # Complexity
-  31M parameters, ~5s inference per 1hr EEG on GPU
-datasets:
-  - "tuh_sz"
+license: "Apache-2.0"
 ```
 
 ---
@@ -251,7 +233,7 @@ Key invariants (must match SzCORE PR CI + framework/contribute docs):
 - Bundles the Exp4 checkpoint at `/app/checkpoints/best.pt`
 
 Notes:
-- The official SzCORE template uses `python:X-slim` as a base; GPU support is provided via CUDA-enabled wheels in our image.
+- The official SzCORE template uses `python:X-slim`; our SSOT Dockerfile uses a multi-stage CUDA base to compile and ship CUDA extensions (`mamba-ssm`, `causal-conv1d`) and align with the project CUDA 12.4 lock.
 - `.dockerignore` must allow the checkpoint path used by the Docker build (`results/local_fla_exp4_cyclic/checkpoints/best.pt`).
 
 ### 4.2 Inference Entrypoint
@@ -473,10 +455,13 @@ Next actions to submit:
 **Reality:** Challenge evaluation ran on the EPFL Research Computing Platform (CaaS) and used A100 GPUs for GPU workloads (arXiv:2505.18191). The public PR CI check remains CPU-only and only validates TSV format.
 
 **Mitigation:**
-- Prefer aligning with the official SzCORE Docker template (python `*-slim`) and ship CUDA support via pinned CUDA-enabled wheels.
-- Pin `torch==2.5.0+cu124` and PyG CUDA wheels at build time (`deploy/szcore/requirements.txt`).
+- Use the SSOT multi-stage build in `deploy/szcore/Dockerfile`:
+  - builder: `pytorch/pytorch:2.5.0-cuda12.4-cudnn9-devel` (build CUDA wheels)
+  - runtime: `pytorch/pytorch:2.5.0-cuda12.4-cudnn9-runtime` (stable Python + CUDA runtime)
+- Base image pins `torch==2.5.0+cu124`; `deploy/szcore/requirements.txt` pins PyG wheels + runtime deps.
 - Keep PR CI (CPU-only) safe: the container must still run and emit a valid TSV header (use a real CPU fallback, not a dummy TSV).
-- If CUDA wheels fail to import at runtime, switch the base image to an `nvidia/cuda:*runtime*` or `pytorch/pytorch:*runtime*` image and rebuild.
+- Runtime must include a C compiler (`build-essential`) for Triton to initialize its CUDA backend (required by `fla`).
+- Before submission: run a GPU smoke test locally (SzCORE PR CI does not validate GPU kernels).
 
 ### 10.4 Low Risk: TSV Format
 
@@ -590,7 +575,7 @@ if __name__ == "__main__":
 | Decision | Option A | Option B | Recommendation |
 |----------|----------|----------|----------------|
 | Channel handling | Remap at inference | Retrain | **Option A** (faster) |
-| Docker base | python:3.11-slim (SzCORE template) | nvidia/cuda:*runtime* | **python:3.11-slim** + CUDA wheels; switch base only if runtime import issues |
+| Docker base | python:*slim* (SzCORE template) | pytorch/pytorch:2.5.0-cuda12.4-*runtime* (multi-stage build) | **pytorch/pytorch:2.5.0-cuda12.4-*runtime*** (stable Python + CUDA runtime; builds CUDA wheels) |
 | GPU support | CUDA wheels + GPU inference | CPU-only | **GPU inference** for benchmark + CPU heuristic fallback for PR CI |
 | Output format | HED-SCORE TSV | CSV_BI | **HED-SCORE TSV** (required) |
 | Initial submission | FLA Exp4 checkpoint | Retrain | **FLA Exp4** (proven) |
