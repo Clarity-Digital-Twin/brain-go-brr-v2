@@ -1,5 +1,5 @@
 # .dockerignore - Prevent unnecessary files from slowing build
-# Goal: Reduce build context from 449GB to <10MB
+# Goal: Keep build context small (checkpoint is ~200MB, so expect ~<250MB total).
 
 # Python
 __pycache__/
@@ -16,19 +16,29 @@ build/
 .venv/
 venv/
 env/
+.uv_cache/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+backups/
+reference_repos/
+wandb/
 
 # Data (mount as volume instead - 449GB!)
 cache/
 data_ext4/
 results/
 !results/local_fla_exp4_cyclic/
+results/local_fla_exp4_cyclic/*
 !results/local_fla_exp4_cyclic/checkpoints/
+results/local_fla_exp4_cyclic/checkpoints/*
 !results/local_fla_exp4_cyclic/checkpoints/best.pt
 
 # Git

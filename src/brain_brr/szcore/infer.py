@@ -27,10 +27,17 @@ class SzcorePaths:
 
 
 def _default_paths() -> SzcorePaths:
-    # These are the paths expected inside the SzCORE Docker image.
-    return SzcorePaths(
+    docker = SzcorePaths(
         config_yaml=Path("/app/configs/szcore_inference.yaml"),
         checkpoint_pt=Path("/app/checkpoints/best.pt"),
+    )
+    if docker.config_yaml.exists() and docker.checkpoint_pt.exists():
+        return docker
+
+    repo_root = Path(__file__).resolve().parents[3]
+    return SzcorePaths(
+        config_yaml=repo_root / "configs/szcore_inference.yaml",
+        checkpoint_pt=repo_root / "results/local_fla_exp4_cyclic/checkpoints/best.pt",
     )
 
 
@@ -55,7 +62,7 @@ def _run_cpu_heuristic(
         return []
 
     score = np.mean(np.abs(x), axis=0)  # (T,)
-    win = max(1, int(round(smooth_s * fs)))
+    win = max(1, round(smooth_s * fs))
     if win > 1:
         kernel = np.ones(win, dtype=np.float32) / float(win)
         score = np.convolve(score.astype(np.float32), kernel, mode="same")
@@ -65,7 +72,7 @@ def _run_cpu_heuristic(
     thr = med + 8.0 * mad  # conservative
     mask = score > thr
 
-    min_samples = int(round(min_event_s * fs))
+    min_samples = round(min_event_s * fs)
     return mask_to_events(mask, sampling_rate=fs, min_samples=max(1, min_samples))
 
 
@@ -136,11 +143,66 @@ def _run_gpu_model(x: np.ndarray, fs: int, paths: SzcorePaths) -> list[SeizureEv
     cfg = Config.from_yaml(paths.config_yaml)
 
     device = torch.device("cuda")
-    model = SeizureDetector.from_config(cfg.model, warmup_schedule=cfg.training.warmup_schedule).to(device)
+    model = SeizureDetector.from_config(cfg.model, warmup_schedule=cfg.training.warmup_schedule).to(
+        device
+    )
 
     checkpoint = torch.load(paths.checkpoint_pt, map_location=device)
-    state = checkpoint.get("model", checkpoint)
-    model.load_state_dict(state, strict=True)
+    state_dict = checkpoint
+    if isinstance(checkpoint, dict):
+        for key in ("model_state_dict", "model", "state_dict"):
+            if key in checkpoint:
+                state_dict = checkpoint[key]
+                break
+
+    if not isinstance(state_dict, dict):  # pragma: no cover
+        raise RuntimeError(
+            f"Unexpected checkpoint format at {paths.checkpoint_pt}: {type(state_dict)}"
+        )
+
+    # Handle known dynamic buffers that can have shape mismatches (e.g., gnn.last_valid_pe).
+    model_state = model.state_dict()
+    for key in list(state_dict.keys()):
+        if key not in model_state:
+            continue
+        try:
+            ckpt_shape = state_dict[key].shape
+            model_shape = model_state[key].shape
+        except Exception:
+            continue
+        if ckpt_shape == model_shape:
+            continue
+        if key.endswith(".last_valid_pe"):
+            logger.info(
+                f"[SzCORE] Skipping dynamic buffer with shape mismatch: {key} "
+                f"(checkpoint: {ckpt_shape}, model: {model_shape})"
+            )
+            del state_dict[key]
+            continue
+        raise RuntimeError(
+            f"[SzCORE] Shape mismatch for {key}: checkpoint {ckpt_shape}, model {model_shape}. "
+            "This likely indicates an architecture/config mismatch."
+        )
+
+    incompatible = model.load_state_dict(state_dict, strict=False)
+
+    # Enforce "no silent mismatch" while allowing known dynamic buffers to be recomputed.
+    # Use consistent .endswith() pattern for all .last_valid_pe buffers.
+    missing_filtered = [k for k in incompatible.missing_keys if not k.endswith(".last_valid_pe")]
+    unexpected_filtered = [
+        k for k in incompatible.unexpected_keys if not k.endswith(".last_valid_pe")
+    ]
+
+    if missing_filtered or unexpected_filtered:
+        raise RuntimeError(
+            "[SzCORE] Checkpoint does not match the inference model.\n"
+            f"Missing: {missing_filtered}\n"
+            f"Unexpected: {unexpected_filtered}\n"
+            "This likely indicates a dependency or config/architecture mismatch."
+        )
+
+    if incompatible.missing_keys:
+        logger.info(f"[SzCORE] Missing keys (allowed): {incompatible.missing_keys}")
     model.eval()
 
     window = constants.WINDOW_SAMPLES

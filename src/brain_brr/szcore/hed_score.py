@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from src.brain_brr.events.events import SeizureEvent
@@ -24,10 +24,10 @@ class HedScoreRow:
 
 def _format_datetime(dt: datetime | None) -> str:
     if dt is None:
-        dt = datetime(1970, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+        dt = datetime(1970, 1, 1, 0, 0, 0, tzinfo=UTC)
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 
 def write_hed_score_tsv(
@@ -89,4 +89,3 @@ def write_hed_score_tsv(
                 f"{r.onset_s:.3f}\t{r.duration_s:.3f}\t{r.event_type}\t{r.confidence}\t"
                 f"{r.channels}\t{r.date_time}\t{r.recording_duration_s:.2f}\n"
             )
-

@@ -40,7 +40,9 @@ def load_szcore_edf(edf_path: Path) -> SzcoreRecording:
     raw = _read_raw_edf(edf_path)
 
     if len(raw.ch_names) < 19:
-        raise ValueError(f"SzCORE EDF must contain >=19 channels, found {len(raw.ch_names)}: {raw.ch_names}")
+        raise ValueError(
+            f"SzCORE EDF must contain >=19 channels, found {len(raw.ch_names)}: {raw.ch_names}"
+        )
 
     expected = SZCORE_CHANNELS_AVG
     ch0 = list(raw.ch_names[:19])
@@ -77,15 +79,10 @@ def load_szcore_edf(edf_path: Path) -> SzcoreRecording:
 
     # MNE meas_date can be datetime | float | None
     meas_date = raw.info.get("meas_date")
-    start_dt: datetime | None
-    if isinstance(meas_date, datetime):
-        start_dt = meas_date
-    else:
-        start_dt = None
+    start_dt = meas_date if isinstance(meas_date, datetime) else None
 
     # Convert to µV and remap to our canonical order
     data_uv = (data_volts * 1e6).astype(np.float32)
     data_uv = remap_szcore_to_ours(data_uv)
 
     return SzcoreRecording(data_uv=data_uv, fs=fs, duration_s=duration_s, start_dt=start_dt)
-

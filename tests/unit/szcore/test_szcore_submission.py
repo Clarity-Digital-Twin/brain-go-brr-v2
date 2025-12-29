@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import numpy as np
 
@@ -48,7 +48,10 @@ def test_remap_szcore_to_ours_3d() -> None:
 
 
 def test_hed_score_header_exact() -> None:
-    assert HED_SCORE_HEADER == "onset\tduration\teventType\tconfidence\tchannels\tdateTime\trecordingDuration\n"
+    assert (
+        HED_SCORE_HEADER
+        == "onset\tduration\teventType\tconfidence\tchannels\tdateTime\trecordingDuration\n"
+    )
 
 
 def test_write_hed_score_tsv_bckg(tmp_path) -> None:
@@ -67,7 +70,7 @@ def test_write_hed_score_tsv_sz_rows_sorted_and_clipped(tmp_path) -> None:
         SeizureEvent(start_s=-5.0, end_s=2.0),
         SeizureEvent(start_s=25.0, end_s=30.0),
     ]
-    start_dt = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+    start_dt = datetime(2020, 1, 1, 0, 0, 0, tzinfo=UTC)
     write_hed_score_tsv(out, events=events, recording_duration_s=26.0, recording_start_dt=start_dt)
 
     lines = out.read_text(encoding="utf-8").splitlines()
