@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.4.0] - 2025-12-29
+
+### 🚢 SzCORE Submission Implementation (FEATURE RELEASE)
+
+**Status**: ✅ **READY FOR SUBMISSION** (epilepsybenchmarks.com / esl-epfl/szcore)
+
+**Added**:
+- `deploy/szcore/`: Multi-stage Docker image, pinned deps, and YAML submission template
+- `src/brain_brr/szcore/`: EDF loader + channel remapping (SzCORE `-Avg` order → our `CHANNEL_NAMES_10_20`) + HED-SCORE TSV writer
+- `docs/specs/SZCORE_SUBMISSION_SPEC.md`: Verified SSOT spec against upstream docs + CI workflow
+
+**Notes**:
+- No changes to the verified TUSZ eval benchmark numbers from v4.3.0 (Exp4 checkpoint and metrics unchanged)
+- SzCORE PR CI is CPU-only; container includes a minimal CPU fallback for format validation
+
 ## [4.3.0] - 2025-12-20
 
 ### 📊 FLA Exp4 Complete + TUSZ Eval Benchmark (BENCHMARK RELEASE)

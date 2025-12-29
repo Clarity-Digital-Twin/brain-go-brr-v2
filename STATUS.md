@@ -1,9 +1,9 @@
-# Brain-Go-Brr v4.3.0 – Current Status
+# Brain-Go-Brr v4.4.0 – Current Status
 
-**Last Updated:** 2025-12-20
+**Last Updated:** 2025-12-29
 **Branch:** `development`
-**Version:** v4.3.0 (FLA Exp4 Complete + TUSZ Eval Benchmark)
-**Deployment:** FLA Exp4 COMPLETE - 35.9% sensitivity @ 10 FA/24h on TUSZ eval
+**Version:** v4.4.0 (SzCORE submission packaging + FLA Exp4 benchmark SSOT)
+**Deployment:** FLA Exp4 COMPLETE - 35.9% sensitivity @ 10 FA/24h on TUSZ eval + SzCORE submission image
 
 ---
 
@@ -63,6 +63,15 @@ SeizureTransformer numbers are from our run in `reference_repos/SeizureTransform
 ---
 
 ## Latest Improvements
+
+### v4.4.0 - SzCORE Submission Packaging (December 29, 2025)
+
+**FEATURE RELEASE**: End-to-end containerized inference for epilepsybenchmarks.com (SzCORE).
+
+**Added**:
+- ✅ `deploy/szcore/`: Docker image + YAML template for SzCORE PR submission
+- ✅ `src/brain_brr/szcore/`: EDF loader + channel remapping + HED-SCORE TSV output
+- ✅ Offline execution (no network during inference) + PR CI-safe CPU fallback
 
 ### v4.3.0 - FLA Exp4 Complete + TUSZ Eval Benchmark (December 20, 2025)
 
