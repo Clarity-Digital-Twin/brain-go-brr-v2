@@ -30,7 +30,7 @@ configs/
 │   ├── train_fla_exp1_reg.yaml     # FLA Exp1: Stronger regularization
 │   ├── train_fla_exp2_lr.yaml      # FLA Exp2: Lower learning rate (standby)
 │   ├── train_fla_exp3_smaller.yaml # FLA Exp3: Smaller model (RETIRED)
-│   └── train_fla_exp4_cyclic.yaml  # FLA Exp4: Cyclic LR restarts (next run)
+│   └── train_fla_exp4_cyclic.yaml  # FLA Exp4: Cyclic LR restarts (COMPLETE)
 │
 └── modal/                          # Modal A100-80GB configs
     ├── smoke_bimamba.yaml          # BiMamba2 smoke (50 files, 1 epoch)
@@ -49,7 +49,7 @@ configs/local/
   train_fla_exp1_reg.yaml     # Exp1: Stronger regularization (HIGH priority)
   train_fla_exp2_lr.yaml      # Exp2: Lower learning rate (available, lower priority)
   train_fla_exp3_smaller.yaml # Exp3: Smaller model 17M params (rejected)
-  train_fla_exp4_cyclic.yaml  # Exp4: Cyclic LR restarts (READY)
+  train_fla_exp4_cyclic.yaml  # Exp4: Cyclic LR restarts (COMPLETE)
 ```
 
 **Experiment Details:**
@@ -60,13 +60,13 @@ configs/local/
 | **Exp1: Regularization** | Insufficient regularization causing overfitting | dropout 0.1→0.2, weight_decay 0.01→0.05 | `results/local_fla_exp1_reg` |
 | **Exp2: Lower LR** | Learning rate too high, late instability | lr 1e-4→5e-5, warmup 0.03→0.05 | `results/local_fla_exp2_lr` |
 | **Exp3: Smaller Model** | Model too large for dataset (4,667 files) | 6→4 layers, 512→384 dim (31M→17M) | `results/local_fla_exp3_smaller` |
-| **Exp4: Cyclic LR** | Stuck in local minimum at 0.257 | cosine→cosine_restarts, t_initial=10, t_mult=2, eta_min=1e-6, patience 20→15 | `results/local_fla_exp4_cyclic` |
+| **Exp4: Cyclic LR** | Cyclic LR restarts improve sensitivity@FA targets | cosine→cosine_restarts, t_initial=10, t_mult=2, eta_min=1e-6, patience 20→15 | `results/local_fla_exp4_cyclic` |
 
-**Status Snapshot (Nov 2025):**
-- Baseline: Running, plateaued at 0.257 (best 0.284 @ epoch 9), will early-stop ~epoch 36
+**Status Snapshot (Dec 2025):**
+- Exp4: ✅ COMPLETE — TUSZ eval 35.9% sensitivity @ 10 FA/24h (AUROC 0.8654); SSOT: `results/local_fla_exp4_cyclic/eval_results_v2.json`
+- Baseline: Historical baseline run notes (superseded by Exp4)
 - Exp1: Completed (negative result, model not overfitting)
-- Exp4: Validated and queued to launch immediately after baseline stops
-- Exp2: Optional follow-up if Exp4 fails to improve
+- Exp2: Optional follow-up (not executed)
 - Exp3: Archived (capacity reduction no longer considered)
 
 **Critical Constraints:**
@@ -407,17 +407,9 @@ early_stopping:
 - Early stopping rarely triggers anyway
 - Fast iteration for debugging
 
-**Decision Tree After Experiments Complete:**
-```
-IF any experiment beats baseline (>0.284 @ 10 FA):
-  → Winner becomes new baseline
-  → Re-run winner with patience=20 for production
-
-ELSE IF all experiments fail:
-  → Option A: Resume baseline with patience=20, min_epochs=30
-              (test "second peak" hypothesis)
-  → Option B: Accept 0.284 as best for this architecture
-```
+**Decision Tree (Post-Exp4):**
+- Exp4 is the current best held-out benchmark (TUSZ eval 35.9% @ 10 FA/24h); SSOT: `results/local_fla_exp4_cyclic/eval_results_v2.json`
+- Future experiments should compare against Exp4 (not the old baseline) using the same dev/eval protocol
 
 See `STATUS.md` "Lessons Learned - Early Stopping" for full history and rationale.
 

@@ -1,36 +1,36 @@
 # 🧪 Experimental Plan - FLA Hyperparameter Study
 
-**Version**: 1.2
-**Date**: 2025-11-01 (Updated after Exp4 cyclic LR implementation)
-**Status**: Active - Baseline Running, Exp4 Ready
+**Version**: 1.3
+**Date**: 2025-12-20
+**Status**: ✅ Exp4 Complete (benchmark documented)
 **Target**: Optimize FLA (Gated DeltaNet) for clinical EEG seizure detection
 
 ---
 
-## 📌 Current Status (v4.2.0)
+## 📌 Current Status (v4.3.0)
 
-**Active Training**:
-- 🔄 **FLA Baseline**: Epoch 30+ running, plateaued at 0.257 for 13 epochs (17-29), patience 13/20, early stop expected epoch 36
-- ✅ **Exp4 (Cyclic LR)**: Ready to launch after baseline completes - escape 0.257 local minimum via SGDR restarts
+**Current Best (Held-Out TUSZ Eval)**:
+- ✅ **FLA Exp4 (Cyclic LR / SGDR)**: **35.9% sensitivity @ 10 FA/24h** (AUROC 0.8654)
+- SSOT: `results/local_fla_exp4_cyclic/eval_results_v2.json` (checkpoint: `results/local_fla_exp4_cyclic/checkpoints/best.pt`)
+- Training: 78 epochs (early stopped), best epoch 63
 
 **Completed**:
 - ✅ **Exp1 (Regularization)**: Negative result (-2.7% vs baseline), model NOT overfitting
 - ⏸️ **BiMamba2 Stack**: PAUSED at epoch 6 (Modal A100, $1.1k spent) - focusing on local training due to cost
 
 **Key Findings**:
-- Best performance: 0.284 @ epoch 9 (lost after resume chaos at epoch 13)
-- Current: 0.257 (plateau 13 epochs)
-- Hypothesis: Stuck in local minimum, need LR restarts to escape
+- SGDR restarts produced a new best dev checkpoint at epoch 63 (dev sensitivity@10FA = 0.2904)
+- Held-out TUSZ eval beat our SeizureTransformer baseline at tuned operating points (+2.0% @ 10 FA, +4.1% @ 2.5 FA)
 
 ---
 
-## 🎯 Next Experiment: Exp4 - Cyclic LR (SGDR)
+## 🎯 Exp4 Summary: Cyclic LR (SGDR)
 
 **Config**: `configs/local/train_fla_exp4_cyclic.yaml`
-**Status**: ✅ Validated, ready to launch
-**Hypothesis**: Stuck in local minimum at 0.257, cyclic LR restarts will escape
+**Status**: ✅ Complete
+**Hypothesis**: Cyclic LR restarts help escape local minima and improve sensitivity@FA targets
 
-**Key Changes**:
+**Key Config Changes**:
 ```yaml
 scheduler:
   type: cosine_restarts        # SGDR with warm restarts
@@ -42,18 +42,10 @@ early_stopping:
   patience: 15                 # Faster verdict (vs baseline 20)
 ```
 
-**How SGDR Works**:
-- **Cycle 1** (epochs 3-13): LR 1e-4 → 1e-6, then restart
-- **Cycle 2** (epochs 13-33): LR 1e-4 → 1e-6, then restart
-- **Cycle 3** (epochs 33-73): LR 1e-4 → 1e-6, then restart
-- **Goal**: LR spikes help escape 0.257 plateau, rediscover 0.28+ region
-
-**Launch After Baseline**:
-```bash
-tmux new -s exp4
-export BGB_NAN_DEBUG=1
-.venv/bin/python -m src train configs/local/train_fla_exp4_cyclic.yaml
-```
+**Artifacts**:
+- Checkpoint: `results/local_fla_exp4_cyclic/checkpoints/best.pt`
+- Eval SSOT: `results/local_fla_exp4_cyclic/eval_results_v2.json`
+- Eval log: `results/local_fla_exp4_cyclic/eval_v2.log`
 
 ---
 
@@ -61,8 +53,8 @@ export BGB_NAN_DEBUG=1
 
 ### Baseline (Control)
 **Best**: 0.284 @ epoch 9 (Oct 16)
-**Current**: 0.257 @ epochs 17-29 (13-epoch plateau)
-**Status**: Running, will auto-stop ~epoch 36 (patience exhausted)
+**Post-resume plateau (snapshot)**: 0.257 @ epochs 17-29 (13-epoch plateau)
+**Status**: Historical baseline run notes (superseded by Exp4)
 
 ### Exp1: Stronger Regularization
 **Result**: ❌ NEGATIVE (-2.7%)
@@ -76,25 +68,25 @@ export BGB_NAN_DEBUG=1
 **Status**: ❌ REJECTED (capacity reduction not justified)
 
 ### Exp4: Cyclic LR (SGDR)
-**Status**: ✅ Ready to launch after baseline completes
-**Expected**: Break 0.257 plateau, potentially recover 0.28+
+**Status**: ✅ COMPLETE
+**Result**: TUSZ eval 35.9% @ 10 FA/24h (AUROC 0.8654)
 
 ---
 
 ## 📏 Success Metrics
 
-**Primary**: Sensitivity @ 10 FA/24h
-- 🎯 **Target**: ≥0.28 (match original peak)
-- 🚀 **Excellent**: ≥0.30 (+7% vs current plateau)
+**Primary**: Sensitivity @ 10 FA/24h (held-out TUSZ eval, OVERLAP)
+- ✅ **Achieved**: 35.9% (Exp4)
+- **Next target**: Move toward Temple SOTA (≈50% @ 4 FA/24h)
 
-**Secondary**: AUROC, stability, training efficiency
+**Secondary**: AUROC, PR-AUC, calibration (ECE), and stability
 
 ---
 
 ## 🔬 Key Hypotheses
 
 1. ✅ **DISPROVEN**: Model overfitting (Exp1 showed regularization hurts)
-2. 🔄 **TESTING**: Stuck in local minimum (Exp4 will test via cyclic LR)
+2. ✅ **SUPPORTED**: Cyclic LR restarts improve dev sensitivity@10FA vs baseline plateau
 3. ⏸️ **Alternative**: LR too high throughout (Exp2 available if Exp4 fails)
 
 ---
@@ -115,6 +107,6 @@ export BGB_NAN_DEBUG=1
 
 ---
 
-**Next Action**: Wait for baseline early stop (~epoch 36), then launch Exp4
+**Next Action**: Add a 4 FA/24h operating point + run official NEDC scoring for Exp4 outputs
 
-**Last Updated**: 2025-11-01 21:30 EDT
+**Last Updated**: 2025-12-20

@@ -131,6 +131,16 @@ def create_dataloader(
     if len(edf_files) == 0:
         raise ValueError(f"No EDF files found under: {data_path}")
 
+    # Find label files (csv_bi) for each EDF file
+    label_files: list[Path | None] = []
+    for edf in edf_files:
+        csv_bi = edf.with_suffix(".csv_bi")
+        label_files.append(csv_bi if csv_bi.exists() else None)
+
+    # Log label file coverage
+    found_labels = sum(1 for lf in label_files if lf is not None)
+    logger.info(f"[EVAL] Found {found_labels}/{len(edf_files)} label files (csv_bi)")
+
     split_name = data_path.name.lower()
     cache_dir = Path(cfg.data.cache_dir) / split_name
     if not cache_dir.exists():
@@ -141,6 +151,7 @@ def create_dataloader(
 
     dataset = EEGWindowDataset(
         edf_files,
+        label_files=label_files,
         cache_dir=cache_dir,
     )
 

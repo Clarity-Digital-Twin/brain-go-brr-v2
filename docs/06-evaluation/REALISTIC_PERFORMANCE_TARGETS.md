@@ -1,7 +1,8 @@
 # Realistic Performance Targets for EEG Seizure Detection
 
 **Date Created**: October 14, 2025
-**Status**: Working Document - To Be Revised
+**Last Updated**: 2025-12-20
+**Status**: Updated with FLA Exp4 eval results
 **Purpose**: Establish achievable performance goals based on SOTA results and clinical reality
 
 ---
@@ -64,6 +65,39 @@
 
 ---
 
+### Brain-Go-Brr (FLA Exp4 - BiGatedDeltaNet)
+
+**Model**: TCN + BiGatedDeltaNet (FLA) + GNN + Dynamic LPE (~31M params)  
+**Source of truth**: `results/local_fla_exp4_cyclic/eval_results_v2.json` (run 2025-12-20)  
+**Scoring**: OVERLAP-style sensitivity at fixed FA/24h targets (binary any-overlap TP counting; see `TAES_DISAMBIGUATION.md`)
+
+#### TUSZ Eval (Held-Out)
+
+| Metric | Value |
+|--------|-------|
+| **AUROC** | **0.8654** |
+| **PR-AUC** | 0.5409 |
+| **Sensitivity @ 10 FA/24h** | **35.9%** |
+| **Sensitivity @ 5 FA/24h** | 27.1% |
+| **Sensitivity @ 2.5 FA/24h** | 18.6% |
+| **Sensitivity @ 1 FA/24h** | 5.8% |
+| **ECE** | 0.029 |
+
+**Dataset notes**:
+- TUSZ eval split has 865 EDF/label pairs; 29 yield 0 windows under 60s windowing
+- Metrics above are computed on 836 scored recordings totaling 127.8 hours
+
+#### Head-to-Head vs SeizureTransformer (Same TUSZ Eval Split, OVERLAP Scoring)
+
+| FA Rate | FLA Exp4 | SeizureTransformer | Delta |
+|--------:|---------:|------------------:|------:|
+| 10 FA/24h | **35.9%** | 33.90% | **+2.0%** |
+| 2.5 FA/24h | **18.6%** | 14.50% | **+4.1%** |
+
+SeizureTransformer numbers are from our run in `reference_repos/SeizureTransformer/docs/results/FINAL_COMPREHENSIVE_RESULTS_TABLE.md` (Python OVERLAP = NEDC OVERLAP).
+
+---
+
 ## 🔍 UNDERSTANDING SCORING SYSTEMS
 
 **🚨 CRITICAL**: "TAES" has TWO different meanings (metric vs scoring system)! See `TAES_DISAMBIGUATION.md` for full explanation.
@@ -104,6 +138,7 @@ Different scorers measure different aspects of performance. **Choice of scorer c
 
 **Current Gap**:
 - SeizureTransformer (2025 #1): 26.89 FA/24h @ 45.63% sensitivity (NEDC OVERLAP on TUSZ eval)
+- Brain-Go-Brr (FLA Exp4, Dec 2025): 35.9% sensitivity @ 10 FA/24h (OVERLAP-style) on TUSZ eval
 - Temple's SOTA: 4 FA/24h @ 50% sensitivity (verified on clinical data)
 - Need: **6.7× reduction in FA rate** to match Temple's benchmark
 
@@ -117,7 +152,8 @@ Different scorers measure different aspects of performance. **Choice of scorer c
 
 **Current Reality**:
 - SeizureTransformer @ 10 FA: 33.90% sensitivity (NEDC OVERLAP)
-- Need: **2.2× improvement in sensitivity**
+- Brain-Go-Brr (FLA Exp4) @ 10 FA: 35.9% sensitivity (OVERLAP-style)
+- Need: **~2.1× improvement in sensitivity** to reach 75%
 
 ### Gold Standard (Human Reviewer Level)
 **Goal**: **≤1 FA/24h @ ≥75% sensitivity** (using NEDC OVERLAP)
@@ -129,13 +165,14 @@ Different scorers measure different aspects of performance. **Choice of scorer c
 
 **Current Reality**:
 - SeizureTransformer: NOT TESTED (likely <10% sensitivity)
+- Brain-Go-Brr (FLA Exp4) @ 1 FA: 5.8% sensitivity (OVERLAP-style)
 - This may be **impossible with current architectures**
 
 ---
 
 ## 📈 REALISTIC EXPECTATIONS FOR OUR STACK
 
-### V3 Architecture (TCN + BiMamba2/FLA + GNN + Dynamic LPE)
+### Brain-Go-Brr Architecture (TCN + BiMamba2 / BiGatedDeltaNet + GNN + Dynamic LPE)
 **Parameters**: ~31M (similar to SeizureTransformer's ~41M)
 **Training**: Full TUSZ v2.0.3 train split (4667 files, official patient-disjoint)
 
@@ -325,7 +362,7 @@ Different scorers measure different aspects of performance. **Choice of scorer c
 | **EEGMamba** | BiMamba + MoE + ST-Adaptive | Multi-task learning | 8 datasets | SOTA on multiple tasks | 2024 |
 | **EvoBrain** | Dual Mamba + GCN + Dynamic LPE | Explicit dynamic graphs | TUSZ | +23% AUROC vs baseline | 2025 |
 | **S4Seizure** | S4 (SSM) | Linear complexity | Dianalund | 30% @ 2 FA/24h | 2025 |
-| **Our V3** | TCN + BiMamba2/FLA + GNN + LPE | Dual-stream (node+edge) | TUSZ | TBD - training now | 2025 |
+| **Brain-Go-Brr (FLA Exp4)** | TCN + BiGatedDeltaNet + GNN + Dynamic LPE | Dual-stream + dynamic PE | TUSZ eval | 35.9% @ 10 FA/24h (AUROC 0.8654) | 2025 |
 
 **Key Observations**:
 - **SSM renaissance**: Mamba/S4 replacing Transformers for linear complexity
@@ -344,6 +381,7 @@ Different scorers measure different aspects of performance. **Choice of scorer c
 | **Temple SOTA** | - | **50% sens** | - | Personal correspondence |
 | **SeizureTransformer** (Dianalund) | **37% sens** | - | - | SzCORE Event scorer |
 | **SeizureTransformer** (TUSZ) | NOT TESTED | - | **34% sens** | NEDC OVERLAP @ 10.27 FA |
+| **Brain-Go-Brr (FLA Exp4)** | **5.8% sens** | - | **35.9% sens** | OVERLAP-style scorer on TUSZ eval (also reports 5 FA and 2.5 FA) |
 | **Neureka sia** (TUSZ) | **11% sens** | - | - | NEDC TAES |
 | **Neureka nedc** (TUSZ) | - | - | - | 35.54% @ 17.2 FA (TAES)* |
 | **Our Target** | - | **≥55% sens** | **≥75% sens** | Optimistic goal |
@@ -353,29 +391,16 @@ Different scorers measure different aspects of performance. **Choice of scorer c
 **Reality Check**:
 - **1 FA/24h**: Best achieved is 37% (SeizureTransformer on permissive SzCORE)
 - **4 FA/24h**: Temple's 50% is the clinical gold standard (verified clinical data)
-- **10 FA/24h**: SeizureTransformer only hits 34% (NEDC OVERLAP)
-- **Gap to 75% @ 10 FA**: Would need **41 percentage point improvement** over SeizureTransformer
+- **10 FA/24h**: Brain-Go-Brr (FLA Exp4) hits 35.9% (OVERLAP-style) vs SeizureTransformer 33.90% (NEDC/Python OVERLAP)
+- **Gap to 75% @ 10 FA**: Would need **39.1 percentage point improvement** over current Exp4
 
 ---
 
-## 🎯 NEXT STEPS
+## 🎯 NEXT STEPS (Post-Exp4)
 
-### Before Training Completes (Epoch 20-100)
-1. ✅ **This document created** - Realistic targets established
-2. ⏳ **Update README.md** - Replace unrealistic targets with evidence-based goals
-3. ⏳ **Update CLAUDE.md** - Align performance expectations
-4. ⏳ **Create evaluation plan** - Define success criteria for early stopping
-
-### During Training
-1. Monitor validation metrics at epochs 10, 20, 50, 100
-2. Compare against SeizureTransformer baselines
-3. Decide if full 100 epochs needed or early stop at epoch 20
-
-### After Training
-1. Comprehensive NEDC evaluation (OVERLAP + TAES + SzCORE)
-2. Parameter tuning on dev set (find optimal threshold/kernel/duration)
-3. Compare against all baselines in this document
-4. Write paper based on actual results (not aspirational targets)
+1. Add a 4 FA/24h operating point for Exp4 (current eval exports 10/5/2.5/1 only)
+2. Run official NEDC v6.0.0 scoring on Exp4 outputs for publication-ready OVERLAP/TAES/SzCORE numbers
+3. Iterate toward Temple SOTA (≈50% @ 4 FA/24h) via post-processing + calibration + model changes
 
 ---
 
@@ -395,5 +420,5 @@ Different scorers measure different aspects of performance. **Choice of scorer c
 
 ---
 
-**Last Updated**: October 14, 2025
-**Next Review**: After Epoch 10 validation results
+**Last Updated**: 2025-12-20
+**Next Review**: After next full eval sweep (including 4 FA/24h)

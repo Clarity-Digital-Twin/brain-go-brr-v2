@@ -1,8 +1,8 @@
 # FLA Research Roadmap - Pragmatic Independent Researcher Strategy
 
-> **⚠️ HISTORICAL DOCUMENT**: This roadmap reflects the planning state as of October 9, 2025. For CURRENT training status (October 16, 2025), see:
-> - **CLAUDE.md** (lines 472-487): v4.0.0 status - BiMamba2 PAUSED, FLA Epoch 7/100
-> - **FLA_QUICK_REFERENCE.md**: Updated current status with cost analysis
+> **⚠️ HISTORICAL DOCUMENT**: This roadmap reflects the planning state as of October 9, 2025. For current status (Dec 2025), see:
+> - `STATUS.md` (project status + benchmark)
+> - `docs/04-model/flash-linear-attention/FLA_QUICK_REFERENCE.md` (FLA status + key artifacts)
 
 **Date**: October 9, 2025
 **Branch**: `feature/flash-linear-attention`
@@ -183,7 +183,7 @@ Backend: Gated fusion + decoder (SAME as BiMamba2)
 - [x] Validation OOM fix deployed (disk-backed storage)
 - [x] Training ran for 6 epochs (5 complete + 50% of epoch 6, batch 647/1284)
 - ⏸️ **PAUSED**: High costs ($186/epoch actual → $18,600 projected for 100 epochs)
-- 📊 **CURRENT STATUS**: See CLAUDE.md:486 - FLA is PRIMARY training stack (local RTX 4090, Epoch 7/100)
+- 📊 **CURRENT STATUS**: See `STATUS.md` and `docs/04-model/flash-linear-attention/FLA_QUICK_REFERENCE.md`
 
 **Evidence**: Modal training PAUSED, FLA training ACTIVE on local hardware
 
@@ -318,7 +318,7 @@ Both architectures are research contributions, regardless of which performs bett
 
 ### **AFTER BiMamba2 COMPLETES** (HISTORICAL - October 9, 2025 plan)
 
-> **⚠️ OUTDATED**: This workflow assumed BiMamba2 would complete first. Reality: BiMamba2 PAUSED at Epoch 6, FLA is PRIMARY stack (local RTX 4090, Epoch 7/100). See CLAUDE.md:486 for current status.
+> **⚠️ OUTDATED**: This workflow assumed BiMamba2 would complete first. Reality: BiMamba2 PAUSED at Epoch 6 and FLA became the primary local stack. See `STATUS.md` for current status.
 
 1. 📊 Analyze BiMamba2 results:
    ```bash

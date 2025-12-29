@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.3.0] - 2025-12-20
+
+### 📊 FLA Exp4 Complete + TUSZ Eval Benchmark (BENCHMARK RELEASE)
+
+**Status**: ✅ **TRAINING + EVAL COMPLETE** (local RTX 4090)
+
+#### Verified Results (TUSZ v2.0.3 eval split, OVERLAP-style scoring)
+- **AUROC**: 0.8654
+- **PR-AUC**: 0.5409
+- **Sensitivity @ 10 FA/24h (primary)**: 35.9%
+- **Sensitivity @ 5 FA/24h**: 27.1%
+- **Sensitivity @ 2.5 FA/24h**: 18.6%
+- **Sensitivity @ 1 FA/24h**: 5.8%
+- **ECE**: 0.029
+- **Val Loss**: 0.090
+
+**Dataset notes**:
+- 865 EDF/label pairs found; 29 yield 0 windows under 60s windowing
+- Metrics computed on 836 scored recordings totaling 127.8 hours
+
+**Artifacts (SSOT)**:
+- Checkpoint: `results/local_fla_exp4_cyclic/checkpoints/best.pt`
+- Results JSON: `results/local_fla_exp4_cyclic/eval_results_v2.json`
+
+#### Comparison (Same TUSZ eval split, OVERLAP scoring)
+- Beats our SeizureTransformer baseline at tuned operating points: **+2.0% @ 10 FA/24h** and **+4.1% @ 2.5 FA/24h**
+- Reference: `reference_repos/SeizureTransformer/docs/results/FINAL_COMPREHENSIVE_RESULTS_TABLE.md`
+
+#### Documentation
+- Updated top-level status + evaluation docs to the Exp4 SSOT numbers
+
 ## [4.2.0] - 2025-10-26
 
 ### 🔧 Checkpoint Resume Bug Fixes (PATCH RELEASE)

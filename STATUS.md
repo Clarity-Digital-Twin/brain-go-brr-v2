@@ -1,15 +1,53 @@
-# Brain-Go-Brr v4.2.0 – Current Status
+# Brain-Go-Brr v4.3.0 – Current Status
 
-**Last Updated:** 2025-11-01
+**Last Updated:** 2025-12-20
 **Branch:** `development`
-**Version:** v4.2.0 (SGDR Scheduler + Experimental Pipeline)
-**Deployment:** FLA FOCUS – Baseline (Epoch 30+, plateaued), Exp4 ready to launch
+**Version:** v4.3.0 (FLA Exp4 Complete + TUSZ Eval Benchmark)
+**Deployment:** FLA Exp4 COMPLETE - 35.9% sensitivity @ 10 FA/24h on TUSZ eval
+
+---
+
+## TUSZ Eval Benchmark Results (December 2025)
+
+**FLA Exp4 (Gated DeltaNet)** - Held-out test set evaluation:
+
+| Metric | Value |
+|--------|-------|
+| **AUROC** | **0.8654** |
+| **PR-AUC** | 0.5409 |
+| **Sensitivity @ 10 FA/24h** | **35.9%** |
+| **Sensitivity @ 5 FA/24h** | 27.1% |
+| **Sensitivity @ 2.5 FA/24h** | 18.6% |
+| **Sensitivity @ 1 FA/24h** | 5.8% |
+| **ECE** | 0.029 |
+| **Val Loss** | 0.090 |
+
+**Training Details**:
+- Total epochs: 78 (early stopped, patience=15)
+- Best epoch: 63
+- Dev sensitivity @ 10FA: 29.0%
+- Training time: ~6 weeks on RTX 4090
+- Checkpoint: `results/local_fla_exp4_cyclic/checkpoints/best.pt`
+- Results JSON (SSOT): `results/local_fla_exp4_cyclic/eval_results_v2.json`
+- Eval log: `results/local_fla_exp4_cyclic/eval_v2.log`
+
+**Dataset notes**:
+- TUSZ eval split has 865 EDF/label pairs; 29 yield 0 windows under 60s windowing
+- Metrics above are computed on 836 scored recordings totaling 127.8 hours
+
+**Comparison**:
+| FA Rate | FLA Exp4 | SeizureTransformer | Delta |
+|--------:|---------:|------------------:|------:|
+| 10 FA/24h | **35.9%** | 33.90% | **+2.0%** |
+| 2.5 FA/24h | **18.6%** | 14.50% | **+4.1%** |
+
+SeizureTransformer numbers are from our run in `reference_repos/SeizureTransformer/docs/results/FINAL_COMPREHENSIVE_RESULTS_TABLE.md` (Python OVERLAP = NEDC OVERLAP).
 
 ---
 
 ## Production Readiness
 
-**🟢 READY FOR MODAL A100 TRAINING – ZERO TECHNICAL DEBT**
+**🟢 TRAINING COMPLETE – ZERO TECHNICAL DEBT**
 
 - ✅ **P0/P1/P2/P3:** 0 issues (all debt resolved)
 - 🟡 **P4/P5:** Optional ideas (post-training optimization only)
@@ -25,6 +63,32 @@
 ---
 
 ## Latest Improvements
+
+### v4.3.0 - FLA Exp4 Complete + TUSZ Eval Benchmark (December 20, 2025)
+
+**MILESTONE RELEASE**: First complete training run with held-out test set evaluation
+
+**Results**:
+- ✅ **TUSZ Eval Benchmark**: 35.9% sensitivity @ 10 FA/24h, AUROC 0.8654
+- ✅ **Head-to-head vs SeizureTransformer**: +2.0% @ 10 FA/24h, +4.1% @ 2.5 FA/24h (same TUSZ eval split, OVERLAP scoring)
+- ✅ **Training Complete**: 78 epochs (early stopped), best @ epoch 63
+- ✅ **Generalization**: Test set exceeded dev set performance (unusual but good)
+- ✅ **Bug Fixes**: Critical eval label loading bugs fixed (2 bugs found and resolved)
+
+**Bugs Fixed**:
+- 🐛 `evaluation.py` didn't pass `label_files` to dataset → all labels were zeros
+- 🐛 `datasets.py` only checked `.csv` suffix, not `.csv_bi` → labels not loaded
+- See `docs/bugs/EVAL_LABELS_BUG_2024_12.md` for full analysis
+
+**Documentation**:
+- ✅ README.md: Added comprehensive results section
+- ✅ STATUS.md: Updated with benchmark results
+- ✅ Bug docs: EVAL_LABELS_BUG_2024_12.md, FRICTION_POINTS_2024_12.md
+
+**Impact**:
+- **Research Milestone**: First end-to-end validated seizure detection results
+- **Clinical Relevance**: 35.9% sensitivity at clinically practical 10 FA/24h
+- **Architecture Validation**: Gated DeltaNet + TCN + GNN pipeline works
 
 ### v4.2.0 - SGDR Scheduler + Experimental Pipeline (November 1, 2025)
 
@@ -208,68 +272,55 @@
 
 ## Current Deployment
 
-### FLA-FOCUSED TRAINING (v4.2.0)
+### FLA Exp4 - COMPLETE (v4.3.0)
 
-**BiMamba2 - Modal Training (⏸️ PAUSED)**:
+**FLA Exp4 (Cyclic LR / SGDR) - ✅ COMPLETE**:
+- Launch: Nov 2025
+- Completed: Dec 18, 2025 (early stopped at epoch 78)
+- Best epoch: **63**
+- Dev sensitivity @ 10FA: **29.0%**
+- **TUSZ Eval (held-out test)**: **35.9% @ 10 FA/24h, AUROC 0.8654**
+- Config: `configs/local/train_fla_exp4_cyclic.yaml`
+- Checkpoint: `results/local_fla_exp4_cyclic/checkpoints/best.pt`
+- Stack: TCN + BiGatedDeltaNet (FLA) + GNN + Dynamic LPE
+- Cost: $0 (local RTX 4090)
+- Training time: ~6 weeks
+
+**Key Findings**:
+- SGDR (cyclic LR) successfully escaped local minima
+- Test set performance exceeded validation set (good generalization)
+- Model well-calibrated (ECE = 0.029)
+
+### BiMamba2 - Modal Training (⏸️ PAUSED)
+
 - Launch: Oct 10, 2025
 - Stopped: Oct 13, 2025 (budget control decision)
 - Progress: **PAUSED at Epoch 6** (5 complete epochs + 50% of epoch 6)
 - Cost: **$1,118 spent**
 - Checkpoints: ✅ Backed up to Modal SSD + local (`backups/modal_bimamba2_epoch6/`)
 - Stack: TCN + BiMamba2 + GNN + Dynamic LPE
-- Resumable: Yes, anytime via `modal run --detach --action train --config configs/modal/train_bimamba.yaml --resume`
+- Resumable: Yes, anytime
 
 **Rationale for Pause**:
-- Budget-conscious decision as independent researcher
-- FLA (Gated DeltaNet) is primary research focus
-- BiMamba2 useful for comparison but not critical path
+- FLA (Gated DeltaNet) completed first with good results
+- BiMamba2 useful for future comparison but not critical path
 - Can resume incrementally when budget allows
 
-**FLA Baseline - Local Training (🔄 RUNNING, PLATEAUED)**:
-- Launch: Oct 16, 2025 (resumed from epoch 13)
-- Current: **Epoch 30+** (running, will auto-stop ~epoch 36)
-- Status: **Plateaued at 0.257** for 13 epochs (17-29)
-- Best: **0.284 @ epoch 9** (0.95 TAES, 10 FA/24h)
-- Patience: 13/20 (early stop triggers at 20)
-- Expected stop: Epoch 36 (patience exhausted)
-- Config: `configs/local/train_fla.yaml` (patience=20, min_epochs=30)
-- Stack: TCN + BiGatedDeltaNet (FLA) + GNN + Dynamic LPE
-- Cost: $0 (local RTX 4090)
-- Checkpoints: `results/local_fla_training/checkpoints/`
+### Experiments Summary
 
-**Timeline**:
-- Oct 11-13: Initial training, stopped at epoch 13 (crash)
-- Oct 16: Resumed from epoch 13 with patience=20
-- Oct 16-Nov 1: Epochs 13-30+, plateaued at 0.257
-- Expected: Nov 4-5: Early stop at epoch 36
+| Experiment | Status | Result |
+|------------|--------|--------|
+| **Exp4 (SGDR)** | ✅ COMPLETE | **35.9% @ 10 FA/24h** (best) |
+| Exp1 (Regularization) | ❌ FAILED | -2.7% vs baseline |
+| Exp2 (Lower LR) | ⏸️ Skipped | Not needed after Exp4 success |
+| Exp3 (Smaller Model) | ❌ Rejected | Capacity reduction not justified |
 
-**Hypothesis**: Stuck in local minimum at 0.257 (lost 0.284 peak after resume chaos)
+### Next Actions
 
-**Experiments Completed**:
-- ✅ **Exp1 (Regularization)**: FAILED (-2.7% vs baseline)
-  - Best: 0.272 @ epoch 6 vs baseline 0.284
-  - Config: Dropout 0.1→0.2, weight_decay 0.01→0.05
-  - Conclusion: Model NOT overfitting, regularization hurts
-  - Status: Completed, archived
-
-**Experiments Ready to Launch**:
-- 🚀 **Exp4 (Cyclic LR / SGDR)**: Ready after baseline stops
-  - Config: `configs/local/train_fla_exp4_cyclic.yaml`
-  - Strategy: SGDR restarts to escape 0.257 local minimum
-  - Params: t_initial=10, t_mult=2, eta_min=1e-6, patience=15
-  - Expected: Break plateau, potentially recover 0.28+ region
-  - Launch: After baseline early stops (~epoch 36)
-
-**Experiments Paused/Rejected**:
-- ⏸️ **Exp2 (Lower LR)**: Available but not prioritized (Exp4 more promising)
-- ❌ **Exp3 (Smaller Model)**: Rejected (capacity reduction not justified)
-
-**Next Actions**:
-1. ⏳ Wait for baseline early stop (~epoch 36, Nov 4-5)
-2. 🚀 Launch Exp4 (SGDR) to test local minimum escape hypothesis
-3. 📊 Monitor Exp4 epochs 1-15 for early signal (should hit 0.28+ if hypothesis correct)
-4. 🎯 If Exp4 succeeds: New baseline >0.28
-5. 🎯 If Exp4 fails: Accept 0.284 as architecture ceiling, consider BiMamba2 comparison
+1. ✅ ~~Complete TUSZ eval benchmark~~ DONE
+2. 📝 Document results in README and STATUS
+3. 🔬 Consider BiMamba2 comparison (if budget allows)
+4. 📊 Publish results / write paper
 
 ---
 

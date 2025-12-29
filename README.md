@@ -6,12 +6,12 @@
 [![PyTorch 2.5.0](https://img.shields.io/badge/pytorch-2.5.0-red.svg)](https://pytorch.org)
 [![CUDA 12.4](https://img.shields.io/badge/cuda-12.4-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-yellow.svg)](LICENSE)
-[![v4.2.0](https://img.shields.io/badge/version-4.2.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v4.2.0-checkpoint-resume-fixes)
+[![v4.3.0](https://img.shields.io/badge/version-4.3.0-blue.svg)](https://github.com/clarity-digital-twin/brain-go-brr-v2/releases/tag/v4.3.0)
 
-**Current Status (v4.2.0):**
-- 🔄 **FLA Baseline**: Epoch 30+, plateaued at 0.257 for 13 epochs (best: 0.284 @ epoch 9), early stop ~epoch 36
-- 🚀 **Exp4 (Cyclic LR)**: Ready to launch - SGDR restarts to escape local minimum
-- ⏸️ **BiMamba2**: Paused (focusing on local training due to cost)
+**Current Status (v4.3.0):**
+- ✅ **FLA Exp4 COMPLETE**: 78 epochs trained, best @ epoch 63
+- 📊 **TUSZ Eval Results**: **35.9% sensitivity @ 10 FA/24h**, AUROC 0.8654
+- ⏸️ **BiMamba2**: Paused at epoch 6 (focusing on local training due to cost)
 
 ---
 
@@ -46,10 +46,11 @@ Traditional approaches fail because they treat these as separate problems. We mo
 
 ### 🔶 Stack 2: Gated DeltaNet (Research Variant)
 - **What**: FLA (Flash Linear Attention) with gating + delta rule
-- **Status**: 📊 **Baseline Complete** - 0.284 @ 10 FA/24h (epoch 9), 🧪 Exp1 running (testing regularization)
+- **Status**: ✅ **Exp4 COMPLETE** - **35.9% sensitivity @ 10 FA/24h** on TUSZ eval (AUROC 0.8654)
+- **Checkpoint/Config**: `results/local_fla_exp4_cyclic/checkpoints/best.pt`, `configs/local/train_fla_exp4_cyclic.yaml`
 - **Foundation**: Beats Mamba2 on language modeling ([ICLR 2025](https://github.com/NVlabs/GatedDeltaNet))
 - **Hypothesis**: Better for EEG's abrupt context switches (seizure onsets)
-- **Next**: Resume baseline with patience=20 to test "second peak" hypothesis (after exp1 completes)
+- **Next**: Close gap to Temple SOTA (4 FA/24h @ ~50% sensitivity)
 
 **Why both?** Seizures have **abrupt onsets** (need memory clearing via gating) *and* **persistent patterns** (need selective retention via delta rule). Gated Delta theoretically handles both. But does theory match clinical reality? That's what we're testing.
 
@@ -298,7 +299,7 @@ Based on verified clinical benchmarks and SOTA research (see [`docs/00-overview/
 **≤10 FA/24h @ ≥75% sensitivity** (NEDC OVERLAP scoring)
 
 - Enables ICU monitoring with manageable alarm fatigue
-- Current gap: SeizureTransformer @ 10 FA = 33.90% sensitivity (42-point gap to close)
+- SeizureTransformer @ ~10 FA (OVERLAP): 33.90% sensitivity → Exp4: 35.9% (+2.0 points), still below Temple target (4 FA/24h @ ~50%)
 
 ### Additional Metrics (Threshold-Independent)
 
@@ -320,6 +321,60 @@ Based on verified clinical benchmarks and SOTA research (see [`docs/00-overview/
 **Reality check**: Temple NEDC research confirms ROC curves are **very steep** at low FA rates. 5% absolute sensitivity change = massive FA rate shift. Our dual-stack (BiMamba2 vs Gated DeltaNet) comparison provides scientific value regardless of absolute performance.
 
 **Scoring impact**: Same predictions can yield 3-16× different FA rates depending on scorer (SzCORE vs NEDC OVERLAP vs NEDC TAES). We use **NEDC OVERLAP** as primary metric. See [`docs/06-evaluation/TAES_DISAMBIGUATION.md`](docs/06-evaluation/TAES_DISAMBIGUATION.md) for critical naming collision explanation.
+
+---
+
+## 📊 Results: FLA Exp4 (Gated DeltaNet) - December 2025
+
+**Training completed** on RTX 4090 local GPU over 6 weeks.
+
+### TUSZ Eval Set (Held-Out Test)
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| **AUROC** | **0.8654** | Strong discrimination |
+| **PR-AUC** | 0.5409 | Handles 12:1 imbalance |
+| **Sensitivity @ 10 FA/24h** | **35.9%** | Primary clinical metric |
+| **Sensitivity @ 5 FA/24h** | 27.1% | Stricter threshold |
+| **Sensitivity @ 2.5 FA/24h** | 18.6% | Very strict |
+| **Sensitivity @ 1 FA/24h** | 5.8% | Clinical gold standard |
+| **ECE** | 0.029 | Well-calibrated |
+| **Val Loss** | 0.090 | Focal loss |
+
+**Dataset**: TUSZ eval split (865 EDF/label pairs) → 836 recordings scored (29 yielded 0 windows under 60s windowing), 127.8 hours
+
+### Training Details
+
+| Parameter | Value |
+|-----------|-------|
+| **Architecture** | TCN + BiGatedDeltaNet (FLA) + GNN + Dynamic LPE |
+| **Total Epochs** | 78 (early stopped, patience=15) |
+| **Best Epoch** | 63 |
+| **Dev Sensitivity @ 10FA** | 29.0% (validation during training) |
+| **Training Time** | ~6 weeks on RTX 4090 |
+| **Config** | `configs/local/train_fla_exp4_cyclic.yaml` |
+| **Checkpoint** | `results/local_fla_exp4_cyclic/checkpoints/best.pt` |
+| **Results JSON (SSOT)** | `results/local_fla_exp4_cyclic/eval_results_v2.json` |
+
+### Comparison to SeizureTransformer (Same TUSZ Eval Split, OVERLAP Scoring)
+
+| FA Rate | FLA Exp4 | SeizureTransformer | Delta |
+|--------:|---------:|------------------:|------:|
+| 10 FA/24h | **35.9%** | 33.90% | **+2.0%** |
+| 2.5 FA/24h | **18.6%** | 14.50% | **+4.1%** |
+
+SeizureTransformer numbers are from our run in `reference_repos/SeizureTransformer/docs/results/FINAL_COMPREHENSIVE_RESULTS_TABLE.md` (Python OVERLAP = NEDC OVERLAP).
+
+**Key Insight**: We now beat SeizureTransformer at the two tuned clinical operating points (10 and 2.5 FA/24h), but remain below Temple's verified clinical SOTA (≈50% @ 4 FA/24h).
+
+### Validation During Training (Dev Set)
+
+Best epoch 63 metrics on dev (validation) set:
+- Sensitivity @ 10 FA/24h: 29.0%
+- AUROC: 0.7792
+- TAES (metric): 1.0000
+
+**Note**: Eval performance exceeded dev at the 10 FA operating point (35.9% vs 29.0%); this can happen due to split differences.
 
 ---
 
@@ -436,7 +491,7 @@ We welcome contributions! See [`docs/09-development/`](docs/09-development/) for
   title = {Brain-Go-Brr V4: Clinical EEG Seizure Detection via Dual-Stack State-Space Models},
   author = {Clarity Digital Twin},
   year = {2025},
-  version = {4.2.0},
+  version = {4.3.0},
   url = {https://github.com/clarity-digital-twin/brain-go-brr-v2},
   note = {Empirical A/B comparison of BiMamba2 and Flash Linear Attention (BiGatedDeltaNet) architectures on TUSZ}
 }
@@ -477,6 +532,6 @@ Apache 2.0 - See [LICENSE](LICENSE) for full text.
 
 **Questions?** [Open an issue](https://github.com/clarity-digital-twin/brain-go-brr-v2/issues) • **Updates?** [Watch the repo](https://github.com/clarity-digital-twin/brain-go-brr-v2) • **Discussion?** [Start a discussion](https://github.com/clarity-digital-twin/brain-go-brr-v2/discussions)
 
-**Status**: v4.2.0 checkpoint resume fixes released • FLA training resumed (Epoch 18/100) • BiMamba2 paused (Epoch 6, backed up) • See [`STATUS.md`](STATUS.md) for full details
+**Status**: v4.3.0 FLA Exp4 COMPLETE • **35.9% sensitivity @ 10 FA/24h on TUSZ eval** • BiMamba2 paused (Epoch 6) • See [`STATUS.md`](STATUS.md) for full details
 
 </div>

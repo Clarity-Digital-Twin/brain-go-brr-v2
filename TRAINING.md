@@ -1,10 +1,22 @@
-# Active Training Plan
+# Training Plan (Historical)
 
 **Created**: October 20, 2025
-**Status**: 🟢 ACTIVE - Baseline Running (Plateaued), Exp4 Ready
-**Last Updated**: November 1, 2025
+**Status**: ✅ Exp4 complete (this document is now historical)
+**Last Updated**: 2025-12-20
 
 ---
+
+## ✅ Current Status (Dec 2025)
+
+FLA Exp4 training and held-out TUSZ eval are complete.
+
+- SSOT: `results/local_fla_exp4_cyclic/eval_results_v2.json`
+- TUSZ eval: 35.9% sensitivity @ 10 FA/24h (AUROC 0.8654)
+- Training: 78 epochs (early stopped), best epoch 63
+
+## 📦 Archive (Pre-Exp4 Plan)
+
+Everything below is preserved planning context from 2025-11-01 and is not current.
 
 ## 📊 Current Situation
 

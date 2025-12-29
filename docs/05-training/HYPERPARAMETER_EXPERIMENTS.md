@@ -1,19 +1,25 @@
-# Hyperparameter Experiments Plan
+# Hyperparameter Experiments Plan (Historical)
 
-**Status**: ✅ Baseline complete (0.284 @ 10 FA), 🔄 Exp1 running, ⏳ Resume baseline queued
+**Status**: ⚠️ Historical planning doc (Exp4 complete; see SSOT)
 **Created**: 2025-10-18
-**Last Updated**: 2025-10-20
-**SSOT**: See `TRAINING.md` for execution plan and `STATUS.md` for baseline history
+**Last Updated**: 2025-12-20
+**SSOT**: `results/local_fla_exp4_cyclic/eval_results_v2.json` (held-out TUSZ eval)
 
 ---
 
-## 🎯 Current Baseline Configuration
+## Current Best (Held-Out TUSZ Eval)
 
-### Baseline Run: `configs/local/train_fla.yaml` ✅ COMPLETE
+- ✅ FLA Exp4 (Gated DeltaNet): **35.9% sensitivity @ 10 FA/24h** (AUROC 0.8654)
+- SSOT: `results/local_fla_exp4_cyclic/eval_results_v2.json`
+- For updated comparison/targets: `docs/06-evaluation/REALISTIC_PERFORMANCE_TARGETS.md`
+
+## 🎯 Baseline Snapshot (Oct 2025)
+
+### Baseline Run: `configs/local/train_fla.yaml` (historical snapshot)
 
 **Final Performance**:
 - **Best checkpoint**: epoch 9 (`best.pt`) with `sensitivity_at_10fa = 0.284` (28.4% @ 10 FA/24h) ← **TARGET TO BEAT**
-- **Stopping point**: Epoch 13 (benign crash, not resumed)
+- **Stopping point**: This baseline was later resumed; see `BASELINE_METRICS.md` for the historical timeline snapshot
 - **Validation loss**: 0.027 (epoch 3) → 0.053 (epoch 13) ⚠️ Rising
 - **Sensitivity**: 0.194 (epoch 0) → 0.284 (epoch 9) → 0.248 (epoch 11) ❌ Declining
 - **Early stopping**: patience=5 (would have triggered at epoch 14 anyway)

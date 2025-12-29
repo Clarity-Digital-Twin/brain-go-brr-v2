@@ -102,13 +102,13 @@ All experiments maintain FLA stack settings above but vary regularization/capaci
 - `training.early_stopping.patience: 15` (faster verdict with restarts)
 - `output_dir: results/local_fla_exp4_cyclic` ✅ ISOLATED
 - Usage: `.venv/bin/python -m src train configs/local/train_fla_exp4_cyclic.yaml`
-- **Status**: Ready to launch when baseline early-stops (~epoch 36)
+- **Status**: ✅ COMPLETE — SSOT: `results/local_fla_exp4_cyclic/eval_results_v2.json`
 
-**Current Status (Nov 2025):**
-- Baseline (`train_fla.yaml`): Running, plateaued at 0.257 (best 0.284 @ epoch 9)
+**Current Status (Dec 2025):**
+- Exp4: ✅ COMPLETE — TUSZ eval 35.9% sensitivity @ 10 FA/24h (AUROC 0.8654)
+- Baseline (`train_fla.yaml`): Historical baseline run notes (superseded by Exp4)
 - Exp1: Completed (negative result, confirmed model not overfitting)
-- Exp4: Validated and scheduled immediately after baseline completes
-- Exp2: Optional follow-up if Exp4 fails to improve plateau
+- Exp2: Optional follow-up (not executed)
 - Exp3: Archived (no longer under consideration)
 
 ## WSL2 / RTX 4090 Notes
