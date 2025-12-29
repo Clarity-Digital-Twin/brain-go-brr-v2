@@ -187,8 +187,8 @@ def _run_gpu_model(x: np.ndarray, fs: int, paths: SzcorePaths) -> list[SeizureEv
     incompatible = model.load_state_dict(state_dict, strict=False)
 
     # Enforce "no silent mismatch" while allowing known dynamic buffers to be recomputed.
-    allowed_missing = {"gnn.last_valid_pe"}
-    missing_filtered = [k for k in incompatible.missing_keys if k not in allowed_missing]
+    # Use consistent .endswith() pattern for all .last_valid_pe buffers.
+    missing_filtered = [k for k in incompatible.missing_keys if not k.endswith(".last_valid_pe")]
     unexpected_filtered = [
         k for k in incompatible.unexpected_keys if not k.endswith(".last_valid_pe")
     ]
@@ -196,7 +196,7 @@ def _run_gpu_model(x: np.ndarray, fs: int, paths: SzcorePaths) -> list[SeizureEv
     if missing_filtered or unexpected_filtered:
         raise RuntimeError(
             "[SzCORE] Checkpoint does not match the inference model.\n"
-            f"Missing (unexpected): {missing_filtered}\n"
+            f"Missing: {missing_filtered}\n"
             f"Unexpected: {unexpected_filtered}\n"
             "This likely indicates a dependency or config/architecture mismatch."
         )
